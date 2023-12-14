@@ -1,4 +1,4 @@
-# DIAL-XL
+# DAIL-XL
 
 ## Documentation
 
