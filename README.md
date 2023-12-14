@@ -1,4 +1,4 @@
-# QuantGrid
+# DIAL-XL
 
 ## Documentation
 
