@@ -1,0 +1,5 @@
+web:
+  storage:
+    local:
+      projectsFolder: build/test-projects
+      inputsFolder: build/resources/test/test-inputs

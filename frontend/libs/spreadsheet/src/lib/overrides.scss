@@ -1,0 +1,33 @@
+.grid-root {
+  height: 100%;
+  position: relative;
+}
+
+.grid-header {
+  z-index: 104;
+}
+
+.grid-cell {
+  border-bottom: 0.3px solid rgb(211, 211, 211, 0.5);
+  border-left: 0.3px solid rgb(211, 211, 211, 0.5);
+}
+
+.grid-header-group:not(:last-child) {
+  border-right-width: 0;
+}
+
+.grid-header-group > .grid-header-group__content > .grid-header-group {
+  border-bottom-width: 0;
+}
+
+.grid-header-group + .grid-header-group {
+  border-left-width: 0;
+}
+
+.grid-header-group + .grid-header-group > .grid-header-group__header {
+  visibility: hidden;
+}
+
+.ant-dropdown .ant-dropdown-menu:focus-visible {
+  outline: 2px solid rgb(219, 234, 254);
+}

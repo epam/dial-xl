@@ -1,0 +1,49 @@
+.grid-selection-container {
+  height: 100%;
+  pointer-events: none;
+  position: absolute;
+  width: 100%;
+}
+
+.grid-selection {
+  position: relative;
+  background: #d3eafd;
+  opacity: 0.7;
+  z-index: 300;
+  border: 1px solid #1b73e8;
+  border-radius: 1px;
+  display: block;
+}
+
+.grid-selection__move {
+  background: rgb(254, 232, 233);
+  border: 1px solid rgb(198, 32, 32);
+  z-index: 303;
+}
+
+.grid-selection-move-tooltip {
+  position: absolute;
+  top: 5px;
+  text-align: center;
+  left: 5px;
+  right: 10px;
+  border-radius: 6px;
+  display: none;
+  color: #fff;
+  background: rgba(0, 0, 0, 1);
+  padding: 5px;
+
+  svg {
+    height: 100%;
+    width: 100%;
+  }
+}
+
+.grid-root {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  -khtml-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}

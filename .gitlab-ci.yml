@@ -1,0 +1,297 @@
+include:
+  - project: Gitlab/ci
+    ref: 0.2.16
+    file: helm/helm-environment.gitlab-ci.yml
+
+stages:
+  - prepare # semver tag on stable branch
+  - build # Application build
+  - publish # publush docker images
+  - deploy # deploy application to k8s
+  - e2e-test
+  - promote # copy docker image to public repo
+  - staging    # Stage name used in include. Not used. ToDo - delete this
+  - production # Stage name used in include. Not used. ToDo - delete this
+
+variables:
+  ARTIFACTORY_DOCKER_PATH_FRONTEND: "deltix.docker/quantgrid/frontend"
+  ARTIFACTORY_DOCKER_PATH_BACKEND: "deltix.docker/quantgrid/backend"
+
+  DOCKER_REGISTRY_SERVER: "registry-dev.deltixhub.com"
+  HELM_REPO: https://nexus.deltixhub.com/repository/epm-rtc-helm
+  SECRET_NAME: "epm-rtc-registry-dev"
+  CHART: "quantgrid" # Helm chart name, e.g. "gitlab-runner"
+  VERSION: "0.1.4" # Helm chart version
+
+  development_AWS_ACCESS_KEY_ID: ${staging_AWS_ACCESS_KEY_ID}
+  development_AWS_SECRET_ACCESS_KEY: ${staging_AWS_SECRET_ACCESS_KEY}
+  development_ENV_ID: "staging"
+  development_HELM_VALUES_FILE: "infrastructure/k8s/main-values.yaml"
+  development_ENV_URL: "https://quantgrid-dev.staging.deltixhub.io"
+  development_NAMESPACE: quantgrid-dev
+  development_HELM_CUSTOM_VALUES: "frontend.image.tag=main,backend.image.tag=main"
+
+  staging_DEPLOY_ENV: "false" # now we need only dev, review and sales (deployed separately) environments
+
+  review_DEPLOY_ENV: "true"
+  review_ENV_ID: "staging"
+  review_HELM_VALUES_FILE: "infrastructure/k8s/review-values.yaml"
+  review_ENV_URL: "https://${CI_PROJECT_NAME}-${CI_COMMIT_REF_SLUG}.staging.deltixhub.io"
+  review_NAMESPACE: quantgrid-review
+  review_HELM_CUSTOM_VALUES: "ingress.hosts[0]=${CI_PROJECT_NAME}-${CI_COMMIT_REF_SLUG}.staging.deltixhub.io,fullnameOverride=${CI_COMMIT_REF_SLUG},frontend.image.tag=${CI_COMMIT_REF_SLUG},backend.image.tag=${CI_COMMIT_REF_SLUG}"
+  review_RELEASE: ${CHART}-${CI_COMMIT_REF_SLUG}
+  review_SECRET_NAME: "epm-rtc-registry-test"
+  review_DOCKER_REGISTRY_SERVER: "registry-test.deltixhub.com"
+
+### Increment patch version of previous tag. Run on commit to stable branch
+"Tag branch":
+  image: alpine/git:v2.32.0
+  stage: prepare
+  script:
+    - ver=$(git describe --abbrev=0 --tags | cut -f-2 -d '.') || ver=0.0
+    - minor_tag=$(git describe --abbrev=0 --tags | cut -f 3 -d '.') || minor_tag=0
+    - release_tag=${ver}.$(( minor_tag+1 ))
+    - git remote set-url origin https://$GITLAB_ROBOT_NAME:$GITLAB_ROBOT_PUSH_TOKEN@$CI_SERVER_HOST/$CI_PROJECT_PATH.git
+    - git config user.name $GITLAB_ROBOT_NAME
+    - git config user.email ${GITLAB_ROBOT_EMAIL}
+    - git diff --quiet && git diff --staged --quiet || git commit -am "RobotBuild ${release_tag}"
+    - git tag ${release_tag}
+    - git push origin HEAD:${CI_COMMIT_REF_NAME} --tags
+  dependencies: []
+  rules:
+    - if: $CI_COMMIT_BRANCH == "stable" && $CI_COMMIT_MESSAGE !~ /^RobotBuild/
+  tags:
+    - kubernetes
+
+### Build backend application (jar). Run on commit to all tags or branches except stable
+build_backend:
+  stage: build
+  image: eclipse-temurin:17-alpine
+  variables:
+    GRADLE_CACHE_KEY: "1" # increase when bumping gradle/major dependency versions
+  # Overwrite Gradle cache directory.
+  before_script:
+    - export GRADLE_USER_HOME=`pwd`/.gradle
+  script:
+    # Note: with "--continue" option Gradle will execute tests for all projects
+    - ./gradlew build
+  artifacts:
+    when: always
+    paths:
+      - backend/web/build/libs/
+      - backend/web/build/reports/
+      - backend/engine/build/reports/
+    reports:
+      junit:
+        - backend/web/build/test-results/test/**/TEST-*.xml
+        - backend/engine/build/test-results/test/**/TEST-*.xml
+  cache:
+    key: "$GRADLE_CACHE_KEY"
+    paths:
+      - .gradle/wrapper
+      - .gradle/caches
+    policy: pull-push
+  tags:
+    - Linux
+    - DockerExecutor
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_TAG
+    - if: $CI_COMMIT_BRANCH  == "main"
+
+### Build frontend application. Run on commit to all tags or branches except stable
+build_frontend:
+  stage: build
+  image: timbru31/java-node:jdk-18-hydrogen
+  script:
+    - cd frontend
+    - yarn install
+    - yarn lint:check; yarn format:check;
+    - yarn test:ci
+    - yarn build:ci
+  artifacts:
+    paths:
+      - frontend/dist/apps/quantgrid
+    expire_in: 10 days
+  tags:
+    - Linux
+    - DockerExecutor
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_TAG
+    - if: $CI_COMMIT_BRANCH  == "main"
+
+### CI template for build docker images
+.publish_template:
+  image: dockerhub.deltixhub.com/docker:23.0.6
+  stage: publish
+  variables:
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_TLS_CERTDIR: ""
+  services:
+    - docker:23.0.6-dind
+  before_script:
+    - mkdir -p $HOME/.docker
+    # Use DOCKER_AUTH_CONFIG for login to deltix repo
+    - echo $DOCKER_AUTH_CONFIG > $HOME/.docker/config.json
+  script:
+    - docker build -t ${REPOSITORY}/${ARTIFACTORY_DOCKER_PATH}:${DOCKER_TAG} -f ${DOCKERFILE_PATH} .
+    - docker push ${REPOSITORY}/${ARTIFACTORY_DOCKER_PATH}:${DOCKER_TAG}
+  cache: {}
+  tags:
+    - Linux
+    - DockerExecutor
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      variables:
+        DOCKER_TAG: ${CI_COMMIT_REF_SLUG}
+        REPOSITORY: ${ARTIFACTORY_DOCKER_TEST_REPOSITORY}
+    - if: $CI_COMMIT_TAG
+      variables:
+        DOCKER_TAG: ${CI_COMMIT_TAG}
+        REPOSITORY: ${ARTIFACTORY_DOCKER_DEV_REPOSITORY}
+    - if: $CI_COMMIT_BRANCH  == "main"
+      variables:
+        DOCKER_TAG: ${CI_COMMIT_REF_SLUG}
+        REPOSITORY: ${ARTIFACTORY_DOCKER_DEV_REPOSITORY}
+
+### Build backend docker and push to artifactory.
+publish_backend:
+  extends: .publish_template
+  variables:
+    ARTIFACTORY_DOCKER_PATH: ${ARTIFACTORY_DOCKER_PATH_BACKEND}
+    DOCKERFILE_PATH: "infrastructure/backend/Dockerfile"
+  needs:
+    - build_backend
+
+### Build frontend docker and push to artifactory. Extend ".publish_template" job
+publish_frontend:
+  extends: .publish_template
+  variables:
+    ARTIFACTORY_DOCKER_PATH: ${ARTIFACTORY_DOCKER_PATH_FRONTEND}
+    DOCKERFILE_PATH: "infrastructure/frontend/Dockerfile"
+  needs:
+    - build_frontend
+
+### Deploy helm chart with docker tagged as "main" to k8s and namespace from development_NAMESPACE variable.
+### Source code https://gitlab.deltixhub.com/GitLab/ci/-/blob/0.2.14/helm/helm-environment.gitlab-ci.yml
+deploy_development:
+  image: "registry.deltixhub.com/deltix.docker/devops/kubernetes-tools:0.17.1"
+  stage: deploy
+  needs:
+    - publish_frontend
+    - publish_backend
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+
+### Destroy helm chart from k8s and namespace from development_NAMESPACE variable
+### Source code https://gitlab.deltixhub.com/GitLab/ci/-/blob/0.2.14/helm/helm-environment.gitlab-ci.yml
+destroy_development:
+  image: "registry.deltixhub.com/deltix.docker/devops/kubernetes-tools:0.17.1"
+  stage: deploy
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+      when: manual
+      allow_failure: true
+
+deploy_review:
+  image: "registry.deltixhub.com/deltix.docker/devops/kubernetes-tools:0.17.1"
+  stage: deploy
+  needs:
+    - publish_frontend
+    - publish_backend
+
+destroy_review:
+  image: "registry.deltixhub.com/deltix.docker/devops/kubernetes-tools:0.17.1"
+  stage: deploy
+
+### CI template for scan docker images via trivy tool
+.scan_template:
+  image: "$CS_ANALYZER_IMAGE$CS_IMAGE_SUFFIX"
+  stage: e2e-test
+  variables:
+    GIT_STRATEGY: none
+    CS_ANALYZER_IMAGE: "$CI_TEMPLATE_REGISTRY_HOST/security-products/container-scanning:5"
+    CS_SCHEMA_MODEL: 15
+    CS_REGISTRY_USER: $ARTIFACTORY_USER
+    CS_REGISTRY_PASSWORD: $ARTIFACTORY_PASS
+  allow_failure: true
+  artifacts:
+    reports:
+      container_scanning: gl-container-scanning-report.json
+      dependency_scanning: gl-dependency-scanning-report.json
+    paths:
+      [gl-container-scanning-report.json, gl-dependency-scanning-report.json]
+  dependencies: []
+  script:
+    - gtcs scan
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      variables:
+        DOCKER_TAG: ${CI_COMMIT_REF_SLUG}
+        REPOSITORY: ${ARTIFACTORY_DOCKER_TEST_REPOSITORY}
+    - if: $CI_COMMIT_TAG
+      variables:
+        DOCKER_TAG: ${CI_COMMIT_TAG}
+        REPOSITORY: ${ARTIFACTORY_DOCKER_DEV_REPOSITORY}
+  tags:
+    - AWS
+    - DockerExecutor
+
+### Scan frontend docker images. Run on git tag
+container_scanning_frontend:
+  extends: .scan_template
+  variables:
+    CS_IMAGE: $REPOSITORY/${ARTIFACTORY_DOCKER_PATH_FRONTEND}:$DOCKER_TAG
+
+### Scan backend docker images. Run on git tag
+container_scanning_backend:
+  extends: .scan_template
+  variables:
+    CS_IMAGE: $REPOSITORY/${ARTIFACTORY_DOCKER_PATH_BACKEND}:$DOCKER_TAG
+
+### Copy frontend and backend docker images to public repository. Run on git tag manually
+promote:
+  image: dockerhub.deltixhub.com/curlimages/curl:7.88.1
+  stage: promote
+  variables:
+    GIT_STRATEGY: none
+  script:
+    - 'curl --retry 6 --retry-all-errors --no-progress-meter --fail -X POST "${ARTIFACTORY_URL}/api/docker/epm-rtc-docker/v2/promote" -H "Content-Type: application/json" -u${ARTIFACTORY_USER}:${ARTIFACTORY_PASS} -d ''{ "targetRepo": "epm-rtc-public-docker", "dockerRepository": "''"${ARTIFACTORY_DOCKER_PATH_FRONTEND}"''", "tag" : "''"$CI_COMMIT_TAG"''", "copy": true }'''
+    - 'curl --retry 6 --retry-all-errors --no-progress-meter --fail -X POST "${ARTIFACTORY_URL}/api/docker/epm-rtc-docker/v2/promote" -H "Content-Type: application/json" -u${ARTIFACTORY_USER}:${ARTIFACTORY_PASS} -d ''{ "targetRepo": "epm-rtc-public-docker", "dockerRepository": "''"${ARTIFACTORY_DOCKER_PATH_BACKEND}"''", "tag" : "''"$CI_COMMIT_TAG"''", "copy": true }'''
+  dependencies: []
+  rules:
+    - if: $CI_COMMIT_TAG
+      when: manual
+  tags:
+    - AWS
+    - DockerExecutor
+
+run_fronted_e2e_tests:
+  image: registry.deltixhub.com/thirdparty.docker/playwright-java-allure:0.0.2
+  stage: e2e-test
+  before_script:
+    - wget -q --tries=60 --wait=5 --retry-on-host-error --spider ${BASE_URL}
+  script:
+    - cd frontend
+    - yarn add --dev @playwright/test
+    - yarn add @playwright/test allure-playwright --dev
+    - npx nx e2e quantgrid
+  after_script:
+    - /allure/allure-2.23.1/bin/allure generate ./frontend/allure-results -o ./frontend/allure-report --clean
+  artifacts:
+    name: "${CI_JOB_ID}_${CI_JOB_NAME}"
+    when: always
+    expire_in: 30 day
+    paths:
+      - frontend/allure-report
+  tags:
+    - AWS
+    - DockerExecutor
+  rules:  
+    - if: $CI_COMMIT_BRANCH == "main"
+      variables:
+        BASE_URL: ${development_ENV_URL}
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      variables:
+        BASE_URL: ${review_ENV_URL}

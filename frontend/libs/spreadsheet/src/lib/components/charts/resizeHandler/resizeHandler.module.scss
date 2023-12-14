@@ -1,0 +1,20 @@
+.handle {
+  background: #39a7ff;
+  border: 2px solid #fff;
+  border-radius: 3px;
+  box-sizing: border-box;
+  cursor: nwse-resize;
+  height: 12px;
+  pointer-events: all;
+  position: absolute;
+  width: 12px;
+}
+
+.resizeBorder {
+  border: 2px solid #87c4ff;
+  position: absolute;
+}
+
+.disableSelection {
+  user-select: none;
+}

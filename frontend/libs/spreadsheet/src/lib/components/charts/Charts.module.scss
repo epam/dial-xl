@@ -1,0 +1,20 @@
+.chartsViewport {
+  background: transparent;
+  display: block;
+  left: 0;
+  overflow: hidden;
+  pointer-events: none;
+  position: fixed;
+  top: 0;
+  z-index: 103;
+}
+
+.chartsContainer {
+  position: relative;
+}
+
+.chartWrapper {
+  border: 0.3px solid rgba(211, 211, 211, 0.5);
+  background-color: white;
+  position: absolute;
+}

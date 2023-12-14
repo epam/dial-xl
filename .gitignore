@@ -1,0 +1,6 @@
+.gradle/
+.idea/
+build/
+backend/web/src/main/resources/application-local.yaml
+
+.DS_Store

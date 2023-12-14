@@ -1,0 +1,56 @@
+var projects = subprojects.findAll { subproject ->
+    subproject.subprojects.empty
+}
+
+configure(projects) {
+    apply plugin: 'java-library'
+
+    group 'com.epam.deltix'
+    version '1.0.0'
+
+    java {
+        toolchain {
+            languageVersion = JavaLanguageVersion.of(17)
+        }
+    }
+
+    repositories {
+        mavenCentral()
+    }
+
+    configurations {
+        // For declaring dependencies provided at runtime
+        providedDependency
+        compileClasspath.extendsFrom providedDependency
+        runtimeClasspath.extendsFrom providedDependency
+        testImplementation.extendsFrom providedDependency
+    }
+
+    dependencies {
+        testImplementation 'org.assertj:assertj-core:3.24.2'
+        testImplementation 'org.junit.jupiter:junit-jupiter-api:5.9.3'
+        testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.9.3'
+    }
+
+    def openModules = [
+            '--add-opens', 'java.base/java.lang=ALL-UNNAMED',
+            '--add-opens', 'java.base/java.lang.invoke=ALL-UNNAMED',
+            '--add-opens', 'java.base/java.lang.reflect=ALL-UNNAMED',
+            '--add-opens', 'java.base/java.io=ALL-UNNAMED',
+            '--add-opens', 'java.base/java.net=ALL-UNNAMED',
+            '--add-opens', 'java.base/java.nio=ALL-UNNAMED',
+            '--add-opens', 'java.base/java.util=ALL-UNNAMED',
+            '--add-opens', 'java.base/java.util.concurrent=ALL-UNNAMED',
+            '--add-opens', 'java.base/java.util.concurrent.atomic=ALL-UNNAMED',
+            '--add-opens', 'java.base/sun.nio.ch=ALL-UNNAMED',
+            '--add-opens', 'java.base/sun.nio.cs=ALL-UNNAMED',
+            '--add-opens', 'java.base/sun.security.action=ALL-UNNAMED',
+            '--add-opens', 'java.base/sun.util.calendar=ALL-UNNAMED',
+            '--add-opens', 'java.security.jgss/sun.security.krb5=ALL-UNNAMED'
+    ]
+
+    test {
+        useJUnitPlatform()
+        jvmArgs openModules
+    }
+}

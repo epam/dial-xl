@@ -1,0 +1,3 @@
+node_modules
+libs/parser/src/lib/grammar/*
+!libs/parser/src/lib/grammar/Sheet.g4

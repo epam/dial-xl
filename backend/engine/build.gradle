@@ -1,0 +1,33 @@
+plugins {
+    id "io.freefair.lombok" version "8.0.1"
+    id "scala"
+}
+
+dependencies {
+    implementation files('libs/tslib-4.6.405-shaded.jar')
+    implementation project(':backend:parser')
+    implementation project(':backend:common')
+
+    implementation 'it.unimi.dsi:fastutil-core:8.5.12'
+
+    providedDependency 'org.apache.spark:spark-core_2.13:3.3.2'
+    providedDependency 'org.apache.spark:spark-sql_2.13:3.3.2'
+    implementation 'org.slf4j:slf4j-api:1.7.32'
+    implementation 'org.apache.logging.log4j:log4j-api:2.17.2'
+    implementation 'org.apache.logging.log4j:log4j-core:2.17.2'
+    implementation 'org.apache.logging.log4j:log4j-slf4j-impl:2.17.2'
+    implementation 'com.univocity:univocity-parsers:2.9.1'
+    implementation 'org.apache.commons:commons-lang3:3.12.0'
+    implementation 'commons-codec:commons-codec:1.16.0'
+}
+
+tasks.named('compileScala') {
+    // Scala only needs the declared dependencies
+    // (and not longer the output of compileJava)
+    classpath = sourceSets.main.compileClasspath
+}
+tasks.named('compileJava') {
+    // Java also depends on the result of Scala compilation
+    // (which automatically makes it depend of compileGroovy)
+    classpath += files(sourceSets.main.scala.classesDirectory)
+}

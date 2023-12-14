@@ -1,0 +1,151 @@
+<?xml version="1.0" standalone="no"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1122pt" height="310pt"
+     viewBox="0.00 0.00 1121.85 310.40">
+    <g id="graph0" class="graph" transform="translate(4,306.3999938964844) scale(1)" data-name="G">
+
+        <polygon fill="white" stroke="none" points="-4,4 -4,-306.4 1117.85,-306.4 1117.85,4 -4,4" style=""/>
+        <!-- 0 -->
+        <g id="node1" class="node" pointer-events="visible" data-name="0">
+
+            <polygon fill="#75fa70" stroke="black"
+                     points="911.41,-302.4 0.2,-302.4 0.2,-266.4 911.41,-266.4 911.41,-302.4" style=""/>
+            <text text-anchor="middle" x="455.8" y="-280.2" font-family="Times,serif" font-size="14.00" style="">
+                Input(CPI.csv,[DATA_DOMAIN.id, REF_AREA.id, INDICATOR.id, COUNTERPART_AREA.id, FREQ.id, TIME_PERIOD,
+                OBS_VALUE, COMMENT])
+            </text>
+        </g>
+        <!-- 1 -->
+        <g id="node3" class="node" pointer-events="visible" data-name="1">
+
+            <ellipse fill="#75fa70" stroke="black" cx="357.8" cy="-195.6" rx="77.03" ry="18" style=""/>
+            <text text-anchor="middle" x="357.8" y="-191.4" font-family="Times,serif" font-size="14.00" style="">
+                RowNumber()#1
+            </text>
+        </g>
+        <!-- 0&#45;&gt;1 -->
+        <g id="edge1" class="edge" data-name="0-&gt;1">
+
+            <path fill="none" stroke="black" d="M436.44,-266.25C421.85,-253.33 401.64,-235.43 385.37,-221.02" style=""/>
+            <polygon fill="black" stroke="black" points="387.73,-218.43 377.92,-214.42 383.09,-223.67 387.73,-218.43"
+                     style=""/>
+            <text text-anchor="middle" x="419.3" y="-235.8" font-family="Times,serif" font-size="14.00" style="">0
+            </text>
+        </g>
+        <!-- 3 -->
+        <g id="node4" class="node" pointer-events="visible" data-name="3">
+
+            <ellipse fill="#75fa70" stroke="black" cx="498.8" cy="-195.6" rx="45.79" ry="18" style=""/>
+            <text text-anchor="middle" x="498.8" y="-191.4" font-family="Times,serif" font-size="14.00" style="">
+                Get(4)#3
+            </text>
+        </g>
+        <!-- 0&#45;&gt;3 -->
+        <g id="edge2" class="edge" data-name="0-&gt;3">
+
+            <path fill="none" stroke="black" d="M464.3,-266.25C470.3,-254.12 478.48,-237.62 485.37,-223.72" style=""/>
+            <polygon fill="black" stroke="black" points="488.35,-225.58 489.65,-215.07 482.08,-222.48 488.35,-225.58"
+                     style=""/>
+            <text text-anchor="middle" x="485.3" y="-235.8" font-family="Times,serif" font-size="14.00" style="">0
+            </text>
+        </g>
+        <!-- 5 -->
+        <g id="node5" class="node" pointer-events="visible" data-name="5">
+
+            <ellipse fill="#75fa70" stroke="black" cx="619.8" cy="-195.6" rx="56.75" ry="18" style=""/>
+            <text text-anchor="middle" x="619.8" y="-191.4" font-family="Times,serif" font-size="14.00" style="">
+                Expand()#5
+            </text>
+        </g>
+        <!-- 0&#45;&gt;5 -->
+        <g id="edge3" class="edge" data-name="0-&gt;5">
+
+            <path fill="none" stroke="black" d="M488.6,-266.04C515.4,-251.86 553.34,-231.77 581.53,-216.85" style=""/>
+            <polygon fill="black" stroke="black" points="582.9,-220.09 590.1,-212.32 579.63,-213.9 582.9,-220.09"
+                     style=""/>
+            <text text-anchor="middle" x="556.3" y="-235.8" font-family="Times,serif" font-size="14.00" style="">0
+            </text>
+        </g>
+        <!-- 4 -->
+        <g id="node2" class="node" pointer-events="visible" data-name="4">
+
+            <ellipse fill="#75fa70" stroke="black" cx="1021.8" cy="-284.4" rx="92.09" ry="18" style=""/>
+            <text text-anchor="middle" x="1021.8" y="-280.2" font-family="Times,serif" font-size="14.00" style="">
+                StringConstant(A)#4
+            </text>
+        </g>
+        <!-- 4&#45;&gt;5 -->
+        <g id="edge4" class="edge" data-name="4-&gt;5">
+
+            <path fill="none" stroke="black" d="M961.62,-270.41C884.64,-253.78 752.28,-225.2 676.84,-208.92" style=""/>
+            <polygon fill="black" stroke="black" points="677.68,-205.52 667.17,-206.83 676.2,-212.36 677.68,-205.52"
+                     style=""/>
+            <text text-anchor="middle" x="861.3" y="-235.8" font-family="Times,serif" font-size="14.00" style="">1
+            </text>
+        </g>
+        <!-- 2 -->
+        <g id="node6" class="node" pointer-events="visible" data-name="2">
+
+            <polygon fill="#75fa70" stroke="black"
+                     points="410.7,-124.8 304.9,-124.8 304.9,-88.8 410.7,-88.8 410.7,-124.8" style=""/>
+            <text text-anchor="middle" x="357.8" y="-102.6" font-family="Times,serif" font-size="14.00" style="">
+                SelectLocal()#2
+            </text>
+        </g>
+        <!-- 1&#45;&gt;2 -->
+        <g id="edge5" class="edge" data-name="1-&gt;2">
+
+            <path fill="none" stroke="black" d="M357.8,-177.45C357.8,-165.76 357.8,-149.99 357.8,-136.42" style=""/>
+            <polygon fill="black" stroke="black" points="361.3,-136.72 357.8,-126.72 354.3,-136.72 361.3,-136.72"
+                     style=""/>
+            <text text-anchor="middle" x="361.3" y="-147" font-family="Times,serif" font-size="14.00" style="">0</text>
+        </g>
+        <!-- 6 -->
+        <g id="node7" class="node" pointer-events="visible" data-name="6">
+
+            <ellipse fill="#75fa70" stroke="black" cx="552.8" cy="-106.8" rx="124.42" ry="18" style=""/>
+            <text text-anchor="middle" x="552.8" y="-102.6" font-family="Times,serif" font-size="14.00" style="">
+                StringBinaryOperator(EQ)#6
+            </text>
+        </g>
+        <!-- 3&#45;&gt;6 -->
+        <g id="edge6" class="edge" data-name="3-&gt;6">
+
+            <path fill="none" stroke="black" d="M509.21,-177.86C516.81,-165.65 527.27,-148.85 536.03,-134.76" style=""/>
+            <polygon fill="black" stroke="black" points="538.94,-136.7 541.25,-126.36 533,-133.01 538.94,-136.7"
+                     style=""/>
+            <text text-anchor="middle" x="534.3" y="-147" font-family="Times,serif" font-size="14.00" style="">0</text>
+        </g>
+        <!-- 5&#45;&gt;6 -->
+        <g id="edge7" class="edge" data-name="5-&gt;6">
+
+            <path fill="none" stroke="black" d="M606.88,-177.86C597.28,-165.42 583.98,-148.19 572.98,-133.94" style=""/>
+            <polygon fill="black" stroke="black" points="575.94,-132.05 567.06,-126.28 570.4,-136.33 575.94,-132.05"
+                     style=""/>
+            <text text-anchor="middle" x="596.3" y="-147" font-family="Times,serif" font-size="14.00" style="">1</text>
+        </g>
+        <!-- 7 -->
+        <g id="node8" class="node" pointer-events="visible" data-name="7">
+
+            <polygon fill="#75fa70" stroke="black" points="505.33,-36 404.28,-36 404.28,0 505.33,0 505.33,-36"
+                     style=""/>
+            <text text-anchor="middle" x="454.8" y="-13.8" font-family="Times,serif" font-size="14.00" style="">
+                FilterLocal()#7
+            </text>
+        </g>
+        <!-- 2&#45;&gt;7 -->
+        <g id="edge8" class="edge" data-name="2-&gt;7">
+
+            <path fill="none" stroke="black" d="M376.97,-88.65C391.22,-75.89 410.89,-58.29 426.89,-43.97" style=""/>
+            <polygon fill="black" stroke="black" points="429.1,-46.7 434.22,-37.42 424.43,-41.48 429.1,-46.7" style=""/>
+            <text text-anchor="middle" x="419.3" y="-58.2" font-family="Times,serif" font-size="14.00" style="">0</text>
+        </g>
+        <!-- 6&#45;&gt;7 -->
+        <g id="edge9" class="edge" data-name="6-&gt;7">
+
+            <path fill="none" stroke="black" d="M533.44,-88.65C519.04,-75.89 499.16,-58.29 483,-43.97" style=""/>
+            <polygon fill="black" stroke="black" points="485.4,-41.42 475.59,-37.41 480.76,-46.66 485.4,-41.42"
+                     style=""/>
+            <text text-anchor="middle" x="516.3" y="-58.2" font-family="Times,serif" font-size="14.00" style="">1</text>
+        </g>
+    </g>
+</svg>

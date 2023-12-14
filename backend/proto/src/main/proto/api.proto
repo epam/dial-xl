@@ -1,0 +1,302 @@
+syntax = "proto3";
+option java_package = "org.epam.deltix.proto";
+
+message Request {
+    // correlation id, optional only for ping requests
+    optional string id = 1;
+    oneof request {
+        // project level
+        ProjectListRequest project_list_request = 2; // -> ProjectList
+        CreateProjectRequest create_project_request = 3; // -> ProjectState
+        DeleteProjectRequest delete_project_request = 4; // -> ProjectState
+        OpenProjectRequest open_project_request = 5; // -> ProjectState
+        RenameProjectRequest rename_project_request = 6; // -> RenameProjectResponse
+        CloseProjectRequest close_project_request = 7; // -> ProjectState
+        // worksheet level
+        PutWorksheetRequest put_worksheet_request = 8; // -> WorksheetState
+        OpenWorksheetRequest open_worksheet_request = 9; // -> WorksheetState
+        RenameWorksheetRequest rename_worksheet_request = 10; // -> RenameWorksheetResponse
+        DeleteWorksheetRequest delete_worksheet_request = 11; // -> WorksheetState
+        CloseWorksheetRequest close_worksheet_request = 12; // -> WorksheetState
+        // viewport
+        ViewportRequest viewport_request = 13; // -> ViewportState
+        // inputs
+        InputListRequest input_list_request = 14; // InputList
+        //
+        Ping ping = 15; // Pong
+        InputMetadataRequest input_metadata_request = 16; // InputMetadataResponse
+        DimensionalSchemaRequest dimensional_schema_request = 17; // DimensionalSchemaResponse
+        FunctionRequest function_request = 18;
+    }
+}
+
+message InputListRequest {
+}
+
+message ProjectListRequest {
+}
+
+message CreateProjectRequest {
+    string project_name = 1;
+}
+
+message DeleteProjectRequest {
+    string project_name = 1;
+    sint64 version = 2;
+}
+
+message RenameProjectRequest {
+    string project_name = 1;
+    sint64 version = 2;
+    string new_project_name = 3;
+}
+
+// updates previous subscription state if any
+message OpenProjectRequest {
+    string project_name = 1;
+}
+
+// updates previous subscription state if any
+message OpenWorksheetRequest {
+    string project_name = 1;
+    string sheet_name = 2;
+}
+
+message DeleteWorksheetRequest {
+    string project_name = 1;
+    string sheet_name = 2;
+    // current project version; used for handling concurrent requests (CAS)
+    sint64 version = 3;
+}
+
+message RenameWorksheetRequest {
+    string project_name = 1;
+    // current project version; used for handling concurrent requests (CAS)
+    sint64 version = 2;
+    string old_sheet_name = 3;
+    string new_sheet_name = 4;
+}
+
+message CloseWorksheetRequest {
+    string project_name = 1;
+    string sheet_name = 2;
+}
+
+
+message CloseProjectRequest {
+    string project_name = 1;
+}
+
+message PutWorksheetRequest {
+    string project_name = 1;
+    string sheet_name = 2;
+    // empty for new worksheet
+    optional string content = 3;
+    // current project version; used for handling concurrent requests (CAS)
+    sint64 version = 4;
+}
+
+message InputMetadataRequest {
+    InputFile input = 1;
+}
+
+// updates previous subscription state if any
+message ViewportRequest {
+    string project_name = 1;
+    // <table_name, Viewport>
+    map<string, Viewport> viewports = 2;
+}
+
+message Viewport {
+    repeated string fields = 1;
+    sint64 start_row = 2;
+    sint64 end_row = 3;
+    bool is_content = 4;
+}
+
+message DimensionalSchemaRequest {
+    string project_name = 1;
+    string formula = 2;
+}
+
+message FunctionRequest {
+}
+
+message Response {
+    // correlation id, if present - response message, otherwise - event
+    optional string id = 1;
+    // response status, if present - response message, otherwise - event
+    optional Status status = 2;
+    // optional error message for failed requests
+    optional string error_message = 3;
+    oneof response {
+        ProjectList project_list = 4;
+        ProjectState project_state = 5;
+        WorksheetState worksheet_state = 6;
+        ViewportState viewport_state = 7;
+        ColumnData column_data = 8;
+        RenameWorksheetResponse rename_worksheet_response = 9;
+        RenameProjectResponse rename_project_response = 10;
+        InputList input_list = 11;
+        Pong pong = 12;
+        InputMetadataResponse input_metadata_response = 13;
+        DimensionalSchemaResponse dimensional_schema_response = 14;
+        FunctionResponse function_response = 15;
+    }
+}
+
+enum Status {
+    SUCCEED = 0;
+    FAILED = 1;
+    VERSION_CONFLICT = 2;
+    NOT_FOUND = 3;
+    INVALID_PROTOCOL = 4;
+}
+
+// part of response message
+message ProjectList {
+    repeated string projects = 1;
+}
+
+message ProjectState {
+    string project_name = 1;
+    repeated WorksheetState sheets = 2;
+    // current project state version
+    sint64 version = 3;
+    // true - if project was successfully deleted, otherwise- false
+    bool is_deleted = 4;
+}
+
+message RenameWorksheetResponse {
+    string project_name = 1;
+    sint64 version = 2;
+    string old_sheet_name = 3;
+    string new_sheet_name = 4;
+}
+
+message RenameProjectResponse {
+    sint64 version = 1;
+    string old_project_name = 2;
+    string new_project_name = 3;
+}
+
+message WorksheetState {
+    string project_name = 1;
+    string sheet_name = 2;
+    string content = 3;
+    sint64 version = 4;
+    bool is_deleted = 5;
+    repeated ParsingError parsing_errors = 6;
+    repeated CompilationError compilation_errors = 7;
+}
+
+message DimensionalSchemaResponse {
+    string project_name = 1;
+    string formula = 2;
+    optional string error_message = 3;
+    // list of fields for tables/inputs, or empty list for columns
+    repeated string schema = 4;
+    // list of key fields
+    repeated string keys = 5;
+}
+
+message FunctionResponse {
+    repeated Function functions = 1;
+}
+
+message ParsingError {
+    // line number in provided DSL, starting from 1
+    sint32 line = 1;
+    // char position in a line, starting from 0
+    sint32 position = 2;
+    string message = 3;
+    // specified if and only if we have enough information from parsing context to identify
+    optional string table_name = 4;
+    optional string field_name = 5;
+}
+
+message CompilationError {
+    string table_name = 1;
+    // if absent - error message is related to the whole table
+    optional string field_name = 2;
+    string message = 3;
+}
+
+message ViewportState {
+    repeated ColumnData columns = 1;
+}
+
+message ColumnData {
+    string table_name = 1;
+    // regular (static) column name or * for dynamic fields
+    string column_name = 2;
+    // current project version associated with data
+    // When applying to the state, higher version wins. If multiple messages for the same version, pending=false wins
+    sint64 version = 3;
+    // true if calculation is not finished yet
+    bool is_pending = 4;
+    optional string error_message = 5;
+    repeated string data = 6;
+    sint64 start_row = 7;
+    sint64 end_row = 8;
+    ColumnDataType type = 9;
+    // true if cell represented as collection of data (N strings, N rows)
+    bool isNested = 10;
+    // name of the table in case ColumnDataType.TABLE
+    optional string reference_table_name = 11;
+    repeated PeriodSeries period_series = 12;
+}
+
+message PeriodSeries {
+   map<string, string> points = 1;
+}
+
+message InputList {
+    repeated InputFile inputs = 1;
+}
+
+message InputFile {
+    // sub folder from InputFolder "root" till input file
+    repeated string paths = 1;
+    string input_name = 2;
+}
+
+message Ping {
+}
+
+message Pong {
+}
+
+message InputMetadataResponse {
+    InputFile input = 1;
+    repeated ColumnMetadata columns = 2;
+}
+
+message ColumnMetadata {
+    string column_name = 1;
+    ColumnDataType type = 2;
+}
+
+enum ColumnDataType {
+    UNKNOWN = 0;
+    STRING = 1;
+    DOUBLE = 2;
+    INTEGER = 3;
+    BOOLEAN = 4;
+    DATE = 5;
+    PERIOD_SERIES = 6;
+    TABLE = 7;
+}
+
+message Function {
+    string name = 1;
+    string description = 2;
+    repeated Argument arguments = 3;
+}
+
+message Argument {
+    string name = 1;
+    string description = 2;
+    bool repeatable = 3;
+    bool optional = 4;
+}

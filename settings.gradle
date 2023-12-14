@@ -1,0 +1,3 @@
+rootProject.name = 'quant-grid'
+
+include 'backend:engine', 'backend:web', 'backend:proto', 'backend:parser', 'backend:common'

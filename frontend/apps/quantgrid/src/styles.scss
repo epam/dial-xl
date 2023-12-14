@@ -1,0 +1,46 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+/* You can add global styles to this file, and also import other style files */
+
+@import '@deltix/grid-it/index.css';
+@import 'react-reflex/styles.css';
+@import 'react-toastify/dist/ReactToastify.css';
+
+.ant-tree .ant-tree-switcher .ant-tree-switcher-icon {
+  vertical-align: 2px;
+}
+
+.ant-tree .ant-tree-node-content-wrapper .ant-tree-iconEle {
+  .anticon {
+    vertical-align: 2px;
+  }
+}
+
+.ant-tree.ant-tree-directory .ant-tree-treenode-selected::before {
+  background: rgb(219 234 254);
+}
+
+.ant-tree.ant-tree-directory .ant-tree-treenode-selected:hover::before {
+  background: rgba(219, 234, 254, 0.7);
+}
+
+.ant-tree.ant-tree-directory
+  .ant-tree-treenode
+  .ant-tree-node-content-wrapper.ant-tree-node-selected {
+  color: black;
+}
+
+.ant-tree-switcher {
+  color: black !important;
+}
+
+.ant-tree-node-content-wrapper {
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow-x: hidden;
+}
+
+.ant-menu-horizontal {
+  border-bottom: none;
+}

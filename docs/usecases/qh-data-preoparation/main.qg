@@ -1,0 +1,22 @@
+table InputData
+  dim [source] = INPUT("input")
+  [source] = [source][contry]
+  [indicator] = [source][indicator]
+  [timestamp] = [source][timestamp]
+  [value] = [source][value]
+
+!visualization("tabular-line-chart")
+table Calculations
+  key dim [country] = DISTINCT(InputData[country])
+  [row] = ORDERBY(FILTER(InputData, $[country] == @[country]), [timestamp])
+  [*] = PIVOT([row], [indicator], $.PERIODSERIES([timestamp], [value], QUATERLY))
+  [GDP Percent Change] = PERCENTCHANGE([GDP])
+  [GDP Percent Change Extrapolate] = EXTRAPOLATE([GDP], 1)
+
+!output
+table OutputData
+  dim [country] = DISTINCT(Calculations[country])
+  dim [indicator] = FILTER(FIELDS(Calculations), $ <> "country" and  $ <> "row")
+  dim [data] = FIND(Calculations, [country])[%[indicator]%]
+  [timestamp] = [data][timestamp]
+  [value] = [data][value]

@@ -1,0 +1,25 @@
+{
+  "compileOnSave": false,
+  "compilerOptions": {
+    "rootDir": ".",
+    "sourceMap": true,
+    "declaration": false,
+    "moduleResolution": "node",
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "importHelpers": true,
+    "target": "es2015",
+    "module": "esnext",
+    "lib": ["es2021", "dom"],
+    "skipLibCheck": true,
+    "skipDefaultLibCheck": true,
+    "baseUrl": ".",
+    "paths": {
+      "@frontend/code-editor": ["libs/code-editor/src/index.ts"],
+      "@frontend/common": ["libs/common/src/index.ts"],
+      "@frontend/parser": ["libs/parser/src/index.ts"],
+      "@frontend/spreadsheet": ["libs/spreadsheet/src/index.ts"]
+    }
+  },
+  "exclude": ["node_modules", "tmp"]
+}

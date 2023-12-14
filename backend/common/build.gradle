@@ -1,0 +1,11 @@
+plugins {
+    id "io.freefair.lombok" version "8.0.1"
+}
+
+dependencies {
+    implementation 'it.unimi.dsi:fastutil-core:8.5.12'
+    implementation 'org.jetbrains:annotations:20.1.0'
+    implementation 'org.slf4j:slf4j-api:1.7.32'
+    implementation 'com.univocity:univocity-parsers:2.9.1'
+    implementation 'org.apache.commons:commons-lang3:3.12.0'
+}

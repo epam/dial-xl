@@ -1,0 +1,14 @@
+.ExpandButton {
+  height: 22px;
+  margin: 0 5px;
+
+  :global(.ant-btn) {
+    height: 22px;
+    padding: 0 5px;
+  }
+
+  :global(.ant-btn > span) {
+    display: inline-flex;
+    align-items: center;
+  }
+}

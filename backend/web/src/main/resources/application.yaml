@@ -1,0 +1,10 @@
+logging:
+  level:
+    root: info
+    com.epam.deltix.quantgrid: debug
+
+web:
+  storage:
+    local:
+      projectsFolder: ${PROJECTS_FOLDER}
+      inputsFolder: ${INPUTS_FOLDER}

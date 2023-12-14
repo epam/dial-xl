@@ -1,0 +1,12 @@
+.result {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.2);
+  user-select: none;
+
+  &:hover {
+    background: rgba(163, 153, 230, 0.2);
+  }
+}
+
+.selectedResult {
+  background: rgba(0, 0, 0, 0.2);
+}

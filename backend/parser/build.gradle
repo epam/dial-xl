@@ -1,0 +1,20 @@
+plugins {
+    id 'antlr'
+    id "io.freefair.lombok" version "8.0.1"
+}
+
+dependencies {
+    implementation project(':backend:common')
+    implementation 'it.unimi.dsi:fastutil-core:8.5.12'
+    antlr 'org.antlr:antlr4:4.9.2'
+    implementation 'org.antlr:antlr4-runtime:4.9.2'
+    implementation 'org.slf4j:slf4j-api:1.7.32'
+    implementation 'org.jetbrains:annotations:20.1.0'
+}
+
+generateGrammarSource {
+    maxHeapSize = "64m"
+    arguments += ["-long-messages",
+                  "-lib", "src/main/antlr/com/epam/deltix/quantgrid/parser/",
+                  "-package", "com.epam.deltix.quantgrid.parser"]
+}
