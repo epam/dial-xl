@@ -5,6 +5,7 @@ import {
   COLUMN_STATE_SERVICE,
   CONFIG,
   DATA_SCROLLER,
+  DATA_SERVICE,
   DATA_VIEW,
   Destroyable,
   EVENTS_SERVICE,
@@ -15,18 +16,29 @@ import type {
   IDataScroller,
 } from '@deltix/grid-it-core';
 import { appendChild, createElement } from '@deltix/grid-it-core';
-import { KeyboardCode, Shortcut, shortcutApi } from '@frontend/common';
-
 import {
-  getPx,
-  isCellEditorOpen,
+  gridDataScrollerClass,
   isContextMenuOpen,
-  isFormulaInputFocused,
+  isFormulaBarInputFocused,
+  isFormulaBarMonacoInputFocused,
   isModalOpen,
   isMonacoEditorEvent,
+  KeyboardCode,
+  Shortcut,
+  shortcutApi,
+} from '@frontend/common';
+
+import { resizeCellTriggerClass } from '../../constants';
+import { defaults } from '../../defaults';
+import {
+  getCellElementDimensions,
+  getPx,
+  isCellEditorOpen,
+  isNoteOpen,
+  isSpreadsheetTarget,
   moveViewport,
 } from '../../utils';
-import { DataView } from '../data';
+import { DataView, type IDataService } from '../data';
 import type { IEventsService } from '../events';
 import { moveTableIcon } from './icons';
 import {
@@ -36,16 +48,38 @@ import {
   GridSelectionShortcut,
   GridSelectionShortcutType,
   ISelectionService,
+  MoveParams,
+  SelectionBackup,
 } from './types';
 
 import './selection.scss';
 
+/**
+ * Selection service provides selection on spreadsheet, you can select cells, move tables, dnd tables and showing selection in future place.
+ * @property {HTMLDivContainer} selectionContainer - selection element
+ * @property {HTMLContainer} root - html container of selection elements
+ * @property {number} rafId - last requested animation frame
+ * @property {HTMLDivElement} moveTooltip - tooltip which displays in left corner by moving table to show additional information
+ * @property {HTMLSpanElement} moveTooltipText - reference to text inside tooltip container
+ * @property {HTMLDivElement} moveTooltipIcon - reference to icon inside tooltip container
+ * @property {BehaviorSubject<GridSelection | null>} selection$ - triggers action every time when selection changes
+ * @property {Subject<GridSelectionShortcut>} shortcuts$ - trigger action every time when shortcut was pressed (shortcuts that related with grid selection, for example: extend selection up, select all table, etc.)
+ * @property {Subject<GridSelectionEvent>} selectionEvents$ - trigger action every time when selection event happens (like start moving selection, stop moving selection, check CTRL + A for table case in selectionService)
+ * @property {MoveParams} moveParams - params of selection which in move mode
+ * @property {GridSelection | null} _selection - internal selection state
+ * @property {boolean} isSelectionChanging - when selection following by cursor, we should cancel all callbacks until it stops
+ * @property {number} scrollTop - internal copy of scrollTop of DataView
+ * @property {number} scrollLeft - internal copy of scrollLeft of DataView
+ */
 @injectable()
 export class SelectionService extends Destroyable implements ISelectionService {
   protected selectionContainer: HTMLDivElement;
   protected root: HTMLElement;
   protected rafId: number;
   protected moveTooltip: HTMLDivElement;
+  protected moveTooltipText: HTMLSpanElement;
+  protected moveTooltipIcon: HTMLDivElement;
+  protected dottedSelection: HTMLDivElement;
 
   selection$: BehaviorSubject<GridSelection | null> =
     new BehaviorSubject<GridSelection | null>(null);
@@ -54,23 +88,17 @@ export class SelectionService extends Destroyable implements ISelectionService {
 
   selectionEvents$: Subject<GridSelectionEvent> = new Subject();
 
-  protected moveParams: {
-    rowDelta: number;
-    colDelta: number;
-    hideMoveTooltip?: boolean;
-  } | null = null;
+  protected moveParams: MoveParams | null = null;
 
   protected _selection: GridSelection | null = null;
+  protected _dottedSelection: GridSelection | null = null;
 
   protected isSelectionChanging = false;
   protected scrollTop: number;
   protected scrollLeft: number;
 
-  // TODO: Refactor to normal cell unite
-  protected tableHeader: {
-    startCol: number;
-    endCol: number;
-  } | null;
+  protected isPointClickMode = false;
+  protected selectionBackup: SelectionBackup | null = null;
 
   constructor(
     @inject(CONFIG)
@@ -80,7 +108,8 @@ export class SelectionService extends Destroyable implements ISelectionService {
     @inject(COLUMN_STATE_SERVICE)
     protected columnStateService: IColumnStateService,
     @inject(DATA_SCROLLER) protected scroller: IDataScroller,
-    @inject(EVENTS_SERVICE) protected events: IEventsService
+    @inject(EVENTS_SERVICE) protected events: IEventsService,
+    @inject(DATA_SERVICE) protected api: IDataService
   ) {
     super();
 
@@ -88,7 +117,6 @@ export class SelectionService extends Destroyable implements ISelectionService {
     this.scrollLeft = 0;
     this.rafId = 0;
     this._selection = null;
-    this.tableHeader = null;
 
     this.root = createElement('div', {
       classList: ['grid-selection-container'],
@@ -98,25 +126,37 @@ export class SelectionService extends Destroyable implements ISelectionService {
       classList: ['grid-selection'],
     });
 
+    this.moveTooltipText = createElement('span', {
+      classList: ['grid-selection-move-tooltip__text'],
+    });
+
+    this.moveTooltipText.textContent = 'Use';
+
     this.moveTooltip = createElement('div', {
       classList: ['grid-selection-move-tooltip'],
     });
-    this.moveTooltip.innerHTML = moveTableIcon;
+
+    this.dottedSelection = createElement('div', {
+      classList: ['grid-selection-dottedSelection'],
+    });
+
+    this.moveTooltipIcon = createElement('div', {
+      classList: ['grid-selection-move-tooltip__icon'],
+    });
+
+    this.moveTooltipIcon.innerHTML = moveTableIcon;
+
+    this.moveTooltip.appendChild(this.moveTooltipText);
+    this.moveTooltip.appendChild(this.moveTooltipIcon);
 
     this.selectionContainer.appendChild(this.moveTooltip);
 
     appendChild(config.getRoot(), this.root);
     appendChild(this.root, this.selectionContainer);
+    appendChild(this.root, this.dottedSelection);
 
     this.hide();
-
-    fromEvent(document, 'keydown')
-      .pipe(takeUntil(this.destroy$))
-      .subscribe((event) => {
-        if (isModalOpen()) return;
-
-        this.onKeydown(event as KeyboardEvent);
-      });
+    this.updateSelectionDataset();
 
     fromEvent(this.scroller.render(), 'mousemove')
       .pipe(takeUntil(this.destroy$))
@@ -142,11 +182,29 @@ export class SelectionService extends Destroyable implements ISelectionService {
       });
   }
 
-  protected onScroll() {
-    this.updateSelection(this._selection);
+  /**
+   * Redraw selection after scroll
+   */
+  protected onScroll(): void {
+    this.updateSelection({ updatedSelection: this._selection });
+    if (this._dottedSelection) {
+      this.showDottedSelection(this._dottedSelection);
+    }
   }
 
-  protected onKeydown(event: KeyboardEvent) {
+  /**
+   * Handles keydown events to distribute it by right observables and calls needed callbacks
+   * @param event {KeyboardEvent} keyboard event
+   */
+  public onKeyDown(event: KeyboardEvent): void {
+    if (
+      !isSpreadsheetTarget(event) ||
+      isModalOpen() ||
+      isNoteOpen() ||
+      this.isPointClickMode
+    )
+      return;
+
     const isSelectAll = shortcutApi.is(Shortcut.SelectAll, event);
 
     // avoid browser default selection in all cases
@@ -158,7 +216,6 @@ export class SelectionService extends Destroyable implements ISelectionService {
       !this._selection ||
       isCellEditorOpen() ||
       isContextMenuOpen() ||
-      isModalOpen() ||
       isMonacoEditorEvent(event)
     )
       return;
@@ -167,10 +224,6 @@ export class SelectionService extends Destroyable implements ISelectionService {
 
     let colDelta = 0;
     let rowDelta = 0;
-
-    const mpx = this.tableHeader
-      ? this.tableHeader.endCol - this.tableHeader.startCol + 1
-      : 1;
 
     if (isSelectAll) {
       this.shortcuts$.next({ type: GridSelectionShortcutType.SelectAll });
@@ -181,9 +234,11 @@ export class SelectionService extends Destroyable implements ISelectionService {
     if (event.key === 'Escape') {
       if (this.moveParams && this._selection) {
         this.updateSelection({
-          ...this._selection,
-          endRow: this._selection.startRow,
-          endCol: this._selection.startCol,
+          updatedSelection: {
+            ...this._selection,
+            endRow: this._selection.startRow,
+            endCol: this._selection.startCol,
+          },
         });
         this.stopMoveMode();
       }
@@ -223,20 +278,6 @@ export class SelectionService extends Destroyable implements ISelectionService {
       return;
     }
 
-    if (
-      shortcutApi.is(Shortcut.RangeSelectionDown, event) ||
-      shortcutApi.is(Shortcut.RangeSelectionUp, event) ||
-      shortcutApi.is(Shortcut.RangeSelectionLeft, event) ||
-      shortcutApi.is(Shortcut.RangeSelectionRight, event)
-    ) {
-      this.shortcuts$.next({
-        type: GridSelectionShortcutType.RangeSelection,
-        direction: event.key,
-      });
-
-      return;
-    }
-
     switch (event.key) {
       case KeyboardCode.ArrowDown: {
         rowDelta = 1;
@@ -251,13 +292,16 @@ export class SelectionService extends Destroyable implements ISelectionService {
         break;
       }
       case KeyboardCode.ArrowRight: {
-        colDelta = mpx;
+        colDelta = 1;
         break;
       }
       case KeyboardCode.Tab: {
-        colDelta = 1;
         event.preventDefault();
-        break;
+        this.shortcuts$.next({
+          type: GridSelectionShortcutType.TabNavigation,
+        });
+
+        return;
       }
       case KeyboardCode.Enter: {
         rowDelta = 1;
@@ -267,6 +311,8 @@ export class SelectionService extends Destroyable implements ISelectionService {
             ...this.moveParams,
           });
           this.stopMoveMode();
+
+          return;
         }
         break;
       }
@@ -288,7 +334,6 @@ export class SelectionService extends Destroyable implements ISelectionService {
         return;
       }
     }
-    this.tableHeader = null;
 
     if (
       this.moveParams &&
@@ -298,142 +343,211 @@ export class SelectionService extends Destroyable implements ISelectionService {
       this.moveParams.colDelta += colDelta;
       this.moveParams.rowDelta += rowDelta;
       this.updateSelection({
-        startCol: this._selection.startCol + colDelta,
-        startRow: this._selection.startRow + rowDelta,
-        endRow: this._selection.endRow + rowDelta,
-        endCol: this._selection.endCol + colDelta,
-      });
-
-      return;
-    }
-
-    if (!event.shiftKey) {
-      if (
-        this._selection.startRow + rowDelta < 1 ||
-        this._selection.startCol + colDelta < 1
-      ) {
-        return;
-      }
-
-      this.updateSelection(
-        {
+        updatedSelection: {
           startCol: this._selection.startCol + colDelta,
           startRow: this._selection.startRow + rowDelta,
-          endRow: this._selection.startRow + rowDelta,
-          endCol: this._selection.startCol + colDelta,
+          endRow: this._selection.endRow + rowDelta,
+          endCol: this._selection.endCol + colDelta,
         },
-        false,
-        event.key
+      });
+
+      moveViewport(
+        event.key,
+        this._selection.startCol + colDelta,
+        this._selection.startRow + rowDelta,
+        this.dataView.currentZoom
       );
 
       return;
     }
 
-    if (
-      this._selection.endRow + rowDelta < 1 ||
-      this._selection.endCol + colDelta < 1
-    ) {
-      return;
+    const colDirection =
+      (colDelta && (colDelta > 0 ? 'right' : 'left')) || undefined;
+    const rowDirection =
+      (rowDelta && (rowDelta > 0 ? 'bottom' : 'top')) || undefined;
+    let newSelection: GridSelection;
+
+    if (event.shiftKey) {
+      const nextCell = this.api.getNextCell({
+        col: this._selection.endCol,
+        row: this._selection.endRow,
+        colDirection,
+        rowDirection,
+      });
+
+      newSelection = {
+        startCol: this._selection.startCol,
+        startRow: this._selection.startRow,
+        endCol: nextCell.col,
+        endRow: nextCell.row,
+      };
+    } else {
+      const nextCell = this.api.getNextCell({
+        col:
+          colDirection === 'right'
+            ? this._selection.endCol
+            : this._selection.startCol,
+        row:
+          rowDirection === 'bottom'
+            ? this._selection.endRow
+            : this._selection.startRow,
+        colDirection,
+        rowDirection,
+      });
+
+      const { cols, rows } = defaults.viewport;
+
+      const updatedCol = Math.min(cols, Math.max(1, nextCell.col));
+      const updatedRow = Math.min(rows, Math.max(1, nextCell.row));
+
+      newSelection = {
+        startCol: updatedCol,
+        startRow: updatedRow,
+        endCol: updatedCol,
+        endRow: updatedRow,
+      };
     }
 
     this.updateSelection({
-      ...this._selection,
-      endRow: this._selection.endRow + rowDelta,
-      endCol: this._selection.endCol + colDelta,
+      updatedSelection: newSelection,
+      quiet: false,
+      key: event.key,
     });
+    this.moveViewportToSelection(newSelection.endCol, newSelection.endRow);
   }
 
-  protected onMouseDown = (e: MouseEvent) => {
-    if (
-      !this.isTargetCell(e.target) ||
-      isCellEditorOpen() ||
-      isFormulaInputFocused()
-    )
-      return;
+  /**
+   * Handles mouse down event, it should start extend selection by following cursor
+   * @param e {MouseEvent} mouse event
+   */
+  protected onMouseDown = (e: MouseEvent): void => {
+    if (!this.isPointClickMode) {
+      if (
+        !this.isTargetCell(e.target) ||
+        isCellEditorOpen() ||
+        isFormulaBarMonacoInputFocused() ||
+        isFormulaBarInputFocused()
+      )
+        return;
+    }
 
     this.stopMoveMode();
+    this.setPointClickError(false);
 
-    this.tableHeader = null;
-
-    const { col, row } = this.getCellDimensions(e.target as HTMLElement);
+    const { col, row } = getCellElementDimensions(e.target as HTMLElement);
 
     this.isSelectionChanging = true;
 
     this.updateSelection({
-      startCol: col,
-      startRow: row,
-      endCol: col,
-      endRow: row,
+      updatedSelection: {
+        startCol: col,
+        startRow: row,
+        endCol: col,
+        endRow: row,
+      },
     });
 
     this.show();
   };
 
+  /**
+   * Handles mouse down event, it should stop extending selection
+   * @param e {MouseEvent} mouse event
+   */
   protected onMouseUp = (e: MouseEvent) => {
     this.isSelectionChanging = false;
+
+    if (this.isPointClickMode) {
+      const targetElement = e.target as HTMLElement;
+      if (targetElement.classList.contains(gridDataScrollerClass)) return;
+
+      // handle rare case when click is between cells (on borders) which leads to wrong selection and closing cell editor
+      if (this._selection?.startRow === -1 || this._selection?.startCol === -1)
+        return;
+
+      this.selectionEvents$.next({
+        type: GridSelectionEventType.PointClickSelectValue,
+        pointClickSelection: this._selection,
+      });
+    }
   };
 
+  /**
+   * Handles mouse move events, it should extend selection by following cursor
+   * @param e
+   * @returns
+   */
   protected onMouseMove = (e: MouseEvent) => {
     if (
       !this.isSelectionChanging ||
       !this.isTargetCell(e.target) ||
-      !this._selection
+      !this._selection ||
+      this.moveParams
     )
       return;
 
-    const { col, row } = this.getCellDimensions(e.target as HTMLElement);
+    const { col, row } = getCellElementDimensions(e.target as HTMLElement);
 
     this.updateSelection({
-      ...this._selection,
-      endCol: col,
-      endRow: row,
+      updatedSelection: {
+        ...this._selection,
+        endCol: col,
+        endRow: row,
+      },
     });
   };
 
-  protected isTargetCell(target: EventTarget | null) {
+  /**
+   * Checks if got event target is a cell of the grid and not resize
+   * @param target {EventTarget} specified event target
+   * @returns {boolean} is target a cell
+   */
+  public isTargetCell(target: EventTarget | null): boolean {
     const targetElement = target as HTMLElement;
 
     if (
       !targetElement ||
       !targetElement.getAttribute('data-row') ||
-      !targetElement.getAttribute('data-col')
+      !targetElement.getAttribute('data-col') ||
+      targetElement.classList.contains(resizeCellTriggerClass)
     )
       return false;
 
     return true;
   }
 
-  public getCellDimensions(element: HTMLElement) {
-    const elementRect = element.getBoundingClientRect();
-    const containerRef = this.scroller.render().getBoundingClientRect();
-
-    const row = element.getAttribute('data-row') || -1;
-    const col = element.getAttribute('data-col') || -1;
-
-    return {
-      x: elementRect.left - containerRef.left,
-      y: elementRect.top - containerRef.top,
-      width: elementRect.right - elementRect.left,
-      height: elementRect.bottom - elementRect.top,
-      row: +row,
-      col: +col,
-    };
-  }
-
+  /**
+   * When full selection should be moved using external methods or by arrows. Starts it
+   * @param hideMoveTooltip {boolean} not in all cases we should show tooltip, for example: in dnd tables
+   */
   protected startMoveMode(hideMoveTooltip: boolean) {
+    if (this.isPointClickMode) return;
+
     this.moveParams = { rowDelta: 0, colDelta: 0, hideMoveTooltip };
     this.selectionContainer.classList.add('grid-selection__move');
     if (!hideMoveTooltip) {
-      this.moveTooltip.style.display = 'block';
+      const { currentZoom } = this.dataView;
+      this.moveTooltip.style.display = 'flex';
 
-      this.moveTooltip.style.width = `${30 * this.dataView.currentZoom}px`;
-      this.moveTooltip.style.height = `${30 * this.dataView.currentZoom}px`;
+      this.moveTooltip.style.width = getPx(50 * currentZoom);
+      this.moveTooltip.style.height = getPx(25 * currentZoom);
+      this.moveTooltip.style.padding = `${getPx(4 * currentZoom)} ${getPx(
+        6 * currentZoom
+      )}`;
+      this.moveTooltipText.style.fontSize = getPx(11 * currentZoom);
+      this.moveTooltipText.style.lineHeight = getPx(11 * currentZoom);
+      this.moveTooltipIcon.style.width = getPx(17 * currentZoom);
+      this.moveTooltipIcon.style.marginLeft = getPx(4 * currentZoom);
     }
 
     this.selectionEvents$.next({ type: GridSelectionEventType.StartMoveMode });
     this.show();
   }
 
+  /**
+   * When full selection should be moved using external methods or by arrows. Stops it
+   * @param hideMoveTooltip {boolean} not in all cases we should show tooltip, for example: in dnd tables
+   */
   protected stopMoveMode() {
     this.moveParams = null;
     this.selectionContainer.classList.remove('grid-selection__move');
@@ -441,21 +555,30 @@ export class SelectionService extends Destroyable implements ISelectionService {
     this.selectionEvents$.next({ type: GridSelectionEventType.StopMoveMode });
   }
 
-  protected limitCol(col: number) {
+  /**
+   * Selection should stay within grid bounds
+   * @param col {number} specified column
+   * @returns {number} limited column if needed
+   */
+  protected limitCol(col: number): number {
     const [minCol, maxCol] = this.dataView.columnsEdges;
 
     return Math.max(minCol, Math.min(maxCol + 1, col));
   }
 
-  protected limitRow(row: number) {
+  /**
+   * Selection should stay within grid bounds
+   * @param col {number} specified row
+   * @returns {number} limited row if needed
+   */
+  protected limitRow(row: number): number {
     const [minRow, maxRow] = this.dataView.edges;
 
     return Math.max(minRow, Math.min(maxRow + 1, row));
   }
 
-  get selection() {
-    if (!this._selection) return null;
-    const { startCol, startRow, endCol, endRow } = this._selection;
+  private getLimitedSelection(selection: GridSelection) {
+    const { startCol, startRow, endCol, endRow } = selection;
 
     return {
       startCol: this.limitCol(Math.min(startCol, endCol)),
@@ -465,18 +588,81 @@ export class SelectionService extends Destroyable implements ISelectionService {
     };
   }
 
-  protected updateSelection(
-    updatedSelection: GridSelection | null,
-    quiet = false,
-    key?: string
+  /**
+   * Get current selection state
+   * @returns {GridSelection | null} Current selection
+   */
+  public get selection(): GridSelection | null {
+    if (!this._selection) return null;
+
+    return this.getLimitedSelection(this._selection);
+  }
+
+  /**
+   * Increase size of selection to next cell
+   * It covered cases when cell is multicell like table header or fields with more than 1 column size
+   *
+   * @protected
+   * @param {(GridSelection | null)} selection
+   * @returns {(GridSelection | null)}
+   */
+  protected normalizeSelection(
+    selection: GridSelection | null
+  ): GridSelection | null {
+    if (!selection) {
+      return null;
+    }
+
+    let colSelectionDirection: 'right' | 'left' = 'right';
+    let rowSelectionDirection: 'top' | 'bottom' = 'bottom';
+
+    if (selection.endCol < selection.startCol) {
+      colSelectionDirection = 'left';
+    }
+    if (selection.endRow < selection.startRow) {
+      rowSelectionDirection = 'top';
+    }
+
+    const nextXCell = this.api.getNextCell({
+      col: selection.endCol,
+      row: selection.endRow,
+      colDirection: colSelectionDirection,
+      rowDirection: undefined,
+    });
+    const previousXCell = this.api.getNextCell({
+      col: selection.startCol,
+      row: selection.startRow,
+      colDirection: colSelectionDirection === 'left' ? 'right' : 'left',
+      rowDirection: undefined,
+    });
+    const nextYCell = this.api.getNextCell({
+      col: selection.endCol,
+      row: selection.endRow,
+      colDirection: undefined,
+      rowDirection: rowSelectionDirection,
+    });
+    const previousYCell = this.api.getNextCell({
+      col: selection.startCol,
+      row: selection.startRow,
+      colDirection: undefined,
+      rowDirection: rowSelectionDirection === 'bottom' ? 'top' : 'bottom',
+    });
+
+    return {
+      startCol:
+        previousXCell.col + (colSelectionDirection === 'right' ? 1 : -1),
+      startRow:
+        previousYCell.row + (rowSelectionDirection === 'bottom' ? 1 : -1),
+      endCol: nextXCell.col + (colSelectionDirection === 'right' ? -1 : 1),
+      endRow: nextYCell.row + (rowSelectionDirection === 'bottom' ? -1 : 1),
+    };
+  }
+
+  private updateSelectionPosition(
+    element: HTMLElement,
+    selection: GridSelection
   ) {
-    this._selection = updatedSelection;
-
-    if (!this.selection) return;
-
-    this.show();
-
-    const { startCol, endCol, endRow, startRow } = this.selection;
+    const { startCol, endCol, endRow, startRow } = selection;
 
     const { x: x1, y: y1 } = this.dataView.getCellPosition(startCol, startRow);
     const { x: x2, y: y2 } = this.dataView.getCellPosition(endCol, endRow);
@@ -485,24 +671,65 @@ export class SelectionService extends Destroyable implements ISelectionService {
     const height = Math.abs(y1 - y2);
 
     const x = Math.min(x1, x2);
-    const y = Math.min(y1, y2) + 1;
+    const y = Math.min(y1, y2);
 
-    this.selectionContainer.style.transform = `translate(${x}px, ${y}px)`;
-    this.selectionContainer.style.width = `${width}px`;
-    this.selectionContainer.style.height = `${height}px`;
-    this.selectionContainer.style.display =
-      width === 0 || height === 0 ? 'none' : 'block';
+    element.style.transform = `translate(${x}px, ${y}px)`;
+    element.style.width = `${width}px`;
+    element.style.height = `${height}px`;
+    element.style.display = width === 0 || height === 0 ? 'none' : 'block';
 
-    if (this.tableHeader) {
-      const { startCol, endCol } = this.tableHeader;
+    this.updateSelectionDataset();
+  }
 
-      const { x: tableX1 } = this.dataView.getCellPosition(startCol, startRow);
-      const { x: tableX2 } = this.dataView.getCellPosition(endCol + 1, endRow);
+  /**
+   * Update selection dataset, for e2e tests to know selection placement on the grid
+   */
+  private updateSelectionDataset() {
+    if (!this.selection) {
+      this.selectionContainer.dataset.startCol = '0';
+      this.selectionContainer.dataset.startRow = '0';
+      this.selectionContainer.dataset.endCol = '0';
+      this.selectionContainer.dataset.endRow = '0';
 
-      this.selectionContainer.style.transform = `translate(${x}px, ${y}px)`;
-      this.selectionContainer.style.width = `${tableX2 - tableX1}px`;
-      this.selectionContainer.style.height = `${height}px`;
+      return;
     }
+
+    const { startCol, startRow, endCol, endRow } = this.selection;
+
+    this.selectionContainer.dataset.startCol = startCol.toString();
+    this.selectionContainer.dataset.startRow = startRow.toString();
+    this.selectionContainer.dataset.endCol = endCol.toString();
+    this.selectionContainer.dataset.endRow = endRow.toString();
+  }
+
+  /**
+   * Redraw selection and recalculate selection relatively from params
+   * @param updatedSelection {GridSelection | null} new selection
+   * @param quiet {boolean = false} update selection should be without triggering action in selection$
+   * @param key {string | undefined} what key was pressed by triggering specified updateSelection
+   * @param withoutNormalization {boolean = false} is normalization of selection should be skipped
+   */
+  protected updateSelection({
+    updatedSelection,
+    quiet = false,
+    key,
+    withoutNormalization = false,
+  }: {
+    updatedSelection: GridSelection | null;
+    quiet?: boolean | undefined;
+    key?: string;
+    withoutNormalization?: boolean;
+  }): void {
+    this._selection =
+      this.moveParams || withoutNormalization
+        ? updatedSelection
+        : this.normalizeSelection(updatedSelection);
+
+    if (!this.selection) return;
+
+    this.show();
+
+    this.updateSelectionPosition(this.selectionContainer, this.selection);
 
     if (key && this._selection && !this.moveParams) {
       moveViewport(
@@ -513,24 +740,27 @@ export class SelectionService extends Destroyable implements ISelectionService {
       );
     }
 
-    if (!quiet) {
+    if (!quiet && !this.isPointClickMode) {
       this.selection$.next(this._selection);
     }
   }
 
-  isTableHeaderSelected() {
-    return !!this.tableHeader;
+  /**
+   * If selection moves outside of viewport -> that method could move viewport until selection will seen in viewport.
+   * @param col {number} selection angle column
+   * @param row {number} selection angle row
+   */
+  protected moveViewportToSelection(col: number, row: number) {
+    const [startRow, endRow] = this.dataView.edges;
+    const [startCol, endCol] = this.dataView.columnsEdges;
+
+    if (col > endCol || row > endRow || row < startRow || col < startCol) {
+      this.dataView.makeCellViewportVisible(col, row);
+    }
   }
 
   getSelectedPinnedCols() {
     if (!this._selection) return null;
-
-    if (this.tableHeader) {
-      return {
-        startCol: this.tableHeader.startCol,
-        endCol: this.tableHeader.endCol,
-      };
-    }
 
     return {
       startCol: this._selection?.startCol,
@@ -538,26 +768,17 @@ export class SelectionService extends Destroyable implements ISelectionService {
     };
   }
 
-  selectTableHeader(startCol: number, endCol: number) {
-    if (!this._selection) return;
-
-    this.tableHeader = { startCol, endCol };
-
-    this.updateSelection(
-      {
-        ...this._selection,
-        startCol: startCol,
-        endCol: endCol,
-      },
-      true
-    );
-  }
-
-  setSelection(
+  /**
+   * External update of selection, check useSelectionEvents
+   * @param selection {GridSelection | null} new selection
+   * @param moveMode {boolean = false} selection in move mode (when we do ctrl + a, we're moving range selection using arrows)
+   * @param hideMoveTooltip {boolean = false} not in all cases needed showing tooltip with arrows ("<^>"), for example drag'n'drop tables
+   */
+  public setSelection(
     selection: GridSelection | null,
-    moveMode = false,
-    hideMoveTooltip = false
-  ) {
+    moveMode: boolean | undefined = false,
+    hideMoveTooltip: boolean | undefined = false
+  ): void {
     if (!selection) {
       this.clear();
 
@@ -570,32 +791,111 @@ export class SelectionService extends Destroyable implements ISelectionService {
       this.stopMoveMode();
     }
 
-    this.tableHeader = null;
-
-    this.updateSelection(selection);
+    this.updateSelection({ updatedSelection: selection });
   }
 
-  clear() {
+  /**
+   * Switches point click mode
+   * @param isPointClickMode {boolean} is point click mode
+   */
+  public switchPointClickMode(isPointClickMode: boolean) {
+    this.isPointClickMode = isPointClickMode;
+
+    if (isPointClickMode) {
+      this.selectionBackup = {
+        selection: this._selection,
+        moveParams: this.moveParams,
+      };
+
+      this.selectionContainer.classList.remove('grid-selection');
+      this.selectionContainer.classList.add('point-click-selection');
+
+      this._selection = null;
+      this.moveParams = null;
+
+      this.selectionContainer.style.width = '0px';
+      this.selectionContainer.style.height = '0px';
+      this.selectionContainer.style.display = 'none';
+
+      return;
+    }
+
+    this._selection = this.selectionBackup?.selection || null;
+    this.moveParams = this.selectionBackup?.moveParams || null;
+
+    this.selectionContainer.classList.remove('point-click-selection');
+    this.selectionContainer.classList.add('grid-selection');
+
+    this.setPointClickError(false);
+
+    this.selectionBackup = null;
+
+    this.updateSelection({ updatedSelection: this._selection });
+  }
+
+  /*
+   * Set or remove point click error
+   */
+  public setPointClickError(error: boolean) {
+    if (error) {
+      this.selectionContainer.classList.add('point-click-selection__error');
+    } else {
+      this.selectionContainer.classList.remove('point-click-selection__error');
+    }
+  }
+
+  public showDottedSelection(selection: GridSelection) {
+    this._dottedSelection = selection;
+    const normalizedSelection = this.normalizeSelection(selection);
+
+    if (normalizedSelection) {
+      const limitedSelection = this.getLimitedSelection(normalizedSelection);
+      this.dottedSelection.style.position = 'absolute';
+      this.updateSelectionPosition(this.dottedSelection, limitedSelection);
+    }
+  }
+
+  public hideDottedSelection() {
+    this.dottedSelection.style.display = 'none';
+    this._dottedSelection = null;
+  }
+
+  /**
+   * Clears selection
+   */
+  public clear() {
     this.selection$.next(null);
     this._selection = null;
-    this.tableHeader = null;
     this.hide();
   }
 
-  hide() {
+  /**
+   * Hides selection
+   */
+  public hide() {
     this.selectionContainer.style.display = 'none';
+    this.updateSelectionDataset();
   }
 
-  show() {
+  /**
+   * Shows selection
+   */
+  public show() {
     this.selectionContainer.style.display = 'block';
   }
 
-  destroy() {
+  /**
+   * Destroys selection
+   */
+  public destroy() {
     this.selectionEvents$.unsubscribe();
     this.root.remove();
     super.destroy();
   }
 
+  /**
+   * Resets column configuration
+   */
   protected reset = () => {
     this.columnStateService.reset();
   };

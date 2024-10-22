@@ -4,8 +4,21 @@ export type ICellEditorService = {
   cellEditorEvents$: Subject<GridCellEditorEvent>;
   hide: () => void;
   focus: () => void;
-  openExplicitly: (col: number, row: number, value: string) => void;
+  openExplicitly: (
+    col: number,
+    row: number,
+    value: string,
+    options?: {
+      dimFieldName?: string;
+      withFocus?: boolean;
+    }
+  ) => void;
   setValue: (value: string) => void;
+  insertValue: (
+    value: string,
+    options?: { valueCursorOffset?: number }
+  ) => void;
+  setPointClickValue: (value: string) => void;
 };
 
 export enum GridCellEditorEventType {
@@ -16,7 +29,11 @@ export enum GridCellEditorEventType {
   Hide = 'Hide',
   OpenExplicitly = 'OpenExplicitly',
   SetValue = 'SetValue',
+  InsertValue = 'AppendValue',
   Focus = 'Focus',
+  SetPointClickValue = 'SetPointClickValue',
+  AddTotal = 'AddTotal',
+  EditTotal = 'EditTotal',
 }
 
 export type GridCellEditorEventRename = {
@@ -57,6 +74,10 @@ export type GridCellEditorEventOpenExplicitly = {
   col: number;
   row: number;
   value: string;
+  options?: {
+    dimFieldName?: string;
+    withFocus?: boolean;
+  };
 };
 
 export type GridCellEditorEventSetValue = {
@@ -64,8 +85,35 @@ export type GridCellEditorEventSetValue = {
   value: string;
 };
 
+export type GridCellEditorEventInsertValue = {
+  type: GridCellEditorEventType.InsertValue;
+  value: string;
+
+  // valueCursorOffset - used when we need to set cursor to some place inside of added value after inserting it
+  options?: { valueCursorOffset?: number };
+};
+
 export type GridCellEditorEventFocus = {
   type: GridCellEditorEventType.Focus;
+};
+
+export type GridCellEditorEventSetPointClickValue = {
+  type: GridCellEditorEventType.SetPointClickValue;
+  value: string;
+};
+
+export type GridCellEditorEventEditTotal = {
+  type: GridCellEditorEventType.EditTotal;
+
+  col: number;
+  row: number;
+};
+
+export type GridCellEditorEventAddTotal = {
+  type: GridCellEditorEventType.AddTotal;
+
+  col: number;
+  row: number;
 };
 
 export type GridCellEditorEvent =
@@ -76,4 +124,8 @@ export type GridCellEditorEvent =
   | GridCellEditorEventHide
   | GridCellEditorEventOpenExplicitly
   | GridCellEditorEventSetValue
-  | GridCellEditorEventFocus;
+  | GridCellEditorEventInsertValue
+  | GridCellEditorEventFocus
+  | GridCellEditorEventSetPointClickValue
+  | GridCellEditorEventEditTotal
+  | GridCellEditorEventAddTotal;

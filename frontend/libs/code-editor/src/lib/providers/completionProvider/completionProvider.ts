@@ -3,7 +3,8 @@ import { Monaco } from '@monaco-editor/react';
 import { editor, IDisposable, IRange, languages, Position } from '../../monaco';
 import CompletionItem = languages.CompletionItem;
 
-import { FunctionInfo, ParsedSheets } from '@frontend/common';
+import { FunctionInfo } from '@frontend/common';
+import { ParsedSheets } from '@frontend/parser';
 
 import { Language } from '../../codeEditorConfig';
 import { Suggestion } from '../../types';
@@ -12,14 +13,16 @@ import {
   getInlineIntellisenseSuggestions,
 } from './getIntellisenseSuggestions';
 
-const triggerCharacters = ['.', ',', '[', '(', '=', '@', "'", ' '];
+const triggerCharacters = ['.', ',', '[', '(', '=', '@', "'", ' ', ':'];
 
 export function registerCompletionProvider(
   monaco: Monaco,
   codeEditor: editor.IStandaloneCodeEditor,
   functions: FunctionInfo[],
   parsedSheets: ParsedSheets,
-  language: Language
+  language: Language,
+  currentTableName?: string,
+  currentFieldName?: string
 ): IDisposable {
   return languages.registerCompletionItemProvider(language, {
     provideCompletionItems: (
@@ -28,6 +31,7 @@ export function registerCompletionProvider(
       context: languages.CompletionContext
     ) => {
       const currentWord = model.getWordUntilPosition(position);
+
       const range: IRange = {
         startLineNumber: position.lineNumber,
         startColumn: currentWord.startColumn,
@@ -38,21 +42,23 @@ export function registerCompletionProvider(
       let results: Suggestion[] = [];
 
       if (language === 'code-editor') {
-        results = getCodeEditorIntellisenseSuggestions(
+        results = getCodeEditorIntellisenseSuggestions({
           model,
           position,
           context,
           functions,
-          parsedSheets
-        );
+          parsedSheets,
+        });
       } else {
-        results = getInlineIntellisenseSuggestions(
+        results = getInlineIntellisenseSuggestions({
           model,
           position,
           context,
           functions,
-          parsedSheets
-        );
+          parsedSheets,
+          currentTableName,
+          currentFieldName,
+        });
       }
 
       const suggestions: CompletionItem[] = results.map((result) => {
@@ -62,7 +68,9 @@ export function registerCompletionProvider(
           label: result.label,
           insertText: result.insertText,
           sortText: result.sortText,
-          range,
+          detail: result.detail,
+          command: result?.command,
+          range: result?.range ?? range,
         };
       });
 

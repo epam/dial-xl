@@ -28,6 +28,9 @@ import { SELECTION_SERVICE } from '../types';
 const stubSize = 3;
 const dblClickDelay = 300;
 
+/**
+ * This service is legacy
+ */
 @injectable()
 export class HeaderCell<T> extends Destroyable {
   protected root: HTMLElement;
@@ -97,7 +100,7 @@ export class HeaderCell<T> extends Destroyable {
     this.selectionService.selection$
       .pipe(takeUntil(this.destroy$))
       .subscribe((selection) => {
-        if (!selection) {
+        if (!selection || !this.column) {
           this.root.classList.remove('grid-header-cell--selected');
 
           return;
@@ -186,7 +189,7 @@ export class HeaderCell<T> extends Destroyable {
     if (e.timeStamp - this.lastTs < dblClickDelay) {
       this.eventService.emit({
         type: GridEvent.columnResizeDbClick,
-        column: this.column,
+        column: parseInt(this.column.id, 10),
       });
 
       this.lastTs = e.timeStamp;
@@ -239,7 +242,7 @@ export class HeaderCell<T> extends Destroyable {
     this.columnStateService.resize(this.column.id, width, ResizedBy.User);
     this.eventService.emit({
       type: GridEvent.columnResize,
-      column: this.column,
+      column: parseInt(this.column.id, 10),
       width,
     });
 

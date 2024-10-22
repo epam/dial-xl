@@ -19,12 +19,12 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.util.Set;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import static com.epam.deltix.quantgrid.engine.test.TestAsserts.verify;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class EngineTest {
@@ -42,7 +42,7 @@ class EngineTest {
                     dim [r] = A.FILTER($[a]).FILTER($[b])
                 """;
 
-        CompletableFuture<Void> v1 = engine.compute(dslV1, 1);
+        CompletableFuture<Void> v1 = engine.compute(dslV1, null);
 
         String dslV2 = """
                   table A
@@ -55,18 +55,46 @@ class EngineTest {
                         [b] = [r][b]
                 """;
 
-        CompletableFuture<Void> v2 = engine.compute(dslV2, 2);
+        CompletableFuture<Void> v2 = engine.compute(dslV2, null);
 
         v1.get(10, TimeUnit.SECONDS);
         v2.get(10, TimeUnit.SECONDS);
 
         ResultCollector data = (ResultCollector) engine.getListener();
-        data.verify("A", "a", 0, 1, 2, 3, 4);
-        data.verify("A", "b", 10, 11, 12, 13, 14);
+        data.verify("A", "a", 1, 2, 3, 4, 5);
+        data.verify("A", "b", 11, 12, 13, 14, 15);
 
-        data.verify("B", "a", 1, 2, 3, 4);
-        data.verify("B", "b", 11, 12, 13, 14);
-        data.verify("B", "r", 1, 2, 3, 4);
+        data.verify("B", "a", 1, 2, 3, 4, 5);
+        data.verify("B", "b", 11, 12, 13, 14, 15);
+        data.verify("B", "r", 1, 2, 3, 4, 5);
+    }
+
+    @Test
+    void testCarryOnTableWithZeroColumns() throws ExecutionException, InterruptedException, TimeoutException {
+        Engine engine = TestExecutor.singleThreadEngine();
+
+        String dsl = """
+                table A
+                  dim [a] = RANGE(10)
+                apply  # Triggers carry rule by adding a projection node
+                sort [a]
+
+                table B
+                  [avg] = AVERAGE(A[a])
+                apply  # Applies sort on a scalar table with 0 columns
+                sort [avg]
+                """;
+
+        CompletableFuture<Void> v1 = engine.compute(dsl, null);
+
+        v1.get(10, TimeUnit.SECONDS);
+
+        CompletableFuture<Void> v2 = engine.compute(dsl, null);
+
+        v2.get(10, TimeUnit.SECONDS);
+
+        ResultCollector data = (ResultCollector) engine.getListener();
+        data.verify("B", "avg", 5.5);
     }
 
     @Test
@@ -82,8 +110,6 @@ class EngineTest {
                     dim [r] = A.FILTER($[a]).FILTER($[b])
                 """;
 
-        CompletableFuture<Void> v1 = engine.compute(dslV1, 1);
-
         String dslV2 = """
                   table A
                     dim [a] = RANGE(5)
@@ -95,18 +121,16 @@ class EngineTest {
                         [b] = [r][b]
                 """;
 
-        CompletableFuture<Void> v2 = engine.compute(dslV2, 2);
-
-        v1.get(10, TimeUnit.SECONDS);
-        v2.get(10, TimeUnit.SECONDS);
+        engine.compute(dslV1, null).get(10, TimeUnit.SECONDS);
+        engine.compute(dslV2, null).get(10, TimeUnit.SECONDS);
 
         ResultCollector data = (ResultCollector) engine.getListener();
-        data.verify("A", "a", 0, 1, 2, 3, 4);
-        data.verify("A", "b", 10, 11, 12, 13, 14);
+        data.verify("A", "a", 1, 2, 3, 4, 5);
+        data.verify("A", "b", 11, 12, 13, 14, 15);
 
-        data.verify("B", "a", 1, 2, 3, 4);
-        data.verify("B", "b", 11, 12, 13, 14);
-        data.verify("B", "r", 1, 2, 3, 4);
+        data.verify("B", "a", 1, 2, 3, 4, 5);
+        data.verify("B", "b", 11, 12, 13, 14, 15);
+        data.verify("B", "r", 1, 2, 3, 4, 5);
     }
 
     @Test
@@ -134,10 +158,10 @@ class EngineTest {
                         [usa] = [USA]
                 """;
 
-        engine.compute(dslV1, 1).get(10, TimeUnit.SECONDS);
+        engine.compute(dslV1, null).get(10, TimeUnit.SECONDS);
         assertEquals(1, pivots.count.intValue());
 
-        engine.compute(dslV1, 2).get(10, TimeUnit.SECONDS);
+        engine.compute(dslV1, null).get(10, TimeUnit.SECONDS);
         assertEquals(1, pivots.count.intValue());
 
         ResultCollector collector = (ResultCollector) engine.getListener();
@@ -174,16 +198,17 @@ class EngineTest {
                         [e] = [d] + 5
                 """;
 
-        CompletableFuture<Void> v1 = engine.compute(dslV1, 1);
+        CompletableFuture<Void> v1 = engine.compute(dslV1, null);
         controller.await();
 
-        CompletableFuture<Void> v2 = engine.compute(dslV2, 2);
+        CompletableFuture<Void> v2 = engine.compute(dslV2, null);
         controller.release();
 
-        v1.get(10, TimeUnit.SECONDS);
+        Assertions.assertTrue(v1.isCancelled());
+        Assertions.assertThrows(CancellationException.class, () -> v1.getNow(null));
         v2.get(10, TimeUnit.SECONDS);
 
-        CompletableFuture<Void> v3 = engine.compute(dslV2, 3);
+        CompletableFuture<Void> v3 = engine.compute(dslV2, null);
         v3.get(10, TimeUnit.SECONDS);
     }
 
@@ -215,13 +240,14 @@ class EngineTest {
                         [e] = [d][b]
                 """;
 
-        CompletableFuture<Void> v1 = engine.compute(dslV1, 1);
+        CompletableFuture<Void> v1 = engine.compute(dslV1, null);
         controller.await();
 
-        CompletableFuture<Void> v2 = engine.compute(dslV2, 2);
+        CompletableFuture<Void> v2 = engine.compute(dslV2, null);
         controller.release();
 
-        v1.get(10, TimeUnit.SECONDS);
+        Assertions.assertTrue(v1.isCancelled());
+        Assertions.assertThrows(CancellationException.class, () -> v1.getNow(null));
         v2.get(10, TimeUnit.SECONDS);
     }
 
@@ -250,17 +276,16 @@ class EngineTest {
                         [d] = [c][b]
                 """;
 
-        engine.compute(dslV1, 1).get(10, TimeUnit.SECONDS);
+        engine.compute(dslV1, null).get(10, TimeUnit.SECONDS);
         verifier.disable();
-        engine.compute(dslV2, 2).get(10, TimeUnit.SECONDS);
-        engine.compute(dslV2, 3).get(10, TimeUnit.SECONDS); // should be optimized later
+        engine.compute(dslV2, null).get(10, TimeUnit.SECONDS);
+        engine.compute(dslV2, null).get(10, TimeUnit.SECONDS); // should be optimized later
     }
 
     @Test
-    void testEmptyGraphExecution() throws ExecutionException, InterruptedException, TimeoutException {
+    void testEmptyGraphExecution() throws Exception {
         Engine engine = TestExecutor.multiThreadEngine();
-        CompletableFuture<Void> future = engine.compute("", 1);
-        future.get(1, TimeUnit.SECONDS);
+        engine.compute("", null).get(1, TimeUnit.SECONDS);
     }
 
     @Test
@@ -276,14 +301,14 @@ class EngineTest {
                 """;
 
         ResultCollector data = TestExecutor.executeWithErrors(dsl);
-        assertEquals("Failed to compile field A[a]", data.getError("A", "a"));
-        assertEquals("Failed to compile field A[b]", data.getError("A", "b"));
-        data.verify("B", "a", 0, 1, 2);
-        data.verify("B", "b", 3, 4, 5);
+        assertEquals("Invalid function RANGE argument \"count\": expected value of type INTEGER", data.getError("A", "a"));
+        assertEquals("Invalid function RANGE argument \"count\": expected value of type INTEGER", data.getError("A", "b"));
+        data.verify("B", "a", 1, 2, 3);
+        data.verify("B", "b", 4, 5, 6);
     }
 
     @Test
-    void testRunningNodeReuse() throws InterruptedException, ExecutionException, TimeoutException {
+    void testRunningNodeReuse() throws Exception {
         ExecutionController controller = new ExecutionController(FilterLocal.class);
         ProjectionVerifier verifier = new ProjectionVerifier();
         PostOptimizationCallback callback = new PostOptimizationCallback(controller, verifier);
@@ -295,28 +320,29 @@ class EngineTest {
                         [b] = [a] + 3
                         
                 table t2
-                    dim [x] = t1.FILTER($[a] > 3)
+                    dim [x] = t1.FILTER($[a] > 4)
                         [b] = [x][b]
                 """;
 
-        CompletableFuture<Void> v1 = engine.compute(dsl, 1);
+        CompletableFuture<Void> v1 = engine.compute(dsl, null);
 
         Set<ControllablePlan> controllablePlans = controller.getControllablePlans();
         Assertions.assertEquals(1, controllablePlans.size());
         controller.await();
 
-        CompletableFuture<Void> v2 = engine.compute(dsl, 2);
+        CompletableFuture<Void> v2 = engine.compute(dsl, null);
         controller.release();
 
-        v1.get(10, TimeUnit.SECONDS);
+        Assertions.assertTrue(v1.isCancelled());
+        Assertions.assertThrows(CancellationException.class, () -> v1.getNow(null));
         v2.get(10, TimeUnit.SECONDS);
 
         ResultCollector data = (ResultCollector) engine.getListener();
-        data.verify("t1", "a", 0, 1, 2, 3, 4);
-        data.verify("t1", "b", 3, 4, 5, 6, 7);
+        data.verify("t1", "a", 1, 2, 3, 4, 5);
+        data.verify("t1", "b", 4, 5, 6, 7, 8);
 
-        data.verify("t2", "x", 4);
-        data.verify("t2", "b", 7);
+        data.verify("t2", "x", 5);
+        data.verify("t2", "b", 8);
     }
 
     @Test
@@ -335,10 +361,10 @@ class EngineTest {
                         [f] = t1.FILTER([x] < $[c]).COUNT()
                 """;
 
-        CompletableFuture<Void> v1 = engine.compute(dsl, 1);
+        CompletableFuture<Void> v1 = engine.compute(dsl, null);
         assertEquals(0, nodesCountVerification.count.intValue());
 
-        CompletableFuture<Void> v2 = engine.compute(dsl, 2);
+        CompletableFuture<Void> v2 = engine.compute(dsl, null);
 
         // verify that optimized graph contains 3 executed nodes: cartesian, nestedCount, range
         assertEquals(3, nodesCountVerification.count.intValue());
@@ -347,12 +373,12 @@ class EngineTest {
         v2.get(10, TimeUnit.SECONDS);
 
         ResultCollector data = (ResultCollector) engine.getListener();
-        data.verify("t1", "a", 0, 0, 1, 1, 2, 2);
-        data.verify("t1", "b", 0, 1, 0, 1, 0, 1);
-        data.verify("t1", "c", 0, 1, 1, 2, 2, 3);
+        data.verify("t1", "a", 1, 1, 2, 2, 3, 3);
+        data.verify("t1", "b", 1, 2, 1, 2, 1, 2);
+        data.verify("t1", "c", 2, 3, 3, 4, 4, 5);
 
-        data.verify("t2", "x", 0);
-        data.verify("t2", "f", 5);
+        data.verify("t2", "x", 1);
+        data.verify("t2", "f", 6);
     }
 
     @Test
@@ -373,7 +399,7 @@ class EngineTest {
                         [c] = [r][c]
                 """;
 
-        CompletableFuture<Void> v1 = engine.compute(dsl1, 1);
+        CompletableFuture<Void> v1 = engine.compute(dsl1, null);
         v1.get(5, TimeUnit.SECONDS);
 
         // filter and cartesian
@@ -382,14 +408,14 @@ class EngineTest {
         assertEquals(0, executed.count.intValue());
 
         ResultCollector data = (ResultCollector) engine.getListener();
-        data.verify("A", "a", 0, 0, 1, 1, 2, 2);
-        data.verify("A", "b", 0, 1, 0, 1, 0, 1);
-        data.verify("A", "c", 5, 5, 6, 6, 7, 7);
+        data.verify("A", "a", 1, 1, 2, 2, 3, 3);
+        data.verify("A", "b", 1, 2, 1, 2, 1, 2);
+        data.verify("A", "c", 6, 6, 7, 7, 8, 8);
 
-        data.verify("B", "r", 0, 1, 2, 3, 4, 5);
-        data.verify("B", "a", 0, 0, 1, 1, 2, 2);
-        data.verify("B", "b", 0, 1, 0, 1, 0, 1);
-        data.verify("B", "c", 5, 5, 6, 6, 7, 7);
+        data.verify("B", "r", 1, 2, 3, 4, 5, 6);
+        data.verify("B", "a", 1, 1, 2, 2, 3, 3);
+        data.verify("B", "b", 1, 2, 1, 2, 1, 2);
+        data.verify("B", "c", 6, 6, 7, 7, 8, 8);
 
         // reduce cartesian schema
         String dsl2 = """
@@ -403,20 +429,20 @@ class EngineTest {
                         [b] = [r][b]
                 """;
 
-        CompletableFuture<Void> v2 = engine.compute(dsl2, 2);
+        CompletableFuture<Void> v2 = engine.compute(dsl2, null);
         v2.get(5, TimeUnit.SECONDS);
 
         assertEquals(8, engine.getCache().size());
         assertEquals(2, executed.count.intValue());
 
-        data.verify("A", "a", 0, 0, 1, 1, 2, 2);
-        data.verify("A", "b", 0, 1, 0, 1, 0, 1);
+        data.verify("A", "a", 1, 1, 2, 2, 3, 3);
+        data.verify("A", "b", 1, 2, 1, 2, 1, 2);
 
-        data.verify("B", "r", 0, 1, 2, 3, 4, 5);
-        data.verify("B", "a", 0, 0, 1, 1, 2, 2);
-        data.verify("B", "b", 0, 1, 0, 1, 0, 1);
+        data.verify("B", "r", 1, 2, 3, 4, 5, 6);
+        data.verify("B", "a", 1, 1, 2, 2, 3, 3);
+        data.verify("B", "b", 1, 2, 1, 2, 1, 2);
 
-        CompletableFuture<Void> v3 = engine.compute(dsl1, 2);
+        CompletableFuture<Void> v3 = engine.compute(dsl1, null);
         v3.get(5, TimeUnit.SECONDS);
         assertEquals(8, engine.getCache().size());
         assertEquals(5, executed.count.intValue());
@@ -435,7 +461,7 @@ class EngineTest {
                         
                   table B
                     # Filter1
-                    dim [r] = A.FILTER($[a] > 0)
+                    dim [r] = A.FILTER($[a] > 1)
                         # Filter1 as layout + aggregation plan as dependent
                         [c] = A.FILTER($[b] < [r][a]).COUNT()
                         # Filter1
@@ -444,22 +470,22 @@ class EngineTest {
                         [b] = [r][b]
                 """;
 
-        CompletableFuture<Void> v1 = engine.compute(dsl, 1);
+        CompletableFuture<Void> v1 = engine.compute(dsl, null);
         v1.get(5, TimeUnit.SECONDS);
 
         // assert that cache contains exactly 4 plans
         assertEquals(5, engine.getCache().size());
 
         ResultCollector data = (ResultCollector) engine.getListener();
-        data.verify("A", "a", 0, 1, 2, 3, 4);
-        data.verify("A", "b", 10, 11, 12, 13, 14);
+        data.verify("A", "a", 1, 2, 3, 4, 5);
+        data.verify("A", "b", 11, 12, 13, 14, 15);
 
-        data.verify("B", "r", 1, 2, 3, 4);
+        data.verify("B", "r", 2, 3, 4, 5);
         data.verify("B", "c", 0, 0, 0, 0);
-        data.verify("B", "a", 1, 2, 3, 4);
-        data.verify("B", "b", 11, 12, 13, 14);
+        data.verify("B", "a", 2, 3, 4, 5);
+        data.verify("B", "b", 12, 13, 14, 15);
 
-        CompletableFuture<Void> v2 = engine.compute("", 2);
+        CompletableFuture<Void> v2 = engine.compute("", null);
         v2.get(5, TimeUnit.SECONDS);
 
         // assert cache clean up
@@ -481,15 +507,15 @@ class EngineTest {
                         [e] = [c][b]
                 """;
 
-        engine.compute(dsl, 1, new FieldKey("B", "c"), new FieldKey("B", "d"),
+        engine.compute(dsl, null, new FieldKey("B", "c"), new FieldKey("B", "d"),
                 new FieldKey("B", "e")).get(10, TimeUnit.SECONDS);
         assertEquals(4, engine.getCache().size());
 
-        engine.compute(dsl, 2, new FieldKey("A", "a"),
+        engine.compute(dsl, null, new FieldKey("A", "a"),
                 new FieldKey("A", "b")).get(10, TimeUnit.SECONDS);
         assertEquals(4, engine.getCache().size());
 
-        engine.compute(dsl, 3, new FieldKey("A", "a"), new FieldKey("A", "b"),
+        engine.compute(dsl, null, new FieldKey("A", "a"), new FieldKey("A", "b"),
                 new FieldKey("B", "c"), new FieldKey("B", "d"),
                 new FieldKey("B", "e")).get(10, TimeUnit.SECONDS);
         assertEquals(4, engine.getCache().size());

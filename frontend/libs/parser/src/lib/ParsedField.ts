@@ -1,17 +1,12 @@
 import { Expression } from './ast';
 import { FieldKey } from './FieldKey';
 import { ParsedDecorator } from './ParsedDecorator';
-
-export interface ExpressionMetadata {
-  text: string;
-  start: number;
-  end: number;
-}
-
-export type DSLPlacement = {
-  start: number;
-  end: number;
-};
+import {
+  DSLNote,
+  ExpressionMetadata,
+  fieldColSizeDecoratorName,
+  ShortDSLPlacement,
+} from './parser';
 
 export class ParsedField {
   constructor(
@@ -21,10 +16,19 @@ export class ParsedField {
     public key: FieldKey,
     public expression?: Expression | undefined,
     public expressionMetadata?: ExpressionMetadata | undefined,
-    public dslPlacement?: DSLPlacement | undefined,
-    public dslFieldNamePlacement?: DSLPlacement | undefined,
-    public dslDimensionPlacement?: DSLPlacement | undefined,
-    public dslKeyPlacement?: DSLPlacement | undefined,
-    public decorators?: ParsedDecorator[] | undefined
+    public dslPlacement?: ShortDSLPlacement | undefined,
+    public dslFieldNamePlacement?: ShortDSLPlacement | undefined,
+    public dslDimensionPlacement?: ShortDSLPlacement | undefined,
+    public dslKeyPlacement?: ShortDSLPlacement | undefined,
+    public decorators?: ParsedDecorator[] | undefined,
+    public note?: DSLNote | undefined
   ) {}
+
+  getSize(): number {
+    return (
+      this.decorators?.find(
+        (dec) => dec.decoratorName === fieldColSizeDecoratorName
+      )?.params?.[0]?.[0] ?? 1
+    );
+  }
 }

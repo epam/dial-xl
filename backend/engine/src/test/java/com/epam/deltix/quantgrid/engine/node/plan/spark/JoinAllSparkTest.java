@@ -5,6 +5,7 @@ import com.epam.deltix.quantgrid.engine.node.expression.Get;
 import com.epam.deltix.quantgrid.engine.test.SharedLocalSparkTest;
 import com.epam.deltix.quantgrid.engine.value.Period;
 import com.epam.deltix.quantgrid.type.ColumnType;
+import com.epam.deltix.quantgrid.util.Doubles;
 import lombok.val;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
@@ -41,7 +42,7 @@ class JoinAllSparkTest extends SharedLocalSparkTest {
         StructType rightSchema = StructType.fromDDL("rn DOUBLE, rn_query DOUBLE, s STRING").add(psField);
         List<Row> rightRows = List.of(
                 row(0.0, 5.0, "s05", row(203.0, Period.MONTH.toString(), new double[] {50, 50})),
-                row(0.0, 6.0, "s06", row(Double.NaN, Period.MONTH.toString(), new double[] {})),
+                row(0.0, 6.0, "s06", row(Doubles.ERROR_NA, Period.MONTH.toString(), new double[] {})),
                 row(0.0, 7.0, "s07", null),
                 row(2.0, 9.0, "s99", row(206.0, Period.MONTH.toString(), new double[] {91, 92})));
         right = spark.createDataFrame(rightRows, rightSchema);

@@ -10,7 +10,7 @@ import com.epam.deltix.quantgrid.type.ColumnType;
 
 import java.util.List;
 
-public class CompiledNestedColumn extends CompiledAbstractTable {
+public class CompiledNestedColumn extends CompiledAbstractTable implements CompiledColumn {
 
     private final int column;
 
@@ -38,10 +38,10 @@ public class CompiledNestedColumn extends CompiledAbstractTable {
     }
 
     @Override
-    public CompiledColumn flat() {
+    public CompiledSimpleColumn flat() {
         CompileUtil.verify(column >= 0);
         Get get = new Get(node, column);
-        return new CompiledColumn(get, dimensions);
+        return new CompiledSimpleColumn(get, dimensions);
     }
 
     @Override

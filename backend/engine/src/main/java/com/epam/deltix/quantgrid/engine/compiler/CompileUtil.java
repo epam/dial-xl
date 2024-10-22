@@ -1,8 +1,12 @@
 package com.epam.deltix.quantgrid.engine.compiler;
 
-import com.epam.deltix.quantgrid.engine.compiler.result.CompiledColumn;
+import com.epam.deltix.quantgrid.engine.compiler.result.CompiledSimpleColumn;
+import com.epam.deltix.quantgrid.engine.compiler.result.CompiledNestedColumn;
+import com.epam.deltix.quantgrid.engine.compiler.result.CompiledResult;
 import com.epam.deltix.quantgrid.engine.compiler.result.CompiledTable;
 import com.epam.deltix.quantgrid.engine.meta.Schema;
+import com.epam.deltix.quantgrid.engine.node.Node;
+import com.epam.deltix.quantgrid.engine.node.expression.BinaryOperator;
 import com.epam.deltix.quantgrid.engine.node.expression.Expression;
 import com.epam.deltix.quantgrid.engine.node.expression.Get;
 import com.epam.deltix.quantgrid.engine.node.expression.RowNumber;
@@ -12,6 +16,8 @@ import com.epam.deltix.quantgrid.engine.node.plan.local.Projection;
 import com.epam.deltix.quantgrid.engine.node.plan.local.SelectLocal;
 import com.epam.deltix.quantgrid.engine.value.Period;
 import com.epam.deltix.quantgrid.parser.FieldKey;
+import com.epam.deltix.quantgrid.parser.ast.BinaryOperation;
+import com.epam.deltix.quantgrid.parser.ast.ConstNumber;
 import com.epam.deltix.quantgrid.parser.ast.CurrentField;
 import com.epam.deltix.quantgrid.parser.ast.Formula;
 import lombok.experimental.UtilityClass;
@@ -48,6 +54,19 @@ public class CompileUtil {
         }
     }
 
+    public void verifySameLayout(CompiledResult a, CompiledResult b) {
+        verify(a.hasSameLayout(b));
+    }
+
+    public void verifySameLayout(CompiledResult a, CompiledResult b, String errorFormat, Object... args) {
+        verify(a.hasSameLayout(b), errorFormat, args);
+    }
+
+    public void verifySameLayout(CompiledResult a, Node plan, String errorFormat, Object... args) {
+        verify(a.node().getLayout().semanticEqual(plan.getLayout(), true), errorFormat, args);
+    }
+
+
     public void verifyReferences(int currentRef, int queryRef) {
         CompileUtil.verify(currentRef <= queryRef, "currentRef(%s) > queryRef(%s)", currentRef, queryRef);
     }
@@ -61,9 +80,9 @@ public class CompileUtil {
         }
     }
 
-    public CompiledColumn projectColumn(Expression key, Expression column, List<FieldKey> dimensions) {
+    public CompiledSimpleColumn projectColumn(Expression key, Expression column, List<FieldKey> dimensions) {
         Expression projected = projectColumn(key, column);
-        return new CompiledColumn(projected, dimensions);
+        return new CompiledSimpleColumn(projected, dimensions);
     }
 
     public Expression projectColumn(Expression key, Expression column) {
@@ -122,7 +141,7 @@ public class CompileUtil {
         return new SelectLocal(columns);
     }
 
-    public SelectLocal selectColumns(Get first, Plan last) {
+    public SelectLocal selectColumns(Expression first, Plan last) {
         List<Expression> expressions = new ArrayList<>();
         expressions.add(first);
         expressions.addAll(selectColumns(last, 0).getExpressions());
@@ -163,7 +182,7 @@ public class CompileUtil {
         return isContextNode(layout.node(), table.node(), sourcePlan, currentRef);
     }
 
-    private static boolean isContextNode(Plan layout, Plan table, Plan source, int currentRef) {
+    private boolean isContextNode(Plan layout, Plan table, Plan source, int currentRef) {
         if (source == table) {
             return true;
         }
@@ -187,7 +206,7 @@ public class CompileUtil {
         return isContextNode(layout, table, plan, column);
     }
 
-    private static boolean isRowNumber(Expression expression) {
+    private boolean isRowNumber(Expression expression) {
         while (true) {
             if (expression instanceof RowNumber) {
                 return true;
@@ -200,5 +219,33 @@ public class CompileUtil {
 
             return false;
         }
+    }
+
+    public <R extends CompiledResult> String getTypeDisplayName(Class<R> type) {
+        if (CompiledSimpleColumn.class.isAssignableFrom(type)) {
+            return "value";
+        }
+
+        if (CompiledNestedColumn.class.isAssignableFrom(type)) {
+            return "list";
+        }
+
+        if (CompiledTable.class.isAssignableFrom(type)) {
+            return "table";
+        }
+
+        return type.getSimpleName();
+    }
+
+    public CompiledResult number(CompileContext context, CompiledTable table, double number) {
+        CompileContext nested = context.with(table, false);
+        CompiledSimpleColumn column = nested.compileFormula(new ConstNumber(number)).cast(CompiledSimpleColumn.class);
+        return nested.promote(column, table.dimensions());
+    }
+
+    public BinaryOperator plus(CompileContext context, CompiledTable table, Expression left, double number) {
+        verify(left.getType().isDouble(), "Cannot add %s to a non-numeric expression", left);
+        Expression right = context.flattenArgument(number(context, table, number), "plus").node();
+        return new BinaryOperator(left, right, BinaryOperation.ADD);
     }
 }

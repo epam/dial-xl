@@ -68,7 +68,6 @@ public class EnrichSource implements Rule {
             // return when none of the sources needs reconnection
             return plan;
         }
-
         return enrichPlan(plan, reconnections);
     }
 

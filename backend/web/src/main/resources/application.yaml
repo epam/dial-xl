@@ -6,5 +6,20 @@ logging:
 web:
   storage:
     local:
-      projectsFolder: ${PROJECTS_FOLDER}
-      inputsFolder: ${INPUTS_FOLDER}
+      projectsFolder: ${PROJECTS_FOLDER:tmp/projects}
+      inputsFolder: ${INPUTS_FOLDER:tmp/inputs}
+    dial:
+      enabled: ${WEB_STORAGE_DIAL_INPUT_ENABLED:false}
+      baseUrl: ${WEB_STORAGE_DIAL_BASE_URL}
+  heartbeatPeriodMillis: 60000
+
+spring:
+  mvc:
+    async:
+      request-timeout: 600000 # 10 min
+  security:
+    enabled: ${SECURITY_ENABLED:false}
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: ${JWKS_URI}

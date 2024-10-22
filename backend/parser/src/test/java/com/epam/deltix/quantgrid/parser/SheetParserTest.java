@@ -6,148 +6,165 @@ import com.epam.deltix.quantgrid.parser.ast.ConstNumber;
 import com.epam.deltix.quantgrid.parser.ast.ConstText;
 import com.epam.deltix.quantgrid.parser.ast.CurrentField;
 import com.epam.deltix.quantgrid.parser.ast.FieldReference;
+import com.epam.deltix.quantgrid.parser.ast.Formula;
 import com.epam.deltix.quantgrid.parser.ast.Function;
 import com.epam.deltix.quantgrid.parser.ast.QueryRow;
 import com.epam.deltix.quantgrid.parser.ast.TableReference;
 import com.epam.deltix.quantgrid.parser.ast.UnaryOperation;
 import com.epam.deltix.quantgrid.parser.ast.UnaryOperator;
-import com.epam.deltix.quantgrid.service.parser.OverrideValue;
-import com.epam.deltix.quantgrid.type.ColumnType;
-import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
-import java.util.Map;
 
-import static com.epam.deltix.quantgrid.service.parser.OverrideValue.MISSING;
+import static org.assertj.core.api.Assertions.assertThat;
 
 class SheetParserTest {
-
-    private FieldKey key(String tableName, String fieldName) {
-        return new FieldKey(tableName, fieldName);
+    private static Span span(int from, int to) {
+        return new Span(from, to);
     }
 
-    private static void assertOverridesEquals(ParsedOverride expected, ParsedOverride actual) {
-        if (expected != null && actual != null) {
-            Map<FieldKey, ParsedOverride.TypedValue> expectedKeys = expected.keys();
-            Map<FieldKey, ParsedOverride.TypedValue> actualKeys = actual.keys();
-
-            Assertions.assertEquals(expected.rowNumberKey(), actual.rowNumberKey());
-
-            Assertions.assertEquals(expectedKeys.size(), actualKeys.size(), "Override keys size do not match");
-            expectedKeys.forEach((k, v) -> {
-                ParsedOverride.TypedValue actualTypedValue = actualKeys.get(k);
-                Assertions.assertNotNull(actualTypedValue, "Missing expected override key: " + k);
-                Assertions.assertEquals(v.type(), actualTypedValue.type(), "Override key type doesn't match");
-                Assertions.assertIterableEquals(
-                        v.value(),
-                        actualTypedValue.value(),
-                        "Override key values do not match");
-            });
-
-            Map<FieldKey, ParsedOverride.TypedValue> expectedFields = expected.fields();
-            Map<FieldKey, ParsedOverride.TypedValue> actualFields = actual.fields();
-
-            Assertions.assertEquals(expectedFields.size(), actualFields.size(), "Override fields size do not match");
-            expectedFields.forEach((k, v) -> {
-                ParsedOverride.TypedValue actualTypedValue = actualFields.get(k);
-                Assertions.assertNotNull(actualTypedValue, "Missing expected override field: " + k);
-                Assertions.assertEquals(v.type(), actualTypedValue.type(), "Override field type doesn't match");
-                Assertions.assertIterableEquals(
-                        v.value(),
-                        actualTypedValue.value(),
-                        "Override field values do not match");
-            });
-        } else {
-            Assertions.assertEquals(expected, actual);
-        }
+    private static ParsedText text(int from, int to, String text) {
+        return new ParsedText(span(from, to), text);
     }
 
-    private static void assertDecoratorEquals(ParsedDecorator a, ParsedDecorator b) {
-        Assertions.assertEquals(a.decoratorName(), b.decoratorName(),
-                "Decorator names do not match");
-        for (int i = 0; i < a.params().length; ++i) {
-            Assertions.assertEquals(a.params()[i], b.params()[i], "Decorator params do not match");
-        }
+    private static ParsedFormula formula(int from, int to, Formula formula) {
+        return new ParsedFormula(span(from, to), formula, List.of());
     }
 
-    private static void assertFieldEquals(ParsedField a, ParsedField b) {
-        Assertions.assertEquals(a.getKey(), b.getKey(),
-                "Field names do not match");
-        Assertions.assertEquals(a.isKey(), b.isKey(),
-                "Field key flags do not match");
-        Assertions.assertEquals(a.isDim(), b.isDim(),
-                "Field dim flags do not match");
-
-        Assertions.assertEquals(a.getFormula(), b.getFormula(),
-                "Fields formula do not match");
-
-        Assertions.assertEquals(a.getDecorators().size(), b.getDecorators().size(),
-                "Decorators lists sizes do not match");
-        for (int i = 0; i < a.getDecorators().size(); ++i) {
-            assertDecoratorEquals(a.getDecorators().get(i), b.getDecorators().get(i));
-        }
-    }
-
-    private static void assertTableEquals(ParsedTable a, ParsedTable b) {
-        Assertions.assertEquals(a.getTableName(), b.getTableName(),
-                "Table names do not match");
-
-        Assertions.assertEquals(a.getFields().size(), b.getFields().size(),
-                "Fields lists sizes do not match");
-        for (int i = 0; i < a.getFields().size(); ++i) {
-            assertFieldEquals(a.getFields().get(i), b.getFields().get(i));
-        }
-
-        Assertions.assertEquals(a.getDecorators().size(), b.getDecorators().size(),
-                "Decorators lists sizes do not match");
-        for (int i = 0; i < a.getDecorators().size(); ++i) {
-            assertDecoratorEquals(a.getDecorators().get(i), b.getDecorators().get(i));
-        }
-        assertOverridesEquals(a.getOverrides(), b.getOverrides());
+    private static ParsedPrimitive primitive(int from, int to, Object value) {
+        return new ParsedPrimitive(span(from, to), value);
     }
 
     private static void assertSheetEquals(ParsedSheet a, ParsedSheet b) {
-        Assertions.assertEquals(a.getErrors().size(), b.getErrors().size(),
+        assertSheetEquals(a, b, false);
+    }
+
+    private static void assertSheetEquals(ParsedSheet a, ParsedSheet b, boolean ignoreSpan) {
+        Assertions.assertEquals(a.errors().size(), b.errors().size(),
                 "Error lists sizes do not match");
-        for (int i = 0; i < a.getErrors().size(); ++i) {
-            Assertions.assertEquals(a.getErrors().get(i), b.getErrors().get(i), "Error do not match");
+        for (int i = 0; i < a.errors().size(); ++i) {
+            Assertions.assertEquals(a.errors().get(i), b.errors().get(i), "Error do not match");
         }
-        Assertions.assertEquals(a.getTables().size(), b.getTables().size(),
+        Assertions.assertEquals(a.tables().size(), b.tables().size(),
                 "Table lists sizes do not match");
-        for (int i = 0; i < a.getTables().size(); ++i) {
-            assertTableEquals(a.getTables().get(i), b.getTables().get(i));
+        for (int i = 0; i < a.tables().size(); ++i) {
+            if (ignoreSpan) {
+                assertThat(b.tables().get(i))
+                        .usingRecursiveComparison()
+                        .ignoringFieldsOfTypes(Span.class)
+                        .isEqualTo(a.tables().get(i));
+            } else {
+                Assertions.assertEquals(a.tables().get(i), b.tables().get(i));
+            }
         }
     }
 
-    public void assertStandardDsl(ParsedSheet parseSheet) {
+    private static void assertStandardDsl(ParsedSheet parseSheet) {
         assertSheetEquals(
-                new ParsedSheet(List.of(
-                        new ParsedTable("T1", List.of(
-                                new ParsedField(true, false, key("T1", "a"),
-                                        new UnaryOperator(new ConstNumber(1), UnaryOperation.NEG),
-                                        List.of(new ParsedDecorator("format", "#.##"))),
-                                new ParsedField(false, true, key("T1", "b"),
-                                        new ConstNumber(2.5), List.of()),
-                                new ParsedField(false, false, key("T1", "c"),
-                                        new ConstNumber(3.42), List.of()),
-                                new ParsedField(true, true, key("T1", "d"),
-                                        new ConstNumber(5), List.of())
-                        ), List.of(new ParsedDecorator("placement", 1.0, 1.0))),
-                        new ParsedTable("T2", List.of(
-                                new ParsedField(true, true, key("T2", "x"),
-                                        new TableReference("T1"), List.of()),
-                                new ParsedField(false, false, key("T2", "y"),
-                                        new TableReference("T2"), List.of()),
-                                new ParsedField(false, true, key("T2", "z"),
-                                        new FieldReference(new TableReference("T1"), "a"),
-                                        List.of()),
-                                new ParsedField(true, false, key("T2", "w"),
-                                        new FieldReference(new CurrentField("x"), "y"), List.of())
-                        ), List.of(new ParsedDecorator("placement", 5.0, 1.0)))
-                ), List.of(/*No errors*/)
-                ), parseSheet);
+                ParsedSheet.builder()
+                        .tables(List.of(
+                                ParsedTable.builder()
+                                        .span(span(0, 0))
+                                        .docs(List.of())
+                                        .decorators(List.of(
+                                                new ParsedDecorator(
+                                                        span(0, 0),
+                                                        text(0, 0, "placement"),
+                                                        List.of(
+                                                                primitive(0, 0, 1.0),
+                                                                primitive(0, 0, 1.0)))))
+                                        .name(text(0, 0, "T1"))
+                                        .fields(List.of(
+                                                ParsedField.builder()
+                                                        .span(span(0, 0))
+                                                        .docs(List.of())
+                                                        .decorators(List.of(
+                                                                new ParsedDecorator(
+                                                                        span(0, 0),
+                                                                        text(0, 0, "format"),
+                                                                        List.of(primitive(0, 0, "#.##")))))
+                                                        .key(text(0, 0, "key"))
+                                                        .name(text(0, 0, "a"))
+                                                        .formula(formula(0, 0, new ConstNumber(-1)))
+                                                        .build(),
+                                                ParsedField.builder()
+                                                        .span(span(0, 0))
+                                                        .docs(List.of())
+                                                        .decorators(List.of())
+                                                        .dim(text(0, 0, "dim"))
+                                                        .name(text(0, 0, "b"))
+                                                        .formula(formula(0, 0, new ConstNumber(2.5)))
+                                                        .build(),
+                                                ParsedField.builder()
+                                                        .span(span(0, 0))
+                                                        .docs(List.of())
+                                                        .decorators(List.of())
+                                                        .name(text(0, 0, "c"))
+                                                        .formula(formula(0, 0, new ConstNumber(3.42)))
+                                                        .build(),
+                                                ParsedField.builder()
+                                                        .span(span(0, 0))
+                                                        .docs(List.of())
+                                                        .decorators(List.of())
+                                                        .key(text(0, 0, "key"))
+                                                        .dim(text(0, 0, "dim"))
+                                                        .name(text(0, 0, "d"))
+                                                        .formula(formula(0, 0, new ConstNumber(5)))
+                                                        .build()))
+                                        .build(),
+                                ParsedTable.builder()
+                                        .span(span(0, 0))
+                                        .docs(List.of())
+                                        .decorators(List.of(
+                                                new ParsedDecorator(
+                                                        span(0, 0),
+                                                        text(0, 0, "placement"),
+                                                        List.of(primitive(0, 0, 5.0), primitive(0, 0, 1.0)))))
+                                        .name(text(0, 0, "T2"))
+                                        .fields(List.of(
+                                                ParsedField.builder()
+                                                        .span(span(0, 0))
+                                                        .docs(List.of())
+                                                        .decorators(List.of())
+                                                        .key(text(0, 0, "key"))
+                                                        .dim(text(0, 0, "dim"))
+                                                        .name(text(0, 0, "x"))
+                                                        .formula(formula(0, 0,
+                                                                new TableReference("T1")))
+                                                        .build(),
+                                                ParsedField.builder()
+                                                        .span(span(0, 0))
+                                                        .docs(List.of())
+                                                        .decorators(List.of())
+                                                        .name(text(0, 0, "y"))
+                                                        .formula(formula(0, 0,
+                                                                new TableReference("T2")))
+                                                        .build(),
+                                                ParsedField.builder()
+                                                        .span(span(0, 0))
+                                                        .docs(List.of())
+                                                        .decorators(List.of())
+                                                        .dim(text(0, 0, "dim"))
+                                                        .name(text(0, 0, "z"))
+                                                        .formula(formula(0, 0,
+                                                                new FieldReference(new TableReference("T1"), "a")))
+                                                        .build(),
+                                                ParsedField.builder()
+                                                        .span(span(0, 0))
+                                                        .docs(List.of())
+                                                        .decorators(List.of())
+                                                        .key(text(0, 0, "key"))
+                                                        .name(text(0, 0, "w"))
+                                                        .formula(formula(0, 0,
+                                                                new FieldReference(
+                                                                        new CurrentField("x"),
+                                                                        "y")))
+                                                        .build()))
+                                        .build()))
+                        .errors(List.of())
+                        .build(),
+                parseSheet, true);
     }
 
     @Test
@@ -162,8 +179,7 @@ class SheetParserTest {
                 table T1
                   # test comment5
                   !format("#.##")
-                  key # test comment6
-                   [a] = -1
+                  key [a] = -1
                   # test comment7
                   # test comment8
                   dim [b] = 2.5
@@ -187,13 +203,17 @@ class SheetParserTest {
     @Test
     void testFlatFields() {
         String sheet = """
-                !placement(1, 1)
-                table T1
-                  !format("#.##") key [a] = -1 dim [b] = 2.5 [c] = 3.42 key dim [d] = 5.00
+                !placement(1, 1) table T1
+                  !format("#.##") key [a] = -1 
+                  dim [b] = 2.5 
+                  [c] = 3.42 
+                  key dim [d] = 5.00
 
-                !placement(5, 1)
-                table T2
-                  key dim [x] = T1 [y] = T2 dim [z] = T1[a] key [w] = [x][y]
+                !placement(5, 1) table T2
+                  key dim [x] = T1
+                  [y] = T2
+                  dim [z] = T1[a]
+                  key [w] = [x][y]
                 """;
         assertStandardDsl(SheetReader.parseSheet(sheet));
     }
@@ -201,9 +221,17 @@ class SheetParserTest {
     @Test
     void testFlatTables() {
         String sheet = """
-                !placement(1, 1) table T1 !format("#.##") key [a] = -1 dim [b] = 2.5 [c] = 3.42 key dim [d] = 5.00
+                !placement(1, 1) table T1 
+                !format("#.##") key [a] = -1 
+                dim [b] = 2.5 
+                [c] = 3.42 
+                key dim [d] = 5.00
 
-                !placement(5, 1) table T2 key dim [x] = T1 [y] = T2 dim [z] = T1[a] key [w] = [x][y]
+                !placement(5, 1) table T2
+                key dim [x] = T1 
+                [y] = T2 
+                dim [z] = T1[a] 
+                key [w] = [x][y]
                 """;
         assertStandardDsl(SheetReader.parseSheet(sheet));
     }
@@ -214,30 +242,59 @@ class SheetParserTest {
                 table T1
                   [a] = 1
                   [b] = 2
-                  [c] = [a] == [b]
-                  [d] = [b] == [a]
+                  [c] = [a] = [b]
+                  [d] = [b] = [a]
                 """;
 
         assertSheetEquals(
-                new ParsedSheet(List.of(
-                        new ParsedTable("T1", List.of(
-                                new ParsedField(false, false, key("T1", "a"),
-                                        new ConstNumber(1), List.of()),
-                                new ParsedField(false, false, key("T1", "b"),
-                                        new ConstNumber(2), List.of()),
-                                new ParsedField(false, false, key("T1", "c"),
-                                        new BinaryOperator(
-                                                new CurrentField("a"),
-                                                new CurrentField("b"),
-                                                BinaryOperation.EQ), List.of()),
-                                new ParsedField(false, false, key("T1", "d"),
-                                        new BinaryOperator(
-                                                new CurrentField("b"),
-                                                new CurrentField("a"),
-                                                BinaryOperation.EQ), List.of())
-                        ), List.of())
-                ), List.of(/*No errors*/)
-                ), SheetReader.parseSheet(sheet));
+                ParsedSheet.builder()
+                        .tables(List.of(
+                                ParsedTable.builder()
+                                        .span(span(0, 65))
+                                        .docs(List.of())
+                                        .decorators(List.of())
+                                        .name(text(6, 8, "T1"))
+                                        .fields(List.of(
+                                                ParsedField.builder()
+                                                        .span(span(11, 18))
+                                                        .docs(List.of())
+                                                        .decorators(List.of())
+                                                        .name(text(11, 14, "a"))
+                                                        .formula(formula(17, 18, new ConstNumber(1)))
+                                                        .build(),
+                                                ParsedField.builder()
+                                                        .span(span(21, 28))
+                                                        .docs(List.of())
+                                                        .decorators(List.of())
+                                                        .name(text(21, 24, "b"))
+                                                        .formula(formula(27, 28, new ConstNumber(2)))
+                                                        .build(),
+                                                ParsedField.builder()
+                                                        .span(span(31, 46))
+                                                        .docs(List.of())
+                                                        .decorators(List.of())
+                                                        .name(text(31, 34, "c"))
+                                                        .formula(formula(37, 46,
+                                                                new BinaryOperator(
+                                                                        new CurrentField("a"),
+                                                                        new CurrentField("b"),
+                                                                        BinaryOperation.EQ)))
+                                                        .build(),
+                                                ParsedField.builder()
+                                                        .span(span(49, 64))
+                                                        .docs(List.of())
+                                                        .decorators(List.of())
+                                                        .name(text(49, 52, "d"))
+                                                        .formula(formula(55, 64,
+                                                                new BinaryOperator(
+                                                                        new CurrentField("b"),
+                                                                        new CurrentField("a"),
+                                                                        BinaryOperation.EQ)))
+                                                        .build()))
+                                        .build()))
+                        .errors(List.of())
+                        .build(),
+                SheetReader.parseSheet(sheet));
     }
 
     @Test
@@ -247,53 +304,87 @@ class SheetParserTest {
                   [a] = 1
 
 
-                  [b] = T1.ORDERBY([b], [a]).DISTINCTBY([a], [b])
+                  [b] = T1.SORTBY([b], [a]).UNIQUEBY([a], [b]) \
                     .FILTER(SUM([b]) MOD T1.COUNT() <> $[a])[f][g]
                   [c] = 2
                   [d] = 42
                 """;
 
         assertSheetEquals(
-                new ParsedSheet(List.of(
-                        new ParsedTable("T1", List.of(
-                                new ParsedField(false, false, key("T1", "a"),
-                                        new ConstNumber(1), List.of()),
-                                new ParsedField(false, false, key("T1", "b"),
-                                        new FieldReference(
-                                                new FieldReference(
-                                                        new Function("FILTER",
-                                                                new Function(
-                                                                        "DISTINCTBY",
-                                                                        new Function(
-                                                                                "ORDERBY",
-                                                                                new TableReference("T1"),
-                                                                                new CurrentField("b"),
-                                                                                new CurrentField("a")
-                                                                        ),
-                                                                        new CurrentField("a"),
-                                                                        new CurrentField("b")),
-                                                                new BinaryOperator(
-                                                                        new BinaryOperator(
-                                                                                new Function("SUM",
-                                                                                        new CurrentField("b")),
-                                                                                new Function("COUNT",
-                                                                                        new TableReference(
-                                                                                                "T1")),
-                                                                                BinaryOperation.MOD),
+                ParsedSheet.builder()
+                        .tables(List.of(
+                                ParsedTable.builder()
+                                        .span(span(0, 140))
+                                        .docs(List.of())
+                                        .decorators(List.of())
+                                        .name(text(6, 8, "T1"))
+                                        .fields(List.of(
+                                                ParsedField.builder()
+                                                        .span(span(11, 18))
+                                                        .docs(List.of())
+                                                        .decorators(List.of())
+                                                        .name(text(11, 14, "a"))
+                                                        .formula(formula(17, 18, new ConstNumber(1)))
+                                                        .build(),
+                                                ParsedField.builder()
+                                                        .span(span(23, 118))
+                                                        .docs(List.of())
+                                                        .decorators(List.of())
+                                                        .name(text(23, 26, "b"))
+                                                        .formula(formula(29, 118,
+                                                                new FieldReference(
                                                                         new FieldReference(
-                                                                                new QueryRow(),
-                                                                                "a"),
-                                                                        BinaryOperation.NEQ
-                                                                )),
-                                                        "f"),
-                                                "g"),
-                                        List.of()),
-                                new ParsedField(false, false, key("T1", "c"),
-                                        new ConstNumber(2), List.of()),
-                                new ParsedField(false, false, key("T1", "d"),
-                                        new ConstNumber(42), List.of())), List.of())
-                ), List.of(/*No errors*/)
-                ), SheetReader.parseSheet(sheet));
+                                                                                new Function("FILTER",
+                                                                                        new Function(
+                                                                                                "UNIQUEBY",
+                                                                                                new Function(
+                                                                                                        "SORTBY",
+                                                                                                        new TableReference(
+                                                                                                                "T1"),
+                                                                                                        new CurrentField(
+                                                                                                                "b"),
+                                                                                                        new CurrentField(
+                                                                                                                "a")
+                                                                                                ),
+                                                                                                new CurrentField("a"),
+                                                                                                new CurrentField("b")),
+                                                                                        new BinaryOperator(
+                                                                                                new BinaryOperator(
+                                                                                                        new Function(
+                                                                                                                "SUM",
+                                                                                                                new CurrentField(
+                                                                                                                        "b")),
+                                                                                                        new Function(
+                                                                                                                "COUNT",
+                                                                                                                new TableReference(
+                                                                                                                        "T1")),
+                                                                                                        BinaryOperation.MOD),
+                                                                                                new FieldReference(
+                                                                                                        new QueryRow(),
+                                                                                                        "a"),
+                                                                                                BinaryOperation.NEQ
+                                                                                        )),
+                                                                                "f"),
+                                                                        "g")))
+                                                        .build(),
+                                                ParsedField.builder()
+                                                        .span(span(121, 128))
+                                                        .docs(List.of())
+                                                        .decorators(List.of())
+                                                        .name(text(121, 124, "c"))
+                                                        .formula(formula(127, 128, new ConstNumber(2)))
+                                                        .build(),
+                                                ParsedField.builder()
+                                                        .span(span(131, 139))
+                                                        .docs(List.of())
+                                                        .decorators(List.of())
+                                                        .name(text(131, 134, "d"))
+                                                        .formula(formula(137, 139, new ConstNumber(42)))
+                                                        .build()))
+                                        .build()))
+                        .errors(List.of())
+                        .build(),
+                SheetReader.parseSheet(sheet));
     }
 
     @Test
@@ -305,25 +396,32 @@ class SheetParserTest {
                 """;
 
         assertSheetEquals(
-                new ParsedSheet(
-                        List.of(new ParsedTable(
-                                "table t 1",
-                                List.of(new ParsedField(
-                                                false,
-                                                false,
-                                                key("table t 1", "some field name"),
-                                                new ConstNumber(1),
-                                                List.of()),
-                                        new ParsedField(
-                                                false,
-                                                false,
-                                                key("table t 1", "a_2"),
-                                                new ConstText("This is data for T1[a]"),
-                                                List.of())
-                                ),
-                                List.of()
-                        )),
-                        List.of()),
+                ParsedSheet.builder()
+                        .tables(List.of(
+                                ParsedTable.builder()
+                                        .span(span(0, 77))
+                                        .docs(List.of())
+                                        .decorators(List.of())
+                                        .name(text(6, 17, "table t 1"))
+                                        .fields(List.of(
+                                                ParsedField.builder()
+                                                        .span(span(20, 41))
+                                                        .docs(List.of())
+                                                        .decorators(List.of())
+                                                        .name(text(20, 37, "some field name"))
+                                                        .formula(formula(40, 41, new ConstNumber(1)))
+                                                        .build(),
+                                                ParsedField.builder()
+                                                        .span(span(44, 76))
+                                                        .docs(List.of())
+                                                        .decorators(List.of())
+                                                        .name(text(44, 49, "a_2"))
+                                                        .formula(formula(52, 76,
+                                                                new ConstText("This is data for T1[a]")))
+                                                        .build()))
+                                        .build()))
+                        .errors(List.of())
+                        .build(),
                 SheetReader.parseSheet(sheet));
     }
 
@@ -336,25 +434,31 @@ class SheetParserTest {
                 """;
 
         assertSheetEquals(
-                new ParsedSheet(
-                        List.of(new ParsedTable(
-                                "t1",
-                                List.of(new ParsedField(
-                                                false,
-                                                false,
-                                                key("t1", "*"),
-                                                new ConstNumber(1),
-                                                List.of()),
-                                        new ParsedField(
-                                                false,
-                                                false,
-                                                key("t1", "*"),
-                                                new ConstNumber(2),
-                                                List.of())
-                                ),
-                                List.of()
-                        )),
-                        List.of()),
+                ParsedSheet.builder()
+                        .tables(List.of(
+                                ParsedTable.builder()
+                                        .span(span(0, 31))
+                                        .docs(List.of())
+                                        .decorators(List.of())
+                                        .name(text(6, 10, "t1"))
+                                        .fields(List.of(
+                                                ParsedField.builder()
+                                                        .docs(List.of())
+                                                        .decorators(List.of())
+                                                        .span(span(13, 20))
+                                                        .name(text(13, 16, "*"))
+                                                        .formula(formula(19, 20, new ConstNumber(1)))
+                                                        .build(),
+                                                ParsedField.builder()
+                                                        .docs(List.of())
+                                                        .decorators(List.of())
+                                                        .span(span(23, 30))
+                                                        .name(text(23, 26, "*"))
+                                                        .formula(formula(29, 30, new ConstNumber(2)))
+                                                        .build()))
+                                        .build()))
+                        .errors(List.of())
+                        .build(),
                 SheetReader.parseSheet(sheet));
     }
 
@@ -376,31 +480,34 @@ class SheetParserTest {
                 ParsedSheet.builder()
                         .tables(List.of(
                                 ParsedTable.builder()
+                                        .span(span(67, 117))
+                                        .docs(List.of())
                                         .decorators(List.of())
-                                        .tableName("t1")
+                                        .name(text(73, 75, "t1"))
                                         .fields(List.of(
                                                 ParsedField.builder()
+                                                        .span(span(80, 87))
+                                                        .docs(List.of())
                                                         .decorators(List.of())
-                                                        .key(key("t1", "b"))
-                                                        .formula(new ConstNumber(3))
+                                                        .name(text(80, 83, "b"))
+                                                        .formula(formula(86, 87, new ConstNumber(3)))
                                                         .build()))
                                         .build()))
                         .errors(List.of(
                                 ParsingError.builder()
-                                        .message("missing {UPPER_CASE_IDENTIFIER, LOWER_CASE_IDENTIFIER, IDENTIFIER,"
-                                                + " MULTI_WORD_TABLE_IDENTIFIER} at '[a]'")
+                                        .message("missing {IDENTIFIER, MULTI_WORD_TABLE_IDENTIFIER} at '[a]'")
                                         .line(3)
-                                        .position(4)
+                                        .position(5)
                                         .build(),
                                 ParsingError.builder()
                                         .message("Missing table name")
                                         .line(3)
-                                        .position(4)
+                                        .position(5)
                                         .build(),
                                 ParsingError.builder()
                                         .message("Missing table name")
                                         .line(9)
-                                        .position(6)
+                                        .position(7)
                                         .build()))
                         .build(),
                 SheetReader.parseSheet(sheet));
@@ -427,50 +534,63 @@ class SheetParserTest {
                 ParsedSheet.builder()
                         .tables(List.of(
                                 ParsedTable.builder()
-                                        .tableName("t1")
+                                        .span(span(0, 25))
+                                        .docs(List.of())
+                                        .decorators(List.of())
+                                        .name(text(6, 8, "t1"))
                                         .fields(List.of(
                                                 ParsedField.builder()
+                                                        .span(span(16, 23))
+                                                        .docs(List.of())
                                                         .decorators(List.of())
-                                                        .key(key("t1", "b"))
-                                                        .formula(new ConstNumber(5))
+                                                        .name(text(16, 19, "b"))
+                                                        .formula(formula(22, 23, new ConstNumber(5)))
                                                         .build()))
-                                        .decorators(List.of())
                                         .build(),
                                 ParsedTable.builder()
-                                        .tableName("t2")
+                                        .span(span(25, 59))
+                                        .docs(List.of())
+                                        .decorators(List.of())
+                                        .name(text(31, 33, "t2"))
                                         .fields(List.of(
                                                 ParsedField.builder()
+                                                        .span(span(50, 57))
+                                                        .docs(List.of())
                                                         .decorators(List.of())
-                                                        .key(key("t2", "c"))
-                                                        .formula(new ConstNumber(6))
+                                                        .name(text(50, 53, "c"))
+                                                        .formula(formula(56, 57, new ConstNumber(6)))
                                                         .build()))
-                                        .decorators(List.of())
                                         .build(),
                                 ParsedTable.builder()
-                                        .tableName("t3")
+                                        .span(span(59, 80))
+                                        .docs(List.of())
+                                        .decorators(List.of())
+                                        .name(text(65, 67, "t3"))
                                         .fields(List.of(
                                                 ParsedField.builder()
+                                                        .span(span(72, 79))
+                                                        .docs(List.of())
                                                         .decorators(List.of())
-                                                        .key(key("t3", "a"))
-                                                        .formula(new ConstNumber(1))
+                                                        .name(text(72, 75, "a"))
+                                                        .formula(formula(78, 79, new ConstNumber(1)))
                                                         .build()))
-                                        .decorators(List.of())
                                         .build()))
                         .errors(List.of(
                                 ParsingError.builder()
                                         .message("token recognition error at: '[a\\n'")
                                         .line(2)
-                                        .position(2)
+                                        .position(3)
                                         .build(),
                                 ParsingError.builder()
-                                        .message("extraneous input '=' expecting {<EOF>, '!', 'table'}")
+                                        .message(
+                                                "extraneous input '=' expecting {<EOF>, '!', 'table', PYTHON_BLOCK, LINE_BREAK, DOC_COMMENT}")
                                         .line(11)
-                                        .position(4)
+                                        .position(5)
                                         .build(),
                                 ParsingError.builder()
                                         .message("Missing field name")
                                         .line(6)
-                                        .position(3)
+                                        .position(4)
                                         .tableName("t2")
                                         .build()))
                         .build(),
@@ -502,48 +622,72 @@ class SheetParserTest {
                 ParsedSheet.builder()
                         .tables(List.of(
                                 ParsedTable.builder()
-                                        .tableName("t1")
+                                        .span(span(0, 39))
+                                        .docs(List.of())
+                                        .decorators(List.of(
+                                                new ParsedDecorator(
+                                                        span(14, 30),
+                                                        text(15, 24, "placement"),
+                                                        List.of(primitive(25, 26, 2.0), primitive(27, 28, 2.0)))))
+                                        .name(text(36, 38, "t1"))
                                         .fields(List.of())
-                                        .decorators(List.of(new ParsedDecorator("placement", 2d, 2d)))
                                         .build(),
                                 ParsedTable.builder()
-                                        .tableName("t2")
+                                        .span(span(41, 156))
+                                        .docs(List.of())
+                                        .decorators(List.of(
+                                                new ParsedDecorator(
+                                                        span(63, 82),
+                                                        text(67, 73, "format"),
+                                                        List.of(primitive(74, 80, "#.##"))),
+                                                new ParsedDecorator(
+                                                        span(95, 113),
+                                                        text(98, 107, "placement"),
+                                                        List.of(primitive(108, 109, 1.0), primitive(110, 111, 1.0)))))
+                                        .name(text(119, 121, "t2"))
                                         .fields(List.of(
                                                 ParsedField.builder()
-                                                        .decorators(List.of(new ParsedDecorator("format", "number")))
-                                                        .key(key("t2", "x"))
-                                                        .formula(new ConstNumber(5))
+                                                        .span(span(126, 155))
+                                                        .docs(List.of())
+                                                        .decorators(List.of(
+                                                                new ParsedDecorator(
+                                                                        span(126, 144),
+                                                                        text(127, 133, "format"),
+                                                                        List.of(primitive(134, 142, "number")))))
+                                                        .name(text(148, 151, "x"))
+                                                        .formula(formula(154, 155, new ConstNumber(5)))
                                                         .build()))
-                                        .decorators(List.of(
-                                                new ParsedDecorator("format", "#.##"),
-                                                new ParsedDecorator("placement", 1d, 1d)
-                                        ))
                                         .build()))
                         .errors(List.of(
                                 ParsingError.builder()
                                         .message("mismatched input '!' expecting {FLOAT, STRING_LITERAL}")
                                         .line(2)
-                                        .position(0)
+                                        .position(1)
                                         .build(),
                                 ParsingError.builder()
-                                        .message("mismatched input 'key' expecting '('")
+                                        .message("mismatched input 'key' expecting {'(', LINE_BREAK}")
                                         .line(5)
-                                        .position(2)
+                                        .position(3)
                                         .build(),
                                 ParsingError.builder()
-                                        .message("extraneous input 'dim' expecting {'!', 'table'}")
+                                        .message("extraneous input 'dim' expecting {'!', 'table', LINE_BREAK}")
                                         .line(7)
-                                        .position(2)
+                                        .position(3)
                                         .build(),
                                 ParsingError.builder()
-                                        .message("mismatched input '[c]' expecting '('")
+                                        .message("mismatched input '[c]' expecting {'(', LINE_BREAK}")
                                         .line(14)
-                                        .position(4)
+                                        .position(5)
+                                        .build(),
+                                ParsingError.builder()
+                                        .message("mismatched input '<EOF>' expecting {'(', LINE_BREAK}")
+                                        .line(15)
+                                        .position(1)
                                         .build(),
                                 ParsingError.builder()
                                         .message("Missing table name")
                                         .line(13)
-                                        .position(4)
+                                        .position(5)
                                         .build()))
                         .build(),
                 SheetReader.parseSheet(sheet));
@@ -568,56 +712,61 @@ class SheetParserTest {
                 ParsedSheet.builder()
                         .tables(List.of(
                                 ParsedTable.builder()
-                                        .tableName("t1")
+                                        .span(span(0, 87))
+                                        .docs(List.of())
+                                        .decorators(List.of())
+                                        .name(text(6, 8, "t1"))
                                         .fields(List.of(
                                                 ParsedField.builder()
+                                                        .span(span(11, 26))
+                                                        .docs(List.of())
                                                         .decorators(List.of())
-                                                        .key(key("t1", "a"))
-                                                        .isKey(true)
-                                                        .formula(new BinaryOperator(
-                                                                new ConstNumber(1),
-                                                                new ConstNumber(2),
-                                                                BinaryOperation.ADD))
+                                                        .key(text(11, 14, "key"))
+                                                        .name(text(15, 18, "a"))
+                                                        .formula(formula(
+                                                                21, 26, new BinaryOperator(
+                                                                        new ConstNumber(1),
+                                                                        new ConstNumber(2),
+                                                                        BinaryOperation.ADD)))
                                                         .build(),
                                                 ParsedField.builder()
+                                                        .span(span(74, 85))
+                                                        .docs(List.of())
                                                         .decorators(List.of())
-                                                        .key(key("t1", "c"))
-                                                        .formula(new BinaryOperator(
-                                                                new CurrentField("a"),
-                                                                new CurrentField("d"),
-                                                                BinaryOperation.ADD))
+                                                        .dim(text(74, 77, "dim"))
+                                                        .name(text(78, 81, "d"))
+                                                        .formula(formula(84, 85, new ConstNumber(5)))
                                                         .build()))
-                                        .decorators(List.of())
                                         .build(),
                                 ParsedTable.builder()
-                                        .tableName("t2")
+                                        .span(span(87, 120))
+                                        .docs(List.of())
+                                        .decorators(List.of())
+                                        .name(text(93, 95, "t2"))
                                         .fields(List.of(
                                                 ParsedField.builder()
+                                                        .span(span(100, 107))
+                                                        .docs(List.of())
                                                         .decorators(List.of())
-                                                        .key(key("t2", "x"))
-                                                        .formula(new ConstNumber(5))
+                                                        .name(text(100, 103, "x"))
+                                                        .formula(formula(106, 107, new ConstNumber(5)))
                                                         .build(),
                                                 ParsedField.builder()
+                                                        .span(span(112, 119))
+                                                        .docs(List.of())
                                                         .decorators(List.of())
-                                                        .key(key("t2", "c"))
-                                                        .formula(new ConstNumber(3))
+                                                        .name(text(112, 115, "c"))
+                                                        .formula(formula(118, 119, new ConstNumber(3)))
                                                         .build()))
-                                        .decorators(List.of())
                                         .build()))
                         .errors(List.of(
                                 ParsingError.builder()
-                                        .message("extraneous input 'dim' expecting {'-', 'NOT', '$', 'NA', '(',"
-                                                + " FLOAT, UPPER_CASE_IDENTIFIER, LOWER_CASE_IDENTIFIER, IDENTIFIER,"
-                                                + " STRING_LITERAL, FIELD_NAME, MULTI_WORD_TABLE_IDENTIFIER}")
-                                        .line(5)
-                                        .position(2)
+                                        .message(
+                                                "mismatched input '\\n' expecting {'-', 'NOT', '$', 'NA', '{', '(', FLOAT, IDENTIFIER, STRING_LITERAL, FIELD_NAME, MULTI_WORD_TABLE_IDENTIFIER}")
+                                        .line(4)
+                                        .position(14)
                                         .tableName("t1")
                                         .fieldName("c")
-                                        .build(),
-                                ParsingError.builder()
-                                        .message("extraneous input '=' expecting {<EOF>, '!', 'table'}")
-                                        .line(5)
-                                        .position(10)
                                         .build()))
                         .build(),
                 SheetReader.parseSheet(sheet));
@@ -634,15 +783,17 @@ class SheetParserTest {
                 ParsedSheet.builder()
                         .tables(List.of(
                                 ParsedTable.builder()
-                                        .tableName("T2")
+                                        .span(span(0, 32))
+                                        .docs(List.of())
                                         .decorators(List.of())
+                                        .name(text(6, 8, "T2"))
                                         .fields(List.of())
                                         .build()))
                         .errors(List.of(
                                 ParsingError.builder()
                                         .message("mismatched input 'T1' expecting {',', ')'}")
                                         .line(2)
-                                        .position(16)
+                                        .position(17)
                                         .tableName("T2")
                                         .fieldName("a")
                                         .build()))
@@ -662,20 +813,24 @@ class SheetParserTest {
                 ParsedSheet.builder()
                         .tables(List.of(
                                 ParsedTable.builder()
-                                        .tableName("T2")
+                                        .span(span(1, 50))
+                                        .docs(List.of())
+                                        .decorators(List.of())
+                                        .name(text(7, 9, "T2"))
                                         .fields(List.of(
                                                 ParsedField.builder()
+                                                        .span(span(41, 49))
+                                                        .docs(List.of())
                                                         .decorators(List.of())
-                                                        .key(key("T2", "y"))
-                                                        .formula(new ConstNumber(42))
+                                                        .name(text(41, 44, "y"))
+                                                        .formula(formula(47, 49, new ConstNumber(42)))
                                                         .build()))
-                                        .decorators(List.of())
                                         .build()))
                         .errors(List.of(
                                 ParsingError.builder()
                                         .message("mismatched input 'T1' expecting {',', ')'}")
                                         .line(2)
-                                        .position(19)
+                                        .position(20)
                                         .tableName("T2")
                                         .fieldName("x")
                                         .build()))
@@ -696,22 +851,34 @@ class SheetParserTest {
                 ParsedSheet.builder()
                         .tables(List.of(
                                 ParsedTable.builder()
-                                        .tableName("T1")
+                                        .span(span(0, 59))
+                                        .docs(List.of())
+                                        .decorators(List.of(
+                                                new ParsedDecorator(
+                                                        span(18, 40),
+                                                        text(20, 30, "decorator2"),
+                                                        List.of(
+                                                                primitive(31, 32, 1.0),
+                                                                primitive(34, 35, 2.0),
+                                                                primitive(37, 38, 2.0)))))
+                                        .name(text(46, 48, "T1"))
                                         .fields(List.of(
                                                 ParsedField.builder()
+                                                        .span(span(51, 58))
+                                                        .docs(List.of())
                                                         .decorators(List.of())
-                                                        .key(key("T1", "a"))
-                                                        .formula(new ConstNumber(1))
+                                                        .name(text(51, 54, "a"))
+                                                        .formula(formula(57, 58, new ConstNumber(1)))
                                                         .build()))
-                                        .decorators(List.of(new ParsedDecorator("decorator2", 1.0, 2.0, 2.0)))
                                         .build()))
                         .errors(List.of(
-                                ParsingError.builder()
-                                        .message("mismatched input '4' expecting {',', ')'}")
-                                        .line(1)
-                                        .position(14)
-                                        .build()))
-                        .build(),
+                                        ParsingError.builder()
+                                                .message("mismatched input '4' expecting {',', ')', LINE_BREAK}")
+                                                .line(1)
+                                                .position(15)
+                                                .build()
+                                )
+                        ).build(),
                 SheetReader.parseSheet(sheet));
     }
 
@@ -734,43 +901,52 @@ class SheetParserTest {
                 ParsedSheet.builder()
                         .tables(List.of(
                                 ParsedTable.builder()
-                                        .tableName("t1")
+                                        .span(span(0, 127))
+                                        .docs(List.of())
+                                        .decorators(List.of())
+                                        .name(text(6, 8, "t1"))
                                         .fields(List.of(
                                                 ParsedField.builder()
+                                                        .span(span(9, 31))
+                                                        .docs(List.of())
                                                         .decorators(List.of())
-                                                        .key(key("t1", "a"))
-                                                        .isDim(true)
-                                                        .isKey(true)
-                                                        .formula(new Function("RANGE",
-                                                                new ConstNumber(4)))
+                                                        .key(text(9, 12, "key"))
+                                                        .dim(text(13, 16, "dim"))
+                                                        .name(text(17, 20, "a"))
+                                                        .formula(formula(
+                                                                23, 31, new Function("RANGE", new ConstNumber(4))))
                                                         .build(),
                                                 ParsedField.builder()
+                                                        .span(span(40, 48))
+                                                        .docs(List.of())
                                                         .decorators(List.of())
-                                                        .key(key("t1", "b"))
-                                                        .formula(new ConstNumber(Double.NaN))
+                                                        .name(text(40, 43, "b"))
+                                                        .formula(formula(46, 48, new ConstNumber(Double.NaN)))
                                                         .build(),
                                                 ParsedField.builder()
+                                                        .span(span(57, 64))
+                                                        .docs(List.of())
                                                         .decorators(List.of())
-                                                        .key(key("t1", "c"))
-                                                        .formula(new ConstNumber(5))
-                                                        .build()
-                                        ))
-                                        .decorators(List.of())
-                                        .overrides(new ParsedOverride(null,
-                                                Map.of(new FieldKey("t1", "a"),
-                                                        new ParsedOverride.TypedValue(
-                                                                ColumnType.DOUBLE,
-                                                                ObjectArrayList.of(new OverrideValue(0),
-                                                                        new OverrideValue(1),
-                                                                        new OverrideValue(2), new OverrideValue(3)))),
-                                                Map.of(new FieldKey("t1", "b"),
-                                                        new ParsedOverride.TypedValue(
-                                                                ColumnType.STRING,
-                                                                ObjectArrayList.of(new OverrideValue("USA"),
-                                                                        new OverrideValue("UK"),
-                                                                        new OverrideValue("Spain"),
-                                                                        new OverrideValue("Poland")))),
-                                                4))
+                                                        .name(text(57, 60, "c"))
+                                                        .formula(formula(63, 64, new ConstNumber(5)))
+                                                        .build()))
+                                        .overrides(new ParsedOverride(
+                                                span(65, 127),
+                                                List.of(text(78, 81, "a"), text(83, 86, "b")),
+                                                List.of(
+                                                        List.of(
+                                                                formula(87, 88, new ConstNumber(0)),
+                                                                formula(90, 95, new ConstText("USA"))),
+                                                        List.of(
+                                                                formula(96, 97, new ConstNumber(1)),
+                                                                formula(99, 103, new ConstText("UK"))),
+                                                        List.of(
+                                                                formula(104, 105, new ConstNumber(2)),
+                                                                formula(107, 114, new ConstText("Spain"))),
+                                                        List.of(
+                                                                formula(115, 116, new ConstNumber(3)),
+                                                                formula(118, 126, new ConstText("Poland")))),
+                                                "t1"))
                                         .build()))
                         .errors(List.of())
                         .build(),
@@ -795,36 +971,45 @@ class SheetParserTest {
                 ParsedSheet.builder()
                         .tables(List.of(
                                 ParsedTable.builder()
-                                        .tableName("t1")
+                                        .span(span(0, 107))
+                                        .docs(List.of())
+                                        .decorators(List.of())
+                                        .name(text(6, 8, "t1"))
                                         .fields(List.of(
                                                 ParsedField.builder()
+                                                        .span(span(9, 31))
+                                                        .docs(List.of())
                                                         .decorators(List.of())
-                                                        .key(key("t1", "a"))
-                                                        .isDim(true)
-                                                        .isKey(true)
-                                                        .formula(new Function("RANGE",
-                                                                new ConstNumber(4)))
+                                                        .key(text(9, 12, "key"))
+                                                        .dim(text(13, 16, "dim"))
+                                                        .name(text(17, 20, "a"))
+                                                        .formula(formula(
+                                                                23, 31, new Function("RANGE", new ConstNumber(4))))
                                                         .build(),
                                                 ParsedField.builder()
+                                                        .span(span(40, 48))
+                                                        .docs(List.of())
                                                         .decorators(List.of())
-                                                        .key(key("t1", "b"))
-                                                        .formula(new ConstNumber(Double.NaN))
-                                                        .build()
-                                        ))
-                                        .decorators(List.of())
+                                                        .name(text(40, 43, "b"))
+                                                        .formula(formula(46, 48, new ConstNumber(Double.NaN)))
+                                                        .build()))
                                         .overrides(new ParsedOverride(
-                                                new ParsedOverride.TypedValue(ColumnType.DOUBLE,
-                                                        ObjectArrayList.of(new OverrideValue(0), new OverrideValue(1),
-                                                                new OverrideValue(2), new OverrideValue(3))),
-                                                Map.of(),
-                                                Map.of(new FieldKey("t1", "b"),
-                                                        new ParsedOverride.TypedValue(
-                                                                ColumnType.STRING,
-                                                                ObjectArrayList.of(new OverrideValue("USA"),
-                                                                        new OverrideValue("UK"),
-                                                                        new OverrideValue("Spain"),
-                                                                        new OverrideValue("Poland")))),
-                                                4))
+                                                span(49, 107),
+                                                List.of(text(58, 61, "_row_20318401841084276546"), text(63, 66, "b")),
+                                                List.of(
+                                                        List.of(
+                                                                formula(67, 68, new ConstNumber(0)),
+                                                                formula(70, 75, new ConstText("USA"))),
+                                                        List.of(
+                                                                formula(76, 77, new ConstNumber(1)),
+                                                                formula(79, 83, new ConstText("UK"))),
+                                                        List.of(
+                                                                formula(84, 85, new ConstNumber(2)),
+                                                                formula(87, 94, new ConstText("Spain"))),
+                                                        List.of(
+                                                                formula(95, 96, new ConstNumber(3)),
+                                                                formula(98, 106, new ConstText("Poland")))),
+                                                "t1"))
                                         .build()))
                         .errors(List.of())
                         .build(),
@@ -850,48 +1035,59 @@ class SheetParserTest {
                 ParsedSheet.builder()
                         .tables(List.of(
                                 ParsedTable.builder()
-                                        .tableName("t1")
+                                        .span(span(0, 132))
+                                        .docs(List.of())
+                                        .decorators(List.of())
+                                        .name(text(6, 8, "t1"))
                                         .fields(List.of(
                                                 ParsedField.builder()
+                                                        .span(span(9, 31))
+                                                        .docs(List.of())
                                                         .decorators(List.of())
-                                                        .key(key("t1", "a"))
-                                                        .isDim(true)
-                                                        .isKey(true)
-                                                        .formula(new Function("RANGE",
-                                                                new ConstNumber(4)))
+                                                        .key(text(9, 12, "key"))
+                                                        .dim(text(13, 16, "dim"))
+                                                        .name(text(17, 20, "a"))
+                                                        .formula(formula(
+                                                                23, 31, new Function("RANGE", new ConstNumber(4))))
                                                         .build(),
                                                 ParsedField.builder()
+                                                        .span(span(40, 48))
+                                                        .docs(List.of())
                                                         .decorators(List.of())
-                                                        .key(key("t1", "b"))
-                                                        .formula(new ConstNumber(Double.NaN))
+                                                        .name(text(40, 43, "b"))
+                                                        .formula(formula(46, 48, new ConstNumber(Double.NaN)))
                                                         .build(),
                                                 ParsedField.builder()
+                                                        .span(span(57, 64))
+                                                        .docs(List.of())
                                                         .decorators(List.of())
-                                                        .key(key("t1", "c"))
-                                                        .formula(new ConstNumber(5))
-                                                        .build()
-                                        ))
-                                        .decorators(List.of())
-                                        .overrides(new ParsedOverride(null,
-                                                Map.of(new FieldKey("t1", "a"),
-                                                        new ParsedOverride.TypedValue(
-                                                                ColumnType.DOUBLE,
-                                                                ObjectArrayList.of(new OverrideValue(0),
-                                                                        new OverrideValue(1),
-                                                                        new OverrideValue(2), new OverrideValue(3)))),
-                                                Map.of(new FieldKey("t1", "b"),
-                                                        new ParsedOverride.TypedValue(
-                                                                ColumnType.STRING,
-                                                                ObjectArrayList.of(new OverrideValue("USA"),
-                                                                        new OverrideValue("UK"),
-                                                                        MISSING,
-                                                                        new OverrideValue("Poland"))),
-                                                        new FieldKey("t1", "c"),
-                                                        new ParsedOverride.TypedValue(
-                                                                ColumnType.DOUBLE,
-                                                                ObjectArrayList.of(MISSING, new OverrideValue(250),
-                                                                        MISSING, MISSING))),
-                                                4))
+                                                        .name(text(57, 60, "c"))
+                                                        .formula(formula(63, 64, new ConstNumber(5)))
+                                                        .build()))
+                                        .overrides(new ParsedOverride(
+                                                span(65, 132),
+                                                List.of(
+                                                        text(74, 77, "b"),
+                                                        text(79, 82, "c"),
+                                                        text(88, 91, "a")),
+                                                List.of(
+                                                        List.of(
+                                                                formula(92, 97, new ConstText("USA")),
+                                                                formula(98, 98, null),
+                                                                formula(99, 100, new ConstNumber(0))),
+                                                        List.of(
+                                                                formula(101, 105, new ConstText("UK")),
+                                                                formula(107, 110, new ConstNumber(250)),
+                                                                formula(112, 113, new ConstNumber(1))),
+                                                        List.of(
+                                                                formula(114, 114, null),
+                                                                formula(116, 116, null),
+                                                                formula(118, 119, new ConstNumber(2))),
+                                                        List.of(
+                                                                formula(120, 128, new ConstText("Poland")),
+                                                                formula(129, 129, null),
+                                                                formula(130, 131, new ConstNumber(3)))),
+                                                "t1"))
                                         .build()))
                         .errors(List.of())
                         .build(),
@@ -921,62 +1117,74 @@ class SheetParserTest {
                 ParsedSheet.builder()
                         .tables(List.of(
                                 ParsedTable.builder()
-                                        .tableName("t1")
+                                        .span(span(0, 181))
+                                        .docs(List.of())
+                                        .decorators(List.of())
+                                        .name(text(6, 8, "t1"))
                                         .fields(List.of(
                                                 ParsedField.builder()
+                                                        .span(span(9, 31))
+                                                        .docs(List.of())
                                                         .decorators(List.of())
-                                                        .key(key("t1", "a"))
-                                                        .isDim(true)
-                                                        .isKey(true)
-                                                        .formula(new Function("RANGE",
-                                                                new ConstNumber(4)))
+                                                        .key(text(9, 12, "key"))
+                                                        .dim(text(13, 16, "dim"))
+                                                        .name(text(17, 20, "a"))
+                                                        .formula(formula(
+                                                                23, 31, new Function("RANGE", new ConstNumber(4))))
                                                         .build(),
                                                 ParsedField.builder()
+                                                        .span(span(32, 54))
+                                                        .docs(List.of())
                                                         .decorators(List.of())
-                                                        .key(key("t1", "x"))
-                                                        .isDim(true)
-                                                        .isKey(true)
-                                                        .formula(new Function("RANGE",
-                                                                new ConstNumber(5)))
+                                                        .key(text(32, 35, "key"))
+                                                        .dim(text(36, 39, "dim"))
+                                                        .name(text(40, 43, "x"))
+                                                        .formula(formula(
+                                                                46, 54, new Function("RANGE", new ConstNumber(5))))
                                                         .build(),
                                                 ParsedField.builder()
+                                                        .span(span(63, 71))
+                                                        .docs(List.of())
                                                         .decorators(List.of())
-                                                        .key(key("t1", "b"))
-                                                        .formula(new ConstNumber(Double.NaN))
+                                                        .name(text(63, 66, "b"))
+                                                        .formula(formula(69, 71, new ConstNumber(Double.NaN)))
                                                         .build(),
                                                 ParsedField.builder()
+                                                        .span(span(80, 87))
+                                                        .docs(List.of())
                                                         .decorators(List.of())
-                                                        .key(key("t1", "c"))
-                                                        .formula(new ConstNumber(5))
-                                                        .build()
-                                        ))
-                                        .decorators(List.of())
-                                        .overrides(new ParsedOverride(null,
-                                                Map.of(new FieldKey("t1", "a"),
-                                                        new ParsedOverride.TypedValue(
-                                                                ColumnType.DOUBLE,
-                                                                ObjectArrayList.of(new OverrideValue(0),
-                                                                        new OverrideValue(0),
-                                                                        new OverrideValue(2), new OverrideValue(2))),
-                                                        new FieldKey("t1", "x"),
-                                                        new ParsedOverride.TypedValue(
-                                                                ColumnType.DOUBLE,
-                                                                ObjectArrayList.of(new OverrideValue(1),
-                                                                        new OverrideValue(2),
-                                                                        new OverrideValue(3), new OverrideValue(4)))),
-                                                Map.of(new FieldKey("t1", "b"),
-                                                        new ParsedOverride.TypedValue(
-                                                                ColumnType.STRING,
-                                                                ObjectArrayList.of(new OverrideValue("USA"),
-                                                                        MISSING,
-                                                                        new OverrideValue("Spain"),
-                                                                        new OverrideValue("Poland"))),
-                                                        new FieldKey("t1", "c"),
-                                                        new ParsedOverride.TypedValue(
-                                                                ColumnType.DOUBLE,
-                                                                ObjectArrayList.of(MISSING, new OverrideValue(250),
-                                                                        new OverrideValue(300), MISSING))),
-                                                4))
+                                                        .name(text(80, 83, "c"))
+                                                        .formula(formula(86, 87, new ConstNumber(5)))
+                                                        .build()))
+                                        .overrides(new ParsedOverride(
+                                                span(88, 181),
+                                                List.of(
+                                                        text(101, 104, "a"),
+                                                        text(106, 109, "b"),
+                                                        text(115, 118, "x"),
+                                                        text(120, 123, "c")),
+                                                List.of(
+                                                        List.of(
+                                                                formula(124, 125, new ConstNumber(0)),
+                                                                formula(127, 132, new ConstText("USA")),
+                                                                formula(134, 135, new ConstNumber(1)),
+                                                                formula(136, 136, null)),
+                                                        List.of(
+                                                                formula(137, 138, new ConstNumber(0)),
+                                                                formula(139, 139, null),
+                                                                formula(141, 142, new ConstNumber(2)),
+                                                                formula(144, 147, new ConstNumber(250))),
+                                                        List.of(
+                                                                formula(148, 149, new ConstNumber(2)),
+                                                                formula(150, 157, new ConstText("Spain")),
+                                                                formula(159, 160, new ConstNumber(3)),
+                                                                formula(162, 165, new ConstNumber(300))),
+                                                        List.of(
+                                                                formula(166, 167, new ConstNumber(2)),
+                                                                formula(168, 176, new ConstText("Poland")),
+                                                                formula(178, 179, new ConstNumber(4)),
+                                                                formula(180, 180, null))),
+                                                "t1"))
                                         .build()))
                         .errors(List.of())
                         .build(),
@@ -1001,62 +1209,74 @@ class SheetParserTest {
                 ParsedSheet.builder()
                         .tables(List.of(
                                 ParsedTable.builder()
-                                        .tableName("t1")
+                                        .span(span(0, 181))
+                                        .docs(List.of())
+                                        .decorators(List.of())
+                                        .name(text(6, 8, "t1"))
                                         .fields(List.of(
                                                 ParsedField.builder()
+                                                        .span(span(9, 31))
+                                                        .docs(List.of())
                                                         .decorators(List.of())
-                                                        .key(key("t1", "a"))
-                                                        .isDim(true)
-                                                        .isKey(true)
-                                                        .formula(new Function("RANGE",
-                                                                new ConstNumber(4)))
+                                                        .key(text(9, 12, "key"))
+                                                        .dim(text(13, 16, "dim"))
+                                                        .name(text(17, 20, "a"))
+                                                        .formula(formula(
+                                                                23, 31, new Function("RANGE", new ConstNumber(4))))
                                                         .build(),
                                                 ParsedField.builder()
+                                                        .span(span(32, 54))
+                                                        .docs(List.of())
                                                         .decorators(List.of())
-                                                        .key(key("t1", "x"))
-                                                        .isDim(true)
-                                                        .isKey(true)
-                                                        .formula(new Function("RANGE",
-                                                                new ConstNumber(5)))
+                                                        .key(text(32, 35, "key"))
+                                                        .dim(text(36, 39, "dim"))
+                                                        .name(text(40, 43, "x"))
+                                                        .formula(formula(
+                                                                46, 54, new Function("RANGE", new ConstNumber(5))))
                                                         .build(),
                                                 ParsedField.builder()
+                                                        .span(span(63, 71))
+                                                        .docs(List.of())
                                                         .decorators(List.of())
-                                                        .key(key("t1", "b"))
-                                                        .formula(new ConstNumber(Double.NaN))
+                                                        .name(text(63, 66, "b"))
+                                                        .formula(formula(69, 71, new ConstNumber(Double.NaN)))
                                                         .build(),
                                                 ParsedField.builder()
+                                                        .span(span(80, 87))
+                                                        .docs(List.of())
                                                         .decorators(List.of())
-                                                        .key(key("t1", "c"))
-                                                        .formula(new ConstNumber(5))
-                                                        .build()
-                                        ))
-                                        .decorators(List.of())
-                                        .overrides(new ParsedOverride(null,
-                                                Map.of(new FieldKey("t1", "a"),
-                                                        new ParsedOverride.TypedValue(
-                                                                ColumnType.DOUBLE,
-                                                                ObjectArrayList.of(new OverrideValue(0),
-                                                                        new OverrideValue(0),
-                                                                        new OverrideValue(2), new OverrideValue(2))),
-                                                        new FieldKey("t1", "x"),
-                                                        new ParsedOverride.TypedValue(
-                                                                ColumnType.DOUBLE,
-                                                                ObjectArrayList.of(new OverrideValue(1),
-                                                                        new OverrideValue(2),
-                                                                        new OverrideValue(3), new OverrideValue(4)))),
-                                                Map.of(new FieldKey("t1", "b"),
-                                                        new ParsedOverride.TypedValue(
-                                                                ColumnType.STRING,
-                                                                ObjectArrayList.of(new OverrideValue("USA"),
-                                                                        MISSING,
-                                                                        new OverrideValue("Spain"),
-                                                                        new OverrideValue("Poland"))),
-                                                        new FieldKey("t1", "c"),
-                                                        new ParsedOverride.TypedValue(
-                                                                ColumnType.DOUBLE,
-                                                                ObjectArrayList.of(MISSING, new OverrideValue(250),
-                                                                        new OverrideValue(300), MISSING))),
-                                                4))
+                                                        .name(text(80, 83, "c"))
+                                                        .formula(formula(86, 87, new ConstNumber(5)))
+                                                        .build()))
+                                        .overrides(new ParsedOverride(
+                                                span(88, 181),
+                                                List.of(
+                                                        text(101, 104, "a"),
+                                                        text(106, 109, "b"),
+                                                        text(115, 118, "x"),
+                                                        text(120, 123, "c")),
+                                                List.of(
+                                                        List.of(
+                                                                formula(124, 125, new ConstNumber(0)),
+                                                                formula(127, 132, new ConstText("USA")),
+                                                                formula(134, 135, new ConstNumber(1)),
+                                                                formula(136, 136, null)),
+                                                        List.of(
+                                                                formula(137, 138, new ConstNumber(0)),
+                                                                formula(139, 139, null),
+                                                                formula(141, 142, new ConstNumber(2)),
+                                                                formula(144, 147, new ConstNumber(250))),
+                                                        List.of(
+                                                                formula(148, 149, new ConstNumber(2)),
+                                                                formula(150, 157, new ConstText("Spain")),
+                                                                formula(159, 160, new ConstNumber(3)),
+                                                                formula(162, 165, new ConstNumber(300))),
+                                                        List.of(
+                                                                formula(166, 167, new ConstNumber(2)),
+                                                                formula(168, 176, new ConstText("Poland")),
+                                                                formula(178, 179, new ConstNumber(4)),
+                                                                formula(180, 180, null))),
+                                                "t1"))
                                         .build()))
                         .errors(List.of())
                         .build(),
@@ -1064,7 +1284,7 @@ class SheetParserTest {
     }
 
     @Test
-    void testIncorrectOverrideDefinition() {
+    void testOverrideDefinitionWithTableAfter() {
         String sheet = """
                 table t1
                 key dim [a] = RANGE(4)
@@ -1086,44 +1306,90 @@ class SheetParserTest {
                 ParsedSheet.builder()
                         .tables(List.of(
                                 ParsedTable.builder()
-                                        .tableName("t1")
+                                        .span(span(0, 228))
+                                        .docs(List.of())
+                                        .decorators(List.of())
+                                        .name(text(6, 8, "t1"))
                                         .fields(List.of(
                                                 ParsedField.builder()
+                                                        .span(span(9, 31))
+                                                        .docs(List.of())
                                                         .decorators(List.of())
-                                                        .key(key("t1", "a"))
-                                                        .isDim(true)
-                                                        .isKey(true)
-                                                        .formula(new Function("RANGE",
-                                                                new ConstNumber(4)))
+                                                        .key(text(9, 12, "key"))
+                                                        .dim(text(13, 16, "dim"))
+                                                        .name(text(17, 20, "a"))
+                                                        .formula(formula(
+                                                                23, 31, new Function("RANGE", new ConstNumber(4))))
                                                         .build(),
                                                 ParsedField.builder()
+                                                        .span(span(32, 54))
+                                                        .docs(List.of())
                                                         .decorators(List.of())
-                                                        .key(key("t1", "x"))
-                                                        .isDim(true)
-                                                        .isKey(true)
-                                                        .formula(new Function("RANGE",
-                                                                new ConstNumber(5)))
+                                                        .key(text(32, 35, "key"))
+                                                        .dim(text(36, 39, "dim"))
+                                                        .name(text(40, 43, "x"))
+                                                        .formula(formula(
+                                                                46, 54, new Function("RANGE", new ConstNumber(5))))
                                                         .build(),
                                                 ParsedField.builder()
+                                                        .span(span(63, 71))
+                                                        .docs(List.of())
                                                         .decorators(List.of())
-                                                        .key(key("t1", "b"))
-                                                        .formula(new ConstNumber(Double.NaN))
+                                                        .name(text(63, 66, "b"))
+                                                        .formula(formula(69, 71, new ConstNumber(Double.NaN)))
                                                         .build(),
                                                 ParsedField.builder()
+                                                        .span(span(80, 87))
+                                                        .docs(List.of())
                                                         .decorators(List.of())
-                                                        .key(key("t1", "c"))
-                                                        .formula(new ConstNumber(5))
-                                                        .build()
-                                        ))
+                                                        .name(text(80, 83, "c"))
+                                                        .formula(formula(86, 87, new ConstNumber(5)))
+                                                        .build()))
+                                        .overrides(new ParsedOverride(
+                                                span(135, 228),
+                                                List.of(
+                                                        text(148, 151, "a"),
+                                                        text(153, 156, "b"),
+                                                        text(162, 165, "x"),
+                                                        text(167, 170, "c")),
+                                                List.of(
+                                                        List.of(
+                                                                formula(171, 172, new ConstNumber(0)),
+                                                                formula(174, 179, new ConstText("USA")),
+                                                                formula(181, 182, new ConstNumber(1)),
+                                                                formula(183, 183, null)),
+                                                        List.of(
+                                                                formula(184, 185, new ConstNumber(0)),
+                                                                formula(186, 186, null),
+                                                                formula(188, 189, new ConstNumber(2)),
+                                                                formula(191, 194, new ConstNumber(250))),
+                                                        List.of(
+                                                                formula(195, 196, new ConstNumber(2)),
+                                                                formula(197, 204, new ConstText("Spain")),
+                                                                formula(206, 207, new ConstNumber(3)),
+                                                                formula(209, 212, new ConstNumber(300))),
+                                                        List.of(
+                                                                formula(213, 214, new ConstNumber(2)),
+                                                                formula(215, 223, new ConstText("Poland")),
+                                                                formula(225, 226, new ConstNumber(4)),
+                                                                formula(227, 227, null))),
+                                                "t1"))
+                                        .build(),
+                                ParsedTable.builder()
+                                        .span(span(228, 249))
+                                        .docs(List.of())
                                         .decorators(List.of())
+                                        .name(text(234, 236, "t2"))
+                                        .fields(List.of(
+                                                ParsedField.builder()
+                                                        .span(span(241, 248))
+                                                        .docs(List.of())
+                                                        .decorators(List.of())
+                                                        .name(text(241, 244, "a"))
+                                                        .formula(formula(247, 248, new ConstNumber(7)))
+                                                        .build()))
                                         .build()))
-                        .errors(List.of(
-                                ParsingError.builder()
-                                        .message("Override section seems to be incorrect. Please, check definition")
-                                        .line(7)
-                                        .position(0)
-                                        .tableName("t1")
-                                        .build()))
+                        .errors(List.of())
                         .build(),
                 SheetReader.parseSheet(sheet));
     }
@@ -1151,45 +1417,229 @@ class SheetParserTest {
                 ParsedSheet.builder()
                         .tables(List.of(
                                 ParsedTable.builder()
-                                        .tableName("t1")
+                                        .span(span(0, 232))
+                                        .docs(List.of())
+                                        .decorators(List.of())
+                                        .name(text(6, 8, "t1"))
                                         .fields(List.of(
                                                 ParsedField.builder()
+                                                        .span(span(9, 31))
+                                                        .docs(List.of())
                                                         .decorators(List.of())
-                                                        .key(key("t1", "a"))
-                                                        .isDim(true)
-                                                        .isKey(true)
-                                                        .formula(new Function("RANGE",
-                                                                new ConstNumber(4)))
+                                                        .key(text(9, 12, "key"))
+                                                        .dim(text(13, 16, "dim"))
+                                                        .name(text(17, 20, "a"))
+                                                        .formula(formula(
+                                                                23, 31, new Function("RANGE", new ConstNumber(4))))
                                                         .build(),
                                                 ParsedField.builder()
+                                                        .span(span(32, 54))
+                                                        .docs(List.of())
                                                         .decorators(List.of())
-                                                        .key(key("t1", "x"))
-                                                        .isDim(true)
-                                                        .isKey(true)
-                                                        .formula(new Function("RANGE",
-                                                                new ConstNumber(5)))
+                                                        .key(text(32, 35, "key"))
+                                                        .dim(text(36, 39, "dim"))
+                                                        .name(text(40, 43, "x"))
+                                                        .formula(formula(
+                                                                46, 54, new Function("RANGE", new ConstNumber(5))))
                                                         .build(),
                                                 ParsedField.builder()
+                                                        .span(span(63, 71))
+                                                        .docs(List.of())
                                                         .decorators(List.of())
-                                                        .key(key("t1", "b"))
-                                                        .formula(new ConstNumber(Double.NaN))
+                                                        .name(text(63, 66, "b"))
+                                                        .formula(formula(69, 71, new ConstNumber(Double.NaN)))
                                                         .build(),
                                                 ParsedField.builder()
+                                                        .span(span(80, 87))
+                                                        .docs(List.of())
                                                         .decorators(List.of())
-                                                        .key(key("t1", "c"))
-                                                        .formula(new ConstNumber(5))
-                                                        .build()
-                                        ))
-                                        .decorators(List.of())
+                                                        .name(text(80, 83, "c"))
+                                                        .formula(formula(86, 87, new ConstNumber(5)))
+                                                        .build()))
                                         .build()))
                         .errors(List.of(
                                 ParsingError.builder()
-                                        .message("Override section seems to be incorrect. Please, check definition")
+                                        .message("Expected 4 values per row, but was: 7")
                                         .line(7)
-                                        .position(0)
+                                        .position(1)
                                         .tableName("t1")
                                         .build()))
                         .build(),
                 SheetReader.parseSheet(sheet));
+    }
+
+    @Test
+    void testList() {
+        String dsl = """
+                table t1
+                  [a] = {}
+                  [b] = {1, "2"}
+                """;
+
+        assertSheetEquals(ParsedSheet.builder()
+                        .tables(List.of(
+                                ParsedTable.builder()
+                                        .span(span(0, 37))
+                                        .docs(List.of())
+                                        .decorators(List.of())
+                                        .name(text(6, 8, "t1"))
+                                        .fields(List.of(
+                                                ParsedField.builder()
+                                                        .span(span(11, 19))
+                                                        .docs(List.of())
+                                                        .decorators(List.of())
+                                                        .name(text(11, 14, "a"))
+                                                        .formula(formula(17, 19, new Function("LIST")))
+                                                        .build(),
+                                                ParsedField.builder()
+                                                        .span(span(22, 36))
+                                                        .docs(List.of())
+                                                        .decorators(List.of())
+                                                        .name(text(22, 25, "b"))
+                                                        .formula(formula(
+                                                                28, 36, new Function(
+                                                                        "LIST",
+                                                                        new ConstNumber(1),
+                                                                        new ConstText("2"))))
+                                                        .build()))
+                                        .build()))
+                        .errors(List.of())
+                        .build(),
+                SheetReader.parseSheet(dsl));
+    }
+
+    @Test
+    void testEscaping() {
+        String sheet = """
+                table t1
+                key dim [a''] = RANGE(4)
+                        [b] = NA
+                        [c] = 5
+                override
+                key [a''], [b]
+                0, "USA'""
+                1, "UK"
+                2, "Spain"
+                3, "Poland"
+                """;
+
+        assertSheetEquals(
+                ParsedSheet.builder()
+                        .tables(List.of(
+                                ParsedTable.builder()
+                                        .span(span(0, 133))
+                                        .docs(List.of())
+                                        .decorators(List.of())
+                                        .name(text(6, 8, "t1"))
+                                        .fields(List.of(
+                                                ParsedField.builder()
+                                                        .span(span(9, 33))
+                                                        .docs(List.of())
+                                                        .decorators(List.of())
+                                                        .key(text(9, 12, "key"))
+                                                        .dim(text(13, 16, "dim"))
+                                                        .name(text(17, 22, "a'"))
+                                                        .formula(formula(
+                                                                25, 33, new Function("RANGE", new ConstNumber(4))))
+                                                        .build(),
+                                                ParsedField.builder()
+                                                        .span(span(42, 50))
+                                                        .docs(List.of())
+                                                        .decorators(List.of())
+                                                        .name(text(42, 45, "b"))
+                                                        .formula(formula(48, 50, new ConstNumber(Double.NaN)))
+                                                        .build(),
+                                                ParsedField.builder()
+                                                        .span(span(59, 66))
+                                                        .docs(List.of())
+                                                        .decorators(List.of())
+                                                        .name(text(59, 62, "c"))
+                                                        .formula(formula(65, 66, new ConstNumber(5)))
+                                                        .build()))
+                                        .overrides(new ParsedOverride(
+                                                span(67, 133),
+                                                List.of(text(80, 85, "a'"), text(87, 90, "b")),
+                                                List.of(
+                                                        List.of(
+                                                                formula(91, 92, new ConstNumber(0)),
+                                                                formula(94, 101, new ConstText("USA\""))),
+                                                        List.of(
+                                                                formula(102, 103, new ConstNumber(1)),
+                                                                formula(105, 109, new ConstText("UK"))),
+                                                        List.of(
+                                                                formula(110, 111, new ConstNumber(2)),
+                                                                formula(113, 120, new ConstText("Spain"))),
+                                                        List.of(
+                                                                formula(121, 122, new ConstNumber(3)),
+                                                                formula(124, 132, new ConstText("Poland")))),
+                                                "t1"))
+                                        .build()))
+                        .errors(List.of())
+                        .build(),
+                SheetReader.parseSheet(sheet));
+    }
+
+    @Test
+    void testApplyAndTotalWithoutOrder() {
+        String dsl = """
+                table A
+                  [a] = NA
+                total
+                  [a] = 1
+                apply
+                  filter [a]
+                total
+                  [a] = 2
+                apply
+                  sort [a]
+                """;
+
+        ParsedSheet sheet = SheetReader.parseSheet(dsl);
+
+        Assertions.assertIterableEquals(List.of(
+                new ParsingError(9, 1, "Only one apply section is expected", "A", null)
+        ), sheet.errors());
+
+        ParsedTable table = sheet.tables().get(0);
+        Assertions.assertEquals("A", table.tableName());
+        Assertions.assertEquals(new ParsedApply(new CurrentField("a"), null), table.apply());
+        Assertions.assertEquals(1, table.total().fields().size());
+        Assertions.assertEquals(2, table.total().size());
+    }
+
+    @Test
+    void testKeyAndDimWithoutOrder() {
+        String dsl = """
+                table A
+                  key dim [a] = 1
+                  dim key [b] = 2
+                """;
+
+        ParsedSheet sheet = SheetReader.parseSheet(dsl);
+        Assertions.assertEquals(0, sheet.errors().size());
+
+        ParsedTable table = sheet.tables().get(0);
+        Assertions.assertEquals("A", table.tableName());
+
+        Assertions.assertIterableEquals(List.of(
+                ParsedField.builder()
+                                .span(span(10, 25))
+                                .docs(List.of())
+                                .decorators(List.of())
+                                .key(text(10, 13, "key"))
+                                .dim(text(14, 17, "dim"))
+                                .name(text(18, 21, "a"))
+                                .formula(formula(24, 25, new ConstNumber(1)))
+                                .build(),
+                ParsedField.builder()
+                        .span(span(28, 43))
+                        .docs(List.of())
+                        .decorators(List.of())
+                        .dim(text(28, 31, "dim"))
+                        .key(text(32, 35, "key"))
+                        .name(text(36, 39, "b"))
+                        .formula(formula(42, 43, new ConstNumber(2)))
+                        .build()
+        ), table.fields());
     }
 }

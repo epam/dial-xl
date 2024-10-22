@@ -1,15 +1,6 @@
-import { KeyboardCode } from '@frontend/common';
+import { getDataScroller, KeyboardCode } from '@frontend/common';
 
 import { defaults } from '../../defaults';
-
-export function setViewportManually(left: number, top: number) {
-  const gridDataScroller = getDataScroller();
-
-  if (!gridDataScroller) return;
-
-  gridDataScroller.scrollLeft += left;
-  gridDataScroller.scrollTop -= top;
-}
 
 export function moveViewport(
   key: string,
@@ -74,8 +65,4 @@ export function isElementInViewport(
     rect.bottom <= parentRect.bottom - verticalOffset &&
     rect.right <= parentRect.right
   );
-}
-
-export function getDataScroller() {
-  return document.getElementsByClassName('grid-data-scroller')[0];
 }

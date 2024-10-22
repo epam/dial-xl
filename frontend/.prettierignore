@@ -3,3 +3,6 @@
 /dist
 /coverage
 /libs/parser/src/lib/grammar
+
+/.nx/cache
+/.nx/workspace-data

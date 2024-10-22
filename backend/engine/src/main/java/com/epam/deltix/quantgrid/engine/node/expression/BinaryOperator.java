@@ -1,6 +1,8 @@
 package com.epam.deltix.quantgrid.engine.node.expression;
 
 import com.epam.deltix.quantgrid.engine.Util;
+import com.epam.deltix.quantgrid.engine.node.expression.utils.DoubleFunctions;
+import com.epam.deltix.quantgrid.engine.node.expression.utils.StringFunctions;
 import com.epam.deltix.quantgrid.engine.node.plan.Plan;
 import com.epam.deltix.quantgrid.engine.node.plan.spark.util.SparkOperators;
 import com.epam.deltix.quantgrid.engine.value.Column;
@@ -10,7 +12,6 @@ import com.epam.deltix.quantgrid.engine.value.local.DoubleLambdaColumn;
 import com.epam.deltix.quantgrid.parser.ast.BinaryOperation;
 import com.epam.deltix.quantgrid.type.ColumnType;
 import lombok.Getter;
-import org.jetbrains.annotations.Nullable;
 
 public class BinaryOperator extends Expression2<Column, Column, DoubleColumn> {
 
@@ -24,7 +25,25 @@ public class BinaryOperator extends Expression2<Column, Column, DoubleColumn> {
 
     @Override
     public ColumnType getType() {
-        return operation.isLogical() ? ColumnType.BOOLEAN : ColumnType.DOUBLE;
+        if (operation.isLogical()) {
+            return ColumnType.BOOLEAN;
+        }
+
+        ColumnType leftType = getLeft().getType();
+        ColumnType rightType = getRight().getType();
+        if (leftType == ColumnType.DATE || rightType == ColumnType.DATE) {
+            return ColumnType.DATE;
+        }
+
+        if ((leftType == ColumnType.INTEGER || leftType == ColumnType.BOOLEAN)
+                && (rightType == ColumnType.INTEGER || rightType == ColumnType.BOOLEAN)) {
+            return switch (operation) {
+                case ADD, SUB, MUL, MOD -> ColumnType.INTEGER;
+                default -> ColumnType.DOUBLE;
+            };
+        }
+
+        return ColumnType.DOUBLE;
     }
 
     @Override
@@ -73,89 +92,32 @@ public class BinaryOperator extends Expression2<Column, Column, DoubleColumn> {
         };
     }
 
+    @Override
+    public String toString() {
+        return operation.name();
+    }
+
     private interface DoubleOperator {
 
         double operate(double left, double right);
 
-        static double add(double a, double b) {
-            return a + b;
-        }
-
-        static double sub(double a, double b) {
-            return a - b;
-        }
-
-        static double mul(double a, double b) {
-            return a * b;
-        }
-
-        static double div(double a, double b) {
-            return a / b;
-        }
-
-        static double pow(double a, double b) {
-            return Math.pow(a, b);
-        }
-
-        static double lt(double a, double b) {
-            return (a < b) ? 1.0 : 0.0;
-        }
-
-        static double lte(double a, double b) {
-            return (a <= b) ? 1.0 : 0.0;
-        }
-
-        static double eq(double a, double b) {
-            return (a == b) ? 1.0 : 0.0;
-        }
-
-        static double neq(double a, double b) {
-            return (a != b) ? 1.0 : 0.0;
-        }
-
-        static double gt(double a, double b) {
-            return (a > b) ? 1.0 : 0.0;
-        }
-
-        static double gte(double a, double b) {
-            return (a >= b) ? 1.0 : 0.0;
-        }
-
-        static double and(double a, double b) {
-            return (a != 0.0 && b != 0.0) ? 1.0 : 0.0;
-        }
-
-        static double or(double a, double b) {
-            return (a != 0.0 || b != 0.0) ? 1.0 : 0.0;
-        }
-
-        static double mod(double a, double b) {
-            if (a == 0) {
-                return 0;
-            }
-            double res = a % b;
-            if (Math.signum(a) == Math.signum((b))) {
-                return res;
-            }
-            return res + b;
-        }
-
         static DoubleOperator from(BinaryOperation op) {
             return switch (op) {
-                case ADD -> DoubleOperator::add;
-                case SUB -> DoubleOperator::sub;
-                case MUL -> DoubleOperator::mul;
-                case DIV -> DoubleOperator::div;
-                case POW -> DoubleOperator::pow;
-                case LT -> DoubleOperator::lt;
-                case GT -> DoubleOperator::gt;
-                case LTE -> DoubleOperator::lte;
-                case GTE -> DoubleOperator::gte;
-                case NEQ -> DoubleOperator::neq;
-                case EQ -> DoubleOperator::eq;
-                case AND -> DoubleOperator::and;
-                case OR -> DoubleOperator::or;
-                case MOD -> DoubleOperator::mod;
+                case ADD -> DoubleFunctions::add;
+                case SUB -> DoubleFunctions::sub;
+                case MUL -> DoubleFunctions::mul;
+                case DIV -> DoubleFunctions::div;
+                case POW -> DoubleFunctions::pow;
+                case LT -> DoubleFunctions::lt;
+                case GT -> DoubleFunctions::gt;
+                case LTE -> DoubleFunctions::lte;
+                case GTE -> DoubleFunctions::gte;
+                case NEQ -> DoubleFunctions::neq;
+                case EQ -> DoubleFunctions::eq;
+                case AND -> DoubleFunctions::and;
+                case OR -> DoubleFunctions::or;
+                case MOD -> DoubleFunctions::mod;
+                default -> throw new IllegalArgumentException("Invalid binary operation on doubles: " + op);
             };
         }
     }
@@ -164,38 +126,14 @@ public class BinaryOperator extends Expression2<Column, Column, DoubleColumn> {
 
         double operate(String left, String right);
 
-        static double lt(@Nullable String a, @Nullable String b) {
-            return (a == null) || (b == null) ? Double.NaN : (a.compareTo(b) < 0 ? 1d : 0d);
-        }
-
-        static double lte(@Nullable String a, @Nullable String b) {
-            return (a == null) || (b == null) ? Double.NaN : (a.compareTo(b) <= 0 ? 1d : 0d);
-        }
-
-        static double eq(@Nullable String a, @Nullable String b) {
-            return (a == null) || (b == null) ? Double.NaN : (a.equals(b) ? 1d : 0d);
-        }
-
-        static double neq(@Nullable String a, @Nullable String b) {
-            return (a == null) || (b == null) ? Double.NaN : (a.equals(b) ? 0d : 1d);
-        }
-
-        static double gt(@Nullable String a, @Nullable String b) {
-            return (a == null) || (b == null) ? Double.NaN : (a.compareTo(b) > 0 ? 1d : 0d);
-        }
-
-        static double gte(@Nullable String a, @Nullable String b) {
-            return (a == null) || (b == null) ? Double.NaN : (a.compareTo(b) >= 0 ? 1d : 0d);
-        }
-
         static StringOperator from(BinaryOperation op) {
             return switch (op) {
-                case LT -> StringOperator::lt;
-                case GT -> StringOperator::gt;
-                case LTE -> StringOperator::lte;
-                case GTE -> StringOperator::gte;
-                case NEQ -> StringOperator::neq;
-                case EQ -> StringOperator::eq;
+                case LT -> StringFunctions::lt;
+                case GT -> StringFunctions::gt;
+                case LTE -> StringFunctions::lte;
+                case GTE -> StringFunctions::gte;
+                case NEQ -> StringFunctions::neq;
+                case EQ -> StringFunctions::eq;
                 default -> throw new IllegalArgumentException("Invalid binary operation on strings: " + op);
             };
         }

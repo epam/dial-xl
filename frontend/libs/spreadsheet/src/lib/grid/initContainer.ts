@@ -46,9 +46,17 @@ import {
   SELECTION_SERVICE,
 } from './types';
 
-export const initContainer = <T>(options: GridItOptionsInternal<T>) => {
+/**
+ * Initializes DI container
+ * @param options Grid Configuration, needed to provide configuration in all services
+ * @returns {Container} Initialized DI container with all grid services
+ */
+export const initContainer = <T>(
+  options: GridItOptionsInternal<T>
+): Container => {
   let container = new Container();
 
+  // Creating config service to get access to grid options from other services
   container.bind<GridItOptionsInternal<T>>(CONFIG).toConstantValue(options);
 
   container.bind<IDataService>(DATA_SERVICE).to(DataService).inSingletonScope();
@@ -101,6 +109,7 @@ export const initContainer = <T>(options: GridItOptionsInternal<T>) => {
 
   container.bind(Container).toConstantValue(container);
 
+  // Plugins are custom services that could override default behavior, or update current
   if (options?.plugins) {
     const serviceOptions: Record<symbol, unknown> = {};
 

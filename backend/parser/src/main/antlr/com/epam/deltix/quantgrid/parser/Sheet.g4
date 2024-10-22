@@ -1,26 +1,46 @@
 grammar Sheet;
 
+sheet: (lb | table_definition | python_definition)* EOF;
+formula: expression EOF;
+
 /* * Parser Rules */
 number: FLOAT;
 string: STRING_LITERAL;
 primitive: number | string;
-function_name: UPPER_CASE_IDENTIFIER;
-table_name: IDENTIFIER | UPPER_CASE_IDENTIFIER | LOWER_CASE_IDENTIFIER | MULTI_WORD_TABLE_IDENTIFIER;
+function_name: IDENTIFIER;
+table_name: IDENTIFIER | MULTI_WORD_TABLE_IDENTIFIER;
 field_name: FIELD_NAME;
-decorator_name: LOWER_CASE_IDENTIFIER;
+decorator_name: IDENTIFIER;
 bin_add_sub: '+' | '-';
 bin_mul_div_mod: '*' | '/' | 'MOD';
 bin_pow: '^';
 bin_and: 'AND';
 bin_or: 'OR';
-bin_compare: '<' | '>' | '==' | '<=' | '>=' | '<>';
+bin_compare: '<' | '>' | '=' | '<=' | '>=' | '<>';
+bin_concat: '&';
 uni_op: 'NOT' | '-';
 query_row: '$';
 na_expression: 'NA';
-decorator_definition: '!' decorator_name '(' (primitive (',' primitive)*) ? ')';
-field_definition: decorator_definition* KEY_KEYWORD?  DIMENSION_KEYWORD? field_name '=' expression;
-override_definition: OVERRIDE_CONTENT;
-table_definition: decorator_definition* TABLE_KEYWORD table_name field_definition* override_definition?;
+lb: LINE_BREAK+;
+doc_comment: DOC_COMMENT lb;
+list_expression: '{' (expression (',' expression)*)? '}';
+row_ref: MULTI_WORD_TABLE_IDENTIFIER '(' (expression (',' expression)*)? ')';
+decorator_definition: lb? '!' lb? decorator_name lb? '(' lb? (primitive (lb? ',' lb? primitive lb?)*)? lb? ')' lb?;
+field_definition: doc_comment* decorator_definition*  (KEY_KEYWORD? DIMENSION_KEYWORD? | DIMENSION_KEYWORD? KEY_KEYWORD?) field_name ('=' expression)?;
+override_field: (KEY_KEYWORD? field_name) | ROW_KEYWORD;
+override_fields: override_field (',' override_field)* LINE_BREAK;
+override_value: expression?;
+override_row: override_value (',' override_value)*;
+override_definition: OVERRIDE_KEYWORD lb override_fields (override_row LINE_BREAK)*?;
+table_definition: doc_comment* decorator_definition* TABLE_KEYWORD lb? table_name lb?
+                  (field_definition lb)* ((apply_definition | total_definition) lb?)* override_definition?;
+python_definition: PYTHON_BLOCK;
+
+apply_definition: 'apply' lb (apply_filter? apply_sort? | apply_sort? apply_filter?);
+apply_filter: 'filter' expression lb;
+apply_sort: 'sort' expression (',' expression)* lb;
+
+total_definition: 'total' lb (field_definition lb)*;
 
 expression: number
          | string
@@ -36,26 +56,28 @@ expression: number
          | expression bin_compare expression
          | expression bin_and expression
          | expression bin_or expression
+         | expression bin_concat expression
          | field_name
          | query_row
+         | row_ref
          | na_expression
+         | list_expression
          ;
-
-sheet: table_definition* EOF;
-formula: expression EOF;
 
 /* * Lexer Rules */
 fragment DIGIT: [0-9];
+OVERRIDE_KEYWORD: 'override';
+ROW_KEYWORD: 'row';
 TABLE_KEYWORD: 'table';
 DIMENSION_KEYWORD: 'dim';
 KEY_KEYWORD: 'key';
-FLOAT: DIGIT+ ('.' DIGIT+)?;
-UPPER_CASE_IDENTIFIER: [A-Z0-9]+;
-LOWER_CASE_IDENTIFIER: [a-z0-9]+;
+FLOAT: ('-')? DIGIT+ ('.' DIGIT+)?;
 IDENTIFIER: [a-zA-Z0-9_]+;
-STRING_LITERAL: '"' (~('\n' | '"' | '{' | '}'))*? '"';
-FIELD_NAME: '[' (~('\n' | '"' | '{' | '}' | '[' | ']'))+ ']';
-MULTI_WORD_TABLE_IDENTIFIER: '\'' .*? '\'';
-OVERRIDE_CONTENT: 'override' ('\n' | '\r\n') .*? (('\n' (' ' | '\t' | '\r')*? ('\n' | '\r\n')) | EOF);
-COMMENT: '#' ~[\r\n]*;
-WS: ( ' ' | '\t' | '\r' | '\n' | ';' | COMMENT)+ -> skip;
+STRING_LITERAL: '"' (('\'\'' | '\'"') | ~('\n' | '\r' | '"' | '\''))*? '"';
+FIELD_NAME: '[' (('\'\'' | '\'[' | '\']') | ~('\n' | '\r' | '[' | ']' | '\''))* ']';
+PYTHON_BLOCK: '```python' .+? '```';
+MULTI_WORD_TABLE_IDENTIFIER: '\'' (('\'\'') | ~('\n' | '\r' | '\''))* '\'';
+LINE_BREAK: '\r\n' | '\n' | '\r';
+DOC_COMMENT: '##' ~[\r\n]*;
+COMMENT: '#' ~[\r\n]* -> channel(HIDDEN);
+WS: ( ' ' | '\t' | ';' | ('\\' LINE_BREAK))+ -> skip;

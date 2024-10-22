@@ -64,7 +64,7 @@ public class CompiledPivotTable extends CompiledAbstractTable {
                 : new SimplePivotLocal(layout, node, pivotName(), pivotValue(), pivotNames, pivotNamesKey(), names);
 
         Get column = new Get(pivot, 0);
-        return new CompiledColumn(column, dimensions);
+        return new CompiledSimpleColumn(column, dimensions);
     }
 
     @Override

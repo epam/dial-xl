@@ -135,7 +135,7 @@ class FormulaParserTest {
 
     @Test
     void parseFormulaEqAndNeq() {
-        ParsedFormula parsedFormula = SheetReader.parseFormula("[a] == [b] AND [c] <> [d]");
+        ParsedFormula parsedFormula = SheetReader.parseFormula("[a] = [b] AND [c] <> [d]");
         Assertions.assertTrue(parsedFormula.errors().isEmpty(),
                 "Unexpected errors " + parsedFormula.errors());
 
@@ -209,7 +209,7 @@ class FormulaParserTest {
         ParsedFormula parsedFormula = SheetReader.parseFormula("Table1 Table2");
         Assertions.assertEquals(
                 parsedFormula.errors(),
-                List.of(new ParsingError(1, 7, "extraneous input 'Table2' expecting <EOF>"))
+                List.of(new ParsingError(1, 8, "extraneous input 'Table2' expecting <EOF>"))
         );
     }
 
@@ -219,7 +219,7 @@ class FormulaParserTest {
         ParsedFormula parsedFormula = SheetReader.parseFormula("Table1.SUM");
         Assertions.assertEquals(
                 parsedFormula.errors(),
-                List.of(new ParsingError(1, 10, "mismatched input '<EOF>' expecting '('"))
+                List.of(new ParsingError(1, 11, "mismatched input '<EOF>' expecting '('"))
         );
     }
 
@@ -228,7 +228,16 @@ class FormulaParserTest {
         ParsedFormula parsedFormula = SheetReader.parseFormula("Table1.Table2");
         Assertions.assertEquals(
                 parsedFormula.errors(),
-                List.of(new ParsingError(1, 7, "mismatched input 'Table2' expecting UPPER_CASE_IDENTIFIER"))
+                List.of(new ParsingError(1, 14, "mismatched input '<EOF>' expecting '('"))
         );
+    }
+
+    @Test
+    void parseFieldWithEscapes() {
+        ParsedFormula parsedFormula = SheetReader.parseFormula("[test '[ '] '' test]");
+        Assertions.assertTrue(parsedFormula.errors().isEmpty(),
+                "Unexpected errors " + parsedFormula.errors());
+
+        Assertions.assertEquals(new CurrentField("test [ ] ' test"), parsedFormula.formula());
     }
 }

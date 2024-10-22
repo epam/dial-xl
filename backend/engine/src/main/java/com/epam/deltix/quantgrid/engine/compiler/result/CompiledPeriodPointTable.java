@@ -17,9 +17,11 @@ public final class CompiledPeriodPointTable extends CompiledAbstractTable {
     private static final String TIMESTAMP_NAME = "timestamp";
     private static final String VALUE_NAME = "value";
 
-    private static final int PERIOD_OFFSET = 1;
-    private static final int TIMESTAMP_OFFSET = 2;
-    private static final int VALUE_OFFSET = 3;
+    // it is carried through explode node to be accessed if needed
+    // ORIGINAL_PERIOD_SERIES_OFFSET = 1
+    private static final int PERIOD_OFFSET = 2;
+    private static final int TIMESTAMP_OFFSET = 3;
+    private static final int VALUE_OFFSET = 4;
 
     public CompiledPeriodPointTable(Plan node, List<FieldKey> dimensions,
                                     int currentRef, int queryRef, boolean nested) {
@@ -50,21 +52,21 @@ public final class CompiledPeriodPointTable extends CompiledAbstractTable {
 
     @Override
     public CompiledResult field(CompileContext context, String field) {
-        CompiledColumn column = null;
+        CompiledSimpleColumn column = null;
 
         if (field.equals(PERIOD_NAME)) {
             Get expression = new Get(node, queryRef + PERIOD_OFFSET);
-            column = new CompiledColumn(expression, dimensions());
+            column = new CompiledSimpleColumn(expression, dimensions());
         }
 
         if (field.equals(TIMESTAMP_NAME)) {
             Get expression = new Get(node, queryRef + TIMESTAMP_OFFSET);
-            column = new CompiledColumn(expression, dimensions());
+            column = new CompiledSimpleColumn(expression, dimensions());
         }
 
         if (field.equals(VALUE_NAME)) {
             Get expression = new Get(node, queryRef + VALUE_OFFSET);
-            column = new CompiledColumn(expression, dimensions());
+            column = new CompiledSimpleColumn(expression, dimensions());
         }
 
         if (column == null) {

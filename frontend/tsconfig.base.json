@@ -10,11 +10,12 @@
     "importHelpers": true,
     "target": "es2015",
     "module": "esnext",
-    "lib": ["es2021", "dom"],
+    "lib": ["es2021", "dom", "DOM.Iterable"],
     "skipLibCheck": true,
     "skipDefaultLibCheck": true,
     "baseUrl": ".",
     "paths": {
+      "@frontend/canvas-spreadsheet": ["libs/canvasSpreadsheet/src/index.ts"],
       "@frontend/code-editor": ["libs/code-editor/src/index.ts"],
       "@frontend/common": ["libs/common/src/index.ts"],
       "@frontend/parser": ["libs/parser/src/index.ts"],

@@ -10,47 +10,53 @@ import com.epam.deltix.quantgrid.engine.value.StringColumn;
 import com.epam.deltix.quantgrid.engine.value.Table;
 import com.epam.deltix.quantgrid.engine.value.local.DoubleDirectColumn;
 import com.epam.deltix.quantgrid.parser.FieldKey;
+import com.epam.deltix.quantgrid.parser.OverrideKey;
+import com.epam.deltix.quantgrid.parser.ParsedKey;
+import com.epam.deltix.quantgrid.parser.TableKey;
+import com.epam.deltix.quantgrid.parser.TotalKey;
 import com.epam.deltix.quantgrid.type.ColumnType;
 import lombok.Getter;
+import org.jetbrains.annotations.Nullable;
 import org.junit.jupiter.api.Assertions;
 
 import java.util.concurrent.ConcurrentHashMap;
 
 @Getter
 public class ResultCollector implements ResultListener {
-    private final ConcurrentHashMap<FieldKey, ResultType> types = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<FieldKey, Table> values = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<FieldKey, String> errors = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<ParsedKey, ResultType> types = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<ParsedKey, Table> values = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<ParsedKey, String> errors = new ConcurrentHashMap<>();
 
     @Override
-    public void onUpdate(String tableName,
-                         String fieldName,
+    public void onSimilaritySearch(FieldKey key, Table searchResult, @Nullable String error) { }
+
+    @Override
+    public void onUpdate(ParsedKey key,
                          long start,
                          long end,
-                         boolean content, long version,
+                         boolean content,
                          Table value,
                          String error,
                          ResultType resultType) {
-        FieldKey fieldKey = new FieldKey(tableName, fieldName);
         if (error != null) {
-            errors.put(fieldKey, error);
+            errors.put(key, error);
         } else {
-            values.put(fieldKey, value);
-            types.put(fieldKey, resultType);
+            values.put(key, value);
+            types.put(key, resultType);
         }
     }
 
-    private StringColumn getString(String tableName, String fieldName) {
-        return getValue(tableName, fieldName).getStringColumn(0);
+    private StringColumn getString(ParsedKey key) {
+        return getValue(key).getStringColumn(0);
     }
 
-    private PeriodSeriesColumn getPeriodSeries(String tableName, String fieldName) {
-        return getValue(tableName, fieldName).getPeriodSeriesColumn(0);
+    private PeriodSeriesColumn getPeriodSeries(ParsedKey key) {
+        return getValue(key).getPeriodSeriesColumn(0);
     }
 
-    public void verify(String table, String field, double... expected) {
-        StringColumn actual = getString(table, field);
-        ColumnType type = getType(table, field).columnType();
+    private void verify(ParsedKey key, double... expected) {
+        StringColumn actual = getString(key);
+        ColumnType type = getType(key).columnType();
 
         if (type == null) {
             type = ColumnType.INTEGER;
@@ -59,7 +65,17 @@ public class ResultCollector implements ResultListener {
         DoubleColumn numbers = new DoubleDirectColumn(expected);
         StringColumn texts = Text.text(numbers, type, null);
 
-        TestAsserts.verify(actual, texts);
+        TestAsserts.verify(actual, texts.toArray());
+    }
+
+    private void verify(ParsedKey key, String... expected) {
+        StringColumn actual = getString(key);
+        TestAsserts.verify(key + ": expected array %s, but got %s", actual, expected);
+    }
+
+    private void verify(ParsedKey key, PeriodSeries... expected) {
+        PeriodSeriesColumn actual = getPeriodSeries(key);
+        TestAsserts.verify(actual, expected);
     }
 
     public void verify(String table, String field) {
@@ -67,13 +83,15 @@ public class ResultCollector implements ResultListener {
     }
 
     public void verify(String table, String field, String... expected) {
-        StringColumn actual = getString(table, field);
-        TestAsserts.verify(actual, expected);
+        verify(new FieldKey(table, field), expected);
+    }
+
+    public void verify(String table, String field, double... expected) {
+        verify(new FieldKey(table, field), expected);
     }
 
     public void verify(String table, String field, PeriodSeries... expected) {
-        PeriodSeriesColumn actual = getPeriodSeries(table, field);
-        TestAsserts.verify(actual, expected);
+        verify(new FieldKey(table, field), expected);
     }
 
     public void verifyError(String table, String field, String error) {
@@ -82,27 +100,42 @@ public class ResultCollector implements ResultListener {
     }
 
     public String getError(String tableName, String fieldName) {
-        return errors.get(new FieldKey(tableName, fieldName));
+        return errors.get(fieldName == null ? new TableKey(tableName) : new FieldKey(tableName, fieldName));
     }
 
-    Table getValue(String tableName, String fieldName) {
-        FieldKey fieldKey = new FieldKey(tableName, fieldName);
+    public void verifyTotal(String table, String field, int number, String... expected) {
+        verify(new TotalKey(table, field, number), expected);
+    }
 
-        String error = errors.get(fieldKey);
+    public void verifyTotal(String table, String field, int number, double... expected) {
+        verify(new TotalKey(table, field, number), expected);
+    }
+
+    public void verifyTotalError(String table, String field, int number, String error) {
+        String actual = errors.get(new TotalKey(table, field, number));
+        Assertions.assertEquals(error, actual);
+    }
+
+    public void verifyOverrideError(String table, String field, int number, String error) {
+        String actual = errors.get(new OverrideKey(table, field, number));
+        Assertions.assertEquals(error, actual);
+    }
+
+    Table getValue(ParsedKey key) {
+        String error = errors.get(key);
         if (error != null) {
             throw new RuntimeException(error);
         }
 
-        Table result = values.get(fieldKey);
+        Table result = values.get(key);
         if (result == null) {
-            throw new IllegalStateException("No value found for %s[%s]".formatted(tableName, fieldName));
+            throw new IllegalStateException("No value found for %s".formatted(key));
         }
 
         return result;
     }
 
-    ResultType getType(String tableName, String fieldName) {
-        FieldKey key = new FieldKey(tableName, fieldName);
+    ResultType getType(ParsedKey key) {
         ResultType type = types.get(key);
         Assertions.assertNotNull(type, "No type found for: " + key);
         return type;

@@ -1,11 +1,13 @@
 package com.epam.deltix.quantgrid.engine.compiler.result;
 
 import com.epam.deltix.quantgrid.engine.compiler.CompileError;
+import com.epam.deltix.quantgrid.engine.compiler.CompileUtil;
 import com.epam.deltix.quantgrid.engine.node.Node;
 import com.epam.deltix.quantgrid.engine.node.plan.Scalar;
 import com.epam.deltix.quantgrid.parser.FieldKey;
 
 import java.util.List;
+import java.util.function.BinaryOperator;
 
 public interface CompiledResult {
 
@@ -20,10 +22,20 @@ public interface CompiledResult {
     }
 
     default <T extends CompiledResult> T cast(Class<T> type) {
+        return cast(type, (expected, actual) -> "Failed to cast " + actual + " to " + expected);
+    }
+
+    default <T extends CompiledResult> T cast(Class<T> type, BinaryOperator<String> errorProvider) {
         if (!type.isInstance(this)) {
-            throw new CompileError("Unexpected type: " + getClass());
+            String expected = CompileUtil.getTypeDisplayName(type);
+            String actual = CompileUtil.getTypeDisplayName(getClass());
+            throw new CompileError(errorProvider.apply(expected, actual));
         }
 
         return type.cast(this);
+    }
+
+    default boolean hasSameLayout(CompiledResult other) {
+        return this.node().getLayout().semanticEqual(other.node().getLayout(), true);
     }
 }

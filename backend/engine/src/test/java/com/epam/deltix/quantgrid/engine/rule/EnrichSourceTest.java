@@ -134,10 +134,10 @@ class EnrichSourceTest {
 
         Table result = TestExecutor.execute(newJoin);
 
-        verify(result.getDoubleColumn(0), 0, 1, 2, 3, 4, 5);
-        verify(result.getDoubleColumn(1), 1, 2, 3, 4, 5, 6);
-        verify(result.getDoubleColumn(2), 1, 2, 3, 4, 5, 6);
-        verify(result.getDoubleColumn(3), 1, 2, 3, 4, 5, 6);
+        verify(result.getDoubleColumn(0), 1, 2, 3, 4, 5, 6);
+        verify(result.getDoubleColumn(1), 2, 3, 4, 5, 6, 7);
+        verify(result.getDoubleColumn(2), 2, 3, 4, 5, 6, 7);
+        verify(result.getDoubleColumn(3), 2, 3, 4, 5, 6, 7);
     }
 
     private static Graph enrichSource(Plan originalPlan) {

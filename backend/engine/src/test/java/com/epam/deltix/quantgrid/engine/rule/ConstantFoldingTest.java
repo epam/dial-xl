@@ -25,10 +25,10 @@ class ConstantFoldingTest {
         Graph graph = new Graph();
         graph.add(range);
 
-        Assertions.assertEquals(12, graph.getNodes().size());
+        Assertions.assertEquals(13, graph.getNodes().size());
         new ConstantFolding().apply(graph);
 
-        Expression actual = range.getExpression(0);
+        Expression actual = range.expression(0, 0);
         Assertions.assertTrue(new Constant(2).semanticEqual(actual, true));
     }
 }

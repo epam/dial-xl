@@ -1,11 +1,10 @@
-import { ANTLRErrorListener } from 'antlr4ts/ANTLRErrorListener';
-import { Recognizer } from 'antlr4ts/Recognizer';
+import { ErrorListener as ANTLRErrorListener, Recognizer } from 'antlr4';
 
 export class ErrorListener implements ANTLRErrorListener<any> {
   private errors: string[] = [];
 
   public syntaxError(
-    recognizer: Recognizer<any, any>,
+    recognizer: Recognizer<any>,
     offendingSymbol: any | undefined,
     line: number,
     charPositionInLine: number,

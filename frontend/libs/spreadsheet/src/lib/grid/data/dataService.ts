@@ -3,8 +3,9 @@ import { BehaviorSubject, Subject } from 'rxjs';
 
 import { CONFIG, Destroyable } from '@deltix/grid-it';
 import type { GridItOptions } from '@deltix/grid-it-core';
+import { GridCell, GridData } from '@frontend/common';
 
-import { GridCell, GridData, IDataService } from './types';
+import { IDataService } from './types';
 
 @injectable()
 export class DataService<T> extends Destroyable implements IDataService {
@@ -75,16 +76,54 @@ export class DataService<T> extends Destroyable implements IDataService {
     return gridData[row][col];
   }
 
+  public getNextCell({
+    col,
+    row,
+    colDirection,
+    rowDirection,
+  }: {
+    col: number;
+    row: number;
+    colDirection?: 'left' | 'right';
+    rowDirection?: 'top' | 'bottom';
+  }) {
+    const cell = this.getCell(col, row);
+    const colOffset =
+      colDirection !== undefined ? (colDirection === 'left' ? -1 : 1) : 0;
+    const rowOffset =
+      rowDirection !== undefined ? (rowDirection === 'top' ? -1 : 1) : 0;
+
+    if (cell?.table && cell.isTableHeader) {
+      return {
+        col:
+          colOffset > 0
+            ? cell.table.endCol + colOffset
+            : cell.table.startCol + colOffset,
+        row: row + rowOffset,
+      };
+    }
+
+    if (!cell || !cell.startCol || !cell.endCol) {
+      return {
+        col: col + colOffset,
+        row: row + rowOffset,
+      };
+    }
+
+    return {
+      col: (colDirection === 'right' ? cell.endCol : cell.startCol) + colOffset,
+      row: row + rowOffset,
+    };
+  }
+
+  // public getCellSize
+
   public isTableHeader(col: number, row: number) {
     const cell = this.getCell(col, row);
 
     if (!cell || !cell.table) return false;
 
-    return (
-      cell.table.startRow === row &&
-      cell.table.startCol <= col &&
-      col <= cell.table.endCol
-    );
+    return !!cell.isTableHeader;
   }
 
   public isTableField(col: number, row: number) {
@@ -92,10 +131,6 @@ export class DataService<T> extends Destroyable implements IDataService {
 
     if (!cell || !cell.table) return false;
 
-    return (
-      cell.table.startRow === row - 1 &&
-      cell.table.startCol <= col &&
-      col <= cell.table.endCol
-    );
+    return !!cell.isFieldHeader;
   }
 }

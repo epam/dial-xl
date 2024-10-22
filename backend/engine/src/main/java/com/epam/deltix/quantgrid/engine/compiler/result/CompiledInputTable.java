@@ -49,7 +49,7 @@ public class CompiledInputTable extends CompiledAbstractTable {
 
         Get inputRef = queryReference();
         Get inputColumn = new Get(input, index);
-        CompiledColumn column = CompileUtil.projectColumn(inputRef, inputColumn, dimensions);
+        CompiledSimpleColumn column = CompileUtil.projectColumn(inputRef, inputColumn, dimensions);
 
         if (!nested) {
             return column;

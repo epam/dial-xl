@@ -2,7 +2,6 @@ package com.epam.deltix.quantgrid.engine.node.plan.local;
 
 import com.epam.deltix.quantgrid.engine.Util;
 import com.epam.deltix.quantgrid.engine.meta.Meta;
-import com.epam.deltix.quantgrid.engine.meta.Schema;
 import com.epam.deltix.quantgrid.engine.node.expression.Expression;
 import com.epam.deltix.quantgrid.engine.node.plan.Plan;
 import com.epam.deltix.quantgrid.engine.node.plan.Plan2;
@@ -15,7 +14,7 @@ import com.epam.deltix.quantgrid.engine.value.local.DoubleDirectColumn;
 import com.epam.deltix.quantgrid.engine.value.local.LocalTable;
 import com.epam.deltix.quantgrid.engine.value.local.PeriodSeriesDirectColumn;
 import com.epam.deltix.quantgrid.engine.value.local.StringDirectColumn;
-import com.epam.deltix.quantgrid.type.ColumnType;
+import com.epam.deltix.quantgrid.util.Doubles;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 
 import java.util.Arrays;
@@ -28,9 +27,15 @@ public class NestedAggregateLocal extends Plan2<Table, Table, Table> {
     public NestedAggregateLocal(AggregateFunction function,
                                 Plan layout, Plan source,
                                 Expression key, Expression... arguments) {
-        super(sourceOf(layout), sourceOf(source, Util.listOf(key, List.of(arguments))));
+        this(function, layout, source, key, List.of(arguments));
+    }
+
+    public NestedAggregateLocal(AggregateFunction function,
+                                Plan layout, Plan source,
+                                Expression key, List<Expression> arguments) {
+        super(sourceOf(layout), sourceOf(source, Util.listOf(key, arguments)));
         this.function = function;
-        Util.verify(arguments.length == function.argumentCount());
+        Util.verify(arguments.size() == function.argumentCount());
     }
 
     @Override
@@ -40,154 +45,119 @@ public class NestedAggregateLocal extends Plan2<Table, Table, Table> {
 
     @Override
     protected Meta meta() {
-        ColumnType returnType = function.inferResultType() ? expression(1, 1).getType() : function.resultType();
-        Schema schema = (returnType == null) ? Schema.inputs(this, 1) : Schema.of(returnType);
-        return new Meta(schema);
+        return new Meta(function.schema(this, 1, 1));
     }
 
     @Override
     protected Table execute(Table layout, Table table) {
-        int resultSize = Util.toIntSize(layout);
+        int size = Util.toIntSize(layout);
         DoubleColumn keys = expression(1, 0).evaluate();
-        List<Expression> arguments = expressions(1, 1);
+        List<Expression> args = expressions(1, 1);
 
         return switch (function) {
-            case COUNT -> count(table, keys, resultSize);
-            case SUM -> sum(table, keys, arguments, resultSize);
-            case AVERAGE -> average(table, keys, arguments, resultSize);
-            case MIN -> min(table, keys, arguments, resultSize);
-            case MAX -> max(table, keys, arguments, resultSize);
-            case MODE -> mode(table, keys, arguments, resultSize);
-            case CORRELATION -> correlation(table, keys, arguments, resultSize);
-            case FIRST -> first(table, keys, resultSize);
-            case SINGLE -> single(table, keys, resultSize);
-            case LAST -> last(table, keys, resultSize);
-            case FIRSTS -> firsts(table, keys, arguments, resultSize);
-            case LASTS -> lasts(table, keys, arguments, resultSize);
-            case PERIOD_SERIES -> periodSeries(table, keys, arguments, resultSize);
+            case COUNT -> aggregate(SimpleAggregateLocal::count, 0, table, keys, args, size);
+            case COUNT_ALL -> aggregate(SimpleAggregateLocal::countAll, 0, table, keys, args, size);
+            case SUM -> aggregate(SimpleAggregateLocal::sum, 0, table, keys, args, size);
+            case AVERAGE -> aggregate(SimpleAggregateLocal::average, Doubles.ERROR_NA, table, keys, args, size);
+            case MIN -> aggregate(SimpleAggregateLocal::min, Doubles.ERROR_NA, table, keys, args, size);
+            case MAX -> aggregate(SimpleAggregateLocal::max, Doubles.ERROR_NA, table, keys, args, size);
+            case STDEVS -> aggregate(SimpleAggregateLocal::stdevs, Doubles.ERROR_NA, table, keys, args, size);
+            case STDEVP -> aggregate(SimpleAggregateLocal::stdevp, Doubles.ERROR_NA, table, keys, args, size);
+            case GEOMEAN -> aggregate(SimpleAggregateLocal::geomean, Doubles.ERROR_NA, table, keys, args, size);
+            case MEDIAN -> aggregate(SimpleAggregateLocal::median, Doubles.ERROR_NA, table, keys, args, size);
+            case MODE -> mode(table, keys, args, size);
+            case CORRELATION -> correlation(table, keys, args, size);
+            case FIRST -> aggregate(SimpleAggregateLocal::first, Util.NA_REF, table, keys, size);
+            case SINGLE -> aggregate(SimpleAggregateLocal::single, Util.NA_REF, table, keys, size);
+            case LAST -> aggregate(SimpleAggregateLocal::last, Util.NA_REF, table, keys, size);
+            case INDEX -> aggregate(SimpleAggregateLocal::index, Util.NA_REF, table, keys, args, size);
+            case MINBY -> aggregate(SimpleAggregateLocal::minBy, Util.NA_REF, table, keys, args, size);
+            case MAXBY -> aggregate(SimpleAggregateLocal::maxBy, Util.NA_REF, table, keys, args, size);
+            case FIRSTS -> firsts(table, keys, args, size);
+            case LASTS -> lasts(table, keys, args, size);
+            case PERIOD_SERIES -> periodSeries(table, keys, args, size);
         };
     }
 
-    private static Table count(Table table, DoubleColumn keys, int resultSize) {
-        long tableSize = table.size();
-        double[] counts = new double[resultSize];
-
-        for (long i = 0; i < tableSize; i++) {
-            int index = Util.toIntIndex(keys.get(i));
-            counts[index]++;
-        }
-
-        return new LocalTable(new DoubleDirectColumn(counts));
-    }
-
-    private static Table sum(Table table, DoubleColumn keys, List<Expression> arguments, int resultSize) {
-        DoubleColumn values = arguments.get(0).evaluate();
-        long tableSize = table.size();
-        double[] sums = new double[resultSize];
-
-        for (int i = 0; i < tableSize; i++) {
-            int index = Util.toIntIndex(keys.get(i));
-            sums[index] += values.get(i);
-        }
-
-        return new LocalTable(new DoubleDirectColumn(sums));
-    }
-
-    private static Table average(Table table, DoubleColumn keys, List<Expression> arguments, int resultSize) {
-        DoubleColumn values = arguments.get(0).evaluate();
-        long tableSize = table.size();
-        double[] averages = new double[resultSize];
-        Arrays.fill(averages, Double.NaN);
-
-        double sum = 0;
-        double count = 0;
+    private static <A extends Column> Table aggregate(SimpleAggregateLocal.UnaryDoubleAggregation<A> function,
+                                                      double missing,
+                                                      Table table, DoubleColumn keys, List<Expression> arguments,
+                                                      int resultSize) {
+        A values = arguments.get(0).evaluate();
+        long size = table.size();
+        double[] results = new double[resultSize];
+        Arrays.fill(results, missing);
+        long from = 0;
         int prev = 0;
 
-        for (int i = 0; i < tableSize; i++) {
-            int next = Util.toIntIndex(keys.get(i));
-            Util.verify(prev <= next);
+        for (long to = 0; to <= size; to++) {
+            int next = (to == size) ? resultSize : (int) keys.get(to);
+            Util.verify(next >= prev);
 
-            if (prev != next) {
-                averages[prev] = sum / count;
-                sum = 0;
-                count = 0;
+            if (next > prev) {
+                results[prev] = function.aggregate(values, from, to);
                 prev = next;
+                from = to;
             }
-
-            sum += values.get(i);
-            count++;
         }
 
-        if (tableSize > 0) {
-            averages[prev] = sum / count;
-        }
-
-        return new LocalTable(new DoubleDirectColumn(averages));
+        return new LocalTable(new DoubleDirectColumn(results));
     }
 
-    private static Table min(Table table, DoubleColumn keys, List<Expression> arguments, int resultSize) {
-        DoubleColumn values = arguments.get(0).evaluate();
-        long tableSize = table.size();
-        double[] mins = new double[resultSize];
-        Arrays.fill(mins, Double.NaN);
-
-        double min = Double.POSITIVE_INFINITY;
+    private static Table aggregate(SimpleAggregateLocal.NullaryReferenceAggregation function,
+                                   long missing,
+                                   Table table, DoubleColumn keys, int resultSize) {
+        long size = table.size();
+        long[] results = new long[resultSize];
+        Arrays.fill(results, missing);
+        long from = 0;
         int prev = 0;
 
-        for (int i = 0; i < tableSize; i++) {
-            int next = Util.toIntIndex(keys.get(i));
-            Util.verify(prev <= next);
+        for (long to = 0; to <= size; to++) {
+            int next = (to == size) ? resultSize : (int) keys.get(to);
+            Util.verify(next >= prev);
 
-            if (prev != next) {
-                mins[prev] = min;
-                min = Double.POSITIVE_INFINITY;
+            if (next > prev) {
+                results[prev] = function.aggregate(from, to);
                 prev = next;
+                from = to;
             }
-
-            min = Math.min(min, values.get(i));
         }
 
-        if (tableSize > 0) {
-            mins[prev] = min;
-        }
-
-        return new LocalTable(new DoubleDirectColumn(mins));
+        return LocalTable.indirectOf(table, results);
     }
 
-    private static Table max(Table table, DoubleColumn keys, List<Expression> arguments, int resultSize) {
-        DoubleColumn values = arguments.get(0).evaluate();
-        long tableSize = table.size();
-        double[] maxs = new double[resultSize];
-        Arrays.fill(maxs, Double.NaN);
-
-        double max = Double.NEGATIVE_INFINITY;
+    private static <A extends Column> Table aggregate(SimpleAggregateLocal.UnaryReferenceAggregation<A> function,
+                                                      long missing,
+                                                      Table table, DoubleColumn keys, List<Expression> arguments,
+                                                      int resultSize) {
+        A values = arguments.get(0).evaluate();
+        long size = table.size();
+        long[] results = new long[resultSize];
+        Arrays.fill(results, missing);
+        long from = 0;
         int prev = 0;
 
-        for (int i = 0; i < tableSize; i++) {
-            int next = Util.toIntIndex(keys.get(i));
-            Util.verify(prev <= next);
+        for (long to = 0; to <= size; to++) {
+            int next = (to == size) ? resultSize : (int) keys.get(to);
+            Util.verify(next >= prev);
 
-            if (prev != next) {
-                maxs[prev] = max;
-                max = Double.NEGATIVE_INFINITY;
+            if (next > prev) {
+                results[prev] = function.aggregate(values, from, to);
                 prev = next;
+                from = to;
             }
-
-            max = Math.max(max, values.get(i));
         }
 
-        if (tableSize > 0) {
-            maxs[prev] = max;
-        }
-
-        return new LocalTable(new DoubleDirectColumn(maxs));
+        return LocalTable.indirectOf(table, results);
     }
 
     private static Table mode(Table table, DoubleColumn keys, List<Expression> arguments, int resultSize) {
         Column values = arguments.get(0).evaluate();
 
-        if (values instanceof DoubleColumn numbers) {
-            return mode(table, keys, numbers, resultSize);
+        if (values instanceof DoubleColumn) {
+            return NestedAggregateLocal.<DoubleColumn>aggregate(SimpleAggregateLocal::mode,
+                    Doubles.ERROR_NA, table, keys, arguments, resultSize);
         }
 
         if (values instanceof StringColumn strings) {
@@ -197,48 +167,20 @@ public class NestedAggregateLocal extends Plan2<Table, Table, Table> {
         throw new IllegalArgumentException();
     }
 
-    private static LocalTable mode(Table table, DoubleColumn keys, DoubleColumn values, int resultSize) {
-        long size = table.size();
-        double[] modes = new double[resultSize];
-        Arrays.fill(modes, Double.NaN);
-        long from = 0;
-        int prev = 0;
-
-        for (long i = 0; i < size; i++) {
-            int next = (int) keys.get(i);
-
-            if (next > prev) {
-                modes[prev] = SimpleAggregateLocal.mode(values, from, i);
-                prev = next;
-                from = i;
-            }
-        }
-
-        if (size > 0) {
-            modes[prev] = SimpleAggregateLocal.mode(values, from, size);
-        }
-
-        return new LocalTable(new DoubleDirectColumn(modes));
-    }
-
     private static LocalTable mode(Table table, DoubleColumn keys, StringColumn values, int resultSize) {
         long size = table.size();
         String[] modes = new String[resultSize];
         long from = 0;
         int prev = 0;
 
-        for (long i = 0; i < size; i++) {
-            int next = (int) keys.get(i);
+        for (long i = 0; i <= size; i++) {
+            int next = (i == size) ? resultSize : (int) keys.get(i);
 
             if (next > prev) {
                 modes[prev] = SimpleAggregateLocal.mode(values, from, i);
                 prev = next;
                 from = i;
             }
-        }
-
-        if (size > 0) {
-            modes[prev] = SimpleAggregateLocal.mode(values, from, size);
         }
 
         return new LocalTable(new StringDirectColumn(modes));
@@ -250,12 +192,12 @@ public class NestedAggregateLocal extends Plan2<Table, Table, Table> {
 
         long size = table.size();
         double[] correlations = new double[resultSize];
-        Arrays.fill(correlations, Double.NaN);
+        Arrays.fill(correlations, Doubles.ERROR_NA);
         long from = 0;
         int prev = 0;
 
-        for (long i = 0; i < size; i++) {
-            int next = (int) keys.get(i);
+        for (long i = 0; i <= size; i++) {
+            int next = (i == size) ? resultSize : (int) keys.get(i);
 
             if (next > prev) {
                 correlations[prev] = SimpleAggregateLocal.correlation(xs, ys, from, i);
@@ -264,59 +206,8 @@ public class NestedAggregateLocal extends Plan2<Table, Table, Table> {
             }
         }
 
-        if (size > 0) {
-            correlations[prev] = SimpleAggregateLocal.correlation(xs, ys, from, size);
-        }
-
+        Doubles.normalizeNaNs(correlations);
         return new LocalTable(new DoubleDirectColumn(correlations));
-    }
-
-    private static Table first(Table table, DoubleColumn keys, int resultSize) {
-        long tableSize = table.size();
-        long[] refs = new long[resultSize];
-        Arrays.fill(refs, -1);
-
-        for (long i = 0; i < tableSize; i++) {
-            int index = Util.toIntIndex(keys.get(i));
-
-            if (refs[index] == -1) {
-                refs[index] = i;
-            }
-        }
-
-        return LocalTable.indirectOf(table, refs);
-    }
-
-    private static Table single(Table table, DoubleColumn keys, int resultSize) {
-        long tableSize = table.size();
-        long[] refs = new long[resultSize];
-        Arrays.fill(refs, -1);
-
-        for (long i = 0; i < tableSize; i++) {
-            int index = Util.toIntIndex(keys.get(i));
-            long ref = refs[index];
-
-            if (ref == -1) {
-                refs[index] = i;
-            } else if (ref >= 0) {
-                refs[index] = -2; // 2+ matches, -2 is considered NA_REF as well as -1
-            }
-        }
-
-        return LocalTable.indirectOf(table, refs);
-    }
-
-    private static Table last(Table table, DoubleColumn keys, int resultSize) {
-        long tableSize = table.size();
-        long[] refs = new long[resultSize];
-        Arrays.fill(refs, -1);
-
-        for (long i = 0; i < tableSize; i++) {
-            int index = Util.toIntIndex(keys.get(i));
-            refs[index] = i;
-        }
-
-        return LocalTable.indirectOf(table, refs);
     }
 
     private static Table firsts(Table table, DoubleColumn keys, List<Expression> arguments, int resultSize) {

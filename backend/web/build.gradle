@@ -3,20 +3,42 @@ plugins {
     id("io.freefair.lombok") version "8.0.1"
 }
 
+configurations.configureEach {
+    resolutionStrategy {
+        force 'com.google.code.gson:gson:2.8.9'
+    }
+}
+
 dependencies {
     implementation project(':backend:proto')
     implementation project(':backend:engine')
     implementation project(':backend:parser')
     implementation project(':backend:common')
-    implementation "org.springframework.boot:spring-boot-starter-websocket:3.0.4"
+    implementation "org.springframework.boot:spring-boot-starter-web:3.0.4"
+    implementation "org.springframework.boot:spring-boot-starter-oauth2-resource-server:3.0.4"
     implementation "org.slf4j:slf4j-api:2.0.6"
     implementation "com.google.protobuf:protobuf-java-util:3.22.2"
     implementation 'it.unimi.dsi:fastutil-core:8.5.12'
     implementation 'org.jetbrains:annotations:20.1.0'
-    implementation 'commons-lang:commons-lang:2.6'
+    implementation 'com.google.code.gson:gson:2.8.9'
+    implementation 'org.apache.commons:commons-lang3:3.12.0'
     implementation 'commons-codec:commons-codec:1.15'
+    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
+    implementation 'com.squareup.okhttp3:okhttp-sse:4.12.0'
+    implementation 'ai.djl.huggingface:tokenizers:0.28.0'
+    implementation 'ai.djl.pytorch:pytorch-model-zoo:0.28.0'
+    implementation 'ai.djl.pytorch:pytorch-native-cpu:2.2.2:linux-x86_64'
+    implementation 'ai.djl.pytorch:pytorch-jni:2.2.2-0.28.0'
+    implementation 'ai.djl.pytorch:pytorch-engine:0.28.0'
+    implementation 'ai.djl:model-zoo:0.28.0'
+    implementation 'ai.djl:api:0.28.0'
+    implementation 'org.redisson:redisson:3.32.0'
+    implementation 'javax.annotation:javax.annotation-api:1.2'
 
     testImplementation 'org.springframework.boot:spring-boot-starter-test:3.0.4'
+    testImplementation 'org.springframework.security:spring-security-test:6.0.2'
+    testImplementation 'javax.xml.bind:jaxb-api:2.3.1'
+    testImplementation 'com.squareup.okhttp3:mockwebserver:4.12.0'
 }
 
 bootJar {

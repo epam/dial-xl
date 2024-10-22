@@ -12,6 +12,7 @@ import com.epam.deltix.quantgrid.engine.value.Value;
 import com.epam.deltix.quantgrid.type.ColumnType;
 import lombok.Getter;
 
+import java.security.Principal;
 import java.util.List;
 
 public class InputLocal extends Plan0<Value> {
@@ -20,15 +21,17 @@ public class InputLocal extends Plan0<Value> {
     private final InputMetadata metadata;
     private final InputProvider inputProvider;
     private final List<String> readColumns;
+    private final Principal principal;
 
-    public InputLocal(InputMetadata metadata, InputProvider inputProvider) {
-        this(metadata, inputProvider, List.copyOf(metadata.columnTypes().keySet()));
+    public InputLocal(InputMetadata metadata, InputProvider inputProvider, Principal principal) {
+        this(metadata, inputProvider, List.copyOf(metadata.columnTypes().keySet()), principal);
     }
 
-    public InputLocal(InputMetadata metadata, InputProvider inputProvider, List<String> readColumns) {
+    public InputLocal(InputMetadata metadata, InputProvider inputProvider, List<String> readColumns, Principal principal) {
         this.metadata = metadata;
         this.inputProvider = inputProvider;
         this.readColumns = List.copyOf(readColumns);
+        this.principal = principal;
         Util.verify(metadata.columnTypes().keySet().containsAll(readColumns),
                 "Read columns should be a subset of columns from the source");
     }
@@ -48,7 +51,8 @@ public class InputLocal extends Plan0<Value> {
     public String toString() {
         return "Input(" + inputProvider.name()
                 + ", " + metadata.path()
-                + ", " + metadata.columnTypes().keySet() + ")";
+                + ", " + metadata.columnTypes().keySet()
+                + ", " + metadata.etag() + ")";
     }
 
     @Override
@@ -59,6 +63,6 @@ public class InputLocal extends Plan0<Value> {
 
     @Override
     public Value execute() {
-        return inputProvider.read(readColumns, metadata);
+        return inputProvider.readData(readColumns, metadata, principal);
     }
 }

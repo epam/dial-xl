@@ -36,7 +36,7 @@ public class DistinctByLocal extends Plan1<Table, Table> {
         LongArrayList references = new LongArrayList(size);
 
         List<Expression> keys = expressions(0);
-        TableHashStrategy strategy = new TableHashStrategy(keys);
+        TableHashStrategy strategy = new TableHashStrategy(keys, true, false);
         LongOpenCustomHashSet set = new LongOpenCustomHashSet(size, strategy);
 
         for (int i = 0; i < size; i++) {

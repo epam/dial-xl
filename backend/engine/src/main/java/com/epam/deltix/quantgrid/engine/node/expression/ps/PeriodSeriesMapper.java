@@ -1,7 +1,7 @@
 package com.epam.deltix.quantgrid.engine.node.expression.ps;
 
-import com.epam.deltix.quantgrid.engine.Util;
-import com.epam.deltix.quantgrid.util.ExcelDateTime;
+import com.epam.deltix.quantgrid.util.Doubles;
+import com.epam.deltix.quantgrid.util.Dates;
 import com.epam.deltix.quantgrid.engine.value.Period;
 import com.epam.deltix.quantgrid.engine.value.PeriodSeries;
 import com.epam.quanthub.scripting.models.common.period.TimePeriod;
@@ -26,7 +26,7 @@ public class PeriodSeriesMapper {
 
         double qgOffset = periodSeries.getOffset();
         double startTimestamp = qgPeriod.getTimestamp(qgOffset);
-        LocalDate startLocalDate = ExcelDateTime.getLocalDate(startTimestamp);
+        LocalDate startLocalDate = Dates.getLocalDate(startTimestamp);
 
         DateWithPeriod dateWithPeriod = new DateWithPeriod(startLocalDate, qhPeriod);
         double[] values = periodSeries.getValues().toArray();
@@ -59,7 +59,7 @@ public class PeriodSeriesMapper {
         }
 
         LocalDate startDate = timeSeriesData.getFirstValidDate();
-        double startOffset = qgPeriod.getOffset(ExcelDateTime.from(startDate.atStartOfDay()));
+        double startOffset = qgPeriod.getOffset(Dates.from(startDate.atStartOfDay()));
 
         return new PeriodSeries(qgPeriod, startOffset, values);
     }
@@ -86,6 +86,6 @@ public class PeriodSeriesMapper {
     }
 
     public boolean isEmpty(PeriodSeries ps) {
-        return Util.isNa(ps.getOffset()) && (ps.getValues().size() == 0);
+        return Doubles.isNa(ps.getOffset()) && (ps.getValues().size() == 0);
     }
 }

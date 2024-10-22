@@ -3,15 +3,15 @@ import { expect } from '@playwright/test';
 import { BaseComponent } from './BaseComponent';
 
 export class BasePanel extends BaseComponent {
-  private hideElement = 'div>[aria-label="vertical-align-bottom"]';
+  private hideElement = 'div>span.stroke-textSecondary.ml-2';
 
   protected panelName: string;
 
   private panelItemsStart = 'div.items-start';
 
-  private getPanelRootLocator() {
+  protected getPanelRootLocator() {
     return this.innerPage.locator(
-      `div.items-start:has-text('${this.panelName}')`
+      `${this.panelItemsStart}:has( span.text-textSecondary:has-text('${this.panelName}'))`
     );
     //     return this.innerPage.locator(this.panelItemsStart).getByText(this.panelName, {exact: true});
   }

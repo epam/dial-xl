@@ -31,16 +31,16 @@ public class CompiledReferenceTable extends CompiledAbstractTable {
 
     @Override
     public List<String> fields(CompileContext context) {
-        return context.parsedTable(name).getFields().stream()
-                .map(parsedField -> parsedField.getKey().fieldName())
+        return context.parsedTable(name).fields().stream()
+                .map(ParsedField::fieldName)
                 .toList();
     }
 
     @Override
     public List<String> keys(CompileContext context) {
-        return context.parsedTable(name).getFields().stream()
+        return context.parsedTable(name).fields().stream()
                 .filter(ParsedField::isKey)
-                .map(f -> f.getKey().fieldName())
+                .map(ParsedField::fieldName)
                 .filter(name -> !CompilePivot.PIVOT_NAME.equals(name))
                 .toList();
     }
@@ -51,7 +51,8 @@ public class CompiledReferenceTable extends CompiledAbstractTable {
             return context.field(name, field, true);
         }
 
-        return context.projectQueryField(this, name, field, nested);
+        CompiledResult result = context.field(name, field, true);
+        return context.projectQueryResult(this, result);
     }
 
     @Override

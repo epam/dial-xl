@@ -18,6 +18,8 @@ import com.epam.deltix.quantgrid.engine.value.local.PeriodSeriesDirectColumn;
 import com.epam.deltix.quantgrid.engine.value.local.StringDirectColumn;
 import com.epam.deltix.quantgrid.engine.value.local.StringLambdaColumn;
 import com.epam.deltix.quantgrid.type.ColumnType;
+import com.epam.deltix.quantgrid.util.Doubles;
+import com.epam.deltix.quantgrid.util.Strings;
 import it.unimi.dsi.fastutil.ints.IntArrays;
 import it.unimi.dsi.fastutil.objects.Object2IntMap;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
@@ -120,7 +122,7 @@ public class UnpivotDynamicLocal extends PlanN<Table, Table> {
         int results = Util.toIntSize((long) columns * sources);
 
         double[] values = new double[results];
-        Arrays.fill(values, Double.NaN);
+        Arrays.fill(values, Doubles.EMPTY);
 
         for (int row = 0, offset = 0; row < sources; row++, offset += columns) {
             double key = sourceKeys.get(row);
@@ -152,6 +154,7 @@ public class UnpivotDynamicLocal extends PlanN<Table, Table> {
         int results = Util.toIntSize((long) columns * sources);
 
         String[] values = new String[results];
+        Arrays.fill(values, Strings.EMPTY);
 
         for (int row = 0, offset = 0; row < sources; row++, offset += columns) {
             double key = sourceKeys.get(row);

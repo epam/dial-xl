@@ -1,10 +1,11 @@
-import { KeyboardCode } from '@frontend/common';
+import { GridTable, KeyboardCode } from '@frontend/common';
 
 import { defaults } from '../../defaults';
-import { GridSelection, GridTable } from '../../grid';
+import { Grid, GridSelection } from '../../grid';
 import { checkIsNavigateInsideTable, findNextTableToNavigate } from './utils';
 
 export function extendRangeSelection(
+  api: Grid,
   tables: GridTable[],
   selection: GridSelection,
   direction: string,
@@ -17,6 +18,7 @@ export function extendRangeSelection(
   if (!singleSelection) return null;
 
   const updatedSelection = checkIsNavigateInsideTable(
+    api,
     tables,
     singleSelection,
     maxRow,

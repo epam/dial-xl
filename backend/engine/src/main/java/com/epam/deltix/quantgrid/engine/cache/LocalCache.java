@@ -58,6 +58,14 @@ public class LocalCache implements Cache {
         Util.verify(prev == null);
     }
 
+    @Override
+    public Cache copy() {
+        LocalCache cache = new LocalCache();
+        cache.map.putAll(map);
+        cache.sequence = sequence;
+        return cache;
+    }
+
     private static class Entry {
 
         private final Table value;

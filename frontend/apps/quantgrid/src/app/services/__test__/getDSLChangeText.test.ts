@@ -3,14 +3,14 @@ import { getDSLChangeText } from '../getDSLChangeText';
 describe('getDSLChangeText', () => {
   it('should return single line change text', () => {
     // Arrange
-    const dsl = 'table t [f1]=2 [f2]=3 [f1]=4';
-    const oldDSL = 'table t [f1]=2 [f2]=3 [f1]=5';
+    const dsl = 'table t [f1]=2\r\n[f2]=3\r\n[f1]=4';
+    const oldDSL = 'table t [f1]=2\r\n[f2]=3\r\n[f1]=5';
 
     // Act
     const result = getDSLChangeText(oldDSL, dsl);
 
     // Assert
-    expect(result).toBe('DSL change (line 1)');
+    expect(result).toBe('DSL change (line 3)');
   });
 
   it('should return multiple change lines text', () => {

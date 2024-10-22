@@ -15,8 +15,8 @@ export const panelSize = {
   leftSize: 250,
   rightMinSize: 250,
   rightSize: 250,
-  collapsedBarSize: 24,
-  minBottomBarSize: 26,
+  collapsedBarSize: 20,
+  minBottomBarSize: 20,
   maxBottomBarSize: 300,
 };
 
@@ -45,7 +45,7 @@ export function getLayoutItems(
   for (const [name, panelInfo] of Object.entries(openedPanels)) {
     const panelName = name as PanelName;
     const panel = panels[panelName];
-    if (!panel) continue;
+    if (!panel || panel.inactive) continue;
 
     const position =
       panelInfo.position ||
@@ -78,7 +78,6 @@ export function getLayoutItems(
     positions[position].minimized.push({
       name: panelName,
       title: panel.title,
-      icon: panel.icon,
     });
   }
 
@@ -118,7 +117,10 @@ export function getLayoutItems(
     items.push(<ReflexSplitter key="left-splitter" />);
   }
   items.push(
-    <ReflexElement className="flex flex-col w-0 flex-1" key="main-content">
+    <ReflexElement
+      className="flex flex-col w-0 flex-1 relative"
+      key="main-content"
+    >
       <SpreadsheetWrapper />
     </ReflexElement>
   );

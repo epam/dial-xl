@@ -14,6 +14,8 @@ import com.epam.deltix.quantgrid.engine.node.plan.Executed;
 import com.epam.deltix.quantgrid.engine.node.plan.Failed;
 import com.epam.deltix.quantgrid.engine.node.plan.Plan;
 import com.epam.deltix.quantgrid.engine.node.plan.Running;
+import com.epam.deltix.quantgrid.engine.node.plan.local.RetrieverResultLocal;
+import com.epam.deltix.quantgrid.engine.node.plan.local.SimilaritySearchLocal;
 import com.epam.deltix.quantgrid.engine.node.plan.local.StoreLocal;
 import com.epam.deltix.quantgrid.engine.node.plan.local.ViewportLocal;
 import com.epam.deltix.quantgrid.engine.value.Table;
@@ -46,7 +48,6 @@ public class Executor {
 
     private Graph graph = new Graph();
     private Graph execution;
-    private long version;
     private boolean executed;
 
     public Executor(ExecutorService service, ResultListener listener, Cache cache) {
@@ -55,12 +56,11 @@ public class Executor {
         this.cache = cache;
     }
 
-    public CompletableFuture<Void> execute(Graph graph, long version) {
+    public CompletableFuture<Void> execute(Graph graph) {
         lock.lock();
         try {
             this.graph = graph;
             this.execution = buildExecution();
-            this.version = version;
 
             GraphPrinter.print("Execution", execution);
             begin();
@@ -102,8 +102,13 @@ public class Executor {
     private void finish(boolean cancelled) {
         if (!executed) {
             executed = true;
-            completion.complete(null);
-            Util.verify(cancelled || graph.isEmpty());
+
+            if (cancelled) {
+                completion.cancel(true);
+            } else {
+                completion.complete(null);
+                Util.verify(graph.isEmpty());
+            }
         }
     }
 
@@ -218,17 +223,21 @@ public class Executor {
             }
 
             Plan plan = executable.plan;
-            if (plan instanceof ViewportLocal viewPort) {
+            if (plan instanceof RetrieverResultLocal retrieverResultLocal) {
+                listener.onSimilaritySearch(retrieverResultLocal.getKey(), (Table) result, extractError(error));
+            } else if (plan instanceof SimilaritySearchLocal similaritySearch) {
+                listener.onSimilaritySearch(similaritySearch.getKey(), (Table) result, extractError(error));
+            } else if (plan instanceof ViewportLocal viewPort) {
                 listener.onUpdate(
-                        viewPort.getTable(),
-                        viewPort.getField(),
+                        viewPort.getKey(),
                         viewPort.getStart(),
                         viewPort.getEnd(),
                         viewPort.isContent(),
-                        version,
                         (Table) result,
-                        (error == null) ? null : error.getMessage(), viewPort.getResultType());
+                        extractError(error), viewPort.getResultType());
             }
+        } catch (Throwable e) {
+            log.error("Failed to broadcast result: ", e);
         } finally {
             lock.unlock();
         }
@@ -300,6 +309,15 @@ public class Executor {
         }
 
         return copy;
+    }
+
+    private static String extractError(Throwable error) {
+        if (error == null) {
+            return null;
+        }
+
+        String message = error.getMessage();
+        return (message == null) ? "Failed to execute" : message;
     }
 
     @Getter

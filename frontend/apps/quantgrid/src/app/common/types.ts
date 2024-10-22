@@ -1,5 +1,10 @@
 import { ReactElement } from 'react';
 
+import { FilesMetadata } from '@frontend/common';
+import { OverrideValue } from '@frontend/parser';
+
+// Project Panels
+
 export enum PanelPosition {
   Left = 'left',
   Right = 'right',
@@ -25,20 +30,20 @@ export type PanelRecord = Record<PanelName, PanelInfo>;
 export type MinimizedPanelProps = {
   name: PanelName;
   title?: string | JSX.Element;
-  icon?: ReactElement;
 };
 
 export type PanelProps = {
   position: PanelPosition;
   panelName: PanelName;
   title: string;
+  secondaryTitle?: string;
 };
 
 export type LayoutPanelProps = {
   initialPosition?: PanelPosition;
   component: React.FunctionComponent<PanelProps>;
-  icon?: ReactElement;
   title: string;
+  inactive?: boolean;
 };
 
 export type PanelPositionProps = {
@@ -48,26 +53,78 @@ export type PanelPositionProps = {
 
 export type PanelSettings = Record<PanelName, LayoutPanelProps>;
 
-export enum ApiAction {
-  createProject = 'createProject',
-  openProject = 'openProject',
-  deleteProject = 'deleteProject',
-  renameProject = 'renameProject',
-  closeProject = 'closeProject',
-  putSheet = 'putSheet',
-  putAnotherSheet = 'putAnotherSheet',
-  openSheet = 'openSheet',
-  deleteSheet = 'deleteSheet',
-  renameSheet = 'renameSheet',
-  closeSheet = 'closeSheet',
-  panelInputsMetadata = 'panelInputsMetadata',
+// Modals
+
+export type ModalRefFunction = (onSuccess?: () => void) => void;
+export type NewProjectModalRefFunction = (args: {
+  projectPath?: string | null;
+  projectBucket: string;
+  onSuccess?: () => void;
+  openInNewTab?: boolean;
+}) => void;
+export type RenameModalRefFunction = (name: string) => void;
+export type DeleteModalRefFunction = (args: {
+  name: string;
+  onSuccess?: () => void;
+}) => void;
+export type DeleteProjectModalRefFunction = (args: {
+  name: string;
+  projectPath: string | null | undefined;
+  projectBucket: string;
+  onSuccess?: () => void;
+}) => void;
+export type ShareModalRefFunction = (
+  resources: Omit<FilesMetadata, 'resourceType' | 'url'>[]
+) => void;
+
+// Dashboard
+
+export type DashboardSortType =
+  | 'name'
+  | 'contentLength'
+  | 'updatedAt'
+  | 'parentPath';
+
+export type DashboardTab =
+  | 'recent'
+  | 'home'
+  | 'sharedByMe'
+  | 'sharedWithMe'
+  | 'examples';
+
+export type DashboardFilter =
+  | 'all'
+  | 'folders'
+  | 'projects'
+  | 'files'
+  | 'csvFiles';
+
+export type FileReference = {
+  name: string;
+  bucket: string;
+  path: string | null | undefined;
+};
+
+// Selected Cell
+
+export interface SelectedCell {
+  type: SelectedCellType;
+  col: number;
+  row: number;
+  tableName?: string;
+  value?: string;
+  fieldName?: string;
+  overrideIndex?: number;
+  overrideValue?: OverrideValue;
+  totalIndex?: number;
+  isDynamic?: boolean;
 }
 
-export type ModalRefFunction = () => void;
-export type RenameModalRefFunction = (name: string) => void;
-
-export type CachedViewport = {
-  startRow: number;
-  endRow: number;
-  fields?: Set<string>;
-};
+export enum SelectedCellType {
+  EmptyCell = 'empty_cell',
+  Cell = 'cell',
+  Field = 'field',
+  Table = 'table',
+  Override = 'override',
+  Total = 'total',
+}

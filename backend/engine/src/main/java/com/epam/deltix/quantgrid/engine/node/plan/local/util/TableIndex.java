@@ -114,8 +114,8 @@ public final class TableIndex extends Long2IntOpenCustomHashMap {
         this.appendLink = null;
     }
 
-    public static TableIndex build(Table table, List<Expression> keys) {
-        TableHashStrategy strategy = new TableHashStrategy(keys);
+    public static TableIndex build(Table table, List<Expression> keys, boolean matchErrors, boolean matchEmptyWithZero) {
+        TableHashStrategy strategy = new TableHashStrategy(keys, matchErrors, matchEmptyWithZero);
         int size = Util.toIntSize(table.size());
         return build(size, strategy);
     }

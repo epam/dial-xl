@@ -8,6 +8,7 @@ import com.epam.deltix.quantgrid.engine.spark.TablePartition;
 import com.epam.deltix.quantgrid.engine.spark.partitioning.RowNumRepartition;
 import com.epam.deltix.quantgrid.engine.test.SharedLocalSparkTest;
 import com.epam.deltix.quantgrid.engine.value.spark.SparkTable;
+import com.epam.deltix.quantgrid.util.Doubles;
 import lombok.val;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
@@ -37,7 +38,7 @@ class StoreTableSparkTest extends SharedLocalSparkTest {
     void init() {
         schema = StructType.fromDDL("ref DOUBLE, company STRING, date DOUBLE, value DOUBLE");
         List<Row> rows = List.of(
-                row(1.0, "cmpA", 1.0, Double.NaN),
+                row(1.0, "cmpA", 1.0, Doubles.ERROR_NA),
                 row(2.0, "cmpA", 1.0, 11.0),
                 row(3.0, "cmpA", 2.0, 22.0),
                 row(4.0, "companyB", 1.0, 111.0),
@@ -56,7 +57,7 @@ class StoreTableSparkTest extends SharedLocalSparkTest {
         String rnName = "_rn";
         StructType incrementSchema = StructType.fromDDL(rnName + " DOUBLE, sector STRING, newValue DOUBLE");
         List<Row> increment = List.of(
-                row(0.0, "finance1", Double.NaN),
+                row(0.0, "finance1", Doubles.ERROR_NA),
                 row(1.0, "fin2", 11.0),
                 row(2.0, "fin3", 22.0),
                 row(3.0, "fina4", 111.0),

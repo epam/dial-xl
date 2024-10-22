@@ -1,8 +1,6 @@
 package com.epam.deltix.quantgrid.parser.ast;
 
 import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.ToString;
 import lombok.Value;
 import lombok.experimental.Accessors;
 
@@ -18,5 +16,10 @@ public class UnaryOperator extends Function {
         super("UnaryOperator", argument);
         this.argument = argument;
         this.operation = operation;
+    }
+
+    @Override
+    public String operationSymbol() {
+        return operation.getSymbol();
     }
 }

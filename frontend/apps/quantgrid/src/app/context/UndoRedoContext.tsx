@@ -11,6 +11,7 @@ import {
   appendToProjectHistory,
   clearProjectHistory,
   getProjectHistory,
+  initialHistoryTitle,
   removeLastProjectHistoryElement,
   UndoRedoHistoryState,
 } from '../services';
@@ -23,12 +24,7 @@ type UndoRedoActions = {
 
   append: (name: string, dsl: string) => void;
 
-  appendTo: (
-    projectNameToAppend: string,
-    sheetNameToAppend: string,
-    name: string,
-    dsl: string
-  ) => void;
+  appendTo: (sheetNameToAppend: string, name: string, dsl: string) => void;
 
   clear: () => void;
 };
@@ -43,17 +39,29 @@ export const UndoRedoContext = createContext<UndoRedoActions & UndoRedoValues>(
 );
 
 export function UndoRedoProvider({ children }: PropsWithChildren) {
-  const { projectName, sheetName, sheetContent, updateSheetContent } =
-    useContext(ProjectContext);
+  const {
+    projectName,
+    projectPath,
+    projectBucket,
+    sheetName,
+    sheetContent,
+    updateSheetContent,
+    isAIPendingChanges,
+  } = useContext(ProjectContext);
   const [history, setHistory] = useState<UndoRedoHistoryState[]>([]);
 
   const [revertedIndex, setRevertedIndex] = useState<number | null>(0);
 
   const redo = useCallback(
     (explicitRevertedIndex?: number) => {
-      if (!projectName || !sheetName) return;
+      if (!projectName || !projectBucket || !sheetName || isAIPendingChanges)
+        return;
 
-      const currentHistory = getProjectHistory(projectName);
+      const currentHistory = getProjectHistory(
+        projectName,
+        projectBucket,
+        projectPath
+      );
 
       setRevertedIndex((revertedIndex) => {
         if (revertedIndex === null) return null;
@@ -67,8 +75,11 @@ export function UndoRedoProvider({ children }: PropsWithChildren) {
 
         if (countChanges === 0) {
           // Cancel redo, because there is no changes to redo
-          const newLastHistoryElement =
-            removeLastProjectHistoryElement(projectName);
+          const newLastHistoryElement = removeLastProjectHistoryElement(
+            projectName,
+            projectBucket,
+            projectPath
+          );
 
           if (
             newLastHistoryElement &&
@@ -77,7 +88,9 @@ export function UndoRedoProvider({ children }: PropsWithChildren) {
             updateSheetContent(sheetName, newLastHistoryElement.dsl);
           }
 
-          setHistory(getProjectHistory(projectName));
+          setHistory(
+            getProjectHistory(projectName, projectBucket, projectPath)
+          );
 
           return null;
         }
@@ -87,10 +100,12 @@ export function UndoRedoProvider({ children }: PropsWithChildren) {
         const revertedSheetName = currentHistory[newRevertedIndex].sheetName;
 
         appendToProjectHistory(
-          projectName,
           revertedSheetName,
           title,
           dsl,
+          projectName,
+          projectBucket,
+          projectPath,
           true
         );
 
@@ -98,19 +113,30 @@ export function UndoRedoProvider({ children }: PropsWithChildren) {
           updateSheetContent(sheetName, dsl);
         }
 
-        setHistory(getProjectHistory(projectName));
+        setHistory(getProjectHistory(projectName, projectBucket, projectPath));
 
         return revertedIndex + 1;
       });
     },
-    [projectName, sheetName, updateSheetContent]
+    [
+      isAIPendingChanges,
+      projectBucket,
+      projectName,
+      projectPath,
+      sheetName,
+      updateSheetContent,
+    ]
   );
 
   const undo = useCallback(
     (undoIndex?: number) => {
-      if (!projectName || !sheetName) return;
+      if (!projectName || !projectBucket || !sheetName) return;
 
-      const currentHistory = getProjectHistory(projectName);
+      const currentHistory = getProjectHistory(
+        projectName,
+        projectBucket,
+        projectPath
+      );
 
       if (currentHistory.length < 2) return;
 
@@ -143,75 +169,108 @@ export function UndoRedoProvider({ children }: PropsWithChildren) {
         const title = getTitle(countChanges, newRevertedIndex, isPlural);
 
         appendToProjectHistory(
-          projectName,
           undoElement.sheetName,
           title,
           undoElement.dsl,
+          projectName,
+          projectBucket,
+          projectPath,
           revertedIndex !== null
         );
 
-        setHistory(getProjectHistory(projectName));
+        setHistory(getProjectHistory(projectName, projectBucket, projectPath));
 
         return newRevertedIndex;
       });
     },
-    [projectName, redo, sheetName, updateSheetContent]
+    [
+      projectBucket,
+      projectName,
+      projectPath,
+      redo,
+      sheetName,
+      updateSheetContent,
+    ]
   );
 
   const clear = useCallback(() => {
-    if (!projectName || !sheetName) return;
+    if (!projectName || !projectBucket || !sheetName) return;
 
     setRevertedIndex(null);
 
-    clearProjectHistory(projectName, sheetName, sheetContent ?? undefined);
+    clearProjectHistory(
+      sheetName,
+      projectName,
+      projectBucket,
+      projectPath,
+      sheetContent ?? undefined
+    );
 
-    setHistory(getProjectHistory(projectName));
-  }, [projectName, sheetName, sheetContent]);
+    setHistory(getProjectHistory(projectName, projectBucket, projectPath));
+  }, [projectName, projectBucket, sheetName, sheetContent, projectPath]);
 
   const append = useCallback(
     (title: string, dsl: string) => {
-      if (!projectName || !sheetName) return;
+      if (!projectName || !projectBucket || !sheetName) return;
 
-      appendToProjectHistory(projectName, sheetName, title, dsl);
+      appendToProjectHistory(
+        sheetName,
+        title,
+        dsl,
+        projectName,
+        projectBucket,
+        projectPath
+      );
 
-      setHistory(getProjectHistory(projectName));
+      setHistory(getProjectHistory(projectName, projectBucket, projectPath));
 
       setRevertedIndex(null);
     },
-    [projectName, sheetName]
+    [projectBucket, projectName, projectPath, sheetName]
   );
 
   const appendTo = useCallback(
-    (
-      projectNameToAppend: string,
-      sheetNameToAppend: string,
-      name: string,
-      dsl: string
-    ) => {
-      appendToProjectHistory(projectNameToAppend, sheetNameToAppend, name, dsl);
+    (sheetNameToAppend: string, name: string, dsl: string) => {
+      if (!projectName || !projectBucket) return;
 
-      setHistory(getProjectHistory(projectNameToAppend));
+      appendToProjectHistory(
+        sheetNameToAppend,
+        name,
+        dsl,
+        projectName,
+        projectBucket,
+        projectPath
+      );
+
+      setHistory(getProjectHistory(projectName, projectBucket, projectPath));
 
       setRevertedIndex(null);
     },
-    []
+    [projectBucket, projectName, projectPath]
   );
 
   useEffect(() => {
-    if (!projectName || !sheetName) {
+    if (!projectName || !projectBucket || !sheetName) {
       setHistory([]);
 
       return;
     }
 
-    const history = getProjectHistory(projectName);
+    const history = getProjectHistory(projectName, projectBucket, projectPath);
 
     if (history.length) {
       setHistory(history);
     } else {
-      append('Local history start there', sheetContent ?? '');
+      append(initialHistoryTitle, sheetContent ?? '');
     }
-  }, [append, projectName, sheetContent, sheetName]);
+  }, [
+    append,
+    projectBucket,
+    projectName,
+    projectPath,
+    sheetContent,
+    sheetName,
+  ]);
 
   useEffect(() => {
     setRevertedIndex(null);

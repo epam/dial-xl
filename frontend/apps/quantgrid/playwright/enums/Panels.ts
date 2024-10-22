@@ -4,4 +4,5 @@ export enum Panels {
   EditorPanel = 'Editor',
   ErrorsPanel = 'Errors',
   HistoryPanel = 'History',
+  ChatPanel = 'Chat',
 }

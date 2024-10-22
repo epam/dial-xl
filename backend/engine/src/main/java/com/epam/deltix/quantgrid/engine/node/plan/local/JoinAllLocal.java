@@ -35,9 +35,9 @@ public class JoinAllLocal extends Plan2<Table, Table, Table> {
         List<Expression> leftKeys = expressions(0);
         List<Expression> rightKeys = expressions(1);
 
-        TableIndex rightIndex = TableIndex.build(rightTable, rightKeys);
+        TableIndex rightIndex = TableIndex.build(rightTable, rightKeys, false, true);
         TableHashStrategy rightStrategy = rightIndex.strategy();
-        TableHashStrategy leftStrategy = new TableHashStrategy(leftKeys, rightStrategy);
+        TableHashStrategy leftStrategy = new TableHashStrategy(leftKeys, rightStrategy, false, true);
 
         int leftSize = Util.toIntSize(leftTable);
         int rightSize = Util.toIntSize(rightTable);

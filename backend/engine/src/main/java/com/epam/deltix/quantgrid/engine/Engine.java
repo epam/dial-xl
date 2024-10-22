@@ -1,14 +1,8 @@
 package com.epam.deltix.quantgrid.engine;
 
 import com.epam.deltix.quantgrid.engine.cache.Cache;
-import com.epam.deltix.quantgrid.engine.cache.LocalCache;
-import com.epam.deltix.quantgrid.engine.compiler.CompileContext;
-import com.epam.deltix.quantgrid.engine.compiler.CompileError;
-import com.epam.deltix.quantgrid.engine.compiler.CompileFormulaContext;
-import com.epam.deltix.quantgrid.engine.compiler.CompilePivot;
 import com.epam.deltix.quantgrid.engine.compiler.Compiler;
-import com.epam.deltix.quantgrid.engine.compiler.result.CompiledResult;
-import com.epam.deltix.quantgrid.engine.compiler.result.CompiledTable;
+import com.epam.deltix.quantgrid.engine.compiler.function.Function;
 import com.epam.deltix.quantgrid.engine.executor.Executor;
 import com.epam.deltix.quantgrid.engine.graph.Graph;
 import com.epam.deltix.quantgrid.engine.graph.GraphPrinter;
@@ -29,20 +23,23 @@ import com.epam.deltix.quantgrid.engine.rule.ReuseCached;
 import com.epam.deltix.quantgrid.engine.rule.ReusePrevious;
 import com.epam.deltix.quantgrid.engine.rule.ReverseProjection;
 import com.epam.deltix.quantgrid.engine.rule.UnitePivot;
-import com.epam.deltix.quantgrid.engine.service.input.storage.MetadataProvider;
+import com.epam.deltix.quantgrid.engine.service.input.storage.InputProvider;
 import com.epam.deltix.quantgrid.parser.FieldKey;
 import com.epam.deltix.quantgrid.parser.ParsedField;
+import com.epam.deltix.quantgrid.parser.ParsedKey;
 import com.epam.deltix.quantgrid.parser.ParsedSheet;
 import com.epam.deltix.quantgrid.parser.ParsedTable;
+import com.epam.deltix.quantgrid.parser.ParsedTotal;
 import com.epam.deltix.quantgrid.parser.SheetReader;
+import com.epam.deltix.quantgrid.parser.TotalKey;
 import com.epam.deltix.quantgrid.parser.ast.Formula;
-import it.unimi.dsi.fastutil.Pair;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.TestOnly;
 
+import java.security.Principal;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -55,79 +52,92 @@ import java.util.concurrent.ExecutorService;
 @Slf4j
 public class Engine {
 
-    private final Cache cache = new LocalCache();
+    private final Cache cache;
     private final ExecutorService service;
     private final ResultListener listener;
-    private final MetadataProvider provider;
+    private final InputProvider inputProvider;
     private Executor executor;
     private final GraphCallback graphCallback;
 
     @Getter
-    private Map<FieldKey, String> compilationErrors = new HashMap<>();
+    private Map<ParsedKey, String> compilationErrors = new HashMap<>();
 
-    public Engine(ExecutorService service,
+    public Engine(Cache cache,
+                  ExecutorService service,
                   ResultListener listener,
                   GraphCallback graphCallback,
-                  MetadataProvider provider) {
+                  InputProvider inputProvider) {
+        this.cache = cache;
         this.service = service;
         this.listener = listener;
         this.graphCallback = graphCallback;
-        this.provider = provider;
+        this.inputProvider = inputProvider;
         this.executor = new Executor(service, listener, cache);
     }
 
-    /**
-     * @return list of fields and keys for the provided formula
-     */
-    public Pair<List<String>, List<String>> getFormulaSchema(Formula formula, String textFormula,
-                                                             List<ParsedSheet> worksheets) {
-        Compiler compiler = new Compiler(provider);
-        compiler.setSheet(worksheets);
-
-        CompileContext formulaContext = new CompileFormulaContext(compiler);
-        CompiledResult result = formulaContext.compile(formula);
-
-        if (result instanceof CompiledTable compiledTable) {
-            List<String> fields = compiledTable.fields(formulaContext).stream()
-                    .filter(field -> !field.equals(CompilePivot.PIVOT_NAME)).toList();
-            List<String> keys = compiledTable.keys(formulaContext);
-            return Pair.of(fields, keys);
-        } else {
-            throw new CompileError("Impossible to get dimensional schema for formula: " + textFormula);
-        }
+    public Engine withListener(ResultListener listener) {
+        return new Engine(cache.copy(), service, listener, graphCallback, inputProvider);
     }
 
-    public CompletableFuture<Void> compute(List<ParsedSheet> worksheets, Collection<Viewport> viewports, long version) {
-        Compiler compiler = new Compiler(provider);
-        Graph graph = compiler.compile(worksheets, viewports);
+    public CompletableFuture<Void> compute(List<ParsedSheet> worksheets,
+                                           Collection<Viewport> viewports,
+                                           SimilarityRequest similarityRequest,
+                                           Principal principal) {
+        listener.onParsing(worksheets);
+        Compiler compiler = new Compiler(inputProvider, principal);
+        Graph graph = compiler.compile(worksheets, viewports, similarityRequest);
+        compilationErrors = compiler.compileErrors();
+        listener.onCompilation(compiler.compiled(), compilationErrors);
         GraphPrinter.print("Compiled graph", graph);
         graphCallback.onCompiled(graph);
-        compilationErrors = compiler.compileErrors();
-        return compute(graph, version);
+        return compute(graph);
+    }
+
+    public List<SimilarityRequestField> getKeyStringFieldsWithDescriptions(
+            List<ParsedSheet> worksheets, Principal principal) {
+        return (new Compiler(inputProvider, principal)).getKeyStringFieldsWithDescriptions(worksheets);
     }
 
     @TestOnly
-    public CompletableFuture<Void> compute(String dsl, long version) {
-        ParsedSheet parsedSheet = SheetReader.parseSheet(dsl);
-
+    public CompletableFuture<Void> compute(String dsl, Principal principal) {
+        ParsedSheet sheet = SheetReader.parseSheet(dsl);
         List<Viewport> viewports = new ArrayList<>();
-        for (ParsedTable table : parsedSheet.getTables()) {
-            for (ParsedField field : table.getFields()) {
-                viewports.add(new Viewport(field.getKey(), 0, 1000, true));
+
+        for (ParsedTable table : sheet.tables()) {
+            for (ParsedField field : table.fields()) {
+                Viewport viewport = new Viewport(
+                        new FieldKey(table.tableName(), field.fieldName()), 0, 1000, true);
+                viewports.add(viewport);
+            }
+
+            ParsedTotal total = table.total();
+            if (total != null) {
+                for (FieldKey field : total.fields()) {
+                    List<Formula> formulas = total.getTotals(field);
+                    for (int i = 0; i < formulas.size(); i++) {
+                        Formula formula = formulas.get(i);
+
+                        if (formula != null) {
+                            TotalKey key = new TotalKey(field.table(), field.fieldName(), i + 1);
+                            Viewport viewport = new Viewport(key, 0, 1000, true);
+                            viewports.add(viewport);
+                        }
+                    }
+                }
             }
         }
 
-        return compute(List.of(parsedSheet), viewports, version);
+        return compute(List.of(sheet), viewports, null, principal);
     }
 
     @TestOnly
-    public CompletableFuture<Void> compute(String dsl, long version, FieldKey... fields) {
+    public CompletableFuture<Void> compute(String dsl, Principal principal, FieldKey... fields) {
         ParsedSheet parsedSheet = SheetReader.parseSheet(dsl);
         List<Viewport> viewports = Arrays.stream(fields).map(field -> new Viewport(field, 0, 1000, true)).toList();
-        return compute(List.of(parsedSheet), viewports, version);
+        return compute(List.of(parsedSheet), viewports, null, principal);
     }
 
-    private CompletableFuture<Void> compute(Graph graph, long version) {
+    private CompletableFuture<Void> compute(Graph graph) {
         normalize(graph);
         graphCallback.onNormalized(graph);
         GraphPrinter.print("Normalized graph", graph);
@@ -139,7 +149,7 @@ public class Engine {
 
         cancel(previous, graph);
         executor = new Executor(service, listener, cache);
-        return executor.execute(graph, version);
+        return executor.execute(graph);
     }
 
     @TestOnly
@@ -200,5 +210,19 @@ public class Engine {
         for (Running plan : dead.values()) {
             plan.getTask().cancel(true);
         }
+    }
+
+    public void cancel() {
+        for (Node node : executor.cancel().getNodes()) {
+            if (node instanceof Running live) {
+                live.getTask().cancel(true);
+            }
+        }
+    }
+
+    public List<Function> getPythonFunction(List<ParsedSheet> worksheets, Principal principal) {
+        Compiler compiler = new Compiler(inputProvider, principal);
+        compiler.setSheet(worksheets);
+        return compiler.getPythonFunctionList();
     }
 }

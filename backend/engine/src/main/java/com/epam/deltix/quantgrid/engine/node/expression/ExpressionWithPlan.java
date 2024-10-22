@@ -15,6 +15,10 @@ public abstract class ExpressionWithPlan<P extends Value, R extends Column> exte
         super(buildInput(plan, expressions));
     }
 
+    protected ExpressionWithPlan(Plan plan, List<Expression> expressions) {
+        super(buildInput(plan, expressions.toArray(Expression[]::new)));
+    }
+
     public final Plan plan() {
         return (Plan) inputs.get(0);
     }

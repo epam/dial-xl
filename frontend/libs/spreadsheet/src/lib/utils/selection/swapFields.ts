@@ -16,40 +16,65 @@ export function swapFields(
 
   const selection = api.selection$.getValue();
 
-  if (!selection || selection.startCol !== selection.endCol) return;
+  if (!selection) return;
 
   const { startRow, startCol, endRow } = selection;
   const cell = gridService.getCellValue(startRow, startCol);
 
   if (!cell?.table) return;
 
-  const { table } = cell;
-  const headerCell = gridService.getCellValue(table.startRow, table.startCol);
+  const { table, startCol: cellStartCol, endCol: cellEndCol } = cell;
 
-  if (!headerCell?.value) return;
-
-  const leftCell = gridServiceRef.current?.getCellValue(
-    table.startRow + 1,
-    direction === 'left' ? startCol - 1 : startCol
-  );
-  const rightCell = gridServiceRef.current?.getCellValue(
-    table.startRow + 1,
-    direction === 'left' ? startCol : startCol + 1
+  let leftCell = gridServiceRef.current?.getCellValue(
+    startRow,
+    direction === 'left' ? cellStartCol - 1 : cellStartCol
   );
 
-  if (!rightCell?.value || !leftCell?.value || !headerCell?.value) return;
+  if (leftCell?.field) {
+    leftCell = gridServiceRef.current?.getCellValue(
+      startRow,
+      leftCell?.startCol
+    );
+  }
+
+  let rightCell = gridServiceRef.current?.getCellValue(
+    startRow,
+    direction === 'left' ? cellStartCol : cellEndCol + 1
+  );
+  if (rightCell?.field) {
+    rightCell = gridServiceRef.current?.getCellValue(
+      startRow,
+      rightCell?.startCol
+    );
+  }
+
+  if (
+    !rightCell?.value ||
+    !leftCell?.value ||
+    !rightCell.field ||
+    !leftCell.field
+  )
+    return;
 
   gridCallbacksRef.current.onSwapFields?.(
-    headerCell.value,
-    rightCell.value,
-    leftCell.value,
+    table.tableName,
+    rightCell.field.fieldName,
+    leftCell.field.fieldName,
     direction
   );
 
-  const updatedCol = direction === 'left' ? startCol - 1 : startCol + 1;
-  api.updateSelection({
-    startCol: updatedCol,
-    endCol: updatedCol,
+  const rightCellSize = rightCell.endCol - rightCell.startCol;
+  const leftCellSize = leftCell.endCol - leftCell.startCol;
+
+  const updatedStartCol =
+    direction === 'left'
+      ? leftCell.startCol
+      : rightCell.startCol - (leftCellSize - rightCellSize);
+  const updatedEndCol =
+    direction === 'left' ? leftCell.startCol + rightCellSize : rightCell.endCol;
+  api.updateSelectionAfterDataChanged({
+    startCol: updatedStartCol,
+    endCol: updatedEndCol,
     startRow,
     endRow,
   });

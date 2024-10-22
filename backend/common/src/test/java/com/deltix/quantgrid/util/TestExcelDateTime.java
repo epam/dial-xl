@@ -5,23 +5,23 @@ import org.junit.jupiter.api.Test;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
-import static com.epam.deltix.quantgrid.util.ExcelDateTime.from;
-import static com.epam.deltix.quantgrid.util.ExcelDateTime.getDay;
-import static com.epam.deltix.quantgrid.util.ExcelDateTime.getHour;
-import static com.epam.deltix.quantgrid.util.ExcelDateTime.getLocalDate;
-import static com.epam.deltix.quantgrid.util.ExcelDateTime.getMinute;
-import static com.epam.deltix.quantgrid.util.ExcelDateTime.getMonth;
-import static com.epam.deltix.quantgrid.util.ExcelDateTime.getSecond;
-import static com.epam.deltix.quantgrid.util.ExcelDateTime.getYear;
+import static com.epam.deltix.quantgrid.util.Dates.from;
+import static com.epam.deltix.quantgrid.util.Dates.getDay;
+import static com.epam.deltix.quantgrid.util.Dates.getHour;
+import static com.epam.deltix.quantgrid.util.Dates.getLocalDate;
+import static com.epam.deltix.quantgrid.util.Dates.getMinute;
+import static com.epam.deltix.quantgrid.util.Dates.getMonth;
+import static com.epam.deltix.quantgrid.util.Dates.getSecond;
+import static com.epam.deltix.quantgrid.util.Dates.getYear;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class TestExcelDateTime {
 
     @Test
     void testDateFromString() {
-        assertEquals(1, from("01/01/1900"));
-        assertEquals(58, from("02/27/1900"));
-        assertEquals(60, from("02/29/1900"));
+        assertEquals(2, from("01/01/1900"));
+        assertEquals(60, from("02/28/1900"));
+        assertEquals(61, from("03/01/1900"));
         assertEquals(44014, from("07/02/2020"));
         assertEquals(43101, from("2018-01-01"));
         assertEquals(36526, from("2000-01-01"));
@@ -33,7 +33,7 @@ class TestExcelDateTime {
 
     @Test
     void testDateTimeFromString() {
-        assertDoubles(1.641122685, from("01/01/1900 03:23:13 PM"));
+        assertDoubles(2.6411226851851852, from("01/01/1900 03:23:13 PM"));
         assertDoubles(44014.453634259, from("07/02/2020 10:53:14 AM"));
         assertDoubles(43101, from("2018-01-01T00:00:00"));
         assertDoubles(36526.5525, from("2000-01-01T13:15:36"));
@@ -43,19 +43,20 @@ class TestExcelDateTime {
 
     @Test
     void testExcelDateFromLocalDate() {
-        assertEquals(1, from(LocalDate.of(1900, 1, 1).atStartOfDay()));
-        assertEquals(58, from(LocalDate.of(1900, 2, 27).atStartOfDay()));
+        assertEquals(2, from(LocalDate.of(1900, 1, 1).atStartOfDay()));
+        assertEquals(59, from(LocalDate.of(1900, 2, 27).atStartOfDay()));
         assertEquals(100, from(LocalDate.of(1900, 4, 9).atStartOfDay()));
         assertEquals(44013, from(LocalDate.of(2020, 7, 1).atStartOfDay()));
         assertEquals(Double.NaN, from((LocalDateTime) null));
         assertEquals(Double.NaN, from(LocalDate.of(1899, 1, 1).atStartOfDay()));
-        assertEquals(Double.NaN, from(LocalDate.of(1899, 12, 31).atStartOfDay()));
+        assertEquals(Double.NaN, from(LocalDate.of(1899, 12, 29).atStartOfDay()));
+        assertEquals(0, from(LocalDate.of(1899, 12, 30).atStartOfDay()));
     }
 
     @Test
     void testExcelSerialToLocalDate() {
-        assertEquals(LocalDate.of(1900, 1, 1), getLocalDate(1));
-        assertEquals(LocalDate.of(1900, 2, 27), getLocalDate(58));
+        assertEquals(LocalDate.of(1900, 1, 1), getLocalDate(2));
+        assertEquals(LocalDate.of(1900, 2, 27), getLocalDate(59));
         assertEquals(LocalDate.of(1900, 4, 9), getLocalDate(100));
         assertEquals(LocalDate.of(2000, 1, 1), getLocalDate(36526));
         assertEquals(LocalDate.of(2022, 4, 10), getLocalDate(44661));

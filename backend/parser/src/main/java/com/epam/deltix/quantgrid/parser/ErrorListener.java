@@ -38,7 +38,7 @@ public class ErrorListener extends BaseErrorListener {
     }
 
     private void syntaxError(int line, int charPosition, String message, String tableName, String fieldName) {
-        errors.add(new ParsingError(line, charPosition, message, tableName, fieldName));
+        errors.add(new ParsingError(line, charPosition + 1, message, tableName, fieldName));
     }
 
     private String findTableName(ParserRuleContext context) {
@@ -47,8 +47,9 @@ public class ErrorListener extends BaseErrorListener {
         }
 
         if (context instanceof SheetParser.Table_definitionContext tableDefinitionContext) {
-            String tableName = SheetReader.getTableName(tableDefinitionContext.table_name());
-            return tableName.isEmpty() ? null : tableName;
+            SheetParser.Table_nameContext tableNameContext = tableDefinitionContext.table_name();
+            ParsedText tableName = ParsedText.fromTableName(tableNameContext);
+            return tableName == null ? null : tableName.text();
         }
 
         return findTableName(context.getParent());
@@ -60,8 +61,8 @@ public class ErrorListener extends BaseErrorListener {
         }
 
         if (context instanceof SheetParser.Field_definitionContext fieldDefinitionContext) {
-            String fieldName = SheetReader.getFieldName(fieldDefinitionContext.field_name());
-            return fieldName.isEmpty() ? null : fieldName;
+            ParsedText fieldName = ParsedText.fromFieldName(fieldDefinitionContext.field_name());
+            return fieldName == null ? null : fieldName.text();
         }
 
         return findFieldName(context.getParent());

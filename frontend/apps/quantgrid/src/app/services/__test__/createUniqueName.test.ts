@@ -67,4 +67,28 @@ describe('createUniqueName', () => {
     // Assert
     expect(result).toBe('1');
   });
+
+  it('should treat names with different cases as unique', () => {
+    // Arrange
+    const name = 'Stat';
+    const existingNames = ['stat', 'STAT', 'sTaT'];
+
+    // Act
+    const result = createUniqueName(name, existingNames);
+
+    // Assert
+    expect(result).toBe('Stat');
+  });
+
+  it('should create a unique name if the same case name exists', () => {
+    // Arrange
+    const name = 'Stat';
+    const existingNames = ['Stat', 'Stat1', 'Stat2'];
+
+    // Act
+    const result = createUniqueName(name, existingNames);
+
+    // Assert
+    expect(result).toBe('Stat3');
+  });
 });

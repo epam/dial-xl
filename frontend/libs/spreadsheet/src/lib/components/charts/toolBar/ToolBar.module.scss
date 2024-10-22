@@ -1,18 +1,4 @@
-.chartToolBar {
-  align-items: center;
-  background-color: white;
-  border-right: 0.3px solid rgba(211, 211, 211, 0.5);
-  border-left: 0.3px solid rgba(211, 211, 211, 0.5);
-  position: absolute;
-}
-
 .toolBarWrapper {
-  display: flex;
-  overflow: auto;
-  padding: 0 5px;
-  height: 100%;
-  width: 100%;
-
   &::-webkit-scrollbar {
     height: 8px;
   }
@@ -25,15 +11,4 @@
     background-color: #c1c1c1;
     border-radius: 20px;
   }
-}
-
-.keyWrapper {
-  align-items: center;
-  display: flex;
-  margin-right: 10px;
-}
-
-.keyLabel {
-  font-size: 14px;
-  margin-right: 7px;
 }

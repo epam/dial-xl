@@ -1,96 +1,40 @@
 import { MutableRefObject, useCallback, useEffect, useMemo } from 'react';
 
-import {
-  ClipboardType,
-  makeCopy,
-  readClipboard,
-  rowsToHtml,
-  Shortcut,
-  shortcutApi,
-  ShortcutHandlersMap,
-  stringToArray,
-} from '@frontend/common';
+import { Shortcut, shortcutApi, ShortcutHandlersMap } from '@frontend/common';
 
-import { Grid, GridCell } from '../grid';
+import { Grid } from '../grid';
 import { GridService } from '../services';
 import { GridCallbacks } from '../types';
-import { isSpreadsheetTarget, scrollPage, swapFields } from '../utils';
+import {
+  isCellEditorOpen,
+  isSpreadsheetTarget,
+  scrollPage,
+  swapFields,
+} from '../utils';
+import { useAIPrompt } from './useAIPrompt';
+import { useCopyPaste } from './useCopyPaste';
+import { useNotes } from './useNotes';
+import { useSelectionMoveNextAvailable } from './useSelectionMoveNextAvailable';
+import { useSelectionMoveToSheetStartOrEnd } from './useSelectionMoveToSheetStartOrEnd';
 
 export function useShortcuts(
   apiRef: MutableRefObject<Grid | null>,
   gridServiceRef: MutableRefObject<GridService | null>,
   gridCallbacksRef: MutableRefObject<GridCallbacks>
 ) {
-  const copy = useCallback(() => {
-    const api = apiRef.current;
-    const gridService = gridServiceRef.current;
-
-    if (!api || !gridService || api?.isCellEditorOpen()) return;
-
-    const selection = api.selection$.getValue();
-
-    if (!selection) return;
-
-    const rows: string[][] = [];
-    const startRow = Math.min(selection.startRow, selection.endRow);
-    const endRow = Math.max(selection.startRow, selection.endRow);
-    const startCol = Math.min(selection.startCol, selection.endCol);
-    const endCol = Math.max(selection.startCol, selection.endCol);
-
-    for (let row = startRow; row <= endRow; row++) {
-      const rowData = [];
-      for (let col = startCol; col <= endCol; col++) {
-        const cell = gridService.getCellValue(row, col);
-        cell?.table && rowData.push(cell.value || '');
-      }
-      rows.push(rowData);
-    }
-
-    const rowsString = rows.map((row) => row.join('\t')).join('\r\n');
-
-    makeCopy(rowsString, rowsToHtml(rows));
-  }, [apiRef, gridServiceRef]);
-
-  const paste = useCallback(async () => {
-    const api = apiRef.current;
-    const gridService = gridServiceRef.current;
-
-    if (!api || !gridService || api?.isCellEditorOpen()) return;
-
-    const selection = api.selection$.getValue();
-
-    if (!selection) return;
-
-    const clipboardData = await readClipboard();
-
-    // TODO: add support for HTML clipboard data and parse data-object-data
-    if (clipboardData[ClipboardType.PLAIN]) {
-      const cells = stringToArray(clipboardData[ClipboardType.PLAIN], '\t');
-
-      if (cells.length === 0) return;
-      for (let row = 0; row < cells.length; row++) {
-        for (let col = 0; col < cells[row].length; col++) {
-          const existingCell = gridService.getCellValue(
-            selection.startRow + row,
-            selection.startCol + col
-          );
-
-          if (!existingCell?.table) continue;
-
-          const updateCell: GridCell = {
-            ...existingCell,
-            value: cells[row][col],
-          };
-
-          gridService.setCell(
-            selection.startRow + row,
-            selection.startCol + col,
-            updateCell
-          );
-        }
-      }
-    }
-  }, [apiRef, gridServiceRef]);
+  const { addNote } = useNotes(apiRef, gridServiceRef);
+  const { openAIPrompt } = useAIPrompt(apiRef.current);
+  const { copy, paste } = useCopyPaste(
+    apiRef,
+    gridServiceRef,
+    gridCallbacksRef
+  );
+  const { moveSelectionNextAvailable } = useSelectionMoveNextAvailable(
+    apiRef,
+    gridServiceRef
+  );
+  const { moveSelectionToSheetStartOrEnd } =
+    useSelectionMoveToSheetStartOrEnd(apiRef);
 
   const handleSwapFields = useCallback(
     (direction: 'left' | 'right') => {
@@ -107,8 +51,39 @@ export function useShortcuts(
       [Shortcut.Paste]: () => paste(),
       [Shortcut.PageUp]: () => scrollPage('up'),
       [Shortcut.PageDown]: () => scrollPage('down'),
+      [Shortcut.AddNote]: () => addNote(),
+
+      [Shortcut.Delete]: () => gridCallbacksRef.current.onDelete?.(),
+      [Shortcut.Backspace]: () => gridCallbacksRef.current.onDelete?.(),
+
+      [Shortcut.MoveSelectionNextAvailableUp]: () =>
+        moveSelectionNextAvailable('up'),
+      [Shortcut.MoveSelectionNextAvailableDown]: () =>
+        moveSelectionNextAvailable('down'),
+      [Shortcut.MoveSelectionNextAvailableLeft]: () =>
+        moveSelectionNextAvailable('left'),
+      [Shortcut.MoveSelectionNextAvailableRight]: () =>
+        moveSelectionNextAvailable('right'),
+      [Shortcut.MoveToSheetStart]: () =>
+        moveSelectionToSheetStartOrEnd('start'),
+      [Shortcut.MoveToSheetEnd]: () => moveSelectionToSheetStartOrEnd('end'),
+      [Shortcut.OpenAIPromptBox]: (e) => {
+        if (!isCellEditorOpen()) {
+          e.preventDefault();
+          openAIPrompt();
+        }
+      },
     }),
-    [copy, paste, handleSwapFields]
+    [
+      handleSwapFields,
+      copy,
+      paste,
+      addNote,
+      gridCallbacksRef,
+      moveSelectionNextAvailable,
+      moveSelectionToSheetStartOrEnd,
+      openAIPrompt,
+    ]
   );
 
   const handleEvent = useCallback(

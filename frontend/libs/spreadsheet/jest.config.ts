@@ -9,5 +9,9 @@ export default {
   },
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx'],
   coverageDirectory: '../../coverage/libs/spreadsheet',
-  transformIgnorePatterns: ['/node_modules/(?!(@deltix)/)'],
+  transformIgnorePatterns: [
+    '/node_modules/(?!(@deltix)/)',
+    '/node_modules/(?!react-markdown).+\\.js$',
+    '/node_modules/(?!remark-gfm).+\\.js$',
+  ],
 };

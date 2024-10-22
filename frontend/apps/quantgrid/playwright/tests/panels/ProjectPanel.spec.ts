@@ -4,7 +4,7 @@ import { expect, test } from '@playwright/test';
 import { ProjectPage } from '../../pages/ProjectPage';
 import { TestFixtures } from '../TestFixtures';
 
-const projectName = 'autotest_editor';
+const projectName = TestFixtures.addGuid('autotest_projects');
 
 const tableRow = 2;
 
@@ -40,18 +40,48 @@ test.afterAll(async ({ browser }) => {
   await TestFixtures.deleteProject(browser, projectName);
 });
 
-test('rename project', async ({ page }) => {});
+test.describe('project panel', () => {
+  test('rename project', async ({ page }) => {});
 
-test('delete project', async ({ page }) => {});
+  test('delete project', async ({ page }) => {});
 
-test('create worksheet', async ({ page }) => {});
+  test('create worksheet', async ({ page }) => {});
 
-test('select worksheet', async ({ page }) => {});
+  test('select worksheet', async ({ page }) => {});
 
-test('rename worksheet', async ({ page }) => {});
+  test('rename worksheet', async ({ page }) => {});
 
-test('delete worksheet', async ({ page }) => {});
+  test('delete worksheet', async ({ page }) => {});
 
-test('select table', async ({ page }) => {});
+  test('select table', async ({ page }) => {});
 
-test('select field', async ({ page }) => {});
+  test('move table', async ({ page }) => {});
+
+  test('hide table header', async ({ page }) => {});
+
+  test('hide fields header', async ({ page }) => {});
+
+  test('create derived table', async ({ page }) => {});
+
+  test('rename table', async ({ page }) => {});
+
+  test('delete table', async ({ page }) => {});
+
+  test('select field', async ({ page }) => {});
+
+  test('swap left', async ({ page }) => {});
+
+  test('swap right', async ({ page }) => {});
+
+  test('increase field width', async ({ page }) => {});
+
+  test('decrease field width', async ({ page }) => {});
+
+  test('rename field', async ({ page }) => {});
+
+  test('edit formula', async ({ page }) => {});
+
+  test('delete field', async ({ page }) => {});
+
+  test('add key', async ({ page }) => {});
+});

@@ -5,10 +5,14 @@ export enum GridSelectionShortcutType {
   SelectColumn = 'SelectColumn',
   SelectRow = 'SelectRow',
   ExtendRangeSelection = 'ExtendRangeSelection',
-  RangeSelection = 'RangeSelection',
-  ArrowNavigation = 'ArrowNavigation',
   MoveSelectAll = 'MoveSelectAll',
   SelectionToRowEdge = 'SelectionToRowEdge',
+  EnterAfterEditNavigation = 'EnterAfterEditNavigation',
+  TabNavigation = 'TabNavigation',
+  ArrowRightAfterEditNavigation = 'ArrowRightAfterEditNavigation',
+  ArrowLeftAfterEditNavigation = 'ArrowLeftAfterEditNavigation',
+  ArrowBottomAfterEditNavigation = 'ArrowBottomAfterEditNavigation',
+  ArrowTopAfterEditNavigation = 'ArrowTopAfterEditNavigation',
 }
 
 export type GridSelectionShortcutSelectAll = {
@@ -28,16 +32,6 @@ export type GridSelectionShortcutExtendRangeSelection = {
   direction: string;
 };
 
-export type GridSelectionShortcutArrowNavigation = {
-  type: GridSelectionShortcutType.ArrowNavigation;
-  direction: string;
-};
-
-export type GridSelectionShortcutRangeSelection = {
-  type: GridSelectionShortcutType.RangeSelection;
-  direction: string;
-};
-
 export type GridSelectionShortcutMoveSelectAll = {
   type: GridSelectionShortcutType.MoveSelectAll;
   rowDelta: number;
@@ -49,15 +43,40 @@ export type GridSelectionShortcutToRowEdge = {
   direction: string;
 };
 
+export type GridSelectionShortcutEnterAfterEditNavigation = {
+  type: GridSelectionShortcutType.EnterAfterEditNavigation;
+};
+
+export type GridSelectionShortcutTabNavigation = {
+  type: GridSelectionShortcutType.TabNavigation;
+};
+
+export type GridSelectionShortcutArrowRightAfterEditNavigation = {
+  type: GridSelectionShortcutType.ArrowRightAfterEditNavigation;
+};
+export type GridSelectionShortcutArrowLeftAfterEditNavigation = {
+  type: GridSelectionShortcutType.ArrowLeftAfterEditNavigation;
+};
+export type GridSelectionShortcutArrowTopAfterEditNavigation = {
+  type: GridSelectionShortcutType.ArrowTopAfterEditNavigation;
+};
+export type GridSelectionShortcutArrowBottomAfterEditNavigation = {
+  type: GridSelectionShortcutType.ArrowBottomAfterEditNavigation;
+};
+
 export type GridSelectionShortcut =
   | GridSelectionShortcutSelectAll
   | GridSelectionShortcutSelectColumn
   | GridSelectionShortcutSelectRow
   | GridSelectionShortcutExtendRangeSelection
-  | GridSelectionShortcutArrowNavigation
-  | GridSelectionShortcutRangeSelection
   | GridSelectionShortcutMoveSelectAll
-  | GridSelectionShortcutToRowEdge;
+  | GridSelectionShortcutToRowEdge
+  | GridSelectionShortcutEnterAfterEditNavigation
+  | GridSelectionShortcutTabNavigation
+  | GridSelectionShortcutArrowRightAfterEditNavigation
+  | GridSelectionShortcutArrowLeftAfterEditNavigation
+  | GridSelectionShortcutArrowTopAfterEditNavigation
+  | GridSelectionShortcutArrowBottomAfterEditNavigation;
 
 export type GridSelection = {
   startCol: number;
@@ -67,6 +86,8 @@ export type GridSelection = {
 };
 
 export type ISelectionService = {
+  selection: GridSelection | null;
+
   selection$: BehaviorSubject<GridSelection | null>;
 
   shortcuts$: Subject<GridSelectionShortcut>;
@@ -78,31 +99,29 @@ export type ISelectionService = {
     endCol: number;
   } | null;
 
-  selectTableHeader(startCol: number, endCol: number): void;
-
   setSelection(
     selection: GridSelection | null,
     moveMode?: boolean,
     hideMoveTooltip?: boolean
   ): void;
 
+  showDottedSelection(selection: GridSelection): void;
+  hideDottedSelection(): void;
+
   clear: () => void;
 
-  isTableHeaderSelected(): boolean;
+  onKeyDown: (event: KeyboardEvent) => void;
 
-  getCellDimensions: (element: HTMLElement) => {
-    row: number;
-    col: number;
-    width: number;
-    height: number;
-    x: number;
-    y: number;
-  };
+  isTargetCell(target: EventTarget | null): boolean;
+
+  switchPointClickMode: (isPointClickMode: boolean) => void;
+  setPointClickError: (error: boolean) => void;
 };
 
 export enum GridSelectionEventType {
   StartMoveMode = 'StartMoveMode',
   StopMoveMode = 'StopMoveMode',
+  PointClickSelectValue = 'PointClickSelectValue',
 }
 
 export type GridSelectionEventStartMoveMode = {
@@ -113,6 +132,23 @@ export type GridSelectionEventStopMoveMode = {
   type: GridSelectionEventType.StopMoveMode;
 };
 
+export type GridSelectionEventPointClickSelectValue = {
+  type: GridSelectionEventType.PointClickSelectValue;
+  pointClickSelection: GridSelection | null;
+};
+
 export type GridSelectionEvent =
   | GridSelectionEventStartMoveMode
-  | GridSelectionEventStopMoveMode;
+  | GridSelectionEventStopMoveMode
+  | GridSelectionEventPointClickSelectValue;
+
+export type MoveParams = {
+  rowDelta: number;
+  colDelta: number;
+  hideMoveTooltip?: boolean;
+};
+
+export type SelectionBackup = {
+  moveParams: MoveParams | null;
+  selection: GridSelection | null;
+};

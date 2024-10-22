@@ -11,7 +11,10 @@ export default {
       'babel-jest',
       {
         presets: ['@nx/react/babel'],
-        plugins: [['@babel/plugin-proposal-private-methods', { loose: true }]],
+        plugins: [
+          ['@babel/plugin-proposal-private-methods', { loose: true }],
+          '@babel/plugin-transform-class-static-block',
+        ],
       },
     ],
   },
@@ -22,4 +25,5 @@ export default {
     '<rootDir>/node_modules/(?!monaco-editor).+\\.js$',
   ],
   testPathIgnorePatterns: ['apps/quantgrid/playwright/'],
+  setupFilesAfterEnv: ['../../jest-canvas.js'],
 };

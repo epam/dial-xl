@@ -1,7 +1,7 @@
 package com.epam.deltix.quantgrid.engine.value;
 
-import com.epam.deltix.quantgrid.engine.Util;
-import com.epam.deltix.quantgrid.util.ExcelDateTime;
+import com.epam.deltix.quantgrid.util.Doubles;
+import com.epam.deltix.quantgrid.util.Dates;
 
 import java.time.LocalDate;
 import java.time.temporal.ChronoField;
@@ -44,11 +44,11 @@ public enum Period {
     }
 
     public String format(double date) {
-        if (Util.isNa(date)) {
-            return "N/A";
+        if (Doubles.isError(date)) {
+            return Doubles.toStringError(date);
         }
 
-        LocalDate value = ExcelDateTime.getLocalDate(date);
+        LocalDate value = Dates.getLocalDate(date);
         return switch (this) {
             case YEAR -> Integer.toString(value.getYear());
             case QUARTER -> value.getYear() + "-Q" + ((value.getMonthValue() + 2) / 3);
@@ -74,7 +74,7 @@ public enum Period {
 
     private static double getMonthOffset(double timestamp) {
         return getYearOffset(timestamp) * MONTHS_PER_YEAR
-                + ExcelDateTime.getMonth(timestamp) - FIRST_MONTH /* months start from 1 */;
+                + Dates.getMonth(timestamp) - FIRST_MONTH /* months start from 1 */;
     }
 
     private static double getQuarterOffset(double serialDate) {
@@ -82,7 +82,7 @@ public enum Period {
     }
 
     private static double getYearOffset(double serialDate) {
-        return ExcelDateTime.getYear(serialDate) - ZERO_YEAR;
+        return Dates.getYear(serialDate) - ZERO_YEAR;
     }
 
     private static double getDayTimestamp(double offset) {
@@ -96,7 +96,7 @@ public enum Period {
     private static double getMonthTimestamp(double offset) {
         double monthOffset = offset % MONTHS_PER_YEAR;
         double year = Math.floor(offset / MONTHS_PER_YEAR) + ZERO_YEAR;
-        return ExcelDateTime.of(year, monthOffset + FIRST_MONTH, FIRST_DAY);
+        return Dates.of(year, monthOffset + FIRST_MONTH, FIRST_DAY);
     }
 
     private static double getQuarterTimestamp(double offset) {
@@ -105,6 +105,6 @@ public enum Period {
 
     private static double getYearTimestamp(double offset) {
         double year = offset + ZERO_YEAR;
-        return ExcelDateTime.of(year, FIRST_MONTH, FIRST_DAY);
+        return Dates.of(year, FIRST_MONTH, FIRST_DAY);
     }
 }

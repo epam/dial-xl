@@ -10,6 +10,8 @@ import com.epam.deltix.quantgrid.engine.value.local.DoubleDirectColumn;
 import com.epam.deltix.quantgrid.engine.value.local.PeriodSeriesDirectColumn;
 import com.epam.deltix.quantgrid.engine.value.local.StringDirectColumn;
 import com.epam.deltix.quantgrid.type.ColumnType;
+import com.epam.deltix.quantgrid.util.Doubles;
+import com.epam.deltix.quantgrid.util.Strings;
 import lombok.Getter;
 import org.apache.spark.sql.functions;
 
@@ -72,9 +74,17 @@ public class Constant extends ExpressionWithPlan<Table, Column> {
     @Override
     public String toString() {
         String value = switch (type) {
-            case DOUBLE, INTEGER, BOOLEAN, DATE -> Double.toString((Double) constant);
-            case STRING -> (constant == null) ? "null, string" : ("\"" + constant + "\"");
-            case PERIOD_SERIES -> (constant == null) ? "null, series" : ("\"" + constant + "\"");
+            case DOUBLE, INTEGER, BOOLEAN, DATE -> {
+                String result = Doubles.toString((Double) constant);
+                yield type.name().toLowerCase() + ": " + result;
+            }
+            case STRING -> {
+                String string = (String) constant;
+                String result = Strings.toString(string);
+                String quote = Strings.isError(string) ? "" : "\"";
+                yield "string: " + quote + result + quote;
+              }
+            case PERIOD_SERIES -> (constant == null) ? "series: null" : ("\"" + constant + "\"");
         };
 
         return "Constant(" + value + ")";

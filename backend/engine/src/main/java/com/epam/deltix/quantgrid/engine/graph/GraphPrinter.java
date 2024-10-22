@@ -11,7 +11,10 @@ import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.ArrayDeque;
 import java.util.Arrays;
+import java.util.Deque;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -28,32 +31,60 @@ public class GraphPrinter {
         log.trace("{}\n{}", message, GraphPrinter.toString(graph));
     }
 
+    private static void nodeToString(Object2IntMap<Plan> colours, StringBuilder sb, Node node) {
+        Plan layout = node.getLayout();
+        int colour = colours.computeIfAbsent(layout, (Plan key) -> ColorUtil.generateUniqueColor(key.getId()));
+
+        String label = node.toString().replace("\"", "\\\"");
+        String shape = (node instanceof Plan) ? "rectangle" : "ellipse";
+        String style = "filled";
+        String color = "#" + Integer.toHexString(colour);
+        String tooltip = String.format("Id: %s\\nSchema: %s\\nIdentities: %s",
+                node.getId(), formatSchema(node), formatIdentities(node));
+
+        sb.append(String.format(
+                "\t\"%s\" [label = \"%s#%s\"] [tooltip = \"%s\"] [shape =\"%s\"] [style=\"%s\"] [fillcolor=\"%s\"];%n",
+                node.getId(), label, node.getId(), tooltip, shape, style, color));
+    }
+
+    private static void edgesToString(StringBuilder sb, Node node) {
+        for (int i = 0; i < node.getInputs().size(); ++i) {
+            sb.append(String.format("\t\"%d\" -> \"%d\" [label=\"%d\"];%n",
+                    node.getInputs().get(i).getId(), node.getId(), i));
+        }
+    }
+
     public String toString(Graph graph) {
         StringBuilder sb = new StringBuilder();
         sb.append("digraph G {\n");
 
         Object2IntMap<Plan> colours = new Object2IntOpenHashMap<>();
-        graph.visitOut(node -> {
-            Plan layout = node.getLayout();
-            int colour = colours.computeIfAbsent(layout, (Plan key) -> ColorUtil.generateUniqueColor(key.getId()));
+        graph.visitOut(node -> nodeToString(colours, sb, node));
+        graph.visitOut(node -> edgesToString(sb, node));
+        sb.append("}\n");
+        return sb.toString();
+    }
 
-            String label = node.toString().replace("\"", "\\\"");
-            String shape = (node instanceof Plan) ? "rectangle" : "ellipse";
-            String style = "filled";
-            String color = "#" + Integer.toHexString(colour);
-            String tooltip = String.format("Id: %s\\nSchema: %s\\nIdentities: %s",
-                    node.getId(), formatSchema(node), formatIdentities(node));
+    public String toString(Node node) {
+        LinkedHashSet<Node> nodes = new LinkedHashSet<>();
+        Deque<Node> queue = new ArrayDeque<>();
+        nodes.add(node);
+        queue.add(node);
 
-            sb.append(String.format(
-                    "\t\"%s\" [label = \"%s#%s\"] [tooltip = \"%s\"] [shape =\"%s\"] [style=\"%s\"] [fillcolor=\"%s\"];%n",
-                    node.getId(), label, node.getId(), tooltip, shape, style, color));
-        });
-        graph.visitOut(node -> {
-            for (int i = 0; i < node.getInputs().size(); ++i) {
-                sb.append(String.format("\t\"%d\" -> \"%d\" [label=\"%d\"];%n",
-                        node.getInputs().get(i).getId(), node.getId(), i));
+        while (!queue.isEmpty()) {
+            Node current = queue.poll();
+            for (Node in : current.getInputs()) {
+                if (!nodes.contains(in)) {
+                    nodes.add(in);
+                    queue.add(in);
+                }
             }
-        });
+        }
+        StringBuilder sb = new StringBuilder();
+        sb.append("digraph G {\n");
+        Object2IntMap<Plan> colours = new Object2IntOpenHashMap<>();
+        nodes.forEach(n -> nodeToString(colours, sb, n));
+        nodes.forEach(n -> edgesToString(sb, n));
         sb.append("}\n");
         return sb.toString();
     }

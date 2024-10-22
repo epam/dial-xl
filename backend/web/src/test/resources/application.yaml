@@ -3,3 +3,8 @@ web:
     local:
       projectsFolder: build/test-projects
       inputsFolder: build/resources/test/test-inputs
+  heartbeatPeriodMillis: 60000
+
+spring:
+  security:
+    enabled: false

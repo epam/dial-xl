@@ -1,64 +1,7 @@
 import { Observable } from 'rxjs';
 
 import { IDataRow as IDeltixGridDataRow } from '@deltix/grid-it-core';
-import { ColumnDataType } from '@frontend/common';
-
-export type ChartType = 'line' | 'tabular';
-
-export type GridTable = {
-  startRow: number;
-  startCol: number;
-  endCol: number;
-  endRow: number;
-  tableName: string;
-  chartType?: ChartType;
-};
-
-export type GridField = {
-  fieldName: string;
-  expression: string;
-  isKey: boolean;
-  isDim: boolean;
-  isNested: boolean;
-  isPeriodSeries: boolean;
-  isDynamic: boolean;
-  type: ColumnDataType;
-  referenceTableName?: string;
-};
-
-export type GridCell = {
-  table?: GridTable;
-  field?: GridField;
-  value?: string;
-  error?: string;
-  overrideIndex?: number;
-  isOverride?: boolean;
-  isManual?: boolean;
-  row: number;
-  col: number;
-
-  zIndex?: number;
-
-  // If some cell contains intersection of tables, we should draw all table headers
-  tables?: GridTable[];
-};
-
-export type RowData = { [col: string]: GridCell };
-
-export type GridData = {
-  [row: string]: RowData;
-};
-
-export type GridChart = {
-  tableName: string;
-  startRow: number;
-  startCol: number;
-  endCol: number;
-  endRow: number;
-  chartType: ChartType;
-  keys: string[];
-  selectedKeys: Record<string, string>;
-};
+import { GridCell, GridData, RowData } from '@frontend/common';
 
 export type IInfiniteScrollOptions = {
   triggerArea: number;
@@ -84,6 +27,7 @@ export type IDataRow = Omit<IDeltixGridDataRow<RowData>, 'handleDataUpdate'> & {
     rootWidth: number
   ) => void;
   edges: [number, number];
+  width: number;
   getCellX: (col: number) => number;
 };
 
@@ -99,6 +43,17 @@ export interface IDataService {
 
   setLoading: (isLoading: boolean) => void;
   getCell: (col: number, row: number) => GridCell | undefined;
+  getNextCell: ({
+    col,
+    row,
+    colDirection,
+    rowDirection,
+  }: {
+    col: number;
+    row: number;
+    colDirection?: 'left' | 'right';
+    rowDirection?: 'top' | 'bottom';
+  }) => { col: number; row: number };
   isTableHeader: (col: number, row: number) => boolean;
   isTableField: (col: number, row: number) => boolean;
 

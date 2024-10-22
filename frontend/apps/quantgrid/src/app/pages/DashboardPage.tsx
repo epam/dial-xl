@@ -1,34 +1,28 @@
 import { useContext, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 
 import { Dashboard } from '../components';
-import { AppContext, ProjectContext } from '../context';
-import { useApiResponse } from '../hooks/useApiResponse';
-import { getRecentProject } from '../services';
-
-import '../styles';
+import {
+  AppContext,
+  DashboardContextProvider,
+  ProjectContext,
+} from '../context';
 
 export function DashboardPage() {
-  useApiResponse();
-
-  const navigate = useNavigate();
-
-  const { projectName } = useContext(ProjectContext);
   const { hideLoading } = useContext(AppContext);
+  const { projectName, closeCurrentProject } = useContext(ProjectContext);
 
   useEffect(() => {
-    const recentProjectName = getRecentProject();
-
-    if (recentProjectName) {
-      navigate(`/${recentProjectName}`);
+    if (projectName) {
+      closeCurrentProject(true);
     }
-  }, [navigate]);
 
-  if (!projectName) {
     hideLoading();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-    return <Dashboard />;
-  }
-
-  return null;
+  return (
+    <DashboardContextProvider>
+      <Dashboard />
+    </DashboardContextProvider>
+  );
 }

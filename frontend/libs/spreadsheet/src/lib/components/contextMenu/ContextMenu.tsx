@@ -10,27 +10,43 @@ import {
 } from 'react';
 
 import {
+  FilesMetadata,
+  FunctionInfo,
+  getDataScroller,
   KeyboardCode,
   MenuItem,
   Shortcut,
   shortcutApi,
   useClickOutside,
 } from '@frontend/common';
+import { ParsedSheets } from '@frontend/parser';
 
 import {
+  applyMenuButtonClass,
   contextMenuButtonClass,
   gridDataContainerClass,
 } from '../../constants';
+import { defaults } from '../../defaults';
 import { Grid } from '../../grid';
 import { GridService } from '../../services';
 import { GridCallbacks } from '../../types';
-import { focusSpreadsheet, getDataScroller, getGridRoot } from '../../utils';
 import {
+  focusSpreadsheet,
+  getCellContext,
+  getCellElementDimensions,
+  getGridRoot,
+} from '../../utils';
+import {
+  findTargetButtonByClass,
+  getEmptyCellMenuItems,
+  getEmptyCellWithoutContextMenuItem,
   getTableCellMenuItems,
   getTableFieldMenuItems,
   getTableHeaderMenuItems,
-} from './contextMenuUtils';
-import { useOnClickContextMenu } from './useOnClickContextMenu';
+  onContextMenuButton,
+  OpenContextMenuParams,
+  useOnClickContextMenu,
+} from './utils';
 
 export type HandleContextMenuFunctionRef = (
   e: MouseEvent<HTMLDivElement>
@@ -40,6 +56,9 @@ type Props = {
   handleContextMenu: { current: HandleContextMenuFunctionRef | null };
   gridServiceRef: MutableRefObject<GridService | null>;
   gridCallbacksRef: MutableRefObject<GridCallbacks>;
+  functions: FunctionInfo[];
+  parsedSheets: ParsedSheets;
+  inputFiles: FilesMetadata[] | null;
   api: Grid | null;
 };
 
@@ -48,6 +67,9 @@ export function ContextMenu({
   gridServiceRef,
   gridCallbacksRef,
   api,
+  functions,
+  parsedSheets,
+  inputFiles,
 }: Props) {
   const [contextMenuOpen, setContextMenuOpen] = useState(false);
   const [contextMenuPos, setContextMenuPos] = useState({ x: 0, y: 0 });
@@ -63,46 +85,76 @@ export function ContextMenu({
     setContextMenuOpen(false);
   }, []);
 
+  const handleCreateTableBySize = useCallback(
+    (cols: number, rows: number) => {
+      const colsItems = new Array(cols).fill('');
+      const rowsItems = new Array(rows).fill(colsItems);
+
+      gridCallbacksRef.current.onCreateManualTable?.(
+        api?.selection?.startCol ?? 1,
+        api?.selection?.startRow ?? 1,
+        rowsItems
+      );
+    },
+    [api, gridCallbacksRef]
+  );
+
   useClickOutside(clickRef, onClickOutside);
 
   const openContextMenu = useCallback(
-    (x: number, y: number, col: number, row: number) => {
-      const cell = gridServiceRef.current?.getCellValue(+row, +col);
+    (params: OpenContextMenuParams | null) => {
+      if (!params || !api) return;
 
-      if (!cell?.table) return;
+      const { x, y, col, row } = params;
+      const cell = gridServiceRef.current?.getCellValue(+row, +col);
 
       setTimeout(() => {
         setContextMenuOpen(true);
         setContextMenuPos({ x, y });
 
-        if (!cell.table) return;
+        if (!cell?.table) {
+          const contextCell = getCellContext(api, col, row);
 
-        const { table, row, col } = cell;
-        const { startCol, endCol, startRow } = table;
+          if (!contextCell?.table) {
+            setContextMenuItems(
+              getEmptyCellWithoutContextMenuItem(
+                functions,
+                parsedSheets,
+                inputFiles,
+                handleCreateTableBySize,
+                col,
+                row
+              )
+            );
+          } else {
+            setContextMenuItems(getEmptyCellMenuItems(col, row, contextCell));
+          }
 
-        if (row === startRow && col >= startCol && col <= endCol) {
-          const isChart = !!cell.table.chartType;
+          return;
+        }
+
+        if (cell.isTableHeader) {
+          setContextMenuItems(getTableHeaderMenuItems(cell));
+        } else if (cell.isFieldHeader && cell.field) {
           setContextMenuItems(
-            getTableHeaderMenuItems(startCol, startRow, isChart)
-          );
-        } else if (
-          row - 1 === startRow &&
-          col >= startCol &&
-          col <= endCol &&
-          cell.field
-        ) {
-          const { isManual } = cell;
-          const { isKey, isDim, isDynamic } = cell.field;
-          setContextMenuItems(
-            getTableFieldMenuItems(col, row, isKey, isDim, isDynamic, isManual)
+            getTableFieldMenuItems(col, row, cell, gridCallbacksRef.current)
           );
         } else {
-          const { isOverride } = cell;
-          setContextMenuItems(getTableCellMenuItems(col, row, !!isOverride));
+          setContextMenuItems(
+            getTableCellMenuItems(col, row, cell, gridCallbacksRef.current)
+          );
         }
       });
     },
-    [gridServiceRef]
+    [
+      api,
+      gridServiceRef,
+      functions,
+      parsedSheets,
+      inputFiles,
+      handleCreateTableBySize,
+      gridCallbacksRef,
+    ]
   );
 
   const onContextMenu = useCallback(
@@ -113,36 +165,28 @@ export function ContextMenu({
 
       const { top, left } = e.currentTarget.getBoundingClientRect();
 
-      const { col, row } = api.getCellDimensions(e.target as HTMLElement);
+      const { col, row } = getCellElementDimensions(e.target as HTMLElement);
 
       if (col === -1 || row === -1) return;
 
-      openContextMenu(e.clientX - left, e.clientY - top, +col, +row);
-    },
-    [api, openContextMenu]
-  );
-
-  const onTableHeaderContextMenu = useCallback(
-    (e: MouseEvent, target: HTMLElement) => {
-      e.preventDefault();
-
-      const root = getGridRoot();
-
-      if (!root || !api) return;
-
-      const { top, left } = root.getBoundingClientRect();
-
-      const { col, row } = api.getCellDimensions(target);
-
-      if (col === -1 || row === -1) return;
-
-      openContextMenu(e.clientX - left, e.clientY - top, +col, +row);
+      openContextMenu({
+        x: e.clientX - left,
+        y: e.clientY - top,
+        col: +col,
+        row: +row,
+      });
     },
     [api, openContextMenu]
   );
 
   const onClick = useCallback(
     (info: MenuInfo) => {
+      const { action } = JSON.parse(info.key);
+
+      if (action.startsWith('NumFilter') || action.startsWith('TextFilter')) {
+        return;
+      }
+
       setContextMenuOpen(false);
 
       // Timeout to hide context menu and focus spreadsheet first
@@ -154,15 +198,15 @@ export function ContextMenu({
     [onClickContextMenu]
   );
 
-  const openContextMenuByKey = useCallback(
+  const onKeyUp = useCallback(
     (event: KeyboardEvent) => {
-      if (
-        contextMenuOpen &&
-        (event.key === KeyboardCode.ArrowUp ||
-          event.key === KeyboardCode.ArrowDown)
-      ) {
+      if (contextMenuOpen && event.key === KeyboardCode.Escape) {
+        setContextMenuOpen(false);
+
         return;
       }
+
+      if (contextMenuOpen) return;
 
       if (!shortcutApi.is(Shortcut.ContextMenu, event)) {
         setContextMenuOpen(false);
@@ -174,73 +218,70 @@ export function ContextMenu({
 
       if (!api) return;
 
+      const gridDataScroller = getDataScroller();
+      const root = getGridRoot();
       const selection = api.selection$.getValue();
 
-      if (!selection || selection.startCol !== selection.endCol) return;
+      if (!selection || !gridDataScroller || !root) return;
 
-      const { startRow, startCol } = selection;
+      const { startRow, startCol, endCol } = selection;
 
-      const gridDataScroller = getDataScroller();
+      let cell = null;
 
-      if (!gridDataScroller) return;
+      for (let col = startCol; col <= endCol; col++) {
+        cell = gridDataScroller.querySelector(
+          `[data-row="${startRow}"][data-col="${col}"]`
+        );
 
-      const cell = gridDataScroller.querySelector(
-        `[data-row="${startRow}"][data-col="${startCol}"]`
-      );
+        if (cell) {
+          break;
+        }
+      }
 
-      const root = getGridRoot();
+      if (!cell) return;
 
-      if (!cell || !root) return;
-
-      const { x, y, height, width } = cell.getBoundingClientRect();
+      const { x, y, height } = cell.getBoundingClientRect();
 
       const { top, left } = root.getBoundingClientRect();
 
-      openContextMenu(
-        x + width / 2 - left,
-        y + height / 2 - top,
-        startCol,
-        startRow
-      );
+      openContextMenu({
+        x:
+          x - left >= 0
+            ? x + defaults.cell.width / 2 - left
+            : defaults.cell.width,
+        y: y + height / 2 - top,
+        col: startCol,
+        row: startRow,
+      });
     },
     [api, contextMenuOpen, openContextMenu]
   );
 
   const onMouseDown = useCallback(
     (event: any) => {
-      const dataContainer = document.querySelector(
-        `.${gridDataContainerClass}`
-      );
+      const target = findTargetButtonByClass(event, [
+        contextMenuButtonClass,
+        applyMenuButtonClass,
+      ]);
 
-      if (!dataContainer) return;
+      if (!target) return;
 
-      let target = event.target;
-
-      while (target && target !== dataContainer) {
-        if (target.nodeName === 'BUTTON') {
-          if (target.classList.contains(contextMenuButtonClass)) {
-            onTableHeaderContextMenu(event, target);
-          }
-
-          return;
-        }
-        target = target.parentNode;
-      }
+      openContextMenu(onContextMenuButton(event, target));
     },
-    [onTableHeaderContextMenu]
+    [openContextMenu]
   );
 
   useEffect(() => {
-    document.addEventListener('keyup', openContextMenuByKey);
+    document.addEventListener('keyup', onKeyUp);
 
     const dataContainer = document.querySelector(`.${gridDataContainerClass}`);
     dataContainer?.addEventListener('click', onMouseDown);
 
     return () => {
-      document.removeEventListener('keyup', openContextMenuByKey);
+      document.removeEventListener('keyup', onKeyUp);
       dataContainer?.removeEventListener('click', onMouseDown);
     };
-  }, [onMouseDown, openContextMenuByKey]);
+  }, [onMouseDown, onKeyUp]);
 
   useEffect(() => {
     handleContextMenu.current = onContextMenu;

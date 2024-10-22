@@ -14,7 +14,6 @@ import type {
   GridItOptions,
   IColumnService,
   IColumnStateService,
-  IHeader,
   IRowService,
 } from '@deltix/grid-it-core';
 import {
@@ -27,7 +26,11 @@ import {
   TreeNode,
 } from '@deltix/grid-it-core';
 
+import { gridCellClass } from '../../constants';
+import { defaults } from '../../defaults';
+import { getPx } from '../../utils';
 import { HeaderCell } from './headerCell';
+import { IHeader } from './types';
 
 import './header.scss';
 
@@ -93,6 +96,9 @@ const createContainer = (
   return container;
 };
 
+/**
+ * This service is legacy, service should look like rowNumberService. All these groping features we don't need
+ */
 @injectable()
 export class Header<T> extends Destroyable implements IHeader {
   protected root: HTMLElement;
@@ -103,6 +109,8 @@ export class Header<T> extends Destroyable implements IHeader {
   protected tree!: ColumnGroup;
   protected depth = 0;
   protected zoom: number;
+  protected columnFirstIndex = 0;
+  protected columnLastIndex = 0;
 
   constructor(
     @inject(COLUMN_SERVICE) protected columnService: IColumnService,
@@ -131,10 +139,6 @@ export class Header<T> extends Destroyable implements IHeader {
     appendChild(this.root, this.groupsContainer);
     appendChild(this.root, this.cellsContainer);
 
-    this.rowService.widthWithClones$
-      .pipe(takeUntil(this.destroy$))
-      .subscribe(this.setWidth);
-
     this.columnService.flat$
       .pipe(debounceTime(10), takeUntil(this.destroy$))
       .subscribe((cols) => {
@@ -159,6 +163,12 @@ export class Header<T> extends Destroyable implements IHeader {
     return this.root;
   }
 
+  rerender(columnFirstIndex: number, columnLastIndex: number) {
+    this.columnFirstIndex = columnFirstIndex;
+    this.columnLastIndex = columnLastIndex;
+    this.repopulateCells(this.cols, 1);
+  }
+
   destroy() {
     this.cols.forEach(this.destroyCell);
 
@@ -169,6 +179,8 @@ export class Header<T> extends Destroyable implements IHeader {
   setZoom(zoom: number) {
     this.zoom = zoom;
     this.setColumns(this.cols);
+
+    this.root.style.height = getPx(defaults.cell.height * zoom);
   }
 
   private setWidth = (widthPx: number) => {
@@ -178,8 +190,32 @@ export class Header<T> extends Destroyable implements IHeader {
   protected repopulateCells = (cols: Column[] = this.cols, maxDepth = 0) => {
     clearNode(this.cellsContainer);
 
+    let colsLeft = 0;
+
+    const columnsState = this.columnStateService.getState();
+
     cols.forEach((col) => {
+      const columnState = columnsState.find((s) => s.id === col.id);
+      const colId = parseInt(col.id);
+      const isCellOutsideViewport =
+        colId < this.columnFirstIndex || colId > this.columnLastIndex;
+
+      if (isCellOutsideViewport) {
+        if (columnState) {
+          colsLeft += columnState.width;
+        }
+
+        return;
+      }
+
       const cell = this.getHeaderCell(col, maxDepth);
+      const renderedCell = cell.render();
+
+      if (columnState) {
+        renderedCell.style.left = getPx(colsLeft);
+        colsLeft += columnState.width;
+      }
+
       appendChild(this.cellsContainer, cell.render());
     });
   };
@@ -213,7 +249,7 @@ export class Header<T> extends Destroyable implements IHeader {
       for (const child of children) {
         if (child instanceof Column) {
           const placeholderCell = createElement('div', {
-            classList: ['grid-cell', HEADER_CELL_PLACEHOLDER_CLASSNAME],
+            classList: [gridCellClass, HEADER_CELL_PLACEHOLDER_CLASSNAME],
           });
           placeholderCell.style.width = child.width + 'px';
           appendChild(content, placeholderCell);

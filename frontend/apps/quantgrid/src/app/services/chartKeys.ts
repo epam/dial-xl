@@ -1,5 +1,5 @@
-import { ParsedSheets } from '@frontend/common';
-import { ParsedTable } from '@frontend/parser';
+import { FilesMetadata } from '@frontend/common';
+import { ParsedSheets, ParsedTable } from '@frontend/parser';
 
 const storageKey = 'chartKeys';
 
@@ -12,22 +12,32 @@ export type ChartKeys = {
 };
 
 export const saveChartKey = (
-  projectName: string,
   tableName: string,
   fieldName: string,
-  key: string
+  key: string,
+  projectName: string,
+  bucket: string,
+  path: string | null | undefined
 ) => {
+  const fullItemPrePath = `${bucket}/${path ? path + '/' : ''}`;
   const chartKeys = getChartKeys();
-  chartKeys[projectName] = chartKeys[projectName] || {};
-  chartKeys[projectName][tableName] = chartKeys[projectName][tableName] || {};
-  chartKeys[projectName][tableName][fieldName] = key;
+  chartKeys[fullItemPrePath + projectName] =
+    chartKeys[fullItemPrePath + projectName] || {};
+  chartKeys[fullItemPrePath + projectName][tableName] =
+    chartKeys[fullItemPrePath + projectName][tableName] || {};
+  chartKeys[fullItemPrePath + projectName][tableName][fieldName] = key;
   saveChartKeys(chartKeys);
 };
 
-export const getChartKeysByProject = (projectName: string) => {
+export const getChartKeysByProject = (
+  projectName: string,
+  bucket: string,
+  path: string | null | undefined
+) => {
   const chartKeys = getChartKeys();
+  const fullItemPrePath = `${bucket}/${path ? path + '/' : ''}`;
 
-  return chartKeys[projectName] || {};
+  return chartKeys[fullItemPrePath + projectName] || {};
 };
 
 export const getChartKeys = (): ChartKeys => {
@@ -36,12 +46,21 @@ export const getChartKeys = (): ChartKeys => {
   return chartKeys ? JSON.parse(chartKeys) : {};
 };
 
-export const cleanUpChartKeysByProjects = (projectList: string[]) => {
+export const cleanUpChartKeysByProjects = (projectList: FilesMetadata[]) => {
   const chartKeys = getChartKeys();
 
-  Object.keys(chartKeys).forEach((projectName) => {
-    if (!projectList.includes(projectName)) {
-      delete chartKeys[projectName];
+  Object.keys(chartKeys).forEach((fullProjectPath) => {
+    if (
+      !projectList.find((project) => {
+        const fullItemPrePath = `${project.bucket}/${
+          project.parentPath ? project.parentPath + '/' : ''
+        }`;
+        const projectFullPath = fullItemPrePath + project.name;
+
+        return projectFullPath === fullProjectPath;
+      })
+    ) {
+      delete chartKeys[fullProjectPath];
     }
   });
 
@@ -49,16 +68,20 @@ export const cleanUpChartKeysByProjects = (projectList: string[]) => {
 };
 
 export const cleanUpProjectChartKeys = (
+  parsedSheets: ParsedSheets,
   projectName: string,
-  parsedSheets: ParsedSheets
+  bucket: string,
+  path: string | null | undefined
 ) => {
   const chartKeys = getChartKeys();
+  const fullItemPrePath = `${bucket}/${path ? path + '/' : ''}`;
+  const fullProjectPath = fullItemPrePath + projectName;
 
-  if (!chartKeys[projectName]) {
+  if (!chartKeys[fullProjectPath]) {
     return;
   }
 
-  Object.keys(chartKeys[projectName]).forEach((tableName) => {
+  Object.keys(chartKeys[fullProjectPath]).forEach((tableName) => {
     let table: ParsedTable | undefined;
 
     for (const sheet of Object.keys(parsedSheets)) {
@@ -68,15 +91,19 @@ export const cleanUpProjectChartKeys = (
     }
 
     if (!table) {
-      delete chartKeys[projectName][tableName];
+      delete chartKeys[fullProjectPath][tableName];
     } else {
-      Object.keys(chartKeys[projectName][tableName]).forEach((fieldName) => {
-        const field = table?.fields.find((f) => f.key.fieldName === fieldName);
+      Object.keys(chartKeys[fullProjectPath][tableName]).forEach(
+        (fieldName) => {
+          const field = table?.fields.find(
+            (f) => f.key.fieldName === fieldName
+          );
 
-        if (!field) {
-          delete chartKeys[projectName][tableName][fieldName];
+          if (!field) {
+            delete chartKeys[fullProjectPath][tableName][fieldName];
+          }
         }
-      });
+      );
     }
   });
 
@@ -85,13 +112,17 @@ export const cleanUpProjectChartKeys = (
 
 export const renameChartKeysProject = (
   oldProjectName: string,
-  newProjectName: string
+  newProjectName: string,
+  bucket: string,
+  path?: string | null | undefined
 ) => {
   const chartKeys = getChartKeys();
+  const fullItemPrePath = `${bucket}/${path ? path + '/' : ''}`;
 
-  if (chartKeys[oldProjectName]) {
-    chartKeys[newProjectName] = chartKeys[oldProjectName];
-    delete chartKeys[oldProjectName];
+  if (chartKeys[fullItemPrePath + oldProjectName]) {
+    chartKeys[fullItemPrePath + newProjectName] =
+      chartKeys[fullItemPrePath + oldProjectName];
+    delete chartKeys[fullItemPrePath + oldProjectName];
   }
 
   saveChartKeys(chartKeys);

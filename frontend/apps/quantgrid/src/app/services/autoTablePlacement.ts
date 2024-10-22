@@ -1,4 +1,10 @@
-import { ParsedTable, SheetReader } from '@frontend/parser';
+import {
+  getPlacementDecorator,
+  minTablePlacement,
+  ParsedTable,
+  placementDecoratorName,
+  SheetReader,
+} from '@frontend/parser';
 
 type Placement = [number, number];
 
@@ -11,7 +17,12 @@ type Result = {
 export const autoTablePlacement = (dsl: string) => {
   try {
     const parsedSheet = SheetReader.parseSheet(dsl);
+
+    if (parsedSheet.errors.length > 0) return dsl;
+
     const { tables } = parsedSheet;
+
+    dsl = moveTablesOutOfSpreadsheetEdges(dsl, tables);
 
     const emptyPlacementTables = tables.filter((t) => !t.hasPlacement());
 
@@ -96,4 +107,47 @@ const getTableWithPlacement = (tables: ParsedTable[]): Placement[] => {
       return colPlacement;
     })
     .sort((a, b) => a[0] - b[0]);
+};
+
+const moveTablesOutOfSpreadsheetEdges = (
+  dsl: string,
+  tables: ParsedTable[]
+) => {
+  const tablesWithWrongPlacement = tables.filter((t) => {
+    if (!t.hasPlacement()) return false;
+
+    const [row, col] = t.getPlacement();
+
+    return row < 1 || col < 1;
+  });
+
+  if (tablesWithWrongPlacement.length === 0) return dsl;
+
+  const reversedTablesByPlacement = tablesWithWrongPlacement.sort((a, b) => {
+    const bStartOffset = b.dslPlacement?.startOffset || 0;
+    const aStartOffset = a.dslPlacement?.startOffset || 0;
+
+    return bStartOffset - aStartOffset;
+  });
+
+  reversedTablesByPlacement.forEach((t) => {
+    const [row, col] = t.getPlacement();
+
+    const placementDecorator = t.decorators.find(
+      ({ decoratorName }) => decoratorName === placementDecoratorName
+    );
+
+    const placementDsl = getPlacementDecorator(
+      Math.max(minTablePlacement, col),
+      Math.max(minTablePlacement, row)
+    );
+
+    if (placementDecorator?.dslPlacement) {
+      const { start, end } = placementDecorator.dslPlacement;
+
+      dsl = dsl.substring(0, start) + placementDsl + dsl.substring(end);
+    }
+  });
+
+  return dsl;
 };

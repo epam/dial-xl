@@ -1,0 +1,29 @@
+logging:
+  level:
+    root: info
+    com.epam.deltix.quantgrid: debug
+
+server.port: 9001
+
+web:
+  cluster:
+    nodeType: CONTROL
+    nodeRoutingType: DEDICATED
+  redis: |
+    singleServerConfig:
+        address: "redis://127.0.0.1:6379"
+  storage:
+    local:
+      projectsFolder: ./tmp/control/projects/
+      inputsFolder: ./tmp/control/projects
+    dial:
+      enabled: ${WEB_STORAGE_DIAL_INPUT_ENABLED:false}
+      baseUrl: ${WEB_STORAGE_DIAL_BASE_URL}
+  heartbeatPeriodMillis: 60000
+
+spring:
+  mvc:
+    async:
+      request-timeout: 600000 # 10 min
+  security:
+    enabled: ${SECURITY_ENABLED:false}

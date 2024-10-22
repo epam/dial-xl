@@ -34,6 +34,11 @@ public class LocalTable implements Table {
         this.size = size;
     }
 
+    public LocalTable(long size) {
+        this.columns = new Column[0];
+        this.size = size;
+    }
+
     @Override
     public long size() {
         return size;
@@ -91,7 +96,7 @@ public class LocalTable implements Table {
             columns[i] = indirectOf(column, references);
         }
 
-        return new LocalTable(columns);
+        return (table.getColumnCount() == 0) ? new LocalTable(references.size()) : new LocalTable(columns);
     }
 
     public static Table lambdaOf(Table table, Long2LongFunction lambda, long size) {
@@ -102,7 +107,7 @@ public class LocalTable implements Table {
             columns[i] = lambdaOf(column, lambda, size);
         }
 
-        return new LocalTable(columns);
+        return (table.getColumnCount() == 0) ? new LocalTable(size) : new LocalTable(columns);
     }
 
     private static Column indirectOf(Column column, LongArrayList references) {

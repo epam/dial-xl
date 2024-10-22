@@ -21,4 +21,9 @@ public class BinaryOperator extends Function {
         this.right = right;
         this.operation = operation;
     }
+
+    @Override
+    public String operationSymbol() {
+        return operation.getSymbol();
+    }
 }

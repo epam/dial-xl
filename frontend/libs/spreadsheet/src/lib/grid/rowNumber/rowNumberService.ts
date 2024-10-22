@@ -17,11 +17,12 @@ import type {
   IRowService,
 } from '@deltix/grid-it-core';
 import { appendChild, createElement } from '@deltix/grid-it-core';
+import { GridData } from '@frontend/common';
 
 import { rowNumberContainerClass } from '../../constants';
 import { defaults } from '../../defaults';
 import { getPx } from '../../utils';
-import { DataView, GridData } from '../data';
+import { DataView } from '../data';
 import { IScroll } from '../data';
 import type { GridSelection, ISelectionService } from '../selection';
 import { SELECTION_SERVICE } from '../types';

@@ -35,7 +35,7 @@ public class ConditionUtil {
             int m = (l + r) / 2;
             Expression a = assembleCondition(conditions, l, m);
             Expression b = assembleCondition(conditions, m + 1, r);
-            return new BinaryOperator(a, b, BinaryOperation.ADD);
+            return new BinaryOperator(a, b, BinaryOperation.AND);
         }
     }
 

@@ -18,6 +18,7 @@ const bottomBarHeightKey = 'bottomBarHeight';
 
 type LayoutContextActions = {
   togglePanel: (panelName: PanelName) => void;
+  openPanel: (panelName: PanelName) => void;
   changePanelPosition: (panelName: PanelName, position: PanelPosition) => void;
   openedPanels: Record<PanelName, PanelInfo>;
 };
@@ -56,6 +57,20 @@ export function LayoutContextProvider({
     [openedPanels]
   );
 
+  const openPanel = useCallback(
+    (panelName: PanelName) => {
+      const panel = openedPanels[panelName];
+      if (!panel) return;
+
+      const updatedPanels = Object.assign({}, openedPanels);
+      updatedPanels[panelName].isActive = true;
+
+      setOpenedPanels(updatedPanels);
+      savePanels(updatedPanels);
+    },
+    [openedPanels]
+  );
+
   const changePanelPosition = useCallback(
     (panelName: PanelName, position: PanelPosition) => {
       const panel = openedPanels[panelName];
@@ -84,12 +99,12 @@ export function LayoutContextProvider({
     () => getLayoutItems(openedPanels, panels),
     // below triggers, not dependencies
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [openedPanels]
+    [openedPanels, panels]
   );
 
   const value = useMemo(
-    () => ({ togglePanel, changePanelPosition, openedPanels }),
-    [togglePanel, changePanelPosition, openedPanels]
+    () => ({ togglePanel, openPanel, changePanelPosition, openedPanels }),
+    [togglePanel, openPanel, changePanelPosition, openedPanels]
   );
 
   return (

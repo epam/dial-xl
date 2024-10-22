@@ -6,6 +6,7 @@ import com.epam.deltix.quantgrid.engine.node.expression.ps.PeriodSeriesMapper;
 import com.epam.deltix.quantgrid.engine.spark.ScalaUtil;
 import com.epam.deltix.quantgrid.engine.value.Period;
 import com.epam.deltix.quantgrid.engine.value.PeriodSeries;
+import com.epam.deltix.quantgrid.util.Doubles;
 import com.epam.quanthub.scripting.models.data.SimpleTimeSeriesData;
 import com.epam.quanthub.scripting.models.functions.Decimal;
 import org.apache.spark.sql.catalyst.InternalRow;
@@ -55,7 +56,7 @@ public class PeriodSeriesFunctions implements Serializable {
     }
 
     private static InternalRow emptyPeriodSeriesRow(Period period) {
-        return InternalRow.fromSeq(ScalaUtil.seq(Double.NaN, periods.get(period), EMPTY_VALUES));
+        return InternalRow.fromSeq(ScalaUtil.seq(Doubles.ERROR_NA, periods.get(period), EMPTY_VALUES));
     }
 
     private static InternalRow toPeriodSeriesRow(PeriodSeries ps) {

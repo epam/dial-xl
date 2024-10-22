@@ -15,6 +15,7 @@ import java.util.LinkedHashMap;
 public record InputMetadata(
         String name,
         String path,
+        String etag,
         InputType type,
         LinkedHashMap<String, ColumnType> columnTypes
 ) {

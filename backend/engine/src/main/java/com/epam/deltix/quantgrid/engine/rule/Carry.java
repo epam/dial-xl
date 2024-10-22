@@ -246,7 +246,7 @@ public class Carry implements Rule {
         }
 
         if (node instanceof Executed executed) {
-            if (chains.isEmpty()) {
+            if (chain.isEmpty()) {
                 return executed; // remove when Value becomes Table
             }
 

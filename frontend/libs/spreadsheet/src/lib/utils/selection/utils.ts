@@ -1,9 +1,10 @@
-import { KeyboardCode } from '@frontend/common';
+import { GridTable, KeyboardCode } from '@frontend/common';
 
 import { defaults } from '../../defaults';
-import { GridSelection, GridTable } from '../../grid';
+import { Grid, GridSelection } from '../../grid';
 
 export function checkIsNavigateInsideTable(
+  api: Grid,
   tableStructure: GridTable[],
   selection: GridSelection,
   maxRow: number,
@@ -20,7 +21,8 @@ export function checkIsNavigateInsideTable(
       selection.startCol >= startCol &&
       selection.startCol <= endCol;
 
-    const isTableHeader = selection.startRow === startRow;
+    const cell = api.getCell(selection.startCol, selection.startRow);
+    const isTableHeader = cell?.isTableHeader;
 
     const isNotOnTableEdge =
       (direction === KeyboardCode.ArrowRight && selection.startCol < endCol) ||
@@ -200,17 +202,54 @@ export function navigateToSheetEdge(
   };
 }
 
+export function isTableInsideSelection(
+  table: GridTable,
+  selection: GridSelection
+): boolean | undefined {
+  const selectionStartRow =
+    selection.startRow <= selection.endRow
+      ? selection.startRow
+      : selection.endRow;
+  const selectionEndRow =
+    selection.endRow >= selection.startRow
+      ? selection.endRow
+      : selection.startRow;
+  const selectionStartCol =
+    selection.startCol <= selection.endCol
+      ? selection.startCol
+      : selection.endCol;
+  const selectionEndCol =
+    selection.endCol >= selection.startCol
+      ? selection.endCol
+      : selection.startCol;
+
+  return (
+    selectionStartRow <= table.startRow &&
+    selectionEndRow >= table.endRow &&
+    selectionStartCol <= table.startCol &&
+    selectionEndCol >= table.endCol
+  );
+}
+
+export function findTablesInSelection(
+  tableStructure: GridTable[],
+  selection: GridSelection
+): GridTable[] {
+  return [...tableStructure].reverse().filter((table) => {
+    const isSelectionInsideTable =
+      selection.startRow >= table.startRow &&
+      selection.startRow <= table.endRow &&
+      selection.startCol >= table.startCol &&
+      selection.startCol <= table.endCol;
+    const isSelectionWrapTable = isTableInsideSelection(table, selection);
+
+    return isSelectionInsideTable || isSelectionWrapTable;
+  });
+}
+
 export function findTableInSelection(
   tableStructure: GridTable[],
   selection: GridSelection
 ): GridTable | undefined {
-  return [...tableStructure]
-    .reverse()
-    .find(
-      (table) =>
-        selection.startRow >= table.startRow &&
-        selection.startRow <= table.endRow &&
-        selection.startCol >= table.startCol &&
-        selection.startCol <= table.endCol
-    );
+  return findTablesInSelection(tableStructure, selection)[0];
 }

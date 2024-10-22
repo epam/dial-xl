@@ -85,8 +85,13 @@ public class ConditionAnalyzer {
             return plan == cartesian ? ConditionKind.CONSTANT : ConditionKind.MIXED;
         } else {
             return condition.getInputs().stream()
-                    .map(Expression.class::cast)
-                    .map(c -> classifyCondition(c, cartesian))
+                    .map(input -> {
+                        if (input instanceof Expression expression) {
+                            return classifyCondition(expression, cartesian);
+                        }
+
+                        return (cartesian == input) ? ConditionKind.CONSTANT : ConditionKind.MIXED;
+                    })
                     .reduce(ConditionKind.CONSTANT, ConditionAnalyzer::combine);
         }
     }

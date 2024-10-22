@@ -1,11 +1,17 @@
 import { expect, Page } from '@playwright/test';
 
+import { FieldMenuItem } from '../enums/FieldMenuItem';
+import { GridMenuItem } from '../enums/GridMenuItem';
 import { MoveDirection } from '../enums/MoveDirection';
+import { Table } from '../logic-entities/Table';
 import { BaseComponent } from './BaseComponent';
 import { Editor } from './Editor';
 
 export class Grid extends BaseComponent {
   private gridHorizontalCellsHeaders = 'div.grid-header-cell__content';
+
+  private gridHorizontalCellHeaderPlaceholder =
+    'div.grid-cell--header-placeholder';
 
   private gridVerticalCellsHeaders = 'div.grid-row-number';
 
@@ -21,11 +27,14 @@ export class Grid extends BaseComponent {
 
   private selectedRow = 'div.grid-row-number--selected';
 
-  private tableHeader = '[class*="tableRenderer_header"]>div';
+  private tableHeader =
+    '[class*="tableRenderer_header"]>div.tableRenderer_headerTitle';
 
-  private tableFieldValue = '[class*="tableRenderer_content"]';
+  private tableFieldValue = '[class*="tableRenderer_content_"]';
 
   private keyField = '[class*="keyField"]';
+
+  private fieldHeader = '[class*="tableRenderer_field"]';
 
   private removeDim = '.remove-dim-button';
 
@@ -37,13 +46,7 @@ export class Grid extends BaseComponent {
 
   private moveSelectionTooltip = '.grid-selection-move-tooltip';
 
-  private renameTableText = 'Rename table';
-
-  private deleteTableText = 'Delete table';
-
-  private moveTable = 'Move table';
-
-  private createDerivedTable = 'Create derived table';
+  private contextMenu = '.grid-context-menu';
 
   constructor(page: Page) {
     super(page);
@@ -60,6 +63,10 @@ export class Grid extends BaseComponent {
     return `div${this.keyGridLocator(row, column)}`;
   }
 
+  public gridCellRoot(row: number, column: number) {
+    return `div.grid-cell:has(>${this.gridCell(row, column)})`;
+  }
+
   private gridCellTableContent(row: number, column: number) {
     return `${this.gridCell(row, column)}${this.tableFieldValue}`;
   }
@@ -68,8 +75,16 @@ export class Grid extends BaseComponent {
     return `${this.gridCell(row, column)}${this.keyField}`;
   }
 
+  private gridFieldHeaderCell(row: number, column: number) {
+    return `${this.gridCell(row, column)}${this.fieldHeader}`;
+  }
+
   private gridCellDimension(row: number, column: number) {
     return `${this.removeDim}${this.keyGridLocator(row, column)}`;
+  }
+
+  private collapsedDimension(row: number, column: number) {
+    return `${this.gridCell(row, column)}>button.show-dim-table`;
   }
 
   private gridCellTableHeader(row: number, column: number) {
@@ -84,12 +99,32 @@ export class Grid extends BaseComponent {
     return this.innerPage.locator(this.gridCellTableContent(row, column));
   }
 
+  public getCellEditor() {
+    return this.gridCellEditor;
+  }
+
   public async clickOnCell(row: number, column: number) {
     await this.innerPage.locator(this.gridCell(row, column)).first().click();
   }
 
+  public async dbClickOnCell(row: number, column: number) {
+    await this.innerPage.locator(this.gridCell(row, column)).first().dblclick();
+  }
+
+  public async dragFromCellToCell(
+    rowStart: number,
+    columnStrart: number,
+    rowEnd: number,
+    columnEnd: number
+  ) {
+    await this.innerPage
+      .locator(this.gridCell(rowStart, columnStrart))
+      .first()
+      .dragTo(this.innerPage.locator(this.gridCell(rowEnd, columnEnd)).first());
+  }
+
   public async expectSelectedRowToBe(row: number) {
-    await expect(this.innerPage.locator(this.selectedRow)).toHaveText(
+    await expect(this.innerPage.locator(this.selectedRow).first()).toHaveText(
       row.toString()
     );
   }
@@ -107,21 +142,33 @@ export class Grid extends BaseComponent {
   }
 
   public async expectFieldIsDimension(row: number, column: number) {
+    await this.innerPage
+      .locator(this.gridCellTableContent(row, column))
+      .click({ button: 'right' });
     await expect(
-      this.innerPage.locator(this.gridCellDimension(row, column))
+      this.innerPage.getByText(FieldMenuItem.RemoveDimension, { exact: true })
     ).toBeVisible();
   }
 
   public async expectFieldIsNotDimension(row: number, column: number) {
+    await this.innerPage
+      .locator(this.gridCellTableContent(row, column))
+      .click({ button: 'right' });
     await expect(
-      this.innerPage.locator(this.gridCellDimension(row, column))
-    ).toBeHidden();
+      this.innerPage.getByText(FieldMenuItem.MakeDimension, { exact: true })
+    ).toBeVisible();
   }
 
   public async expectSelectedColumnToBe(column: number) {
-    await expect(this.innerPage.locator(this.selectedColumn)).toHaveText(
-      column.toString()
-    );
+    await expect(
+      this.innerPage.locator(this.selectedColumn).first()
+    ).toHaveText(column.toString());
+  }
+
+  public async scrollDown() {
+    await this.innerPage
+      .locator(this.gridScroller)
+      .evaluate((e) => (e.scrollTop = e.scrollHeight));
   }
 
   public async verifyGridDimensionsEqualsTo(
@@ -129,11 +176,11 @@ export class Grid extends BaseComponent {
     expectedColumns: number
   ) {
     await expect(
-      this.innerPage.locator(this.gridHorizontalCellsHeaders)
+      this.innerPage.locator(this.gridHorizontalCellHeaderPlaceholder)
     ).toHaveCount(expectedColumns);
-    await this.innerPage
-      .locator(this.gridScroller)
-      .evaluate((e) => (e.scrollTop = e.scrollHeight));
+
+    await this.clickOnCell(1, 1);
+    await this.innerPage.keyboard.press('Control+ArrowDown');
     await expect(
       this.innerPage.locator(this.gridVerticalCellsHeaders).last()
     ).toContainText((expectedRows + 1).toString());
@@ -144,6 +191,7 @@ export class Grid extends BaseComponent {
     column: number,
     actionText: string
   ) {
+    await this.innerPage.locator(this.gridCellTableHeader(row, column)).hover();
     await this.innerPage.locator(this.gridCellTableMenu(row, column)).click();
     await this.innerPage.getByText(actionText, { exact: true }).click();
   }
@@ -155,13 +203,10 @@ export class Grid extends BaseComponent {
     await expect(this.innerPage.locator(this.gridData)).toBeVisible();
   }
 
-  public async expectCellBecameEditable(cellText: string) {
+  public async expectCellBecameEditable(cellText: string | undefined) {
     await this.gridCellEditor.shouldBeVisible();
-    await expect(this.gridCellEditor.getValueLocator()).toHaveText(cellText);
-    //await expect(this.innerPage.locator(this.gridCellEditor)).toBeVisible();
-    // await expect(this.innerPage.locator(this.gridCellEditor)).toHaveText(
-    //   cellText
-    // );
+    if (cellText)
+      await expect(this.gridCellEditor.getValueLocator()).toHaveText(cellText);
   }
 
   public async performCellAction(
@@ -172,6 +217,19 @@ export class Grid extends BaseComponent {
     await this.innerPage
       .locator(this.gridCellTableContent(row, column))
       .click({ button: 'right' });
+    await this.innerPage.getByText(actionText, { exact: true }).click();
+  }
+
+  public async performCellSubAction(
+    row: number,
+    column: number,
+    groupText: string,
+    actionText: string
+  ) {
+    await this.innerPage
+      .locator(this.gridCellTableContent(row, column))
+      .click({ button: 'right' });
+    await this.innerPage.getByText(groupText, { exact: true }).hover();
     await this.innerPage.getByText(actionText, { exact: true }).click();
   }
 
@@ -190,16 +248,11 @@ export class Grid extends BaseComponent {
       (await this.gridCellEditor.getValueLocator().textContent())?.length || 0;
     await this.gridCellEditor.setValue(newValue, oldLength, false);
     await new Promise((resolve) => setTimeout(resolve, 500));
-    this.innerPage.keyboard.press('Enter');
-    //await this.innerPage.locator(this.gridCellEditor).fill(newValue);
-    // await this.innerPage.locator(this.gridCellEditor).press('Enter');
+    await this.innerPage.keyboard.press('Enter');
   }
 
   public async setCellValueAndCancel(newValue: string) {
     await this.gridCellEditor.setValueAndCancel(newValue, false);
-    /*  await this.innerPage.locator(this.gridCellEditor).clear();
-    await this.innerPage.locator(this.gridCellEditor).type(newValue);
-    await this.innerPage.locator(this.gridCellEditor).press('Escape');*/
   }
 
   public async expectTableToDissapear(row: number, column: number) {
@@ -220,14 +273,45 @@ export class Grid extends BaseComponent {
     ).toBeHidden();
   }
 
+  public async expectCellToBeDim(row: number, column: number) {
+    await expect(
+      this.innerPage.locator(this.gridCellTableContent(row, column))
+    ).toBeVisible();
+    await expect(
+      this.innerPage.locator(this.collapsedDimension(row, column))
+    ).toBeVisible();
+  }
+
+  public async expectCellToNotBeDim(row: number, column: number) {
+    await expect(
+      this.innerPage.locator(this.collapsedDimension(row, column))
+    ).toBeHidden();
+  }
+
   public async expectTableHeaderToAppear(row: number, column: number) {
     await expect(
       this.innerPage.locator(this.gridCellTableHeader(row, column))
     ).toBeVisible();
   }
 
+  public async expectFieldHeaderToAppear(row: number, column: number) {
+    await expect(
+      this.innerPage.locator(this.gridFieldHeaderCell(row, column))
+    ).toBeVisible();
+  }
+
   public async expectMoveSelectionToBeVisible() {
     await expect(this.innerPage.locator(this.moveSelection)).toBeVisible();
+  }
+
+  public async moveTable(table: Table, direction: MoveDirection) {
+    await this.performMenuAction(
+      table.getTop(),
+      table.getLeft(),
+      GridMenuItem.Move
+    );
+    await this.expectMoveSelectionToBeVisible();
+    await this.moveCurrentTable(direction);
   }
 
   public async moveCurrentTable(direction: MoveDirection) {
@@ -279,5 +363,9 @@ export class Grid extends BaseComponent {
     await expect(
       this.innerPage.locator(this.gridCellTableHeader(newRow, newColumn))
     ).toHaveText(text);
+  }
+
+  public async expectContextMenuVisible() {
+    await expect(this.innerPage.locator(this.contextMenu)).toBeVisible();
   }
 }

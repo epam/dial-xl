@@ -1,10 +1,12 @@
 import { PropsWithChildren } from 'react';
 
-import { ParsedSheets, WorksheetState } from '@frontend/common';
-import { ParsedSheet } from '@frontend/parser';
+import { WorksheetState } from '@frontend/common';
+import { ParsedSheet, ParsedSheets } from '@frontend/parser';
+import { Grid } from '@frontend/spreadsheet';
 
 import {
   ApiContext,
+  AppSpreadsheetInteractionContext,
   ProjectContext,
   SpreadsheetContext,
   UndoRedoContext,
@@ -14,14 +16,15 @@ type Props = {
   appendFn?: () => void;
   appendToFn?: () => void;
   sendFn?: () => void;
-  updateSheetContent?: () => void;
-  manuallyUpdateSheetContent?: () => void;
+  updateSheetContent?: () => Promise<boolean | undefined>;
+  manuallyUpdateSheetContent?: () => Promise<boolean | undefined>;
   sheetContent?: string;
   parsedSheet?: ParsedSheet | null;
   parsedSheets?: ParsedSheets;
   projectName?: string;
   sheetName?: string;
   projectSheets?: WorksheetState[] | null;
+  gridApi?: Partial<Grid> | null;
 };
 
 function emptyFn() {
@@ -31,8 +34,8 @@ function emptyFn() {
 export function createWrapper({
   appendFn = emptyFn,
   appendToFn = emptyFn,
-  updateSheetContent = emptyFn,
-  manuallyUpdateSheetContent = emptyFn,
+  updateSheetContent = () => new Promise((): boolean => false),
+  manuallyUpdateSheetContent = () => new Promise((): boolean => false),
   sendFn = emptyFn,
   sheetContent = '',
   parsedSheet = null,
@@ -40,70 +43,74 @@ export function createWrapper({
   projectName = '',
   sheetName = '',
   projectSheets = null,
+  gridApi = null,
 }: Props) {
   return ({ children }: PropsWithChildren<unknown>) => (
     <ApiContext.Provider
       value={{
-        addRequestId: () => {},
-        removeRequestId: () => {},
-        findByRequestId: () => null,
-        isConnectionOpened: true,
-        switchConnectionStatus: () => {},
-        sendMessage: () => {},
-        projectVersionRef: { current: 1 },
-        send: sendFn,
+        userBucket: 'SomeBucket',
+        userRoles: [],
+        isAdmin: false,
       }}
     >
       <ProjectContext.Provider
         value={{
-          functions: [],
-          projects: [],
           projectName,
           projectSheets,
+          projectVersion: '',
+          projectBucket: '',
+          projectPath: '',
+          projectPermissions: [],
+
+          projects: [],
+
           sheetName,
           sheetContent,
           sheetErrors: [],
           compilationErrors: [],
-
-          selectedCell: null,
-          updateSelectedCell: () => {},
+          runtimeErrors: [],
 
           parsedSheet,
           parsedSheets,
 
+          selectedCell: null,
+
+          functions: [],
+
+          isAIPendingChanges: false,
+          updateIsAIPendingChanges: () => {},
+          isAIPendingBanner: false,
+          updateIsAIPendingBanner: () => {},
+          tablesDiffData: {},
+
+          openProject: () => {},
+          closeCurrentProject: () => {},
+          createProject: () => {},
+          deleteProject: () => {},
+          deleteCurrentProject: () => {},
+          renameCurrentProject: () => {},
+          cloneCurrentProject: () => {},
+
+          acceptShareProject: () => {},
+          acceptShareFiles: () => {},
+          shareResources: () => {},
+
+          openSheet: () => {},
+          createSheet: () => {},
+          renameSheet: () => {},
+          deleteSheet: () => {},
+
           updateSheetContent,
           manuallyUpdateSheetContent,
 
-          createProject: () => {},
-          openProject: () => {},
-          deleteProject: () => {},
-          newSheet: () => {},
-          renameProject: () => {},
-          renameSheet: () => {},
           openStatusModal: () => {},
 
-          updateProjectList: () => {},
+          updateSelectedCell: () => {},
 
-          onCreateProjectResponse: () => {},
-          onOpenProjectResponse: () => {},
-          onProjectDeleteResponse: () => {},
-          onRenameProjectResponse: () => {},
-          onCloseProjectResponse: () => {},
-
-          onPutSheetResponse: () => {},
-          onOpenSheetResponse: () => {},
-          onDeleteSheetResponse: () => {},
-          onRenameSheetResponse: () => {},
-          onCloseSheetResponse: () => {},
-
-          onParallelRenameSheetResponse: () => {},
-          onParallelRenameProjectResponse: () => {},
-          onParallelUpdateProject: () => {},
-          onParallelUpdateWorksheet: () => {},
-
-          onFunctionsResponse: () => {},
-
-          onReconnect: () => {},
+          getDimensionalSchema: () => {},
+          getFunctions: () => {},
+          getCurrentProjectViewport: () => {},
+          getProjects: () => {},
         }}
       >
         <UndoRedoContext.Provider
@@ -119,14 +126,19 @@ export function createWrapper({
         >
           <SpreadsheetContext.Provider
             value={{
-              openField: () => {},
-              openTable: () => {},
               onSpreadsheetMount: () => {},
               gridService: null,
-              gridApi: null,
+              gridApi: gridApi as Grid,
             }}
           >
-            {children}
+            <AppSpreadsheetInteractionContext.Provider
+              value={{
+                openField: () => {},
+                openTable: () => {},
+              }}
+            >
+              {children}
+            </AppSpreadsheetInteractionContext.Provider>
           </SpreadsheetContext.Provider>
         </UndoRedoContext.Provider>
       </ProjectContext.Provider>

@@ -1,11 +1,12 @@
 package com.epam.deltix.quantgrid.engine.node.expression;
 
-import com.epam.deltix.quantgrid.engine.Util;
 import com.epam.deltix.quantgrid.engine.value.DoubleColumn;
 import com.epam.deltix.quantgrid.engine.value.StringColumn;
 import com.epam.deltix.quantgrid.engine.value.local.StringLambdaColumn;
 import com.epam.deltix.quantgrid.type.ColumnType;
-import com.epam.deltix.quantgrid.util.ExcelDateTime;
+import com.epam.deltix.quantgrid.util.Doubles;
+import com.epam.deltix.quantgrid.util.Dates;
+import com.epam.deltix.quantgrid.util.Strings;
 import org.jetbrains.annotations.Nullable;
 
 import java.time.LocalDateTime;
@@ -37,7 +38,16 @@ public class Text extends Expression1<DoubleColumn, StringColumn> {
         ToStringConverter convertor = getConverter(type);
         return new StringLambdaColumn(i -> {
             double value = source.get(i);
-            return Util.isNa(value) ? null : convertor.apply(value, formatting);
+
+            if (Doubles.isError(value)) {
+                return Doubles.toStringError(value);
+            }
+
+            if (Doubles.isEmpty(value)) {
+                return Strings.EMPTY;
+            }
+
+            return convertor.apply(value, formatting);
         }, source.size());
     }
 
@@ -77,15 +87,19 @@ public class Text extends Expression1<DoubleColumn, StringColumn> {
     }
 
     private static String dateToString(double value, String formatting) {
-        LocalDateTime date = ExcelDateTime.getLocalDateTime(value);
+        LocalDateTime date = Dates.getLocalDateTime(value);
+        if (date == null) {
+            return Strings.ERROR_NA;
+        }
+
         if (formatting != null) {
             return date.format(DateTimeFormatter.ofPattern(formatting));
         } else {
-            return date.format(ExcelDateTime.EXCEL_DATE_TIME_FORMAT);
+            return date.format(Dates.EXCEL_DATE_TIME_FORMAT);
         }
     }
 
     private static String formatAsDate(double value, String formatting) {
-        return ExcelDateTime.getLocalDateTime(value).format(DateTimeFormatter.ofPattern(formatting));
+        return Dates.getLocalDateTime(value).format(DateTimeFormatter.ofPattern(formatting));
     }
 }

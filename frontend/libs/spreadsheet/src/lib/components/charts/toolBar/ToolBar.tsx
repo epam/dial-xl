@@ -1,4 +1,5 @@
-import React, { useCallback } from 'react';
+import cx from 'classnames';
+import { useCallback } from 'react';
 
 import { getPx } from '../../../utils';
 import styles from './ToolBar.module.scss';
@@ -7,20 +8,15 @@ import { ToolBarProps } from './types';
 
 export function ToolBar({
   chartConfig,
-  charts,
-  chartKeys,
   isHidden,
   moveMode,
   zoom,
   onLoadMoreKeys,
   onSelectKey,
 }: ToolBarProps) {
-  const getKeys = useCallback(
-    (tableName: string) => {
-      return charts?.find((c) => c.tableName === tableName)?.keys || [];
-    },
-    [charts]
-  );
+  const getKeys = useCallback(() => {
+    return chartConfig.gridChart.fieldKeys;
+  }, [chartConfig.gridChart]);
 
   const handleLoadMoreKeys = useCallback(
     (tableName: string, fieldName: string) => {
@@ -36,9 +32,11 @@ export function ToolBar({
     [onSelectKey]
   );
 
+  const hasKeys = !!getKeys().length;
+
   return (
     <div
-      className={styles.chartToolBar}
+      className="flex items-center absolute bg-bgGridField border-x-[0.3px] border-x-strokeGridMain"
       key={'toolbar_' + chartConfig.tableName}
       style={{
         left: getPx(chartConfig.toolBarLeft),
@@ -49,22 +47,26 @@ export function ToolBar({
         pointerEvents: moveMode ? 'none' : 'auto',
       }}
     >
-      <div className={styles.toolBarWrapper}>
-        {getKeys(chartConfig.tableName).length === 0 && (
+      <div
+        className={cx(
+          'flex h-full w-full overflow-auto py-0 px-[5px]',
+          styles.toolBarWrapper
+        )}
+      >
+        {hasKeys ? (
+          getKeys().map((key) => (
+            <ToolBarSelect
+              chartConfig={chartConfig}
+              key={key}
+              keyName={key}
+              zoom={zoom}
+              onLoadMoreKeys={handleLoadMoreKeys}
+              onSelectKey={handleSelectKey}
+            />
+          ))
+        ) : (
           <span>There are no keys for the chart</span>
         )}
-        {getKeys(chartConfig.tableName).map((key) => (
-          <ToolBarSelect
-            chartConfig={chartConfig}
-            chartKeys={{ ...chartKeys[chartConfig.tableName]?.chunks } || null}
-            charts={charts}
-            key={key}
-            keyName={key}
-            zoom={zoom}
-            onLoadMoreKeys={handleLoadMoreKeys}
-            onSelectKey={handleSelectKey}
-          />
-        ))}
       </div>
     </div>
   );

@@ -16,6 +16,7 @@ import com.epam.deltix.quantgrid.engine.value.local.DoubleLambdaColumn;
 import com.epam.deltix.quantgrid.engine.value.local.LocalTable;
 import com.epam.deltix.quantgrid.engine.value.local.PeriodSeriesLambdaColumn;
 import com.epam.deltix.quantgrid.engine.value.local.StringLambdaColumn;
+import com.epam.deltix.quantgrid.parser.ParsedKey;
 import lombok.Getter;
 import org.jetbrains.annotations.Nullable;
 
@@ -24,8 +25,7 @@ import java.util.List;
 @Getter
 public class ViewportLocal extends Plan0<Table> {
 
-    private final String table;
-    private final String field;
+    private final ParsedKey key;
     private final long start;
     private final long end;
     private final boolean content;
@@ -34,24 +34,19 @@ public class ViewportLocal extends Plan0<Table> {
     @Nullable
     private final ResultType resultType;
 
-    public ViewportLocal(Expression source,
-                         @Nullable ResultType resultType,
-                         String table,
-                         String field) {
-        this(source, resultType, table, field, -1, -1, false);
+    public ViewportLocal(Expression source, @Nullable ResultType resultType, ParsedKey key) {
+        this(source, resultType, key, -1, -1, false);
     }
 
     public ViewportLocal(Expression source,
                          @Nullable ResultType resultType,
-                         String table,
-                         String field,
+                         ParsedKey key,
                          long start,
                          long end,
                          boolean content) {
         super(List.of(source));
+        this.key = key;
         this.resultType = resultType;
-        this.table = table;
-        this.field = field;
         this.start = start;
         this.end = end;
         this.content = content;
@@ -90,34 +85,22 @@ public class ViewportLocal extends Plan0<Table> {
 
     private static Column viewport(Column column, long offset, long size) {
         if (column instanceof DoubleColumn doubles) {
-            if (column.size() > 0) { // todo: need to revisit this bullshit for DoubleErrorColumn
-                doubles.get(0);
-            }
-
             return new DoubleLambdaColumn(index -> doubles.get(offset + index), size);
         }
 
         if (column instanceof StringColumn strings) {
-            if (column.size() > 0) {
-                strings.get(0);
-            }
-
             return new StringLambdaColumn(index -> strings.get(offset + index), size);
         }
 
         if (column instanceof PeriodSeriesColumn series) {
-            if (column.size() > 0) {
-                series.get(0);
-            }
-
             return new PeriodSeriesLambdaColumn(index -> series.get(offset + index), size);
         }
 
-        throw new IllegalArgumentException();
+        throw new IllegalArgumentException("Unsupported type: " + column.getClass());
     }
 
     @Override
     public String toString() {
-        return "Viewport(%s[%s])(%d-%d)%s".formatted(table, field, start, end, content ? "(*)" : "");
+        return "Viewport(%s)(%d-%d)%s".formatted(key, start, end, content ? "(*)" : "");
     }
 }

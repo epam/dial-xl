@@ -1,14 +1,9 @@
-import { useCallback, useContext, useEffect } from 'react';
+import { useCallback, useContext, useEffect, useState } from 'react';
 
-import { Viewport } from '@frontend/common';
+import { ChartsData, GridChart } from '@frontend/common';
 
-import { ProjectContext, ViewportContext } from '../context';
-import {
-  createGetMoreChartKeysRequest,
-  getChartKeysByProject,
-  saveChartKey,
-} from '../services';
-import { useApi } from './useApi';
+import { ChartUpdate, ProjectContext, ViewportContext } from '../context';
+import { saveChartKey } from '../services';
 
 type SelectedChartKey = {
   tableName: string;
@@ -17,127 +12,221 @@ type SelectedChartKey = {
 };
 
 export function useCharts() {
-  const { chartKeys, tableData } = useContext(ViewportContext);
-  const { projectName, parsedSheet } = useContext(ProjectContext);
-  const { getViewport } = useApi();
+  const { viewGridData } = useContext(ViewportContext);
+  const {
+    projectName,
+    projectBucket,
+    projectPath,
+    sheetName,
+    projectSheets,
+    sheetContent,
+    getCurrentProjectViewport,
+  } = useContext(ProjectContext);
+
+  const [charts, setCharts] = useState<GridChart[]>([]);
+  const [chartData, setChartData] = useState<ChartsData>({});
 
   // Handle lazy loading of the chart keys in the chart key dropdown
   const getMoreChartKeys = useCallback(
     (tableName: string, fieldName: string) => {
-      if (!projectName) return;
+      if (!projectName || !sheetName || !sheetContent || !projectSheets) return;
 
-      const viewportRequest = createGetMoreChartKeysRequest(
-        chartKeys,
+      const viewportRequest = viewGridData.buildGetMoreChartKeysViewportRequest(
         tableName,
         fieldName
       );
 
       if (Object.keys(viewportRequest).length === 0) return;
 
-      getViewport(projectName, viewportRequest);
+      getCurrentProjectViewport(viewportRequest);
     },
-    [getViewport, projectName, chartKeys]
+    [
+      projectName,
+      sheetName,
+      sheetContent,
+      projectSheets,
+      viewGridData,
+      getCurrentProjectViewport,
+    ]
   );
 
   // Prepare and send content viewport request for charts
   const sendChartViewports = useCallback(
     (selectedKeys: SelectedChartKey[]) => {
-      if (!projectName || selectedKeys.length === 0) return;
+      if (
+        !projectName ||
+        !sheetName ||
+        !sheetContent ||
+        !projectSheets ||
+        selectedKeys.length === 0
+      )
+        return;
 
-      const viewportRequest: Record<string, Viewport> = {};
+      const chartViewportRequest =
+        viewGridData.buildChartViewportRequest(selectedKeys);
 
-      for (const { tableName, fieldName, key } of selectedKeys) {
-        // 1. Find key row in table data (only single key per table is supported)
-        let row = -1;
-        const cachedTableData = tableData[tableName];
+      if (chartViewportRequest.length === 0) return;
 
-        if (!cachedTableData) return;
-
-        for (const chunkIndex of Object.keys(cachedTableData.chunks)) {
-          const chunk = cachedTableData.chunks[parseInt(chunkIndex)];
-          const columnChunk = chunk[fieldName];
-
-          if (!columnChunk) continue;
-
-          for (let i = 0; i < columnChunk.length; i++) {
-            if (columnChunk[i] === key) {
-              row = i;
-              break;
-            }
-          }
-        }
-
-        if (row === -1) return;
-
-        // 2. Create viewport request for chart only for PERIOD_SERIES fields
-        const fields: string[] = [];
-        for (const field of Object.keys(cachedTableData.types)) {
-          if (cachedTableData.types[field] === 'PERIOD_SERIES') {
-            fields.push(field);
-          }
-        }
-
-        if (fields.length === 0) return;
-
-        viewportRequest[tableName] = {
-          start_row: row,
-          end_row: row + 1,
-          is_content: true,
-          fields,
-        };
-      }
-
-      if (Object.keys(viewportRequest).length === 0) return;
-
-      getViewport(projectName, viewportRequest);
+      getCurrentProjectViewport(chartViewportRequest);
     },
-    [getViewport, projectName, tableData]
+    [
+      getCurrentProjectViewport,
+      projectName,
+      projectSheets,
+      sheetContent,
+      sheetName,
+      viewGridData,
+    ]
   );
 
   // Handle selected key from the chart key dropdown
   const selectChartKey = useCallback(
     (tableName: string, fieldName: string, key: string) => {
-      if (!projectName) return;
-
-      saveChartKey(projectName, tableName, fieldName, key);
+      if (!projectName || !projectBucket) return;
 
       sendChartViewports([{ tableName, fieldName, key }]);
+
+      saveChartKey(
+        tableName,
+        fieldName,
+        key,
+        projectName,
+        projectBucket,
+        projectPath
+      );
     },
-    [projectName, sendChartViewports]
+    [projectBucket, projectName, projectPath, sendChartViewports]
   );
 
-  // Get saved selected chart keys form localStorage and send single viewport request for all charts
   useEffect(() => {
-    if (!projectName || !parsedSheet) return;
+    if (!projectName || !sheetName) return;
 
-    const savedChartKeys = getChartKeysByProject(projectName);
-    const selectedChartKeys: SelectedChartKey[] = [];
+    const handleDataUpdate = (chartUpdates: ChartUpdate[]) => {
+      if (!chartUpdates.some((chartUpdate) => !!chartUpdate.isChartDataUpdate))
+        return;
 
-    Object.keys(savedChartKeys).forEach((tableName) => {
-      const table = parsedSheet?.tables.find(
-        (table) => table.tableName === tableName
+      setChartData(viewGridData.getChartsData());
+    };
+
+    // init data update call, if component had unmounted
+    setChartData(viewGridData.getChartsData());
+
+    const dataUpdateSubscription =
+      viewGridData.chartUpdate.subscribe(handleDataUpdate);
+
+    return () => {
+      dataUpdateSubscription.unsubscribe();
+    };
+  }, [projectName, sheetName, viewGridData]);
+
+  useEffect(() => {
+    if (!projectName || !sheetName || !projectBucket) return;
+
+    const handleUpdateChartStructure = (chartUpdates: ChartUpdate[]) => {
+      const charts = viewGridData.getCharts(
+        projectName,
+        projectBucket,
+        projectPath
       );
+      const selectedChartKeys: SelectedChartKey[] = [];
 
-      if (!table) return;
+      if (!chartUpdates.length) return;
 
-      const savedChartKeysForTable = savedChartKeys[tableName];
+      if (
+        chartUpdates.length === 1 &&
+        Object.keys(chartUpdates[0]).length === 0
+      ) {
+        setCharts(charts);
 
-      Object.keys(savedChartKeysForTable).forEach((fieldName) => {
-        const key = savedChartKeysForTable[fieldName];
+        return;
+      }
 
-        if (!key) return;
+      // TODO: Remove request grouping
+      for (const chartUpdate of chartUpdates) {
+        const { chartName, isKeyUpdate } = chartUpdate;
 
-        selectedChartKeys.push({ tableName, fieldName, key });
-      });
-    });
+        if (!isKeyUpdate || !chartName) continue;
 
-    if (selectedChartKeys.length === 0) return;
+        const currentChart = charts.find(
+          (chart) => chart.tableName === chartName
+        );
 
-    sendChartViewports(selectedChartKeys);
-  }, [parsedSheet, projectName, selectChartKey, sendChartViewports]);
+        if (!currentChart) return;
+
+        const { availableKeys, selectedKeys } = currentChart;
+
+        const fieldKeys = Object.keys(selectedKeys);
+
+        for (const fieldKey of fieldKeys) {
+          const availableKeysForFieldKey = availableKeys[fieldKey];
+          const currentSelectedKey = selectedKeys[fieldKey];
+
+          if (
+            !availableKeysForFieldKey ||
+            !availableKeysForFieldKey.length ||
+            !currentSelectedKey
+          ) {
+            continue;
+          }
+
+          if (availableKeysForFieldKey.includes(currentSelectedKey)) {
+            selectedChartKeys.push({
+              tableName: chartName,
+              fieldName: fieldKey,
+              key: currentSelectedKey,
+            });
+            continue;
+          }
+
+          const newKey = availableKeysForFieldKey[0];
+
+          currentChart.selectedKeys[fieldKey] = newKey;
+
+          saveChartKey(
+            chartName,
+            fieldKey,
+            newKey,
+            projectName,
+            projectBucket,
+            projectPath
+          );
+
+          selectedChartKeys.push({
+            tableName: chartName,
+            fieldName: fieldKey,
+            key: newKey,
+          });
+        }
+      }
+
+      sendChartViewports(selectedChartKeys);
+      setCharts(charts);
+    };
+
+    // if component had unmounted
+    setCharts(viewGridData.getCharts(projectName, projectBucket, projectPath));
+
+    const chartUpdateStructureSubscription = viewGridData.chartUpdate.subscribe(
+      handleUpdateChartStructure
+    );
+
+    return () => {
+      chartUpdateStructureSubscription.unsubscribe();
+    };
+  }, [
+    projectBucket,
+    projectName,
+    projectPath,
+    sendChartViewports,
+    sheetName,
+    sheetContent,
+    viewGridData,
+  ]);
 
   return {
     getMoreChartKeys,
     selectChartKey,
+    chartData,
+    charts,
   };
 }

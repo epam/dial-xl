@@ -12,6 +12,7 @@ import com.epam.deltix.quantgrid.engine.value.local.DoubleLambdaColumn;
 import com.epam.deltix.quantgrid.engine.value.local.PeriodSeriesLambdaColumn;
 import com.epam.deltix.quantgrid.engine.value.local.StringLambdaColumn;
 import com.epam.deltix.quantgrid.type.ColumnType;
+import com.epam.deltix.quantgrid.util.Doubles;
 
 public class Projection extends Expression2<DoubleColumn, Column, Column> {
 
@@ -44,21 +45,21 @@ public class Projection extends Expression2<DoubleColumn, Column, Column> {
         if (values instanceof DoubleColumn column) {
             return new DoubleLambdaColumn(index -> {
                 double key = keys.get(index);
-                return Util.isNa(key) ? Double.NaN : column.get((long) key);
+                return Doubles.isError(key) ? key : column.get((long) key);
             }, size);
         }
 
         if (values instanceof StringColumn column) {
             return new StringLambdaColumn(index -> {
                 double key = keys.get(index);
-                return Util.isNa(key) ? null : column.get((long) key);
+                return Doubles.isError(key) ? Doubles.toStringError(key) : column.get((long) key);
             }, size);
         }
 
         if (values instanceof PeriodSeriesColumn column) {
             return new PeriodSeriesLambdaColumn(index -> {
                 double key = keys.get(index);
-                return Util.isNa(key) ? null : column.get((long) key);
+                return Doubles.isError(key) ? null : column.get((long) key);
             }, size);
         }
 

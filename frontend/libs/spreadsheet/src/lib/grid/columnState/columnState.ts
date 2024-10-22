@@ -11,6 +11,9 @@ import {
 
 import { compareState } from '../utils';
 
+/**
+ * This service is legacy, there is no place for columns configuration in infinite spreadsheet.
+ */
 @injectable()
 export class ColumnStateService implements IColumnStateService {
   protected state = new BehaviorSubject<IColumnState[]>([]);

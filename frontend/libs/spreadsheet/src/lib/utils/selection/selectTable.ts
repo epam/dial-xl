@@ -1,4 +1,6 @@
-import { GridSelection, GridTable } from '../../grid';
+import { GridTable } from '@frontend/common';
+
+import { GridSelection } from '../../grid';
 import { findTableInSelection } from './utils';
 
 export function selectTable(

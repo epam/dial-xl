@@ -1,17 +1,17 @@
 import { MutableRefObject } from 'react';
 
-import { ChartData, TableData } from '@frontend/common';
+import { AppTheme, ChartsData, GridChart } from '@frontend/common';
 
-import { Grid, GridChart } from '../../grid';
+import { Grid } from '../../grid';
 import { GridCallbacks } from '../../types';
 
 export type Props = {
   gridCallbacksRef: MutableRefObject<GridCallbacks>;
   api: Grid | null;
-  chartKeys: TableData;
-  chartData: ChartData;
+  chartData: ChartsData;
   zoom?: number;
   charts?: GridChart[];
+  theme: AppTheme;
 };
 
 export type ChartConfig = {
@@ -25,4 +25,6 @@ export type ChartConfig = {
   toolBarHeight: number;
   minResizeWidth: number;
   minResizeHeight: number;
+
+  gridChart: GridChart;
 };

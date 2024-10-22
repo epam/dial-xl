@@ -71,7 +71,9 @@ const buildColumns = (columns: (IColumnOptions | IColumnGroupOptions)[]) => {
 
   return defaultGroup;
 };
-
+/**
+ * This service is legacy, there is no place for columns configuration in infinite spreadsheet.
+ */
 @injectable()
 export class ColumnService extends Destroyable implements IColumnService {
   protected columnsTree = new BehaviorSubject<ColumnGroup>(

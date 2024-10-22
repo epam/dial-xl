@@ -39,8 +39,7 @@ public class Explode extends Plan1<Table, Table> {
 
     @Override
     protected Meta meta() {
-        int position = getColumn().getColumn();
-        Schema left = Schema.inputs(this, 0).remove(position);
+        Schema left = Schema.inputs(this, 0);
         Schema right = Schema.of(ColumnType.STRING, ColumnType.DATE, ColumnType.DOUBLE);
         Schema schema = Schema.of(left, right);
         return new Meta(schema);
@@ -49,8 +48,6 @@ public class Explode extends Plan1<Table, Table> {
     @Override
     protected Table execute(Table table) {
         PeriodSeriesColumn column = (PeriodSeriesColumn) getColumn().evaluate();
-        int position = getColumn().getColumn();
-
         int size = Util.toIntSize(table);
         LongArrayList refs = new LongArrayList(size);
         ObjectArrayList<String> periods = new ObjectArrayList<>(size);
@@ -75,8 +72,7 @@ public class Explode extends Plan1<Table, Table> {
             }
         }
 
-        int[] positions = IntStream.range(0, table.getColumnCount()).filter(value -> value != position).toArray();
-        Table left = LocalTable.indirectOf(table, refs).select(positions);
+        Table left = LocalTable.indirectOf(table, refs);
         Table right = new LocalTable(
                 new StringDirectColumn(periods),
                 new DoubleDirectColumn(timestamps),

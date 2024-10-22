@@ -25,7 +25,6 @@ import com.epam.deltix.quantgrid.engine.node.plan.local.PivotNamesLocal;
 import com.epam.deltix.quantgrid.engine.node.plan.local.RangeLocal;
 import com.epam.deltix.quantgrid.engine.node.plan.local.SelectLocal;
 import com.epam.deltix.quantgrid.engine.node.plan.local.SimpleAggregateLocal;
-import com.epam.deltix.quantgrid.engine.node.plan.local.SimpleGapFillerLocal;
 import com.epam.deltix.quantgrid.engine.node.plan.local.SimplePivotLocal;
 import com.epam.deltix.quantgrid.engine.service.input.InputMetadata;
 import com.epam.deltix.quantgrid.engine.service.input.storage.LocalInputProvider;
@@ -34,19 +33,13 @@ import com.epam.deltix.quantgrid.engine.value.Column;
 import com.epam.deltix.quantgrid.engine.value.DoubleColumn;
 import com.epam.deltix.quantgrid.engine.value.Period;
 import com.epam.deltix.quantgrid.engine.value.PeriodSeries;
-import com.epam.deltix.quantgrid.engine.value.PeriodSeriesColumn;
-import com.epam.deltix.quantgrid.engine.value.StringColumn;
 import com.epam.deltix.quantgrid.engine.value.Table;
 import com.epam.deltix.quantgrid.engine.value.local.DoubleDirectColumn;
-import com.epam.deltix.quantgrid.engine.value.local.DoubleErrorColumn;
 import com.epam.deltix.quantgrid.engine.value.local.PeriodSeriesDirectColumn;
 import com.epam.deltix.quantgrid.engine.value.local.StringDirectColumn;
-import com.epam.deltix.quantgrid.parser.ParsedOverride;
 import com.epam.deltix.quantgrid.parser.ast.BinaryOperation;
-import com.epam.deltix.quantgrid.service.parser.OverrideValue;
-import com.epam.deltix.quantgrid.type.ColumnType;
-import com.epam.deltix.quantgrid.util.ExcelDateTime;
-import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import com.epam.deltix.quantgrid.util.Doubles;
+import com.epam.deltix.quantgrid.util.Dates;
 import lombok.val;
 import org.junit.jupiter.api.Test;
 
@@ -56,7 +49,7 @@ import static com.epam.deltix.quantgrid.engine.test.TestAsserts.verify;
 import static com.epam.deltix.quantgrid.engine.test.TestExecutor.execute;
 import static com.epam.deltix.quantgrid.engine.test.TestExecutor.executeError;
 import static com.epam.deltix.quantgrid.engine.test.TestInputs.CPI_CSV;
-import static java.lang.Double.NaN;
+import static com.epam.deltix.quantgrid.engine.test.TestInputs.INPUTS_PATH;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class NodeTest {
@@ -65,7 +58,7 @@ class NodeTest {
     void testRange() {
         RangeLocal range = new RangeLocal(new Constant(10));
         DoubleColumn result = execute(range).getDoubleColumn(0);
-        verify(result, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9);
+        verify(result, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
     }
 
     @Test
@@ -76,7 +69,7 @@ class NodeTest {
         BinaryOperator sum = new BinaryOperator(numbers, constants, BinaryOperation.ADD);
 
         DoubleColumn result = execute(sum).getDoubleColumn(0);
-        verify(result, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19);
+        verify(result, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20);
     }
 
     @Test
@@ -86,8 +79,8 @@ class NodeTest {
         CartesianLocal cartesian = new CartesianLocal(range1, range2);
 
         Table result = execute(cartesian);
-        verify(result.getDoubleColumn(0), 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3);
-        verify(result.getDoubleColumn(1), 0, 1, 2, 3, 4, 0, 1, 2, 3, 4, 0, 1, 2, 3, 4, 0, 1, 2, 3, 4);
+        verify(result.getDoubleColumn(0), 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4);
+        verify(result.getDoubleColumn(1), 1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 1, 2, 3, 4, 5);
     }
 
     @Test
@@ -99,27 +92,27 @@ class NodeTest {
         FilterLocal filter = new FilterLocal(range, conditions);
 
         Table result = execute(filter);
-        verify(result.getDoubleColumn(0), 0, 1, 2, 3, 4);
+        verify(result.getDoubleColumn(0), 1, 2, 3, 4);
     }
 
     @Test
     void testDistinctBy() {
         RangeLocal range = new RangeLocal(new Constant(10));
-        Expand constants = new Expand(range, new Constant(5));
+        Expand constants = new Expand(range, new Constant(6));
         Get numbers = new Get(range, 0);
         BinaryOperator values = new BinaryOperator(numbers, constants, BinaryOperation.LT);
         SelectLocal select = new SelectLocal(numbers, values);
         DistinctByLocal distinct = new DistinctByLocal(select, List.of(new Get(select, 1)));
 
         Table result = execute(distinct);
-        verify(result.getDoubleColumn(0), 0, 5);
+        verify(result.getDoubleColumn(0), 1, 6);
         verify(result.getDoubleColumn(1), 1, 0);
     }
 
     @Test
     void testOrderBy() {
         RangeLocal range = new RangeLocal(new Constant(10));
-        Expand constants = new Expand(range, new Constant(5));
+        Expand constants = new Expand(range, new Constant(6));
         Get numbers = new Get(range, 0);
         BinaryOperator values = new BinaryOperator(numbers, constants, BinaryOperation.LT);
         SelectLocal select = new SelectLocal(numbers, values);
@@ -127,7 +120,7 @@ class NodeTest {
                 List.of(new Get(select, 1), new Get(select, 0)), new boolean[] {true, false});
 
         Table result = execute(order);
-        verify(result.getDoubleColumn(0), 9, 8, 7, 6, 5, 4, 3, 2, 1, 0);
+        verify(result.getDoubleColumn(0), 10, 9, 8, 7, 6, 5, 4, 3, 2, 1);
         verify(result.getDoubleColumn(1), 0, 0, 0, 0, 0, 1, 1, 1, 1, 1);
     }
 
@@ -142,10 +135,10 @@ class NodeTest {
         JoinAllLocal join = new JoinAllLocal(left, right, List.of(new Get(left, 1)), List.of(new Get(right, 1)));
 
         Table result = execute(join);
-        verify(result.getDoubleColumn(0), 0, 1, 2, 3, 4, 5);
-        verify(result.getDoubleColumn(1), 1, 2, 3, 4, 5, 6);
-        verify(result.getDoubleColumn(2), 1, 2, 3, 4, 5, 6);
-        verify(result.getDoubleColumn(3), 1, 2, 3, 4, 5, 6);
+        verify(result.getDoubleColumn(0), 1, 2, 3, 4, 5, 6);
+        verify(result.getDoubleColumn(1), 2, 3, 4, 5, 6, 7);
+        verify(result.getDoubleColumn(2), 2, 3, 4, 5, 6, 7);
+        verify(result.getDoubleColumn(3), 2, 3, 4, 5, 6, 7);
     }
 
     @Test
@@ -173,47 +166,48 @@ class NodeTest {
                 List.of(new Get(leftTable, 1)), List.of(new Get(rightTable, 1)));
 
         Table result = execute(join);
-        verify(result.getDoubleColumn(0), 0, 1, 2, 3);
-        verify(result.getDoubleColumn(1), 5, 6, 7, 8);
-        verify(result.getDoubleColumn(2), 8, 9, NaN, NaN);
-        verify(result.getDoubleColumn(3), 5, 6, NaN, NaN);
+        verify(result.getDoubleColumn(0), 1, 2, 3, 4);
+        verify(result.getDoubleColumn(1), 6, 7, 8, 9);
+        verify(result.getDoubleColumn(2), 9, 10, Doubles.ERROR_NA, Doubles.ERROR_NA);
+        verify(result.getDoubleColumn(3), 6, 7, Doubles.ERROR_NA, Doubles.ERROR_NA);
     }
 
     @Test
     void testSimpleAggregation() {
         RangeLocal range = new RangeLocal(new Constant(7));
-        SimpleAggregateLocal count = new SimpleAggregateLocal(AggregateFunction.COUNT, new Scalar(), range);
+        SimpleAggregateLocal count = new SimpleAggregateLocal(AggregateFunction.COUNT_ALL, new Scalar(), range, new Get(range, 0));
         SimpleAggregateLocal sum = new SimpleAggregateLocal(AggregateFunction.SUM, new Scalar(), range,
                 new Get(range, 0));
         SelectLocal select = new SelectLocal(new Get(count, 0), new Get(sum, 0));
 
         Table result = execute(select);
         verify(result.getDoubleColumn(0), 7);
-        verify(result.getDoubleColumn(1), 21);
+        verify(result.getDoubleColumn(1), 28);
     }
 
     @Test
     void testNestedAggregation() {
         RangeLocal range = new RangeLocal(new Constant(7));
-        CartesianLocal cartesian = new CartesianLocal(range, range);
-        NestedAggregateLocal count = new NestedAggregateLocal(AggregateFunction.COUNT, range, cartesian,
-                new Get(cartesian, 0));
+        SelectLocal current = new SelectLocal(new RowNumber(range));
+        CartesianLocal cartesian = new CartesianLocal(current, range);
+        NestedAggregateLocal count = new NestedAggregateLocal(AggregateFunction.COUNT_ALL, range, cartesian,
+                new Get(cartesian, 0), new Get(cartesian, 1));
         NestedAggregateLocal sum = new NestedAggregateLocal(AggregateFunction.SUM, range, cartesian,
                 new Get(cartesian, 0), new Get(cartesian, 1));
         SelectLocal select = new SelectLocal(new Get(count, 0), new Get(sum, 0));
 
         Table result = execute(select);
         verify(result.getDoubleColumn(0), 7, 7, 7, 7, 7, 7, 7);
-        verify(result.getDoubleColumn(1), 21, 21, 21, 21, 21, 21, 21);
+        verify(result.getDoubleColumn(1), 28, 28, 28, 28, 28, 28, 28);
     }
 
     @Test
     void testSimpleToPeriodSeries() {
         Plan table = table(
                 new DoubleDirectColumn(
-                        ExcelDateTime.of(2001, 1, 1),
-                        ExcelDateTime.of(2002, 5, 15),
-                        ExcelDateTime.of(2005, 12, 31)
+                        Dates.of(2001, 1, 1),
+                        Dates.of(2002, 5, 15),
+                        Dates.of(2005, 12, 31)
                 ),
                 new DoubleDirectColumn(1, 2, 3)
         );
@@ -222,7 +216,7 @@ class NodeTest {
                 new Get(table, 0), new Get(table, 1), new Expand(table, new Constant("YEAR")));
         Table result = execute(aggregate);
 
-        verify(result.getPeriodSeriesColumn(0), new PeriodSeries(Period.YEAR, 101, 1, 2, NaN, NaN, 3));
+        verify(result.getPeriodSeriesColumn(0), new PeriodSeries(Period.YEAR, 101, 1, 2, Doubles.ERROR_NA, Doubles.ERROR_NA, 3));
     }
 
     @Test
@@ -231,10 +225,10 @@ class NodeTest {
         Plan table = table(
                 new DoubleDirectColumn(1, 1, 3, 3),
                 new DoubleDirectColumn(
-                        ExcelDateTime.of(2001, 1, 1),
-                        ExcelDateTime.of(2003, 5, 15),
-                        ExcelDateTime.of(2005, 12, 31),
-                        ExcelDateTime.of(2008, 1, 1)
+                        Dates.of(2001, 1, 1),
+                        Dates.of(2003, 5, 15),
+                        Dates.of(2005, 12, 31),
+                        Dates.of(2008, 1, 1)
                 ),
                 new DoubleDirectColumn(1, 2, 3, 4)
         );
@@ -246,9 +240,9 @@ class NodeTest {
 
         verify(result.getPeriodSeriesColumn(0),
                 null,
-                new PeriodSeries(Period.YEAR, 101, 1, NaN, 2),
+                new PeriodSeries(Period.YEAR, 101, 1, Doubles.ERROR_NA, 2),
                 null,
-                new PeriodSeries(Period.YEAR, 105, 3, NaN, NaN, 4),
+                new PeriodSeries(Period.YEAR, 105, 3, Doubles.ERROR_NA, Doubles.ERROR_NA, 4),
                 null
         );
     }
@@ -303,7 +297,7 @@ class NodeTest {
         Table result = execute(hPivot);
         verify(result.getDoubleColumn(0), 304);
         verify(result.getDoubleColumn(1), 206);
-        assertThat(result.getDoubleColumn(2)).isInstanceOf(DoubleErrorColumn.class);
+        verify(result.getDoubleColumn(2), Doubles.ERROR_NA);
     }
 
     @Test
@@ -360,8 +354,8 @@ class NodeTest {
 
         Table result = execute(hPivot);
         verify(result.getDoubleColumn(0), 201, 103);
-        assertThat(result.getDoubleColumn(1)).isInstanceOf(DoubleErrorColumn.class);
-        verify(result.getDoubleColumn(2), NaN, 105);
+        verify(result.getDoubleColumn(1), Doubles.ERROR_NA, Doubles.ERROR_NA);
+        verify(result.getDoubleColumn(2), Doubles.EMPTY, 105);
     }
 
     @Test
@@ -392,7 +386,7 @@ class NodeTest {
     void testPartialInputLocal() {
         InputMetadata inputMetadata = TestInputs.readMetadata(CPI_CSV);
         List<String> readColumns = List.of("TIME_PERIOD", "DATA_DOMAIN.id");
-        InputLocal inputLocal = new InputLocal(inputMetadata, new LocalInputProvider(), readColumns);
+        InputLocal inputLocal = new InputLocal(inputMetadata, new LocalInputProvider(INPUTS_PATH), readColumns, null);
 
         Table result = execute(inputLocal);
 
@@ -406,8 +400,8 @@ class NodeTest {
     void testPeriodSeriesExtrapolate() {
         Plan table = table(
                 new PeriodSeriesDirectColumn(
-                        new PeriodSeries(Period.YEAR, 100, 10, NaN, NaN, 20),
-                        new PeriodSeries(Period.YEAR, 105, 7, 3, NaN, 5),
+                        new PeriodSeries(Period.YEAR, 100, 10, Doubles.ERROR_NA, Doubles.ERROR_NA, 20),
+                        new PeriodSeries(Period.YEAR, 105, 7, 3, Doubles.ERROR_NA, 5),
                         new PeriodSeries(Period.YEAR, 112, 12.5, 5, 9, 10.3),
                         PeriodSeries.empty(Period.YEAR),
                         null
@@ -459,36 +453,6 @@ class NodeTest {
     }
 
     @Test
-    void testSimpleGapFillerEmpty() {
-        val source = new ResultTestPlan(
-                DoubleColumn.EMPTY,
-                PeriodSeriesColumn.EMPTY,
-                StringColumn.EMPTY
-        );
-
-        val gapFilled = new SimpleGapFillerLocal(source);
-        Table result = gapFilled.execute();
-
-        verify(result.getDoubleColumn(0), NaN);
-        verify(result.getPeriodSeriesColumn(1), (PeriodSeries) null);
-        verify(result.getStringColumn(2), (String) null);
-    }
-
-    @Test
-    void testSimpleGapFillerNonEmpty() {
-        val source = new ResultTestPlan(
-                new DoubleDirectColumn(1),
-                new PeriodSeriesDirectColumn(PeriodSeries.empty(Period.DAY)),
-                new StringDirectColumn("Hello")
-        );
-
-        val gapFilled = new SimpleGapFillerLocal(source);
-        Table result = gapFilled.execute();
-
-        assertThat(result).isSameAs(source.execute());
-    }
-
-    @Test
     void testGapFillerJoin() {
         val carry = new ResultTestPlan(
                 new RowNumber(new RangeLocal(new Constant(5))).evaluate(),
@@ -511,8 +475,8 @@ class NodeTest {
         Table result = gapFilled.execute();
         verify(result.getDoubleColumn(0), 0, 0, 0, 1, 2, 3, 4);
         verify(result.getStringColumn(1), "s0", "s0", "s0", "s1", "s2", "s3", "s4");
-        verify(result.getDoubleColumn(2), 0, 0, 0, NaN, NaN, 3, NaN);
-        verify(result.getDoubleColumn(3), 1, 2, 3, NaN, NaN, 4, NaN);
+        verify(result.getDoubleColumn(2), 0, 0, 0, Doubles.ERROR_NA, Doubles.ERROR_NA, 3, Doubles.ERROR_NA);
+        verify(result.getDoubleColumn(3), 1, 2, 3, Doubles.ERROR_NA, Doubles.ERROR_NA, 4, Doubles.ERROR_NA);
         verify(result.getStringColumn(4), "q1", "q2", "q3", null, null, "q4", null);
         verify(result.getPeriodSeriesColumn(5),
                 new PeriodSeries(Period.YEAR, 101, 0, 300, 100),
@@ -525,23 +489,21 @@ class NodeTest {
     void testDoubleOverrides() {
         Plan table = table(
                 new DoubleDirectColumn(0, 1, 2, 3, 4, 5, 6, 7, 8, 9), // row number key
-                new DoubleDirectColumn(NaN, 0, 1, 3, 2, 4, 4, 2, 3, 3)
+                new DoubleDirectColumn(Doubles.ERROR_NA, 0, 1, 3, 2, 4, 4, 2, 3, 3)
         );
 
         Get rowNumber = new Get(table, 0);
         Get columnToOverride = new Get(table, 1);
 
         Overrides override = new Overrides(
-                // column to override
-                columnToOverride,
                 // key column
                 List.of(rowNumber),
-                // override values
-                new ParsedOverride.TypedValue(ColumnType.INTEGER, ObjectArrayList.of(
-                        new OverrideValue(10), new OverrideValue(0))),
+                // column to override
+                columnToOverride,
                 // key overrides
-                List.of(new ParsedOverride.TypedValue(ColumnType.INTEGER, ObjectArrayList.of(
-                        new OverrideValue(0), new OverrideValue(9)))));
+                List.of(new double[]{0, 9}),
+                // override values
+                List.of(new Constant(10), new Constant(0)));
 
         Table result = execute(override);
         verify(result.getDoubleColumn(0), 10, 0, 1, 3, 2, 4, 4, 2, 3, 0);
@@ -551,7 +513,7 @@ class NodeTest {
     void testDoubleOverridesWithMultipleKeys() {
         Plan table = table(
                 new DoubleDirectColumn(0, 1, 2, 3, 4, 5),
-                new DoubleDirectColumn(NaN, 0, 1, 3, 2, 4),
+                new DoubleDirectColumn(Doubles.ERROR_NA, 0, 1, 3, 2, 4),
                 new StringDirectColumn("a", "b", "c", "d", "e", "f")
         );
 
@@ -560,20 +522,14 @@ class NodeTest {
         Get columnToOverride = new Get(table, 1);
 
         Overrides override = new Overrides(
+                // key column
+                List.of(rowNumberKey, secondKey),
                 // column to override
                 columnToOverride,
-                // key columns
-                List.of(rowNumberKey, secondKey),
-                // override
-                new ParsedOverride.TypedValue(ColumnType.INTEGER, ObjectArrayList.of(
-                        new OverrideValue(10), new OverrideValue(0))),
                 // key overrides
-                List.of(
-                        new ParsedOverride.TypedValue(ColumnType.INTEGER, ObjectArrayList.of(
-                                new OverrideValue(0), new OverrideValue(5))),
-                        new ParsedOverride.TypedValue(ColumnType.STRING, ObjectArrayList.of(
-                                new OverrideValue("a"), new OverrideValue("f")))
-                ));
+                List.of(new double[]{0, 5}, new String[]{"a", "f"}),
+                // override values
+                List.of(new Constant(10), new Constant(0)));
 
         Table result = execute(override);
         verify(result.getDoubleColumn(0), 10, 0, 1, 3, 2, 0);
@@ -590,16 +546,14 @@ class NodeTest {
         Get columnToOverride = new Get(table, 1);
 
         Overrides override = new Overrides(
-                // column to override
-                columnToOverride,
                 // key column
                 List.of(rowNumber),
+                // column to override
+                columnToOverride,
+                // key overrides
+                List.of(new double[]{0, 5}),
                 // override values
-                new ParsedOverride.TypedValue(ColumnType.STRING, ObjectArrayList.of(
-                        new OverrideValue("abc"), new OverrideValue("ssd"))),
-                // key override
-                List.of(new ParsedOverride.TypedValue(ColumnType.INTEGER, ObjectArrayList.of(
-                        new OverrideValue(0), new OverrideValue(5)))));
+                List.of(new Constant("abc"), new Constant("ssd")));
 
         Table result = execute(override);
         verify(result.getStringColumn(0), "abc", "b", "c", "d", "e", "ssd");
@@ -618,20 +572,14 @@ class NodeTest {
         Get columnToOverride = new Get(table, 1);
 
         Overrides override = new Overrides(
+                // key column
+                List.of(rowNumberKey, secondKey),
                 // column to override
                 columnToOverride,
-                // key columns
-                List.of(rowNumberKey, secondKey),
-                // override values
-                new ParsedOverride.TypedValue(ColumnType.STRING, ObjectArrayList.of(
-                        new OverrideValue("abc"), new OverrideValue("ssd"))),
                 // key overrides
-                List.of(
-                        new ParsedOverride.TypedValue(ColumnType.INTEGER, ObjectArrayList.of(
-                                new OverrideValue(0), new OverrideValue(5))),
-                        new ParsedOverride.TypedValue(ColumnType.STRING, ObjectArrayList.of(
-                                new OverrideValue("x"), new OverrideValue("k")))
-                ));
+                List.of(new double[]{0, 5}, new String[]{"x", "k"}),
+                // override values
+                List.of(new Constant("abc"), new Constant("ssd")));
 
         Table result = execute(override);
         verify(result.getStringColumn(0), "abc", "b", "c", "d", "e", "ssd");

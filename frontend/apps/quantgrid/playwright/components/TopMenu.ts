@@ -1,3 +1,5 @@
+import { expect } from '@playwright/test';
+
 import { BaseComponent } from './BaseComponent';
 
 export class TopMenu extends BaseComponent {
@@ -6,11 +8,17 @@ export class TopMenu extends BaseComponent {
   }
 
   public async clickOnDropdownItem(itemName: string) {
-    await this.innerPage.getByText(itemName, { exact: true }).click();
+    const loc = this.innerPage.locator(
+      `span.ant-menu-title-content:has-text("${itemName}")`
+    );
+    await expect(loc).toBeVisible();
+    await loc.click();
   }
 
   public async hoverOverItem(itemName: string) {
-    await this.innerPage.getByText(itemName, { exact: true }).hover();
+    await this.innerPage
+      .locator(`span.ant-menu-title-content:has-text("${itemName}")`)
+      .hover();
   }
 
   public async performAction(topMenuItem: string, dropdownItem: string) {

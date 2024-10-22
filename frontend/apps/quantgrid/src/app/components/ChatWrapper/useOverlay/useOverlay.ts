@@ -1,114 +1,257 @@
-import { RefObject, useContext, useEffect, useState } from 'react';
+import {
+  RefObject,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
+import { debounceTime } from 'rxjs';
 
-import { InputsContext, ProjectContext } from '../../../context';
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore
-import { ChatOverlay } from './overlay.js';
+import {
+  ChatOverlay,
+  ChatOverlayOptions,
+  Feature,
+  GetMessagesResponse,
+  SelectedConversationLoadedResponse,
+} from '@epam/ai-dial-overlay';
+import {
+  AppTheme,
+  bindConversationsRootFolder,
+  getSuggestions,
+  GPTSuggestion,
+} from '@frontend/common';
 
-function getOverlayOptions() {
+import {
+  ApiContext,
+  AppContext,
+  InputsContext,
+  ProjectContext,
+} from '../../../context';
+import { useGridApi } from '../../../hooks';
+import {
+  getProjectSelectedConversations,
+  setSelectedConversations,
+} from '../../../services';
+import { constructPath } from '../../../utils';
+
+function getOverlayOptions(theme: AppTheme): ChatOverlayOptions {
   return {
     hostDomain: window.location.origin,
-    domain: window.externalEnv.dialOverlayUrl || 'url_not_set',
-    theme: 'light',
-    modelId: 'qg',
+    domain: window.externalEnv.dialOverlayUrl || '',
+    theme: theme === AppTheme.ThemeLight ? 'light' : 'dark',
+    modelId: window.externalEnv.qgBotDeploymentName,
     requestTimeout: 20000,
     loaderStyles: {
       padding: '20px',
       textAlign: 'center',
     },
-    enabledFeatures:
-      'conversations-section,prompts-section,top-settings,top-clear-conversation,top-chat-info,top-chat-model-settings,empty-chat-settings,header,footer,request-api-key,report-an-issue,likes',
+    signInOptions: {
+      autoSignIn: true,
+      signInProvider: 'keycloak',
+    },
+    enabledFeatures: [
+      Feature.ConversationsSection,
+      Feature.PromptsSection,
+      Feature.TopSettings,
+      Feature.TopClearConversation,
+      Feature.TopChatInfo,
+      Feature.TopChatModelSettings,
+      Feature.EmptyChatSettings,
+      Feature.Header,
+      Feature.Footer,
+      Feature.RequestApiKey,
+      Feature.ReportAnIssue,
+      Feature.Likes,
+      Feature.AttachmentsManager,
+      Feature.InputFiles,
+      Feature.ConversationsSharing,
+      Feature.Marketplace,
+    ],
   };
 }
 
-function getSheetNameFromTitle(title: string): string | undefined {
-  const firstBracketIndex = title.indexOf('(');
-  const lastBracketIndex = title.indexOf(')');
-
-  if (firstBracketIndex === -1 || lastBracketIndex === -1) return;
-
-  return title.slice(firstBracketIndex + 1, lastBracketIndex);
-}
-
-function prepareDSL(data: string) {
-  if (data.slice(0, 3) === '```') {
-    // 4, because 1 symbol in data is \n
-    return data.slice(4, data.length - 3);
-  }
-
-  return data;
-}
+const selectionUpdateDebounceTime = 250;
 
 export function useOverlay(containerRef: RefObject<HTMLDivElement>) {
-  const { projectSheets } = useContext(ProjectContext);
+  const {
+    projectSheets,
+    sheetName,
+    projectName,
+    projectPath,
+    projectBucket,
+    selectedCell,
+  } = useContext(ProjectContext);
   const { inputs } = useContext(InputsContext);
+  const { userBucket } = useContext(ApiContext);
+  const { theme, canvasSpreadsheetMode } = useContext(AppContext);
+  const gridApi = useGridApi();
+
+  const subscriptions = useRef<(() => void)[]>([]);
 
   const [overlay, setOverlay] = useState<ChatOverlay | null>(null);
 
-  const [GPTSuggestions, setGPTSuggestions] = useState<
-    | {
-        sheetName?: string; // if there is no sheetName in title that mean we should update current sheet
-        dsl: string;
-      }[]
-    | null
-  >(null);
+  const [GPTSuggestions, setGPTSuggestions] = useState<GPTSuggestion[] | null>(
+    null
+  );
+
+  const [lastStageCompleted, setLastStageCompleted] = useState(false);
+
+  const clearSuggestions = useCallback(() => {
+    setGPTSuggestions(null);
+    setLastStageCompleted(false);
+  }, []);
+
+  const updateSuggestions = useCallback(
+    async (overlayInstance: ChatOverlay) => {
+      if (!overlayInstance) return;
+
+      const { messages } =
+        (await overlayInstance.getMessages()) as GetMessagesResponse;
+
+      const { isCompleted, suggestions } = getSuggestions(messages);
+
+      setLastStageCompleted(isCompleted);
+
+      setGPTSuggestions(suggestions);
+    },
+    []
+  );
+
+  const handleInitOverlay = useCallback(
+    async (overlay: ChatOverlay) => {
+      if (!projectName || !projectBucket || !overlay) return;
+
+      const savedSelectedConversations = getProjectSelectedConversations(
+        projectName,
+        projectBucket,
+        projectPath
+      );
+
+      const { conversations } = await overlay.getConversations();
+      const allConversationsIds = conversations.map(({ id }) => id);
+      const isAllExists = savedSelectedConversations.every((id) =>
+        allConversationsIds.includes(id)
+      );
+      const projectConversationPath = constructPath([
+        bindConversationsRootFolder,
+        projectPath,
+        projectName,
+      ]);
+
+      if (savedSelectedConversations.length > 0 && isAllExists) {
+        const selectedConversationId = savedSelectedConversations[0];
+        overlay.selectConversation(selectedConversationId);
+        setSelectedConversations(
+          [selectedConversationId],
+          projectName,
+          projectBucket,
+          projectPath
+        );
+
+        return;
+      }
+
+      const conversationsFolderId = constructPath([
+        'conversations',
+        projectBucket,
+        projectConversationPath,
+      ]);
+      const projectConversations = conversations.filter(
+        ({ folderId }) => folderId === conversationsFolderId
+      );
+
+      if (projectConversations.length) {
+        overlay.selectConversation(projectConversations[0].id);
+        setSelectedConversations(
+          [projectConversations[0].id],
+          projectName,
+          projectBucket,
+          projectPath
+        );
+
+        return;
+      }
+
+      if (userBucket === projectBucket) {
+        await overlay.createConversation(projectConversationPath);
+
+        return;
+      }
+    },
+    [projectBucket, projectName, projectPath, userBucket]
+  );
+
+  useEffect(() => {
+    if (!projectName || !projectBucket || !overlay) return;
+
+    handleInitOverlay(overlay);
+
+    const unsubscribeStartGenerating = overlay.subscribe(
+      `@DIAL_OVERLAY/GPT_START_GENERATING`,
+      clearSuggestions
+    );
+
+    const unsubscribeEndGenerating = overlay.subscribe(
+      `@DIAL_OVERLAY/GPT_END_GENERATING`,
+      async () => updateSuggestions(overlay)
+    );
+
+    const unsubscribeSelectConversation = overlay.subscribe(
+      `@DIAL_OVERLAY/SELECTED_CONVERSATION_LOADED`,
+      async (payload: unknown) => {
+        const { selectedConversationIds } =
+          payload as SelectedConversationLoadedResponse;
+        setSelectedConversations(
+          selectedConversationIds,
+          projectName,
+          projectBucket,
+          projectPath
+        );
+
+        clearSuggestions();
+        updateSuggestions(overlay);
+      }
+    );
+
+    subscriptions.current?.push(
+      unsubscribeEndGenerating,
+      unsubscribeStartGenerating,
+      unsubscribeSelectConversation
+    );
+
+    return () => {
+      subscriptions.current.forEach((unsubscribe) => unsubscribe());
+      subscriptions.current = [];
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [overlay, projectName]);
 
   // Initialize the overlay and subscribe to events
   useEffect(() => {
     if (!containerRef.current) return;
 
-    const options = getOverlayOptions();
+    const options = getOverlayOptions(theme);
 
-    const overlay = new ChatOverlay(containerRef.current, options);
+    const newOverlay = new ChatOverlay(containerRef.current, options);
 
-    overlay.ready().then(() => {
-      setOverlay(overlay);
+    newOverlay.ready().then(() => {
+      setOverlay(newOverlay);
     });
 
-    const unsubscribeStartGenerating = overlay.subscribe(
-      '@DIAL_OVERLAY/GPT_START_GENERATING',
-      () => {
-        setGPTSuggestions(null);
-      }
-    );
-
-    const unsubscribeEndGenerating = overlay.subscribe(
-      '@DIAL_OVERLAY/GPT_END_GENERATING',
-      async () => {
-        const { messages } = await overlay.getMessages();
-
-        if (!messages.length) return;
-
-        const lastAnswer = messages[messages.length - 1];
-
-        const attachments = lastAnswer?.custom_content?.attachments;
-
-        if (!attachments) return;
-
-        const suggestions = [];
-
-        for (const { data, title } of attachments) {
-          if (typeof data === 'string') {
-            const sheetName = getSheetNameFromTitle(title || '');
-
-            suggestions.push({ sheetName, dsl: prepareDSL(data) });
-          }
-        }
-
-        setGPTSuggestions(suggestions);
-      }
-    );
-
     return () => {
-      unsubscribeEndGenerating();
-      unsubscribeStartGenerating();
-      overlay.destroy();
+      subscriptions.current.forEach((unsubscribe) => unsubscribe());
+      subscriptions.current = [];
+      newOverlay.destroy();
+
+      setOverlay(null);
     };
-  }, [containerRef]);
+  }, [containerRef, theme]);
 
   // Set sheets state from the current project into the system prompt, so the gpt knows about sheets
   useEffect(() => {
-    if (!overlay || !projectSheets) return;
+    if (!overlay || !projectSheets || !sheetName || !projectName || !gridApi)
+      return;
 
     const sheets: { [key: string]: string } = {};
 
@@ -116,8 +259,40 @@ export function useOverlay(containerRef: RefObject<HTMLDivElement>) {
       sheets[sheet.sheetName] = sheet.content;
     }
 
-    overlay.setSystemPrompt(JSON.stringify({ sheets, inputs }));
-  }, [projectSheets, overlay, inputs]);
+    const handleUpdate = () => {
+      const selection = gridApi.selection$.getValue();
 
-  return { GPTSuggestions };
+      const state = {
+        sheets,
+        inputs,
+        currentSheet: sheetName,
+        currentProjectName: projectName,
+        selection,
+        selectedTableName: selectedCell?.tableName,
+      };
+
+      overlay.setSystemPrompt(JSON.stringify(state));
+    };
+
+    handleUpdate();
+
+    const subscription = gridApi.selection$
+      .pipe(debounceTime(selectionUpdateDebounceTime))
+      .subscribe(handleUpdate);
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [
+    projectSheets,
+    overlay,
+    inputs,
+    sheetName,
+    projectName,
+    gridApi,
+    selectedCell,
+    canvasSpreadsheetMode,
+  ]);
+
+  return { GPTSuggestions, lastStageCompleted };
 }

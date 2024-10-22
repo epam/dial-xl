@@ -20,7 +20,10 @@
     },
     {
       "files": ["playwright/**/*.{ts,js,tsx,jsx}"],
-      "rules": {}
+      "rules": {
+        "@typescript-eslint/no-unused-vars": "off",
+        "playwright/no-conditional-in-test": "off"
+      }
     }
   ]
 }

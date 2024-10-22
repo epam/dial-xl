@@ -1,7 +1,7 @@
 import { ColumnType, GridItOptions } from '@deltix/grid-it-core';
+import { GridData } from '@frontend/common';
 
 import { defaults } from './defaults';
-import { GridData } from './grid';
 import { defaultRenderer, tableRenderer } from './utils';
 
 export const options: GridItOptions<GridData> = {
@@ -19,7 +19,7 @@ export const options: GridItOptions<GridData> = {
         return tableRenderer(cellData, width, height, zoom, index);
       }
 
-      return defaultRenderer(cellData);
+      return defaultRenderer(cellData, width);
     },
   })),
   getRowHeight: () => defaults.cell.height,

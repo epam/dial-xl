@@ -108,7 +108,7 @@ public class CarryTest {
         val join = new JoinAllLocal(select, select,
                 List.of(column(select, layout, a)),
                 List.of(column(select, layout, a)));
-        val agg = new NestedAggregateLocal(AggregateFunction.COUNT, layout, join, new Get(join, 1));
+        val agg = new NestedAggregateLocal(AggregateFunction.COUNT, layout, join, new Get(join, 0), new Get(join, 1));
         val b = new Get(agg, 0);
 
         val distinct = new DistinctByLocal(select, List.of(column(select, layout, b)));
@@ -124,7 +124,7 @@ public class CarryTest {
                 List.of(column(select, layout, a)),
                 List.of(column(select, layout, a)));
 
-        val agg1 = new NestedAggregateLocal(AggregateFunction.COUNT, layout, join, new Get(join, 1));
+        val agg1 = new NestedAggregateLocal(AggregateFunction.COUNT, layout, join, new Get(join, 0), new Get(join, 1));
         val b = new Get(agg1, 0);
 
         val agg2 = new NestedAggregateLocal(AggregateFunction.SUM, layout, join, new Get(join, 1),

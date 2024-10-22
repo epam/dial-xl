@@ -1,92 +1,110 @@
 import { useCallback, useContext, useEffect, useRef, useState } from 'react';
-import isEqual from 'react-fast-compare';
+import { debounce } from 'ts-debounce';
 
-import { dynamicFieldName } from '@frontend/parser';
+import {
+  CanvasSpreadsheet,
+  SelectionEdges,
+} from '@frontend/canvas-spreadsheet';
+import { CachedViewport, GridData, GridTable } from '@frontend/common';
 import {
   Grid,
-  GridChart,
-  GridData,
+  GridCellEditorMode,
+  GridSelection,
   GridService,
-  GridTable,
   SelectedCell,
   Spreadsheet,
 } from '@frontend/spreadsheet';
 
-import { CachedViewport } from '../../common';
 import {
-  ApiContext,
   AppContext,
-  DynamicFieldsByTable,
+  CanvasSpreadsheetContext,
+  chunkSize,
+  InputsContext,
   ProjectContext,
   SpreadsheetContext,
+  UndoRedoContext,
   ViewportContext,
 } from '../../context';
 import {
-  useApi,
+  useApplyFilterManualEditDSL,
+  useApplySortManualEditDSL,
   useCharts,
   useColumnSizes,
+  useCreateTableAction,
+  useManualAddTableRowDSL,
+  useManualArrangeTableDSL,
+  useManualCreateEntityDSL,
+  useManualDeleteTableDSL,
   useManualEditDSL,
+  useManualPasteCellsDSL,
+  useOpenInEditor,
   useOverridesManualEditDSL,
+  usePointClickSelectValue,
+  usePromoteRowManualEditDSL,
   useRequestDimTable,
+  useSelectedCell,
+  useSelectionSystemMessage,
   useSubmitCellEditor,
+  useTotalManualEditDSL,
 } from '../../hooks';
 import useEventBus from '../../hooks/useEventBus';
-import {
-  chunkSize,
-  createViewportRequest,
-  EventBusMessages,
-} from '../../services';
-import { buildCharts } from './buildCharts';
-import { buildData, removeTables, updateChartsData } from './buildData';
-import { createTableStructure } from './createTableStructure';
-import { shouldSkipSpreadsheetUpdate } from './shouldSkipSpreadsheetUpdate';
+import { EventBusMessages } from '../../services';
+import { useApplySuggestions } from '../ChatWrapper/useApplySuggestion';
 
 export function SpreadsheetWrapper() {
-  const {
-    tableData,
-    chartData,
-    cachedViewport,
-    chartKeys,
-    updateCachedViewport,
-    dynamicFields,
-  } = useContext(ViewportContext);
+  const { viewGridData } = useContext(ViewportContext);
   const { onSpreadsheetMount, gridApi } = useContext(SpreadsheetContext);
-  const { zoom } = useContext(AppContext);
-  const { projectVersionRef } = useContext(ApiContext);
+  const { inputList } = useContext(InputsContext);
+  const { undo } = useContext(UndoRedoContext);
+
+  const {
+    zoom,
+    theme,
+    formulaBarMode,
+    setEditMode,
+    isPointClickMode,
+    switchPointClickMode,
+    canvasSpreadsheetMode,
+  } = useContext(AppContext);
+
   const {
     functions,
     projectName,
     sheetName,
-    parsedSheet,
     parsedSheets,
     updateSelectedCell,
-    sheetErrors,
-    compilationErrors,
     openStatusModal,
+    sheetContent,
+    projectSheets,
+    getCurrentProjectViewport,
+    updateIsAIPendingChanges,
+    updateIsAIPendingBanner,
+    openSheet,
   } = useContext(ProjectContext);
 
+  const gridApiRef = useContext(CanvasSpreadsheetContext);
+  const firstViewportChange = useRef(true);
+
   const [tableStructure, setTableStructure] = useState<GridTable[]>([]);
-  const data = useRef<GridData>({});
-  const tablesInData = useRef<Record<string, number>>({});
-  const charts = useRef<GridChart[]>([]);
+
+  const [data, setData] = useState<GridData>({});
+
   const viewportRef = useRef<CachedViewport>({
     startRow: 1,
     endRow: 1,
   });
-  const lastRequestedViewportOptions = useRef({
-    project: '',
-    sheet: '',
-    version: 0,
-    dynamicFields: {},
-  });
 
   const { publish } = useEventBus<EventBusMessages>();
-  const { expandDimTable } = useRequestDimTable();
+  const { expandDimTable, showRowReference } = useRequestDimTable();
   const { submitCellEditor } = useSubmitCellEditor();
-  const { getViewport } = useApi();
   const { columnSizes } = useColumnSizes(viewportRef.current);
+  const { handlePointClickSelectValue } = usePointClickSelectValue();
+  const { promoteRow } = usePromoteRowManualEditDSL();
   const { addOverride, editOverride, removeOverride } =
     useOverridesManualEditDSL();
+  const { changeFieldSort } = useApplySortManualEditDSL();
+  const { applySuggestion } = useApplySuggestions();
+  const { applyListFilter, applyNumberFilter } = useApplyFilterManualEditDSL();
   const {
     addChart,
     addDimension,
@@ -94,37 +112,59 @@ export function SpreadsheetWrapper() {
     chartResize,
     convertToChart,
     convertToTable,
-    createDerivedTable,
     deleteField,
-    deleteTable,
+    deleteSelectedFieldOrTable,
     editExpression,
+    editExpressionWithOverrideRemove,
     moveTable,
+    addField,
+    removeNote,
     removeDimension,
     moveTableTo,
     removeKey,
     renameField,
     renameTable,
+    updateNote,
     swapFields,
+    onIncreaseFieldColumnSize,
+    onDecreaseFieldColumnSize,
+    onChangeFieldColumnSize,
+    onToggleTableHeaderVisibility,
+    onToggleTableFieldsVisibility,
+    onFlipTable,
+    onCloneTable,
+    onRemoveRow,
   } = useManualEditDSL();
-  const { getMoreChartKeys, selectChartKey } = useCharts();
+  const {
+    editTotalExpression,
+    addTotalExpression,
+    removeTotalByType,
+    removeTotalByIndex,
+    toggleTotalByType,
+  } = useTotalManualEditDSL();
+  const { arrangeTable } = useManualArrangeTableDSL();
+  const { deleteTable } = useManualDeleteTableDSL();
+  const { createDerivedTable, createManualTable } = useManualCreateEntityDSL();
+  const { addTableRow, addTableRowToEnd } = useManualAddTableRowDSL();
+  const { pasteCells } = useManualPasteCellsDSL();
+  const { getMoreChartKeys, selectChartKey, chartData, charts } = useCharts();
+  const { openInEditor } = useOpenInEditor();
+  const { onCreateTableAction } = useCreateTableAction();
+  const { getSelectedCell } = useSelectedCell();
+  const { systemMessageContent } = useSelectionSystemMessage();
+  const isCalculateRequested = useRef(false);
 
   const onEditExpression = useCallback(
     (tableName: string, fieldName: string, expression: string) => {
-      const editTry = editExpression(tableName, fieldName, expression);
+      editExpression(tableName, fieldName, expression);
 
-      if (!editTry) {
-        openStatusModal('Invalid expression.');
-
-        if (gridApi?.isCellEditorOpen()) {
-          gridApi?.focusCellEditor();
-        }
-
-        return;
+      if (canvasSpreadsheetMode) {
+        gridApiRef?.current?.hideCellEditor();
+      } else {
+        gridApi?.hideCellEditor();
       }
-
-      gridApi?.hideCellEditor();
     },
-    [editExpression, gridApi, openStatusModal]
+    [canvasSpreadsheetMode, editExpression, gridApi, gridApiRef]
   );
 
   const onCloseTable = useCallback(
@@ -138,28 +178,43 @@ export function SpreadsheetWrapper() {
     (tableName: string, oldName: string, newName: string) => {
       renameField(tableName, oldName, newName);
 
-      gridApi?.hideCellEditor();
+      if (canvasSpreadsheetMode) {
+        gridApiRef?.current?.hideCellEditor();
+      } else {
+        gridApi?.hideCellEditor();
+      }
     },
-    [gridApi, renameField]
+    [canvasSpreadsheetMode, gridApi, gridApiRef, renameField]
   );
 
   const onRenameTable = useCallback(
     (oldName: string, newName: string) => {
       renameTable(oldName, newName);
 
-      gridApi?.hideCellEditor();
+      if (canvasSpreadsheetMode) {
+        gridApiRef?.current?.hideCellEditor();
+      } else {
+        gridApi?.hideCellEditor();
+      }
     },
-    [gridApi, renameTable]
+    [canvasSpreadsheetMode, gridApi, gridApiRef, renameTable]
   );
 
   const onCellEditorUpdateValue = useCallback(
-    (value: string, cancelEdit: boolean) => {
+    (value: string, cancelEdit: boolean, dimFieldName?: string) => {
       publish({
         topic: 'CellEditorUpdateValue',
-        payload: { value, cancelEdit },
+        payload: { value, cancelEdit, dimFieldName },
       });
     },
     [publish]
+  );
+
+  const onCellEditorChangeEditMode = useCallback(
+    (editMode: GridCellEditorMode) => {
+      setEditMode(editMode);
+    },
+    [setEditMode]
   );
 
   const onCellEditorMessage = useCallback(
@@ -176,6 +231,32 @@ export function SpreadsheetWrapper() {
     [updateSelectedCell]
   );
 
+  const onCanvasSelectionChange = useCallback(
+    (selectionEdges: SelectionEdges | null) => {
+      updateSelectedCell(getSelectedCell(selectionEdges, data));
+    },
+    [data, getSelectedCell, updateSelectedCell]
+  );
+
+  const onStartPointClick = useCallback(() => {
+    switchPointClickMode(true, 'cell-editor');
+  }, [switchPointClickMode]);
+
+  const onStopPointClick = useCallback(() => {
+    switchPointClickMode(false);
+  }, [switchPointClickMode]);
+
+  const onPointClickSelectValue = useCallback(
+    (pointClickSelection: GridSelection | null) => {
+      handlePointClickSelectValue(null, pointClickSelection);
+    },
+    [handlePointClickSelectValue]
+  );
+
+  const onUndo = useCallback(() => {
+    undo();
+  }, [undo]);
+
   const onMount = useCallback(
     (gridApi: Grid, gridService: GridService) => {
       onSpreadsheetMount(gridApi, gridService);
@@ -189,217 +270,375 @@ export function SpreadsheetWrapper() {
       endCol: number,
       startRow: number,
       endRow: number,
-      dynamicFields?: DynamicFieldsByTable
+      forceRequest?: boolean
     ) => {
-      if (!projectName || !parsedSheet?.tables) return;
+      if (!projectName || !sheetName || !sheetContent || !projectSheets) return;
 
       viewportRef.current = { startRow, endRow };
 
-      const { viewportRequest, updatedCachedViewport } = createViewportRequest(
-        parsedSheet?.tables,
-        tableData,
+      const viewportRequest = viewGridData.buildViewportsToRequest({
         startCol,
         endCol,
         startRow,
         endRow,
-        cachedViewport,
-        dynamicFields
-      );
-
-      if (Object.keys(viewportRequest).length === 0) return;
-
-      updateCachedViewport({
-        ...cachedViewport,
-        ...updatedCachedViewport,
       });
 
-      getViewport(projectName, viewportRequest);
+      if (viewportRequest.length === 0 && !forceRequest) return;
+
+      isCalculateRequested.current = true;
+      getCurrentProjectViewport(viewportRequest);
     },
     [
-      cachedViewport,
-      getViewport,
-      tableData,
-      updateCachedViewport,
       projectName,
-      parsedSheet,
+      sheetName,
+      sheetContent,
+      projectSheets,
+      viewGridData,
+      getCurrentProjectViewport,
     ]
+  );
+
+  const onGetFieldFilterList = useCallback(
+    (tableName: string, fieldName: string) => {
+      return viewGridData.getFieldFilterList(tableName, fieldName);
+    },
+    [viewGridData]
   );
 
   useEffect(() => {
     if (!sheetName || !projectName) return;
-    gridApi?.clearSelection();
-  }, [sheetName, projectName, gridApi]);
+
+    if (canvasSpreadsheetMode) {
+      gridApiRef?.current?.clearSelection();
+    } else {
+      gridApi?.clearSelection();
+      gridApi?.clearViewportScroll();
+    }
+  }, [sheetName, projectName, gridApi, canvasSpreadsheetMode, gridApiRef]);
+
+  const triggerOnScroll = useCallback(
+    (forceRequest: boolean) => {
+      let gridViewport: SelectionEdges | undefined;
+
+      if (canvasSpreadsheetMode && gridApiRef?.current) {
+        gridViewport = gridApiRef.current.getViewportEdges();
+      } else if (gridApi) {
+        const [startRow, endRow] = gridApi.rowEdges;
+        const [startCol, endCol] = gridApi.colEdges;
+
+        gridViewport = { startRow, endRow, startCol, endCol };
+      }
+      if (!gridViewport) return;
+
+      const { startRow, endRow, startCol, endCol } = gridViewport;
+      const normalizedEndRow =
+        endRow && endRow < 10 ? chunkSize : endRow || chunkSize;
+
+      const normalizedEndCol = endCol < 10 ? 100 : endCol;
+
+      onScroll(
+        startCol,
+        normalizedEndCol,
+        startRow,
+        normalizedEndRow,
+        forceRequest
+      );
+    },
+    [canvasSpreadsheetMode, gridApi, gridApiRef, onScroll]
+  );
 
   useEffect(() => {
-    if (!projectName || !sheetName || !parsedSheet) {
-      data.current = {};
-      charts.current = [];
-      setTableStructure([]);
-
-      return;
-    }
-
-    const tables = parsedSheet.tables;
-    const { sheet } = lastRequestedViewportOptions.current;
-    charts.current = buildCharts(tables, projectName);
-    data.current = updateChartsData(data.current, tables);
-
-    let shouldSkipUpdateDynamicTable = true;
-
-    tables.forEach((t) => {
-      if (
-        t.fields.findIndex((f) => f.key.fieldName === dynamicFieldName) !== -1
-      ) {
-        if (tablesInData.current[t.tableName] !== t.fields.length) {
-          shouldSkipUpdateDynamicTable = false;
-        }
-      }
-    });
-
     if (
-      sheetName === sheet &&
-      shouldSkipUpdateDynamicTable &&
-      shouldSkipSpreadsheetUpdate(
-        tables,
-        tableData,
-        data.current,
-        compilationErrors,
-        sheetErrors
-      )
-    ) {
-      const currentTables = tables.map((t) => t.tableName).sort();
-      const renderedTables = Object.keys(data.current).sort();
-      const tableDataIsEmpty = Object.keys(tableData).length === 0;
-
-      if (tableDataIsEmpty && !isEqual(renderedTables, currentTables)) {
-        const tablesToRemove = renderedTables.filter(
-          (t) => !currentTables.includes(t)
-        );
-        data.current = removeTables(data.current, tablesToRemove);
-
-        tablesInData.current = {};
-        tables.forEach((t) => {
-          tablesInData.current[t.tableName] = t.fields.length;
-        });
-      }
-
-      return;
-    }
-
-    tablesInData.current = {};
-    tables.forEach((t) => {
-      tablesInData.current[t.tableName] = t.fields.length;
-    });
-    data.current = buildData(tables, tableData, sheetErrors, compilationErrors);
-    setTableStructure(createTableStructure(tables, tableData));
-  }, [
-    parsedSheet,
-    compilationErrors,
-    sheetErrors,
-    tableData,
-    projectName,
-    sheetName,
-    dynamicFields,
-  ]);
-
-  useEffect(() => {
-    if (!projectName || !sheetName || !parsedSheet?.tables || !gridApi) return;
-
-    const { project, sheet, version } = lastRequestedViewportOptions.current;
-
-    if (
-      project === projectName &&
-      sheet === sheetName &&
-      version === projectVersionRef.current
+      !projectName ||
+      !sheetName ||
+      !sheetContent ||
+      !gridApi ||
+      canvasSpreadsheetMode
     )
       return;
 
-    const [startRow, endRow] = gridApi.rowEdges;
-    const [startCol, endCol] = gridApi.colEdges;
-    const normalizedEndRow =
-      endRow && endRow < 10 ? chunkSize : endRow || chunkSize;
-    const normalizedEndCol = endCol < 10 ? 100 : endCol;
-    onScroll(startCol, normalizedEndCol, startRow, normalizedEndRow);
-    lastRequestedViewportOptions.current = {
-      project: projectName,
-      sheet: sheetName,
-      version: projectVersionRef.current || 0,
-      dynamicFields: {},
-    };
+    triggerOnScroll(!isCalculateRequested.current);
+
+    isCalculateRequested.current = true;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
-    onScroll,
-    projectName,
-    sheetName,
-    parsedSheet,
-    projectVersionRef,
     gridApi,
+    viewGridData,
+    projectSheets,
+    sheetContent,
+    parsedSheets,
+    inputList,
+    triggerOnScroll,
   ]);
 
   useEffect(() => {
-    if (!projectName || !sheetName || !parsedSheet?.tables || !gridApi) return;
+    if (!gridApiRef?.current) return;
 
-    const { dynamicFields: loadedDynamicFields } =
-      lastRequestedViewportOptions.current;
+    const gridApi = gridApiRef.current;
 
-    if (isEqual(loadedDynamicFields, dynamicFields)) return;
+    const onViewportChange = debounce((deltaX: number, deltaY: number) => {
+      triggerOnScroll(firstViewportChange.current);
 
-    const [startRow, endRow] = gridApi.rowEdges;
-    const [startCol, endCol] = gridApi.colEdges;
-    onScroll(startCol, endCol, startRow, endRow, dynamicFields);
-    lastRequestedViewportOptions.current.dynamicFields = dynamicFields;
+      if (firstViewportChange.current) {
+        firstViewportChange.current = false;
+      }
+    }, 100);
+
+    const unsubscribe = gridApi.gridViewportSubscription(onViewportChange);
+
+    onViewportChange(0, 0);
+
+    return () => {
+      unsubscribe?.();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gridApiRef?.current, onScroll, triggerOnScroll]);
+
+  useEffect(() => {
+    if (!projectName) return;
+
+    const handleDataUpdate = () => {
+      setData(viewGridData.toGridData());
+      setTableStructure(viewGridData.getGridTableStructure());
+    };
+
+    // init data update call, if component had unmounted
+    handleDataUpdate();
+
+    const dataUpdateSubscription =
+      viewGridData.shouldUpdate$.subscribe(handleDataUpdate);
+
+    return () => {
+      dataUpdateSubscription.unsubscribe();
+    };
+  }, [projectName, setData, viewGridData]);
+
+  useEffect(() => {
+    if (!projectName) return;
+
+    const handleDataUpdate = () => {
+      let selection: SelectionEdges | null = null;
+
+      if (canvasSpreadsheetMode && gridApiRef?.current) {
+        selection = gridApiRef.current.getSelection();
+      } else if (!canvasSpreadsheetMode && gridApi) {
+        selection = gridApi.getSelection();
+      }
+
+      if (!selection) return;
+
+      updateSelectedCell(getSelectedCell(selection, viewGridData.toGridData()));
+    };
+
+    const dataUpdateSubscription =
+      viewGridData.shouldUpdate$.subscribe(handleDataUpdate);
+
+    return () => {
+      dataUpdateSubscription.unsubscribe();
+    };
   }, [
-    projectName,
-    sheetName,
+    canvasSpreadsheetMode,
+    data,
+    getSelectedCell,
     gridApi,
-    dynamicFields,
-    parsedSheet,
-    tableData,
-    cachedViewport,
-    getViewport,
-    onScroll,
+    gridApiRef,
+    projectName,
+    setData,
+    updateSelectedCell,
+    viewGridData,
   ]);
+
+  useEffect(() => {
+    if (!projectName) return;
+
+    const handleDynamicFieldsRequest = () => {
+      triggerOnScroll(false);
+    };
+
+    const subscription = viewGridData.tableDynamicFieldsRequest$.subscribe(
+      handleDynamicFieldsRequest
+    );
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [gridApi, onScroll, projectName, setData, triggerOnScroll, viewGridData]);
+
+  if (canvasSpreadsheetMode) {
+    return (
+      <CanvasSpreadsheet
+        chartData={chartData}
+        charts={charts}
+        columnSizes={columnSizes}
+        currentSheetName={sheetName}
+        data={data}
+        formulaBarMode={formulaBarMode}
+        functions={functions}
+        inputFiles={inputList}
+        isPointClickMode={isPointClickMode}
+        parsedSheets={parsedSheets}
+        ref={gridApiRef}
+        sheetContent={sheetContent || ''}
+        systemMessageContent={systemMessageContent}
+        tableStructure={tableStructure}
+        theme={theme}
+        zoom={zoom}
+        onAddChart={addChart}
+        onAddDimension={addDimension}
+        onAddField={addField}
+        onAddKey={addKey}
+        onAddOverride={addOverride}
+        onAddTableRow={addTableRow}
+        onAddTotalExpression={addTotalExpression}
+        onAIPendingBanner={updateIsAIPendingBanner}
+        onAIPendingChanges={updateIsAIPendingChanges}
+        onApplyListFilter={applyListFilter}
+        onApplyNumericFilter={applyNumberFilter}
+        onApplySuggestion={applySuggestion}
+        onArrangeTable={arrangeTable}
+        onCellEditorChangeEditMode={onCellEditorChangeEditMode}
+        onCellEditorMessage={onCellEditorMessage}
+        onCellEditorSubmit={submitCellEditor}
+        onCellEditorUpdateValue={onCellEditorUpdateValue}
+        onChangeFieldColumnSize={onChangeFieldColumnSize}
+        onChartResize={chartResize}
+        onCloneTable={onCloneTable}
+        onCloseTable={onCloseTable}
+        onConvertToChart={convertToChart}
+        onConvertToTable={convertToTable}
+        onCreateDerivedTable={createDerivedTable}
+        onCreateManualTable={createManualTable}
+        onDecreaseFieldColumnSize={onDecreaseFieldColumnSize}
+        onDelete={deleteSelectedFieldOrTable}
+        onDeleteField={deleteField}
+        onDeleteTable={deleteTable}
+        onDNDTable={moveTableTo}
+        onEditExpression={onEditExpression}
+        onEditExpressionWithOverrideRemove={editExpressionWithOverrideRemove}
+        onEditOverride={editOverride}
+        onEditTotalExpression={editTotalExpression}
+        onExpandDimTable={expandDimTable}
+        onFlipTable={onFlipTable}
+        onGetFieldFilterList={onGetFieldFilterList}
+        onGetMoreChartKeys={getMoreChartKeys}
+        onIncreaseFieldColumnSize={onIncreaseFieldColumnSize}
+        onMoveTable={moveTable}
+        onOpenInEditor={openInEditor}
+        onOpenSheet={openSheet}
+        onPaste={pasteCells}
+        onPointClickSelectValue={onPointClickSelectValue}
+        onRemoveDimension={removeDimension}
+        onRemoveKey={removeKey}
+        onRemoveNote={removeNote}
+        onRemoveOverride={removeOverride}
+        onRemoveTotalByIndex={removeTotalByIndex}
+        onRemoveTotalByType={removeTotalByType}
+        onRenameField={onRenameField}
+        onRenameTable={onRenameTable}
+        onScroll={onScroll}
+        onSelectChartKey={selectChartKey}
+        onSelectionChange={onCanvasSelectionChange}
+        onShowRowReference={showRowReference}
+        onSortChange={changeFieldSort}
+        onStartPointClick={onStartPointClick}
+        onStopPointClick={onStopPointClick}
+        onSwapFields={swapFields}
+        onToggleTableFieldsVisibility={onToggleTableFieldsVisibility}
+        onToggleTableHeaderVisibility={onToggleTableHeaderVisibility}
+        onToggleTotalByType={toggleTotalByType}
+        onUndo={onUndo}
+        onUpdateNote={updateNote}
+      />
+    );
+  }
 
   return (
     <Spreadsheet
       chartData={chartData}
-      chartKeys={chartKeys}
-      charts={charts.current}
+      charts={charts}
       columnSizes={columnSizes}
-      data={data.current}
+      currentSheetName={sheetName}
+      data={data}
+      formulaBarMode={formulaBarMode}
       functions={functions}
+      inputFiles={inputList}
+      isPointClickMode={isPointClickMode}
       parsedSheets={parsedSheets}
+      sheetContent={sheetContent || ''}
+      systemMessageContent={systemMessageContent}
       tableStructure={tableStructure}
+      theme={theme}
       zoom={zoom}
       onAddChart={addChart}
       onAddDimension={addDimension}
+      onAddField={addField}
       onAddKey={addKey}
       onAddOverride={addOverride}
+      onAddTableRow={addTableRow}
+      onAddTableRowToEnd={addTableRowToEnd}
+      onAddTotalExpression={addTotalExpression}
+      onAIPendingBanner={updateIsAIPendingBanner}
+      onAIPendingChanges={updateIsAIPendingChanges}
+      onApplyListFilter={applyListFilter}
+      onApplyNumericFilter={applyNumberFilter}
+      onApplySuggestion={applySuggestion}
+      onArrangeTable={arrangeTable}
+      onCellEditorChangeEditMode={onCellEditorChangeEditMode}
       onCellEditorMessage={onCellEditorMessage}
       onCellEditorSubmit={submitCellEditor}
       onCellEditorUpdateValue={onCellEditorUpdateValue}
+      onChangeFieldColumnSize={onChangeFieldColumnSize}
       onChartResize={chartResize}
+      onCloneTable={onCloneTable}
       onCloseTable={onCloseTable}
       onConvertToChart={convertToChart}
       onConvertToTable={convertToTable}
       onCreateDerivedTable={createDerivedTable}
+      onCreateManualTable={createManualTable}
+      onCreateTableAction={onCreateTableAction}
+      onDecreaseFieldColumnSize={onDecreaseFieldColumnSize}
+      onDelete={deleteSelectedFieldOrTable}
       onDeleteField={deleteField}
       onDeleteTable={deleteTable}
       onDNDTable={moveTableTo}
       onEditExpression={onEditExpression}
+      onEditExpressionWithOverrideRemove={editExpressionWithOverrideRemove}
       onEditOverride={editOverride}
+      onEditTotalExpression={editTotalExpression}
       onExpandDimTable={expandDimTable}
+      onFlipTable={onFlipTable}
+      onGetFieldFilterList={onGetFieldFilterList}
       onGetMoreChartKeys={getMoreChartKeys}
+      onIncreaseFieldColumnSize={onIncreaseFieldColumnSize}
       onMount={onMount}
       onMoveTable={moveTable}
+      onOpenInEditor={openInEditor}
+      onOpenSheet={openSheet}
+      onPaste={pasteCells}
+      onPointClickSelectValue={onPointClickSelectValue}
+      onPromoteRow={promoteRow}
       onRemoveDimension={removeDimension}
       onRemoveKey={removeKey}
+      onRemoveNote={removeNote}
       onRemoveOverride={removeOverride}
+      onRemoveOverrideRow={onRemoveRow}
+      onRemoveTotalByIndex={removeTotalByIndex}
+      onRemoveTotalByType={removeTotalByType}
       onRenameField={onRenameField}
       onRenameTable={onRenameTable}
       onScroll={onScroll}
       onSelectChartKey={selectChartKey}
       onSelectionChange={onSelectionChange}
+      onShowRowReference={showRowReference}
+      onSortChange={changeFieldSort}
+      onStartPointClick={onStartPointClick}
+      onStopPointClick={onStopPointClick}
       onSwapFields={swapFields}
+      onToggleTableFieldsVisibility={onToggleTableFieldsVisibility}
+      onToggleTableHeaderVisibility={onToggleTableHeaderVisibility}
+      onToggleTotalByType={toggleTotalByType}
+      onUndo={onUndo}
+      onUpdateNote={updateNote}
     />
   );
 }

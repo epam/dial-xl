@@ -1,48 +1,48 @@
 import { useCallback, useContext } from 'react';
 import { toast } from 'react-toastify';
 
+import { dialProjectFileExtension } from '@frontend/common';
+
 import { ProjectContext } from '../context';
-import { useApi } from './useApi';
 
 export function useProjectActions() {
   const {
     createProject,
-    openProject,
     projectName,
     sheetName,
     renameSheet,
-    renameProject,
-    deleteProject,
-    newSheet,
+    renameCurrentProject,
+    deleteCurrentProject,
+    createSheet,
     projectSheets,
+    deleteSheet,
+    closeCurrentProject,
+    shareResources,
+    projectBucket,
+    projectPath,
   } = useContext(ProjectContext);
-  const { closeProject, deleteWorksheet } = useApi();
 
   const closeProjectAction = useCallback(() => {
     if (projectName) {
-      closeProject(projectName);
+      closeCurrentProject();
     }
-  }, [closeProject, projectName]);
+  }, [closeCurrentProject, projectName]);
 
   const deleteProjectAction = useCallback(() => {
     if (projectName) {
-      deleteProject();
+      deleteCurrentProject();
     }
-  }, [deleteProject, projectName]);
+  }, [deleteCurrentProject, projectName]);
 
   const renameProjectAction = useCallback(() => {
     if (projectName) {
-      renameProject(projectName);
+      renameCurrentProject();
     }
-  }, [projectName, renameProject]);
+  }, [projectName, renameCurrentProject]);
 
   const createProjectAction = useCallback(() => {
-    createProject();
+    createProject({ openInNewTab: true });
   }, [createProject]);
-
-  const openProjectAction = useCallback(() => {
-    openProject();
-  }, [openProject]);
 
   const deleteWorksheetAction = useCallback(
     (worksheetName = sheetName) => {
@@ -60,24 +60,38 @@ export function useProjectActions() {
       }
 
       if (projectName && worksheetName) {
-        deleteWorksheet(projectName, worksheetName);
+        deleteSheet({ sheetName: worksheetName });
       }
     },
-    [deleteWorksheet, projectName, sheetName, projectSheets]
+    [sheetName, projectSheets, projectName, deleteSheet]
   );
 
   const renameWorksheetAction = useCallback(
     (worksheetName = sheetName) => {
       if (worksheetName) {
-        renameSheet(worksheetName);
+        renameSheet({ oldName: worksheetName });
       }
     },
     [renameSheet, sheetName]
   );
 
   const createWorksheetAction = useCallback(() => {
-    newSheet();
-  }, [newSheet]);
+    createSheet();
+  }, [createSheet]);
+
+  const shareProjectAction = useCallback(() => {
+    if (!projectName || !projectBucket) return;
+
+    const projectFileName = projectName + dialProjectFileExtension;
+    shareResources([
+      {
+        name: projectFileName,
+        bucket: projectBucket,
+        parentPath: projectPath,
+        nodeType: 'ITEM',
+      },
+    ]);
+  }, [projectBucket, projectName, projectPath, shareResources]);
 
   return {
     renameProjectAction,
@@ -86,7 +100,7 @@ export function useProjectActions() {
     deleteWorksheetAction,
     createProjectAction,
     createWorksheetAction,
-    openProjectAction,
     closeProjectAction,
+    shareProjectAction,
   };
 }

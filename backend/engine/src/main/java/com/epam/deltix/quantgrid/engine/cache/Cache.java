@@ -16,4 +16,6 @@ public interface Cache {
     void begin();
 
     void finish();
+
+    Cache copy();
 }

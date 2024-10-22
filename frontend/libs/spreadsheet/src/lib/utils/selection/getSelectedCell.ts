@@ -1,5 +1,7 @@
 import { MutableRefObject } from 'react';
 
+import { GridCell } from '@frontend/common';
+
 import { GridSelection } from '../../grid';
 import { GridService } from '../../services';
 import { SelectedCell, SelectedCellType } from '../../types';
@@ -8,10 +10,14 @@ export function getSelectedCell(
   gridServiceRef: MutableRefObject<GridService | null>,
   selection: GridSelection
 ): SelectedCell | null {
-  const { startRow, endCol, endRow, startCol } = selection;
-  const cell = gridServiceRef.current?.getCellValue(startRow, startCol);
+  const { startRow, startCol } = selection;
+  let cell = gridServiceRef.current?.getCellValue(startRow, startCol);
 
-  if (!cell?.table || !cell?.value) {
+  if (cell?.field && cell.startCol !== cell?.col) {
+    cell = gridServiceRef.current?.getCellValue(startRow, cell.startCol);
+  }
+
+  if (!cell?.table) {
     return {
       type: SelectedCellType.EmptyCell,
       col: startCol,
@@ -19,45 +25,36 @@ export function getSelectedCell(
     };
   }
 
-  const { table, value, row } = cell;
+  const { table, value } = cell;
 
   if (table?.startRow === undefined && !table?.startCol === undefined)
     return null;
 
-  const tableHeader = gridServiceRef.current?.getCellValue(
-    table.startRow,
-    table.startCol
-  );
-
-  const type = getSelectionType(table.startRow, startRow, row, cell.isOverride);
-
-  if (
-    !(endCol === startCol && endRow === startRow) &&
-    type !== SelectedCellType.Table
-  )
-    return null;
+  const type = getSelectionType(cell, cell.isOverride);
 
   return {
-    tableName: tableHeader?.value || '',
+    tableName: cell.table?.tableName || '',
     fieldName: cell.field?.fieldName,
     overrideIndex: cell.overrideIndex,
+    overrideValue: cell.overrideValue,
+    totalIndex: cell.totalIndex,
     isDynamic: cell.field?.isDynamic,
-    col: startCol,
-    row,
+    col: cell.col,
+    row: cell.row,
     type,
     value,
   };
 }
 
 function getSelectionType(
-  tableStartRow: number,
-  startRow: number,
-  cellRow: number,
+  cell: GridCell,
   isOverride = false
 ): SelectedCellType {
-  if (tableStartRow === startRow) return SelectedCellType.Table;
+  if (cell.isTableHeader) return SelectedCellType.Table;
 
-  if (tableStartRow + 1 === cellRow) return SelectedCellType.Field;
+  if (cell.isFieldHeader) return SelectedCellType.Field;
+
+  if (cell.totalIndex) return SelectedCellType.Total;
 
   if (isOverride) return SelectedCellType.Override;
 

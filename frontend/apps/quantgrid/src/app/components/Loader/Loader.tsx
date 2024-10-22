@@ -9,7 +9,7 @@ export function Loader() {
   if (loading) {
     return (
       <div className="absolute top-0 left-0 w-screen h-screen bg-gray-100/[.9] z-50 flex items-center justify-center">
-        <Spin className="z-50" size="large" tip="Loading"></Spin>
+        <Spin className="z-50" size="large"></Spin>
       </div>
     );
   }

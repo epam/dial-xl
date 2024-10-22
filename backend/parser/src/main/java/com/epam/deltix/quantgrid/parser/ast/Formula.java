@@ -19,4 +19,8 @@ public abstract class Formula {
     Formula(Formula... arguments) {
         this.arguments = List.of(arguments);
     }
+
+    Formula(List<Formula> arguments) {
+        this.arguments = arguments;
+    }
 }

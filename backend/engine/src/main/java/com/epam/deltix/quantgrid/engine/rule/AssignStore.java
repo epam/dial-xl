@@ -8,7 +8,9 @@ import com.epam.deltix.quantgrid.engine.node.plan.Executed;
 import com.epam.deltix.quantgrid.engine.node.plan.Failed;
 import com.epam.deltix.quantgrid.engine.node.plan.Plan;
 import com.epam.deltix.quantgrid.engine.node.plan.Scalar;
+import com.epam.deltix.quantgrid.engine.node.plan.local.RetrieverResultLocal;
 import com.epam.deltix.quantgrid.engine.node.plan.local.SelectLocal;
+import com.epam.deltix.quantgrid.engine.node.plan.local.SimilaritySearchLocal;
 import com.epam.deltix.quantgrid.engine.node.plan.local.StoreLocal;
 import com.epam.deltix.quantgrid.engine.node.plan.local.ViewportLocal;
 
@@ -35,6 +37,18 @@ public class AssignStore implements Rule {
 
             if (node instanceof ViewportLocal viewport) {
                 collect(viewport.getSource(), visited, toStore);
+            }
+
+            if (node instanceof SimilaritySearchLocal similaritySearch) {
+                for (Node child : similaritySearch.getInputs()) {
+                    collect(child, visited, toStore);
+                }
+            }
+
+            if (node instanceof RetrieverResultLocal retrieverResultLocal) {
+                for (Node child : retrieverResultLocal.getInputs()) {
+                    collect(child, visited, toStore);
+                }
             }
         });
 

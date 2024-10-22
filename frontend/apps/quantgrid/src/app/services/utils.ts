@@ -9,11 +9,12 @@ export function getApiUrl() {
   const hostname = window.location.hostname;
   const isProd = window.location.protocol === 'https:';
 
-  return isProd ? `wss://${hostname}/ws` : `ws://${hostname}:8080/ws`;
+  return isProd ? `https://${hostname}` : `http://${hostname}:8080`;
 }
 
-export function sort(list: string[], sortAsc: boolean) {
-  return [...list].sort((a, b) => {
-    return sortAsc ? a.localeCompare(b) : b.localeCompare(a);
-  });
+export function getDialApiUrl() {
+  const hostname = window.location.hostname;
+  const isProd = window.location.protocol === 'https:';
+
+  return isProd ? `https://${hostname}` : `http://${hostname}:4545`;
 }

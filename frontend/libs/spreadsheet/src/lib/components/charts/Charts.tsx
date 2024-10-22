@@ -1,10 +1,6 @@
-import React, {
-  Fragment,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from 'react';
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
+
+import { getDataScroller } from '@frontend/common';
 
 import { chartsContainerId, gridDataContainerClass } from '../../constants';
 import {
@@ -16,41 +12,38 @@ import {
   GridSelectionEventStopMoveMode,
   GridSelectionEventType,
 } from '../../grid';
-import { getDataScroller, getPx, round } from '../../utils';
-import styles from './Charts.module.scss';
+import { getPx, round } from '../../utils';
 import { LineChart } from './lineChart';
 import { ResizeHandler } from './resizeHandler';
 import { ToolBar } from './toolBar';
 import { ChartConfig, Props } from './types';
 import { useHideCharts } from './useHideCharts';
 
-export const defaultChartCols = 15;
-export const defaultChartRows = 15;
-export const toolbarRows = 2;
+const toolbarRows = 2;
 
 export function Charts({
   gridCallbacksRef,
   api,
-  chartKeys = {},
   chartData = {},
   charts = [],
   zoom = 1,
+  theme,
 }: Props) {
-  const [chartConfig, setChartConfig] = useState<ChartConfig[]>([]);
+  const [chartConfigs, setChartConfigs] = useState<ChartConfig[]>([]);
   const [moveMode, setMoveMode] = useState(false);
   const viewportNode = useRef<HTMLDivElement>(null);
   const containerNode = useRef<HTMLDivElement>(null);
 
   const { hiddenCharts } = useHideCharts(
     api,
-    chartConfig,
+    chartConfigs,
     viewportNode.current,
     containerNode.current
   );
 
-  const setCharts = useCallback(() => {
+  const setupCharts = useCallback(() => {
     if (charts?.length === 0 || !api) {
-      setChartConfig([]);
+      setChartConfigs([]);
 
       return;
     }
@@ -96,12 +89,13 @@ export function Charts({
         minResizeWidth,
         minResizeHeight,
         tableName,
+        gridChart: chart,
       };
 
       newChartStyles.push(chartStyle);
     });
 
-    setChartConfig(newChartStyles);
+    setChartConfigs(newChartStyles);
   }, [api, charts]);
 
   const setLayerPosition = useCallback(() => {
@@ -198,7 +192,7 @@ export function Charts({
       .subscribe(() => {
         // setTimeout to wait updating column width on double click
         setTimeout(() => {
-          setCharts();
+          setupCharts();
         }, 0);
       });
 
@@ -209,7 +203,7 @@ export function Charts({
         columnResizeSubscription,
       ].forEach((s) => s?.unsubscribe());
     };
-  }, [api, setCharts]);
+  }, [api, setupCharts]);
 
   useEffect(() => {
     setLayerPosition();
@@ -230,53 +224,52 @@ export function Charts({
   useEffect(() => {
     // setTimeout to wait updating zoom in the dataView
     setTimeout(() => {
-      setCharts();
-    }, 0);
-  }, [charts, zoom, setCharts]);
+      setupCharts();
+    });
+  }, [zoom, setupCharts, charts, chartData]);
 
   return (
-    <div className={styles.chartsViewport} ref={viewportNode}>
-      <div
-        className={styles.chartsContainer}
-        id={chartsContainerId}
-        ref={containerNode}
-      >
-        {chartConfig.map((chart) => (
-          <Fragment key={chart.tableName}>
+    <div
+      className="block fixed left-0 top-0 pointer-events-none overflow-hidden bg-transparent z-[103]"
+      ref={viewportNode}
+    >
+      <div className="relative" id={chartsContainerId} ref={containerNode}>
+        {chartConfigs.map((chartConfig) => (
+          <Fragment key={chartConfig.tableName}>
             <ToolBar
-              chartConfig={chart}
-              chartKeys={chartKeys}
-              charts={charts}
-              isHidden={hiddenCharts.includes(chart.tableName)}
+              chartConfig={chartConfig}
+              isHidden={hiddenCharts.includes(chartConfig.tableName)}
               moveMode={moveMode}
               zoom={zoom}
               onLoadMoreKeys={onLoadMoreKeys}
               onSelectKey={onSelectKey}
             />
+
             <div
-              className={styles.chartWrapper}
-              key={chart.tableName}
+              className="absolute border-[0.3px] border-strokeGridMain border-opacity-50 bg-bgGridField"
+              key={chartConfig.tableName}
               style={{
-                left: getPx(chart.left),
-                top: getPx(chart.top),
-                width: getPx(chart.width),
-                height: getPx(chart.height),
-                display: hiddenCharts.includes(chart.tableName)
+                left: getPx(chartConfig.left),
+                top: getPx(chartConfig.top),
+                width: getPx(chartConfig.width),
+                height: getPx(chartConfig.height),
+                display: hiddenCharts.includes(chartConfig.tableName)
                   ? 'none'
                   : 'block',
                 pointerEvents: moveMode ? 'none' : 'auto',
               }}
             >
               <LineChart
-                chartConfig={chart}
+                chartConfig={chartConfig}
                 chartData={chartData}
+                theme={theme}
                 zoom={zoom}
               />
             </div>
             <ResizeHandler
-              chartConfig={chart}
+              chartConfig={chartConfig}
               onChartResize={(x, y) => {
-                handleChartResize(chart.tableName, x, y);
+                handleChartResize(chartConfig.tableName, x, y);
               }}
             />
           </Fragment>

@@ -1,4 +1,5 @@
-import * as antlr from 'antlr4ts';
+import * as antlr from 'antlr4';
+import { CommonToken, PredictionMode, TerminalNode, Token } from 'antlr4';
 
 import {
   BinOpExpression,
@@ -16,22 +17,46 @@ import {
 import { EmptyExpression } from './ast/EmptyExpression';
 import { ErrorListener } from './ErrorListener';
 import { FieldKey } from './FieldKey';
-import { SheetLexer } from './grammar/SheetLexer';
-import { SheetListener } from './grammar/SheetListener';
 import {
   Decorator_definitionContext,
   ExpressionContext,
   FormulaContext,
   Override_definitionContext,
+  Override_fieldContext,
+  Override_rowContext,
   SheetContext,
+  SheetLexer,
+  SheetListener,
   SheetParser,
-} from './grammar/SheetParser';
+  Table_definitionContext,
+} from './index';
+import { ParsedApply } from './ParsedApply';
 import { ParsedDecorator } from './ParsedDecorator';
-import { ExpressionMetadata, ParsedField } from './ParsedField';
+import { ParsedField } from './ParsedField';
+import { ParsedFilter } from './ParsedFilter';
 import { ParsedFormula } from './ParsedFormula';
 import { ParsedOverride } from './ParsedOverride';
 import { ParsedSheet } from './ParsedSheet';
+import { ParsedSort } from './ParsedSort';
 import { ParsedTable } from './ParsedTable';
+import { ParsedTotal } from './ParsedTotal';
+import {
+  DSLNote,
+  ExpressionMetadata,
+  FullDSLPlacement,
+  naExpression,
+  newLine,
+  TableTotals,
+  TotalItem,
+} from './parser';
+import { PythonBlock } from './PythonBlock';
+import {
+  getFieldNameDslPlacement,
+  getFullDSLPlacement,
+  getMultiContextFullDSLPlacement,
+  getShortDSLPlacement,
+  getTotalType,
+} from './services';
 
 export class SheetReader implements SheetListener {
   public lexer: SheetLexer;
@@ -53,7 +78,25 @@ export class SheetReader implements SheetListener {
     this.lexer.addErrorListener(this.errorListener);
     this.parser.addErrorListener(this.errorListener);
 
+    // Other modes throws an error
+    parser._interp.predictionMode = PredictionMode.SLL;
+
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
     this.parser.addParseListener(this as SheetListener);
+  }
+
+  visitTerminal(): void {
+    // empty block
+  }
+  visitErrorNode(): void {
+    // empty block
+  }
+  enterEveryRule(): void {
+    // empty block
+  }
+  exitEveryRule(): void {
+    // empty block
   }
 
   public exitFormula(ctx: FormulaContext) {
@@ -73,22 +116,19 @@ export class SheetReader implements SheetListener {
     const decorators: ParsedDecorator[] = [];
 
     for (const ctx of decoratorsCtxs) {
-      const decoratorDslPlacement = {
-        start: ctx.start.startIndex,
-        end: ctx.start.startIndex + ctx.text.length,
-      };
+      const decoratorDslPlacement = getShortDSLPlacement(ctx, 1);
 
       decorators.push(
         new ParsedDecorator(
-          ctx.decorator_name().text,
+          ctx.decorator_name().getText(),
           decoratorDslPlacement,
-          ctx.primitive().map((p) => {
-            const numberP = p.number();
+          ctx.primitive_list().map((p) => {
+            const numberP = p.number_();
             if (numberP != null) {
-              return +numberP.text;
+              return +numberP.getText();
             }
 
-            return SheetReader.stripQuotes(p.string()?.text ?? "''");
+            return SheetReader.stripQuotes(p.string_()?.getText() ?? "''");
           })
         )
       );
@@ -99,66 +139,99 @@ export class SheetReader implements SheetListener {
 
   private buildSheet(ctx: SheetContext) {
     const tables: ParsedTable[] = [];
+    const pythonBlocks: PythonBlock[] = [];
 
-    for (const tableCtx of ctx.table_definition()) {
+    for (const pythonBlock of ctx.python_definition_list()) {
+      const dslPlacement = getFullDSLPlacement(pythonBlock, true);
+
+      if (!dslPlacement) continue;
+
+      pythonBlocks.push(new PythonBlock(dslPlacement));
+    }
+
+    for (const tableCtx of ctx.table_definition_list()) {
       const fields: ParsedField[] = [];
-      const tableName: string = SheetReader.getSanitizedTableName(
-        tableCtx.table_name().text
-      );
+      const tableNameCtx = tableCtx.table_name();
 
-      for (const fieldCtx of tableCtx.field_definition()) {
-        const fieldName: string = fieldCtx.field_name().text;
+      if (!tableNameCtx) continue;
+
+      const tableName = tableNameCtx.getText();
+      const tableRange = getFullDSLPlacement(tableCtx);
+
+      const tableNameRange = {
+        start: tableNameCtx.start.start,
+        end: tableNameCtx.start.start + tableName.length,
+      };
+
+      for (const fieldCtx of tableCtx.field_definition_list()) {
+        const fieldNameCtx = fieldCtx.field_name();
+
+        if (!fieldNameCtx) continue;
+
+        const fieldName: string = fieldNameCtx.getText();
         let fieldExpression: ExpressionContext | undefined;
         let expressionMetadata: ExpressionMetadata | undefined;
 
         try {
           fieldExpression = fieldCtx.expression();
 
-          const startIndex = fieldExpression.start.startIndex;
-          const end =
-            fieldExpression.stop?.stopIndex ||
-            startIndex + fieldExpression.text.length;
+          if (fieldExpression) {
+            const startIndex = fieldExpression.start.start;
+            const end =
+              fieldExpression.stop?.stop ||
+              startIndex + fieldExpression.getText().length;
 
-          const expressionText = SheetReader.sourceText.substring(
-            startIndex,
-            end + 1
-          );
+            const expressionText = SheetReader.sourceText.substring(
+              startIndex,
+              end + 1
+            );
 
-          expressionMetadata = {
-            text: expressionText || fieldExpression.text,
-            start: Math.min(startIndex, end),
-            end: Math.max(startIndex, end),
-          };
+            expressionMetadata = {
+              text: expressionText || fieldExpression.getText(),
+              start: Math.min(startIndex, end),
+              end: Math.max(startIndex, end),
+            };
+          }
         } catch (err) {
           // eslint-disable-next-line no-console
           console.error(err);
         }
 
-        const fieldNameRange = {
-          start: fieldCtx.field_name().start.startIndex,
-          end: fieldCtx.field_name().start.startIndex + fieldName.length,
-        };
-
-        const dslPlacement = {
-          start: fieldCtx.start.startIndex,
-          end:
-            fieldCtx.stop?.stopIndex ||
-            fieldCtx.start.startIndex + fieldCtx.text.length,
-        };
-
+        const dslFieldNamePlacement = getFieldNameDslPlacement(
+          fieldNameCtx,
+          fieldName
+        );
+        const dslFieldPlacement = getShortDSLPlacement(fieldCtx);
         const dimensionKeyword = fieldCtx.DIMENSION_KEYWORD();
-
-        const dslDimensionPlacement = dimensionKeyword && {
-          start: dimensionKeyword.symbol.startIndex,
-          end: dimensionKeyword.symbol.stopIndex,
-        };
-
         const keyKeyword = fieldCtx.KEY_KEYWORD();
-
-        const dslKeyPlacement = keyKeyword && {
-          start: keyKeyword.symbol.startIndex,
-          end: keyKeyword.symbol.stopIndex,
+        const dslDimensionPlacement = dimensionKeyword && {
+          start: dimensionKeyword.symbol.start,
+          end: dimensionKeyword.symbol.stop,
         };
+        const dslKeyPlacement = keyKeyword && {
+          start: keyKeyword.symbol.start,
+          end: keyKeyword.symbol.stop,
+        };
+
+        const fieldNote: DSLNote = {
+          text: '',
+          start: 0,
+          end: 0,
+        };
+
+        const docComment = fieldCtx.doc_comment_list();
+
+        if (docComment.length > 0) {
+          const firstDocComment = docComment[0];
+          const lastDocComment = docComment.at(-1);
+
+          fieldNote.start = firstDocComment.start.start;
+          fieldNote.end = lastDocComment?.stop?.stop || fieldNote.start;
+
+          docComment.forEach((i) => {
+            fieldNote.text += i.getText();
+          });
+        }
 
         try {
           const field = new ParsedField(
@@ -172,11 +245,12 @@ export class SheetReader implements SheetListener {
             ),
             fieldExpression && this.buildExpression(fieldExpression),
             expressionMetadata,
-            dslPlacement,
-            fieldNameRange,
+            dslFieldPlacement,
+            dslFieldNamePlacement,
             dslDimensionPlacement,
             dslKeyPlacement,
-            SheetReader.parseDecorators(fieldCtx.decorator_definition())
+            SheetReader.parseDecorators(fieldCtx.decorator_definition_list()),
+            fieldNote.text ? fieldNote : undefined
           );
 
           fields.push(field);
@@ -186,61 +260,178 @@ export class SheetReader implements SheetListener {
         }
       }
 
-      const tableRange = tableCtx.stop && {
-        startOffset: tableCtx.start.startIndex,
-        stopOffset: tableCtx.stop.stopIndex,
-        startLine: tableCtx.start.line,
-        stopLine: tableCtx.stop.line,
-        startColumn: tableCtx.start.charPositionInLine,
-      };
-
-      const tableNameRange = {
-        start: tableCtx.table_name().start.startIndex,
-        end:
-          tableCtx.table_name().start.startIndex +
-          tableCtx.table_name().text.length,
-      };
+      const decorators = SheetReader.parseDecorators(
+        tableCtx.decorator_definition_list()
+      );
+      const isManual = !!decorators.find(
+        (decorator) => decorator.decoratorName === 'manual'
+      );
 
       const overrideDefinition = tableCtx.override_definition();
-      const overrides = this.parseOverrides(overrideDefinition);
-      const dslOverridePlacement = overrideDefinition && {
-        start: overrideDefinition.start.startIndex,
-        end:
-          overrideDefinition.stop?.stopIndex ||
-          overrideDefinition.start.startIndex + overrideDefinition.text.length,
-      };
+      const keyFields = fields
+        .filter((f) => f.isKey)
+        .map((f) => f.key.fieldName);
+      const overrides = this.parseOverrides(
+        keyFields,
+        isManual,
+        overrideDefinition
+      );
+      const dslOverridePlacement = getFullDSLPlacement(
+        overrideDefinition,
+        true
+      );
+      const parsedApply: ParsedApply | undefined = this.parseApply(tableCtx);
+      const parsedTotals: ParsedTotal | undefined = this.parseTotals(
+        tableCtx,
+        tableName
+      );
 
       tables.push(
         new ParsedTable(
           tableName,
           fields,
+          tableCtx.getText(),
           tableRange,
           tableNameRange,
-          SheetReader.parseDecorators(tableCtx.decorator_definition()),
+          decorators,
           overrides,
           dslOverridePlacement,
-          SheetReader.isTableNameQuoted(tableCtx.table_name().text)
+          parsedApply,
+          parsedTotals
         )
       );
     }
 
-    return new ParsedSheet(tables, this.errorListener.getErrors());
+    return new ParsedSheet(
+      tables,
+      this.errorListener.getErrors(),
+      pythonBlocks
+    );
+  }
+
+  private parseTotals(
+    tableCtx: Table_definitionContext,
+    tableName: string
+  ): ParsedTotal | undefined {
+    const totalCtx = tableCtx.total_definition_list();
+
+    if (!totalCtx) return;
+
+    const dslPlacement: FullDSLPlacement | undefined =
+      getMultiContextFullDSLPlacement(totalCtx);
+    const size = totalCtx.length;
+    const totals: TableTotals = {};
+
+    for (let i = 0; i < totalCtx.length; i++) {
+      for (const fieldCtx of totalCtx[i].field_definition_list()) {
+        const fieldNameCtx = fieldCtx.field_name();
+        const fullFieldName = fieldNameCtx.getText();
+        const fieldName: string = SheetReader.stripQuotes(fullFieldName);
+        let fieldExpression: ExpressionContext | undefined;
+
+        try {
+          fieldExpression = fieldCtx.expression();
+
+          const totalItem: TotalItem = {
+            expression: fieldExpression.getText(),
+            type: getTotalType(tableName, fieldName, fieldExpression.getText()),
+            expressionDslPlacement: getShortDSLPlacement(fieldExpression),
+            totalDslPlacement: getShortDSLPlacement(totalCtx[i]),
+            fieldNameDslPlacement: getFieldNameDslPlacement(
+              fieldCtx,
+              fullFieldName
+            ),
+          };
+
+          const index = i + 1;
+          if (totals[fieldName]) {
+            totals[fieldName][index] = totalItem;
+          } else {
+            totals[fieldName] = { [index]: totalItem };
+          }
+        } catch (e) {
+          return;
+        }
+      }
+    }
+
+    return new ParsedTotal(dslPlacement, totals, size);
+  }
+
+  private parseApply(
+    tableCtx: Table_definitionContext
+  ): ParsedApply | undefined {
+    const applyCtxList = tableCtx.apply_definition_list();
+
+    if (applyCtxList.length === 0) return;
+
+    const applyCtx = applyCtxList[0];
+    const applySortCtx = applyCtx.apply_sort();
+    const applyFilterCtx = applyCtx.apply_filter();
+
+    let parsedSort: ParsedSort | undefined = undefined;
+    let parsedFilter: ParsedFilter | undefined = undefined;
+    const applyDslPlacement: FullDSLPlacement | undefined =
+      getFullDSLPlacement(applyCtx);
+
+    if (applySortCtx) {
+      const sortDslPlacement = getShortDSLPlacement(applySortCtx);
+
+      parsedSort = new ParsedSort(
+        sortDslPlacement,
+        applySortCtx.expression_list().map((f) => {
+          return this.buildExpression(f);
+        }),
+        applySortCtx.getText()
+      );
+    }
+
+    if (applyFilterCtx) {
+      const filterDslPlacement = getShortDSLPlacement(applyFilterCtx);
+
+      parsedFilter = new ParsedFilter(
+        filterDslPlacement,
+        applyFilterCtx.expression()
+          ? this.buildExpression(applyFilterCtx.expression())
+          : undefined,
+        applyFilterCtx.getText()
+      );
+    }
+
+    return new ParsedApply(applyDslPlacement, parsedSort, parsedFilter);
   }
 
   private parseOverrides(
+    keyFields: string[],
+    isManual: boolean,
     ctx?: Override_definitionContext
   ): ParsedOverride | undefined {
     if (!ctx) return;
 
-    const overrideContent = ctx.OVERRIDE_CONTENT().text;
+    const overrideFields = ctx
+      .override_fields()
+      .children?.filter((item) => item instanceof Override_fieldContext)
+      .map((item) => item.getText());
+    const overrideValues = ctx
+      .override_row_list()
+      .filter((item) => item instanceof Override_rowContext)
+      .map((row) =>
+        row.children
+          ?.filter((item) => !(item instanceof TerminalNode))
+          .map((item) => item.getText())
+      )
+      .filter(Boolean) as string[][];
 
-    if (!overrideContent.startsWith('override')) return;
+    if (!overrideFields) {
+      return undefined;
+    }
 
-    const textCsv = overrideContent.substring(8);
-
-    if (!textCsv) return;
-
-    return new ParsedOverride(textCsv);
+    return new ParsedOverride({
+      overrideFields,
+      overrideValues,
+      keyFields,
+      isManual,
+    });
   }
 
   private buildExpression(ctx: ExpressionContext): Expression {
@@ -248,51 +439,84 @@ export class SheetReader implements SheetListener {
 
     if (functionName) {
       const args: Expression[] = ctx
-        .expression()
+        .expression_list()
         .map((p) => this.buildExpression(p));
 
-      return new FunctionExpression(functionName.text, args);
+      const { start, stop } = functionName;
+      const text = functionName.getText();
+      const end = stop?.stop || start.start + text.length;
+
+      return new FunctionExpression(text, start.start, end, args);
     }
 
-    const numberValue = ctx.number();
+    const listExpression = ctx.list_expression();
+
+    if (listExpression) {
+      const args: Expression[] = listExpression
+        .expression_list()
+        .map((p) => this.buildExpression(p));
+
+      const { start, stop } = listExpression;
+      const text = listExpression.getText();
+      const end = stop?.stop || start.start + text.length;
+
+      return new FunctionExpression(text, start.start, end, args);
+    }
+
+    const numberValue = ctx.number_();
 
     if (numberValue) {
-      return new ConstNumberExpression(+numberValue.text);
+      return new ConstNumberExpression(numberValue.getText());
     }
 
-    const stringValue = ctx.string();
+    const stringValue = ctx.string_();
 
     if (stringValue) {
       return new ConstStringExpression(
-        SheetReader.stripQuotes(stringValue.text)
+        SheetReader.stripQuotes(stringValue.getText())
       );
     }
 
     const fieldName = ctx.field_name();
 
     if (fieldName) {
-      if (ctx.expression().length > 0) {
+      const text = fieldName.getText();
+      const dslPlacement = getShortDSLPlacement(fieldName);
+      if (ctx.expression_list().length > 0) {
         return new FieldReferenceExpression(
-          ctx.expression()[0],
-          fieldName.text
+          ctx.expression_list()[0],
+          text,
+          dslPlacement?.start || 0,
+          dslPlacement?.end || 0
         );
       } else {
-        return new CurrentFieldExpression(fieldName.text);
+        return new CurrentFieldExpression(
+          text,
+          dslPlacement?.start || 0,
+          dslPlacement?.end || 0
+        );
       }
     }
 
     const tableName = ctx.table_name();
 
     if (tableName) {
-      return new TableReferenceExpression(tableName.text);
+      const text = tableName.getText();
+      const dslPlacement = getShortDSLPlacement(tableName);
+
+      return new TableReferenceExpression(
+        text,
+        dslPlacement?.start || 0,
+        dslPlacement?.end || 0
+      );
     }
 
     const binOp = SheetReader.binOp(ctx);
     if (binOp) {
       return new BinOpExpression(
-        this.buildExpression(ctx.expression()[0]),
-        this.buildExpression(ctx.expression()[1]),
-        binOp.text
+        this.buildExpression(ctx.expression_list()[0]),
+        this.buildExpression(ctx.expression_list()[1]),
+        binOp.getText()
       );
     }
 
@@ -300,13 +524,13 @@ export class SheetReader implements SheetListener {
 
     if (uniOp) {
       return new UniOpExpression(
-        this.buildExpression(ctx.expression()[0]),
-        parseUnaryOperation(uniOp.text)
+        this.buildExpression(ctx.expression_list()[0]),
+        parseUnaryOperation(uniOp.getText())
       );
     }
 
-    if (ctx.expression().length === 1) {
-      return this.buildExpression(ctx.expression()[0]);
+    if (ctx.expression_list().length === 1) {
+      return this.buildExpression(ctx.expression_list()[0]);
     }
 
     const queryRow = ctx.query_row();
@@ -315,15 +539,56 @@ export class SheetReader implements SheetListener {
       return new QueryRowExpression();
     }
 
-    if (ctx.na_expression()) {
-      return new FunctionExpression('NA');
+    const naExpressionCtx = ctx.na_expression();
+
+    if (naExpressionCtx) {
+      const { start } = naExpressionCtx.start;
+      const name = naExpression;
+
+      return new FunctionExpression(name, start, start + name.length);
     }
 
-    if (!ctx.text || ctx.text.trim() === '') {
+    if (!ctx.getText() || ctx.getText().trim() === '') {
       return new EmptyExpression();
     }
 
     throw new Error('[buildExpression] Cannot build expression]');
+  }
+
+  /**
+   * Get all comments that are in the hidden channel, so requires some custom logic to get them
+   * Unused for now, but could be useful in the future
+   * @private
+   */
+  private getComments(): DSLNote[] {
+    const lexer = new SheetLexer(
+      antlr.CharStreams.fromString(SheetReader.sourceText)
+    );
+
+    const comments: DSLNote[] = [];
+
+    let done = false;
+
+    while (!done) {
+      const token = lexer.nextToken() as CommonToken;
+
+      if (token == null || token.type === Token.EOF) {
+        done = true;
+      } else {
+        const { start, stop, channel, text } = token;
+
+        // channel 1 is the hidden channel
+        if (channel === 1 && text) {
+          comments.push({
+            text,
+            start,
+            end: stop,
+          });
+        }
+      }
+    }
+
+    return comments;
   }
 
   private static binOp(ctx: ExpressionContext) {
@@ -334,6 +599,7 @@ export class SheetReader implements SheetListener {
       ctx.bin_add_sub() ??
       ctx.bin_mul_div_mod() ??
       ctx.bin_pow() ??
+      ctx.bin_concat() ??
       null
     );
   }
@@ -343,6 +609,8 @@ export class SheetReader implements SheetListener {
     const parser = new SheetParser(new antlr.CommonTokenStream(lexer));
     const listener = new SheetReader(lexer, parser);
 
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
     parser.addParseListener(listener as SheetListener);
 
     lexer.removeErrorListeners();
@@ -350,6 +618,8 @@ export class SheetReader implements SheetListener {
 
     lexer.addErrorListener(listener.errorListener);
     parser.addErrorListener(listener.errorListener);
+
+    parser._interp.predictionMode = PredictionMode.SLL;
 
     SheetReader.sourceText = text;
 
@@ -369,10 +639,10 @@ export class SheetReader implements SheetListener {
 
   public static parseSheet(text?: string) {
     if (!text || !text?.trim().length) {
-      return new ParsedSheet([], []);
+      return new ParsedSheet([], [], []);
     }
 
-    const reader = SheetReader.prepareParser(text || '');
+    const reader = SheetReader.prepareParser(text + newLine || '');
 
     reader.parser.sheet();
 
@@ -381,15 +651,5 @@ export class SheetReader implements SheetListener {
 
   public static stripQuotes(str: string) {
     return str.substring(1, str.length - 1);
-  }
-
-  public static isTableNameQuoted(tableName: string) {
-    return /^'([^']*)'$/.test(tableName);
-  }
-
-  public static getSanitizedTableName(tableName: string) {
-    return /^'([^']*)'$/.test(tableName)
-      ? `${SheetReader.stripQuotes(tableName)}`
-      : tableName;
   }
 }

@@ -1,12 +1,15 @@
-import { ParsedTable, SheetReader } from '@frontend/parser';
+import { defaultFieldName, FunctionInfo } from '@frontend/common';
+import { ParsedSheets, ParsedTable, SheetReader } from '@frontend/parser';
 
+import { autoFixSingleExpression } from './autoFixSingleExpression';
 import { createUniqueName } from './createUniqueName';
-
-const defaultFieldName = 'Field1';
 
 export const generateFieldExpressionFromText = (
   fieldText: string,
-  targetTable: ParsedTable | null = null
+  targetTable: ParsedTable | null = null,
+  functions: FunctionInfo[],
+  parsedSheets: ParsedSheets,
+  currentTableName = ''
 ) => {
   let fieldName = '';
   const parts = fieldText.trim().split('=');
@@ -23,25 +26,35 @@ export const generateFieldExpressionFromText = (
     const sourceFieldName = parts[0].trim();
     const fieldNameInBrackets = /^\[.*]$/.test(sourceFieldName);
     const sourceFieldNameWithKeywords = /key|dim/gi.test(sourceFieldName);
+    const expression = parts[1].trim()
+      ? autoFixSingleExpression(
+          parts[1].trim(),
+          functions,
+          parsedSheets,
+          currentTableName
+        )
+      : '';
 
     if (!sourceFieldNameWithKeywords) {
       fieldName = fieldNameInBrackets
         ? SheetReader.stripQuotes(sourceFieldName) || defaultFieldName
         : sourceFieldName || defaultFieldName;
       const checkedFieldName = createUniqueName(fieldName, existingFieldNames);
-      const fieldDsl = `[${checkedFieldName}] = ${parts[1].trim()}`;
+      const fieldDsl = expression
+        ? `[${checkedFieldName}] = ${expression}`
+        : `[${checkedFieldName}]`;
 
       return { fieldName, fieldDsl };
     }
 
-    const fieldDsl = `${sourceFieldName} = ${parts[1].trim()}`;
+    const fieldDsl = `${sourceFieldName} = ${expression}`;
 
     return { fieldName, fieldDsl };
   }
 
   if (parts.length === 1) {
     fieldName = createUniqueName(parts[0], existingFieldNames);
-    const fieldDsl = `[${fieldName}] = NA`;
+    const fieldDsl = `[${fieldName}]`;
 
     return { fieldName, fieldDsl };
   }

@@ -7,10 +7,20 @@ export interface ApiResponseMessage {
 export interface CellEditorUpdateValueMessage {
   value: string;
   cancelEdit: boolean;
+  dimFieldName?: string;
+}
+
+export interface PointClickSetValue {
+  value: string;
+}
+
+export interface FormulaBarFormulasMenuItemApplyMessage {
+  formulaName: string;
 }
 
 export interface EventBusMessages {
-  ApiResponse: ApiResponseMessage;
   CellEditorUpdateValue: CellEditorUpdateValueMessage;
   DimensionalSchemaResponse: DimensionalSchemaResponse;
+  PointClickSetValue: PointClickSetValue;
+  FormulaBarFormulasMenuItemApply: FormulaBarFormulasMenuItemApplyMessage;
 }

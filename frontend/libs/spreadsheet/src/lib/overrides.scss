@@ -8,8 +8,11 @@
 }
 
 .grid-cell {
-  border-bottom: 0.3px solid rgb(211, 211, 211, 0.5);
-  border-left: 0.3px solid rgb(211, 211, 211, 0.5);
+  border-bottom: 0.3px solid var(--stroke-grid-main);
+}
+
+.grid-cell:not(:has(.zero-width)) {
+  border-left: 0.3px solid var(--stroke-grid-main);
 }
 
 .grid-header-group:not(:last-child) {
@@ -30,4 +33,23 @@
 
 .ant-dropdown .ant-dropdown-menu:focus-visible {
   outline: 2px solid rgb(219, 234, 254);
+}
+
+.apply-menu-button.hover {
+  display: block !important;
+}
+
+.tableRenderer_header.hover {
+  z-index: 100 !important;
+
+  .header-buttons-container {
+    background-color: var(--bg-grid-header);
+    display: block;
+    position: absolute;
+    right: 0;
+  }
+}
+
+.total-cell-icon {
+  margin-right: 5px;
 }

@@ -1,4 +1,6 @@
-import { Grid, GridCell, GridData, GridTable } from '../grid';
+import { GridCell, GridData, GridTable } from '@frontend/common';
+
+import { Grid } from '../grid';
 
 // TODO: Remove this service, move all logic to Grid class
 export class GridService {

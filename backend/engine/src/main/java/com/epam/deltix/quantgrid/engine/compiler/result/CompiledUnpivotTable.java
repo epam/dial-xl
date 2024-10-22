@@ -39,16 +39,16 @@ public final class CompiledUnpivotTable extends CompiledAbstractTable {
 
     @Override
     public CompiledResult field(CompileContext context, String field) {
-        CompiledColumn column = null;
+        CompiledSimpleColumn column = null;
 
         if (field.equals(name)) {
             Get expression = new Get(source.node(), nameRef);
-            column = new CompiledColumn(expression, dimensions());
+            column = new CompiledSimpleColumn(expression, dimensions());
         }
 
         if (field.equals(value)) {
             Get expression = new Get(source.node(), valueRef);
-            column = new CompiledColumn(expression, dimensions());
+            column = new CompiledSimpleColumn(expression, dimensions());
         }
 
         if (column == null) {

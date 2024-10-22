@@ -5,7 +5,7 @@ import com.epam.deltix.quantgrid.engine.compiler.result.CompiledTable;
 import com.epam.deltix.quantgrid.engine.node.expression.Constant;
 import com.epam.deltix.quantgrid.engine.node.plan.local.RangeLocal;
 import com.epam.deltix.quantgrid.parser.FieldKey;
-import com.epam.deltix.quantgrid.parser.ParsedOverride;
+import com.epam.deltix.quantgrid.parser.ParsedDecorator;
 import com.epam.deltix.quantgrid.parser.ParsedTable;
 import lombok.experimental.UtilityClass;
 
@@ -15,27 +15,25 @@ import java.util.List;
 public class CompileManual {
 
     private static final String MANUAL_TABLE_KEYWORD = "manual";
-    private static final String MANUAL_DIMENSION_NAME = "_row";
 
-    CompileExplode compileManualTable(String tableName, ParsedOverride overrides,
-                                      List<FieldKey> dimensions, CompiledTable scalar) {
-        validateManualTable(overrides, dimensions);
-        int manualSize = overrides.size();
-        FieldKey manualDimension = new FieldKey(tableName, MANUAL_DIMENSION_NAME);
-        CompileExplode explode = new CompileExplode(List.of(manualDimension), scalar, true);
-        RangeLocal range = new RangeLocal(new Constant(manualSize));
-        CompiledNestedColumn compiledDim = new CompiledNestedColumn(range, 0);
-        explode.add(compiledDim, manualDimension);
-        return explode;
+    CompiledTable compile(ParsedTable table, CompiledTable scalar, List<FieldKey> dimensions) {
+        verify(table, dimensions);
+        int size = table.overrides().values().size();
+        RangeLocal range = new RangeLocal(scalar.node(), new Constant(size));
+        return new CompiledNestedColumn(range, 0);
     }
 
-    boolean isManualTable(ParsedTable table) {
-        return table.getDecorators().stream()
-                .anyMatch(decorator -> MANUAL_TABLE_KEYWORD.equals(decorator.decoratorName()));
+    FieldKey dimension(ParsedTable table) {
+        return new FieldKey(table.tableName(), "_manual_dimension_031574268");
     }
 
-    private static void validateManualTable(ParsedOverride overrides, List<FieldKey> dimensions) {
+    boolean isManual(ParsedTable table) {
+        return table.decorators().stream().map(ParsedDecorator::decoratorName)
+                .anyMatch(MANUAL_TABLE_KEYWORD::equals);
+    }
+
+    private void verify(ParsedTable table, List<FieldKey> dimensions) {
         CompileUtil.verify(dimensions.isEmpty(), "Manual tables must not contain any dimensions");
-        CompileUtil.verify(overrides != null, "Manual tables require defined overrides");
+        CompileUtil.verify(table.overrides() != null, "Manual tables require defined overrides");
     }
 }

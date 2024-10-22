@@ -1,6 +1,6 @@
 include:
   - project: Gitlab/ci
-    ref: 0.2.16
+    ref: 0.2.27
     file: helm/helm-environment.gitlab-ci.yml
 
 stages:
@@ -8,9 +8,11 @@ stages:
   - build # Application build
   - publish # publush docker images
   - deploy # deploy application to k8s
-  - e2e-test
+  - e2e-test # run e2e tests
+  - aggregate_results # combine test results from several runners
+  - report # publish e2e tests' result
   - promote # copy docker image to public repo
-  - staging    # Stage name used in include. Not used. ToDo - delete this
+  - staging # Stage name used in include. Not used. ToDo - delete this
   - production # Stage name used in include. Not used. ToDo - delete this
 
 variables:
@@ -19,9 +21,10 @@ variables:
 
   DOCKER_REGISTRY_SERVER: "registry-dev.deltixhub.com"
   HELM_REPO: https://nexus.deltixhub.com/repository/epm-rtc-helm
+  HELM_EXTRA_ARGS: "-f ${HELM_SECRET_FILE} --timeout=15m"
   SECRET_NAME: "epm-rtc-registry-dev"
   CHART: "quantgrid" # Helm chart name, e.g. "gitlab-runner"
-  VERSION: "0.1.4" # Helm chart version
+  VERSION: "0.1.7" # Helm chart version
 
   development_AWS_ACCESS_KEY_ID: ${staging_AWS_ACCESS_KEY_ID}
   development_AWS_SECRET_ACCESS_KEY: ${staging_AWS_SECRET_ACCESS_KEY}
@@ -29,17 +32,17 @@ variables:
   development_HELM_VALUES_FILE: "infrastructure/k8s/main-values.yaml"
   development_ENV_URL: "https://quantgrid-dev.staging.deltixhub.io"
   development_NAMESPACE: quantgrid-dev
-  development_HELM_CUSTOM_VALUES: "frontend.image.tag=main,backend.image.tag=main"
+  development_HELM_CUSTOM_VALUES: "frontend.image.tag=main,backendControl.image.tag=main,backendCompute.image.tag=main"
 
   staging_DEPLOY_ENV: "false" # now we need only dev, review and sales (deployed separately) environments
 
   review_DEPLOY_ENV: "true"
   review_ENV_ID: "staging"
   review_HELM_VALUES_FILE: "infrastructure/k8s/review-values.yaml"
-  review_ENV_URL: "https://${CI_PROJECT_NAME}-${CI_COMMIT_REF_SLUG}.staging.deltixhub.io"
+  review_ENV_URL: "https://${CI_PROJECT_NAME}-${CI_MERGE_REQUEST_IID}.staging.deltixhub.io"
   review_NAMESPACE: quantgrid-review
-  review_HELM_CUSTOM_VALUES: "ingress.hosts[0]=${CI_PROJECT_NAME}-${CI_COMMIT_REF_SLUG}.staging.deltixhub.io,fullnameOverride=${CI_COMMIT_REF_SLUG},frontend.image.tag=${CI_COMMIT_REF_SLUG},backend.image.tag=${CI_COMMIT_REF_SLUG}"
-  review_RELEASE: ${CHART}-${CI_COMMIT_REF_SLUG}
+  review_HELM_CUSTOM_VALUES: "ingress.hosts[0]=${CI_PROJECT_NAME}-${CI_MERGE_REQUEST_IID}.staging.deltixhub.io,fullnameOverride=${CI_PROJECT_NAME}-${CI_MERGE_REQUEST_IID},frontend.image.tag=${CI_COMMIT_REF_SLUG},backendControl.image.tag=${CI_COMMIT_REF_SLUG},backendCompute.image.tag=${CI_COMMIT_REF_SLUG},backendControl.env.WEB_REDIS_ADDRESS[0]=redis://${CI_PROJECT_NAME}-${CI_MERGE_REQUEST_IID}-redis-headless:6379,backendCompute.env.WEB_REDIS_ADDRESS[0]=redis://${CI_PROJECT_NAME}-${CI_MERGE_REQUEST_IID}-redis-headless:6379"
+  review_RELEASE: ${CHART}-${CI_MERGE_REQUEST_IID}
   review_SECRET_NAME: "epm-rtc-registry-test"
   review_DOCKER_REGISTRY_SERVER: "registry-test.deltixhub.com"
 
@@ -66,7 +69,7 @@ variables:
 ### Build backend application (jar). Run on commit to all tags or branches except stable
 build_backend:
   stage: build
-  image: eclipse-temurin:17-alpine
+  image: eclipse-temurin:17-jdk
   variables:
     GRADLE_CACHE_KEY: "1" # increase when bumping gradle/major dependency versions
   # Overwrite Gradle cache directory.
@@ -74,6 +77,9 @@ build_backend:
     - export GRADLE_USER_HOME=`pwd`/.gradle
   script:
     # Note: with "--continue" option Gradle will execute tests for all projects
+    - apt update
+    - apt install -y python3-pip
+    - python3 --version
     - ./gradlew build
   artifacts:
     when: always
@@ -102,7 +108,7 @@ build_backend:
 ### Build frontend application. Run on commit to all tags or branches except stable
 build_frontend:
   stage: build
-  image: timbru31/java-node:jdk-18-hydrogen
+  image: timbru31/java-node:11-jre-iron
   script:
     - cd frontend
     - yarn install
@@ -160,7 +166,7 @@ publish_backend:
   extends: .publish_template
   variables:
     ARTIFACTORY_DOCKER_PATH: ${ARTIFACTORY_DOCKER_PATH_BACKEND}
-    DOCKERFILE_PATH: "infrastructure/backend/Dockerfile"
+    DOCKERFILE_PATH: "infrastructure/backend_cluster/Dockerfile"
   needs:
     - build_backend
 
@@ -267,31 +273,81 @@ promote:
     - AWS
     - DockerExecutor
 
-run_fronted_e2e_tests:
-  image: registry.deltixhub.com/thirdparty.docker/playwright-java-allure:0.0.2
-  stage: e2e-test
+.run_fronted_e2e_tests_template:
+  image: registry.deltixhub.com/thirdparty.docker/playwright-java-allure:0.0.3
   before_script:
     - wget -q --tries=60 --wait=5 --retry-on-host-error --spider ${BASE_URL}
   script:
     - cd frontend
     - yarn add --dev @playwright/test
     - yarn add @playwright/test allure-playwright --dev
-    - npx nx e2e quantgrid
-  after_script:
-    - /allure/allure-2.23.1/bin/allure generate ./frontend/allure-results -o ./frontend/allure-report --clean
+    - if [ -z "$TEST_TAG"]; then npm run e2e:ci; else for tag in $TEST_TAG; do DATA_TYPE=${tag:1} npm run e2e:ci -- --grep $tag; done; fi
   artifacts:
     name: "${CI_JOB_ID}_${CI_JOB_NAME}"
     when: always
-    expire_in: 30 day
+    expire_in: 1 day
     paths:
-      - frontend/allure-report
+      - frontend/allure-results
   tags:
     - AWS
     - DockerExecutor
-  rules:  
+    - aws-2xlarge
+  rules:
     - if: $CI_COMMIT_BRANCH == "main"
       variables:
         BASE_URL: ${development_ENV_URL}
+        QUANTGRID_TEST_USERNAME: ${QUANTGRID_TEST_USERNAME}
+        QUANTGRID_TEST_PASSWORD: ${QUANTGRID_TEST_PASSWORD}
+        AUTH_TYPE: "keycloak"
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
       variables:
         BASE_URL: ${review_ENV_URL}
+        QUANTGRID_TEST_USERNAME: ${QUANTGRID_AUTH0_USERNAME}
+        QUANTGRID_TEST_PASSWORD: ${QUANTGRID_AUTH0_PASSWORD}
+        AUTH_TYPE: "auth0"
+
+run_fronted_e2e_tests_default:
+  stage: e2e-test
+  extends: .run_fronted_e2e_tests_template
+
+run_fronted_e2e_tests_hidden:
+  stage: e2e-test
+  extends: .run_fronted_e2e_tests_template
+  variables:
+    TEST_TAG: "@hiddenTable @hiddenAll"
+
+generate_report:
+  image: registry.deltixhub.com/thirdparty.docker/playwright-java-allure:0.0.3
+  stage: aggregate_results
+  script:
+    - /allure/allure-2.27.0/bin/allure generate ./frontend/allure-results -o ./frontend/allure-report-s3 --clean
+  artifacts:
+    name: "${CI_JOB_ID}_${CI_JOB_NAME}"
+    when: always
+    expire_in: 3 day
+    paths:
+      - frontend/allure-report-s3
+  tags:
+    - AWS
+    - DockerExecutor
+  when: always
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH  == "main"
+
+upload_report:
+  image: registry-dev.deltixhub.com/gitlabci.docker/nightly-test:0.0.12
+  stage: report
+  script:
+    - export AWS_ACCESS_KEY_ID=${nightlytest_AWS_ACCESS_KEY_ID} # No problem with inheritance; easily copy the example to another project
+    - export AWS_SECRET_ACCESS_KEY=${nightlytest_AWS_SECRET_ACCESS_KEY}
+    - export AWS_DEFAULT_REGION=${nightlytest_AWS_DEFAULT_REGION}
+    - aws s3 sync ./frontend/allure-report-s3 s3://new-reports.deltixhub.net/Deltix/Quantgrid/$CI_PIPELINE_ID
+    - echo "The report is available at the adress:"
+    - echo "http://new-reports.deltixhub.net.s3-website-us-west-2.amazonaws.com/Deltix/Quantgrid/$CI_PIPELINE_ID"
+  tags:
+    - DockerExecutor
+  when: always
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH  == "main"

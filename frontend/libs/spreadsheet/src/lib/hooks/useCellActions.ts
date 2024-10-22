@@ -1,29 +1,35 @@
 import { MutableRefObject, useCallback, useEffect } from 'react';
 
 import {
-  addDimButtonClass,
   gridDataContainerClass,
-  removeDimButtonClass,
+  referenceIconClass,
   showDimTableClass,
 } from '../constants';
 import { Grid } from '../grid';
 import { GridService } from '../services';
 import { GridCallbacks } from '../types';
+import { getCellElementDimensions } from '../utils';
 
 export function useCellActions(
   apiRef: MutableRefObject<Grid | null>,
   gridServiceRef: MutableRefObject<GridService | null>,
   gridCallbacksRef: MutableRefObject<GridCallbacks>
 ) {
-  const onShowDimTable = useCallback(
-    (e: any, target: HTMLElement) => {
+  const handleExpandTable = useCallback(
+    (
+      e: any,
+      target: HTMLElement,
+      callback:
+        | GridCallbacks['onExpandDimTable']
+        | GridCallbacks['onShowRowReference']
+    ) => {
       e.preventDefault();
 
       const api = apiRef.current;
 
       if (!api) return;
 
-      const { col, row } = api.getCellDimensions(target);
+      const { col, row } = getCellElementDimensions(target);
 
       if (col === -1 || row === -1) return;
 
@@ -33,41 +39,9 @@ export function useCellActions(
 
       const { table, field } = cell;
 
-      gridCallbacksRef.current.onExpandDimTable?.(
-        table.tableName,
-        field.fieldName,
-        col,
-        row
-      );
+      callback?.(table.tableName, field.fieldName, col, row);
     },
-    [apiRef, gridCallbacksRef, gridServiceRef]
-  );
-
-  const onChangerDimension = useCallback(
-    (e: any, target: HTMLElement, isRemoveDimension: boolean) => {
-      e.preventDefault();
-
-      const api = apiRef.current;
-
-      if (!api) return;
-
-      const { col, row } = api.getCellDimensions(target);
-
-      if (col === -1 || row === -1) return;
-
-      const cell = gridServiceRef.current?.getCellValue(row, col);
-
-      if (!cell || !cell.table || !cell.value) return;
-
-      const { table, value } = cell;
-
-      if (isRemoveDimension) {
-        gridCallbacksRef.current.onRemoveDimension?.(table.tableName, value);
-      } else {
-        gridCallbacksRef.current.onAddDimension?.(table.tableName, value);
-      }
-    },
-    [apiRef, gridCallbacksRef, gridServiceRef]
+    [apiRef, gridServiceRef]
   );
 
   const onMouseDown = useCallback(
@@ -83,15 +57,19 @@ export function useCellActions(
       while (target && target !== dataContainer) {
         if (target.nodeName === 'BUTTON') {
           if (target.classList.contains(showDimTableClass)) {
-            onShowDimTable(event, target);
+            handleExpandTable(
+              event,
+              target,
+              gridCallbacksRef.current?.onExpandDimTable
+            );
           }
 
-          if (target.classList.contains(removeDimButtonClass)) {
-            onChangerDimension(event, target, true);
-          }
-
-          if (target.classList.contains(addDimButtonClass)) {
-            onChangerDimension(event, target, false);
+          if (target.classList.contains(referenceIconClass)) {
+            handleExpandTable(
+              event,
+              target,
+              gridCallbacksRef.current?.onShowRowReference
+            );
           }
 
           return;
@@ -99,7 +77,7 @@ export function useCellActions(
         target = target.parentNode;
       }
     },
-    [onChangerDimension, onShowDimTable]
+    [gridCallbacksRef, handleExpandTable]
   );
 
   useEffect(() => {
@@ -110,5 +88,5 @@ export function useCellActions(
     return () => {
       dataContainer?.removeEventListener('mousedown', onMouseDown);
     };
-  }, [onChangerDimension, onMouseDown, onShowDimTable]);
+  }, [onMouseDown]);
 }

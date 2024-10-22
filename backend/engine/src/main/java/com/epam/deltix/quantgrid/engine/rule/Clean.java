@@ -2,6 +2,8 @@ package com.epam.deltix.quantgrid.engine.rule;
 
 import com.epam.deltix.quantgrid.engine.graph.Graph;
 import com.epam.deltix.quantgrid.engine.node.Node;
+import com.epam.deltix.quantgrid.engine.node.plan.local.RetrieverResultLocal;
+import com.epam.deltix.quantgrid.engine.node.plan.local.SimilaritySearchLocal;
 import com.epam.deltix.quantgrid.engine.node.plan.local.ViewportLocal;
 
 public class Clean implements Rule {
@@ -28,6 +30,10 @@ public class Clean implements Rule {
 
         if (node instanceof ViewportLocal viewport) {
             return cleanOptionalViewports && viewport.isOptional();
+        }
+
+        if (node instanceof SimilaritySearchLocal || node instanceof RetrieverResultLocal) {
+            return false;
         }
 
         return true;

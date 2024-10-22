@@ -3,7 +3,9 @@ package com.epam.deltix.quantgrid.engine.test;
 import com.epam.deltix.quantgrid.engine.GraphCallback;
 import com.epam.deltix.quantgrid.engine.graph.Graph;
 import com.epam.deltix.quantgrid.engine.rule.IdentityVerifier;
+import com.epam.deltix.quantgrid.engine.rule.LayoutVerifier;
 import com.epam.deltix.quantgrid.engine.rule.Rule;
+import com.epam.deltix.quantgrid.engine.rule.SourceVerifier;
 import com.epam.deltix.quantgrid.engine.rule.ViewportVerifier;
 
 public class PostOptimizationCallback implements GraphCallback {
@@ -22,5 +24,7 @@ public class PostOptimizationCallback implements GraphCallback {
 
         new ViewportVerifier().apply(graph);
         new IdentityVerifier().apply(graph);
+        new LayoutVerifier().apply(graph);
+        new SourceVerifier().apply(graph);
     }
 }

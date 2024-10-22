@@ -23,7 +23,7 @@ class PushDownExpandTest {
                 new Expand(range, new Constant("a")), BinaryOperation.EQ);
 
         BinaryOperator two = new BinaryOperator(three, one, BinaryOperation.SUB);
-        RangeLocal capture = new RangeLocal(two);
+        RangeLocal capture = new RangeLocal(range, two);
 
         Graph graph = new Graph();
         graph.add(capture);
@@ -31,7 +31,7 @@ class PushDownExpandTest {
         new PushDownExpand().apply(graph);
         new ConstantFolding().apply(graph);
 
-        Expression actual = capture.getExpression(0);
+        Expression actual = capture.expression(0, 0);
         Assertions.assertTrue(new Expand(range, new Constant(2)).semanticEqual(actual, true));
     }
 }

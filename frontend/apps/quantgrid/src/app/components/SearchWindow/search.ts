@@ -1,12 +1,19 @@
 import Fuse from 'fuse.js';
 
-import { ParsedSheets, WorksheetState } from '@frontend/common';
+import {
+  dialProjectFileExtension,
+  FilesMetadata,
+  WorksheetState,
+} from '@frontend/common';
+import { ParsedSheets } from '@frontend/parser';
 
 export type ISearchResult = {
   type: 'project' | 'sheet' | 'table' | 'field';
   name: string;
   path: {
+    projectBucket: string;
     projectName: string;
+    projectPath: string | null | undefined;
     sheetName?: string;
     tableName?: string;
     fieldName?: string;
@@ -44,7 +51,13 @@ function computeSearchResults(results: ISearchResult[], query: string) {
 }
 
 export function path2str(path: ISearchResult['path']) {
-  if (!path.sheetName) return null;
+  if (!path.sheetName && !path.tableName) {
+    if (path.projectPath) {
+      return `${path.projectPath}`;
+    }
+
+    return null;
+  }
 
   if (path.fieldName && path.tableName)
     return `${path.sheetName} / ${path.tableName} / [${path.fieldName}]`;
@@ -55,20 +68,28 @@ export function path2str(path: ISearchResult['path']) {
 }
 
 export function search(
-  projects: string[],
+  projects: FilesMetadata[],
   sheets: WorksheetState[] | null,
   parsedSheets: ParsedSheets | null,
   query: string,
-  filter: ISearchFilter | null
+  filter: ISearchFilter | null,
+  currentProjectBucket: string,
+  currentProjectPath: string | null | undefined
 ) {
   const allResults: ISearchResult[] = [];
 
   if (!filter || filter === 'projects') {
     for (const project of projects) {
+      const projectName = project.name.replaceAll(dialProjectFileExtension, '');
+
       allResults.push({
         type: 'project',
-        name: project,
-        path: { projectName: project },
+        name: projectName,
+        path: {
+          projectName,
+          projectBucket: project.bucket,
+          projectPath: project.parentPath,
+        },
       });
     }
   }
@@ -80,7 +101,12 @@ export function search(
       allResults.push({
         type: 'sheet',
         name: sheetName,
-        path: { projectName, sheetName },
+        path: {
+          projectName,
+          sheetName,
+          projectBucket: currentProjectBucket,
+          projectPath: currentProjectPath,
+        },
       });
 
     const parsedSheet =
@@ -100,6 +126,8 @@ export function search(
           name: tableName,
           path: {
             projectName,
+            projectBucket: currentProjectBucket,
+            projectPath: currentProjectPath,
             sheetName,
             tableName,
           },
@@ -114,6 +142,8 @@ export function search(
             name: fieldName,
             path: {
               projectName,
+              projectBucket: currentProjectBucket,
+              projectPath: currentProjectPath,
               sheetName,
               tableName,
               fieldName,

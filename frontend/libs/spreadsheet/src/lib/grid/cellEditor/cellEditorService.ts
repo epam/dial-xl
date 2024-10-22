@@ -5,6 +5,7 @@ import { Destroyable } from '@deltix/grid-it';
 
 import {
   GridCellEditorEvent,
+  GridCellEditorEventInsertValue,
   GridCellEditorEventType,
   ICellEditorService,
 } from './types';
@@ -23,12 +24,39 @@ export class CellEditorService
     });
   }
 
-  openExplicitly(col: number, row: number, value: string) {
+  insertValue(
+    value: string,
+    options?: GridCellEditorEventInsertValue['options']
+  ) {
+    this.cellEditorEvents$.next({
+      type: GridCellEditorEventType.InsertValue,
+      value,
+      options,
+    });
+  }
+
+  setPointClickValue(value: string) {
+    this.cellEditorEvents$.next({
+      type: GridCellEditorEventType.SetPointClickValue,
+      value,
+    });
+  }
+
+  openExplicitly(
+    col: number,
+    row: number,
+    value: string,
+    options?: {
+      dimFieldName?: string;
+      withFocus?: boolean;
+    }
+  ) {
     this.cellEditorEvents$.next({
       type: GridCellEditorEventType.OpenExplicitly,
       col,
       row,
       value,
+      options,
     });
   }
 

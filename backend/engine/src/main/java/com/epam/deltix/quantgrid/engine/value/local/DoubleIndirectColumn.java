@@ -2,6 +2,7 @@ package com.epam.deltix.quantgrid.engine.value.local;
 
 import com.epam.deltix.quantgrid.engine.Util;
 import com.epam.deltix.quantgrid.engine.value.DoubleColumn;
+import com.epam.deltix.quantgrid.util.Doubles;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 
 public class DoubleIndirectColumn implements DoubleColumn {
@@ -22,6 +23,6 @@ public class DoubleIndirectColumn implements DoubleColumn {
     @Override
     public double get(long index) {
         long reference = references.getLong(Util.toIntIndex(index));
-        return reference < 0 ? Double.NaN : values.get(reference);
+        return reference < 0 ? Doubles.ERROR_NA : values.get(reference);
     }
 }

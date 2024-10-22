@@ -1,42 +1,47 @@
 import { useCallback, useContext, useEffect, useMemo } from 'react';
 
-import { Shortcut, shortcutApi, ShortcutHandlersMap } from '@frontend/common';
+import {
+  isModalOpen,
+  Shortcut,
+  shortcutApi,
+  ShortcutHandlersMap,
+} from '@frontend/common';
+import { isNoteOpen } from '@frontend/spreadsheet';
 
 import { PanelName } from '../common';
 import {
   AppContext,
   LayoutContext,
+  ProjectContext,
   SearchWindowContext,
-  SpreadsheetContext,
   UndoRedoContext,
 } from '../context';
-import { useManualEditDSL } from './useManualEditDSL';
+import { useGridApi } from './useGridApi';
 import { useProjectActions } from './useProjectActions';
-import { useSelectionMoveNextAvailable } from './useSelectionMoveNextAvailable';
-import { useSelectionMoveToSheetStartOrEnd } from './useSelectionMoveToSheetStartOrEnd';
 
 const disabledShortcutsOnCellEditorOpen = [
   Shortcut.RedoAction,
   Shortcut.UndoAction,
-  Shortcut.MoveSelectionNextAvailableUp,
-  Shortcut.MoveSelectionNextAvailableDown,
-  Shortcut.MoveSelectionNextAvailableLeft,
-  Shortcut.MoveSelectionNextAvailableRight,
 ];
 
 export function useShortcuts() {
   const { togglePanel } = useContext(LayoutContext);
   const { undo, redo } = useContext(UndoRedoContext);
-  const { updateZoomWithWheel, updateZoom } = useContext(AppContext);
-  const { gridApi } = useContext(SpreadsheetContext);
+  const { toggleChat, updateZoomWithWheel, updateZoom, chatWindowPlacement } =
+    useContext(AppContext);
+  const { isAIPendingChanges } = useContext(ProjectContext);
+  const gridApi = useGridApi();
   const { openSearchWindow } = useContext(SearchWindowContext);
 
-  const { moveSelectionNextAvailable } = useSelectionMoveNextAvailable();
-  const { moveSelectionToSheetStart, moveSelectionToSheetEnd } =
-    useSelectionMoveToSheetStartOrEnd();
-
   const { createProjectAction } = useProjectActions();
-  const { deleteSelectedFieldOrTable } = useManualEditDSL();
+
+  const handleToggleChat = useCallback(() => {
+    if (chatWindowPlacement === 'panel') {
+      togglePanel(PanelName.Chat);
+    } else {
+      toggleChat();
+    }
+  }, [toggleChat, chatWindowPlacement, togglePanel]);
 
   const shortcutGlobalHandlersMap: Partial<ShortcutHandlersMap> = useMemo(
     () => ({
@@ -46,37 +51,23 @@ export function useShortcuts() {
       [Shortcut.ToggleInputs]: () => togglePanel(PanelName.Inputs),
       [Shortcut.ToggleErrors]: () => togglePanel(PanelName.Errors),
       [Shortcut.ToggleHistory]: () => togglePanel(PanelName.UndoRedo),
-      [Shortcut.ToggleChat]: () => togglePanel(PanelName.Chat),
+      [Shortcut.ToggleChat]: () => handleToggleChat(),
       [Shortcut.RedoAction]: () => redo(),
       [Shortcut.UndoAction]: () => undo(),
-      [Shortcut.Delete]: () => deleteSelectedFieldOrTable(),
       [Shortcut.ZoomIn]: () => updateZoomWithWheel(1),
       [Shortcut.ZoomOut]: () => updateZoomWithWheel(-1),
       [Shortcut.ZoomReset]: () => updateZoom(1),
       [Shortcut.SearchWindow]: () => openSearchWindow(),
-      [Shortcut.MoveSelectionNextAvailableUp]: () =>
-        moveSelectionNextAvailable('up'),
-      [Shortcut.MoveSelectionNextAvailableDown]: () =>
-        moveSelectionNextAvailable('down'),
-      [Shortcut.MoveSelectionNextAvailableLeft]: () =>
-        moveSelectionNextAvailable('left'),
-      [Shortcut.MoveSelectionNextAvailableRight]: () =>
-        moveSelectionNextAvailable('right'),
-      [Shortcut.MoveToSheetStart]: () => moveSelectionToSheetStart(),
-      [Shortcut.MoveToSheetEnd]: () => moveSelectionToSheetEnd(),
     }),
     [
       createProjectAction,
       togglePanel,
+      handleToggleChat,
       redo,
       undo,
-      deleteSelectedFieldOrTable,
       updateZoomWithWheel,
       updateZoom,
       openSearchWindow,
-      moveSelectionNextAvailable,
-      moveSelectionToSheetStart,
-      moveSelectionToSheetEnd,
     ]
   );
 
@@ -85,15 +76,29 @@ export function useShortcuts() {
       for (const shortcut of disabledShortcutsOnCellEditorOpen) {
         const validShortcut = shortcutApi.is(shortcut as Shortcut, event);
 
-        if (validShortcut && gridApi?.isCellEditorOpen()) return;
+        if (
+          validShortcut &&
+          (gridApi?.isCellEditorOpen() || isModalOpen() || isNoteOpen())
+        )
+          return;
       }
 
       for (const shortcutKey in shortcutGlobalHandlersMap) {
         if (shortcutApi.is(shortcutKey as Shortcut, event)) {
+          const isUndoAIPromptHandle =
+            [Shortcut.UndoAction, Shortcut.RedoAction].includes(
+              shortcutKey as Shortcut
+            ) && isAIPendingChanges;
+
+          if (isNoteOpen() || isUndoAIPromptHandle) break;
+
           shortcutGlobalHandlersMap[shortcutKey as Shortcut]?.(event);
 
-          // Don't prevent default for Delete shortcut
-          if (shortcutKey !== Shortcut.Delete) {
+          // Don't prevent default for Delete/Backspace (not to block these keys in other inputs)
+          if (
+            shortcutKey !== Shortcut.Delete &&
+            shortcutKey !== Shortcut.Backspace
+          ) {
             event.preventDefault();
             event.stopImmediatePropagation();
           }
@@ -102,7 +107,7 @@ export function useShortcuts() {
         }
       }
     },
-    [gridApi, shortcutGlobalHandlersMap]
+    [gridApi, isAIPendingChanges, shortcutGlobalHandlersMap]
   );
 
   const handleWheelEvent = useCallback(

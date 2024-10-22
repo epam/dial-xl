@@ -4,6 +4,7 @@ import com.epam.deltix.quantgrid.engine.Util;
 import com.epam.deltix.quantgrid.engine.spark.SchemaUtil;
 import com.epam.deltix.quantgrid.engine.value.Period;
 import com.epam.deltix.quantgrid.type.ColumnType;
+import com.epam.deltix.quantgrid.util.Doubles;
 import it.unimi.dsi.fastutil.doubles.DoubleArrayList;
 import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
@@ -78,7 +79,7 @@ public class PeriodSeriesAggregator extends Aggregator<Row, PeriodSeriesAggregat
 
             // empty period series
             if (offsets.isEmpty()) {
-                return new GenericRow(new Object[] {Double.NaN, period.name(), new double[0]});
+                return new GenericRow(new Object[] {Doubles.ERROR_NA, period.name(), new double[0]});
             }
 
             double minOffset = Double.MAX_VALUE;
@@ -95,7 +96,7 @@ public class PeriodSeriesAggregator extends Aggregator<Row, PeriodSeriesAggregat
 
             int resultLength = (int) (maxOffset - minOffset) + 1;
             double[] result = new double[resultLength];
-            Arrays.fill(result, Double.NaN);
+            Arrays.fill(result, Doubles.ERROR_NA);
             for (int i = 0; i < offsets.size(); i++) {
                 double offset = offsets.getDouble(i);
                 double value = values.getDouble(i);

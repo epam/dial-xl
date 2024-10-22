@@ -1,17 +1,15 @@
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-import { workspaceRoot } from '@nx/devkit';
+import { config } from 'dotenv';
+
+// import { workspaceRoot } from '@nx/devkit';
 import { nxE2EPreset } from '@nx/playwright/preset';
 import { defineConfig, devices } from '@playwright/test';
+
+config();
 
 // For CI, you may want to set BASE_URL to the deployed application.
 const baseURL =
   process.env['BASE_URL'] || 'https://quantgrid-dev.staging.deltixhub.io/'; //'http://localhost:4200';
-
-/**
- * Read environment variables from file.
- * https://github.com/motdotla/dotenv
- */
-// require('dotenv').config();
 
 /**
  * See https://playwright.dev/docs/test-configuration.
@@ -19,13 +17,24 @@ const baseURL =
 export default defineConfig({
   ...nxE2EPreset(__filename, { testDir: './playwright' }),
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
-  reporter: 'allure-playwright',
+  reporter: [['list'], ['allure-playwright']],
   fullyParallel: false,
-  workers: 2,
+  workers: 4,
   use: {
     baseURL,
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'on-first-retry',
+    screenshot: 'only-on-failure',
+    video: 'retain-on-failure',
+    contextOptions: {
+      recordVideo: {
+        dir: './test-results/videos/',
+      },
+    },
+  },
+  timeout: 120000,
+  expect: {
+    timeout: 10000,
   },
   /* Run your local dev server before starting the tests */ // webServer: {
   //   command: 'npm run start',
@@ -35,6 +44,12 @@ export default defineConfig({
   // },
   /* Configure projects for major browsers */
   projects: [
+    { name: 'setup', testMatch: /.*\.setup\.ts/, teardown: 'clean' },
+    {
+      name: 'clean',
+      testMatch: /.*\.teardown\.ts/,
+      use: { storageState: 'playwright/.auth/user.json' },
+    },
     {
       name: 'chromium',
       use: {
@@ -43,7 +58,9 @@ export default defineConfig({
           width: 1920,
           height: 1080,
         },
+        storageState: 'playwright/.auth/user.json',
       },
+      dependencies: ['setup'],
     },
 
     /*{

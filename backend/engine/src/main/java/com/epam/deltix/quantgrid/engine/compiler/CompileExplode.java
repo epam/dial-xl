@@ -1,6 +1,6 @@
 package com.epam.deltix.quantgrid.engine.compiler;
 
-import com.epam.deltix.quantgrid.engine.compiler.result.CompiledColumn;
+import com.epam.deltix.quantgrid.engine.compiler.result.CompiledSimpleColumn;
 import com.epam.deltix.quantgrid.engine.compiler.result.CompiledPeriodPointTable;
 import com.epam.deltix.quantgrid.engine.compiler.result.CompiledReferenceTable;
 import com.epam.deltix.quantgrid.engine.compiler.result.CompiledResult;
@@ -14,7 +14,6 @@ import com.epam.deltix.quantgrid.engine.node.plan.local.CartesianLocal;
 import com.epam.deltix.quantgrid.engine.node.plan.local.Explode;
 import com.epam.deltix.quantgrid.engine.node.plan.local.SelectLocal;
 import com.epam.deltix.quantgrid.parser.FieldKey;
-import lombok.Getter;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -25,15 +24,12 @@ public class CompileExplode {
     private final List<CompiledTable> compiled; // a,  b, abc,    d
     private final List<CompiledTable> promoted; // a, ab, abc, abcd
     private final CompiledTable scalar;
-    @Getter
-    private final boolean isManual;
 
-    public CompileExplode(List<FieldKey> dimensions, CompiledTable scalar, boolean isManual) {
+    public CompileExplode(List<FieldKey> dimensions, CompiledTable scalar) {
         this.dimensions = dimensions;
         this.compiled = new ArrayList<>();
         this.promoted = new ArrayList<>();
         this.scalar = scalar;
-        this.isManual = isManual;
     }
 
     public List<FieldKey> dimensions() {
@@ -55,7 +51,7 @@ public class CompileExplode {
         return exploded ? promoted.get(position) : compiled.get(position);
     }
 
-    public CompiledResult add(CompiledResult result, FieldKey dimension) {
+    public CompiledTable add(CompiledResult result, FieldKey dimension) {
         int position = dimensions.indexOf(dimension);
         CompileUtil.verify(position == promoted.size(),
                 "Dimension dependency order does not match with definition order");
@@ -66,7 +62,7 @@ public class CompileExplode {
         CompiledTable table;
         CompiledTable mapped;
 
-        if (result instanceof CompiledColumn column) {
+        if (result instanceof CompiledSimpleColumn column) {
             table = explode(result, column);
         } else {
             table = result.cast(CompiledTable.class);
@@ -80,7 +76,7 @@ public class CompileExplode {
         compiled.add(table);
         promoted.add(mapped);
 
-        return compiled.get(position).flat();
+        return table;
     }
 
     public CompiledResult promote(CompiledResult result, List<FieldKey> target) {
@@ -99,9 +95,9 @@ public class CompileExplode {
         CompiledTable to = toIndependent ? compiled.get(toIndex) : promoted.get(toIndex);
 
         if (source.isEmpty()) {
-            if (result instanceof CompiledColumn column) {
+            if (result instanceof CompiledSimpleColumn column) {
                 Expand expand = new Expand(to.node(), column.node());
-                return new CompiledColumn(expand, target);
+                return new CompiledSimpleColumn(expand, target);
             }
 
             CompiledTable right = result.cast(CompiledTable.class);
@@ -140,7 +136,7 @@ public class CompileExplode {
         boolean fromIndependent = (source.size() == 1);
         Expression reference = chainReference(fromIndex, toIndex, fromIndependent);
 
-        if (result instanceof CompiledColumn column) {
+        if (result instanceof CompiledSimpleColumn column) {
             return CompileUtil.projectColumn(reference, column.node(), target);
         }
 
@@ -204,8 +200,8 @@ public class CompileExplode {
     }
 
     // query ref is not really needed, but other code fails, needs to be refactored
-    private static CompiledTable explode(CompiledResult result, CompiledColumn column) {
-        CompileUtil.verify(column.type().isPeriodSeries(), "Dimension is not period series");
+    private static CompiledTable explode(CompiledResult result, CompiledSimpleColumn column) {
+        CompileUtil.verify(column.type().isPeriodSeries(), "Cannot create a dimension from a scalar value");
         Expression series = column.node();
         RowNumber numbers = new RowNumber(series.getLayout());
 

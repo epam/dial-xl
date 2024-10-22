@@ -2,16 +2,17 @@ package com.epam.deltix.quantgrid.engine.test;
 
 import com.epam.deltix.quantgrid.engine.Engine;
 import com.epam.deltix.quantgrid.engine.GraphCallback;
+import com.epam.deltix.quantgrid.engine.cache.LocalCache;
 import com.epam.deltix.quantgrid.engine.executor.ExecutorUtil;
 import com.epam.deltix.quantgrid.engine.node.Node;
 import com.epam.deltix.quantgrid.engine.node.expression.Expression;
 import com.epam.deltix.quantgrid.engine.node.plan.Plan;
 import com.epam.deltix.quantgrid.engine.rule.ProjectionVerifier;
-import com.epam.deltix.quantgrid.engine.service.input.storage.LocalMetadataProvider;
+import com.epam.deltix.quantgrid.engine.service.input.storage.LocalInputProvider;
 import com.epam.deltix.quantgrid.engine.value.Column;
 import com.epam.deltix.quantgrid.engine.value.Table;
 import com.epam.deltix.quantgrid.engine.value.local.LocalTable;
-import com.epam.deltix.quantgrid.parser.FieldKey;
+import com.epam.deltix.quantgrid.parser.ParsedKey;
 import com.epam.deltix.quantgrid.parser.ParsedSheet;
 import com.epam.deltix.quantgrid.parser.ParsingError;
 import com.epam.deltix.quantgrid.parser.SheetReader;
@@ -32,6 +33,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @UtilityClass
 public class TestExecutor {
+
+    static {
+        System.setProperty("qg.python.timeout", "1000");
+    }
 
     @SuppressWarnings("unckecked")
     public static <R extends Table> R execute(Node node) {
@@ -59,13 +64,24 @@ public class TestExecutor {
     }
 
     public static ResultCollector executeWithErrors(String dsl) {
-        Engine engine = singleThreadEngine();
+        return executeWithErrors(dsl, false);
+    }
 
-        validateSheet(dsl);
-        CompletableFuture<Void> computationFuture = engine.compute(dsl, 1);
-        Map<FieldKey, String> compilationErrors = engine.getCompilationErrors();
-        compilationErrors.forEach((field, error) -> engine.getListener().onUpdate(field.tableName(),
-                field.fieldName(), -1, -1, true, 1, null, error, null));
+    public static ResultCollector executeWithErrors(String dsl, boolean withParsingErrors) {
+        return executeWithErrors(dsl, withParsingErrors, false);
+    }
+
+    public static ResultCollector executeWithErrors(String dsl, boolean withParsingErrors, boolean withProjections) {
+        Engine engine = singleThreadEngine(withProjections);
+
+        if (!withParsingErrors) {
+            validateSheet(dsl);
+        }
+
+        CompletableFuture<Void> computationFuture = engine.compute(dsl, null);
+        Map<ParsedKey, String> compilationErrors = engine.getCompilationErrors();
+        compilationErrors.forEach(
+                (field, error) -> engine.getListener().onUpdate(field, -1, -1, true, null, error, null));
         try {
             computationFuture.get(2, TimeUnit.SECONDS);
         } catch (InterruptedException | ExecutionException | TimeoutException e) {
@@ -79,8 +95,10 @@ public class TestExecutor {
         Engine engine = singleThreadEngine();
 
         validateSheet(dsl);
-        CompletableFuture<Void> computationFuture = engine.compute(dsl, 1);
-        Assertions.assertTrue(engine.getCompilationErrors().isEmpty(), "No compilation errors expected");
+        CompletableFuture<Void> computationFuture = engine.compute(dsl, null);
+        Assertions.assertTrue(engine.getCompilationErrors().isEmpty(),
+                "No compilation errors expected: " + engine.getCompilationErrors().entrySet().stream()
+                        .map(e -> e.getKey() + ": " + e.getValue()).collect(Collectors.joining(",")));
 
         try {
             computationFuture.get(2, TimeUnit.SECONDS);
@@ -103,19 +121,27 @@ public class TestExecutor {
         return singleThreadEngine(new PostOptimizationCallback(new ProjectionVerifier()));
     }
 
+    public static Engine singleThreadEngine(boolean withProjections) {
+        if (withProjections) {
+            return singleThreadEngine(new PostOptimizationCallback());
+        } else {
+            return singleThreadEngine(new PostOptimizationCallback(new ProjectionVerifier()));
+        }
+    }
+
     public static Engine singleThreadEngine(GraphCallback graphCallback) {
         return engine(ExecutorUtil.directExecutor(), graphCallback);
     }
 
     private static Engine engine(ExecutorService service, GraphCallback graphCallback) {
-        LocalMetadataProvider metadataProvider = new LocalMetadataProvider(TestInputs.INPUTS_PATH);
+        LocalInputProvider inputProvider = new LocalInputProvider(TestInputs.INPUTS_PATH);
         ResultCollector collector = new ResultCollector();
-        return new Engine(service, collector, graphCallback, metadataProvider);
+        return new Engine(new LocalCache(), service, collector, graphCallback, inputProvider);
     }
 
     private static void validateSheet(String dsl) {
         ParsedSheet parsedSheet = SheetReader.parseSheet(dsl);
-        List<ParsingError> parsingErrors = parsedSheet.getErrors();
+        List<ParsingError> parsingErrors = parsedSheet.errors();
         if (!parsingErrors.isEmpty()) {
             String errors = parsingErrors.stream().map(Objects::toString)
                     .collect(Collectors.joining("\n", "Parsing failed:\n ", ""));

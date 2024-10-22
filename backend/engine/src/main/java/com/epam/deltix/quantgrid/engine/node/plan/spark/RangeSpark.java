@@ -34,7 +34,7 @@ public class RangeSpark extends Plan0<SparkTable> {
     @Override
     public SparkTable execute() {
         DoubleColumn count = expression(0).evaluate();
-        long rowCount = RangeLocal.extractCount(count);
+        long rowCount = extractCount(count);
 
         ColumnPartition columnPartition = PartitionUtil.generateRowNumber(rowCount);
         TablePartition tablePartition = TablePartition.builder()
@@ -42,5 +42,20 @@ public class RangeSpark extends Plan0<SparkTable> {
         TablePartition[] tablePartitions = {tablePartition};
 
         return new SparkTable(tablePartitions);
+    }
+
+    private static long extractCount(DoubleColumn column) {
+        double value = column.get(0);
+        long integer = (long) value;
+
+        if (integer != value) {
+            throw new IllegalArgumentException("Invalid function RANGE argument \"count\": expected value of type INTEGER");
+        }
+
+        if (integer < 0) {
+            throw new IllegalArgumentException("The count cannot be negative");
+        }
+
+        return integer;
     }
 }

@@ -1,5 +1,3 @@
-# See http://help.github.com/ignore-files/ for more about ignoring files.
-
 # compiled output
 dist
 tmp
@@ -44,7 +42,15 @@ Thumbs.db
 .env
 libs/parser/src/lib/grammar/*
 !libs/parser/src/lib/grammar/.gitkeep
+external-env.js
 
 # Tests
 /allure-results
 /allure-report
+test-results
+folderName.txt
+playwright/.auth
+
+
+/.nx/cache
+.nx/workspace-data

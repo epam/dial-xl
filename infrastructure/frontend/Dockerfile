@@ -1,4 +1,4 @@
-FROM nginx:1.21.6-alpine
+FROM nginx:stable-alpine3.17
 
 COPY infrastructure/frontend/nginx /etc/nginx
 COPY frontend/dist/apps/quantgrid /frontend

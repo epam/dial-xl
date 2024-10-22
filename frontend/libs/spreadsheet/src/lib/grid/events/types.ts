@@ -1,87 +1,64 @@
 import { Observable } from 'rxjs';
 
-import { Column, IColumnState } from '@deltix/grid-it-core';
+import { IColumnState } from '@deltix/grid-it-core';
 
 export enum GridEvent {
   // global
-  filter = 'filter',
   columnState = 'columnState',
-  columns = 'columns',
-  contextmenu = 'contextmenu',
-  sort = 'sort',
-  // row
-  rowDblClick = 'rowDblClick',
-  rowClick = 'rowClick',
   // header
-  headerClick = 'headerClick',
-  activeTabIndex = 'activeTabIndex',
   columnResize = 'columnResize',
   columnResizeDbClick = 'columnResizeDbClick',
+  resetCurrentColumnSizes = 'resetCurrentColumnSizes',
+  // note
+  openNote = 'openNote',
+  // ai prompt
+  openAIPrompt = 'openAIPrompt',
+  expandAIPrompt = 'expandAIPrompt',
 }
-export type BaseEventType<T extends keyof GridEvent, E = unknown> = {
-  type: T;
-  event: E;
-};
-type IWrappedRowClickEvent = {
-  event: Event;
-  index: number;
-  target: HTMLElement;
-  data: any; // TODO: Generic type definition
-};
-export type EventTypeFilter = {
-  type: GridEvent.filter;
-};
-export type EventTypeSort = {
-  type: GridEvent.sort;
-};
+
 export type EventTypeColumnState = {
   type: GridEvent.columnState;
   event: IColumnState[];
 };
-export type EventTypeRowClick = {
-  type: GridEvent.rowClick;
-  event: IWrappedRowClickEvent;
-};
-export type EventTypeRowDblClick = {
-  type: GridEvent.rowDblClick;
-  event: IWrappedRowClickEvent;
-};
-export type EventTypeContextmenu = {
-  type: GridEvent.contextmenu;
-  event: IWrappedRowClickEvent;
-};
-export type EventTypeHeaderClick = {
-  type: GridEvent.headerClick;
-  event: Event;
-  column: Column;
-};
-export type EventTypeActiveTabIndex = {
-  type: GridEvent.activeTabIndex;
-  activeTabIndex: number | null;
-};
 export type EventTypeColumnResize = {
   type: GridEvent.columnResize;
 
-  column: Column;
+  column: number;
   width: number;
 };
 export type EventTypeColumnResizeDbClick = {
   type: GridEvent.columnResizeDbClick;
 
-  column: Column;
+  column: number;
+};
+export type EventTypeResetCurrentColumnSizes = {
+  type: GridEvent.resetCurrentColumnSizes;
+};
+
+export type EventTypeOpenNote = {
+  type: GridEvent.openNote;
+
+  col: number;
+  row: number;
+};
+export type EventTypeOpenAIPrompt = {
+  type: GridEvent.openAIPrompt;
+
+  col: number;
+  row: number;
+};
+export type EventTypeExpandAIPrompt = {
+  type: GridEvent.expandAIPrompt;
 };
 
 export type EventType =
-  | EventTypeFilter
-  | EventTypeSort
   | EventTypeColumnState
-  | EventTypeRowClick
-  | EventTypeRowDblClick
-  | EventTypeContextmenu
-  | EventTypeHeaderClick
-  | EventTypeActiveTabIndex
   | EventTypeColumnResize
-  | EventTypeColumnResizeDbClick;
+  | EventTypeColumnResizeDbClick
+  | EventTypeResetCurrentColumnSizes
+  | EventTypeOpenNote
+  | EventTypeOpenAIPrompt
+  | EventTypeExpandAIPrompt;
 
 export type IEventsService = {
   events$: Observable<EventType>;

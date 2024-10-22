@@ -1,7 +1,10 @@
-import { GridSelection, GridTable } from '../../grid';
+import { GridTable } from '@frontend/common';
+
+import { Grid, GridSelection } from '../../grid';
 import { findTableInSelection } from './utils';
 
 export function selectTableColumnOrSheetColumn(
+  api: Grid,
   tables: GridTable[],
   selection: GridSelection,
   maxRow: number
@@ -21,8 +24,11 @@ export function selectTableColumnOrSheetColumn(
     };
   }
 
+  const cell = api.getCell(table.startCol, table.startRow);
+  const rowOffset = cell?.isTableHeader ? 1 : 0;
+
   return {
-    startRow: table.startRow,
+    startRow: table.startRow + rowOffset,
     endRow: Math.min(maxRow, table.endRow),
     startCol: selection.startCol,
     endCol: selection.endCol,

@@ -1,6 +1,9 @@
 package com.epam.deltix.quantgrid.engine.compiler;
 
-import com.epam.deltix.quantgrid.engine.compiler.result.CompiledColumn;
+import com.epam.deltix.quantgrid.engine.Util;
+import com.epam.deltix.quantgrid.engine.compiler.function.Functions;
+import com.epam.deltix.quantgrid.engine.compiler.result.CompiledSimpleColumn;
+import com.epam.deltix.quantgrid.engine.compiler.result.CompiledPivotTable;
 import com.epam.deltix.quantgrid.engine.compiler.result.CompiledReferenceTable;
 import com.epam.deltix.quantgrid.engine.compiler.result.CompiledResult;
 import com.epam.deltix.quantgrid.engine.compiler.result.CompiledTable;
@@ -35,39 +38,60 @@ public class CompileFormula {
             return compileCurrentField(context, reference);
         }
 
-        if (formula instanceof QueryRow reference) {
-            return compileQueryRowReference(context, reference);
+        if (formula instanceof QueryRow) {
+            return compileQueryRowReference(context);
         }
 
         if (formula instanceof ConstNumber constant) {
-            return new CompiledColumn(new Constant(constant.number()), List.of());
+            return new CompiledSimpleColumn(new Constant(constant.number()), List.of());
         }
 
         if (formula instanceof ConstText constant) {
-            return new CompiledColumn(new Constant(constant.text()), List.of());
+            return new CompiledSimpleColumn(new Constant(constant.text()), List.of());
         }
 
         if (formula instanceof Function function) {
-            return CompileFunction.compile(context, function);
+            if (Functions.getFunction(function.name()) == null
+                    && context.pythonFunction(function.name()) == null
+                    && context.hasParsedTable(function.name())) {
+
+                TableReference table = new TableReference(function.name());
+                function = new Function("RowReference", Util.listOf(table, function.arguments()));
+            }
+
+            return CompileFunction.compile(context.withFunction(function));
         }
 
-        throw new RuntimeException();
+        throw new CompileError("Unsupported formula: " + formula);
     }
 
     private static CompiledTable compileTableReference(CompileContext context, TableReference reference) {
         String name = reference.table();
         CompiledTable table = context.table(name);
+        CompiledTable promoted = context.promotedTable();
         SelectLocal select = new SelectLocal(new RowNumber(table.node()));
+
+        // check everything except for name, because we allow different tables with same layout to be used
+        // table A = RANGE(3), table B = RANGE(3), table C = A.FILTER(B) - A, B have same layout
+        if (promoted != null && promoted.nested() && promoted.dimensions().isEmpty()
+                && promoted.currentRef() == CompiledTable.REF_NA && promoted.queryRef() == 0
+                && select.semanticEqual(promoted.node(), true)) {
+            // table T3
+            //   dim [r3] = T2.ORDERBY(-T2[r2])[
+            return promoted;
+        }
+
         return new CompiledReferenceTable(name, select);
     }
 
     private static CompiledResult compileFieldReference(CompileContext context, FieldReference reference) {
-        CompiledTable table = context.compile(reference.table()).cast(CompiledTable.class);
+
+        CompiledTable table = context.compileFormula(reference.table()).cast(CompiledTable.class);
         return table.field(context, reference.field());
     }
 
     private static CompiledResult compileCurrentField(CompileContext context, CurrentField reference) {
-        CompiledTable table = context.table();
+        CompiledTable table = context.promotedTable();
         String fieldName = reference.field();
 
         return (table == null)
@@ -75,9 +99,13 @@ public class CompileFormula {
                 : context.projectCurrentField(fieldName);
     }
 
-    private static CompiledResult compileQueryRowReference(CompileContext context, QueryRow reference) {
-        CompiledTable table = context.table();
-        CompileUtil.verify(table != null, "Can't reference $ outside function");
-        return context.nested() ? table : table.flat();
+    private static CompiledResult compileQueryRowReference(CompileContext context) {
+        CompileUtil.verify(context.promotedTable != null, "Can't reference $ outside function");
+        // Used to prevent usage of PivotTable for other formulas. See testPivotInFormula.
+        CompileUtil.verify(
+                !(context.promotedTable instanceof CompiledPivotTable) && context.promotedTable.nested(),
+                "Pivot table can't be dimension or used in formulas");
+
+        return context.promotedTable;
     }
 }

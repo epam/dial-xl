@@ -1,88 +1,77 @@
 .container {
-  height: 100%;
-  width: 100%;
+  background: var(--bg-grid-layer-main);
+  color: var(--text-grid-primary);
   display: flex;
+  height: 100%;
   position: relative;
-  background: #fff;
+  width: 100%;
+  padding-left: 2px;
 
-  .content {
+  a.content {
+    color: var(--bg-accent-tertiary);
+    user-select: none;
+    -webkit-user-drag: none;
+  }
+
+  .contentWrapper {
     align-items: center;
     display: flex;
-    padding: 1px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
     height: 100%;
-    width: 100%;
+    overflow: hidden;
+    flex-grow: 1;
+    padding: 1px;
+  }
+
+  &.colored {
+    background-color: var(--bg-grid-colored-cell);
+  }
+
+  &.diff .contentWrapper {
+    background-color: var(--bg-accent-primary-alpha-2);
+  }
+
+  .content {
+    overflow: hidden;
+    white-space: nowrap;
+  }
+
+  .justifyRight {
+    justify-content: end;
   }
 
   .errorTooltipTrigger {
-    position: absolute;
-
-    top: -4px;
-    right: -4px;
-    width: 8px;
-    height: 8px;
     background: red;
     border-radius: 8px;
     cursor: pointer;
-    z-index: 101;
-
-    &:hover {
-      .errorTooltip {
-        display: block;
-      }
-    }
-  }
-
-  .errorTooltip {
+    height: 8px;
     position: absolute;
-    display: none;
-    width: max-content;
-    max-width: 200px;
-    z-index: 111;
-    top: -30px;
-    background: #f5f5f5;
-    padding: 7px;
-    border-radius: 6px;
-    word-wrap: break-word;
-  }
-}
-
-.tooltip {
-  position: absolute;
-  display: none;
-  width: max-content;
-  z-index: 111;
-  top: -25px;
-  background: #f5f5f5;
-  padding: 4px;
-  border-radius: 8px;
-  word-wrap: break-word;
-}
-
-.activeTooltip {
-  cursor: pointer;
-
-  &:hover {
-    ~ .tooltip {
-      display: block;
-    }
+    right: -4px;
+    top: -4px;
+    width: 8px;
+    z-index: 101;
   }
 }
 
 .header {
   align-items: center;
-  background-color: #e6e2e2;
-  display: flex;
-  width: 100% !important;
-  font-weight: normal;
-  border-top: 1px solid rgba(0, 0, 0, 0.4);
+  background-color: var(--bg-grid-header);
   border-left: none !important;
+  display: flex;
+  font-weight: 700;
+  width: 100% !important;
 }
 
-.headerTitle {
-  position: absolute;
+.topBorder {
+  border-top: 1px solid var(--stroke-grid-table);
+}
+
+.headerButtonsContainer {
+  display: none;
+  height: 100%;
+}
+
+.cmButton {
+  margin-left: 4px !important;
 }
 
 .closeButton {
@@ -101,8 +90,9 @@
 }
 
 .field {
-  background-color: #f5f5f5;
+  background-color: var(--bg-grid-field);
   display: flex;
+  font-weight: 700;
 }
 
 .cell {
@@ -110,25 +100,128 @@
 }
 
 .keyField {
-  color: red;
+  color: var(--stroke-grid-error);
+}
+
+.keyCell {
+  font-weight: 700;
 }
 
 .leftBorder {
-  border-left: 1px solid rgba(0, 0, 0, 0.4) !important;
+  border-left: 1px solid var(--stroke-grid-table) !important;
+}
+
+.leftShadow {
+  position: absolute;
+  left: 0;
+  width: 1px;
+}
+
+.rightShadow {
+  position: absolute;
+  right: 0;
+  width: 1px;
 }
 
 .rightBorder {
-  border-right: 1px solid rgba(0, 0, 0, 0.4) !important;
+  border-right: 1px solid var(--stroke-grid-table) !important;
 }
 
 .bottomBorder {
-  border-bottom: 1px solid rgba(0, 0, 0, 0.4) !important;
+  border-bottom: 1px solid var(--stroke-grid-table) !important;
 }
 
 .errorBorder {
-  border: 1px solid red !important;
+  border: 1px solid var(--stroke-grid-error) !important;
+}
+
+.errorBottomBorder {
+  border-bottom: 1px solid var(--stroke-grid-error) !important;
+}
+
+.errorRightBorder {
+  border-right: 1px solid var(--stroke-grid-error) !important;
+}
+
+.errorLeftBorder {
+  border-left: 1px solid var(--stroke-grid-error) !important;
+}
+
+.errorTopBorder {
+  border-top: 1px solid var(--stroke-grid-error) !important;
+}
+
+.errorFieldBorder {
+  @extend .errorLeftBorder;
+  @extend .errorRightBorder;
+  @extend .errorTopBorder;
+}
+
+.errorFieldBorderHorizontal {
+  @extend .errorLeftBorder;
+  @extend .errorBottomBorder;
+  @extend .errorTopBorder;
+}
+
+.errorXBorder {
+  @extend .errorLeftBorder;
+  @extend .errorRightBorder;
+}
+
+.errorYBorder {
+  @extend .errorBottomBorder;
+  @extend .errorTopBorder;
 }
 
 .overrideBorder {
-  border: 1px solid #9400d3ff !important;
+  border: 1px solid var(--stroke-accent-secondary) !important;
+}
+
+.hasComment {
+  border-color: transparent #608a32 transparent transparent;
+  border-style: solid;
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 0;
+}
+
+.totalCell {
+  background-color: var(--bg-accent-tertiary-alpha);
+}
+
+.firstRowTotalCell {
+  border-top: 1px solid var(--stroke-secondary);
+}
+
+.lastRowTotalCell {
+  border-bottom: 1px solid var(--stroke-secondary);
+}
+
+.firstColTotalCell {
+  border-left: 1px solid var(--stroke-secondary);
+}
+
+.lastColTotalCell {
+  border-right: 1px solid var(--stroke-secondary);
+}
+
+.resizeTrigger {
+  position: absolute;
+  right: -1px;
+  height: 100%;
+  width: 3px;
+  z-index: 40;
+}
+
+.resizeLeftTrigger {
+  cursor: e-resize;
+}
+.resizeFullTrigger {
+  cursor: col-resize;
+}
+
+.resizeTrigger:hover {
+  background-color: gray;
+  border-radius: 3px;
 }

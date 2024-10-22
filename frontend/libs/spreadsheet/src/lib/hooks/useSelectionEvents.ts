@@ -1,15 +1,23 @@
 import { MutableRefObject, useCallback, useEffect, useState } from 'react';
 
+import { defaults } from '../defaults';
 import {
   filterByTypeAndCast,
   Grid,
   GridSelection,
+  GridSelectionEventPointClickSelectValue,
+  GridSelectionEventType,
+  GridSelectionShortcutArrowBottomAfterEditNavigation,
+  GridSelectionShortcutArrowLeftAfterEditNavigation,
+  GridSelectionShortcutArrowRightAfterEditNavigation,
+  GridSelectionShortcutArrowTopAfterEditNavigation,
+  GridSelectionShortcutEnterAfterEditNavigation,
   GridSelectionShortcutExtendRangeSelection,
   GridSelectionShortcutMoveSelectAll,
-  GridSelectionShortcutRangeSelection,
   GridSelectionShortcutSelectAll,
   GridSelectionShortcutSelectColumn,
   GridSelectionShortcutSelectRow,
+  GridSelectionShortcutTabNavigation,
   GridSelectionShortcutToRowEdge,
   GridSelectionShortcutType,
 } from '../grid';
@@ -20,7 +28,6 @@ import {
   findTableInSelection,
   getSelectedCell,
   navigateToSheetEdge,
-  rangeSelection,
   selectTable,
   selectTableColumnOrSheetColumn,
   selectTableRowOrSheetRow,
@@ -71,22 +78,6 @@ export function useSelectionEvents(
         if (!gridServiceRef.current) return;
 
         updateAppSelection(selection);
-
-        if (selection) {
-          const { startRow, endCol, endRow, startCol } = selection;
-
-          if (!(startRow === endRow && startCol === endCol)) return;
-
-          const cell = gridServiceRef.current.getCellValue(startRow, startCol);
-
-          if (!cell || !cell.table) return;
-
-          const { table } = cell;
-
-          if (table.startRow === startRow) {
-            api.selectTableHeader(table.startCol, table.endCol);
-          }
-        }
       }
     );
 
@@ -212,36 +203,14 @@ export function useSelectionEvents(
 
         const tableStructure = gridService.getTableStructure();
         const maxRow = gridService.getMaxRow();
-
         const updatedSelection = selectTableColumnOrSheetColumn(
+          api,
           tableStructure,
           selection,
           maxRow
         );
 
         if (!updatedSelection) return;
-
-        updateSelection(updatedSelection);
-      });
-
-    const rangeSelectionSubscription = api.selectionShortcuts$
-      .pipe(
-        filterByTypeAndCast<GridSelectionShortcutRangeSelection>(
-          GridSelectionShortcutType.RangeSelection
-        )
-      )
-      .subscribe(({ direction }) => {
-        const api = apiRef.current;
-        const gridService = gridServiceRef.current;
-
-        if (!api || !gridService) return;
-
-        const selection = api.selection$.getValue();
-
-        if (!selection) return;
-        const maxRow = gridService.getMaxRow();
-
-        const updatedSelection = rangeSelection(selection, direction, maxRow);
 
         updateSelection(updatedSelection);
       });
@@ -266,6 +235,7 @@ export function useSelectionEvents(
         const maxRow = gridService.getMaxRow();
 
         const updatedSelection = extendRangeSelection(
+          api,
           tableStructure,
           selection,
           direction,
@@ -277,16 +247,248 @@ export function useSelectionEvents(
         updateSelection(updatedSelection);
       });
 
+    const enterNavigationSubscription = api.selectionShortcuts$
+      .pipe(
+        filterByTypeAndCast<GridSelectionShortcutEnterAfterEditNavigation>(
+          GridSelectionShortcutType.EnterAfterEditNavigation
+        )
+      )
+      .subscribe(() => {
+        const api = apiRef.current;
+        const gridService = gridServiceRef.current;
+
+        if (!api || !gridService) return;
+
+        const selection = api.selection$.getValue();
+
+        if (!selection) return;
+
+        const row = Math.min(selection.endRow + 1, defaults.viewport.rows);
+        const col = selection.startCol;
+        const updatedSelection = {
+          startRow: row,
+          endRow: row,
+          startCol: col,
+          endCol: col,
+        };
+
+        updateSelection(updatedSelection);
+      });
+
+    const tabNavigationSubscription = api.selectionShortcuts$
+      .pipe(
+        filterByTypeAndCast<GridSelectionShortcutTabNavigation>(
+          GridSelectionShortcutType.TabNavigation
+        )
+      )
+      .subscribe(() => {
+        const api = apiRef.current;
+        const gridService = gridServiceRef.current;
+
+        if (!api || !gridService) return;
+
+        const selection = api.selection$.getValue();
+
+        if (!selection) return;
+
+        const cell = gridService.getCellValue(
+          selection.startRow,
+          selection.startCol
+        );
+
+        if (!cell?.table?.tableName) {
+          const col = Math.min(selection.endCol + 1, defaults.viewport.cols);
+          const row = selection.startRow;
+          const updatedSelection = {
+            startRow: row,
+            endRow: row,
+            startCol: col,
+            endCol: col,
+          };
+
+          updateSelection(updatedSelection);
+
+          return;
+        }
+
+        const tableName = cell.table.tableName;
+        const tables = gridService.getTableStructure();
+        const table = tables.find((table) => table.tableName === tableName);
+
+        if (!table) return;
+
+        if (table.endCol === selection.endCol) {
+          const row = Math.min(selection.startRow + 1, defaults.viewport.rows);
+
+          const updatedSelection = {
+            startRow: row,
+            endRow: row,
+            startCol: table.startCol,
+            endCol: table.startCol,
+          };
+          updateSelection(updatedSelection);
+
+          if (table.endRow === selection.startRow && cell.table?.isManual) {
+            gridCallbacksRef.current.onAddTableRow?.(
+              table.startCol,
+              row,
+              tableName,
+              ''
+            );
+          }
+
+          return;
+        }
+
+        const col = Math.min(selection.endCol + 1, defaults.viewport.cols);
+        const row = selection.startRow;
+        const updatedSelection = {
+          startRow: row,
+          endRow: row,
+          startCol: col,
+          endCol: col,
+        };
+
+        updateSelection(updatedSelection);
+      });
+
+    const rightArrowNavigationSubscription = api.selectionShortcuts$
+      .pipe(
+        filterByTypeAndCast<GridSelectionShortcutArrowRightAfterEditNavigation>(
+          GridSelectionShortcutType.ArrowRightAfterEditNavigation
+        )
+      )
+      .subscribe(() => {
+        const api = apiRef.current;
+        const gridService = gridServiceRef.current;
+
+        if (!api || !gridService) return;
+
+        const selection = api.selection$.getValue();
+
+        if (!selection) return;
+
+        const col = Math.min(selection.endCol + 1, defaults.viewport.cols);
+        const row = selection.startRow;
+        const updatedSelection = {
+          startRow: row,
+          endRow: row,
+          startCol: col,
+          endCol: col,
+        };
+
+        updateSelection(updatedSelection);
+      });
+
+    const leftArrowNavigationSubscription = api.selectionShortcuts$
+      .pipe(
+        filterByTypeAndCast<GridSelectionShortcutArrowLeftAfterEditNavigation>(
+          GridSelectionShortcutType.ArrowLeftAfterEditNavigation
+        )
+      )
+      .subscribe(() => {
+        const api = apiRef.current;
+        const gridService = gridServiceRef.current;
+
+        if (!api || !gridService) return;
+
+        const selection = api.selection$.getValue();
+
+        if (!selection) return;
+
+        const col = Math.max(selection.endCol - 1, 0);
+        const row = selection.startRow;
+        const updatedSelection = {
+          startRow: row,
+          endRow: row,
+          startCol: col,
+          endCol: col,
+        };
+
+        updateSelection(updatedSelection);
+      });
+
+    const topArrowNavigationSubscription = api.selectionShortcuts$
+      .pipe(
+        filterByTypeAndCast<GridSelectionShortcutArrowTopAfterEditNavigation>(
+          GridSelectionShortcutType.ArrowTopAfterEditNavigation
+        )
+      )
+      .subscribe(() => {
+        const api = apiRef.current;
+        const gridService = gridServiceRef.current;
+
+        if (!api || !gridService) return;
+
+        const selection = api.selection$.getValue();
+
+        if (!selection) return;
+
+        const col = selection.startCol;
+        const row = Math.max(selection.endRow - 1, 0);
+        const updatedSelection = {
+          startRow: row,
+          endRow: row,
+          startCol: col,
+          endCol: col,
+        };
+
+        updateSelection(updatedSelection);
+      });
+
+    const bottomArrowNavigationSubscription = api.selectionShortcuts$
+      .pipe(
+        filterByTypeAndCast<GridSelectionShortcutArrowBottomAfterEditNavigation>(
+          GridSelectionShortcutType.ArrowBottomAfterEditNavigation
+        )
+      )
+      .subscribe(() => {
+        const api = apiRef.current;
+        const gridService = gridServiceRef.current;
+
+        if (!api || !gridService) return;
+
+        const selection = api.selection$.getValue();
+
+        if (!selection) return;
+
+        const col = selection.startCol;
+        const row = Math.min(selection.endRow + 1, defaults.viewport.rows);
+        const updatedSelection = {
+          startRow: row,
+          endRow: row,
+          startCol: col,
+          endCol: col,
+        };
+
+        updateSelection(updatedSelection);
+      });
+    const pointClickSelectValueSubscription = api.selectionEvents$
+      .pipe(
+        filterByTypeAndCast<GridSelectionEventPointClickSelectValue>(
+          GridSelectionEventType.PointClickSelectValue
+        )
+      )
+      .subscribe(({ pointClickSelection }) => {
+        gridCallbacksRef.current.onPointClickSelectValue?.(pointClickSelection);
+      });
+
     return () => {
       [
         selectionUpdateSubscription,
         selectAllSubscription,
         selectRowSubscription,
         selectColumnSubscription,
-        rangeSelectionSubscription,
         extendRangeSelectionSubscription,
         moveSelectAllSubscription,
         selectionToRowEdgeSubscription,
+        enterNavigationSubscription,
+        tabNavigationSubscription,
+        rightArrowNavigationSubscription,
+        leftArrowNavigationSubscription,
+        topArrowNavigationSubscription,
+        bottomArrowNavigationSubscription,
+        pointClickSelectValueSubscription,
       ].forEach((subscription) => subscription.unsubscribe());
     };
   }, [
@@ -297,4 +499,23 @@ export function useSelectionEvents(
     gridCallbacksRef,
     selectedTableName,
   ]);
+
+  const handleKeyDown = useCallback(
+    (event: KeyboardEvent) => {
+      const api = apiRef.current;
+
+      if (!api) return;
+
+      api.selectionOnKeyDown(event);
+    },
+    [apiRef]
+  );
+
+  useEffect(() => {
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [handleKeyDown]);
 }

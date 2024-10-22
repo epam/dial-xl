@@ -10,6 +10,7 @@ import com.epam.deltix.quantgrid.engine.test.SharedLocalSparkTest;
 import com.epam.deltix.quantgrid.engine.value.spark.SparkTable;
 import com.epam.deltix.quantgrid.engine.value.spark.SparkValue;
 import com.epam.deltix.quantgrid.type.ColumnType;
+import com.epam.deltix.quantgrid.util.Doubles;
 import lombok.SneakyThrows;
 import lombok.val;
 import org.apache.hadoop.conf.Configuration;
@@ -48,7 +49,7 @@ class DataSourceV2Test extends SharedLocalSparkTest {
     void init() {
         schema = StructType.fromDDL("_rn DOUBLE, company STRING, date DOUBLE, value DOUBLE");
         rows = List.of(
-                new GenericRow(new Object[] {1.0, "cmpA", 1.0, Double.NaN}),
+                new GenericRow(new Object[] {1.0, "cmpA", 1.0, Doubles.ERROR_NA}),
                 new GenericRow(new Object[] {2.0, "cmpA", 1.0, 11.0}),
                 new GenericRow(new Object[] {3.0, "cmpA", 2.0, 22.0}),
                 new GenericRow(new Object[] {4.0, "companyB", 1.0, 111.0}),

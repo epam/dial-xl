@@ -18,16 +18,8 @@ public final class Util {
         return type.isInstance(object) ? (T) object : null;
     }
 
-    public static boolean isNa(double value) {
-        return Double.isNaN(value);
-    }
-
-    public static boolean isNa(String value) {
+    public static boolean isNa(PeriodSeries value) {
         return value == null;
-    }
-
-    public static boolean isNa(PeriodSeries series) {
-        return series == null;
     }
 
     public static int toIntSize(Table table) {

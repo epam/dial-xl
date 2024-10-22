@@ -1,4 +1,4 @@
-import { getDataScroller } from './moveViewport';
+import { getDataScroller } from '@frontend/common';
 
 export function scrollPage(direction: 'up' | 'down') {
   const gridDataScroller = getDataScroller();

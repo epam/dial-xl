@@ -1,9 +1,10 @@
 .grid-header {
+  background: var(--bg-layer-2);
   position: sticky;
-  top: 0px;
-  z-index: 101;
-  background: white; // TODO probably move to a theme or something
+  top: 0;
   user-select: none;
+  z-index: 101;
+
   &__groups {
     display: flex;
   }
@@ -11,30 +12,38 @@
 
 .grid-header-group {
   display: flex;
-  justify-content: space-between;
   flex-direction: column;
+  justify-content: space-between;
   width: 100%;
 
   &__content {
-    display: flex;
     align-items: flex-end;
+    display: flex;
   }
 }
 
 .grid-header-cell {
-  display: inline-flex;
   align-items: center;
-  background: #e7e8ee;
+  background: var(--bg-layer-2);
+  border-bottom: 1px solid var(--stroke-grid);
+  color: var(--text-secondary);
+  display: inline-flex;
+  font-weight: 500;
   padding-left: 4px;
+  position: absolute;
+  height: 100%;
 
   &--selected {
-    background: #c4c1c1;
+    background: var(--bg-layer-4);
+    color: var(--text-primary);
+    font-weight: 600;
   }
 
   &__content {
     flex: 1;
     min-width: 0;
     overflow: hidden;
+    text-align: center;
     text-overflow: ellipsis;
     white-space: nowrap;
 
@@ -45,27 +54,28 @@
 
   &__resize {
     cursor: col-resize;
-    width: 5px;
     height: 100%;
-    position: relative;
+    position: absolute;
+    right: 0;
+    width: 5px;
 
     &:hover {
       &::after {
-        background: black;
+        background: var(--stroke-hover-focus);
         width: 4px;
       }
     }
 
     &::after {
+      background: var(--stroke-grid);
+      border-radius: 4px;
       content: ' ';
+      height: 100%;
+      opacity: 0.5;
       position: absolute;
       right: -2px;
-      z-index: 104;
-      border-radius: 4px;
-      opacity: 0.5;
       width: 2px;
-      height: 100%;
-      background: rgb(211, 211, 211);
+      z-index: 104;
     }
   }
 
@@ -77,21 +87,20 @@
 }
 
 .grid-header-cell__resize-stub {
+  background: var(--stroke-grid-accent-primary);
+  border-radius: 4px;
+  height: 20px;
   position: absolute;
   width: 6px;
-  height: 20px;
-  background: rgb(82, 82, 255);
-  border-radius: 4px;
 
   &::after {
+    background: var(--stroke-grid-accent-primary);
+    border-radius: 3px;
     content: ' ';
+    height: 100vh;
     position: absolute;
     right: 3px;
-    z-index: 104;
     width: 1px;
-
-    background: rgba(82, 82, 255, 0.5);
-    border-radius: 3px;
-    height: 100vh;
+    z-index: 104;
   }
 }

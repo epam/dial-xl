@@ -12,7 +12,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class ExecutorUtil {
 
     public static ExecutorService directExecutor() {
-        return MoreExecutors.sameThreadExecutor();
+        return MoreExecutors.newDirectExecutorService();
     }
 
     public static ExecutorService fixedThreadExecutor(int threads) {

@@ -77,7 +77,7 @@ public abstract class Plan extends Node {
         return (Expression) inputs.get(start);
     }
 
-    protected final Expression expression(int sourceIndex, int elementIndex) {
+    public final Expression expression(int sourceIndex, int elementIndex) {
         int start = groupStart[sourceIndex];
         int size = groupCount[sourceIndex];
         Util.verify(size > 0 && elementIndex < size);
@@ -158,11 +158,11 @@ public abstract class Plan extends Node {
         return new Source(plan, List.of());
     }
 
-    protected static Source sourceOf(Plan plan, Expression... expressions) {
+    public static Source sourceOf(Plan plan, Expression... expressions) {
         return new Source(plan, List.of(expressions));
     }
 
-    protected static Source sourceOf(Plan plan, List<Expression> expressions) {
+    public static Source sourceOf(Plan plan, List<Expression> expressions) {
         return new Source(plan, expressions);
     }
 

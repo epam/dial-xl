@@ -9,39 +9,50 @@ import {
   useRef,
   useState,
 } from 'react';
-
-import { KeyboardCode, Shortcut, shortcutApi } from '@frontend/common';
+import { useNavigate } from 'react-router-dom';
 
 import {
-  AppContext,
+  inputClasses,
+  KeyboardCode,
+  SearchIcon,
+  Shortcut,
+  shortcutApi,
+} from '@frontend/common';
+
+import {
+  AppSpreadsheetInteractionContext,
   ProjectContext,
   SearchWindowContext,
-  SpreadsheetContext,
 } from '../../context';
-import { useApi, useOpenWorksheet } from '../../hooks';
-import {
-  ISearchFilter,
-  ISearchResult,
-  search,
-  searchFilterTabs,
-} from './search';
+import { getProjectNavigateUrl } from '../../utils';
+import { ISearchResult, search, searchFilterTabs } from './search';
 import { SearchFilter } from './SearchFilter';
 import { SearchResult } from './SearchResult';
-import styles from './SearchWindow.module.scss';
 
 export function SearchWindow() {
-  const { isOpen, closeSearchWindow } = useContext(SearchWindowContext);
-  const { projects, projectSheets, parsedSheets, projectName } =
-    useContext(ProjectContext);
-  const { openField, openTable } = useContext(SpreadsheetContext);
-  const { openProject, getProjects } = useApi();
-  const { setLoading } = useContext(AppContext);
-  const openWorksheet = useOpenWorksheet();
-  const [filter, setFilter] = useState<ISearchFilter | null>(null);
+  const {
+    isOpen,
+    closeSearchWindow,
+    filter,
+    setFilter,
+    searchQuery,
+    setSearchQuery,
+  } = useContext(SearchWindowContext);
+  const {
+    projectName,
+    projectBucket,
+    projectPath,
+    openSheet,
+    getProjects,
+    projects,
+    projectSheets,
+    parsedSheets,
+  } = useContext(ProjectContext);
+  const navigate = useNavigate();
+  const { openField, openTable } = useContext(AppSpreadsheetInteractionContext);
 
   const inputRef = useRef<InputRef>(null);
 
-  const [query, setQuery] = useState('');
   const [currentChosenIndex, setCurrentChosenIndex] = useState<number>(0);
   const resultCountRef = useRef(0);
 
@@ -49,16 +60,32 @@ export function SearchWindow() {
     getProjects();
     if (!inputRef.current?.input) return;
 
-    setQuery('');
     setTimeout(() => inputRef.current?.input?.focus());
   }, [getProjects, isOpen]);
 
   const results: Fuse.FuseResult<ISearchResult>[] | null = useMemo(
     () =>
-      isOpen
-        ? search(projects, projectSheets, parsedSheets, query, filter)
+      isOpen && projectBucket
+        ? search(
+            projects,
+            projectSheets,
+            parsedSheets,
+            searchQuery,
+            filter,
+            projectBucket,
+            projectPath
+          )
         : null,
-    [filter, projectSheets, parsedSheets, projects, query, isOpen]
+    [
+      filter,
+      isOpen,
+      parsedSheets,
+      projectBucket,
+      projectPath,
+      projectSheets,
+      projects,
+      searchQuery,
+    ]
   );
 
   const onSubmit = useCallback(
@@ -66,15 +93,20 @@ export function SearchWindow() {
       closeSearchWindow();
       switch (result.type) {
         case 'project': {
-          setLoading(true);
-          openProject(result.name);
+          navigate(
+            getProjectNavigateUrl({
+              projectName: result.path.projectName,
+              projectBucket: result.path.projectBucket,
+              projectPath: result.path.projectPath,
+            })
+          );
 
           break;
         }
         case 'sheet': {
           if (!projectName) return;
 
-          openWorksheet(projectName, result.name);
+          openSheet({ sheetName: result.name });
 
           break;
         }
@@ -103,16 +135,17 @@ export function SearchWindow() {
         }
       }
     },
-    [
-      closeSearchWindow,
-      openField,
-      openProject,
-      openTable,
-      openWorksheet,
-      projectName,
-      setLoading,
-    ]
+    [closeSearchWindow, navigate, openField, openSheet, openTable, projectName]
   );
+
+  const onKeydown = useCallback((event: React.KeyboardEvent) => {
+    if (
+      event.key === KeyboardCode.Delete ||
+      event.key === KeyboardCode.Backspace
+    ) {
+      event.stopPropagation();
+    }
+  }, []);
 
   useEffect(() => {
     const handleArrows = (event: KeyboardEvent) => {
@@ -204,11 +237,24 @@ export function SearchWindow() {
     return () => {
       window.removeEventListener('keydown', handleSwitchFilter);
     };
-  }, [currentChosenIndex, filter, isOpen, onSubmit, results]);
+  }, [currentChosenIndex, filter, isOpen, onSubmit, results, setFilter]);
 
   return (
-    <div className="w-full h-full pb-5 pt-2">
-      <div className="flex mb-2">
+    <div className="w-full h-full pb-5">
+      <Input
+        className={cx('ant-input-sm h-[38px] text-[13px]', inputClasses)}
+        placeholder="Search..."
+        prefix={
+          <div className="pr-2 stroke-textSecondary">
+            <SearchIcon />
+          </div>
+        }
+        ref={inputRef}
+        value={searchQuery}
+        onChange={(e) => setSearchQuery(e.target.value)}
+        onKeyDown={onKeydown}
+      />
+      <div className="flex items-center mt-5 mb-4">
         <SearchFilter
           filterName="All"
           selected={filter === null}
@@ -234,22 +280,22 @@ export function SearchWindow() {
           selected={filter === 'fields'}
           onClick={() => setFilter('fields')}
         />
+        <span className="text-[10px] text-textSecondary">
+          Tab or Shift+Tab to switch
+        </span>
       </div>
-      <Input
-        placeholder="Sheet1, someproject, table_derived, [f1]"
-        ref={inputRef}
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-      />
-      <div className="pt-2 pb-2 overflow-auto h-max max-h-96">
+      <div className="py-2 pr-2 overflow-auto h-max max-h-96 bg-bgLayer3">
         {results && results.length === 0 && (
-          <div className={styles.noResults}>No results.</div>
+          <div className="text-textPrimary pl-3">No results.</div>
         )}
         {results?.map((result, index) => (
           <SearchResult
-            className={cx('p-2 cursor-pointer', styles.result, {
-              [styles.selectedResult]: index === currentChosenIndex,
-            })}
+            className={cx(
+              'p-2 mb-1 cursor-pointer rounded-[3px] border-b-strokeTertiary select-none hover:bg-bgAccentPrimaryAlpha',
+              index === currentChosenIndex
+                ? 'border-l-2 border-l-strokeAccentPrimary bg-bgAccentPrimaryAlpha stroke-textPrimary'
+                : 'stroke-textSecondary'
+            )}
             key={result.item.name + result.item.type + index}
             result={result}
             onClick={() => onSubmit(result.item)}

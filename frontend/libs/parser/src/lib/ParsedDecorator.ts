@@ -1,9 +1,11 @@
+import { ShortDSLPlacement } from './parser';
+
 export class ParsedDecorator {
   public params: any[];
 
   constructor(
     public decoratorName: string,
-    public dslPlacement: { start: number; end: number },
+    public dslPlacement: ShortDSLPlacement | undefined,
     ...params: any[]
   ) {
     this.params = [...params];

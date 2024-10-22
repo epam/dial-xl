@@ -1,32 +1,30 @@
 import { FieldKey } from './FieldKey';
+import { ParsedApply } from './ParsedApply';
 import { ParsedDecorator } from './ParsedDecorator';
-import { DSLPlacement, ParsedField } from './ParsedField';
+import { ParsedField } from './ParsedField';
 import { ParsedOverride } from './ParsedOverride';
-import { dynamicFieldName } from './parser';
-
-type FullDSLPlacement = {
-  startOffset: number;
-  stopOffset: number;
-  startLine: number;
-  stopLine: number;
-  startColumn: number;
-};
-
-type DSLTableNamePlacement = {
-  start: number;
-  end: number;
-};
+import { ParsedTotal } from './ParsedTotal';
+import {
+  dynamicFieldName,
+  FullDSLPlacement,
+  hideTableFieldsDecoratorName,
+  hideTableHeaderDecoratorName,
+  horizontalDirectionDecoratorName,
+  ShortDSLPlacement,
+} from './parser';
 
 export class ParsedTable {
   constructor(
     public tableName: string,
     public fields: ParsedField[],
+    public text: string,
     public dslPlacement: FullDSLPlacement | undefined,
-    public dslTableNamePlacement: DSLTableNamePlacement | undefined,
+    public dslTableNamePlacement: ShortDSLPlacement | undefined,
     public decorators: ParsedDecorator[],
     public overrides: ParsedOverride | undefined,
-    public dslOverridePlacement: DSLPlacement | undefined,
-    public isTableNameQuoted: boolean
+    public dslOverridePlacement: FullDSLPlacement | undefined,
+    public apply: ParsedApply | undefined,
+    public total: ParsedTotal | undefined
   ) {}
 
   public getPlacement(): [number, number] {
@@ -42,6 +40,18 @@ export class ParsedTable {
   public hasPlacement() {
     return !!this.decorators.find(
       (decorator) => decorator.decoratorName === 'placement'
+    );
+  }
+
+  public getTableFieldsSizes(): number {
+    return this.fields
+      .filter((f) => f.key.fieldName !== dynamicFieldName)
+      .reduce((acc, curr) => acc + curr.getSize(), 0);
+  }
+
+  public hasDynamicFields() {
+    return !!this.fields.find(
+      (field) => field.key.fieldName === dynamicFieldName
     );
   }
 
@@ -87,7 +97,17 @@ export class ParsedTable {
     return this.fields.some((field) => field.isKey);
   }
 
-  public addDynamicFields(dynamicFields: string[]) {
+  public getFieldsWithoutDynamicVirtual() {
+    return this.fields.filter((f) => !f.isDynamic);
+  }
+
+  public getFieldsWithoutDynamic() {
+    return this.fields.filter(
+      (f) => f.key.fieldName !== dynamicFieldName && !f.isDynamic
+    );
+  }
+
+  public setDynamicFields(dynamicFields: string[]) {
     const newFields = [];
 
     const dynamicField = this.fields.find(
@@ -115,7 +135,11 @@ export class ParsedTable {
 
     if (dynamicFieldIndex === -1 || newFields.length === 0) return;
 
-    this.fields.splice(dynamicFieldIndex + 1, 0, ...newFields);
+    this.fields = [
+      ...this.fields.slice(0, dynamicFieldIndex),
+      ...newFields,
+      ...this.fields.slice(dynamicFieldIndex),
+    ];
   }
 
   public getFieldsCount() {
@@ -123,7 +147,15 @@ export class ParsedTable {
       .length;
   }
 
-  public getFieldByIndex(index: number) {
+  public getTableNameHeaderHeight() {
+    return this.getIsTableHeaderHidden() ? 0 : 1;
+  }
+
+  public getTableFieldsHeaderHeight() {
+    return this.getIsTableFieldsHidden() ? 0 : 1;
+  }
+
+  public getFieldByColumnIndex(index: number) {
     let currentIndex = 0;
 
     for (const field of this.fields) {
@@ -131,9 +163,32 @@ export class ParsedTable {
 
       if (currentIndex === index) return field;
 
-      currentIndex++;
+      const isHorizontal = this.getIsTableDirectionHorizontal();
+      currentIndex += isHorizontal ? 1 : field.getSize();
     }
 
     return null;
+  }
+
+  public getIsTableHeaderHidden(): boolean {
+    return this.decorators.some(
+      (dec) => dec.decoratorName === hideTableHeaderDecoratorName
+    );
+  }
+
+  public getIsTableFieldsHidden(): boolean {
+    return this.decorators.some(
+      (dec) => dec.decoratorName === hideTableFieldsDecoratorName
+    );
+  }
+
+  public getIsTableDirectionHorizontal(): boolean {
+    return this.decorators.some(
+      (dec) => dec.decoratorName === horizontalDirectionDecoratorName
+    );
+  }
+
+  public getTotalSize(): number {
+    return this.total?.size || 0;
   }
 }

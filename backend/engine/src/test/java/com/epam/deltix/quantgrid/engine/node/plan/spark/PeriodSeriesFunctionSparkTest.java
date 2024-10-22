@@ -9,6 +9,7 @@ import com.epam.deltix.quantgrid.engine.test.TestAsserts;
 import com.epam.deltix.quantgrid.engine.value.Period;
 import com.epam.deltix.quantgrid.engine.value.spark.SparkValue;
 import com.epam.deltix.quantgrid.type.ColumnType;
+import com.epam.deltix.quantgrid.util.Doubles;
 import lombok.val;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
@@ -32,13 +33,13 @@ public class PeriodSeriesFunctionSparkTest extends SharedLocalSparkTest {
         });
 
         List<Row> rows = List.of(
-                row(0.0, row(105.0, Period.DAY.name(), new double[] {127.0, Double.NaN, 123})),
+                row(0.0, row(105.0, Period.DAY.name(), new double[] {127.0, Doubles.ERROR_NA, 123})),
                 row(1.0, row(106.0, Period.DAY.name(), new double[] {134.6})),
                 row(2.0, null),
                 row(3.0, row(108.0, Period.DAY.name(), new double[] {1})),
                 row(4.0, null),
-                row(5.0, row(109.0, Period.DAY.name(), new double[] {17.5, Double.NaN, Double.NaN, 10})),
-                row(6.0, row(Double.NaN, Period.DAY.name(), new double[0]))
+                row(5.0, row(109.0, Period.DAY.name(), new double[] {17.5, Doubles.ERROR_NA, Doubles.ERROR_NA, 10})),
+                row(6.0, row(Doubles.ERROR_NA, Period.DAY.name(), new double[0]))
         );
 
         val psTable = new ResultTestPlan(spark.createDataFrame(rows, schema).repartition(3));
@@ -52,12 +53,12 @@ public class PeriodSeriesFunctionSparkTest extends SharedLocalSparkTest {
                 """
                         +-----+------------------------------------+--------------------------------------+
                         |0.0  |{105.0, DAY, [127.0, NaN, 123.0]}   |{105.0, DAY, [127.0, 127.0, 123.0]}   |
-                        |5.0  |{109.0, DAY, [17.5, NaN, NaN, 10.0]}|{109.0, DAY, [17.5, 17.5, 17.5, 10.0]}|
+                        |6.0  |{NaN, DAY, []}                      |{NaN, DAY, []}                        |
                         |1.0  |{106.0, DAY, [134.6]}               |{106.0, DAY, [134.6]}                 |
                         |3.0  |{108.0, DAY, [1.0]}                 |{108.0, DAY, [1.0]}                   |
                         |4.0  |null                                |null                                  |
                         |2.0  |null                                |null                                  |
-                        |6.0  |{NaN, DAY, []}                      |{NaN, DAY, []}                        |
+                        |5.0  |{109.0, DAY, [17.5, NaN, NaN, 10.0]}|{109.0, DAY, [17.5, 17.5, 17.5, 10.0]}|
                         +-----+------------------------------------+--------------------------------------+
                         """);
     }
@@ -76,7 +77,7 @@ public class PeriodSeriesFunctionSparkTest extends SharedLocalSparkTest {
                 row(3.0, row(108.0, Period.YEAR.name(), new double[] {40, 20, 10})),
                 row(4.0, null),
                 row(5.0, row(109.0, Period.YEAR.name(), new double[] {17.5})),
-                row(6.0, row(Double.NaN, Period.YEAR.name(), new double[0]))
+                row(6.0, row(Doubles.ERROR_NA, Period.YEAR.name(), new double[0]))
         );
 
         val psTable = new ResultTestPlan(spark.createDataFrame(rows, schema).repartition(3));

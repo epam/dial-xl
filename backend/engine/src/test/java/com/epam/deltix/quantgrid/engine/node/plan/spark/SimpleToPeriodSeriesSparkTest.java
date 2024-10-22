@@ -12,6 +12,7 @@ import com.epam.deltix.quantgrid.engine.value.PeriodSeries;
 import com.epam.deltix.quantgrid.engine.value.Table;
 import com.epam.deltix.quantgrid.engine.value.spark.SparkValue;
 import com.epam.deltix.quantgrid.parser.ast.BinaryOperation;
+import com.epam.deltix.quantgrid.util.Doubles;
 import it.unimi.dsi.fastutil.doubles.DoubleArrayList;
 import lombok.val;
 import org.apache.spark.sql.Dataset;
@@ -85,6 +86,6 @@ class SimpleToPeriodSeriesSparkTest extends SharedLocalSparkTest {
         val yearlyPs = new SimpleToPeriodSeriesSpark(new Scalar(), table, timestamp, value, Period.YEAR);
         Table yearlyResult = yearlyPs.execute();
         verify(yearlyResult.getPeriodSeriesColumn(0),
-                new PeriodSeries(Period.YEAR, Double.NaN, DoubleArrayList.of()));
+                new PeriodSeries(Period.YEAR, Doubles.ERROR_NA, DoubleArrayList.of()));
     }
 }

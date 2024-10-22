@@ -1,5 +1,6 @@
 package com.epam.deltix.quantgrid.engine.node.expression;
 
+import com.epam.deltix.quantgrid.engine.node.expression.utils.DoubleFunctions;
 import com.epam.deltix.quantgrid.engine.node.plan.spark.util.SparkOperators;
 import com.epam.deltix.quantgrid.engine.value.DoubleColumn;
 import com.epam.deltix.quantgrid.engine.value.local.DoubleLambdaColumn;
@@ -18,7 +19,21 @@ public class UnaryOperator extends Expression1<DoubleColumn, DoubleColumn> {
 
     @Override
     public ColumnType getType() {
-        return ColumnType.DOUBLE;
+        if (operation == UnaryOperation.NOT) {
+            return ColumnType.BOOLEAN;
+        }
+
+        ColumnType operandType = getOperand().getType();
+        if (operation == UnaryOperation.NEG && operandType == ColumnType.BOOLEAN) {
+            return ColumnType.INTEGER;
+        }
+
+        // In Excel, dates remain as dates after negation, though they become non-displayable.
+        return operandType;
+    }
+
+    public Expression getOperand() {
+        return expression(0);
     }
 
     @Override
@@ -29,26 +44,23 @@ public class UnaryOperator extends Expression1<DoubleColumn, DoubleColumn> {
 
     @Override
     public Column toSpark() {
-        Column column = expression(0).toSpark();
+        Column column = getOperand().toSpark();
         return SparkOperators.unary(operation, column);
+    }
+
+    @Override
+    public String toString() {
+        return operation.name();
     }
 
     private interface DoubleOperator {
 
         double operate(double operand);
 
-        static double neg(double a) {
-            return -a;
-        }
-
-        static double not(double a) {
-            return (a == 0.0) ? 1.0 : 0.0;
-        }
-
         static DoubleOperator from(UnaryOperation op) {
             return switch (op) {
-                case NEG -> DoubleOperator::neg;
-                case NOT -> DoubleOperator::not;
+                case NEG -> DoubleFunctions::neg;
+                case NOT -> DoubleFunctions::not;
             };
         }
     }

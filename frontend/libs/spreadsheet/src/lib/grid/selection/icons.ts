@@ -1,4 +1,4 @@
 export const moveTableIcon = `
-<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="#fff">
-<path d="M13,11H18L16.5,9.5L17.92,8.08L21.84,12L17.92,15.92L16.5,14.5L18,13H13V18L14.5,16.5L15.92,17.92L12,21.84L8.08,17.92L9.5,16.5L11,18V13H6L7.5,14.5L6.08,15.92L2.16,12L6.08,8.08L7.5,9.5L6,11H11V6L9.5,7.5L8.08,6.08L12,2.16L15.92,6.08L14.5,7.5L13,6V11Z" />
+<svg width="100%" viewBox="0 0 16 16" fill="none">
+  <path d="M12 6L14 8M14 8L12 10M14 8H10M4 6L2 8M2 8L4 10M2 8H6M6 12L8 14M8 14L10 12M8 14V10M10 4L8 2M8 2L6 4M8 2V6" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>`;

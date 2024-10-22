@@ -13,13 +13,15 @@ import com.epam.deltix.quantgrid.engine.value.PeriodSeriesColumn;
 import com.epam.deltix.quantgrid.engine.value.StringColumn;
 import com.epam.deltix.quantgrid.engine.value.Table;
 import com.epam.deltix.quantgrid.engine.value.local.DoubleDirectColumn;
-import com.epam.deltix.quantgrid.engine.value.local.DoubleErrorColumn;
+import com.epam.deltix.quantgrid.engine.value.local.DoubleLambdaColumn;
 import com.epam.deltix.quantgrid.engine.value.local.LocalTable;
 import com.epam.deltix.quantgrid.engine.value.local.PeriodSeriesDirectColumn;
-import com.epam.deltix.quantgrid.engine.value.local.PeriodSeriesErrorColumn;
+import com.epam.deltix.quantgrid.engine.value.local.PeriodSeriesLambdaColumn;
 import com.epam.deltix.quantgrid.engine.value.local.StringDirectColumn;
-import com.epam.deltix.quantgrid.engine.value.local.StringErrorColumn;
+import com.epam.deltix.quantgrid.engine.value.local.StringLambdaColumn;
 import com.epam.deltix.quantgrid.type.ColumnType;
+import com.epam.deltix.quantgrid.util.Doubles;
+import com.epam.deltix.quantgrid.util.Strings;
 import it.unimi.dsi.fastutil.objects.Object2IntMap;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
@@ -114,7 +116,7 @@ public class SimplePivotLocal extends Plan3<Table, Table, Table, Table> {
         for (int i = 0; i < matrix.length; i++) {
             if (mapping.containsKey(resultNames[i])) {
                 matrix[i] = new double[resultSize];
-                Arrays.fill(matrix[i], Double.NaN);
+                Arrays.fill(matrix[i], Doubles.EMPTY);
             }
         }
 
@@ -134,7 +136,7 @@ public class SimplePivotLocal extends Plan3<Table, Table, Table, Table> {
             if (mapping.containsKey(resultNames[i])) {
                 columns[i] = new DoubleDirectColumn(matrix[i]);
             } else {
-                columns[i] = new DoubleErrorColumn(missingFieldError(resultNames[i]), resultSize);
+                columns[i] = new DoubleLambdaColumn(index -> Doubles.ERROR_NA, resultSize);
             }
         }
 
@@ -150,6 +152,7 @@ public class SimplePivotLocal extends Plan3<Table, Table, Table, Table> {
         for (int i = 0; i < matrix.length; i++) {
             if (mapping.containsKey(resultNames[i])) {
                 matrix[i] = new String[resultSize];
+                Arrays.fill(matrix[i], Strings.EMPTY);
             }
         }
 
@@ -169,7 +172,7 @@ public class SimplePivotLocal extends Plan3<Table, Table, Table, Table> {
             if (mapping.containsKey(resultNames[i])) {
                 columns[i] = new StringDirectColumn(matrix[i]);
             } else {
-                columns[i] = new StringErrorColumn(missingFieldError(resultNames[i]), resultSize);
+                columns[i] = new StringLambdaColumn(index -> Strings.ERROR_NA, resultSize);
             }
         }
 
@@ -204,7 +207,7 @@ public class SimplePivotLocal extends Plan3<Table, Table, Table, Table> {
             if (mapping.containsKey(resultNames[i])) {
                 columns[i] = new PeriodSeriesDirectColumn(matrix[i]);
             } else {
-                columns[i] = new PeriodSeriesErrorColumn(missingFieldError(resultNames[i]), resultSize);
+                columns[i] = new PeriodSeriesLambdaColumn(index -> null, resultSize);;
             }
         }
 
@@ -229,13 +232,11 @@ public class SimplePivotLocal extends Plan3<Table, Table, Table, Table> {
     private static Set<String> toSet(StringColumn stringColumn) {
         int size = Util.toIntSize(stringColumn);
         Set<String> set = new ObjectOpenHashSet<>(size);
+
         for (int i = 0; i < size; i++) {
             set.add(stringColumn.get(i));
         }
-        return set;
-    }
 
-    private static RuntimeException missingFieldError(String resultName) {
-        return new IllegalArgumentException("Field '%s' is missing".formatted(resultName));
+        return set;
     }
 }

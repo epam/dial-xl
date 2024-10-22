@@ -1,13 +1,17 @@
 package com.epam.deltix.quantgrid.parser;
 
+import com.google.gson.annotations.Expose;
 import lombok.Builder;
 import lombok.Value;
 
 @Builder
 @Value
 public class ParsingError {
+    @Expose
     int line;
+    @Expose
     int position;
+    @Expose
     String message;
 
     String tableName;

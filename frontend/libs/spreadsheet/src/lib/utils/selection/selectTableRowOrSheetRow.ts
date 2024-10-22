@@ -1,5 +1,7 @@
+import { GridTable } from '@frontend/common';
+
 import { defaults } from '../../defaults';
-import { GridSelection, GridTable } from '../../grid';
+import { GridSelection } from '../../grid';
 import { findTableInSelection } from './utils';
 
 export function selectTableRowOrSheetRow(

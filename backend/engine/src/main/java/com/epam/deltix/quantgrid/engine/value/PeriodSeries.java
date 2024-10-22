@@ -1,6 +1,7 @@
 package com.epam.deltix.quantgrid.engine.value;
 
 import com.epam.deltix.quantgrid.engine.value.local.DoubleDirectColumn;
+import com.epam.deltix.quantgrid.util.Doubles;
 import it.unimi.dsi.fastutil.doubles.DoubleArrayList;
 import lombok.RequiredArgsConstructor;
 import lombok.Value;
@@ -29,6 +30,6 @@ public class PeriodSeries {
     }
 
     public static PeriodSeries empty(Period period) {
-        return new PeriodSeries(period, Double.NaN, DoubleColumn.EMPTY);
+        return new PeriodSeries(period, Doubles.ERROR_NA, DoubleColumn.EMPTY);
     }
 }
