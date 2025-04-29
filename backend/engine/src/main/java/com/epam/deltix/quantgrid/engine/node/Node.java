@@ -107,7 +107,11 @@ public abstract class Node implements Cloneable {
     }
 
     public Node copy(List<Node> inputs) {
-        return clone(inputs, true);
+        return copy(inputs, true);
+    }
+
+    public Node copy(List<Node> inputs, boolean withIdentity) {
+        return clone(inputs, withIdentity);
     }
 
     /**

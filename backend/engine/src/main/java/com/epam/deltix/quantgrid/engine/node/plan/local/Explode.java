@@ -20,16 +20,11 @@ import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 
 import java.util.List;
-import java.util.stream.IntStream;
 
 public class Explode extends Plan1<Table, Table> {
 
     public Explode(Plan source, Get column) {
         super(source, List.of(column));
-    }
-
-    public Get getColumn() {
-        return (Get) expression(0, 0);
     }
 
     @Override
@@ -47,7 +42,7 @@ public class Explode extends Plan1<Table, Table> {
 
     @Override
     protected Table execute(Table table) {
-        PeriodSeriesColumn column = (PeriodSeriesColumn) getColumn().evaluate();
+        PeriodSeriesColumn column = expression(0, 0).evaluate();
         int size = Util.toIntSize(table);
         LongArrayList refs = new LongArrayList(size);
         ObjectArrayList<String> periods = new ObjectArrayList<>(size);

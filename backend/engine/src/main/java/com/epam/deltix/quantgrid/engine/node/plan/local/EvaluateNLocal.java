@@ -1,5 +1,6 @@
 package com.epam.deltix.quantgrid.engine.node.plan.local;
 
+import com.epam.deltix.quantgrid.engine.Util;
 import com.epam.deltix.quantgrid.engine.meta.Meta;
 import com.epam.deltix.quantgrid.engine.meta.Schema;
 import com.epam.deltix.quantgrid.engine.node.plan.Plan;
@@ -31,32 +32,29 @@ public class EvaluateNLocal extends PlanN<Table, Table> {
 
     private final int fieldsCount;
 
-    private static List<Source> buildSources(List<Plan> plans, List<Plan> tokens, List<Plan> groundTruths, Plan scalarLayout) {
-        List<Source> sources = new ArrayList<>(plans.size() + tokens.size() + groundTruths.size());
-
-        for (Plan plan : plans) {
-            sources.add(sourceOf(plan));
-        }
-        for (Plan token : tokens) {
-            sources.add(sourceOf(token));
-        }
-        for (Plan token : groundTruths) {
-            sources.add(sourceOf(token));
-        }
+    private static List<Source> buildSources(List<Plan.Source> plans,
+                                             List<Plan.Source> tokens,
+                                             List<Plan.Source> groundTruths,
+                                             Plan scalarLayout) {
+        List<Source> sources = new ArrayList<>();
+        sources.addAll(plans);
+        sources.addAll(tokens);
+        sources.addAll(groundTruths);
         sources.add(sourceOf(scalarLayout));
-
         return sources;
     }
 
-    public EvaluateNLocal(int fieldsCount, List<Plan> plans, List<Plan> tokens, List<Plan> groundTruths, Plan scalarLayout) {
+    public EvaluateNLocal(List<Plan.Source> plans, List<Plan.Source> tokens, List<Plan.Source> groundTruths,
+                          Plan scalarLayout) {
         super(buildSources(plans, tokens, groundTruths, scalarLayout));
-
-        this.fieldsCount = fieldsCount;
+        Util.verify(plans.size() == tokens.size());
+        Util.verify(tokens.size() == groundTruths.size());
+        this.fieldsCount = plans.size();
     }
 
     @Override
     protected Plan layout() {
-        return plan(inputs.size() - 1);
+        return plan(3 * fieldsCount).getLayout();
     }
 
     @Override
@@ -66,16 +64,14 @@ public class EvaluateNLocal extends PlanN<Table, Table> {
 
     @Override
     protected Table execute(List<Table> tables) {
-        List<Table> tokenTables = tables.subList(fieldsCount, fieldsCount * 2);
-
         int[] tokensCostPerField = new int[fieldsCount];
         for (int i = 0; i < fieldsCount; ++i) {
             // TODO: will be moved to graph MAX node
             int maxTokens = 0;
-            for (int j = 0; j < tokenTables.get(i).size(); ++j) {
-                maxTokens = (int) Math.max(maxTokens, tokenTables.get(i).getDoubleColumn(0).get(j));
+            DoubleColumn tokens = expression(fieldsCount + i, 0).evaluate();
+            for (int j = 0; j < tokens.size(); ++j) {
+                maxTokens = (int) Math.max(maxTokens, tokens.get(j));
             }
-
             tokensCostPerField[i] = maxTokens;
         }
 
@@ -83,7 +79,7 @@ public class EvaluateNLocal extends PlanN<Table, Table> {
         BitSet[][] questionMaskByField = new BitSet[fieldsCount][];
         int questionsCount = -1;
         for (int i = 0; i < fieldsCount; ++i) {
-            StringColumn groundTruths = tables.get(i + fieldsCount * 2).getStringColumn(0);
+            StringColumn groundTruths = expression(2 * fieldsCount + i, 0).evaluate();
 
             if (questionsCount == -1) {
                 questionsCount = (int) groundTruths.size();
@@ -96,8 +92,8 @@ public class EvaluateNLocal extends PlanN<Table, Table> {
             double[] fieldScores = null;
             BitSet[] fieldQuestionMask = null;
 
-            DoubleColumn refs = tables.get(i).getDoubleColumn(0);
-            StringColumn retrieverColumn = tables.get(i).getStringColumn(2);
+            DoubleColumn refs = expression(i, 0).evaluate();
+            StringColumn retrieverColumn = expression(i, 1).evaluate();
             int firstUnprocessed = 0;
 
             for (int questionId = 0; questionId < questionsCount; ++questionId) {

@@ -38,18 +38,6 @@ public class ParserUtils {
         return ColumnType.STRING;
     }
 
-    public String parseColumnName(String name){
-        if (name == null || name.isBlank()) {
-            throw new ParserException("Column name is missing");
-        }
-
-        if (name.length() > 1 && name.startsWith("\"") && name.endsWith("\"")) {
-            name = name.substring(1, name.length() - 1);
-        }
-
-        return name;
-    }
-
     public double parseBoolean(String value) {
         if (isNa(value)) {
             return Doubles.ERROR_NA;
@@ -92,8 +80,12 @@ public class ParserUtils {
         return Double.parseDouble(value);
     }
 
+    public String parseString(String value) {
+        return isNa(value) ? null : value;
+    }
+
     private boolean isNa(String value) {
-        return value == null || value.equalsIgnoreCase("na") || value.equalsIgnoreCase("null");
+        return value == null || value.equalsIgnoreCase("n/a") || value.equalsIgnoreCase("null");
     }
 
     private boolean isMissing(String value) {

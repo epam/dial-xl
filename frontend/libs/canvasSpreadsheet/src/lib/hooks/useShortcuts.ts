@@ -10,7 +10,7 @@ import {
 import { GridEvent } from '../components';
 import { GridStateContext } from '../context';
 import { GridApi, HorizontalDirection } from '../types';
-import { isCellEditorOpen, swapFields } from '../utils';
+import { isCanvasEvent, isCellEditorOpen } from '../utils';
 import { useAIPrompt } from './useAIPrompt';
 import { useCopyPaste } from './useCopyPaste';
 import { useExtendSelectionNextAvailable } from './useExtendSelectionNextAvailable';
@@ -33,7 +33,7 @@ const singleKeyShortcuts = [
 ];
 
 export function useShortcuts(gridApi: RefObject<GridApi>) {
-  const { gridCallbacks, selectionEdges, selectedTable } =
+  const { gridCallbacks, selection$, selectedTable, isPanModeEnabled } =
     useContext(GridStateContext);
   const {
     arrowNavigation,
@@ -53,7 +53,7 @@ export function useShortcuts(gridApi: RefObject<GridApi>) {
     (e: KeyboardEvent, direction: HorizontalDirection) => {
       if (!gridApi?.current || !gridCallbacks || !isCanvasEvent(e)) return;
 
-      swapFields(gridApi.current, gridCallbacks, direction);
+      gridCallbacks.onSwapFields?.(direction);
     },
     [gridApi, gridCallbacks]
   );
@@ -91,6 +91,8 @@ export function useShortcuts(gridApi: RefObject<GridApi>) {
   );
 
   const handleOpenNote = useCallback(() => {
+    const selectionEdges = selection$.getValue();
+
     if (!gridApi?.current || !selectionEdges) return;
 
     const { startCol, startRow } = selectionEdges;
@@ -100,7 +102,7 @@ export function useShortcuts(gridApi: RefObject<GridApi>) {
       col: startCol,
       row: startRow,
     });
-  }, [gridApi, selectionEdges]);
+  }, [gridApi, selection$]);
 
   const handleDelete = useCallback(
     (e: KeyboardEvent) => {
@@ -241,8 +243,12 @@ export function useShortcuts(gridApi: RefObject<GridApi>) {
 
   const onKeyDown = useCallback(
     (event: KeyboardEvent) => {
+      if (isPanModeEnabled) return;
+
       for (const shortcutKey in shortcutGlobalHandlersMap) {
         if (shortcutApi.is(shortcutKey as Shortcut, event)) {
+          if (!isCanvasEvent(event)) return;
+
           shortcutGlobalHandlersMap[shortcutKey as Shortcut]?.(event);
 
           return;
@@ -251,7 +257,7 @@ export function useShortcuts(gridApi: RefObject<GridApi>) {
 
       handleSingleKeyShortcuts(event);
     },
-    [handleSingleKeyShortcuts, shortcutGlobalHandlersMap]
+    [handleSingleKeyShortcuts, shortcutGlobalHandlersMap, isPanModeEnabled]
   );
 
   useEffect(() => {
@@ -261,10 +267,4 @@ export function useShortcuts(gridApi: RefObject<GridApi>) {
       document.removeEventListener('keydown', onKeyDown);
     };
   }, [onKeyDown]);
-}
-
-function isCanvasEvent(e: KeyboardEvent) {
-  const targetElement = e.target as HTMLElement;
-
-  return targetElement.tagName === 'BODY';
 }

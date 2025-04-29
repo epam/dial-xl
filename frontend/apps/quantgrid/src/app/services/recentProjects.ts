@@ -1,4 +1,4 @@
-import { FilesMetadata } from '@frontend/common';
+import { dialProjectFileExtension, FilesMetadata } from '@frontend/common';
 
 const storageKey = 'recentProjectsItems';
 
@@ -24,16 +24,16 @@ export const cleanUpRecentProjects = (projectList: FilesMetadata[]) => {
   const recentProjects = getRecentProjectsData();
 
   Object.keys(recentProjects).forEach((fullProjectPath) => {
-    if (
-      !projectList.find((project) => {
-        const fullItemPrePath = `${project.bucket}/${
-          project.parentPath ? project.parentPath + '/' : ''
-        }`;
-        const projectFullPath = fullItemPrePath + project.name;
+    const recentProjectInStorage = projectList.find((project) => {
+      const fullItemPrePath = `${project.bucket}/${
+        project.parentPath ? project.parentPath + '/' : ''
+      }`;
+      const projectFullPath = fullItemPrePath + project.name;
 
-        return projectFullPath === fullProjectPath;
-      })
-    ) {
+      return projectFullPath === fullProjectPath + dialProjectFileExtension;
+    });
+
+    if (!recentProjectInStorage) {
       delete recentProjects[fullProjectPath];
     }
   });
@@ -99,7 +99,7 @@ export const addRecentProject = (
     return recentProjects[b].timestamp - recentProjects[a].timestamp;
   });
 
-  sortedProjects.slice(5).forEach((projectName) => {
+  sortedProjects.slice(10).forEach((projectName) => {
     delete recentProjects[projectName];
   });
 

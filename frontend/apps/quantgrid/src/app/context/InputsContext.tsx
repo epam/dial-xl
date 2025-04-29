@@ -11,6 +11,7 @@ import {
 import { toast } from 'react-toastify';
 
 import {
+  appMessages,
   csvFileExtension,
   DimensionalSchemaResponse,
   FilesMetadata,
@@ -19,7 +20,7 @@ import {
 
 import { PreUploadFile } from '../components';
 import { useApiRequests, useRequestDimTable } from '../hooks';
-import { constructPath } from '../utils';
+import { constructPath, getProjectSheetsRecord } from '../utils';
 import { ProjectContext } from './ProjectContext';
 import { ViewportContext } from './ViewportContext';
 
@@ -80,7 +81,8 @@ export function InputsContextProvider({
 
   const onDimensionalSchemaResponse = useCallback(
     (response: DimensionalSchemaResponse) => {
-      const { schema, formula } = response.dimensionalSchemaResponse;
+      const { schema, formula, errorMessage } =
+        response.dimensionalSchemaResponse;
 
       if (!formula.startsWith('INPUT')) return;
 
@@ -88,6 +90,18 @@ export function InputsContextProvider({
         formula.indexOf('"') + 1,
         formula.lastIndexOf('"')
       );
+      const shortFileName = fileName.split('/').pop();
+
+      if (errorMessage) {
+        toast.error(
+          appMessages.fileUploadSchemaError(
+            shortFileName ?? fileName,
+            errorMessage
+          )
+        );
+
+        return;
+      }
 
       setInputs((prevInputs) => {
         return { ...prevInputs, [fileName]: { fields: schema } };
@@ -104,17 +118,11 @@ export function InputsContextProvider({
 
       if (!url) return;
 
-      const recordSheets =
-        projectSheets?.reduce((acc, curr) => {
-          acc[curr.sheetName] = curr.content;
-
-          return acc;
-        }, {} as Record<string, string>) ?? {};
       const formula = `INPUT("${url}")`;
 
       const dimensionalSchema = await getDimensionalSchema({
         formula,
-        worksheets: recordSheets,
+        worksheets: getProjectSheetsRecord(projectSheets || []),
         suppressErrors: true,
       });
 

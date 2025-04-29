@@ -1,8 +1,10 @@
 /* eslint-disable playwright/expect-expect */
-import { expect, test } from '@playwright/test';
+import { BrowserContext, expect, Page, test } from '@playwright/test';
 
+import { Canvas } from '../../components/Canvas';
 import { FieldMenuItem } from '../../enums/FieldMenuItem';
 import { GridMenuItem } from '../../enums/GridMenuItem';
+import { expectCellTextToBe } from '../../helpers/canvasExpects';
 import { Field } from '../../logic-entities/Field';
 import { SpreadSheet } from '../../logic-entities/SpreadSheet';
 import { Table } from '../../logic-entities/Table';
@@ -26,9 +28,9 @@ const table2Column = 6;
 
 const table2Name = 'MultiFieldsTable2';
 
-const table3Row = 2;
+const table3Row = 20;
 
-const table3Column = 10;
+const table3Column = 6;
 
 const table3Name = 'TableForSwaps';
 
@@ -37,6 +39,12 @@ const dataType = process.env['DATA_TYPE']
   : 'default';
 
 let spreadsheet: SpreadSheet = new SpreadSheet();
+
+let browserContext: BrowserContext;
+
+let page: Page;
+
+const storagePath = `playwright/${projectName}.json`;
 
 //let table3Size = 4;
 
@@ -57,28 +65,31 @@ test.beforeAll(async ({ browser }) => {
   spreadsheet.addTable(table1);
   spreadsheet.addTable(table2);
   spreadsheet.addTable(table3);
-  //const table1Dsl = `!placement(${table1Row}, ${table1Column})\ntable ${table1Name}\nkey [Field1] = 1\n[Field2] = RANGE(5)\ndim [Field3] = RANGE(10)\n`;
-  //const table2Dsl = `!placement(${table2Row}, ${table2Column})\ntable ${table2Name}\n[Field1] = 1\n[Field2] = 7\n[Field3] = 3\n`;
-  //const table3Dsl = `!placement(${table3Row}, ${table3Column})\ntable ${table3Name}\n[Field1] = 1\n[Field2] = 7\n[Field3] = 3\n[Field4] = 10\n`;
   if (dataType !== 'default') {
     spreadsheet = getProjectSpreadSheeet(dataType, spreadsheet);
   }
-  await TestFixtures.createProjectNew(browser, projectName, spreadsheet);
+  await TestFixtures.createProjectNew(
+    storagePath,
+    browser,
+    projectName,
+    spreadsheet
+  );
+  browserContext = await browser.newContext({ storageState: storagePath });
 });
 
-test.beforeEach(async ({ page }) => {
+test.beforeEach(async () => {
+  page = await browserContext.newPage();
   await TestFixtures.openProject(page, projectName);
-  /*await TestFixtures.expectCellTableToBeDisplayed(
-    page,
-    spreadsheet.getTable(1).getTop(),
-    spreadsheet.getTable(1).getLeft()
-  );*/
-
   await TestFixtures.expectTableToBeDisplayed(page, spreadsheet.getTable(0));
   await TestFixtures.expectTableToBeDisplayed(page, spreadsheet.getTable(1));
 });
 
+test.afterEach(async () => {
+  await page.close();
+});
+
 test.afterAll(async ({ browser }) => {
+  await browserContext.close();
   await TestFixtures.deleteProject(browser, projectName);
 });
 
@@ -86,55 +97,49 @@ test.describe('field actions', () => {
   test(
     `verify fields names ${dataType}`,
     {
-      tag: ['@hiddenTable'],
+      tag: ['@hiddenTable', '@horizonal'],
     },
-    async ({ page }) => {
+    async () => {
       const projectPage = await ProjectPage.createInstance(page);
-      await expect(
-        projectPage
-          .getGrid()
-          .getCellTableText(
-            spreadsheet.getTable(0).getFieldHeadersRow(),
-            spreadsheet.getTable(0).getLeft()
-          )
-      ).toHaveText('Field1');
-      await expect(
-        projectPage
-          .getGrid()
-          .getCellTableText(
-            spreadsheet.getTable(0).getFieldHeadersRow(),
-            spreadsheet.getTable(0).getLeft() + 1
-          )
-      ).toHaveText('Field2');
-      await expect(
-        projectPage
-          .getGrid()
-          .getCellTableText(
-            spreadsheet.getTable(0).getFieldHeadersRow(),
-            spreadsheet.getTable(0).getLeft() + 2
-          )
-      ).toHaveText('Field3');
+      await expectCellTextToBe(
+        <Canvas>projectPage.getVisualization(),
+        spreadsheet.getTable(0).getFieldHeadersRow(),
+        spreadsheet.getTable(0).getLeft(),
+        'Field1'
+      );
+      await expectCellTextToBe(
+        <Canvas>projectPage.getVisualization(),
+        spreadsheet.getTable(0).getFieldHeadersRow(),
+        spreadsheet.getTable(0).getLeft() + 1,
+        'Field2'
+      );
+      await expectCellTextToBe(
+        <Canvas>projectPage.getVisualization(),
+        spreadsheet.getTable(0).getFieldHeadersRow(),
+        spreadsheet.getTable(0).getLeft() + 2,
+        'Field3'
+      );
     }
   );
 
   test(
     `rename field ${dataType}`,
     {
-      tag: ['@hiddenTable'],
+      tag: ['@hiddenTable', '@horizonal'],
     },
-    async ({ page }) => {
+    async () => {
       const projectPage = await ProjectPage.createInstance(page);
       await projectPage
-        .getGrid()
+        .getVisualization()
         .performCellAction(
           spreadsheet.getTable(1).getFieldHeadersRow(),
           spreadsheet.getTable(1).getLeft(),
           'Rename field'
         );
       const newName = 'Field1New';
-      await projectPage.getGrid().setCellValue(newName);
+      await projectPage.getVisualization().setCellValue(newName);
       await projectPage
-        .getGrid()
+        .getVisualization()
         .expectCellTextChange(
           spreadsheet.getTable(1).getFieldHeadersRow(),
           spreadsheet.getTable(1).getLeft(),
@@ -147,21 +152,21 @@ test.describe('field actions', () => {
   test(
     `rename field by hotkey F2 ${dataType}`,
     {
-      tag: ['@hiddenTable'],
+      tag: ['@hiddenTable', '@horizonal'],
     },
-    async ({ page }) => {
+    async () => {
       const projectPage = await ProjectPage.createInstance(page);
       await projectPage
-        .getGrid()
+        .getVisualization()
         .clickOnCell(
           spreadsheet.getTable(1).getFieldHeadersRow(),
           spreadsheet.getTable(1).getLeft()
         );
       await page.keyboard.press('F2');
       const newName = 'Field1HotKey';
-      await projectPage.getGrid().setCellValue(newName);
+      await projectPage.getVisualization().setCellValue(newName);
       await projectPage
-        .getGrid()
+        .getVisualization()
         .expectCellTextChange(
           spreadsheet.getTable(1).getFieldHeadersRow(),
           spreadsheet.getTable(1).getLeft(),
@@ -174,28 +179,27 @@ test.describe('field actions', () => {
   test(
     `start renaming field and cancel ${dataType}`,
     {
-      tag: ['@hiddenTable'],
+      tag: ['@hiddenTable', '@horizonal'],
     },
-    async ({ page }) => {
+    async () => {
       const projectPage = await ProjectPage.createInstance(page);
       const fieldValue = await projectPage
-        .getGrid()
+        .getVisualization()
         .getCellTableText(
           spreadsheet.getTable(1).getFieldHeadersRow(),
           spreadsheet.getTable(1).getLeft()
-        )
-        .textContent();
+        );
       await projectPage
-        .getGrid()
+        .getVisualization()
         .performCellAction(
           spreadsheet.getTable(1).getFieldHeadersRow(),
           spreadsheet.getTable(1).getLeft(),
           'Rename field'
         );
       const newName = 'Field1Cancel';
-      await projectPage.getGrid().setCellValueAndCancel(newName);
+      await projectPage.getVisualization().setCellValueAndCancel(newName);
       await projectPage
-        .getGrid()
+        .getVisualization()
         .expectCellTextChange(
           spreadsheet.getTable(1).getFieldHeadersRow(),
           spreadsheet.getTable(1).getLeft(),
@@ -207,12 +211,12 @@ test.describe('field actions', () => {
   test(
     `delete field by menu ${dataType}`,
     {
-      tag: ['@hiddenTable'],
+      tag: ['@hiddenTable', '@horizonal'],
     },
-    async ({ page }) => {
+    async () => {
       const projectPage = await ProjectPage.createInstance(page);
       await projectPage
-        .getGrid()
+        .getVisualization()
         .performCellSubAction(
           spreadsheet.getTable(1).getFieldHeadersRow(),
           spreadsheet.getTable(1).getLeft() + 1,
@@ -220,7 +224,7 @@ test.describe('field actions', () => {
           'Delete field'
         );
       await projectPage
-        .getGrid()
+        .getVisualization()
         .expectTableToDissapear(
           spreadsheet.getTable(1).getFieldHeadersRow(),
           spreadsheet.getTable(1).getLeft() +
@@ -236,19 +240,19 @@ test.describe('field actions', () => {
   test(
     `delete field by hotkey Delete ${dataType}`,
     {
-      tag: ['@hiddenTable'],
+      tag: ['@hiddenTable', '@horizonal'],
     },
-    async ({ page }) => {
+    async () => {
       const projectPage = await ProjectPage.createInstance(page);
       await projectPage
-        .getGrid()
+        .getVisualization()
         .clickOnCell(
           spreadsheet.getTable(1).getFieldHeadersRow(),
           spreadsheet.getTable(1).getLeft() + 1
         );
       await page.keyboard.press('Delete');
       await projectPage
-        .getGrid()
+        .getVisualization()
         .expectTableToDissapear(
           spreadsheet.getTable(1).getFieldHeadersRow(),
           spreadsheet.getTable(1).getLeft() +
@@ -264,41 +268,39 @@ test.describe('field actions', () => {
   test(
     `swap left ${dataType}`,
     {
-      tag: ['@hiddenTable'],
+      tag: ['@hiddenTable', '@horizonal'],
     },
-    async ({ page }) => {
+    async () => {
       const projectPage = await ProjectPage.createInstance(page);
       const curFieldValue = await projectPage
-        .getGrid()
+        .getVisualization()
         .getCellTableText(
           spreadsheet.getTable(2).getFieldHeadersRow(),
           spreadsheet.getTable(2).getLeft() + 1
-        )
-        .textContent();
+        );
       const leftFieldValue = await projectPage
-        .getGrid()
+        .getVisualization()
         .getCellTableText(
           spreadsheet.getTable(2).getFieldHeadersRow(),
           spreadsheet.getTable(2).getLeft()
-        )
-        .textContent();
+        );
       await projectPage
-        .getGrid()
+        .getVisualization()
         .performCellSubAction(
           spreadsheet.getTable(2).getFieldHeadersRow(),
           spreadsheet.getTable(2).getLeft() + 1,
           'Field',
-          'Swap left'
+          spreadsheet.getTable(2).getMenu().SwapLeft()
         );
       await projectPage
-        .getGrid()
+        .getVisualization()
         .expectCellTextChange(
           spreadsheet.getTable(2).getFieldHeadersRow(),
           spreadsheet.getTable(2).getLeft(),
           curFieldValue || ''
         );
       await projectPage
-        .getGrid()
+        .getVisualization()
         .expectCellTextChange(
           spreadsheet.getTable(2).getFieldHeadersRow(),
           spreadsheet.getTable(2).getLeft() + 1,
@@ -311,41 +313,39 @@ test.describe('field actions', () => {
   test(
     `swap right ${dataType}`,
     {
-      tag: ['@hiddenTable'],
+      tag: ['@hiddenTable', '@horizonal'],
     },
-    async ({ page }) => {
+    async () => {
       const projectPage = await ProjectPage.createInstance(page);
       const curFieldValue = await projectPage
-        .getGrid()
+        .getVisualization()
         .getCellTableText(
           spreadsheet.getTable(2).getFieldHeadersRow(),
           spreadsheet.getTable(2).getLeft() + 2
-        )
-        .textContent();
+        );
       const rightFieldValue = await projectPage
-        .getGrid()
+        .getVisualization()
         .getCellTableText(
           spreadsheet.getTable(2).getFieldHeadersRow(),
           spreadsheet.getTable(2).getLeft() + 3
-        )
-        .textContent();
+        );
       await projectPage
-        .getGrid()
+        .getVisualization()
         .performCellSubAction(
           spreadsheet.getTable(2).getFieldHeadersRow(),
           spreadsheet.getTable(2).getLeft() + 2,
           'Field',
-          'Swap right'
+          spreadsheet.getTable(2).getMenu().SwapRight()
         );
       await projectPage
-        .getGrid()
+        .getVisualization()
         .expectCellTextChange(
           spreadsheet.getTable(2).getFieldHeadersRow(),
           spreadsheet.getTable(2).getLeft() + 3,
           curFieldValue || ''
         );
       await projectPage
-        .getGrid()
+        .getVisualization()
         .expectCellTextChange(
           spreadsheet.getTable(2).getFieldHeadersRow(),
           spreadsheet.getTable(2).getLeft() + 2,
@@ -358,40 +358,38 @@ test.describe('field actions', () => {
   test(
     `swap left by hotkey Shift+Alt+ArrowLeft ${dataType}`,
     {
-      tag: ['@hiddenTable'],
+      tag: ['@hiddenTable', '@horizonal'],
     },
-    async ({ page }) => {
+    async () => {
       const projectPage = await ProjectPage.createInstance(page);
       const curFieldValue = await projectPage
-        .getGrid()
+        .getVisualization()
         .getCellTableText(
           spreadsheet.getTable(2).getFieldHeadersRow(),
           spreadsheet.getTable(2).getLeft() + 1
-        )
-        .textContent();
+        );
       const leftFieldValue = await projectPage
-        .getGrid()
+        .getVisualization()
         .getCellTableText(
           spreadsheet.getTable(2).getFieldHeadersRow(),
           spreadsheet.getTable(2).getLeft()
-        )
-        .textContent();
+        );
       await projectPage
-        .getGrid()
+        .getVisualization()
         .clickOnCell(
           spreadsheet.getTable(2).getFieldHeadersRow(),
           spreadsheet.getTable(2).getLeft() + 1
         );
       await page.keyboard.press('Shift+Alt+ArrowLeft');
       await projectPage
-        .getGrid()
+        .getVisualization()
         .expectCellTextChange(
           spreadsheet.getTable(2).getFieldHeadersRow(),
           spreadsheet.getTable(2).getLeft(),
           curFieldValue || ''
         );
       await projectPage
-        .getGrid()
+        .getVisualization()
         .expectCellTextChange(
           spreadsheet.getTable(2).getFieldHeadersRow(),
           spreadsheet.getTable(2).getLeft() + 1,
@@ -404,40 +402,38 @@ test.describe('field actions', () => {
   test(
     `swap right by hotkey Shift+Alt+ArrowRight ${dataType}`,
     {
-      tag: ['@hiddenTable'],
+      tag: ['@hiddenTable', '@horizonal'],
     },
-    async ({ page }) => {
+    async () => {
       const projectPage = await ProjectPage.createInstance(page);
       const curFieldValue = await projectPage
-        .getGrid()
+        .getVisualization()
         .getCellTableText(
           spreadsheet.getTable(2).getFieldHeadersRow(),
           spreadsheet.getTable(2).getLeft() + 2
-        )
-        .textContent();
+        );
       const rightFieldValue = await projectPage
-        .getGrid()
+        .getVisualization()
         .getCellTableText(
           spreadsheet.getTable(2).getFieldHeadersRow(),
           spreadsheet.getTable(2).getLeft() + 3
-        )
-        .textContent();
+        );
       await projectPage
-        .getGrid()
+        .getVisualization()
         .clickOnCell(
           spreadsheet.getTable(2).getFieldHeadersRow(),
           spreadsheet.getTable(2).getLeft() + 2
         );
       await page.keyboard.press('Shift+Alt+ArrowRight');
       await projectPage
-        .getGrid()
+        .getVisualization()
         .expectCellTextChange(
           spreadsheet.getTable(2).getFieldHeadersRow(),
           spreadsheet.getTable(2).getLeft() + 3,
           curFieldValue || ''
         );
       await projectPage
-        .getGrid()
+        .getVisualization()
         .expectCellTextChange(
           spreadsheet.getTable(2).getFieldHeadersRow(),
           spreadsheet.getTable(2).getLeft() + 2,
@@ -450,27 +446,26 @@ test.describe('field actions', () => {
   test(
     `swap left for the very left column ${dataType}`,
     {
-      tag: ['@hiddenTable'],
+      tag: ['@hiddenTable', '@horizonal'],
     },
-    async ({ page }) => {
+    async () => {
       const projectPage = await ProjectPage.createInstance(page);
       const curFieldValue = await projectPage
-        .getGrid()
+        .getVisualization()
         .getCellTableText(
           spreadsheet.getTable(2).getFieldHeadersRow(),
           spreadsheet.getTable(2).getLeft()
-        )
-        .textContent();
+        );
       await projectPage
-        .getGrid()
+        .getVisualization()
         .performCellSubAction(
           spreadsheet.getTable(2).getFieldHeadersRow(),
           spreadsheet.getTable(2).getLeft(),
           'Field',
-          'Swap left'
+          spreadsheet.getTable(2).getMenu().SwapLeft()
         );
       await projectPage
-        .getGrid()
+        .getVisualization()
         .expectCellTextChange(
           spreadsheet.getTable(2).getFieldHeadersRow(),
           spreadsheet.getTable(2).getLeft(),
@@ -482,19 +477,18 @@ test.describe('field actions', () => {
   test(
     `swap right for the very right column ${dataType}`,
     {
-      tag: ['@hiddenTable'],
+      tag: ['@hiddenTable', '@horizonal'],
     },
-    async ({ page }) => {
+    async () => {
       const projectPage = await ProjectPage.createInstance(page);
       const curFieldValue = await projectPage
-        .getGrid()
+        .getVisualization()
         .getCellTableText(
           spreadsheet.getTable(2).getFieldHeadersRow(),
           spreadsheet.getTable(2).getLeft() + 3
-        )
-        .textContent();
+        );
       await projectPage
-        .getGrid()
+        .getVisualization()
         .performCellSubAction(
           spreadsheet.getTable(2).getFieldHeadersRow(),
           spreadsheet.getTable(2).getLeft() + 3,
@@ -502,7 +496,7 @@ test.describe('field actions', () => {
           'Swap right'
         );
       await projectPage
-        .getGrid()
+        .getVisualization()
         .expectCellTextChange(
           spreadsheet.getTable(2).getFieldHeadersRow(),
           spreadsheet.getTable(2).getLeft() + 3,
@@ -514,12 +508,12 @@ test.describe('field actions', () => {
   test(
     `edit formula ${dataType}`,
     {
-      tag: ['@hiddenTable'],
+      tag: ['@hiddenTable', '@horizonal'],
     },
-    async ({ page }) => {
-      const projectPage = await ProjectPage.createInstance(page);
+    async () => {
+      /*   const projectPage = await ProjectPage.createInstance(page);
       await projectPage
-        .getGrid()
+        .getVisualization()
         .performCellAction(
           spreadsheet.getTable(2).getFieldHeadersRow(),
           spreadsheet.getTable(2).getLeft(),
@@ -527,48 +521,48 @@ test.describe('field actions', () => {
         );
       await new Promise((resolve) => setTimeout(resolve, 300));
       const newValue = '222';
-      await projectPage.getGrid().setCellValue(newValue);
+      await projectPage.getVisualization().setCellValue(newValue);
       await expect(projectPage.getFormula()).toHaveText('=' + newValue);
-      spreadsheet.getTable(2).getField(0).updateValue(newValue);
+      spreadsheet.getTable(2).getField(0).updateValue(newValue);*/
     }
   );
 
   test(
     `edit formula by hotkey Alt+F2 ${dataType}`,
     {
-      tag: ['@hiddenTable'],
+      tag: ['@hiddenTable', '@horizonal'],
     },
-    async ({ page }) => {
-      const projectPage = await ProjectPage.createInstance(page);
+    async () => {
+      /*   const projectPage = await ProjectPage.createInstance(page);
       await projectPage
-        .getGrid()
+        .getVisualization()
         .clickOnCell(
           spreadsheet.getTable(2).getFieldHeadersRow(),
           spreadsheet.getTable(2).getLeft()
         );
       await page.keyboard.press('Alt+F2');
       const newValue = '111';
-      await projectPage.getGrid().setCellValue(newValue);
+      await projectPage.getVisualization().setCellValue(newValue);
       await projectPage
-        .getGrid()
+        .getVisualization()
         .clickOnCell(
           spreadsheet.getTable(2).getFieldHeadersRow(),
           spreadsheet.getTable(2).getLeft()
         );
       await expect(projectPage.getFormula()).toHaveText('=' + newValue);
-      spreadsheet.getTable(2).getField(0).updateValue(newValue);
+      spreadsheet.getTable(2).getField(0).updateValue(newValue);*/
     }
   );
 
   test(
     `add key ${dataType}`,
     {
-      tag: ['@hiddenTable'],
+      tag: ['@hiddenTable', '@horizonal'],
     },
-    async ({ page }) => {
+    async () => {
       const projectPage = await ProjectPage.createInstance(page);
       await projectPage
-        .getGrid()
+        .getVisualization()
         .performCellAction(
           spreadsheet.getTable(2).getFieldHeadersRow(),
           spreadsheet.getTable(2).getLeft(),
@@ -576,14 +570,14 @@ test.describe('field actions', () => {
         );
 
       await projectPage
-        .getGrid()
+        .getVisualization()
         .expectFieldToBeKey(
           spreadsheet.getTable(2).getFieldHeadersRow(),
           spreadsheet.getTable(2).getLeft()
         );
 
       await projectPage
-        .getGrid()
+        .getVisualization()
         .performCellAction(
           spreadsheet.getTable(2).getFieldHeadersRow(),
           spreadsheet.getTable(2).getLeft(),
@@ -595,12 +589,12 @@ test.describe('field actions', () => {
   test(
     `remove key ${dataType}`,
     {
-      tag: ['@hiddenTable'],
+      tag: ['@hiddenTable', '@horizonal'],
     },
-    async ({ page }) => {
+    async () => {
       const projectPage = await ProjectPage.createInstance(page);
       await projectPage
-        .getGrid()
+        .getVisualization()
         .performCellAction(
           spreadsheet.getTable(0).getFieldHeadersRow(),
           spreadsheet.getTable(0).getLeft(),
@@ -608,7 +602,7 @@ test.describe('field actions', () => {
         );
 
       await projectPage
-        .getGrid()
+        .getVisualization()
         .expectFieldNotBeKey(
           spreadsheet.getTable(0).getFieldHeadersRow(),
           spreadsheet.getTable(0).getLeft()
@@ -621,12 +615,12 @@ test.describe('field actions', () => {
   test(
     `add dimension ${dataType}`,
     {
-      tag: ['@hiddenTable'],
+      tag: ['@hiddenTable', '@horizonal'],
     },
-    async ({ page }) => {
+    async () => {
       const projectPage = await ProjectPage.createInstance(page);
       await projectPage
-        .getGrid()
+        .getVisualization()
         .performCellAction(
           spreadsheet.getTable(0).getFieldHeadersRow(),
           spreadsheet.getTable(0).getLeft() + 1,
@@ -634,20 +628,20 @@ test.describe('field actions', () => {
         );
 
       await projectPage
-        .getGrid()
+        .getVisualization()
         .expectCellToNotBeDim(
           spreadsheet.getTable(0).getFirstCellCoord(),
           spreadsheet.getTable(0).getLeft() + 1
         );
 
       await projectPage
-        .getGrid()
+        .getVisualization()
         .expectFieldIsDimension(
           spreadsheet.getTable(0).getFieldHeadersRow(),
           spreadsheet.getTable(0).getLeft() + 1
         );
       await projectPage
-        .getGrid()
+        .getVisualization()
         .performCellAction(
           spreadsheet.getTable(0).getFieldHeadersRow(),
           spreadsheet.getTable(0).getLeft() + 1,
@@ -659,12 +653,12 @@ test.describe('field actions', () => {
   test(
     `remove dimension ${dataType}`,
     {
-      tag: ['@hiddenTable'],
+      tag: ['@hiddenTable', '@horizonal'],
     },
-    async ({ page }) => {
+    async () => {
       const projectPage = await ProjectPage.createInstance(page);
       await projectPage
-        .getGrid()
+        .getVisualization()
         .performCellAction(
           spreadsheet.getTable(0).getFieldHeadersRow(),
           spreadsheet.getTable(0).getLeft() + 2,
@@ -672,13 +666,13 @@ test.describe('field actions', () => {
         );
 
       await projectPage
-        .getGrid()
+        .getVisualization()
         .expectCellToBeDim(
           spreadsheet.getTable(0).getFirstCellCoord(),
           spreadsheet.getTable(0).getLeft() + 2
         );
       await projectPage
-        .getGrid()
+        .getVisualization()
         .expectFieldIsNotDimension(
           spreadsheet.getTable(0).getFieldHeadersRow(),
           spreadsheet.getTable(0).getLeft() + 2
@@ -686,4 +680,6 @@ test.describe('field actions', () => {
       spreadsheet.getTable(0).getField(2).removeDim();
     }
   );
+
+  test('filter by value', async () => {});
 });

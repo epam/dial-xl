@@ -104,18 +104,22 @@ export const useIntellisenseFormulasClick = (
     // Create an observer instance linked to the callback function
     const observer = new MutationObserver(callback);
 
-    setTimeout(() => {
-      // Select the node that will be observed for mutations
+    // Monaco editor requires some time to initialize
+    // Keep checking until all editors are initialized (formula bar and code editor are always present, code editor can be closed)
+    const monacoEditorCount = 2 + (openedPanels.editor.isActive ? 1 : 0);
+    const intervalId = setInterval(() => {
       const targetNodes = document.querySelectorAll('.monaco-editor');
 
-      targetNodes.forEach((targetNode) => {
-        // Start observing the target node for configured mutations
-        observer.observe(targetNode, config);
-      });
-    }, 500);
+      if (targetNodes.length === monacoEditorCount) {
+        targetNodes.forEach((targetNode) => {
+          // Start observing the target node for configured mutations
+          observer.observe(targetNode, config);
+        });
+        clearInterval(intervalId);
+      }
+    }, 100);
 
     return () => {
-      // eslint-disable-next-line react-hooks/exhaustive-deps
       listeners.current.forEach(([el, listener]) =>
         el.removeEventListener('click', listener)
       );

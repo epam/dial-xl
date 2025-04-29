@@ -21,8 +21,6 @@ export type EditorStyle = {
   left: string;
   width: string;
   height: string;
-  initialScrollTop: number;
-  initialScrollLeft: number;
 };
 
 export type Props = {
@@ -43,8 +41,6 @@ export const defaultStyle: EditorStyle = {
   left: '0px',
   width: '0px',
   height: '0px',
-  initialScrollTop: 0,
-  initialScrollLeft: 0,
 };
 
 export type GridCellEditorOpenOptions = {
@@ -61,6 +57,7 @@ export type GridCellEditorOpenOptions = {
   initialValue?: string;
   isAlreadyOpened?: boolean;
   formulaBarMode?: FormulaBarMode;
+  isOtherCellsInField?: boolean;
 };
 
 export const CellEditorModes = {
@@ -75,33 +72,33 @@ export const CellEditorModes = {
     subShortcut: null,
   },
   rename_field: {
-    title: 'Rename field (F2).',
-    subTitle: 'Edit field (ALT+F2).',
+    title: 'Rename column (F2).',
+    subTitle: 'Edit column (ALT+F2).',
     subShortcut: Shortcut.EditExpression,
   },
   edit_dim_expression: {
-    title: 'Edit field',
+    title: 'Edit column',
     subTitle: null,
     subShortcut: null,
   },
   edit_field_expression: {
-    title: 'Edit field (ALT+F2).',
-    subTitle: 'Rename field (F2).',
+    title: 'Edit column (ALT+F2).',
+    subTitle: 'Rename column (F2).',
     subShortcut: Shortcut.Rename,
   },
   edit_cell_expression: {
-    title: 'Edit field (Alt+F2).',
+    title: 'Edit column (Alt+F2).',
     subTitle: 'Edit cell (F2).',
     subShortcut: Shortcut.Rename,
   },
   add_override: {
     title: 'Edit cell (F2).',
-    subTitle: 'Edit field (Alt+F2).',
+    subTitle: 'Edit column (Alt+F2).',
     subShortcut: Shortcut.EditExpression,
   },
   edit_override: {
     title: 'Edit cell (F2).',
-    subTitle: 'Edit field (Alt+F2).',
+    subTitle: 'Edit column (Alt+F2).',
     subShortcut: Shortcut.EditExpression,
   },
   edit_total: {
@@ -135,6 +132,14 @@ export type GridCellParams = {
   isAddTotal: boolean;
   isEditTotal: boolean;
   hasOtherOverrides: boolean;
+  hasOtherCellsInField: boolean;
+};
+
+export type CellEditorExplicitOpenOptions = {
+  dimFieldName?: string;
+  withFocus?: boolean;
+  targetTableName?: string;
+  targetFieldName?: string;
 };
 
 export enum GridCellEditorEventType {
@@ -190,10 +195,7 @@ export type GridCellEditorEventOpenExplicitly = {
   col: number;
   row: number;
   value: string;
-  options?: {
-    dimFieldName?: string;
-    withFocus?: boolean;
-  };
+  options?: CellEditorExplicitOpenOptions;
 };
 
 export type GridCellEditorEventSetValue = {

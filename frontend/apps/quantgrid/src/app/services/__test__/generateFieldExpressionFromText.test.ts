@@ -60,8 +60,8 @@ describe('generateFieldExpressionFromText', () => {
     );
 
     // Assert
-    expect(result.fieldName).toBe('Field1');
-    expect(result.fieldDsl).toBe('[Field1] = 2 + 2');
+    expect(result.fieldName).toBe('Column1');
+    expect(result.fieldDsl).toBe('[Column1] = 2 + 2');
   });
 
   it('should return given expression and add braces to a given field name', () => {
@@ -112,8 +112,8 @@ describe('generateFieldExpressionFromText', () => {
     const result = generateFieldExpressionFromText(fieldText, null, [], {});
 
     // Assert
-    expect(result.fieldName).toBe('Field1');
-    expect(result.fieldDsl).toBe('[Field1] = 2 + 2');
+    expect(result.fieldName).toBe('Column1');
+    expect(result.fieldDsl).toBe('[Column1] = 2 + 2');
   });
 
   it('should return expression with key field as is', () => {

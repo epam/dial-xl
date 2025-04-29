@@ -2,6 +2,7 @@ import { useRef } from 'react';
 
 import { formulaEditorId } from '@frontend/common';
 
+import { Formats } from '../Formats';
 import { FormulaBarWrapper } from './FormulaBarWrapper';
 import { useFormulaInputHeight } from './utils';
 
@@ -12,18 +13,23 @@ export function FormulaBar() {
 
   return (
     <div
-      className="w-screen overflow-x-hidden bg-bgLayer3 text-textPrimary border-b border-b-strokeTertiary"
+      className="w-screen bg-bgLayer3 text-textPrimary border-b border-b-strokeTertiary"
       style={{
         height: containerHeight,
         minHeight: containerHeight,
       }}
     >
-      <div
-        className="flex h-full overflow-x-auto"
-        id={formulaEditorId}
-        ref={containerRef}
-      >
-        <FormulaBarWrapper />
+      <div className="flex h-full grow">
+        <div
+          className="flex h-full overflow-x-auto grow"
+          id={formulaEditorId}
+          ref={containerRef}
+        >
+          <FormulaBarWrapper />
+        </div>
+        <div className="h-full">
+          <Formats />
+        </div>
       </div>
     </div>
   );

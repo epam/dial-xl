@@ -1,12 +1,12 @@
 import { useCallback, useContext, useEffect, useMemo } from 'react';
 
+import { isNoteOpen } from '@frontend/canvas-spreadsheet';
 import {
   isModalOpen,
   Shortcut,
   shortcutApi,
   ShortcutHandlersMap,
 } from '@frontend/common';
-import { isNoteOpen } from '@frontend/spreadsheet';
 
 import { PanelName } from '../common';
 import {
@@ -27,8 +27,14 @@ const disabledShortcutsOnCellEditorOpen = [
 export function useShortcuts() {
   const { togglePanel } = useContext(LayoutContext);
   const { undo, redo } = useContext(UndoRedoContext);
-  const { toggleChat, updateZoomWithWheel, updateZoom, chatWindowPlacement } =
-    useContext(AppContext);
+  const {
+    toggleChat,
+    updateZoomWithWheel,
+    updateZoom,
+    chatWindowPlacement,
+    setViewportInteractionMode,
+    viewportInteractionMode,
+  } = useContext(AppContext);
   const { isAIPendingChanges } = useContext(ProjectContext);
   const gridApi = useGridApi();
   const { openSearchWindow } = useContext(SearchWindowContext);
@@ -52,12 +58,23 @@ export function useShortcuts() {
       [Shortcut.ToggleErrors]: () => togglePanel(PanelName.Errors),
       [Shortcut.ToggleHistory]: () => togglePanel(PanelName.UndoRedo),
       [Shortcut.ToggleChat]: () => handleToggleChat(),
+      [Shortcut.ToggleAIHints]: () => togglePanel(PanelName.AIHints),
+      [Shortcut.ToggleChart]: () => togglePanel(PanelName.Details),
       [Shortcut.RedoAction]: () => redo(),
       [Shortcut.UndoAction]: () => undo(),
       [Shortcut.ZoomIn]: () => updateZoomWithWheel(1),
       [Shortcut.ZoomOut]: () => updateZoomWithWheel(-1),
       [Shortcut.ZoomReset]: () => updateZoom(1),
       [Shortcut.SearchWindow]: () => openSearchWindow(),
+      [Shortcut.ChangeViewportInteractionMode]: () =>
+        setViewportInteractionMode(
+          viewportInteractionMode === 'select' ? 'pan' : 'select'
+        ),
+
+      // just prevent save web page on save
+      [Shortcut.Save]: (e) => {
+        e.preventDefault();
+      },
     }),
     [
       createProjectAction,
@@ -68,6 +85,8 @@ export function useShortcuts() {
       updateZoomWithWheel,
       updateZoom,
       openSearchWindow,
+      setViewportInteractionMode,
+      viewportInteractionMode,
     ]
   );
 

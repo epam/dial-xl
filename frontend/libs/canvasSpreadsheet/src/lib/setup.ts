@@ -1,10 +1,34 @@
 import * as PIXI from 'pixi.js';
 import { IApplicationOptions } from 'pixi.js';
 
-import { AppTheme } from '@frontend/common';
+import {
+  AppTheme,
+  getCurrencySymbols,
+  getHexColor,
+  themeColors,
+} from '@frontend/common';
 
-const chars =
-  ' !"#%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~…$€абвгдеёжзийклмнопрстуфхцчшщъьэюяАБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЬЭЮЯ';
+import { Color } from './types';
+
+const currencySymbols = getCurrencySymbols();
+const getChars = () => {
+  const defaultChars = ` →!"#%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_\`abcdefghijklmnopqrstuvwxyz{|}~…абвгдеёжзийклмнопрстуфхцчшщъыьэюяАБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ`;
+  const currencySymbolsChars = currencySymbols.join('');
+
+  return `${defaultChars}${currencySymbolsChars}`
+    .split('')
+    .reduce((acc, curr) => {
+      if (!acc.includes(curr)) {
+        acc.push(curr);
+      }
+
+      return acc;
+    }, [] as string[])
+    .join('');
+};
+
+const chars = getChars();
+
 export enum FontColorName {
   'lightTextPrimary' = 'lightTextPrimary',
   'lightTextSecondary' = 'lightTextSecondary',
@@ -14,6 +38,8 @@ export enum FontColorName {
   'darkTextError' = 'darkTextError',
   'lightTextAccent' = 'lightTextAccent',
   'darkTextAccent' = 'darkTextAccent',
+  'lightTextAccentSecondary' = 'lightTextAccentSecondary',
+  'darkTextAccentSecondary' = 'darkTextAccentSecondary',
 }
 
 export enum FontFamilies {
@@ -78,13 +104,13 @@ export async function loadFonts() {
 
 const fontColors: {
   colorName: FontColorName;
-  color: number;
+  color: Color;
   themes: AppTheme[];
   fontFamilies: FontFamilies[];
 }[] = [
   {
     colorName: FontColorName.lightTextPrimary,
-    color: 0x141a23,
+    color: getHexColor(themeColors[AppTheme.ThemeLight].textPrimary),
     themes: [AppTheme.ThemeLight, AppTheme.ThemeDarkMixed],
     fontFamilies: [
       FontFamilies.InconsolataRegular,
@@ -93,13 +119,13 @@ const fontColors: {
   },
   {
     colorName: FontColorName.lightTextSecondary,
-    color: 0x7f8792,
+    color: getHexColor(themeColors[AppTheme.ThemeLight].textSecondary),
     themes: [AppTheme.ThemeLight, AppTheme.ThemeDarkMixed],
     fontFamilies: [FontFamilies.InconsolataRegular],
   },
   {
     colorName: FontColorName.darkTextPrimary,
-    color: 0xf3f4f6,
+    color: getHexColor(themeColors[AppTheme.ThemeDark].textPrimary),
     themes: [AppTheme.ThemeDark],
     fontFamilies: [
       FontFamilies.InconsolataRegular,
@@ -108,33 +134,51 @@ const fontColors: {
   },
   {
     colorName: FontColorName.darkTextSecondary,
-    color: 0x7f8792,
+    color: getHexColor(themeColors[AppTheme.ThemeDark].textSecondary),
     themes: [AppTheme.ThemeDark],
     fontFamilies: [FontFamilies.InconsolataRegular],
   },
   {
     colorName: FontColorName.lightTextAccent,
-    color: 0x2764d9,
+    color: getHexColor(themeColors[AppTheme.ThemeLight].textAccentTertiary),
     themes: [AppTheme.ThemeLight, AppTheme.ThemeDarkMixed],
     fontFamilies: [FontFamilies.InconsolataRegular],
   },
   {
     colorName: FontColorName.darkTextAccent,
-    color: 0x5c8dea,
+    color: getHexColor(themeColors[AppTheme.ThemeDark].textAccentTertiary),
     themes: [AppTheme.ThemeDark],
     fontFamilies: [FontFamilies.InconsolataRegular],
   },
   {
     colorName: FontColorName.lightTextError,
-    color: 0xae2f2f,
+    color: getHexColor(themeColors[AppTheme.ThemeLight].textError),
     themes: [AppTheme.ThemeLight, AppTheme.ThemeDarkMixed],
     fontFamilies: [FontFamilies.InconsolataBold],
   },
   {
     colorName: FontColorName.darkTextError,
-    color: 0xf76464,
+    color: getHexColor(themeColors[AppTheme.ThemeDark].textError),
     themes: [AppTheme.ThemeDark],
     fontFamilies: [FontFamilies.InconsolataBold],
+  },
+  {
+    colorName: FontColorName.lightTextAccentSecondary,
+    color: getHexColor(themeColors[AppTheme.ThemeLight].textAccentSecondary),
+    themes: [AppTheme.ThemeLight, AppTheme.ThemeDarkMixed],
+    fontFamilies: [
+      FontFamilies.InconsolataBold,
+      FontFamilies.InconsolataRegular,
+    ],
+  },
+  {
+    colorName: FontColorName.darkTextAccentSecondary,
+    color: getHexColor(themeColors[AppTheme.ThemeDark].textAccentSecondary),
+    themes: [AppTheme.ThemeDark],
+    fontFamilies: [
+      FontFamilies.InconsolataBold,
+      FontFamilies.InconsolataRegular,
+    ],
   },
 ];
 
@@ -180,7 +224,9 @@ export function setupPixi() {
 }
 
 export const stageOptions: Partial<IApplicationOptions> = {
+  backgroundAlpha: 0,
   antialias: true,
   resolution: globalResolution,
-  eventMode: 'auto',
+  powerPreference: 'high-performance',
+  clearBeforeRender: true,
 };

@@ -1,0 +1,6 @@
+name: min
+description: Calculates min of the array
+signature: 'array<number>.min() => number'
+manual: >-
+  `min` calculates the minimal value of array elements. Elements must be number primitives or be implicitly convertible
+  to them. Returned type depends on array elements type.

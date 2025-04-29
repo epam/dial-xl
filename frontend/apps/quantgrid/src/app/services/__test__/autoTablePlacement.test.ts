@@ -1,41 +1,142 @@
+import { GridApi } from '@frontend/canvas-spreadsheet';
+import { GridTable } from '@frontend/common';
+
 import { autoTablePlacement } from '../autoTablePlacement';
 
 describe('autoTablePlacement', () => {
   it('should do nothing if tables have placement', () => {
     // Arrange
     const dsl =
-      '!placement(1,1) table t1 [f1]=2\r\n[f2]=3\r\n[f1]=4\r\n!placement(3,3) table t2 [f1]=2\r\n[f2]=3\r\n[f1]=4';
+      '!layout(1,1) table t1 [f1]=2\n[f2]=3\n[f1]=4\n!layout(3,3) table t2 [f1]=2\n[f2]=3\n[f1]=4';
 
     // Act
-    const result = autoTablePlacement(dsl);
+    const result = autoTablePlacement(dsl, [], null, null, null);
 
     // Assert
     expect(result).toBe(dsl);
   });
 
-  it('should place table after table with placement', () => {
+  it('should place table vertically after table with placement', () => {
     // Arrange
     const dsl =
-      '!placement(1,1) table t1 [f1]=2\r\n[f2]=3\r\n[f1]=4\r\ntable t2 [f1]=2\r\n[f2]=3\r\n[f1]=4';
+      '!layout(1,1) table t1 [f1]=2\n[f2]=3\n[f1]=4\ntable t2 [f1]=2\n[f2]=3\n[f1]=4';
     const expectedDsl =
-      '!placement(1,1) table t1 [f1]=2\r\n[f2]=3\r\n[f1]=4\r\n!placement(1,5)\r\ntable t2 [f1]=2\r\n[f2]=3\r\n[f1]=4';
+      '!layout(1,1) table t1 [f1]=2\n[f2]=3\n[f1]=4\n\n!layout(3, 1, "title", "headers")\ntable t2 [f1]=2\n[f2]=3\n[f1]=4';
+    const tableStructures: GridTable[] = [
+      {
+        tableName: 't1',
+        startRow: 1,
+        startCol: 1,
+        endRow: 1,
+        endCol: 3,
+      },
+    ] as GridTable[];
 
     // Act
-    const result = autoTablePlacement(dsl);
+    const result = autoTablePlacement(dsl, tableStructures, null, null, null);
 
     // Assert
     expect(result).toBe(expectedDsl);
   });
 
-  it('should place all tables between tables with placement', () => {
+  it('should place table horizontally after table with placement', () => {
     // Arrange
     const dsl =
-      '!placement(7,2) table t1 [f1]=2\r\n!placement(7,6) table t2 [f1]=2\r\n[f2]=3\r\ntable t3 [f1]=2\r\n[f2]=3\r\n[f3]=4\r\ntable t4 [f1]=1';
+      '!layout(1,1) table t1 dim [f1]=RANGE(5)\n\ntable t2 [f1]=2\n[f2]=3\n[f1]=4';
     const expectedDsl =
-      '!placement(7,2) table t1 [f1]=2\r\n!placement(7,6) table t2 [f1]=2\r\n[f2]=3\r\n!placement(1,9)\r\ntable t3 [f1]=2\r\n[f2]=3\r\n[f3]=4\r\n!placement(1,4)\r\ntable t4 [f1]=1';
+      '!layout(1,1) table t1 dim [f1]=RANGE(5)\n\n!layout(1, 3, "title", "headers")\ntable t2 [f1]=2\n[f2]=3\n[f1]=4';
+    const tableStructures: GridTable[] = [
+      {
+        tableName: 't1',
+        startRow: 1,
+        startCol: 1,
+        endRow: 5,
+        endCol: 1,
+      },
+    ] as GridTable[];
 
     // Act
-    const result = autoTablePlacement(dsl);
+    const result = autoTablePlacement(dsl, tableStructures, null, null, null);
+
+    // Assert
+    expect(result).toBe(expectedDsl);
+  });
+
+  it('should place multiple tables with expanded field sizes after table with placement', () => {
+    // Arrange
+    const dsl =
+      '!layout(1,1)\ntable t1\n[f1]=2\n[f2]=3\n[f3]=4\ntable t2\n[very_very_very_long_name_field_1]=2\n[very_very_very_long_name_field_2]=3\n[f3]=4\ntable t3\n[f1]=2\n[f2]=3\n[f1]=4';
+    const expectedDsl =
+      '!layout(1,1)\ntable t1\n[f1]=2\n[f2]=3\n[f3]=4\n\n!layout(3, 1, "title", "headers")\ntable t2\n[very_very_very_long_name_field_1]=2\n[very_very_very_long_name_field_2]=3\n[f3]=4\n\n!layout(7, 1, "title", "headers")\ntable t3\n[f1]=2\n[f2]=3\n[f1]=4';
+
+    const grid = {
+      getCanvasSymbolWidth: () => 6,
+      getGridSizes: () => ({
+        colNumber: {
+          width: 65,
+        },
+        cell: {
+          padding: 4,
+        },
+        edges: {
+          col: 1000,
+          row: 1000,
+        },
+      }),
+    };
+    const tableStructures: GridTable[] = [
+      {
+        tableName: 't1',
+        startRow: 1,
+        startCol: 1,
+        endRow: 1,
+        endCol: 3,
+      },
+    ] as GridTable[];
+    // Act
+    const result = autoTablePlacement(
+      dsl,
+      tableStructures,
+      grid as GridApi,
+      'projectName',
+      'sheetName'
+    );
+
+    // Assert
+    expect(result).toBe(expectedDsl);
+  });
+
+  it('should place table correctly with comment starting', () => {
+    // Arrange
+    const dsl =
+      '!layout(1,1) table t1 [f1]=2\n[f2]=3\n[f1]=4\n##note\ntable t2 [f1]=2\n[f2]=3\n[f1]=4';
+    const expectedDsl =
+      '!layout(1,1) table t1 [f1]=2\n[f2]=3\n[f1]=4\n##note\n\n!layout(3, 1, "title", "headers")\ntable t2 [f1]=2\n[f2]=3\n[f1]=4';
+    const tableStructures: GridTable[] = [
+      {
+        tableName: 't1',
+        startRow: 1,
+        startCol: 1,
+        endRow: 1,
+        endCol: 3,
+      },
+    ] as GridTable[];
+    // Act
+    const result = autoTablePlacement(dsl, tableStructures, null, null, null);
+
+    // Assert
+    expect(result).toBe(expectedDsl);
+  });
+
+  it('should place two tables in the nearest free spot', () => {
+    // Arrange
+    const dsl =
+      '!layout(1,4) table t1 [f1]=2\n!layout(1,7) table t2 [f1]=2\n[f2]=3\ntable t3 [f1]=2\n[f2]=3\n[f3]=4\ntable t4 [f1]=1';
+    const expectedDsl =
+      '!layout(1,4) table t1 [f1]=2\n!layout(1,7) table t2 [f1]=2\n[f2]=3\n\n!layout(5, 1, "title", "headers")\ntable t3 [f1]=2\n[f2]=3\n[f3]=4\n\n!layout(1, 1, "title", "headers")\ntable t4 [f1]=1';
+
+    // Act
+    const result = autoTablePlacement(dsl, [], null, null, null);
 
     // Assert
     expect(result).toBe(expectedDsl);
@@ -43,11 +144,11 @@ describe('autoTablePlacement', () => {
 
   it('should fix table position to be inside spreadsheet edges', () => {
     // Arrange
-    const dsl = '!placement(0, 0) table t1 [f1]=2\r\n[f2]=3\r\n[f1]=4';
-    const expectedDsl = '!placement(1, 1) table t1 [f1]=2\r\n[f2]=3\r\n[f1]=4';
+    const dsl = '!layout(0, 0)\ntable t1 [f1]=2\n[f2]=3\n[f1]=4';
+    const expectedDsl = '!layout(1, 1)\ntable t1 [f1]=2\n[f2]=3\n[f1]=4';
 
     // Act
-    const result = autoTablePlacement(dsl);
+    const result = autoTablePlacement(dsl, [], null, null, null);
 
     // Assert
     expect(result).toBe(expectedDsl);
@@ -56,12 +157,12 @@ describe('autoTablePlacement', () => {
   it('should fix multiple table positions to be inside spreadsheet edges', () => {
     // Arrange
     const dsl =
-      '!placement(0, 0) table t1 [f1]=2\r\n!placement(0, 11) table t2 [f1]=2';
+      '!layout(0, 0)\ntable t1 [f1]=2\n!layout(0, 11)\ntable t2 [f1]=2';
     const expectedDsl =
-      '!placement(1, 1) table t1 [f1]=2\r\n!placement(1, 11) table t2 [f1]=2';
+      '!layout(1, 1)\ntable t1 [f1]=2\n!layout(1, 11)\ntable t2 [f1]=2';
 
     // Act
-    const result = autoTablePlacement(dsl);
+    const result = autoTablePlacement(dsl, [], null, null, null);
 
     // Assert
     expect(result).toBe(expectedDsl);

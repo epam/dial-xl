@@ -1,13 +1,6 @@
-import { Input, InputRef, Modal } from 'antd';
+import { Form, Input, InputRef, Modal } from 'antd';
 import cx from 'classnames';
-import {
-  ChangeEvent,
-  useCallback,
-  useContext,
-  useEffect,
-  useRef,
-  useState,
-} from 'react';
+import { useCallback, useContext, useEffect, useRef, useState } from 'react';
 
 import {
   inputClasses,
@@ -18,20 +11,22 @@ import {
   secondaryButtonClasses,
   shouldStopPropagation,
 } from '@frontend/common';
-import { focusSpreadsheet } from '@frontend/spreadsheet';
 
 import { ModalRefFunction } from '../../../common';
 import { defaultSheetName, ProjectContext } from '../../../context';
 import { createUniqueName } from '../../../services';
+
+const inputFieldKey = 'newSheetName';
+
 type Props = {
   newSheetModal: { current: ModalRefFunction | null };
 };
 
 export function NewSheet({ newSheetModal }: Props) {
+  const [form] = Form.useForm();
   const { projectName, createSheet, projectSheets } =
     useContext(ProjectContext);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [newSheetName, setNewSheetName] = useState('');
   const inputRef = useRef<InputRef | null>(null);
 
   const suggestSheetName = useCallback(() => {
@@ -40,33 +35,34 @@ export function NewSheet({ newSheetModal }: Props) {
       (projectSheets || []).map(({ sheetName }) => sheetName)
     );
 
-    setNewSheetName(uniqueSheetName);
-  }, [projectSheets]);
+    form.setFieldValue(inputFieldKey, uniqueSheetName);
+  }, [form, projectSheets]);
 
   const showModal = useCallback(() => {
     setIsModalOpen(true);
     suggestSheetName();
   }, [suggestSheetName]);
 
-  const handleOk = useCallback(() => {
+  const handleOk = useCallback(async () => {
+    try {
+      await form.validateFields({ recursive: true });
+    } catch {
+      return;
+    }
+
+    const newSheetName = form.getFieldValue(inputFieldKey);
+
     if (projectName && newSheetName) {
       createSheet({ newName: newSheetName, silent: true });
     }
     setIsModalOpen(false);
-    setNewSheetName('');
-  }, [projectName, newSheetName, createSheet]);
+    form.resetFields();
+  }, [projectName, form, createSheet]);
 
   const handleCancel = useCallback(() => {
     setIsModalOpen(false);
-    setNewSheetName('');
-  }, []);
-
-  const onSheetNameChange = useCallback(
-    (event: ChangeEvent<HTMLInputElement>) => {
-      setNewSheetName(event.target.value);
-    },
-    []
-  );
+    form.resetFields();
+  }, [form]);
 
   const onKeydown = useCallback(
     (event: KeyboardEvent) => {
@@ -74,11 +70,11 @@ export function NewSheet({ newSheetModal }: Props) {
       if (shouldStopPropagation(event)) {
         event.stopPropagation();
       }
-      if (event.key === KeyboardCode.Enter && newSheetName) {
+      if (event.key === KeyboardCode.Enter) {
         handleOk();
       }
     },
-    [handleOk, isModalOpen, newSheetName]
+    [handleOk, isModalOpen]
   );
 
   useEffect(() => {
@@ -105,7 +101,6 @@ export function NewSheet({ newSheetModal }: Props) {
 
   return (
     <Modal
-      afterClose={focusSpreadsheet}
       cancelButtonProps={{
         className: cx(modalFooterButtonClasses, secondaryButtonClasses),
       }}
@@ -116,21 +111,40 @@ export function NewSheet({ newSheetModal }: Props) {
           primaryButtonClasses,
           primaryDisabledButtonClasses
         ),
-        disabled: !newSheetName,
       }}
       open={isModalOpen}
       title="New Worksheet"
       onCancel={handleCancel}
       onOk={handleOk}
     >
-      <Input
-        className={cx('h-12 my-3', inputClasses)}
-        placeholder="Worksheet name"
-        ref={inputRef}
-        value={newSheetName}
-        autoFocus
-        onChange={onSheetNameChange}
-      />
+      <Form className="pb-2" form={form}>
+        <Form.Item
+          name="newSheetName"
+          rules={[
+            { required: true, message: 'Sheet name is required' },
+            {
+              validator: (_, value) => {
+                const result = !projectSheets?.some(
+                  (sheet) => sheet.sheetName === value
+                );
+
+                return result
+                  ? Promise.resolve()
+                  : Promise.reject(
+                      new Error('A worksheet with this name already exists.')
+                    );
+              },
+            },
+          ]}
+          validateTrigger={['onBlur']}
+        >
+          <Input
+            className={cx('h-12 my-3', inputClasses)}
+            placeholder="Sheet name"
+            ref={inputRef}
+          />
+        </Form.Item>
+      </Form>
     </Modal>
   );
 }

@@ -1,11 +1,10 @@
 package com.epam.deltix.quantgrid.engine.compiler;
 
-import com.epam.deltix.quantgrid.engine.compiler.result.CompiledReferenceTable;
-import com.epam.deltix.quantgrid.engine.embeddings.EmbeddingModels;
 import com.epam.deltix.quantgrid.engine.compiler.result.CompiledColumn;
 import com.epam.deltix.quantgrid.engine.compiler.result.CompiledInputTable;
 import com.epam.deltix.quantgrid.engine.compiler.result.CompiledNestedColumn;
 import com.epam.deltix.quantgrid.engine.compiler.result.CompiledPivotTable;
+import com.epam.deltix.quantgrid.engine.compiler.result.CompiledReferenceTable;
 import com.epam.deltix.quantgrid.engine.compiler.result.CompiledResult;
 import com.epam.deltix.quantgrid.engine.compiler.result.CompiledRow;
 import com.epam.deltix.quantgrid.engine.compiler.result.CompiledRowTable;
@@ -17,8 +16,10 @@ import com.epam.deltix.quantgrid.engine.compiler.result.validator.ResultValidato
 import com.epam.deltix.quantgrid.engine.compiler.result.validator.SimpleColumnValidators;
 import com.epam.deltix.quantgrid.engine.compiler.result.validator.SimpleOrNestedValidators;
 import com.epam.deltix.quantgrid.engine.compiler.result.validator.TableValidators;
+import com.epam.deltix.quantgrid.engine.embeddings.EmbeddingModels;
 import com.epam.deltix.quantgrid.engine.embeddings.EmbeddingType;
 import com.epam.deltix.quantgrid.engine.node.expression.BinaryFunction;
+import com.epam.deltix.quantgrid.engine.node.expression.BinaryOperator;
 import com.epam.deltix.quantgrid.engine.node.expression.Concatenate;
 import com.epam.deltix.quantgrid.engine.node.expression.Constant;
 import com.epam.deltix.quantgrid.engine.node.expression.Expand;
@@ -29,10 +30,11 @@ import com.epam.deltix.quantgrid.engine.node.expression.RowNumber;
 import com.epam.deltix.quantgrid.engine.node.expression.TernaryFunction;
 import com.epam.deltix.quantgrid.engine.node.expression.Text;
 import com.epam.deltix.quantgrid.engine.node.expression.UnaryFunction;
+import com.epam.deltix.quantgrid.engine.node.expression.UnaryOperator;
 import com.epam.deltix.quantgrid.engine.node.expression.ps.Extrapolate;
 import com.epam.deltix.quantgrid.engine.node.expression.ps.PercentChange;
 import com.epam.deltix.quantgrid.engine.node.plan.Plan;
-import com.epam.deltix.quantgrid.engine.node.plan.local.AggregateFunction;
+import com.epam.deltix.quantgrid.engine.node.plan.local.aggregate.AggregateType;
 import com.epam.deltix.quantgrid.engine.node.plan.local.DateRangeLocal;
 import com.epam.deltix.quantgrid.engine.node.plan.local.DistinctByLocal;
 import com.epam.deltix.quantgrid.engine.node.plan.local.EmbeddingIndexLocal;
@@ -40,17 +42,19 @@ import com.epam.deltix.quantgrid.engine.node.plan.local.EvaluateModelLocal;
 import com.epam.deltix.quantgrid.engine.node.plan.local.EvaluateNLocal;
 import com.epam.deltix.quantgrid.engine.node.plan.local.Fields;
 import com.epam.deltix.quantgrid.engine.node.plan.local.FilterLocal;
+import com.epam.deltix.quantgrid.engine.node.plan.local.InLocal;
 import com.epam.deltix.quantgrid.engine.node.plan.local.InputLocal;
 import com.epam.deltix.quantgrid.engine.node.plan.local.JoinSingleLocal;
 import com.epam.deltix.quantgrid.engine.node.plan.local.ListLocal;
 import com.epam.deltix.quantgrid.engine.node.plan.local.MRRLocal;
-import com.epam.deltix.quantgrid.engine.node.plan.local.NestedAggregateLocal;
+import com.epam.deltix.quantgrid.engine.node.plan.local.AggregateLocal;
 import com.epam.deltix.quantgrid.engine.node.plan.local.OrderByLocal;
 import com.epam.deltix.quantgrid.engine.node.plan.local.RangeLocal;
 import com.epam.deltix.quantgrid.engine.node.plan.local.RecallLocal;
 import com.epam.deltix.quantgrid.engine.node.plan.local.RetrieveLocal;
 import com.epam.deltix.quantgrid.engine.node.plan.local.SelectLocal;
-import com.epam.deltix.quantgrid.engine.node.plan.local.SimpleAggregateLocal;
+import com.epam.deltix.quantgrid.engine.node.plan.local.SetOperation;
+import com.epam.deltix.quantgrid.engine.node.plan.local.SetOperationLocal;
 import com.epam.deltix.quantgrid.engine.node.plan.local.SplitLocal;
 import com.epam.deltix.quantgrid.engine.node.plan.local.TokensCountLocal;
 import com.epam.deltix.quantgrid.engine.service.input.InputMetadata;
@@ -59,7 +63,7 @@ import com.epam.deltix.quantgrid.parser.FieldKey;
 import com.epam.deltix.quantgrid.parser.ParsedPython;
 import com.epam.deltix.quantgrid.parser.ParsedTable;
 import com.epam.deltix.quantgrid.parser.ast.BinaryOperation;
-import com.epam.deltix.quantgrid.parser.ast.BinaryOperator;
+import com.epam.deltix.quantgrid.parser.ast.ConstBool;
 import com.epam.deltix.quantgrid.parser.ast.ConstNumber;
 import com.epam.deltix.quantgrid.parser.ast.ConstText;
 import com.epam.deltix.quantgrid.parser.ast.FieldReference;
@@ -67,7 +71,6 @@ import com.epam.deltix.quantgrid.parser.ast.Formula;
 import com.epam.deltix.quantgrid.parser.ast.Function;
 import com.epam.deltix.quantgrid.parser.ast.TableReference;
 import com.epam.deltix.quantgrid.parser.ast.UnaryOperation;
-import com.epam.deltix.quantgrid.parser.ast.UnaryOperator;
 import com.epam.deltix.quantgrid.type.ColumnType;
 import lombok.experimental.UtilityClass;
 
@@ -78,8 +81,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-
-import static com.epam.deltix.quantgrid.engine.compiler.result.CompiledTable.REF_NA;
 
 @UtilityClass
 public class CompileFunction {
@@ -117,9 +118,9 @@ public class CompileFunction {
 
         return switch (name) {
             case "UnaryOperator" -> compileUnaryOperator(context,
-                    ((UnaryOperator) context.function()).operation());
+                    ((com.epam.deltix.quantgrid.parser.ast.UnaryOperator) context.function()).operation());
             case "BinaryOperator" -> compileBinaryOperator(context,
-                    ((BinaryOperator) context.function()).operation());
+                    ((com.epam.deltix.quantgrid.parser.ast.BinaryOperator) context.function()).operation());
             case "POW" -> compileBinaryOperator(context, BinaryOperation.POW);
             case "ROW" -> compileRow(context);
             case "PERIODSERIES" -> compilePeriodSeries(context);
@@ -134,7 +135,7 @@ public class CompileFunction {
             case "SORT" -> compileSort(context);
             case "SORTBY" -> compileSortBy(context);
             case "COUNT" -> compileCount(context);
-            case "SUM", "AVERAGE", "MAX", "MIN", "STDEVS", "STDEVP", "GEOMEAN", "MEDIAN" ->
+            case "SUM", "AVERAGE", "MAX", "MIN", "STDEVS", "STDEVP", "GEOMEAN", "MEDIAN", "CORREL" ->
                     compileDoubleAggregation(name, context);
             case "MINBY", "MAXBY" -> compileRowAggregationByDouble(name, context);
             case "FIRST", "LAST", "SINGLE" -> (context.argumentCount() == 1)
@@ -150,7 +151,6 @@ public class CompileFunction {
             case "IF" -> compileIf(context);
             case "IFNA" -> compileIfNa(context);
             case "MODE" -> compileMode(context);
-            case "CORREL" -> compileCorrelation(context);
             case "PI" -> compilePi();
             case "SPLIT" -> compileSplit(context);
             case "DATERANGE" -> compileDateRange(context);
@@ -162,100 +162,92 @@ public class CompileFunction {
             case "RETRIEVE_SCORES" -> compileRetrieveScores(context);
             case "RETRIEVE_DESCRIPTIONS" -> compileRetrieveDescriptions(context);
             case "RECALL" -> compileRecall(context);
+            case "BETWEEN" -> compileBetween(context);
+            case "UNION", "INTERSECT", "SUBTRACT" -> compileSetOperation(name, context);
+            case "IN" -> compileIn(context);
             default -> throw new CompileError("Unsupported function: " + name);
         };
     }
 
     private CompiledResult compileUnaryFunction(String name, CompileContext context) {
         UnaryFunction.Type function = UnaryFunction.Type.valueOf(name);
+        if (function == UnaryFunction.Type.ISNA) {
+            CompiledResult arg = context.compileArgument(0, ResultValidator.ANY);
+            CompiledColumn column;
+
+            if (arg instanceof CompiledColumn) {
+               column = (CompiledColumn) arg;
+            } else {
+                CompiledTable table  = arg.cast(CompiledTable.class);
+                if (table.nested()) {
+                    Plan plan = table.hasCurrentReference()
+                            ? new SelectLocal(table.currentReference(), table.queryReference())
+                            : new SelectLocal(table.queryReference());
+                    column = new CompiledNestedColumn(plan, table.dimensions(),
+                            table.hasCurrentReference() ? 0 : CompiledTable.REF_NA,
+                            table.hasCurrentReference() ? 1 : 0);
+                } else {
+                    column = new CompiledSimpleColumn(table.queryReference(), table.dimensions());
+                }
+            }
+
+            return column.transform(in -> new UnaryFunction(in, function));
+        }
+
         CompiledColumn arg = context.compileArgument(
                 0, function.getArgumentType() == null
                         ? SimpleOrNestedValidators.ANY
                         : SimpleOrNestedValidators.forType(function.getArgumentType()));
 
-        CompiledSimpleColumn flatArg = context.flattenArguments(List.of(arg)).get(0);
-
-        Expression expression = new UnaryFunction(flatArg.node(), function);
-        return context.nestResultIfNeeded(expression, List.of(arg), arg.dimensions());
+        return arg.transform(expression -> new UnaryFunction(expression, function));
     }
 
     private CompiledResult compileBinaryFunction(String name, CompileContext context) {
         BinaryFunction.Type function = BinaryFunction.Type.valueOf(name);
-        List<CompiledColumn> args = compileExpressions(context, List.of(
+        List<CompiledColumn> args = compileArgs(context, List.of(
                 SimpleOrNestedValidators.forType(function.getArgument1Type()),
                 SimpleOrNestedValidators.forType(function.getArgument2Type())));
 
-        List<CompiledSimpleColumn> flatArgs = context.flattenArguments(args);
-        CompiledSimpleColumn first = flatArgs.get(0);
-        CompiledSimpleColumn second = flatArgs.get(1);
-
-        BinaryFunction expression = new BinaryFunction(first.node(), second.node(), function);
-        return context.nestResultIfNeeded(expression, args, first.dimensions());
+        return CompiledColumn.transform(args.get(0), args.get(1), (arg1, arg2) -> new BinaryFunction(arg1, arg2, function));
     }
 
     private CompiledResult compileTernaryFunction(String name, CompileContext context) {
         TernaryFunction.Type function = TernaryFunction.Type.valueOf(name);
-        List<CompiledColumn> args = compileExpressions(context, List.of(
+        List<CompiledColumn> args = compileArgs(context, List.of(
                 SimpleOrNestedValidators.forType(function.getArgument1Type()),
                 SimpleOrNestedValidators.forType(function.getArgument2Type()),
                 SimpleOrNestedValidators.forType(function.getArgument3Type())));
 
-        List<CompiledSimpleColumn> flatArgs = context.flattenArguments(args);
-        CompiledSimpleColumn first = flatArgs.get(0);
-        CompiledSimpleColumn second = flatArgs.get(1);
-        CompiledSimpleColumn third = flatArgs.get(2);
-
-        TernaryFunction expression = new TernaryFunction(first.node(), second.node(), third.node(), function);
-        return context.nestResultIfNeeded(expression, args, first.dimensions());
+        return CompiledColumn.transform(args.get(0), args.get(1), args.get(2),
+                (arg1, arg2, arg3) -> new TernaryFunction(arg1, arg2, arg3, function));
     }
 
     private CompiledResult compileUnaryOperator(CompileContext context, UnaryOperation operation) {
         CompiledColumn arg = context.compileArgument(0, SimpleOrNestedValidators.DOUBLE);
-
-        CompiledSimpleColumn flatArg = context.flattenArguments(List.of(arg)).get(0);
-
-        Expression expression = new com.epam.deltix.quantgrid.engine.node.expression.UnaryOperator(
-                flatArg.node(), operation);
-
-        return context.nestResultIfNeeded(expression, List.of(arg), flatArg.dimensions());
+        return arg.transform(in -> new UnaryOperator(in, operation));
     }
 
-    private CompiledResult compileBinaryOperator(
-            CompileContext context, BinaryOperation operation) {
-
+    private CompiledResult compileBinaryOperator(CompileContext context, BinaryOperation operation) {
         if (operation == BinaryOperation.CONCAT) {
            return compileConcatenate(context);
         }
 
-        List<CompiledColumn> args = compileExpressions(
+        List<CompiledColumn> args = compileArgs(
             context,
             operation.isAllowStrings() ?
             List.of(SimpleOrNestedValidators.STRING_OR_DOUBLE, SimpleOrNestedValidators.STRING_OR_DOUBLE) :
             List.of(SimpleOrNestedValidators.DOUBLE, SimpleOrNestedValidators.DOUBLE)
         );
 
-        List<CompiledSimpleColumn> flatArgs = context.flattenArguments(args);
-
-        CompiledSimpleColumn left = flatArgs.get(0);
-        CompiledSimpleColumn right = flatArgs.get(1);
+        CompiledColumn left = args.get(0);
+        CompiledColumn right = args.get(1);
 
         if (operation.isAllowStrings() && (left.type().isString() != right.type().isString())) {
-            left = SimpleColumnValidators.STRING.convert(left);
-            right = SimpleColumnValidators.STRING.convert(right);
+            left = SimpleOrNestedValidators.STRING.convert(left);
+            right = SimpleOrNestedValidators.STRING.convert(right);
         }
 
-        CompileUtil.verify(ColumnType.isClose(left.type(), right.type())
-                        && (left.type().isDouble() || left.type().isString()),
-                "The operation %s cannot be applied to the incompatible types %s and %s",
-                operation, left.type(), right.type());
-
-        CompileUtil.verify(left.type().isDouble() || operation.isAllowStrings(),
-                "The operation %s cannot be applied to the STRING type", operation);
-
-        Expression binop = new com.epam.deltix.quantgrid.engine.node.expression.BinaryOperator(
-                left.node(), right.node(), operation);
-
-        return context.nestResultIfNeeded(binop, args, left.dimensions());
+        return CompiledColumn.transform(left, right, (arg1, arg2) -> new BinaryOperator(arg1, arg2, operation));
     }
 
     private CompiledColumn compileRow(CompileContext context) {
@@ -263,41 +255,30 @@ public class CompileFunction {
             // query reference points to the row at which ROW() is being compiled in
             CompiledTable table = context.overrideRowTable();
             Get get = table.queryReference();
-            Expression row = CompileUtil.plus(context, table, get, 1);
+            Expression row = CompileUtil.plus(get, 1);
             return new CompiledSimpleColumn(row, table.dimensions());
-        } else if (context.promotedTable() != null) {
-            Get get = context.promotedTable.currentReference();
-            Expression row = CompileUtil.plus(context, context.promotedTable, get, 1);
-            return new CompiledSimpleColumn(row, context.promotedTable.dimensions());
-        } else {
-            CompiledTable layout = context.layout();
-            RowNumber number = new RowNumber(layout.node());
-            Expression row = CompileUtil.plus(context, layout, number, 1);
-            return new CompiledSimpleColumn(row, layout.dimensions());
         }
+
+        CompiledTable layout = context.layout();
+        RowNumber number = new RowNumber(layout.node());
+        Expression row = CompileUtil.plus(number, 1);
+        return new CompiledSimpleColumn(row, layout.dimensions());
     }
 
     private CompiledResult compileRange(CompileContext context) {
-        CompileUtil.verify(context.promotedTable() == null, "RANGE function cannot be used within another formula");
-
-        List<FieldKey> dimensions = context.collectArgument(0);
-        CompiledTable source = context.currentTable(dimensions);
-        CompileContext nestedContext = context.withCompiledAndPromoted(source, source, false);
-        CompiledSimpleColumn count = nestedContext.compileArgument(0, SimpleColumnValidators.INTEGER);
-
-        RangeLocal range = new RangeLocal(source.node(), count.node());
-        int column = source.node().getMeta().getSchema().size();
-        return new CompiledNestedColumn(range, dimensions, source.currentRef(), column);
+        CompiledSimpleColumn count = compileArgs(context, SimpleColumnValidators.INTEGER).get(0);
+        CompiledTable table = context.currentTable(count.dimensions());
+        RangeLocal range = new RangeLocal(table.node(), count.node());
+        int column = table.node().getMeta().getSchema().size();
+        return new CompiledNestedColumn(range, table.dimensions(), table.currentRef(), column);
     }
 
     private CompiledResult compileFilter(CompileContext context) {
-        TableWithColumns tableFunction = compileTableWithColumns(context, SimpleOrNestedValidators.BOOLEAN);
-
-        CompiledTable source = tableFunction.promotedTable();
-        CompiledSimpleColumn condition = tableFunction.columns.get(0);
-        FilterLocal filter = new FilterLocal(source.node(), condition.node());
-
-        return source.withNode(filter);
+        TableArgs args = compileTableArgs(context, SimpleOrNestedValidators.BOOLEAN);
+        CompiledTable table = args.table();
+        CompiledSimpleColumn condition = args.columns.get(0);
+        FilterLocal filter = new FilterLocal(table.node(), condition.node());
+        return table.withNode(filter);
     }
 
     private CompiledResult compileRowReference(CompileContext context) {
@@ -327,7 +308,7 @@ public class CompileFunction {
             Formula argument = context.argument(i);
             ColumnType type = types.get(i - 1);
 
-            if (argument instanceof ConstText || argument instanceof ConstNumber) {
+            if (argument instanceof ConstText || argument instanceof ConstNumber || argument instanceof ConstBool) {
                 Object key = CompileOverride.parseOverrideKey(type, argument);
                 row.add(key);
                 continue;
@@ -345,465 +326,332 @@ public class CompileFunction {
                 "%s does not support source with current promotedTable yet",
                 context.functionName());
 
-        CompiledTable flatRightTable = rightTable.withNested(false);
-        List<String> rightNames = flatRightTable.keys(context);
+        rightTable = rightTable.flat().cast(CompiledTable.class);
+        List<String> rightNames = rightTable.keys(context);
         int keyCount = context.argumentCount() - 1;
         List<Expression> rightKeys = new ArrayList<>(keyCount);
 
         if (rightNames.isEmpty()) {
             CompileUtil.verify(keyCount == 1,
-                    "%s must have 1 expression for a table without keys",
+                    "%s must have 1 argument for a table without keys",
                     context.functionName());
 
-            rightKeys.add(flatRightTable.queryReference());
+            rightKeys.add(CompileUtil.plus(rightTable.queryReference(), 1));
         } else {
             CompileUtil.verify(keyCount == rightNames.size(),
-                    "%s must have %d expressions, but supplied: %d",
+                    "%s must have %d arguments, but got: %d",
                     context.functionName(), rightNames.size(), keyCount);
 
-            String rightTableName = flatRightTable.name();
+            String rightTableName = rightTable.name();
             for (String name : rightNames) {
-                CompiledSimpleColumn key = flatRightTable.field(context, name)
+                CompiledSimpleColumn key = rightTable.field(context, name)
                         .cast(CompiledSimpleColumn.class, (expected, actual) ->
-                                "The key '%s' of table '%s' must be a %s, but was %s".formatted(
+                                "The key '%s' of table '%s' must be %s, but got %s".formatted(
                                         name, rightTableName, expected, actual));
                 rightKeys.add(key.node());
             }
         }
 
-        List<FieldKey> leftDims = context.collectArguments(1, context.argumentCount());
-        List<Expression> leftKeys = new ArrayList<>();
+        List<ResultValidator<CompiledSimpleColumn>> validators = rightKeys.stream()
+                .map(e -> SimpleColumnValidators.forType(e.getType())).toList();
+
+        List<CompiledSimpleColumn> leftArgs = compileArgs(context, validators,
+                IntStream.range(1, keyCount + 1).toArray());
+
+        List<FieldKey> leftDims = leftArgs.get(0).dimensions();
         CompiledTable leftTable = context.currentTable(leftDims);
-        CompileContext leftContext = context.with(leftTable, false);
+        List<Expression> leftKeys = leftArgs.stream().map(CompiledSimpleColumn::node).toList();
 
-        if (rightNames.isEmpty()) {
-            CompiledColumn key = leftContext.compileArgument(1, SimpleColumnValidators.INTEGER);
-            CompiledSimpleColumn flatKey = context.flattenArgument(key);
-            leftKeys.add(CompileUtil.plus(leftContext, leftTable, flatKey.node(), -1));
-        } else {
-
-            leftKeys = context.flattenArguments(IntStream.range(1, context.argumentCount()).mapToObj(i -> {
-                    ColumnType expectedType = rightKeys.get(i - 1).getType();
-                    return leftContext.compileArgument(i, SimpleColumnValidators.forType(expectedType));
-            }).toList()).stream().map(CompiledSimpleColumn::node).toList();
-
-        }
-        for (int i = 0; i < leftKeys.size(); ++i) {
-            CompileUtil.verifySameLayout(leftTable, leftKeys.get(i),
-                    "FIND key #%d is not aligned with the table. List arguments are not supported", i+1);
-        }
-
-        Plan result = new JoinSingleLocal(leftTable.node(), flatRightTable.node(), leftKeys, rightKeys);
-        int rightColumnsStart = leftTable.node().getMeta().getSchema().size();
-
-        if (rightColumnsStart > 0) {
-            result = CompileUtil.selectColumns(result, rightColumnsStart);
-        }
-
-        return flatRightTable.withNode(result).withDimensions(leftTable.dimensions());
+        Plan result = new JoinSingleLocal(leftTable.node(), rightTable.node(), leftKeys, rightKeys);
+        return rightTable.withNode(result).withDimensions(leftTable.dimensions());
     }
 
     private CompiledResult compileUnique(CompileContext context) {
         CompiledNestedColumn source = context.compileArgument(0, NestedColumnValidators.STRING_OR_DOUBLE);
-
         List<Expression> keys = new ArrayList<>();
 
         if (source.hasCurrentReference()) {
             keys.add(source.currentReference());
         }
 
-        keys.add(source.flat().node());
-
+        keys.add(source.expression());
         DistinctByLocal distinct = new DistinctByLocal(source.node(), keys);
         return source.withNode(distinct);
     }
 
     private CompiledResult compileUniqueBy(CompileContext context) {
-        TableWithColumns tableWithColumns = compileTableWithColumns(context, SimpleOrNestedValidators.STRING_OR_DOUBLE);
-
-        CompiledTable source = tableWithColumns.promotedTable();
+        TableArgs args = compileTableArgs(context, SimpleOrNestedValidators.STRING_OR_DOUBLE);
+        CompiledTable table = args.table();
         List<Expression> keys = new ArrayList<>();
-        if (source.hasCurrentReference()) {
-            keys.add(source.currentReference());
-        }
-        keys.addAll(tableWithColumns.columns.stream().map(CompiledSimpleColumn::node).toList());
 
-        DistinctByLocal distinct = new DistinctByLocal(source.node(), keys);
-        return source.withNode(distinct);
+        if (table.hasCurrentReference()) {
+            keys.add(table.currentReference());
+        }
+
+        keys.addAll(args.columns.stream().map(CompiledSimpleColumn::node).toList());
+        DistinctByLocal distinct = new DistinctByLocal(table.node(), keys);
+        return table.withNode(distinct);
     }
 
     private CompiledResult compileSort(CompileContext context) {
-        CompiledNestedColumn source = context.compileArgument(0, NestedColumnValidators.STRING_OR_DOUBLE);
-        TableWithColumns tableWithColumns = new TableWithColumns(source, source, List.of(source.flat()));
-
-        return compileSortBy(tableWithColumns);
+        CompiledNestedColumn arg = context.compileArgument(0, NestedColumnValidators.STRING_OR_DOUBLE);
+        return compileSortBy(new TableArgs(arg, List.of(arg.flat())));
     }
 
     private CompiledResult compileSortBy(CompileContext context) {
-        TableWithColumns tableWithColumns = compileTableWithColumns(context, NestedColumnValidators.STRING_OR_DOUBLE);
-        return compileSortBy(tableWithColumns);
+        TableArgs args = compileTableArgs(context, SimpleOrNestedValidators.STRING_OR_DOUBLE);
+        return compileSortBy(args);
     }
 
-    private CompiledResult compileSortBy(TableWithColumns tableWithColumns) {
-        CompiledTable source = tableWithColumns.promotedTable();
+    private CompiledResult compileSortBy(TableArgs args) {
+        CompiledTable table = args.table();
         List<Expression> keys = new ArrayList<>();
-        if (source.hasCurrentReference()) {
-            keys.add(source.currentReference());
+
+        if (table.hasCurrentReference()) {
+            keys.add(table.currentReference());
         }
-        keys.addAll(tableWithColumns.columns().stream().map(CompiledSimpleColumn::node).toList());
+        keys.addAll(args.columns().stream().map(CompiledSimpleColumn::node).toList());
 
         boolean[] ascending = new boolean[keys.size()];
         Arrays.fill(ascending, true);
 
-        OrderByLocal order = new OrderByLocal(source.node(), keys, ascending);
-        return source.withNode(order);
+        OrderByLocal order = new OrderByLocal(table.node(), keys, ascending);
+        return table.withNode(order);
     }
 
     private CompiledSimpleColumn compileCount(CompileContext context) {
-        CompiledTable source = context.compileArgument(0, TableValidators.NESTED);
-        return compileCount(context, source, false);
+        CompiledTable arg = context.compileArgument(0, TableValidators.NESTED);
+        return compileCount(context, arg, false);
     }
 
-    CompiledSimpleColumn compileCount(CompileContext context, CompiledTable source, boolean all) {
-        CompileUtil.verify(source.nested());
-        AggregateFunction function = all ? AggregateFunction.COUNT_ALL : AggregateFunction.COUNT;
+    CompiledSimpleColumn compileCount(CompileContext context, CompiledTable arg, boolean all) {
+        CompileUtil.verify(arg.nested());
+        AggregateType type = all ? AggregateType.COUNT_ALL : AggregateType.COUNT;
 
-        Plan layout = context.aggregationLayout(source).node().getLayout();
-        Expression value;
-        Plan aggregate;
+        Plan layout = context.aggregationLayout(arg).node().getLayout();
+        Expression value = (arg instanceof CompiledNestedColumn column) ? column.expression() : arg.queryReference();
 
-        if (source instanceof CompiledNestedColumn column) {
-            value = column.flat().node();
-        } else {
-            value = source.queryReference();
-        }
-
-        if (source.hasCurrentReference()) {
-            Expression key = source.currentReference();
-            aggregate = new NestedAggregateLocal(function, layout, source.node(), key, value);
-        } else {
-            aggregate = new SimpleAggregateLocal(function, layout, source.node(), value);
-        }
+        Expression key = arg.hasCurrentReference() ? arg.currentReference() : null;
+        Plan aggregate = new AggregateLocal(type, layout, arg.node(), key, value);
 
         Get column = new Get(aggregate, 0);
-        return new CompiledSimpleColumn(column, source.dimensions());
+        return new CompiledSimpleColumn(column, arg.dimensions());
     }
 
     private CompiledResult compileDoubleAggregation(String name, CompileContext context) {
-        AggregateFunction function = AggregateFunction.valueOf(name);
-        CompiledNestedColumn source = context.compileArgument(
-                0, NestedColumnValidators.DOUBLE);
+        AggregateType type = AggregateType.valueOf(name);
+        List<CompiledNestedColumn> args = compileArgs(context, NestedColumnValidators.DOUBLE);
 
-        Plan layout = context.aggregationLayout(source).node().getLayout();
-        Plan plan = source.node();
+        CompiledNestedColumn table = args.get(0);
+        Plan layout = context.aggregationLayout(table).node().getLayout();
 
-        Expression value = source.flat().node();
-        Plan aggregate;
-
-        if (source.hasCurrentReference()) {
-            Get key = source.currentReference();
-            aggregate = new NestedAggregateLocal(function, layout, plan, key, value);
-        } else {
-            aggregate = new SimpleAggregateLocal(function, layout, plan, value);
-        }
+        Expression key = table.hasCurrentReference() ? table.currentReference() : null;
+        List<Expression> values = args.stream().map(CompiledNestedColumn::expression).toList();
+        Plan aggregate = new AggregateLocal(type, layout, table.node(), key, values);
 
         Get column = new Get(aggregate, 0);
-        return new CompiledSimpleColumn(column, source.dimensions());
+        return new CompiledSimpleColumn(column, table.dimensions());
     }
 
     private CompiledResult compileFirstLastSingle(String name, CompileContext context) {
-        AggregateFunction function = AggregateFunction.valueOf(name);
-        CompiledTable source = context.compileArgument(0, TableValidators.NESTED);
-
-        return compileRowAggregation(function, context, new TableWithColumns(source, source, List.of()));
+        AggregateType function = AggregateType.valueOf(name);
+        CompiledTable arg = context.compileArgument(0, TableValidators.NESTED);
+        return compileRowAggregation(function, context, new TableArgs(arg, List.of()));
     }
 
     private CompiledResult compileIndex(CompileContext context) {
-        TableWithColumns tableWithColumns = compileTableWithColumns(context, SimpleOrNestedValidators.DOUBLE);
-        CompiledSimpleColumn indexColumn = tableWithColumns.columns().get(0);
-        Expression index = CompileUtil.plus(context, tableWithColumns.promotedTable(), indexColumn.node(), -1);
+        TableArgs args = compileTableArgs(context, SimpleOrNestedValidators.DOUBLE);
+        CompiledSimpleColumn index = args.columns().get(0)
+                .transform(arg -> CompileUtil.plus(arg, -1));
 
-        return compileRowAggregation(
-                AggregateFunction.INDEX, context, new TableWithColumns(tableWithColumns.compiledTable(), tableWithColumns.promotedTable(),
-                        List.of(new CompiledSimpleColumn(index, indexColumn.dimensions()))));
-
+        return compileRowAggregation(AggregateType.INDEX, context,
+                new TableArgs(args.table(), List.of(index)));
     }
 
     private CompiledResult compileRowAggregationByDouble(String name, CompileContext context) {
-        AggregateFunction function = AggregateFunction.valueOf(name);
-        TableWithColumns tableWithColumns = compileTableWithColumns(context, SimpleOrNestedValidators.DOUBLE);
-
-        return compileRowAggregation(function, context, tableWithColumns);
+        AggregateType function = AggregateType.valueOf(name);
+        TableArgs args = compileTableArgs(context, SimpleOrNestedValidators.DOUBLE);
+        return compileRowAggregation(function, context, args);
     }
 
-    private CompiledResult compileRowAggregation(
-            AggregateFunction function, CompileContext context, TableWithColumns tableWithColumns) {
-        CompiledTable source = tableWithColumns.promotedTable();
+    private CompiledResult compileRowAggregation(AggregateType type, CompileContext context, TableArgs args) {
+        CompiledTable table = args.table();
+        Plan layout = context.aggregationLayout(table).node().getLayout();
 
-        Plan layout = context.aggregationLayout(source).node().getLayout();
-        Plan plan = source.node();
-        Plan aggregate;
+        Expression key = table.hasCurrentReference() ? table.currentReference() : null;
+        List<Expression> values = args.columns.stream().map(CompiledSimpleColumn::node).toList();
 
-        List<Expression> expressions = tableWithColumns.columns.stream().map(CompiledSimpleColumn::node).toList();
-        if (source.hasCurrentReference()) {
-            Expression key = source.currentReference();
-            aggregate = new NestedAggregateLocal(function, layout, plan, key, expressions);
-        } else {
-            aggregate = new SimpleAggregateLocal(function, layout, plan, expressions);
-        }
-
-        return source.withNode(aggregate).flat();
+        Plan aggregate = new AggregateLocal(type, layout, table.node(), key, values);
+        return table.withNode(aggregate).flat();
     }
 
     private CompiledResult compileFirstsLasts(String name, CompileContext context) {
-        AggregateFunction function = switch (name) {
-            case "FIRST" -> AggregateFunction.FIRSTS;
-            case "LAST" -> AggregateFunction.LASTS;
+        AggregateType type = switch (name) {
+            case "FIRST" -> AggregateType.FIRSTS;
+            case "LAST" -> AggregateType.LASTS;
             default -> throw new CompileError(name + " function takes invalid number of arguments");
         };
 
-        TableWithColumns tableFunction = compileTableWithColumns(context, SimpleOrNestedValidators.DOUBLE);
-        CompiledTable source = tableFunction.promotedTable();
-        CompiledSimpleColumn limit = tableFunction.columns.get(0);
+        TableArgs args = compileTableArgs(context, SimpleOrNestedValidators.DOUBLE);
+        CompiledTable table = args.table();
+        CompiledSimpleColumn limit = args.columns.get(0);
 
-        Plan layout = context.aggregationLayout(source).node().getLayout();
-        Plan plan = source.node();
-        Plan aggregate;
+        Plan layout = context.aggregationLayout(table).node().getLayout();
+        Expression key = table.hasCurrentReference() ? table.currentReference() : null;
 
-        if (source.hasCurrentReference()) {
-            Expression key = source.currentReference();
-            aggregate = new NestedAggregateLocal(function, layout, plan, key, limit.node());
-        } else {
-            aggregate = new SimpleAggregateLocal(function, layout, plan, limit.node());
-        }
-
-        return source.withNode(aggregate);
+        Plan aggregate = new AggregateLocal(type, layout, table.node(), key, limit.node());
+        return table.withNode(aggregate);
     }
 
     private CompiledResult compilePeriodSeries(CompileContext context) {
-        TableWithColumns tableWithColumns = compileTableWithColumns(
-                context, List.of(SimpleOrNestedValidators.DOUBLE, SimpleOrNestedValidators.DOUBLE, SimpleOrNestedValidators.STRING));
+        List<CompiledNestedColumn> args = compileArgs(context, List.of(SimpleOrNestedValidators.DOUBLE,
+                SimpleOrNestedValidators.DOUBLE, SimpleOrNestedValidators.STRING))
+                .stream().map(NestedColumnValidators.ANY::convert).toList();
 
-        CompiledTable source = tableWithColumns.promotedTable();
-        List<CompiledSimpleColumn> flatArgs = context.flattenArguments(tableWithColumns.columns);
+        CompiledTable table = args.get(0);
+        CompiledNestedColumn timestamp = args.get(0);
+        CompiledNestedColumn value = args.get(1);
+        CompiledNestedColumn period = args.get(2);
 
-        CompiledSimpleColumn timestamp = flatArgs.get(0);
-        CompiledSimpleColumn value = flatArgs.get(1);
-        CompiledSimpleColumn period = flatArgs.get(2);
+        Plan layout = context.aggregationLayout(table).node().getLayout();
+        Expression key = table.hasCurrentReference() ? table.currentReference() : null;
+        Plan aggregate = new AggregateLocal(AggregateType.PERIOD_SERIES, layout, table.node(), key,
+                timestamp.expression(), value.expression(), period.expression());
 
-
-        Plan layout = context.aggregationLayout(source).node().getLayout();
-        Plan aggregation;
-
-        if (source.hasCurrentReference()) {
-            aggregation = new NestedAggregateLocal(AggregateFunction.PERIOD_SERIES, layout, source.node(),
-                    source.currentReference(), timestamp.node(), value.node(), period.node());
-        } else {
-            aggregation = new SimpleAggregateLocal(AggregateFunction.PERIOD_SERIES, layout, source.node(),
-                    timestamp.node(), value.node(), period.node());
-        }
-
-        Get result = new Get(aggregation, 0);
-        return new CompiledSimpleColumn(result, source.dimensions());
+        Get result = new Get(aggregate, 0);
+        return new CompiledSimpleColumn(result, table.dimensions());
     }
 
     private CompiledResult compileDateRange(CompileContext context) {
-        CompileUtil.verify(context.promotedTable() == null, "DATERANGE function cannot be used within another formula");
+        List<ResultValidator<CompiledSimpleColumn>> validators = List.of(SimpleColumnValidators.DOUBLE,
+                        SimpleColumnValidators.DOUBLE, SimpleColumnValidators.INTEGER, SimpleColumnValidators.INTEGER)
+                .subList(0, context.argumentCount());
 
-        List<FieldKey> dimensions = context.collectArguments(0, context.argumentCount());
-        CompiledTable currentTable = context.currentTable(dimensions);
-        CompileContext currentContext = context.with(currentTable, false);
+        List<CompiledSimpleColumn> args = compileArgs(context, validators);
 
-        List<CompiledSimpleColumn> args;
-
-        int argumentCount = currentContext.argumentCount();
-        if (argumentCount == 2) {
-            args = compileExpressions(
-                    currentContext,
-                    List.of(SimpleColumnValidators.DOUBLE, SimpleColumnValidators.DOUBLE)
-            );
-        } else if (argumentCount == 3) {
-            args = compileExpressions(
-                    currentContext,
-                    List.of(SimpleColumnValidators.DOUBLE, SimpleColumnValidators.DOUBLE, SimpleColumnValidators.INTEGER)
-            );
-        } else {
-            args = compileExpressions(
-                    currentContext,
-                    List.of(SimpleColumnValidators.DOUBLE, SimpleColumnValidators.DOUBLE, SimpleColumnValidators.INTEGER, SimpleColumnValidators.INTEGER)
-            );
-        }
-
+        CompiledTable table = context.currentTable(args.get(0).dimensions());
         CompiledSimpleColumn date1 = args.get(0);
         CompiledSimpleColumn date2 = args.get(1);
-        CompiledSimpleColumn increment = argumentCount >= 3 ? args.get(2) : context.flattenArgument(CompileUtil.number(context, currentTable, 1));
-        CompiledSimpleColumn dateType = argumentCount >= 4 ? args.get(3) : context.flattenArgument(CompileUtil.number(context, currentTable, 4));
+        CompiledSimpleColumn increment = args.size() >= 3 ? args.get(2) : CompileUtil.number(table, 1);
+        CompiledSimpleColumn dateType = args.size() >= 4 ? args.get(3) : CompileUtil.number(table, 4);
 
-        DateRangeLocal dateRangeLocal = new DateRangeLocal(
-                currentTable.node(),
-                date1.node(),
-                date2.node(),
-                increment.node(),
-                dateType.node()
-        );
+        DateRangeLocal plan = new DateRangeLocal(table.node(),
+                date1.node(), date2.node(), increment.node(), dateType.node());
 
-        int column = currentTable.node().getMeta().getSchema().size();
-        return new CompiledNestedColumn(dateRangeLocal, dimensions, currentTable.currentRef(), column);
+        int column = table.node().getMeta().getSchema().size();
+        return new CompiledNestedColumn(plan, table.dimensions(), table.currentRef(), column);
     }
 
     private CompiledNestedColumn compileList(CompileContext context) {
-        ColumnType type = compileExpressions(context, SimpleColumnValidators.STRING_OR_DOUBLE).stream()
+        ColumnType type = compileArgs(context, SimpleColumnValidators.STRING_OR_DOUBLE).stream()
                 .map(column -> {
-                    CompileUtil.verify(column.dimensions().isEmpty(), "LIST function supports only scalar values");
+                    CompileUtil.verify(column.scalar(), "LIST function accepts texts or numbers only.");
                     return column.type();
                 }).reduce((left, right) -> {
                     ColumnType result = ColumnType.closest(left, right);
                     return (result == null) ? ColumnType.STRING : result;
                 }).orElse(ColumnType.DOUBLE);
 
-        List<Expression> expressions = compileExpressions(context, SimpleColumnValidators.forType(type)).stream()
+        List<Expression> values = compileArgs(context, SimpleColumnValidators.forType(type)).stream()
                 .map(CompiledSimpleColumn::node).toList();
 
-        ListLocal plan = new ListLocal(context.scalarLayout().node(), expressions);
+        ListLocal plan = new ListLocal(context.scalarLayout().node(), values);
         return new CompiledNestedColumn(plan, 0);
     }
 
-    private CompiledSimpleColumn compileExtrapolate(CompileContext context) {
-        CompiledSimpleColumn argument = context.compileArgument(0, SimpleColumnValidators.PERIOD_SERIES);
-        Extrapolate expression = new Extrapolate(argument.node());
-        return new CompiledSimpleColumn(expression, argument.dimensions());
+    private CompiledColumn compileExtrapolate(CompileContext context) {
+        CompiledColumn argument = context.compileArgument(0, SimpleOrNestedValidators.PERIOD_SERIES);
+        return argument.transform(Extrapolate::new);
     }
 
-    private CompiledSimpleColumn compilePercentChange(CompileContext context) {
-        CompiledSimpleColumn argument = context.compileArgument(0, SimpleColumnValidators.PERIOD_SERIES);
-        PercentChange expression = new PercentChange(argument.node());
-        return new CompiledSimpleColumn(expression, argument.dimensions());
+    private CompiledColumn compilePercentChange(CompileContext context) {
+        CompiledColumn argument = context.compileArgument(0, SimpleOrNestedValidators.PERIOD_SERIES);
+        return argument.transform(PercentChange::new);
     }
 
     private CompiledResult compileInput(CompileContext context) {
-        String inputPath = context.constStringArgument(0);
+        String path = context.constStringArgument(0);
 
-        InputProvider inputProvider = context.inputProvider();
-        InputMetadata metadata = inputProvider.readMetadata(inputPath, context.principal());
+        InputProvider provider = context.inputProvider();
+        InputMetadata metadata = provider.readMetadata(path, context.principal());
 
-        InputLocal input = new InputLocal(metadata, inputProvider, context.principal());
-        List<String> columnNames = List.copyOf(metadata.columnTypes().keySet());
-        List<ColumnType> columnTypes = List.copyOf(metadata.columnTypes().values());
+        InputLocal plan = new InputLocal(metadata, provider, context.principal());
+        List<String> columnNames = plan.getReadColumns();
+        List<ColumnType> columnTypes = columnNames.stream()
+                .map(metadata.columnTypes()::get)
+                .toList();
 
-        SelectLocal select = new SelectLocal(new RowNumber(input));
-        return new CompiledInputTable(input, columnNames, columnTypes, select);
+        SelectLocal select = new SelectLocal(new RowNumber(plan));
+        return new CompiledInputTable(plan, columnNames, columnTypes, select);
     }
 
     private CompiledResult compileConcatenate(CompileContext context) {
-        List<CompiledColumn> args = compileExpressions(
-                context, Collections.nCopies(context.argumentCount(), SimpleOrNestedValidators.STRING_OR_DOUBLE));
-        List<CompiledSimpleColumn> flatArgs = context.flattenArguments(args);
+        List<CompiledColumn> args = compileArgs(context, SimpleOrNestedValidators.STRING_OR_DOUBLE);
 
         List<Expression> expressions = new ArrayList<>(args.size());
-        for (CompiledSimpleColumn arg : flatArgs) {
+        for (CompiledColumn arg : args) {
             ColumnType type = arg.type();
 
             if (type.isString()) {
-                expressions.add(arg.node());
+                expressions.add(arg.expression());
             } else {
                 // excel CONCAT handles dates differently compare to TEXT function
-                Text text = new Text(arg.node(), (type == ColumnType.DATE) ? ColumnType.DOUBLE : type, null);
+                Text text = new Text(arg.expression(), (type == ColumnType.DATE) ? ColumnType.DOUBLE : type, null);
                 expressions.add(text);
             }
         }
-
-        Expression expression = (expressions.size()) == 1 ? expressions.get(0) : new Concatenate(expressions);
-        return context.nestResultIfNeeded(expression, args, args.get(0).dimensions());
+        return args.get(0).transform(expr -> (args.size()) == 1 ? expressions.get(0) : new Concatenate(expressions));
     }
 
     private CompiledResult compileText(CompileContext context) {
-        CompiledColumn argument = context.compileArgument(0, SimpleOrNestedValidators.DOUBLE);
-
-        String formatting = null;
-        if (context.argumentCount() == 2) {
-            // TODO: support dynamic formatting
-            formatting = context.constStringArgument(1);
-        }
-
-        Text text = new Text(context.flattenArgument(argument).node(), argument.type(), formatting);
-        return context.nestResultIfNeeded(text, List.of(argument), argument.dimensions());
+        CompiledColumn arg = context.compileArgument(0, SimpleOrNestedValidators.DOUBLE);
+        String formatting = context.argumentCount() == 2 ? context.constStringArgument(1) : null;
+        return arg.transform(e -> new Text(e, arg.type(), formatting));
     }
 
     private CompiledResult compileIf(CompileContext context) {
-        List<CompiledColumn> args = compileExpressions(context, List.of(
-                SimpleOrNestedValidators.BOOLEAN,
-                SimpleOrNestedValidators.ANY,
-                SimpleOrNestedValidators.ANY));
-        List<CompiledSimpleColumn> flatArgs = context.flattenArguments(args);
+        List<CompiledColumn> args = compileArgs(context, List.of(
+                SimpleOrNestedValidators.BOOLEAN, SimpleOrNestedValidators.ANY, SimpleOrNestedValidators.ANY));
 
-        CompiledSimpleColumn condition = flatArgs.get(0);
-        CompiledSimpleColumn left = flatArgs.get(1);
-        CompiledSimpleColumn right = flatArgs.get(2);
+        CompiledColumn condition = args.get(0);
+        CompiledColumn left = args.get(1);
+        CompiledColumn right = args.get(2);
 
         CompileUtil.verify(ColumnType.isClose(left.type(), right.type()),
                 "IF function requires left and right arguments to have same type");
 
-        If expression = new If(condition.node(), left.node(), right.node());
-        return context.nestResultIfNeeded(expression, args, condition.dimensions());
+        return CompiledColumn.transform(condition, left, right, If::new);
     }
 
     private CompiledResult compileIfNa(CompileContext context) {
-        List<CompiledColumn> args = compileExpressions(context, List.of(
-                SimpleOrNestedValidators.ANY,
-                SimpleOrNestedValidators.ANY));
-        List<CompiledSimpleColumn> flatArgs = context.flattenArguments(args);
+        List<CompiledColumn> args = compileArgs(context, List.of(
+                SimpleOrNestedValidators.ANY, SimpleOrNestedValidators.ANY));
 
-        CompiledSimpleColumn source = flatArgs.get(0);
-        CompiledSimpleColumn fallback = flatArgs.get(1);
+        CompiledColumn source = args.get(0);
+        CompiledColumn fallback = args.get(1);
 
         CompileUtil.verify(ColumnType.isClose(source.type(), fallback.type()),
                 "IFNA function requires source and fallback arguments to have same type");
 
-        UnaryFunction condition = new UnaryFunction(source.node(), UnaryFunction.Type.ISNA);
-        If expression = new If(condition, fallback.node(), source.node());
-        return context.nestResultIfNeeded(expression, args, source.dimensions());
+        return CompiledColumn.transform(source, fallback, (arg1, arg2) -> {
+            UnaryFunction condition = new UnaryFunction(arg1, UnaryFunction.Type.ISNA);
+            return new If(condition, arg2, arg1);
+        });
     }
 
     private CompiledResult compileMode(CompileContext context) {
-        CompiledNestedColumn source = context.compileArgument(0, NestedColumnValidators.STRING_OR_DOUBLE);
+        CompiledNestedColumn arg = context.compileArgument(0, NestedColumnValidators.STRING_OR_DOUBLE);
 
-        Plan layout = context.aggregationLayout(source).node().getLayout();
-        Plan plan = source.node();
+        Plan layout = context.aggregationLayout(arg).node().getLayout();
+        Plan plan = arg.node();
 
-        Expression value = source.flat().node();
-        Plan aggregate;
+        Get key = arg.hasCurrentReference() ? arg.currentReference() : null;
+        Expression value = arg.expression();
 
-        if (source.hasCurrentReference()) {
-            Get key = source.currentReference();
-            aggregate = new NestedAggregateLocal(AggregateFunction.MODE, layout, plan, key, value);
-        } else {
-            aggregate = new SimpleAggregateLocal(AggregateFunction.MODE, layout, plan, value);
-        }
-
+        Plan aggregate = new AggregateLocal(AggregateType.MODE, layout, plan, key, value);
         Get column = new Get(aggregate, 0);
-        return new CompiledSimpleColumn(column, source.dimensions());
-    }
 
-        private CompiledResult compileCorrelation(CompileContext context) {
-        TableWithColumns tableWithColumns = compileTableWithColumns(context, NestedColumnValidators.DOUBLE);
-        CompiledTable source = tableWithColumns.promotedTable();
-        Expression left = tableWithColumns.columns().get(0).node();
-        Expression right = tableWithColumns.columns().get(1).node();
-
-        Plan layout = context.aggregationLayout(source).node().getLayout();
-        Plan plan = source.node();
-
-        Plan aggregate;
-
-        if (source.hasCurrentReference()) {
-            Get key = source.currentReference();
-            aggregate = new NestedAggregateLocal(AggregateFunction.CORRELATION, layout, plan, key, left, right);
-        } else {
-            aggregate = new SimpleAggregateLocal(AggregateFunction.CORRELATION, layout, plan, left, right);
-        }
-
-        Get column = new Get(aggregate, 0);
-        return new CompiledSimpleColumn(column, source.dimensions());
+        return new CompiledSimpleColumn(column, arg.dimensions());
     }
 
     private CompiledResult compileFields(CompileContext context) {
@@ -823,10 +671,10 @@ public class CompileFunction {
 
         ParsedTable table = context.parsedTable(name);
 
-        CompileUtil.verify(table.total() != null, "Table: %s does not have total definition", name);
+        CompileUtil.verify(table.totals() != null, "Table: %s does not have total definition", name);
         CompileUtil.verify(number > 0, "TOTAL function requires positive number in 2 argument");
-        CompileUtil.verify(number <= table.total().size(), "Table: %s has only %d total definitions",
-                name, table.total().size());
+        CompileUtil.verify(number <= table.totals().size(), "Table: %s has only %d total definitions",
+                name, table.totals().size());
 
         // CompiledTotalTable requires some node, with queryReference column. We create a dummy one.
         SelectLocal dummyNode = new SelectLocal(new Constant(0));
@@ -851,112 +699,104 @@ public class CompileFunction {
         return new CompiledNestedColumn(plan, 0);
     }
 
-    protected <T extends CompiledResult> List<T> compileExpressions(CompileContext context, ResultValidator<T> validator) {
-        return compileExpressions(context, Collections.nCopies(context.argumentCount(), validator));
+    <T extends CompiledResult> List<T> compileArgs(CompileContext context, ResultValidator<T> nValidator) {
+        return compileArgs(context, Collections.nCopies(context.argumentCount(), nValidator));
     }
 
-    <T extends CompiledResult> List<T> compileExpressions(
-            CompileContext context,
-            List<ResultValidator<T>> columnValidators) {
-        return compileExpressions(context, columnValidators, IntStream.range(0, columnValidators.size()).toArray());
+    <T extends CompiledResult> List<T> compileArgs(CompileContext context, List<ResultValidator<T>> validators) {
+        return compileArgs(context, validators, IntStream.range(0, validators.size()).toArray());
     }
 
-    <T extends CompiledResult> List<T> compileExpressions(
-            CompileContext context,
-            List<ResultValidator<T>> columnValidators,
-            int... indexes) {
-        CompileUtil.verify(columnValidators.size() == indexes.length);
+    /**
+     * Compiles arguments and aligns them to the common layout.
+     */
+    @SuppressWarnings("uncheked")
+    <T extends CompiledResult> List<T> compileArgs(CompileContext context,
+                                                   List<ResultValidator<T>> validators,
+                                                   int... indexes) {
+        CompileUtil.verify(validators.size() == indexes.length);
 
-        List<T> columns = new ArrayList<>();
-        for (int i = 0; i < columnValidators.size(); ++i) {
-            columns.add(context.compileArgument(indexes[i], columnValidators.get(i)));
+        List<T> args = new ArrayList<>();
+        boolean hasNested = false;
+
+        for (int i = 0; i < validators.size(); i++) {
+            T arg = context.withDimensions(List.of()).compileArgument(indexes[i], validators.get(i));
+            args.add(arg);
+            hasNested |= arg.nested();
         }
 
-        List<FieldKey> dimensions = columns.stream().map(CompiledResult::dimensions)
-                .reduce(List.of(), context::combine);
+        List<FieldKey> dimensions = args.stream().map(CompiledResult::dimensions).reduce(context.dimensions(), context::combine);
 
-        ArrayList<T> result = new ArrayList<>(columns.size());
-        for (int i = 0; i < columns.size(); ++i) {
-            T col = columns.get(i);
-            if (col instanceof CompiledSimpleColumn && col.scalar()) {
-                result.add(col);
-            } else {
-                result.add(context.promote(col, dimensions).cast(columnValidators.get(i).getExpectedType()));
+        if (hasNested && !dimensions.isEmpty()) { // recompile nested types with the desired dimensions
+            for (int i = 0; i < args.size(); i++) {
+                T arg = args.get(i);
+
+                if (arg.nested() && !arg.dimensions().isEmpty() && !arg.dimensions().equals(dimensions)) {
+                    arg = context.withDimensions(dimensions).compileArgument(indexes[i], validators.get(i));
+                }
+
+                args.set(i, arg);
             }
         }
 
-        boolean hasNested = columns.stream().anyMatch(CompiledNestedColumn.class::isInstance);
+        for (int i = 0; i < args.size(); i++) { // promote to the same dims
+            T arg = args.get(i);
+            if (arg.nested() || !arg.scalar()) { // pivot-related condition, will be removed, no promotion for scalars
+                arg = context.promote(arg, dimensions).cast(validators.get(i).getExpectedType());
+            }
+            args.set(i, arg);
+        }
 
         if (hasNested) {
-            List<CompiledNestedColumn> nestedColumns = result.stream().filter(CompiledNestedColumn.class::isInstance)
-                    .map(CompiledNestedColumn.class::cast).toList();
+            CompiledTable nested = args.stream()
+                    .filter(CompiledResult::nested)
+                    .map(CompiledTable.class::cast)
+                    .findFirst()
+                    .get();
 
-            CompiledTable sourceTable = null;
-
-            if (!nestedColumns.isEmpty()) {
-                CompiledNestedColumn first = nestedColumns.get(0);
-                if (context.promotedTable == null || !context.promotedTable.hasSameLayout(first)) {
-                    sourceTable = first;
-                }
+            for (int i = 0; i < args.size(); i++) {
+                T arg = args.get(i);
+                arg = (T) context.align(nested, arg);
+                args.set(i, arg);
             }
+        } else { // pivot-related branch, to support math after aggregation, will be removed, promotion for scalars
+            CompiledResult layout = args.stream()
+                    .filter(arg -> !arg.scalar())
+                    .findFirst().orElse(null);
 
-            if (sourceTable == null) {
-                if (context.layout != null) {
-                    sourceTable = context.layout;
-                } else {
-                    sourceTable = context.promotedTable;
-                }
-            }
-            alignWithNestedTable(context, sourceTable, result);
-
-        } else if (!result.stream().allMatch(CompiledResult::scalar)) {
-            for (int i = 0; i < result.size(); ++i) {
-                if (result.get(i) instanceof CompiledSimpleColumn column) {
-                    CompiledSimpleColumn promCol = context.flattenArgument(context.promote(column, dimensions).cast(columnValidators.get(i).getExpectedType()));
-                    if (context.isContextTablePromoted() && context.compiledTable.hasSameLayout(promCol)) {
-                        promCol = new CompiledSimpleColumn(CompileUtil.projectColumn(context.promotedTable.queryReference(), promCol.node()), promCol.dimensions());
+            if (layout != null) {
+                for (int i = 0; i < args.size(); i++) {
+                    T arg = args.get(i);
+                    if (arg instanceof CompiledSimpleColumn column && column.scalar()) {
+                        Expand expand = new Expand(layout.node().getLayout(), column.node());
+                        arg = (T) new CompiledSimpleColumn(expand, layout.dimensions());
+                        args.set(i, arg);
+                    } else if (!arg.nested() && arg.scalar()) {
+                        throw new CompileError("Not yet supported");
                     }
-                    result.set(i, (T) promCol);
                 }
             }
         }
-        result.forEach(c -> CompileUtil.verifySameLayout(c, result.get(0),
-                "You cannot use %s with lists of different origin.", context.function.operationSymbol()));
 
-        return result;
-    }
-
-    // This is not the same as promotion. It's mostly for cases when nested and nested values (of the same
-    // dimensionality) are used in the same expression.
-    public <T extends CompiledResult> void alignWithNestedTable(CompileContext context, CompiledTable sourceTable,
-                                                                List<T> result) {
-
-        com.epam.deltix.quantgrid.engine.compiler.function.Function functionSpec =
-                context.compiler.getFunctionSpecSafe(context.functionName());
-
-        for (int i = 0; i < result.size(); ++i) {
-
-            if (result.get(i) instanceof CompiledSimpleColumn column) {
-                Expression dataExpression;
-                if (column.scalar()) {
-                    dataExpression = new Expand(sourceTable.node(), column.node());
-                } else if (sourceTable.hasSameLayout(column)) {
-                    dataExpression = column.node();
-                } else {
-                    dataExpression = CompileUtil.projectColumn(sourceTable.currentReference(), column.node());
+        for (int i = 1; i < args.size(); ++i) {
+            T arg = args.get(i);
+            if (!arg.hasSameLayout(args.get(0))) {
+                if (CompileUtil.isOperator(context.function())) {
+                    throw new CompileError(
+                            "Operands of the '%s' operator are from different origins and may have different sizes."
+                                    .formatted(context.function().operationSymbol()));
                 }
 
-                result.set(i, (T) (sourceTable.hasCurrentReference()
-                        ? new CompiledNestedColumn(new SelectLocal(sourceTable.currentReference(), dataExpression), sourceTable.dimensions(), 0, 1)
-                        : new CompiledNestedColumn(new SelectLocal(dataExpression), sourceTable.dimensions(), REF_NA, 0)));
+                throw new CompileError(
+                        "The arguments '%s' and '%s' of the %s function are from different origins and may have different sizes."
+                                .formatted(
+                                        context.getFunctionArgName(0),
+                                        context.getFunctionArgName(i),
+                                        context.function().operationSymbol()));
             }
-            // Table and columns are expected to have same layout. Formulas like A.FILTER(B[x]) are not yet supported.
-            CompileUtil.verifySameLayout(sourceTable, result.get(i),
-                    "%s table and %s are not aligned.", context.function().operationSymbol(),
-                    // For var arg functions last argument name will be used for vararg
-                    functionSpec == null ? "arg" + (i+1)
-                    : functionSpec.arguments().get(Math.min(i + 1, functionSpec.arguments().size() - 1)).name());
         }
+
+        return args;
     }
 
     private CompiledSimpleColumn compilePi() {
@@ -974,19 +814,15 @@ public class CompileFunction {
         String tableName = ((TableReference) field.table()).table();
         String fieldName = field.field();
 
-        final String questionFieldName = CompileEvaluationUtils.getEvaluationQuestionField(table);
+        String questionFieldName = CompileEvaluationUtils.getEvaluationQuestionField(table);
         CompiledSimpleColumn questionColumn = source.field(context, questionFieldName).cast(CompiledSimpleColumn.class);
+        CompiledSimpleColumn nColumn = CompileUtil.number(source, Integer.MAX_VALUE);
 
-        CompileContext currentContext = context.with(source, false);
-        CompiledSimpleColumn nColumn =
-                CompileUtil.number(currentContext, source, Integer.MAX_VALUE).cast(CompiledSimpleColumn.class);
+        List<Plan.Source> retrievers = new ArrayList<>();
+        List<Plan.Source> groundTruths = new ArrayList<>();
+        List<Plan.Source> tokens = new ArrayList<>();
 
-        final List<Plan> retrievers = new ArrayList<>();
-        final List<Plan> groundTruths = new ArrayList<>();
-        final List<Plan> tokens = new ArrayList<>();
-
-        List<CompileEvaluationUtils.EvaluationField> evaluationFields =
-                CompileEvaluationUtils.getEvaluationFields(table);
+        List<CompileEvaluationUtils.EvaluationField> evaluationFields = CompileEvaluationUtils.getEvaluationFields(table);
         int targetId = -1;
         for (CompileEvaluationUtils.EvaluationField evaluationField : evaluationFields) {
             if (evaluationField.field().tableName().equals(tableName) &&
@@ -997,16 +833,12 @@ public class CompileFunction {
             FieldKey descriptionField = CompileEvaluationUtils.getDescriptionField(context, evaluationField.field());
             Formula concatenatedField = concatenateDescription(evaluationField.field(), descriptionField);
 
-            Plan distinctedFields = distinctFieldWithDescription(context, evaluationField.field().tableName(),
+            Plan distinctFields = distinctFieldWithDescription(context, evaluationField.field().tableName(),
                     evaluationField.field().fieldName(), descriptionField, concatenatedField);
 
             CompiledSimpleColumn evaluatedModel = context.compileFormula(
-                    new com.epam.deltix.quantgrid.parser.ast.Function(
-                            "EVALUATE_MODEL",
-                            new FieldReference(
-                                    new TableReference(evaluationField.field().tableName()), evaluationField.field().fieldName()
-                            )
-                    )
+                    new Function("EVALUATE_MODEL", new FieldReference(new TableReference(
+                            evaluationField.field().tableName()), evaluationField.field().fieldName()))
             ).cast(CompiledSimpleColumn.class);
 
             Plan modelTable = new SelectLocal(evaluatedModel.node());
@@ -1020,9 +852,9 @@ public class CompileFunction {
                     EmbeddingType.QUERY);
 
             Plan fieldEmbeddings = CompileEmbeddingIndex.compileEmbeddingIndex(
-                        distinctedFields,
-                        new CompiledSimpleColumn(new Get(distinctedFields, 0), List.of()),
-                        descriptionField != null ? new CompiledSimpleColumn(new Get(distinctedFields, 1), List.of()) : null,
+                        distinctFields,
+                        new CompiledSimpleColumn(new Get(distinctFields, 0), List.of()),
+                        descriptionField != null ? new CompiledSimpleColumn(new Get(distinctFields, 1), List.of()) : null,
                         modelTable,
                         new CompiledSimpleColumn(new Get(modelTable, 0), List.of()),
                         EmbeddingType.DOCUMENT);
@@ -1035,7 +867,8 @@ public class CompileFunction {
                     questionColumn.node(),
                     nColumn.node());
 
-            retrievers.add(retrieve);
+            CompileUtil.verify(retrieve.getMeta().getSchema().size() == 4);
+            retrievers.add(new Plan.Source(retrieve, List.of(new Get(retrieve, 0), new Get(retrieve, 1))));
 
             Plan compiledConcatField = context.compileFormula(concatenatedField).cast(CompiledNestedColumn.class).node();
 
@@ -1048,25 +881,27 @@ public class CompileFunction {
 //            Plan maxTokens = new SimpleAggregateLocal(AggregateFunction.MAX, fieldTokens.getLayout(),
 //                    fieldTokens, new Get(fieldTokens, 0));
 
-            tokens.add(fieldTokens);
+            tokens.add(new Plan.Source(fieldTokens, List.of(new Get(fieldTokens, 0))));
 
-            FieldKey groundTruth = evaluationField.groundTruth();
-            groundTruths.add(new SelectLocal(context.field(groundTruth.tableName(), groundTruth.fieldName(), true)
-                    .cast(CompiledSimpleColumn.class).node()));
+            FieldKey groundTruthKey = evaluationField.groundTruth();
+            Expression grandTruthValue = context.field(groundTruthKey.tableName(), groundTruthKey.fieldName(), true)
+                    .cast(CompiledSimpleColumn.class).node();
+
+            SelectLocal groundTruth = new SelectLocal(grandTruthValue);
+            groundTruths.add(new Plan.Source(groundTruth, List.of(new Get(groundTruth, 0))));
         }
 
         if (targetId == -1) {
             throw new CompileError("EVALUATE_N function takes incorrect table or field name");
         }
 
-        Plan evaluateN = new EvaluateNLocal(evaluationFields.size(), retrievers, tokens, groundTruths, context.scalarLayout().node());
-
+        Plan evaluateN = new EvaluateNLocal(retrievers, tokens, groundTruths, context.scalarLayout().node());
         return new CompiledSimpleColumn(new Get(evaluateN, targetId), List.of());
     }
 
     private Plan distinctFieldWithDescription(CompileContext context,
-                                                     String tableName,
-                                                     String fieldName) {
+                                              String tableName,
+                                              String fieldName) {
         FieldKey descriptionField = CompileEvaluationUtils.getDescriptionField(context, new FieldKey(tableName, fieldName));
         Formula concatenatedField = concatenateDescription(new FieldKey(tableName, fieldName), descriptionField);
 
@@ -1074,10 +909,10 @@ public class CompileFunction {
     }
 
     private Plan distinctFieldWithDescription(CompileContext context,
-                                                     String tableName,
-                                                     String fieldName,
-                                                     FieldKey descriptionField,
-                                                     Formula concatenatedField) {
+                                              String tableName,
+                                              String fieldName,
+                                              FieldKey descriptionField,
+                                              Formula concatenatedField) {
         CompiledTable distinctedTable = context.compileFormula(new Function(
                 "UNIQUEBY",
                 new TableReference(tableName),
@@ -1126,17 +961,14 @@ public class CompileFunction {
         String tableName = ((TableReference) fieldReference.table()).table();
         String fieldName = fieldReference.field();
 
-        final String questionFieldName = CompileEvaluationUtils.getEvaluationQuestionField(table);
+        String questionFieldName = CompileEvaluationUtils.getEvaluationQuestionField(table);
         CompiledSimpleColumn questionColumn = source.field(context, questionFieldName).cast(CompiledSimpleColumn.class);
+        CompiledSimpleColumn nColumn = CompileUtil.number(source, Integer.MAX_VALUE);
 
-        CompileContext currentContext = context.with(source, false);
-        CompiledSimpleColumn nColumn =
-                CompileUtil.number(currentContext, source, Integer.MAX_VALUE).cast(CompiledSimpleColumn.class);
-
-        final List<Plan> mrrByModel = new ArrayList<>();
+        List<Plan.Source> mrrByModel = new ArrayList<>();
 
         Plan layout = context.scalarLayout().node();
-        mrrByModel.add(layout);
+        mrrByModel.add(new Plan.Source(layout, List.of()));
 
         Plan distinctedFields = distinctFieldWithDescription(context, tableName, fieldName);
         boolean hasDescription = distinctedFields.getMeta().getSchema().size() == 2;
@@ -1183,13 +1015,14 @@ public class CompileFunction {
                     context.field(groundTruth.tableName(), groundTruth.fieldName(), true).cast(CompiledSimpleColumn.class).node()
             );
 
-            mrrByModel.add(new MRRLocal(
+            MRRLocal mrr = new MRRLocal(
                     retrieve,
                     new Get(retrieve, 0),
                     new Get(retrieve, 1),
                     groundTruthTable,
                     new Get(groundTruthTable, 0)
-            ));
+            );
+            mrrByModel.add(new Plan.Source(mrr, List.of(new Get(mrr, 1))));
         });
 
         Plan evaluateModel = new EvaluateModelLocal(mrrByModel, EmbeddingModels.MODEL_NAMES);
@@ -1206,15 +1039,14 @@ public class CompileFunction {
         String fieldName = fieldReference.field();
         String tableName = tableReference.table();
 
-        List<FieldKey> dimensions = context.collectArguments(1, 4);
-        CompiledTable currentTable = context.currentTable(dimensions);
-        CompileContext currentContext = context.with(currentTable, false);
-
-        List<CompiledSimpleColumn> args = compileExpressions(
-                currentContext,
+        List<CompiledSimpleColumn> args = compileArgs(
+                context,
                 List.of(SimpleColumnValidators.STRING, SimpleColumnValidators.INTEGER, SimpleColumnValidators.STRING),
                 1, 2, 3
         );
+
+        List<FieldKey> dimensions = args.get(0).dimensions();
+        CompiledTable currentTable = context.currentTable(dimensions);
 
         Plan queryEmbeddings = CompileEmbeddingIndex.compileEmbeddingIndex(
                 currentTable.node(),
@@ -1224,20 +1056,16 @@ public class CompileFunction {
                 args.get(2).cast(CompiledSimpleColumn.class),
                 EmbeddingType.QUERY);
 
-        List<FieldKey> fieldDimensions = context.combine(context.collectArgument(0), context.collectArgument(3));
-        CompiledTable fieldCurrentTable = context.currentTable(fieldDimensions);
-        CompileContext fieldContext = context.with(fieldCurrentTable, false);
-
-        List<CompiledSimpleColumn> fieldArgs = context.flattenArguments(compileExpressions(
-                fieldContext,
+        List<CompiledColumn> fieldArgs = compileArgs(
+                context,
                 List.of(SimpleOrNestedValidators.STRING, SimpleOrNestedValidators.STRING),
                 0, 3
-        ));
+        );
 
         Plan distinctedFields = distinctFieldWithDescription(context, tableName, fieldName);
         boolean hasDescription = distinctedFields.getMeta().getSchema().size() == 2;
 
-        Plan modelTable = new SelectLocal(fieldArgs.get(1).node());
+        Plan modelTable = new SelectLocal(fieldArgs.get(1).expression());
 
         Plan fieldEmbeddings = CompileEmbeddingIndex.compileEmbeddingIndex(
                 distinctedFields,
@@ -1310,9 +1138,9 @@ public class CompileFunction {
     }
 
     private CompiledResult compileRecall(CompileContext context) {
-        TableWithColumns tableFunction = compileTableWithColumns(context, SimpleOrNestedValidators.STRING);
+        TableArgs tableFunction = compileTableArgs(context, SimpleOrNestedValidators.STRING);
 
-        CompiledTable source = tableFunction.promotedTable();
+        CompiledTable source = tableFunction.table();
         CompiledSimpleColumn groundTruth = tableFunction.columns().get(0);
 
         Plan layout = context.aggregationLayout(source).node().getLayout();
@@ -1339,58 +1167,128 @@ public class CompileFunction {
     }
 
     private CompiledResult compileSplit(CompileContext context) {
-        List<FieldKey> dimensions = context.collectArguments(0, 2);
-        CompiledTable currentTable = context.currentTable(dimensions);
-
-        CompileContext nestedContext = context.withCompiledAndPromoted(currentTable, currentTable, false);
-
-        List<CompiledSimpleColumn> compiledArgs = compileExpressions(nestedContext,
+        List<CompiledSimpleColumn> args = compileArgs(context,
                 List.of(SimpleColumnValidators.STRING, SimpleColumnValidators.STRING));
-        CompiledSimpleColumn text = compiledArgs.get(0);
-        CompiledSimpleColumn delimiter = compiledArgs.get(1);
+        CompiledSimpleColumn text = args.get(0);
+        CompiledSimpleColumn delimiter = args.get(1);
+
+        List<FieldKey> dimensions = text.dimensions();
+        CompiledTable currentTable = context.currentTable(dimensions);
 
         SplitLocal split = new SplitLocal(currentTable.node(), text.node(), delimiter.node());
         int column = currentTable.node().getMeta().getSchema().size();
         return new CompiledNestedColumn(split, dimensions, currentTable.currentRef(), column);
     }
 
-    private <T extends CompiledColumn> TableWithColumns compileTableWithColumns(
-            CompileContext context, ResultValidator<T> columnValidator) {
-        return compileTableWithColumns(context, Collections.nCopies(context.argumentCount() - 1, columnValidator));
+    private CompiledResult compileBetween(CompileContext context) {
+        List<CompiledColumn> args = compileArgs(context, List.of(SimpleOrNestedValidators.STRING_OR_DOUBLE,
+                SimpleOrNestedValidators.STRING_OR_DOUBLE, SimpleOrNestedValidators.STRING_OR_DOUBLE));
+
+        ColumnType type = args.stream().map(CompiledColumn::type).reduce(ColumnType.DOUBLE, ColumnType::closest);
+        ResultValidator<CompiledColumn> converter = SimpleOrNestedValidators.forType(type);
+        args = args.stream().map(converter::convert).toList();
+
+        return CompiledColumn.transform(args.get(0), args.get(1), args.get(2), (value, start, end) -> {
+            Expression left = new BinaryOperator(value, start, BinaryOperation.GTE);
+            Expression right = new BinaryOperator(value, end, BinaryOperation.LTE);
+            return new BinaryOperator(left, right, BinaryOperation.AND);
+        });
+    }
+
+    private CompiledTable compileSetOperation(String name, CompileContext context) {
+        SetOperation operation = SetOperation.valueOf(name);
+        CompiledNestedColumn leftColumn = context.compileArgument(0, NestedColumnValidators.STRING_OR_DOUBLE);
+        CompiledNestedColumn rightColumn = context.compileArgument(1, NestedColumnValidators.STRING_OR_DOUBLE);
+
+        if (!ColumnType.isClose(leftColumn.type(), rightColumn.type())) {
+            leftColumn = NestedColumnValidators.STRING.convert(leftColumn).cast(CompiledNestedColumn.class);
+            rightColumn = NestedColumnValidators.STRING.convert(rightColumn).cast(CompiledNestedColumn.class);
+        }
+
+        List<FieldKey> dimensions = context.combine(leftColumn, rightColumn);
+        Plan union;
+        if (dimensions.isEmpty()) {
+            union = new SetOperationLocal(
+                    leftColumn.node(),
+                    leftColumn.expression(),
+                    rightColumn.node(),
+                    rightColumn.expression(),
+                    operation);
+            return new CompiledNestedColumn(union, 0);
+        }
+
+        leftColumn = context.promote(leftColumn, dimensions).cast(CompiledNestedColumn.class);
+        rightColumn = context.promote(rightColumn, dimensions).cast(CompiledNestedColumn.class);
+        union = new SetOperationLocal(
+                leftColumn.node(),
+                leftColumn.currentReference(),
+                leftColumn.expression(),
+                rightColumn.node(),
+                rightColumn.currentReference(),
+                rightColumn.expression(),
+                operation);
+        return new CompiledNestedColumn(union, dimensions, 0, 1);
+    }
+
+    private CompiledColumn compileIn(CompileContext context) {
+        CompiledColumn valueColumn = context.compileArgument(0, SimpleOrNestedValidators.STRING_OR_DOUBLE);
+        CompiledNestedColumn sourceColumn = context.compileArgument(1, NestedColumnValidators.STRING_OR_DOUBLE);
+
+        if (!ColumnType.isClose(valueColumn.type(), sourceColumn.type())) {
+            valueColumn = SimpleOrNestedValidators.STRING.convert(valueColumn);
+            sourceColumn = NestedColumnValidators.STRING.convert(sourceColumn);
+        }
+
+        if (sourceColumn.dimensions().isEmpty()) {
+            Expression sourceNode = sourceColumn.expression();
+            return valueColumn.transform(original -> new InLocal(List.of(original), List.of(sourceNode)));
+        }
+
+        List<FieldKey> dimensions = context.combine(sourceColumn.dimensions(), valueColumn.dimensions());
+        valueColumn = context.promote(valueColumn, dimensions).cast(CompiledColumn.class);
+        sourceColumn = context.promote(sourceColumn, dimensions).cast(CompiledNestedColumn.class);
+
+        CompiledTable valueTable =  valueColumn instanceof CompiledNestedColumn nestedColumn ? nestedColumn
+                : context.currentTable(dimensions);
+
+        List<Expression>  valueKeys = List.of(valueTable.currentReference(), valueColumn.expression());
+        List<Expression> sourceKeys = List.of(sourceColumn.currentReference(), sourceColumn.expression());
+
+        Expression result = new InLocal(valueKeys, sourceKeys);
+        return valueColumn.transform(original -> result);
+    }
+
+    private TableArgs compileTableArgs(CompileContext context,
+                                       ResultValidator<? extends CompiledColumn> nColumnValidator) {
+        return compileTableArgs(context, Collections.nCopies(context.argumentCount() - 1, nColumnValidator));
     }
 
     /**
-     * Compilation include following steps:
-     * 1. Compile arguments
-     * 2. Promote to the least common dimensionality
-     * 3. Align to nested source (or argument if some)
-     * 4. Validations of layout (in most cases it's done in {@link #alignWithNestedTable} / {@link #compileExpressions}
-     * (source verification is optional in SourceVerifier)
-     * 5. {@link CompileContext#flattenArguments} the arguments
-     * 6. (Optional for linear expressions) Nest result if needed {@link CompileContext#nestResultIfNeeded}
+     * Compiles table arg and column args and aligns them to the common layout.
      */
-    private <T extends CompiledColumn> TableWithColumns compileTableWithColumns(
-            CompileContext context, List<ResultValidator<T>> columnValidators) {
-        CompiledTable compiledTable = context.compileArgument(0, TableValidators.NESTED);
-        List<FieldKey> dimensions = context.combine(
-                compiledTable.dimensions(),
-                context.collectArguments(1, columnValidators.size() + 1)
-        );
+    private TableArgs compileTableArgs(CompileContext context,
+                                       List<ResultValidator<? extends CompiledColumn>> columnValidators) {
 
-        CompiledTable promotedTable = context.promote(compiledTable, dimensions).cast(CompiledTable.class);
-
-        CompileContext nestedContext = context.withCompiledAndPromoted(promotedTable, compiledTable, false);
-        List<CompiledResult> columns = new ArrayList<>();
-
-        for (int i = 0; i < columnValidators.size(); i++) {
-            CompiledResult column = nestedContext.compileArgument(i + 1, columnValidators.get(i));
-            columns.add(nestedContext.promote(column, dimensions));
+        if (context.pivot == null) { // pivot-related thing to prevent recursion, will be removed
+            context = context.withPlaceholder(context.argument(0));
         }
-        alignWithNestedTable(context, promotedTable, columns);
 
-        return new TableWithColumns(compiledTable, promotedTable, context.flattenArguments(columns));
+        List<ResultValidator<CompiledResult>> validators = new ArrayList<>();
+        validators.add((ResultValidator) TableValidators.NESTED);
+
+        for (ResultValidator<? extends CompiledColumn> validator : columnValidators) {
+            validators.add((ResultValidator) validator);
+        }
+
+        List<CompiledResult> results = compileArgs(context, validators);
+        CompiledTable table = results.get(0).cast(CompiledTable.class);
+        List<CompiledSimpleColumn> columns = results.subList(1, results.size()).stream()
+                .map(arg -> arg.cast(CompiledNestedColumn.class).flat())
+                .toList();
+
+       return new TableArgs(table, columns);
     }
 
-    private record TableWithColumns(CompiledTable compiledTable, CompiledTable promotedTable, List<CompiledSimpleColumn> columns) {
+    private record TableArgs(CompiledTable table, List<CompiledSimpleColumn> columns) {
     }
 }

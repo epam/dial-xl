@@ -17,13 +17,14 @@ export const defaultGridSizes = {
     totalIconSize: 12,
     applyIconSize: 10,
     borderWidth: 1,
-    tableBorderWidth: 2,
+    shadowStepWidth: 1,
   },
   rowNumber: {
-    width: 30,
+    minWidth: 35,
+    width: 35,
     height: 20,
     fontSize: 14,
-    padding: 5,
+    padding: 7,
   },
   colNumber: {
     height: 20,
@@ -31,6 +32,8 @@ export const defaultGridSizes = {
     padding: 5,
     resizerWidth: 6,
     width: 65,
+    borderWidth: 1,
+    minWidth: 20,
   },
   scrollBar: {
     trackSize: 16,
@@ -65,6 +68,11 @@ export const defaultGridSizes = {
   noteLabel: {
     size: 8,
   },
+  tableShadow: {
+    rectangleLineWidth: 4,
+    shadowOffsetX: 0,
+    shadowOffsetY: 0,
+  },
 };
 
 export type GridSizes = typeof defaultGridSizes & {
@@ -91,21 +99,25 @@ export const extendedRowsCount = 2;
 export const extendedColsCount = 2;
 
 export enum ComponentLayer {
+  HiddenCells = 0,
   Cells = 1,
   Icon = 2,
   Override = 3,
   Error = 4,
   NoteLabel = 5,
-  RowNumbers = 6,
-  ColNumbers = 7,
-  CornerRect = 8,
-  DottedSelection = 10,
-  Selection = 11,
-  DNDSelection = 12,
-  Resizer = 13,
-  ScrollBar = 14,
+  DottedSelection = 6,
+  Selection = 7,
+  DNDSelection = 8,
+  RowNumbers = 9,
+  ColNumbers = 10,
+  CornerRect = 11,
+  Resizer = 12,
+  ScrollBar = 13,
 }
 
 export const canvasId = 'canvas-spreadsheet';
 export const cellEditorWrapperId = 'cellEditorWrapper';
 export const cellEditorContainerId = 'cellEditorContainer';
+export const noteTextAreaId = 'noteTextArea';
+
+export const mouseRightButton = 2;

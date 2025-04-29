@@ -1,4 +1,4 @@
-import { Input, InputRef, Modal } from 'antd';
+import { Form, Input, InputRef, Modal } from 'antd';
 import cx from 'classnames';
 import {
   ChangeEvent,
@@ -18,23 +18,28 @@ import {
   secondaryButtonClasses,
   shouldStopPropagation,
 } from '@frontend/common';
-import { focusSpreadsheet } from '@frontend/spreadsheet';
 
 import { NewProjectModalRefFunction } from '../../../common';
 import { ProjectContext } from '../../../context';
 import { isEntityNameInvalid } from '../../../utils';
 import { SelectFolderInput } from '../../SelectFolderInput';
 
+const inputFieldKey = 'projectName';
+
 type Props = {
   newProjectModal: { current: NewProjectModalRefFunction | null };
 };
 
 export function NewProject({ newProjectModal }: Props) {
+  const [form] = Form.useForm();
+
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [projectName, setProjectName] = useState('');
   const [projectPath, setProjectPath] = useState<string | null | undefined>(
     undefined
   );
+  const [existingProjectNames, setExistingProjectNames] = useState<
+    string[] | undefined
+  >(undefined);
   const [projectBucket, setProjectBucket] = useState<string | null | undefined>(
     undefined
   );
@@ -48,11 +53,13 @@ export function NewProject({ newProjectModal }: Props) {
     (args: {
       projectPath?: string | null;
       projectBucket: string;
+      existingProjectNames?: string[];
       onSuccess?: () => void;
       openInNewTab?: boolean;
     }) => {
       setIsModalOpen(true);
       setProjectPath(args.projectPath);
+      setExistingProjectNames(args.existingProjectNames);
       setProjectBucket(args.projectBucket);
       openInNewTabRef.current = args.openInNewTab;
       onSuccessRef.current = args.onSuccess;
@@ -60,7 +67,15 @@ export function NewProject({ newProjectModal }: Props) {
     []
   );
 
-  const handleOk = useCallback(() => {
+  const handleOk = useCallback(async () => {
+    try {
+      await form.validateFields({ recursive: true });
+    } catch {
+      return;
+    }
+
+    const projectName = form.getFieldValue(inputFieldKey);
+
     if (projectName) {
       createProject({
         newName: projectName,
@@ -72,22 +87,30 @@ export function NewProject({ newProjectModal }: Props) {
       });
     }
     setIsModalOpen(false);
-    setProjectName('');
+    form.resetFields();
     setProjectPath(undefined);
-  }, [projectName, createProject, projectPath, projectBucket]);
+    setExistingProjectNames(undefined);
+  }, [form, createProject, projectPath, projectBucket]);
 
   const handleCancel = useCallback(() => {
     setIsModalOpen(false);
-    setProjectName('');
-  }, []);
+    form.resetFields();
+    setProjectPath(undefined);
+    setExistingProjectNames(undefined);
+  }, [form]);
 
   const onProjectNameChange = useCallback(
     (event: ChangeEvent<HTMLInputElement>) => {
-      if (isEntityNameInvalid(event.target.value)) return;
+      const prevValue = form.getFieldValue(inputFieldKey) ?? '';
+      if (isEntityNameInvalid(event.target.value)) {
+        event.preventDefault();
 
-      setProjectName(event.target.value);
+        return prevValue;
+      }
+
+      return event.target.value;
     },
-    []
+    [form]
   );
 
   const onKeydown = useCallback(
@@ -96,11 +119,11 @@ export function NewProject({ newProjectModal }: Props) {
       if (shouldStopPropagation(event)) {
         event.stopPropagation();
       }
-      if (event.key === KeyboardCode.Enter && projectName) {
+      if (event.key === KeyboardCode.Enter) {
         handleOk();
       }
     },
-    [handleOk, isModalOpen, projectName]
+    [handleOk, isModalOpen]
   );
 
   const handleSelectFolder = useCallback(
@@ -135,7 +158,6 @@ export function NewProject({ newProjectModal }: Props) {
 
   return (
     <Modal
-      afterClose={focusSpreadsheet}
       cancelButtonProps={{
         className: cx(modalFooterButtonClasses, secondaryButtonClasses),
       }}
@@ -146,7 +168,6 @@ export function NewProject({ newProjectModal }: Props) {
           primaryButtonClasses,
           primaryDisabledButtonClasses
         ),
-        disabled: !projectName,
       }}
       open={isModalOpen}
       title="New Project"
@@ -167,14 +188,34 @@ export function NewProject({ newProjectModal }: Props) {
           <label className="text-xs text-textSecondary" htmlFor="projectName">
             Project Name
           </label>
-          <Input
-            className={cx(inputClasses, 'h-10 px-2')}
-            id="projectName"
-            ref={inputRef}
-            value={projectName}
-            autoFocus
-            onChange={onProjectNameChange}
-          />
+
+          <Form className="pb-2" form={form}>
+            <Form.Item
+              getValueFromEvent={onProjectNameChange}
+              name="projectName"
+              rules={[
+                { required: true, message: 'Project name is required' },
+                {
+                  validator: (_, value) => {
+                    const result = !existingProjectNames?.includes(value);
+
+                    return result
+                      ? Promise.resolve()
+                      : Promise.reject(
+                          new Error('Project with this name already exists')
+                        );
+                  },
+                },
+              ]}
+              validateTrigger={['onBlur']}
+            >
+              <Input
+                className={cx(inputClasses, 'h-10 px-2')}
+                id="projectName"
+                ref={inputRef}
+              />
+            </Form.Item>
+          </Form>
         </div>
       </div>
     </Modal>

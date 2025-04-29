@@ -42,8 +42,8 @@ export function FormulaBarModeIndicator() {
         >
           <Tag
             className={cx(
-              'w-[28px] h-5 p-0 stroke-textSecondary flex items-center justify-center',
-              formulasMenuAvailable && 'hover:stroke-textAccentPrimary'
+              'w-[28px] h-5 p-0 text-textSecondary flex items-center justify-center',
+              formulasMenuAvailable && 'hover:text-textAccentPrimary'
             )}
             onClick={(e) => {
               if (!formulasMenuAvailable) return;

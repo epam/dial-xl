@@ -1,12 +1,15 @@
 package com.epam.deltix.quantgrid.engine.compiler;
 
-import com.epam.deltix.quantgrid.engine.compiler.result.CompiledSimpleColumn;
+import com.epam.deltix.quantgrid.engine.compiler.result.CompiledColumn;
 import com.epam.deltix.quantgrid.engine.compiler.result.CompiledNestedColumn;
 import com.epam.deltix.quantgrid.engine.compiler.result.CompiledResult;
+import com.epam.deltix.quantgrid.engine.compiler.result.CompiledSimpleColumn;
 import com.epam.deltix.quantgrid.engine.compiler.result.CompiledTable;
 import com.epam.deltix.quantgrid.engine.meta.Schema;
 import com.epam.deltix.quantgrid.engine.node.Node;
 import com.epam.deltix.quantgrid.engine.node.expression.BinaryOperator;
+import com.epam.deltix.quantgrid.engine.node.expression.Constant;
+import com.epam.deltix.quantgrid.engine.node.expression.Expand;
 import com.epam.deltix.quantgrid.engine.node.expression.Expression;
 import com.epam.deltix.quantgrid.engine.node.expression.Get;
 import com.epam.deltix.quantgrid.engine.node.expression.RowNumber;
@@ -17,9 +20,11 @@ import com.epam.deltix.quantgrid.engine.node.plan.local.SelectLocal;
 import com.epam.deltix.quantgrid.engine.value.Period;
 import com.epam.deltix.quantgrid.parser.FieldKey;
 import com.epam.deltix.quantgrid.parser.ast.BinaryOperation;
-import com.epam.deltix.quantgrid.parser.ast.ConstNumber;
 import com.epam.deltix.quantgrid.parser.ast.CurrentField;
 import com.epam.deltix.quantgrid.parser.ast.Formula;
+import com.epam.deltix.quantgrid.parser.ast.Function;
+import com.epam.deltix.quantgrid.parser.ast.UnaryOperator;
+import com.epam.deltix.quantgrid.type.ColumnType;
 import lombok.experimental.UtilityClass;
 
 import java.util.ArrayList;
@@ -221,31 +226,70 @@ public class CompileUtil {
         }
     }
 
-    public <R extends CompiledResult> String getTypeDisplayName(Class<R> type) {
+    public <R extends CompiledResult> String getResultTypeDisplayName(Class<R> type) {
         if (CompiledSimpleColumn.class.isAssignableFrom(type)) {
-            return "value";
+            return "a text or a number";
         }
 
         if (CompiledNestedColumn.class.isAssignableFrom(type)) {
-            return "list";
+            return "an array";
+        }
+
+        if (CompiledColumn.class.isAssignableFrom(type)) {
+            return "a text, a number or an array";
         }
 
         if (CompiledTable.class.isAssignableFrom(type)) {
-            return "table";
+            return "a table";
         }
 
         return type.getSimpleName();
     }
 
-    public CompiledResult number(CompileContext context, CompiledTable table, double number) {
-        CompileContext nested = context.with(table, false);
-        CompiledSimpleColumn column = nested.compileFormula(new ConstNumber(number)).cast(CompiledSimpleColumn.class);
-        return nested.promote(column, table.dimensions());
+    public <R extends CompiledResult> String getResultTypeDisplayName(R result) {
+        if (result instanceof CompiledSimpleColumn simpleColumn) {
+            return getColumnTypeDisplayName(simpleColumn.type());
+        }
+
+        if (result instanceof CompiledTable compiledTable && !compiledTable.nested()) {
+            return "a row";
+        }
+
+        return getResultTypeDisplayName(result.getClass());
     }
 
-    public BinaryOperator plus(CompileContext context, CompiledTable table, Expression left, double number) {
+    public String getColumnTypeDisplayName(ColumnType type) {
+        return switch (type) {
+            case BOOLEAN -> "a boolean";
+            case DATE -> "a date";
+            case DOUBLE, INTEGER -> "a number";
+            case PERIOD_SERIES -> "period series";
+            case STRING -> "a text";
+        };
+    }
+
+    public String getColumnTypeDisplayNamePlural(ColumnType type) {
+        return switch (type) {
+            case BOOLEAN -> "booleans";
+            case DATE -> "dates";
+            case DOUBLE, INTEGER -> "texts";
+            case PERIOD_SERIES -> "period series";
+            case STRING -> "strings";
+        };
+    }
+
+    public CompiledSimpleColumn number(CompiledTable table, double number) {
+        return new CompiledSimpleColumn(new Expand(table.node().getLayout(), new Constant(number)), table.dimensions());
+    }
+
+    public BinaryOperator plus(Expression left, double number) {
         verify(left.getType().isDouble(), "Cannot add %s to a non-numeric expression", left);
-        Expression right = context.flattenArgument(number(context, table, number), "plus").node();
+        Expand right = new Expand(left.getLayout(), new Constant(number));
         return new BinaryOperator(left, right, BinaryOperation.ADD);
+    }
+
+    public boolean isOperator(Function function) {
+        return function instanceof UnaryOperator
+                || function instanceof com.epam.deltix.quantgrid.parser.ast.BinaryOperator;
     }
 }

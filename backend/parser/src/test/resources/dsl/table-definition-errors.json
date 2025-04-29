@@ -1,0 +1,67 @@
+{
+  "name": "test",
+  "tables": [
+    {
+      "span": {
+        "from": 67,
+        "to": 117
+      },
+      "name": {
+        "span": {
+          "from": 73,
+          "to": 75
+        },
+        "text": "t1"
+      },
+      "fields": [
+        {
+          "span": {
+            "from": 80,
+            "to": 87
+          },
+          "name": {
+            "span": {
+              "from": 80,
+              "to": 83
+            },
+            "text": "b"
+          },
+          "formula": {
+            "span": {
+              "from": 86,
+              "to": 87
+            },
+            "formula": {
+              "number": 3.0,
+              "arguments": []
+            },
+            "errors": []
+          },
+          "decorators": [],
+          "docs": []
+        }
+      ],
+      "decorators": [],
+      "docs": [],
+      "totals": []
+    }
+  ],
+  "pythons": [],
+  "errors": [
+    {
+      "line": 3,
+      "position": 5,
+      "message": "missing {IDENTIFIER, MULTI_WORD_TABLE_IDENTIFIER} at '[a]'"
+    },
+    {
+      "line": 3,
+      "position": 5,
+      "message": "Missing table name"
+    },
+    {
+      "line": 9,
+      "position": 7,
+      "message": "Missing table name"
+    }
+  ]
+}

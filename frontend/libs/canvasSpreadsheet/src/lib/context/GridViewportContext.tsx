@@ -71,6 +71,7 @@ export function GridViewportContextProvider({
   });
 
   const viewportEdges = useRef<ViewportEdges>(defaultViewportEdges);
+  const columnSizesRef = useRef<Record<string, number>>(columnSizes);
 
   const moveViewport = useCallback(
     (x: number, y: number) => {
@@ -96,11 +97,12 @@ export function GridViewportContextProvider({
       viewportCoords.current = { x1, y1, x2, y2 };
       const { cell } = gridSizes;
 
-      const startCol = getFirstVisibleColOrRow(x1, columnSizes, cell.width) + 1;
+      const startCol =
+        getFirstVisibleColOrRow(x1, columnSizesRef.current, cell.width) + 1;
       const startRow = getFirstVisibleColOrRow(y1, {}, cell.height) + 1;
       const firstVisibleEndCol = getFirstVisibleColOrRow(
         x2,
-        columnSizes,
+        columnSizesRef.current,
         cell.width
       );
       const firstVisibleEndRow = getFirstVisibleColOrRow(y2, {}, cell.height);
@@ -120,12 +122,12 @@ export function GridViewportContextProvider({
         getRowOrColPosition(
           viewportCoords.current.x1,
           col,
-          columnSizes,
+          columnSizesRef.current,
           gridSizes.cell.width
         ) + gridSizes.rowNumber.width
       );
     },
-    [columnSizes, gridSizes.cell.width, gridSizes.rowNumber.width]
+    [gridSizes]
   );
 
   const getCellY = useCallback(
@@ -140,7 +142,7 @@ export function GridViewportContextProvider({
       );
     },
 
-    [gridSizes.cell.height, gridSizes.colNumber.height]
+    [gridSizes]
   );
 
   const getCellFromCoords = useCallback(
@@ -151,21 +153,22 @@ export function GridViewportContextProvider({
         viewportCoords.current.y1 + y - gridSizes.colNumber.height;
 
       const col =
-        getFirstVisibleColOrRow(absoluteX, columnSizes, gridSizes.cell.width) +
-        1;
+        getFirstVisibleColOrRow(
+          absoluteX,
+          columnSizesRef.current,
+          gridSizes.cell.width
+        ) + 1;
       const row =
         getFirstVisibleColOrRow(absoluteY, {}, gridSizes.cell.height) + 1;
 
       return { col, row };
     },
-    [
-      columnSizes,
-      gridSizes.cell.height,
-      gridSizes.cell.width,
-      gridSizes.colNumber.height,
-      gridSizes.rowNumber.width,
-    ]
+    [gridSizes]
   );
+
+  useEffect(() => {
+    columnSizesRef.current = columnSizes;
+  }, [columnSizes]);
 
   useEffect(() => {
     setViewportRowCount(

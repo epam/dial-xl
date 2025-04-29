@@ -14,6 +14,18 @@ describe('autoFunctionsToUppercase', () => {
     expect(result).toBe(expectedDsl);
   });
 
+  it('should uppercase single letter function', () => {
+    // Arrange
+    const dsl = 'table t1 [f1]=f(20)';
+    const expectedDsl = 'table t1 [f1]=F(20)';
+
+    // Act
+    const result = autoFunctionsToUppercase(dsl, functionsMock);
+
+    // Assert
+    expect(result).toBe(expectedDsl);
+  });
+
   it('should uppercase multiple lowercase functions', () => {
     // Arrange
     const dsl = 'table t1 dim [f1]=range(20) table t2 dim [f2]=rAngE(10)';

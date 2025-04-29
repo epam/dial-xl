@@ -3,7 +3,6 @@ package com.epam.deltix.quantgrid.web.controller;
 import com.epam.deltix.quantgrid.engine.ResultType;
 import com.epam.deltix.quantgrid.engine.compiler.CompileContext;
 import com.epam.deltix.quantgrid.engine.compiler.CompileError;
-import com.epam.deltix.quantgrid.engine.compiler.CompileFormulaContext;
 import com.epam.deltix.quantgrid.engine.compiler.CompilePivot;
 import com.epam.deltix.quantgrid.engine.compiler.Compiler;
 import com.epam.deltix.quantgrid.engine.compiler.function.Functions;
@@ -15,8 +14,6 @@ import com.epam.deltix.quantgrid.parser.ParsedSheet;
 import com.epam.deltix.quantgrid.parser.ParsingError;
 import com.epam.deltix.quantgrid.parser.SheetReader;
 import com.epam.deltix.quantgrid.web.utils.ApiMessageMapper;
-import com.google.protobuf.InvalidProtocolBufferException;
-import com.google.protobuf.Message;
 import com.google.protobuf.util.JsonFormat;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
@@ -29,15 +26,12 @@ import java.security.Principal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @RestController
 @RequiredArgsConstructor
 public class CompileController {
-    private static final JsonFormat.Parser PARSER = JsonFormat.parser();
     private static final JsonFormat.Printer PRINTER = JsonFormat.printer()
             .omittingInsignificantWhitespace()
             .includingDefaultValueFields();
@@ -45,7 +39,7 @@ public class CompileController {
 
     @PostMapping(value = "/v1/compile", produces = "application/json")
     public String compile(@RequestBody String body, Principal principal) {
-        Api.Request apiRequest = parseRequest(
+        Api.Request apiRequest = ApiMessageMapper.parseRequest(
                 body, Api.Request::getCompileWorksheetsRequest, Api.CompileWorksheetsRequest.class);
         Api.CompileWorksheetsRequest request = apiRequest.getCompileWorksheetsRequest();
         List<ParsedSheet> parsedSheets = parseSheets(request.getWorksheetsMap());
@@ -59,7 +53,7 @@ public class CompileController {
 
     @PostMapping(value = "/v1/schema", produces = "application/json")
     public String getSchema(@RequestBody String body, Principal principal) {
-        Api.Request apiRequest = parseRequest(
+        Api.Request apiRequest = ApiMessageMapper.parseRequest(
                 body, Api.Request::getDimensionalSchemaRequest, Api.DimensionalSchemaRequest.class);
         Api.DimensionalSchemaRequest request = apiRequest.getDimensionalSchemaRequest();
 
@@ -98,7 +92,7 @@ public class CompileController {
         List<ParsedSheet> parsedSheets = parseSheets(request.getWorksheetsMap());
         compiler.setSheet(parsedSheets);
 
-        CompileContext formulaContext = new CompileFormulaContext(compiler);
+        CompileContext formulaContext = new CompileContext(compiler);
         CompiledResult result = formulaContext.compileFormula(parsedFormula.formula());
 
         List<String> fields = List.of();
@@ -122,7 +116,7 @@ public class CompileController {
 
     @PostMapping(value = "/v1/functions", produces = "application/json")
     public String getFunctions(@RequestBody String body, Principal principal) {
-        Api.Request apiRequest = parseRequest(body, Api.Request::getFunctionRequest, Api.FunctionRequest.class);
+        Api.Request apiRequest = ApiMessageMapper.parseRequest(body, Api.Request::getFunctionRequest, Api.FunctionRequest.class);
         Api.FunctionRequest request = apiRequest.getFunctionRequest();
 
         Compiler compiler = new Compiler(inputProvider, principal);
@@ -159,16 +153,4 @@ public class CompileController {
         return PRINTER.print(response);
     }
 
-    private static <T extends Message> Api.Request parseRequest(
-            String body, Function<Api.Request, T> getter, Class<T> type) {
-        try {
-            Api.Request.Builder builder = Api.Request.newBuilder();
-            PARSER.merge(body, builder);
-            Api.Request request = builder.build();
-            Objects.requireNonNull(getter.apply(request));
-            return request;
-        } catch (InvalidProtocolBufferException e) {
-            throw new IllegalArgumentException("Expected Api.Request with %s".formatted(type.descriptorString()), e);
-        }
-    }
 }

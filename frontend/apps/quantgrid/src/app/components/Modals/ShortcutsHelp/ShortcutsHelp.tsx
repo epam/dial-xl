@@ -6,7 +6,6 @@ import {
   modalFooterButtonClasses,
   secondaryButtonClasses,
 } from '@frontend/common';
-import { focusSpreadsheet } from '@frontend/spreadsheet';
 
 import { ModalRefFunction } from '../../../common';
 import { shortcuts } from './shortcuts';
@@ -32,7 +31,6 @@ export function ShortcutsHelp({ openShortcutHelpModal }: Props) {
 
   return (
     <Modal
-      afterClose={focusSpreadsheet}
       destroyOnClose={true}
       footer={[
         <Button
@@ -47,7 +45,7 @@ export function ShortcutsHelp({ openShortcutHelpModal }: Props) {
       title="Keyboard Shortcuts"
       onCancel={handleCancel}
     >
-      <div className="max-h-[500px] overflow-y-auto my-5">
+      <div className="max-h-[500px] overflow-y-auto thin-scrollbar my-5">
         <div className="flex flex-col bg-bgLayer3">
           <div className="flex border border-strokeTertiary">
             <div className="w-1/2 py-3 pl-5">

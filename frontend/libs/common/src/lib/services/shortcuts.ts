@@ -21,6 +21,8 @@ export enum Shortcut {
   ToggleErrors = 'ToggleErrors',
   ToggleHistory = 'ToggleHistory',
   ToggleChat = 'ToggleChat',
+  ToggleAIHints = 'ToggleAIHints',
+  ToggleChart = 'ToggleChart',
   PageUp = 'PageUp',
   PageDown = 'PageDown',
   SelectAll = 'SelectAll',
@@ -61,6 +63,8 @@ export enum Shortcut {
   AddNote = 'AddNote',
   Save = 'Save',
   OpenAIPromptBox = 'OpenAIPromptBox',
+  AcceptAIPromptResult = 'AcceptAIPromptResult',
+  ChangeViewportInteractionMode = 'ChangeViewportInteractionMode',
 }
 
 const shortcutMap: ShortcutMap = {
@@ -73,6 +77,8 @@ const shortcutMap: ShortcutMap = {
   [Shortcut.ToggleErrors]: [KeyboardCode.Alt, KeyboardCode.Four],
   [Shortcut.ToggleHistory]: [KeyboardCode.Alt, KeyboardCode.Five],
   [Shortcut.ToggleChat]: [KeyboardCode.Alt, KeyboardCode.Six],
+  [Shortcut.ToggleAIHints]: [KeyboardCode.Alt, KeyboardCode.Seven],
+  [Shortcut.ToggleChart]: [KeyboardCode.Alt, KeyboardCode.Eight],
   [Shortcut.UndoAction]: [KeyboardCode.Command, KeyboardCode.Z],
   [Shortcut.RedoAction]: [
     [KeyboardCode.Command, KeyboardCode.Shift, KeyboardCode.Z],
@@ -161,8 +167,14 @@ const shortcutMap: ShortcutMap = {
   [Shortcut.MoveToSheetEnd]: [KeyboardCode.Command, KeyboardCode.End],
   [Shortcut.MoveTabBackward]: [KeyboardCode.Shift, KeyboardCode.Tab],
   [Shortcut.AddNote]: [KeyboardCode.Shift, KeyboardCode.F2],
-  [Shortcut.Save]: [KeyboardCode.Shift, KeyboardCode.S],
+  [Shortcut.Save]: [KeyboardCode.Command, KeyboardCode.S],
   [Shortcut.OpenAIPromptBox]: [KeyboardCode.Space],
+  [Shortcut.AcceptAIPromptResult]: [KeyboardCode.Enter],
+  [Shortcut.ChangeViewportInteractionMode]: [
+    KeyboardCode.Command,
+    KeyboardCode.Shift,
+    KeyboardCode.Space,
+  ],
 };
 
 const keyboardCodeToString = (key: KeyboardCode): string => {

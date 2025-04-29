@@ -23,6 +23,8 @@ import com.epam.deltix.quantgrid.parser.TotalKey;
 import com.epam.deltix.quantgrid.type.ColumnType;
 import com.epam.deltix.quantgrid.util.Doubles;
 import com.epam.deltix.quantgrid.util.Strings;
+import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.Message;
 import com.google.protobuf.util.JsonFormat;
 import lombok.SneakyThrows;
 import lombok.experimental.UtilityClass;
@@ -31,6 +33,7 @@ import org.epam.deltix.proto.Api;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @UtilityClass
@@ -178,7 +181,8 @@ public class ApiMessageMapper {
 
         Api.ColumnData.Builder builder = Api.ColumnData.newBuilder()
                 .setStartRow(start)
-                .setEndRow(end);
+                .setEndRow(end)
+                .setTotalRows(table == null ? 0 : table.size());
 
         if (key instanceof FieldKey fieldKey) {
             builder.setFieldKey(Api.FieldKey.newBuilder()
@@ -195,7 +199,7 @@ public class ApiMessageMapper {
         }
 
         if (table != null) {
-            fillData(content, table, builder);
+            fillData(table, start, end, content, builder);
         }
 
         if (error != null) {
@@ -218,18 +222,20 @@ public class ApiMessageMapper {
         return builder.build();
     }
 
-    private void fillData(boolean content, Table table, Api.ColumnData.Builder builder) {
+    private void fillData(Table table, long start, long end, boolean content, Api.ColumnData.Builder builder) {
         Util.verify(table.getColumnCount() == 1);
         Column column = table.getColumn(0);
-        int size = Util.toIntSize(column.size());
+        long size = column.size();
+        start = Math.min(start, size);
+        end = Math.min(end, size);
 
         if (column instanceof StringColumn strings) {
-            for (int i = 0; i < size; i++) {
+            for (long i = start; i < end; i++) {
                 String value = strings.get(i);
                 builder.addData(Strings.toString(value));
             }
         } else if (column instanceof PeriodSeriesColumn series) {
-            for (int i = 0; i < size; i++) {
+            for (long i = start; i < end; i++) {
                 PeriodSeries value = series.get(i);
                 builder.addData(value == null ? "N/A" : Long.toString(value.getValues().size()));
 
@@ -332,5 +338,18 @@ public class ApiMessageMapper {
         }
 
         return builder.build();
+    }
+
+    public <T extends Message> Api.Request parseRequest(
+            String body, java.util.function.Function<Api.Request, T> getter, Class<T> type) {
+        try {
+            Api.Request.Builder builder = Api.Request.newBuilder();
+            PARSER.merge(body, builder);
+            Api.Request request = builder.build();
+            Objects.requireNonNull(getter.apply(request));
+            return request;
+        } catch (InvalidProtocolBufferException | NullPointerException e) {
+            throw new IllegalArgumentException("Expected Api.Request with %s".formatted(type.getSimpleName()), e);
+        }
     }
 }

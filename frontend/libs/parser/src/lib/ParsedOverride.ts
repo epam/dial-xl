@@ -1,3 +1,8 @@
+import { Expose } from 'class-transformer';
+
+import { Override, Overrides } from './EditDslApi';
+import { Override_definitionContext } from './grammar/SheetParser';
+import { ParsedText } from './ParsedText';
 import {
   defaultRowKey,
   keyKeyword,
@@ -6,7 +11,8 @@ import {
   OverrideRows,
   OverrideValue,
 } from './parser';
-import { escapeOverrideValue } from './services';
+import { escapeValue } from './services';
+import { Span } from './Span';
 
 type ParsedOverrideParams = {
   overrideFields: string[];
@@ -22,14 +28,27 @@ export type CachedOverrideRow = {
 };
 
 export class ParsedOverride {
+  @Expose()
+  public span: Span | null = null;
+
+  @Expose()
+  public headers: ParsedText[] = [];
+
+  @Expose()
+  public values: ParsedText[][] = [];
+
   public overrideRows: OverrideRows = null;
   public keys: Set<string>;
   protected isManualTable: boolean;
 
-  constructor(params?: ParsedOverrideParams) {
+  constructor(
+    ctx?: Override_definitionContext | undefined,
+    params?: ParsedOverrideParams
+  ) {
     this.keys = new Set();
     this.overrideRows = this.parseOverrides(params);
     this.isManualTable = !!params?.isManual;
+    this.from(ctx);
   }
 
   private parseOverrides(params?: ParsedOverrideParams): OverrideRows {
@@ -127,6 +146,16 @@ export class ParsedOverride {
     };
   }
 
+  public getAllRowValuesAtIndex(index: number): OverrideRow | null {
+    if (!this.overrideRows) return null;
+
+    if (this.overrideRows.length >= index && this.overrideRows[index]) {
+      return this.overrideRows[index];
+    }
+
+    return null;
+  }
+
   public getRowByKeys(
     keyData: Record<string, string>
   ): CachedOverrideRow | null {
@@ -144,10 +173,16 @@ export class ParsedOverride {
     };
   }
 
+  public getColumnValues(fieldName: string): OverrideValue[] {
+    if (!this.overrideRows) return [];
+
+    return this.overrideRows.map((row) => row[fieldName]);
+  }
+
   public findByKey(key: string, keyValue: number): number {
     if (!this.overrideRows || !this.hasKey(key)) return -1;
 
-    const escapedKeyValue = escapeOverrideValue(keyValue, false, true);
+    const escapedKeyValue = escapeValue(keyValue, false, true);
 
     const rowIndex = this.overrideRows.findIndex((row) =>
       key !== defaultRowKey
@@ -164,11 +199,7 @@ export class ParsedOverride {
     const escapedKeyData = Object.assign({}, keyData);
 
     Object.keys(escapedKeyData).forEach((key) => {
-      escapedKeyData[key] = escapeOverrideValue(
-        escapedKeyData[key],
-        false,
-        true
-      );
+      escapedKeyData[key] = escapeValue(escapedKeyData[key], false, true);
     });
 
     const rowIndex = this.overrideRows.findIndex((row) => {
@@ -244,9 +275,7 @@ export class ParsedOverride {
     } else {
       this.overrideRows.push({
         [key]:
-          key !== defaultRowKey
-            ? escapeOverrideValue(keyValue, false, true)
-            : keyValue,
+          key !== defaultRowKey ? escapeValue(keyValue, false, true) : keyValue,
         [fieldName]: value,
       });
       this.keys.add(key);
@@ -271,9 +300,7 @@ export class ParsedOverride {
 
       for (const [key, value] of Object.entries(keys)) {
         overrideRow[key] =
-          key !== defaultRowKey
-            ? escapeOverrideValue(value, false, true)
-            : value;
+          key !== defaultRowKey ? escapeValue(value, false, true) : value;
         this.keys.add(key);
       }
 
@@ -304,6 +331,45 @@ export class ParsedOverride {
 
   public getSize() {
     return this.overrideRows ? this.overrideRows.length : 0;
+  }
+
+  public applyOverrides(): Overrides | null {
+    if (!this.overrideRows) return null;
+    this.cleanUpFields();
+
+    const headers: Set<string> = new Set();
+
+    this.overrideRows.forEach((row) => {
+      Object.keys(row).forEach(headers.add, headers);
+    });
+
+    const header = Array.from(headers);
+    let overrides: Overrides | null = null;
+
+    if (this.overrideRows.length > 0) {
+      overrides = new Overrides();
+    }
+
+    this.overrideRows.forEach((obj) => {
+      const row: Record<string, string> = {};
+      let rowNumber: string | null = null;
+
+      header.forEach((key) => {
+        const fieldName = this.getFieldNameFromCsv(key);
+        const value = obj[fieldName] || '';
+
+        if (fieldName === defaultRowKey) {
+          rowNumber = value.toString();
+        } else {
+          row[fieldName] = value.toString();
+        }
+      });
+
+      const override = new Override(row, rowNumber);
+      overrides!.append(override);
+    });
+
+    return overrides;
   }
 
   public convertToDsl() {
@@ -413,5 +479,69 @@ export class ParsedOverride {
     isRowKeyword && this.keys.add(defaultRowKey);
 
     return fieldMatch && fieldMatch[1] ? fieldMatch[1] : defaultRowKey;
+  }
+
+  private from(ctx: Override_definitionContext | undefined) {
+    if (!ctx) return;
+
+    this.span = Span.fromParserRuleContext(ctx) || null;
+
+    let numberOfRows = 0;
+    const allRows = ctx.override_row_list();
+    for (let i = allRows.length - 1; i >= 0; i--) {
+      const rowCtx = allRows[i];
+      if (rowCtx?.children?.length !== 0) {
+        numberOfRows = i + 1;
+        break;
+      }
+    }
+
+    const headerList = ctx.override_fields().override_field_list();
+    const headers: ParsedText[] = [];
+    const fieldNames = new Set<string>();
+
+    for (const headerCtx of headerList) {
+      let fieldName: ParsedText | null = null;
+
+      if (headerCtx.ROW_KEYWORD()) {
+        const symbol = headerCtx.ROW_KEYWORD().symbol;
+        fieldName = new ParsedText(Span.fromToken(symbol), 'row');
+      } else {
+        fieldName = ParsedText.fromFieldName(headerCtx.field_name());
+        if (!fieldName) return;
+      }
+
+      if (fieldNames.has(fieldName.text)) return;
+
+      fieldNames.add(fieldName.text);
+
+      headers.push(fieldName);
+    }
+
+    const values: ParsedText[][] = [];
+    for (let i = 0; i < numberOfRows; i++) {
+      const rowCtx = allRows[i];
+      const rowValues = rowCtx.override_value_list();
+
+      if (rowValues.length !== headers.length) return;
+
+      const parsedRow: ParsedText[] = [];
+      for (let j = 0; j < headers.length; j++) {
+        const valueCtx = rowValues[j];
+        if (valueCtx.expression()) {
+          const exprSpan = Span.fromParserRuleContext(valueCtx.expression());
+          const exprText = valueCtx.expression().getText();
+          parsedRow.push(new ParsedText(exprSpan, exprText));
+        } else {
+          const { start, stop } = valueCtx.start;
+          const emptySpan = new Span(start, stop);
+          parsedRow.push(new ParsedText(emptySpan, ''));
+        }
+      }
+      values.push(parsedRow);
+    }
+
+    this.headers = headers;
+    this.values = values;
   }
 }

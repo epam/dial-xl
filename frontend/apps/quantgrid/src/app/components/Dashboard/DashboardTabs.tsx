@@ -22,7 +22,7 @@ type Tab = {
 
 const tabs: Tab[] = [
   { id: 'recent', label: 'Recent' },
-  { id: 'home', label: 'Home' },
+  { id: 'home', label: 'My files' },
   { id: 'sharedByMe', label: 'Shared by me' },
   { id: 'sharedWithMe', label: 'Shared with me' },
   { id: 'examples', label: 'Examples' },
@@ -43,12 +43,11 @@ export function DashboardTabs() {
   };
 
   return (
-    <div className="flex mt-5 mb-4">
-      {tabs.map((tab, index) => (
+    <div className="flex flex-wrap gap-3 mt-5 mb-4">
+      {tabs.map((tab) => (
         <Link
           className={cx(
             'h-9 px-5 text-base',
-            index !== 0 && 'ml-3',
             defaultTabClasses,
             currentTab === tab.id ? selectedTabClasses : notSelectedTabClasses
           )}

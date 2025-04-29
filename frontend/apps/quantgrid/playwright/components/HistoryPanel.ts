@@ -1,7 +1,7 @@
 import { BasePanel } from './BasePanel';
 
 export class HistoryPanel extends BasePanel {
-  panelName = 'History';
+  panelName = 'undoRedo';
 
   public historyItem(text: string) {
     return this.getPanelRootLocator().locator(`div[title*='${text}']`);

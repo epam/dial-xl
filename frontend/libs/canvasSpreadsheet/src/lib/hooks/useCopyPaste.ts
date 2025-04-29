@@ -14,7 +14,7 @@ export function useCopyPaste() {
   const copy = useCallback((gridApi: GridApi) => {
     if (gridApi?.isCellEditorOpen()) return;
 
-    const selection = gridApi.getSelection();
+    const selection = gridApi.selection$.getValue();
 
     if (!selection) return;
 
@@ -42,7 +42,7 @@ export function useCopyPaste() {
     async (gridApi: GridApi, gridCallbacks: GridCallbacks) => {
       if (gridApi?.isCellEditorOpen()) return;
 
-      const selection = gridApi.getSelection();
+      const selection = gridApi.selection$.getValue();
 
       if (!selection) return;
 

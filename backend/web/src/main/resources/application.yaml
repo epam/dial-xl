@@ -11,12 +11,9 @@ web:
     dial:
       enabled: ${WEB_STORAGE_DIAL_INPUT_ENABLED:false}
       baseUrl: ${WEB_STORAGE_DIAL_BASE_URL}
-  heartbeatPeriodMillis: 60000
+  heartbeatPeriodMillis: 5000
 
 spring:
-  mvc:
-    async:
-      request-timeout: 600000 # 10 min
   security:
     enabled: ${SECURITY_ENABLED:false}
     oauth2:

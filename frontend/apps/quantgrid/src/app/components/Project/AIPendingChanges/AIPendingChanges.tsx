@@ -3,18 +3,20 @@ import classNames from 'classnames';
 import { useCallback, useContext } from 'react';
 
 import Icon from '@ant-design/icons';
+import { GridEvent } from '@frontend/canvas-spreadsheet';
 import {
   ExclamationCircleIcon,
   secondaryOutlineInvertedButtonClasses,
 } from '@frontend/common';
-import { GridEvent } from '@frontend/spreadsheet';
 
 import { ProjectContext } from '../../../context';
-import { useGridApi } from '../../../hooks';
+import { useGridApi, useUnsavedChanges } from '../../../hooks';
 
 export const AIPendingChangesBanner = () => {
   const { isAIPendingChanges, isAIPendingBanner } = useContext(ProjectContext);
   const api = useGridApi();
+
+  useUnsavedChanges(isAIPendingChanges && isAIPendingBanner);
 
   const handleExpandAIPrompt = useCallback(() => {
     api?.event.emit({

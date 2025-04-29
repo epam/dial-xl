@@ -2,7 +2,6 @@ package com.epam.deltix.quantgrid.engine;
 
 import com.epam.deltix.quantgrid.engine.cache.Cache;
 import com.epam.deltix.quantgrid.engine.compiler.Compiler;
-import com.epam.deltix.quantgrid.engine.compiler.function.Function;
 import com.epam.deltix.quantgrid.engine.executor.Executor;
 import com.epam.deltix.quantgrid.engine.graph.Graph;
 import com.epam.deltix.quantgrid.engine.graph.GraphPrinter;
@@ -16,6 +15,7 @@ import com.epam.deltix.quantgrid.engine.rule.ConstantFolding;
 import com.epam.deltix.quantgrid.engine.rule.Deduplicate;
 import com.epam.deltix.quantgrid.engine.rule.Duplicate;
 import com.epam.deltix.quantgrid.engine.rule.EliminateProjection;
+import com.epam.deltix.quantgrid.engine.rule.OptimizeAggregate;
 import com.epam.deltix.quantgrid.engine.rule.OptimizeFilter;
 import com.epam.deltix.quantgrid.engine.rule.PushDownExpand;
 import com.epam.deltix.quantgrid.engine.rule.Reduce;
@@ -26,13 +26,13 @@ import com.epam.deltix.quantgrid.engine.rule.UnitePivot;
 import com.epam.deltix.quantgrid.engine.service.input.storage.InputProvider;
 import com.epam.deltix.quantgrid.parser.FieldKey;
 import com.epam.deltix.quantgrid.parser.ParsedField;
+import com.epam.deltix.quantgrid.parser.ParsedFormula;
 import com.epam.deltix.quantgrid.parser.ParsedKey;
 import com.epam.deltix.quantgrid.parser.ParsedSheet;
 import com.epam.deltix.quantgrid.parser.ParsedTable;
 import com.epam.deltix.quantgrid.parser.ParsedTotal;
 import com.epam.deltix.quantgrid.parser.SheetReader;
 import com.epam.deltix.quantgrid.parser.TotalKey;
-import com.epam.deltix.quantgrid.parser.ast.Formula;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import lombok.Getter;
@@ -75,10 +75,6 @@ public class Engine {
         this.executor = new Executor(service, listener, cache);
     }
 
-    public Engine withListener(ResultListener listener) {
-        return new Engine(cache.copy(), service, listener, graphCallback, inputProvider);
-    }
-
     public CompletableFuture<Void> compute(List<ParsedSheet> worksheets,
                                            Collection<Viewport> viewports,
                                            SimilarityRequest similarityRequest,
@@ -110,18 +106,15 @@ public class Engine {
                 viewports.add(viewport);
             }
 
-            ParsedTotal total = table.total();
-            if (total != null) {
-                for (FieldKey field : total.fields()) {
-                    List<Formula> formulas = total.getTotals(field);
-                    for (int i = 0; i < formulas.size(); i++) {
-                        Formula formula = formulas.get(i);
-
-                        if (formula != null) {
-                            TotalKey key = new TotalKey(field.table(), field.fieldName(), i + 1);
-                            Viewport viewport = new Viewport(key, 0, 1000, true);
-                            viewports.add(viewport);
-                        }
+            List<ParsedTotal> totals = table.totals();
+            for (int i = 0; i < totals.size(); i++) {
+                ParsedTotal total = totals.get(i);
+                for (ParsedField field : total.fields()) {
+                    ParsedFormula formula = field.formula();
+                    if (formula != null) {
+                        TotalKey key = new TotalKey(table.tableName(), field.fieldName(), i + 1);
+                        Viewport viewport = new Viewport(key, 0, 1000, true);
+                        viewports.add(viewport);
                     }
                 }
             }
@@ -164,12 +157,15 @@ public class Engine {
 
     private void normalize(Graph graph) {
         new Clean(false).apply(graph);
-        new Duplicate().apply(graph);
-        new Reduce().apply(graph);
+        new Deduplicate().apply(graph);
+        new Reduce(true).apply(graph);
         new ReverseProjection().apply(graph);
         new PushDownExpand().apply(graph);
         new ConstantFolding().apply(graph);
         new EliminateProjection().apply(graph);
+        new OptimizeFilter().apply(graph);
+        new Reduce(true).apply(graph);
+        new OptimizeAggregate().apply(graph);
         new Deduplicate().apply(graph);
         new AssignIdentity().apply(graph);
     }
@@ -180,11 +176,11 @@ public class Engine {
         new ReusePrevious(previous).apply(graph);
         new Deduplicate().apply(graph);
         new Duplicate().apply(graph);
-        new Reduce().apply(graph);
+        new Reduce(false).apply(graph);
         new Carry(cache).apply(graph);
         new Carry(cache).apply(graph);  // doesn't carry at the first time ;(
-        new Reduce().apply(graph);
-        new OptimizeFilter().apply(graph);
+        new Carry(cache).apply(graph);  // doesn't carry at the first time ;(
+        new Reduce(false).apply(graph);
         new UnitePivot().apply(graph);
         new Deduplicate().apply(graph);
         new AssignStore().apply(graph);
@@ -218,11 +214,5 @@ public class Engine {
                 live.getTask().cancel(true);
             }
         }
-    }
-
-    public List<Function> getPythonFunction(List<ParsedSheet> worksheets, Principal principal) {
-        Compiler compiler = new Compiler(inputProvider, principal);
-        compiler.setSheet(worksheets);
-        return compiler.getPythonFunctionList();
     }
 }

@@ -1,12 +1,9 @@
 import { Token } from 'antlr4';
 
-import {
-  compareTableNames,
-  escapeTableName,
-  FunctionInfo,
-} from '@frontend/common';
+import { compareTableNames, FunctionInfo } from '@frontend/common';
 import {
   currentTableRef,
+  escapeTableName,
   ParsedField,
   ParsedSheet,
   ParsedSheets,
@@ -484,7 +481,7 @@ function getTableSuggestions({
           insertText: '[',
           kind: languages.CompletionItemKind.Variable,
           sortText: SortText.special,
-          detail: 'Use field',
+          detail: 'Use column',
           command: {
             id: CustomCommands.SuggestionAcceptTableOrField,
             title: 'Accept table suggestion',
@@ -553,12 +550,12 @@ function getFieldSuggestions({
       filterText: fieldName,
       kind: languages.CompletionItemKind.Field,
       sortText: SortText.priority1,
-      detail: 'Table Field',
+      detail: 'Table Column',
       range,
       command: !isInlineEditor
         ? {
             id: CustomCommands.SuggestionAcceptTableOrField,
-            title: 'Accept field suggestion',
+            title: 'Accept column suggestion',
             arguments: [model.id],
           }
         : undefined,

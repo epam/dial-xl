@@ -19,7 +19,7 @@ export function FormulaBarExpandButton() {
         )}
         icon={
           <Icon
-            className="text-textPrimary"
+            className="text-textPrimary hover:text-textAccentPrimary w-[18px]"
             component={() => <ChevronDown />}
           />
         }

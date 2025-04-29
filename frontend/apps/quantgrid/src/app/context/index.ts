@@ -8,6 +8,6 @@ export * from './LayoutContext';
 export * from './LayoutHandleContext';
 export * from './ProjectContext';
 export * from './SearchWindowContext';
-export * from './SpreadsheetContext';
 export * from './UndoRedoContext';
 export * from './ViewportContext';
+export * from './AIHintsContext';

@@ -1,9 +1,3 @@
-import {
-  escapeName,
-  fieldShouldBeEscapedChars,
-  tableNameShouldBeEscapedChars,
-} from '@frontend/parser';
-
 import { GridCell, RuntimeError } from '../types';
 import { ColumnDataType, CompilationError, ParsingError } from './serverApi';
 
@@ -25,67 +19,6 @@ export function isComplexType(field?: {
   return complexTypes.includes(type) || isNested;
 }
 
-export function escapeTableName(name: string, fullSanitize = false): string {
-  let tableName = name;
-
-  if (tableName.startsWith("'") && tableName.endsWith("'")) {
-    tableName = tableName.slice(1, -1);
-  }
-
-  const quotedTableNameRegex = /[^a-zA-Z0-9_]/;
-
-  const shouldBeQuoted = quotedTableNameRegex.test(tableName);
-
-  let escapedTableName = escapeName(
-    tableName,
-    tableNameShouldBeEscapedChars,
-    fullSanitize
-  );
-
-  escapedTableName = shouldBeQuoted
-    ? `'${escapedTableName}'`
-    : escapedTableName;
-
-  return escapedTableName;
-}
-
-export function unescapeTableName(name: string): string {
-  const shouldBeUnquoted = name.startsWith("'") && name.endsWith("'");
-
-  let resultName = shouldBeUnquoted ? name.slice(1, -1) : name;
-  const preparedEscapedChars = tableNameShouldBeEscapedChars
-    .map((char) => '\\' + char)
-    .join('');
-  const regEx = new RegExp(
-    String.raw`(.)?(['])([${preparedEscapedChars}])`,
-    'g'
-  );
-  resultName = resultName.replaceAll(regEx, '$1$3');
-
-  return resultName;
-}
-
-export function escapeFieldName(name: string, fullSanitize = false): string {
-  if (name.startsWith('[') && name.endsWith(']')) {
-    name = name.slice(1, -1);
-  }
-
-  return escapeName(name, fieldShouldBeEscapedChars, fullSanitize);
-}
-
-export function unescapeFieldName(name: string): string {
-  const preparedEscapedChars = fieldShouldBeEscapedChars
-    .map((char) => '\\' + char)
-    .join('');
-  const regEx = new RegExp(
-    String.raw`(.)?(['])([${preparedEscapedChars}])`,
-    'g'
-  );
-  const resultName = name.replaceAll(regEx, '$1$3');
-
-  return resultName;
-}
-
 export function compareTableNames(a: string, b: string) {
   const aName = a.replaceAll("'", '');
   const bName = b.replaceAll("'", '');
@@ -97,14 +30,13 @@ export function isNumericType(type: ColumnDataType) {
   return type === ColumnDataType.INTEGER || type === ColumnDataType.DOUBLE;
 }
 
-export function isValidUrl(value: string) {
-  try {
-    const url = new URL(value);
+export function isTextType(type: ColumnDataType) {
+  return type === ColumnDataType.STRING;
+}
 
-    return ['http:', 'https:'].includes(url.protocol);
-  } catch (e) {
-    return false;
-  }
+// new URL() is too heavy to check all values in the grid
+export function isValidUrl(value: string) {
+  return /^https?:\/\//i.test(value);
 }
 
 export function getKeyLabelFromError(
@@ -140,4 +72,18 @@ export function shouldNotOverrideCell(cell: GridCell | undefined): boolean {
   const isManual = cell?.table?.isManual;
 
   return !!sortedOrFiltered && !hasKeys && !isManual;
+}
+
+export function toExcelColumnName(index: number): string {
+  let n = index + 1;
+  let result = '';
+
+  while (n > 0) {
+    const remainder = (n - 1) % 26;
+    const char = String.fromCharCode(65 + remainder);
+    result = char + result;
+    n = Math.floor((n - 1) / 26);
+  }
+
+  return result;
 }

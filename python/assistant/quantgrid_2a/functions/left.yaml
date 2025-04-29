@@ -1,0 +1,5 @@
+name: left
+description: Returns string prefix
+signature: 'string.left(size: number) => string'
+manual: >-
+  Returns prefix of length `size` from string. If string is shorted than required size, whole string is returned.

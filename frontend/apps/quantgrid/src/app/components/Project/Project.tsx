@@ -16,11 +16,11 @@ import { ChatButton, ChatFloatingWindow } from '../ChatWrapper';
 import { FormulasMenu } from '../Formulas/FormulasMenu';
 import { FormulaBar, MainMenu, UserMenu } from '../index';
 import { AIPendingChangesBanner } from './AIPendingChanges';
+import { ProjectOverrideBar } from './ProjectOverrideBar';
 import { ProjectTitle } from './ProjectTitle';
 import { ReadonlyNotificationBar } from './ReadonlyNotificationBar';
 import { SearchButton } from './SearchButton';
 import { TemporaryProjectNotificationBar } from './TemporaryProjectNotificationBar';
-import { Zoom } from './Zoom';
 
 export function Project() {
   const {
@@ -46,7 +46,7 @@ export function Project() {
           >
             <Icon className="h-5 w-5" component={() => <QGLogo />} />
             <Icon
-              className="ml-2 fill-textPrimary h-[10px] w-[50px]"
+              className="ml-2 text-textPrimary h-[10px] w-[50px]"
               component={() => <DialTextLogo />}
             />
           </Link>
@@ -55,14 +55,14 @@ export function Project() {
 
         <ProjectTitle />
 
-        <div className="flex items-center">
+        <div className="flex items-center gap-4">
           <SearchButton />
-          <Zoom />
           <UserMenu placement="project" />
         </div>
       </div>
       <ReadonlyNotificationBar />
       <AIPendingChangesBanner />
+      <ProjectOverrideBar />
       <TemporaryProjectNotificationBar />
       <FormulaBar />
 

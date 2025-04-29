@@ -35,4 +35,17 @@ describe('extractExpression', () => {
     // Assert
     expect(result).toEqual(expectedResult);
   });
+
+  it('should unescape expression from error function', () => {
+    // Arrange
+    const value = `ERR("COUNT(UNIQUE(UNION(Specimens[order_number],UNION(Additional Biomarkers''[order_number],UNION(''Copy Numbers''[order_number],''Alterations Chimeric Junction''[order_number])))))")`;
+    const expectedResult =
+      "COUNT(UNIQUE(UNION(Specimens[order_number],UNION(Additional Biomarkers'[order_number],UNION('Copy Numbers'[order_number],'Alterations Chimeric Junction'[order_number])))))";
+
+    // Act
+    const result = extractExpression(value);
+
+    // Assert
+    expect(result).toEqual(expectedResult);
+  });
 });

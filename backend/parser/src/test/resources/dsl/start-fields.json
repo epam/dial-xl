@@ -1,0 +1,57 @@
+{
+  "name": "test",
+  "tables": [
+    {
+      "span": {
+        "from": 0,
+        "to": 31
+      },
+      "name": {
+        "span": {
+          "from": 6,
+          "to": 10
+        },
+        "text": "t1"
+      },
+      "fields": [
+        {
+          "span": {
+            "from": 13,
+            "to": 20
+          },
+          "name": {
+            "span": {
+              "from": 13,
+              "to": 16
+            },
+            "text": "*"
+          },
+          "formula": {
+            "span": {
+              "from": 19,
+              "to": 20
+            },
+            "formula": {
+              "number": 1.0,
+              "arguments": []
+            },
+            "errors": []
+          },
+          "decorators": [],
+          "docs": []
+        }
+      ],
+      "decorators": [],
+      "docs": [],
+      "totals": []
+    }
+  ],
+  "pythons": [],
+  "errors": [
+    {
+      "line": 3,
+      "position": 3,
+      "message": "Duplicate column. Table: t1. Column: *"
+    }
+  ]
+}

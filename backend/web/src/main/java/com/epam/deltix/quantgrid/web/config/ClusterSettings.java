@@ -14,41 +14,21 @@ import javax.annotation.PostConstruct;
 @ConfigurationProperties(prefix = "web.cluster")
 public class ClusterSettings {
 
+    private String namespace = "qg_cluster";
     private NodeType nodeType = NodeType.COMPUTE;
-    private RoutingType nodeRoutingType = RoutingType.HASHED;
     private String nodeId;
     private String nodeEndpoint;
-
-    /**
-     * The key to a map of all compute nodes in a cluster. Key: nodeId. Value: nodeState.
-     */
-    private String nodeMappingKey = "node-mapping";
-
-    /**
-     * The key prefix for a project to a node attached values:
-     *  1) Project to node mapping. Key: nodeRoutingKey + ":project:" + projectId. Value: nodeId.
-     *  2) Project lock. Key: nodeRoutingKey + ":lock:project:" + projectId.
-     *  3) Node to project mapping. Key: nodeRoutingKey + ":node:" + nodeId. Value: projectId.
-     */
-    private String nodeRoutingKey = "node-routing";
-
-    /**
-     * The key to a topic where compute nodes publish join/leave events.
-     */
-    private String nodeTopicKey = "node-topic";
     private long nodeHeartbeatInterval = 30000;
     private long nodeHeartbeatTimeout = 60000;
     private long nodeProjectTimeout = 600000;
+    private long nodeOperationTimeout = 60000;
+    private long nodeRouteTimeout = 10000;
 
     @Value("${server.port:8080}")
     private int port;
 
     public enum NodeType {
         CONTROL, COMPUTE
-    }
-
-    public enum RoutingType {
-        HASHED, DEDICATED
     }
 
     @PostConstruct

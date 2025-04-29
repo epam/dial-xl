@@ -1,6 +1,7 @@
 package com.epam.deltix.quantgrid.engine.compiler.result.validator;
 
 import com.epam.deltix.quantgrid.engine.compiler.CompileError;
+import com.epam.deltix.quantgrid.engine.compiler.CompileUtil;
 import com.epam.deltix.quantgrid.engine.compiler.result.CompiledSimpleColumn;
 import com.epam.deltix.quantgrid.type.ColumnType;
 import lombok.experimental.UtilityClass;
@@ -13,7 +14,8 @@ public class SimpleColumnValidators {
     public final ResultValidator<CompiledSimpleColumn> STRING = forType(ColumnType.STRING);
     public final ResultValidator<CompiledSimpleColumn> PERIOD_SERIES = forType(ColumnType.PERIOD_SERIES);
     public final ResultValidator<CompiledSimpleColumn> STRING_OR_DOUBLE = forTypes(ColumnType.STRING, ColumnType.DOUBLE);
-    public final ResultValidator<CompiledSimpleColumn> ANY = ResultValidator.columnValidator(result -> {});
+    public final ResultValidator<CompiledSimpleColumn> ANY =
+            ResultValidator.columnValidator(result -> {}, ResultValidator.NO_CONVERTER);
 
     public ResultValidator<CompiledSimpleColumn> forType(ColumnType type) {
         ResultValidator<CompiledSimpleColumn> validator = switch (type) {
@@ -28,10 +30,11 @@ public class SimpleColumnValidators {
         if (validator == null) {
             validator = ResultValidator.columnValidator(compiledResult -> {
                 if (!ColumnType.isClose(compiledResult.type(), type)) {
-                    throw new CompileError("expected value of type %s, but got %s"
-                            .formatted(type, compiledResult.type()));
+                    throw new CompileError("expected %s, but got %s.".formatted(
+                            CompileUtil.getColumnTypeDisplayName(type),
+                            CompileUtil.getColumnTypeDisplayName(compiledResult.type())));
                 }
-            });
+            }, ResultValidator.columnConverter(type));
         }
 
         return validator;
@@ -41,9 +44,12 @@ public class SimpleColumnValidators {
         return ResultValidator.columnValidator(compiledResult -> {
             if (!ColumnType.isClose(compiledResult.type(), type1)
                     && !ColumnType.isClose(compiledResult.type(), type2)) {
-                throw new CompileError("expected value of type %s or %s, but got %s"
-                        .formatted(type1, type2, compiledResult.type()));
+                throw new CompileError("expected %s or %s, but got %s."
+                        .formatted(
+                                CompileUtil.getColumnTypeDisplayName(type1),
+                                CompileUtil.getColumnTypeDisplayName(type2),
+                                CompileUtil.getColumnTypeDisplayName(compiledResult.type())));
             }
-        });
+        }, ResultValidator.NO_CONVERTER);
     }
 }

@@ -1,0 +1,172 @@
+{
+  "name": "test",
+  "tables": [
+    {
+      "span": {
+        "from": 0,
+        "to": 232
+      },
+      "name": {
+        "span": {
+          "from": 6,
+          "to": 8
+        },
+        "text": "t1"
+      },
+      "fields": [
+        {
+          "span": {
+            "from": 9,
+            "to": 31
+          },
+          "key": {
+            "span": {
+              "from": 9,
+              "to": 12
+            },
+            "text": "key"
+          },
+          "dim": {
+            "span": {
+              "from": 13,
+              "to": 16
+            },
+            "text": "dim"
+          },
+          "name": {
+            "span": {
+              "from": 17,
+              "to": 20
+            },
+            "text": "a"
+          },
+          "formula": {
+            "span": {
+              "from": 23,
+              "to": 31
+            },
+            "formula": {
+              "name": "RANGE",
+              "arguments": [
+                {
+                  "arguments": []
+                }
+              ]
+            },
+            "errors": []
+          },
+          "decorators": [],
+          "docs": []
+        },
+        {
+          "span": {
+            "from": 32,
+            "to": 54
+          },
+          "key": {
+            "span": {
+              "from": 32,
+              "to": 35
+            },
+            "text": "key"
+          },
+          "dim": {
+            "span": {
+              "from": 36,
+              "to": 39
+            },
+            "text": "dim"
+          },
+          "name": {
+            "span": {
+              "from": 40,
+              "to": 43
+            },
+            "text": "x"
+          },
+          "formula": {
+            "span": {
+              "from": 46,
+              "to": 54
+            },
+            "formula": {
+              "name": "RANGE",
+              "arguments": [
+                {
+                  "arguments": []
+                }
+              ]
+            },
+            "errors": []
+          },
+          "decorators": [],
+          "docs": []
+        },
+        {
+          "span": {
+            "from": 63,
+            "to": 71
+          },
+          "name": {
+            "span": {
+              "from": 63,
+              "to": 66
+            },
+            "text": "b"
+          },
+          "formula": {
+            "span": {
+              "from": 69,
+              "to": 71
+            },
+            "formula": {
+              "number": NaN,
+              "arguments": []
+            },
+            "errors": []
+          },
+          "decorators": [],
+          "docs": []
+        },
+        {
+          "span": {
+            "from": 80,
+            "to": 87
+          },
+          "name": {
+            "span": {
+              "from": 80,
+              "to": 83
+            },
+            "text": "c"
+          },
+          "formula": {
+            "span": {
+              "from": 86,
+              "to": 87
+            },
+            "formula": {
+              "number": 5.0,
+              "arguments": []
+            },
+            "errors": []
+          },
+          "decorators": [],
+          "docs": []
+        }
+      ],
+      "decorators": [],
+      "docs": [],
+      "totals": []
+    }
+  ],
+  "pythons": [],
+  "errors": [
+    {
+      "line": 7,
+      "position": 1,
+      "message": "Expected 4 values per row, but was: 7",
+      "tableName": "t1"
+    }
+  ]
+}

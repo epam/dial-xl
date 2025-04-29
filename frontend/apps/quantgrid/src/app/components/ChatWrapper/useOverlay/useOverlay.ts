@@ -3,6 +3,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from 'react';
@@ -20,12 +21,14 @@ import {
   bindConversationsRootFolder,
   getSuggestions,
   GPTSuggestion,
+  projectFoldersRootPrefix,
 } from '@frontend/common';
 
 import {
   ApiContext,
   AppContext,
   InputsContext,
+  LayoutContext,
   ProjectContext,
 } from '../../../context';
 import { useGridApi } from '../../../hooks';
@@ -33,21 +36,27 @@ import {
   getProjectSelectedConversations,
   setSelectedConversations,
 } from '../../../services';
-import { constructPath } from '../../../utils';
+import { constructPath, encodeApiUrl } from '../../../utils';
 
-function getOverlayOptions(theme: AppTheme): ChatOverlayOptions {
+function getOverlayOptions(
+  theme: AppTheme,
+  conversationsFolderId: string | undefined
+): ChatOverlayOptions {
   return {
     hostDomain: window.location.origin,
     domain: window.externalEnv.dialOverlayUrl || '',
     theme: theme === AppTheme.ThemeLight ? 'light' : 'dark',
     modelId: window.externalEnv.qgBotDeploymentName,
+    newConversationsFolderId: conversationsFolderId,
     requestTimeout: 20000,
     loaderStyles: {
       padding: '20px',
       textAlign: 'center',
     },
+    // loaderHideEvent: OverlayEvents.readyToInteract,
     signInOptions: {
       autoSignIn: true,
+      // signInProvider: window.externalEnv.authProvider,
       signInProvider: 'keycloak',
     },
     enabledFeatures: [
@@ -67,6 +76,7 @@ function getOverlayOptions(theme: AppTheme): ChatOverlayOptions {
       Feature.InputFiles,
       Feature.ConversationsSharing,
       Feature.Marketplace,
+      Feature.SkipFocusChatInputOnLoad,
     ],
   };
 }
@@ -84,7 +94,8 @@ export function useOverlay(containerRef: RefObject<HTMLDivElement>) {
   } = useContext(ProjectContext);
   const { inputs } = useContext(InputsContext);
   const { userBucket } = useContext(ApiContext);
-  const { theme, canvasSpreadsheetMode } = useContext(AppContext);
+  const { theme, isChatOpen, chatWindowPlacement } = useContext(AppContext);
+  const { openedPanels } = useContext(LayoutContext);
   const gridApi = useGridApi();
 
   const subscriptions = useRef<(() => void)[]>([]);
@@ -97,10 +108,30 @@ export function useOverlay(containerRef: RefObject<HTMLDivElement>) {
 
   const [lastStageCompleted, setLastStageCompleted] = useState(false);
 
+  const shouldInitOverlay = useMemo(
+    () =>
+      isChatOpen ||
+      (chatWindowPlacement === 'panel' && openedPanels.chat.isActive) ||
+      !!overlay,
+    [chatWindowPlacement, isChatOpen, openedPanels.chat.isActive, overlay]
+  );
+
   const clearSuggestions = useCallback(() => {
     setGPTSuggestions(null);
     setLastStageCompleted(false);
   }, []);
+
+  const projectConversationPath = useMemo(
+    () =>
+      constructPath([bindConversationsRootFolder, projectPath, projectName]),
+    [projectName, projectPath]
+  );
+
+  const conversationsFolderId = useMemo(
+    () =>
+      constructPath(['conversations', projectBucket, projectConversationPath]),
+    [projectBucket, projectConversationPath]
+  );
 
   const updateSuggestions = useCallback(
     async (overlayInstance: ChatOverlay) => {
@@ -133,11 +164,6 @@ export function useOverlay(containerRef: RefObject<HTMLDivElement>) {
       const isAllExists = savedSelectedConversations.every((id) =>
         allConversationsIds.includes(id)
       );
-      const projectConversationPath = constructPath([
-        bindConversationsRootFolder,
-        projectPath,
-        projectName,
-      ]);
 
       if (savedSelectedConversations.length > 0 && isAllExists) {
         const selectedConversationId = savedSelectedConversations[0];
@@ -152,11 +178,6 @@ export function useOverlay(containerRef: RefObject<HTMLDivElement>) {
         return;
       }
 
-      const conversationsFolderId = constructPath([
-        'conversations',
-        projectBucket,
-        projectConversationPath,
-      ]);
       const projectConversations = conversations.filter(
         ({ folderId }) => folderId === conversationsFolderId
       );
@@ -179,13 +200,25 @@ export function useOverlay(containerRef: RefObject<HTMLDivElement>) {
         return;
       }
     },
-    [projectBucket, projectName, projectPath, userBucket]
+    [
+      conversationsFolderId,
+      projectBucket,
+      projectConversationPath,
+      projectName,
+      projectPath,
+      userBucket,
+    ]
   );
 
   useEffect(() => {
-    if (!projectName || !projectBucket || !overlay) return;
+    if (!shouldInitOverlay || !projectName || !projectBucket || !overlay)
+      return;
 
-    handleInitOverlay(overlay);
+    try {
+      handleInitOverlay(overlay);
+    } catch (error) {
+      // avoid localhost unhandled errors
+    }
 
     const unsubscribeStartGenerating = overlay.subscribe(
       `@DIAL_OVERLAY/GPT_START_GENERATING`,
@@ -225,13 +258,17 @@ export function useOverlay(containerRef: RefObject<HTMLDivElement>) {
       subscriptions.current = [];
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [overlay, projectName]);
+  }, [overlay, projectName, shouldInitOverlay]);
 
   // Initialize the overlay and subscribe to events
   useEffect(() => {
-    if (!containerRef.current) return;
+    if (!shouldInitOverlay || !containerRef.current || !conversationsFolderId)
+      return;
 
-    const options = getOverlayOptions(theme);
+    const options = getOverlayOptions(
+      theme,
+      userBucket === projectBucket ? conversationsFolderId : undefined
+    );
 
     const newOverlay = new ChatOverlay(containerRef.current, options);
 
@@ -246,11 +283,25 @@ export function useOverlay(containerRef: RefObject<HTMLDivElement>) {
 
       setOverlay(null);
     };
-  }, [containerRef, theme]);
+  }, [
+    containerRef,
+    theme,
+    shouldInitOverlay,
+    conversationsFolderId,
+    userBucket,
+    projectBucket,
+  ]);
 
   // Set sheets state from the current project into the system prompt, so the gpt knows about sheets
   useEffect(() => {
-    if (!overlay || !projectSheets || !sheetName || !projectName || !gridApi)
+    if (
+      !shouldInitOverlay ||
+      !overlay ||
+      !projectSheets ||
+      !sheetName ||
+      !projectName ||
+      !gridApi
+    )
       return;
 
     const sheets: { [key: string]: string } = {};
@@ -262,11 +313,28 @@ export function useOverlay(containerRef: RefObject<HTMLDivElement>) {
     const handleUpdate = () => {
       const selection = gridApi.selection$.getValue();
 
+      const currentProjectName = encodeApiUrl(
+        constructPath(['files', projectBucket, projectPath, projectName])
+      );
+
+      const inputFolder = encodeApiUrl(
+        constructPath([
+          constructPath([
+            'files',
+            projectBucket,
+            projectFoldersRootPrefix,
+            projectPath,
+            projectName,
+          ]),
+        ])
+      );
+
       const state = {
         sheets,
         inputs,
+        inputFolder,
         currentSheet: sheetName,
-        currentProjectName: projectName,
+        currentProjectName,
         selection,
         selectedTableName: selectedCell?.tableName,
       };
@@ -274,16 +342,29 @@ export function useOverlay(containerRef: RefObject<HTMLDivElement>) {
       overlay.setSystemPrompt(JSON.stringify(state));
     };
 
-    handleUpdate();
+    try {
+      handleUpdate();
+    } catch (error) {
+      // avoid localhost unhandled errors
+    }
 
     const subscription = gridApi.selection$
       .pipe(debounceTime(selectionUpdateDebounceTime))
-      .subscribe(handleUpdate);
+      .subscribe(() => {
+        try {
+          handleUpdate();
+        } catch (error) {
+          // avoid localhost unhandled errors
+        }
+      });
 
     return () => {
       subscription.unsubscribe();
     };
   }, [
+    shouldInitOverlay,
+    projectBucket,
+    projectPath,
     projectSheets,
     overlay,
     inputs,
@@ -291,7 +372,6 @@ export function useOverlay(containerRef: RefObject<HTMLDivElement>) {
     projectName,
     gridApi,
     selectedCell,
-    canvasSpreadsheetMode,
   ]);
 
   return { GPTSuggestions, lastStageCompleted };

@@ -1,9 +1,9 @@
+import { WorksheetState } from '@frontend/common';
 import {
   escapeTableName,
+  SheetReader,
   unescapeTableName,
-  WorksheetState,
-} from '@frontend/common';
-import { SheetReader } from '@frontend/parser';
+} from '@frontend/parser';
 
 import { createUniqueName } from './createUniqueName';
 
@@ -90,7 +90,7 @@ export const getAllTableNames = (projectSheets: WorksheetState[] | null) => {
       const parsedSheet = SheetReader.parseSheet(sheet.content);
 
       tableNames = tableNames.concat(
-        parsedSheet.tables.map((table) => table.tableName)
+        parsedSheet.tables.map((table) => unescapeTableName(table.tableName))
       );
     } catch (error) {
       /* empty */

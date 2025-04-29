@@ -6,7 +6,13 @@ export type ToolBarProps = {
   moveMode: boolean;
   zoom: number;
   onLoadMoreKeys: (tableName: string, fieldName: string) => void;
-  onSelectKey: (tableName: string, fieldName: string, key: string) => void;
+  onSelectKey: (
+    tableName: string,
+    fieldName: string,
+    key: string | string[],
+    isNoDataKey?: boolean
+  ) => void;
+  onSelectChart: () => void;
 };
 
 export type ToolBarSelectProps = {
@@ -14,5 +20,10 @@ export type ToolBarSelectProps = {
   zoom: number;
   chartConfig: ChartConfig;
   onLoadMoreKeys: (tableName: string, fieldName: string) => void;
-  onSelectKey: (tableName: string, fieldName: string, key: string) => void;
+  onSelectKey: (
+    tableName: string,
+    fieldName: string,
+    key: string | string[],
+    isNoDataKey?: boolean
+  ) => void;
 };

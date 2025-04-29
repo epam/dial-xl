@@ -4,7 +4,7 @@ import { checkAndWrapExpression, ParsedSheets } from '@frontend/parser';
 import { autoFixFieldNames } from './autoFixFieldNames';
 import { autoFixTableNames } from './autoFixTableNames';
 import { functionsToUppercase } from './functionsToUppercase';
-import { getTableFields } from './getTableFields';
+import { getTableFields } from './sheetUtils';
 
 export function autoFixSingleExpression(
   expression: string,

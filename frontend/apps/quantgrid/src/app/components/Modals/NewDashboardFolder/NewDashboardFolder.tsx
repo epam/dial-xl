@@ -19,13 +19,13 @@ import {
   shouldStopPropagation,
 } from '@frontend/common';
 
-import { ModalRefFunction } from '../../../common';
+import { NewFolderModalRefFunction } from '../../../common';
 import { DashboardContext } from '../../../context';
 import { createUniqueName } from '../../../services';
 import { isEntityNameInvalid } from '../../../utils';
 
 type Props = {
-  newFolderModal: { current: ModalRefFunction | null };
+  newFolderModal: { current: NewFolderModalRefFunction | null };
 };
 
 const defaultFolderName = 'New folder';
@@ -34,6 +34,9 @@ export function NewDashboardFolder({ newFolderModal }: Props) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
   const inputRef = useRef<InputRef | null>(null);
+
+  const pathRef = useRef<string | null>(null);
+  const bucketRef = useRef<string | null>(null);
 
   const { displayedDashboardItems, createEmptyFolder } =
     useContext(DashboardContext);
@@ -49,14 +52,25 @@ export function NewDashboardFolder({ newFolderModal }: Props) {
     setNewFolderName(uniqueFolderName);
   }, [displayedDashboardItems]);
 
-  const showModal = useCallback(() => {
-    setIsModalOpen(true);
-    suggestFolderName();
-  }, [suggestFolderName]);
+  const showModal: NewFolderModalRefFunction = useCallback(
+    ({ path, bucket }: { path: string | null; bucket: string }) => {
+      pathRef.current = path;
+      bucketRef.current = bucket;
+
+      setIsModalOpen(true);
+      suggestFolderName();
+    },
+    [suggestFolderName]
+  );
 
   const handleOk = useCallback(() => {
-    if (newFolderName) {
-      createEmptyFolder({ newFolderName, silent: true });
+    if (newFolderName && bucketRef.current) {
+      createEmptyFolder({
+        path: pathRef.current,
+        bucket: bucketRef.current,
+        newFolderName,
+        silent: true,
+      });
     }
     setIsModalOpen(false);
     setNewFolderName('');

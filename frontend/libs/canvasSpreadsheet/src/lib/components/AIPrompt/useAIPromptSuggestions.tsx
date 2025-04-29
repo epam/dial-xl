@@ -72,7 +72,7 @@ export const useAIPromptSuggestions = ({
           isPrompt: true,
           icon: (
             <Icon
-              className="text-textSecondary stroke-textSecondary w-[18px]"
+              className="text-textSecondary w-[18px]"
               component={() => <TableIcon />}
             />
           ),
@@ -86,7 +86,7 @@ export const useAIPromptSuggestions = ({
           isPrompt: true,
           icon: (
             <Icon
-              className="text-textSecondary stroke-textSecondary w-[18px]"
+              className="text-textSecondary w-[18px]"
               component={() => <BugOffIcon />}
             />
           ),
@@ -110,7 +110,7 @@ export const useAIPromptSuggestions = ({
               isPrompt: true,
               icon: (
                 <Icon
-                  className="stroke-textSecondary text-textSecondary w-[18px]"
+                  className="text-textSecondary w-[18px]"
                   component={() => <EditIcon />}
                 />
               ),
@@ -143,6 +143,7 @@ export const useAIPromptSuggestions = ({
               component={() => <CheckIcon />}
             />
           ),
+          shortcut: shortcutApi.getLabel(Shortcut.AcceptAIPromptResult),
           onClick: async () => {
             onAccept();
           },
@@ -237,7 +238,7 @@ export const useAIPromptSuggestions = ({
           label: 'Type new message',
           icon: (
             <Icon
-              className="stroke-textSecondary w-[18px]"
+              className="text-textSecondary w-[18px]"
               component={() => <EditIcon />}
             />
           ),

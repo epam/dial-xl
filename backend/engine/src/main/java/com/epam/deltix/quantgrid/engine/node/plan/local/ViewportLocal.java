@@ -8,14 +8,8 @@ import com.epam.deltix.quantgrid.engine.node.expression.Expression;
 import com.epam.deltix.quantgrid.engine.node.plan.Plan;
 import com.epam.deltix.quantgrid.engine.node.plan.Plan0;
 import com.epam.deltix.quantgrid.engine.value.Column;
-import com.epam.deltix.quantgrid.engine.value.DoubleColumn;
-import com.epam.deltix.quantgrid.engine.value.PeriodSeriesColumn;
-import com.epam.deltix.quantgrid.engine.value.StringColumn;
 import com.epam.deltix.quantgrid.engine.value.Table;
-import com.epam.deltix.quantgrid.engine.value.local.DoubleLambdaColumn;
 import com.epam.deltix.quantgrid.engine.value.local.LocalTable;
-import com.epam.deltix.quantgrid.engine.value.local.PeriodSeriesLambdaColumn;
-import com.epam.deltix.quantgrid.engine.value.local.StringLambdaColumn;
 import com.epam.deltix.quantgrid.parser.ParsedKey;
 import lombok.Getter;
 import org.jetbrains.annotations.Nullable;
@@ -62,7 +56,7 @@ public class ViewportLocal extends Plan0<Table> {
 
     @Override
     protected Plan layout() {
-        return this;
+        return getSource().getLayout();
     }
 
     @Override
@@ -73,30 +67,8 @@ public class ViewportLocal extends Plan0<Table> {
     @Override
     public Table execute() {
         Expression expression = expression(0);
-        Column column = expression.evaluate();
-
-        long max = column.size();
-        long offset = Math.min(start, max);
-        long size = Math.min(end, max) - offset;
-
-        Column result = viewport(column, offset, size);
+        Column result = expression.evaluate();
         return new LocalTable(result);
-    }
-
-    private static Column viewport(Column column, long offset, long size) {
-        if (column instanceof DoubleColumn doubles) {
-            return new DoubleLambdaColumn(index -> doubles.get(offset + index), size);
-        }
-
-        if (column instanceof StringColumn strings) {
-            return new StringLambdaColumn(index -> strings.get(offset + index), size);
-        }
-
-        if (column instanceof PeriodSeriesColumn series) {
-            return new PeriodSeriesLambdaColumn(index -> series.get(offset + index), size);
-        }
-
-        throw new IllegalArgumentException("Unsupported type: " + column.getClass());
     }
 
     @Override

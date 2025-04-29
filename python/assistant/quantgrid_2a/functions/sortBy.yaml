@@ -1,0 +1,7 @@
+name: sortBy
+description: Sort array entries by lambdas results
+signature: 'array<T>.sortBy((element: T) => primitive, ...) => array<T>'
+manual: >-
+  `sortBy` sorts array by ascending order defined by applying provided lambdas to every array element.
+  Variadic number of lambdas can be provided, in such case, every lambda define sorting orders (first provided lambda
+  defines major sorting order). Lambda must return primitive type.

@@ -28,9 +28,9 @@ public class StringDirectColumn implements StringColumn {
 
     @Override
     public String[] toArray() {
-        Object[] elements = values.elements();
-        if (values.size() == elements.length) {
-            return values.elements();
+        Object[] elements = values.elements(); // could return String[] or Object[]
+        if (values.size() == elements.length && elements instanceof String[] array) {
+            return array;
         } else {
             return values.toArray(String[]::new);
         }

@@ -1,5 +1,6 @@
 import { Dropdown, MenuProps } from 'antd';
 import cx from 'classnames';
+import classNames from 'classnames';
 import {
   Fragment,
   useCallback,
@@ -31,6 +32,7 @@ const BreadcrumbTemplate = ({
     <span
       className={cx(
         'flex gap-1 items-center shrink',
+        isLast && 'min-w-[120px] overflow-hidden',
         (!isLast || breadcrumb.dropdownItems) &&
           'hover:text-textPrimary cursor-pointer',
         !isLast ? 'text-textSecondary' : 'text-textPrimary'
@@ -43,7 +45,10 @@ const BreadcrumbTemplate = ({
         <Icon className="w-[14px]" component={() => breadcrumb.icon} />
       )}
       <span
-        className="inline-block truncate max-w-[120px]"
+        className={classNames(
+          'inline-block truncate',
+          !isLast && 'max-w-[120px]'
+        )}
         title={breadcrumb.name}
       >
         {breadcrumb.dropdownItems ? (
@@ -144,7 +149,7 @@ export const Breadcrumbs = ({
 
   return (
     <div
-      className={cx('overflow-hidden relative', classNames)}
+      className={cx('shrink-0 overflow-hidden relative', classNames)}
       ref={(el) => {
         parentRef.current = el;
         if (el === null) {
@@ -156,7 +161,7 @@ export const Breadcrumbs = ({
     >
       {/* Element for width calculation */}
       <div
-        className="absolute invisible flex gap-1 items-center max-w-[calc(100%-12px)]"
+        className="absolute invisible flex gap-1 items-center max-w-[calc(100%-12px)] overflow-hidden"
         ref={ref}
       >
         {breadcrumbs.map((breadcrumb, index) => (

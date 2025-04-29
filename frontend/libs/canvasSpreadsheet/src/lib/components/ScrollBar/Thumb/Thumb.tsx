@@ -8,9 +8,10 @@ import {
   useState,
 } from 'react';
 
-import { Graphics, useTick } from '@pixi/react';
+import { Graphics } from '@pixi/react';
 
 import { GridStateContext, GridViewportContext } from '../../../context';
+import { useDraw } from '../../../hooks';
 import { Rectangle, ScrollBarDirection } from '../../../types';
 import {
   calculateExponent,
@@ -25,6 +26,7 @@ type Props = {
 
 export function Thumb({ direction }: Props) {
   const {
+    isPanModeEnabled,
     gridHeight,
     gridWidth,
     fullHeight,
@@ -37,7 +39,7 @@ export function Thumb({ direction }: Props) {
     useContext(GridViewportContext);
 
   const graphicsRef = useRef<PIXI.Graphics>(null);
-  const isThumbHovered = useRef(false);
+  const [isThumbHovered, setIsThumbHovered] = useState(false);
   const mouseClickOffset = useRef<number | undefined>();
 
   const isHorizontal = direction === 'horizontal';
@@ -76,20 +78,33 @@ export function Thumb({ direction }: Props) {
     gridSizes.scrollBar.arrowWrapperSize
   );
 
-  const onMouseOver = useCallback((e: PIXI.FederatedPointerEvent) => {
-    isThumbHovered.current = true;
-  }, []);
+  const onMouseOver = useCallback(
+    (e: PIXI.FederatedPointerEvent) => {
+      if (isPanModeEnabled) return;
 
-  const onMouseOut = useCallback((e: PIXI.FederatedPointerEvent) => {
-    isThumbHovered.current = false;
-  }, []);
+      setIsThumbHovered(true);
+    },
+    [isPanModeEnabled]
+  );
+
+  const onMouseOut = useCallback(
+    (e: PIXI.FederatedPointerEvent) => {
+      if (isPanModeEnabled) return;
+
+      setIsThumbHovered(false);
+    },
+    [isPanModeEnabled]
+  );
 
   const onMouseDown = useCallback(
     (e: PIXI.FederatedPointerEvent) => {
+      if (isPanModeEnabled) return;
+
+      document.body.style.pointerEvents = 'none';
       mouseClickOffset.current =
         (isHorizontal ? e.screen.x : e.screen.y) - thumbPosition;
     },
-    [isHorizontal, thumbPosition]
+    [isHorizontal, isPanModeEnabled, thumbPosition]
   );
 
   const onMouseMove = useCallback(
@@ -129,6 +144,7 @@ export function Thumb({ direction }: Props) {
   );
 
   const onMouseUp = useCallback(() => {
+    document.body.style.pointerEvents = 'auto';
     mouseClickOffset.current = undefined;
   }, []);
 
@@ -168,7 +184,7 @@ export function Thumb({ direction }: Props) {
     (rect: Rectangle, g: PIXI.Graphics) => {
       g.clear()
         .beginFill(
-          isThumbHovered.current
+          isThumbHovered
             ? theme.scrollBar.thumbColorHovered
             : theme.scrollBar.thumbColor,
           1
@@ -181,10 +197,10 @@ export function Thumb({ direction }: Props) {
           gridSizes.scrollBar.thumbBorderRadius
         );
     },
-    [gridSizes, theme]
+    [gridSizes, isThumbHovered, theme]
   );
 
-  useTick(() => {
+  const draw = useCallback(() => {
     if (!graphicsRef.current) return;
 
     graphicsRef.current.clear();
@@ -205,7 +221,17 @@ export function Thumb({ direction }: Props) {
     };
 
     drawThumb(rect, graphicsRef.current);
-  }, true);
+  }, [
+    direction,
+    drawThumb,
+    gridHeight,
+    gridSizes,
+    gridWidth,
+    thumbPosition,
+    thumbWidth,
+  ]);
+
+  useDraw(draw);
 
   useEffect(() => {
     return gridViewportSubscriber.current.subscribe(() => {

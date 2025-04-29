@@ -11,6 +11,8 @@ config();
 const baseURL =
   process.env['BASE_URL'] || 'https://quantgrid-dev.staging.deltixhub.io/'; //'http://localhost:4200';
 
+const workersCount = parseInt(process.env['WORKER_COUNT'] || '4');
+
 /**
  * See https://playwright.dev/docs/test-configuration.
  */
@@ -19,11 +21,12 @@ export default defineConfig({
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   reporter: [['list'], ['allure-playwright']],
   fullyParallel: false,
-  workers: 4,
+  workers: workersCount,
   use: {
+    actionTimeout: 20000,
     baseURL,
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
-    trace: 'on-first-retry',
+    trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
     contextOptions: {
@@ -32,9 +35,10 @@ export default defineConfig({
       },
     },
   },
-  timeout: 120000,
+  retries: process.env.CI ? 1 : 0,
+  timeout: 60000,
   expect: {
-    timeout: 10000,
+    timeout: 20000,
   },
   /* Run your local dev server before starting the tests */ // webServer: {
   //   command: 'npm run start',

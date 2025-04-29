@@ -4,19 +4,21 @@ import { PanelName } from '../common';
 import { ProjectContext } from '../context';
 
 export function usePanelStatusBar() {
-  const { sheetErrors, compilationErrors } = useContext(ProjectContext);
+  const { sheetErrors, compilationErrors, runtimeErrors } =
+    useContext(ProjectContext);
 
   const isSheetErrors = sheetErrors && sheetErrors.length > 0;
   const isCompilationErrors = compilationErrors && compilationErrors.length > 0;
+  const isRuntimeErrors = runtimeErrors && runtimeErrors.length > 0;
 
   const showErrorNotification = useCallback(
     (panelName: PanelName) => {
       return !!(
         panelName === PanelName.Errors &&
-        (isSheetErrors || isCompilationErrors)
+        (isSheetErrors || isCompilationErrors || isRuntimeErrors)
       );
     },
-    [isCompilationErrors, isSheetErrors]
+    [isCompilationErrors, isRuntimeErrors, isSheetErrors]
   );
 
   return {

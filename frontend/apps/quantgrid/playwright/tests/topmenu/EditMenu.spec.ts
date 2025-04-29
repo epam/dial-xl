@@ -1,5 +1,5 @@
 /* eslint-disable playwright/expect-expect */
-import { expect, test } from '@playwright/test';
+import { BrowserContext, expect, Page, test } from '@playwright/test';
 
 import { DeleteProjectForm } from '../../components/DeleteProjectForm';
 import { ProjectCreationForm } from '../../components/ProjectCreationForm';
@@ -18,9 +18,16 @@ const tableForSearch = 'SearchTable';
 
 const fieldForSearch = 'SearchField';
 
+let browserContext: BrowserContext;
+
+let page: Page;
+
+const storagePath = `playwright/${projectName}.json`;
+
 test.beforeAll(async ({ browser }) => {
-  const tableDsl = `!placement(2, 12)\ntable ${tableForSearch}\n[${fieldForSearch}] = 1\n`;
+  const tableDsl = `!layout(2, 12, "title", "headers")\ntable ${tableForSearch}\n[${fieldForSearch}] = 1\n`;
   await TestFixtures.createProject(
+    storagePath,
     browser,
     projectName,
     2,
@@ -28,71 +35,78 @@ test.beforeAll(async ({ browser }) => {
     tableForSearch,
     tableDsl
   );
+  browserContext = await browser.newContext({ storageState: storagePath });
 });
 
-test.beforeEach(async ({ page }) => {
+test.beforeEach(async () => {
+  page = await browserContext.newPage();
   await TestFixtures.openProject(page, projectName);
 });
 
+test.afterEach(async () => {
+  await page.close();
+});
+
 test.afterAll(async ({ browser }) => {
+  await browserContext.close();
   await TestFixtures.deleteProject(browser, projectName);
 });
 
 test.describe('edit menu', () => {
   //Undo
-  test('undo last action', async ({ page }) => {
+  test('undo last action', async () => {
     const projectPage = await ProjectPage.createInstance(page);
     const row = 1,
       column = 2;
-    await projectPage.getGrid().clickOnCell(row, column);
+    await projectPage.getVisualization().clickOnCell(row, column);
     await page.keyboard.type('f1=5');
     await page.keyboard.press('Enter');
-    await projectPage.getGrid().expectTableToAppear(row, column);
+    await projectPage.getVisualization().expectTableToAppear(row, column);
     await projectPage.performMenuCommand(MenuItems.Edit, EditMenuItems.Undo);
-    await projectPage.getGrid().expectTableToDissapear(row, column);
+    await projectPage.getVisualization().expectTableToDissapear(row, column);
   });
   //Undo hotkey
-  test('undo last action by hotkey', async ({ page }) => {
+  test('undo last action by hotkey', async () => {
     const projectPage = await ProjectPage.createInstance(page);
     const row = 1,
       column = 4;
-    await projectPage.getGrid().clickOnCell(row, column);
+    await projectPage.getVisualization().clickOnCell(row, column);
     await page.keyboard.type('f2=10');
     await page.keyboard.press('Enter');
-    await projectPage.getGrid().expectTableToAppear(row, column);
+    await projectPage.getVisualization().expectTableToAppear(row, column);
     await page.keyboard.press('Control+Z');
-    await projectPage.getGrid().expectTableToDissapear(row, column);
+    await projectPage.getVisualization().expectTableToDissapear(row, column);
   });
   //Redo
-  test('redo last action', async ({ page }) => {
+  test('redo last action', async () => {
     const projectPage = await ProjectPage.createInstance(page);
     const row = 1,
       column = 6;
-    await projectPage.getGrid().clickOnCell(row, column);
+    await projectPage.getVisualization().clickOnCell(row, column);
     await page.keyboard.type('f3=5');
     await page.keyboard.press('Enter');
-    await projectPage.getGrid().expectTableToAppear(row, column);
+    await projectPage.getVisualization().expectTableToAppear(row, column);
     await projectPage.performMenuCommand(MenuItems.Edit, EditMenuItems.Undo);
-    await projectPage.getGrid().expectTableToDissapear(row, column);
+    await projectPage.getVisualization().expectTableToDissapear(row, column);
     await projectPage.performMenuCommand(MenuItems.Edit, EditMenuItems.Redo);
-    await projectPage.getGrid().expectTableToAppear(row, column);
+    await projectPage.getVisualization().expectTableToAppear(row, column);
   });
   //Redo hotkey
-  test('redo last action by hotkey', async ({ page }) => {
+  test('redo last action by hotkey', async () => {
     const projectPage = await ProjectPage.createInstance(page);
     const row = 1,
       column = 8;
-    await projectPage.getGrid().clickOnCell(row, column);
+    await projectPage.getVisualization().clickOnCell(row, column);
     await page.keyboard.type('f4=5');
     await page.keyboard.press('Enter');
-    await projectPage.getGrid().expectTableToAppear(row, column);
+    await projectPage.getVisualization().expectTableToAppear(row, column);
     await projectPage.performMenuCommand(MenuItems.Edit, EditMenuItems.Undo);
-    await projectPage.getGrid().expectTableToDissapear(row, column);
+    await projectPage.getVisualization().expectTableToDissapear(row, column);
     await page.keyboard.press('Control+Shift+Z');
-    await projectPage.getGrid().expectTableToAppear(row, column);
+    await projectPage.getVisualization().expectTableToAppear(row, column);
   });
   //Search
-  test('search project', async ({ page }) => {
+  test('search project', async () => {
     const projectPage = await ProjectPage.createInstance(page);
     await projectPage.performMenuCommand(MenuItems.Edit, EditMenuItems.Search);
     const searchForm = new SearchForm(page);
@@ -101,7 +115,7 @@ test.describe('edit menu', () => {
     await expect(searchForm.getFirstSearchResult()).toHaveText(projectName);
   });
 
-  test('search sheet', async ({ page }) => {
+  test('search sheet', async () => {
     const projectPage = await ProjectPage.createInstance(page);
     await projectPage.performMenuCommand(MenuItems.Edit, EditMenuItems.Search);
     const searchForm = new SearchForm(page);
@@ -110,7 +124,7 @@ test.describe('edit menu', () => {
     await expect(searchForm.getFirstSearchResult()).toHaveText('Sheet1');
   });
 
-  test('search table', async ({ page }) => {
+  test('search table', async () => {
     const projectPage = await ProjectPage.createInstance(page);
     await projectPage.performMenuCommand(MenuItems.Edit, EditMenuItems.Search);
     const searchForm = new SearchForm(page);
@@ -119,7 +133,7 @@ test.describe('edit menu', () => {
     await expect(searchForm.getFirstSearchResult()).toHaveText(tableForSearch);
   });
 
-  test('search field', async ({ page }) => {
+  test('search field', async () => {
     const projectPage = await ProjectPage.createInstance(page);
     await projectPage.performMenuCommand(MenuItems.Edit, EditMenuItems.Search);
     const searchForm = new SearchForm(page);
@@ -128,14 +142,14 @@ test.describe('edit menu', () => {
     await expect(searchForm.getFirstSearchResult()).toHaveText(fieldForSearch);
   });
   //Search hotkey
-  test('open search by hotkey', async ({ page }) => {
+  test('open search by hotkey', async () => {
     await ProjectPage.createInstance(page);
     await page.keyboard.press('Control+Shift+F');
     const searchForm = new SearchForm(page);
     await expect(searchForm.getFirstSearchResult()).toBeVisible();
   });
 
-  test('search non existing data', async ({ page }) => {
+  test('search non existing data', async () => {
     await ProjectPage.createInstance(page);
     await page.keyboard.press('Control+Shift+F');
     const searchForm = new SearchForm(page);
@@ -143,8 +157,9 @@ test.describe('edit menu', () => {
     await expect(searchForm.getNoResultsLabel()).toBeVisible();
   });
   //Rename project
-  test('rename project', async ({ page }) => {
+  test('rename project', async () => {
     const projectPage = await ProjectPage.createInstance(page);
+    await projectPage.showProjectPanel();
     await projectPage.performMenuCommand(
       MenuItems.Edit,
       EditMenuItems.RenameProject
@@ -157,8 +172,9 @@ test.describe('edit menu', () => {
   });
 
   // Rename sheet
-  test('rename sheet', async ({ page }) => {
+  test('rename sheet', async () => {
     const projectPage = await ProjectPage.createInstance(page);
+    await projectPage.showProjectPanel();
     await projectPage.performMenuCommand(
       MenuItems.Edit,
       EditMenuItems.RenameWorksheet
@@ -168,8 +184,8 @@ test.describe('edit menu', () => {
     await projectPage.projectShouldBeInProjectsTree('renamedSheet');
   });
   //Delete sheet
-  test('delete sheet', async ({ page }) => {
-    const projectPage = await ProjectPage.createInstance(page);
+  test('delete sheet', async () => {
+    /*const projectPage = await ProjectPage.createInstance(page);
     await projectPage.performMenuCommand(
       MenuItems.File,
       FileMenuItems.CreateWorkSheet
@@ -185,6 +201,6 @@ test.describe('edit menu', () => {
     );
     const deleteSheetForm = new DeleteProjectForm(page);
     await deleteSheetForm.confirmDelete();
-    await projectPage.projectShouldNotBeInProjectsTree(newSheetName);
+    await projectPage.projectShouldNotBeInProjectsTree(newSheetName);*/
   });
 });

@@ -4,11 +4,16 @@ import { useAuth } from 'react-oidc-context';
 import { parse as yamlParse, stringify as yamlStringify } from 'yaml';
 
 import {
+  AIHint,
   apiMessages,
+  CompileRequest,
+  dialAIHintsFileName,
   dialProjectFileExtension,
   DimensionalSchemaRequest,
   DimensionalSchemaResponse,
+  DownloadRequest,
   emptyFileName,
+  filesEndpointPrefix,
   FilesMetadata,
   FunctionInfo,
   FunctionsRequest,
@@ -27,7 +32,9 @@ import { FileReference } from '../common';
 import { ApiContext, defaultSheetName } from '../context';
 import { createUniqueFileName, getApiUrl } from '../services';
 import {
+  collectFilesFromProject,
   constructPath,
+  decodeApiUrl,
   displayToast,
   encodeApiUrl,
   mapProjectToQGDialProject,
@@ -89,7 +96,7 @@ export const useApiRequests = () => {
   >(
     async ({ name, bucket, path }) => {
       try {
-        const url = `/v1/files/${encodeApiUrl(
+        const url = `${filesEndpointPrefix}/${encodeApiUrl(
           `${bucket}/${path ? path + '/' : ''}${name}`
         )}`;
         const res = await sendDialRequest(url, { method: 'get' });
@@ -423,7 +430,9 @@ export const useApiRequests = () => {
 
         const res = await sendDialRequest(
           encodeApiUrl(
-            `/v1/files/${bucket}/${path ? path + '/' : ''}${fileName}`
+            `${filesEndpointPrefix}/${bucket}/${
+              path ? path + '/' : ''
+            }${fileName}`
           ),
           {
             method: 'PUT',
@@ -497,7 +506,9 @@ export const useApiRequests = () => {
       try {
         const res = await sendDialRequest(
           encodeApiUrl(
-            `/v1/files/${bucket}/${path ? path + '/' : ''}${fileName}`
+            `${filesEndpointPrefix}/${bucket}/${
+              path ? path + '/' : ''
+            }${fileName}`
           ),
           {
             method: 'DELETE',
@@ -555,7 +566,7 @@ export const useApiRequests = () => {
           try {
             const fileUrl = encodeApiUrl(
               constructPath([
-                '/v1/files',
+                filesEndpointPrefix,
                 file.bucket,
                 file.parentPath,
                 file.name,
@@ -667,6 +678,104 @@ export const useApiRequests = () => {
     [createFile, createFolder]
   );
 
+  const getAIHintsContent = useCallback<
+    ApiRequestFunction<
+      Pick<FileReference, 'bucket' | 'path'> & { suppressErrors?: boolean },
+      { json: AIHint[]; version: string }
+    >
+  >(
+    async ({ bucket, path = '', suppressErrors = false }) => {
+      try {
+        const res = await sendDialRequest(
+          encodeApiUrl(
+            constructPath([
+              filesEndpointPrefix,
+              bucket,
+              path,
+              dialAIHintsFileName,
+            ])
+          )
+        );
+
+        if (!res.ok) {
+          if (!suppressErrors) {
+            displayToast('error', apiMessages.getAIHintsServer);
+          }
+
+          return;
+        }
+
+        const result = await res.json();
+        const version = res.headers.get('Etag') ?? '';
+
+        return { json: result, version };
+      } catch {
+        if (!suppressErrors) {
+          displayToast('error', apiMessages.getAIHintsClient);
+        }
+      }
+    },
+    [sendDialRequest]
+  );
+
+  const putAIHintsContent = useCallback<
+    ApiRequestFunction<
+      Pick<FileReference, 'bucket' | 'path'> & {
+        hints: AIHint[];
+        version?: string;
+      },
+      { version: string }
+    >
+  >(
+    async ({ bucket, path = '', hints, version }) => {
+      try {
+        const data = JSON.stringify(hints);
+        const file = new File([data], dialAIHintsFileName, {
+          type: 'application/json',
+        });
+        const formData = new FormData();
+        formData.append('attachment', file);
+
+        const res = await sendDialRequest(
+          encodeApiUrl(
+            `${filesEndpointPrefix}/${bucket}/${
+              path ? path + '/' : ''
+            }${dialAIHintsFileName}`
+          ),
+          {
+            method: 'PUT',
+            body: formData,
+            headers: version
+              ? {
+                  'If-Match': version,
+                }
+              : undefined,
+          }
+        );
+
+        if (!res.ok) {
+          if (res.status === 412) {
+            displayToast('error', apiMessages.putAIHintsVersion);
+          } else if (res.status === 403) {
+            displayToast('error', apiMessages.putAIHintsForbidden);
+          } else {
+            displayToast('error', apiMessages.putAIHintsServer);
+          }
+
+          return;
+        }
+        const resultVersion = res.headers.get('Etag') ?? '';
+
+        return {
+          version: resultVersion,
+        };
+      } catch {
+        displayToast('error', apiMessages.putAIHintsClient);
+      }
+    },
+    [sendDialRequest]
+  );
+
   const getProject = useCallback<
     ApiRequestFunction<FileReference, ProjectState>
   >(
@@ -675,7 +784,7 @@ export const useApiRequests = () => {
         const res = await sendDialRequest(
           encodeApiUrl(
             constructPath([
-              '/v1/files',
+              filesEndpointPrefix,
               bucket,
               path,
               name + dialProjectFileExtension,
@@ -720,7 +829,7 @@ export const useApiRequests = () => {
 
         const res = await sendDialRequest(
           encodeApiUrl(
-            `/v1/files/${projectData.bucket}/${
+            `${filesEndpointPrefix}/${projectData.bucket}/${
               projectData.path ? projectData.path + '/' : ''
             }${projectData.projectName}${dialProjectFileExtension}`
           ),
@@ -767,7 +876,7 @@ export const useApiRequests = () => {
         // TODO: check escaping
         const res = await sendDialRequest(
           encodeApiUrl(
-            `/v1/files/${bucket}/${
+            `${filesEndpointPrefix}/${bucket}/${
               path ? path + '/' : ''
             }${name}${dialProjectFileExtension}`
           ),
@@ -951,8 +1060,8 @@ export const useApiRequests = () => {
   const cloneFile = useCallback<
     ApiRequestFunction<
       FileReference & {
-        targetPath?: string;
-        targetBucket?: string;
+        targetPath: string | null;
+        targetBucket: string;
         suppressErrors?: boolean;
       },
       unknown
@@ -962,8 +1071,8 @@ export const useApiRequests = () => {
       bucket,
       name,
       path,
-      targetPath = path,
-      targetBucket = bucket,
+      targetPath,
+      targetBucket,
       suppressErrors = false,
     }) => {
       try {
@@ -1314,8 +1423,8 @@ export const useApiRequests = () => {
     ApiRequestFunction<
       FileReference & {
         suppressErrors?: boolean;
-        targetPath?: string | null;
-        targetBucket?: string;
+        targetPath: string | null;
+        targetBucket: string;
       },
       { newClonedProjectName: string }
     >
@@ -1325,8 +1434,8 @@ export const useApiRequests = () => {
       name,
       path,
       suppressErrors,
-      targetPath = path,
-      targetBucket = bucket,
+      targetPath,
+      targetBucket,
     }) => {
       try {
         const folderPath = `${targetBucket}/${
@@ -1336,31 +1445,49 @@ export const useApiRequests = () => {
           path: folderPath,
         });
 
-        const projectFileBlob = await getFileBlob({ name, bucket, path });
+        const projectName = name.replace(dialProjectFileExtension, '');
+        const project = await getProject({ name: projectName, bucket, path });
 
-        if (!projectFileBlob || !allFiles || !userBucket) {
+        if (!project || !allFiles || !userBucket) {
           displayToast('error', apiMessages.cloneFileServer);
 
           return undefined;
         }
-
-        const projectFile = new File([projectFileBlob], name);
-        const targetFileName = createUniqueFileName(
+        const targetProjectFileName = createUniqueFileName(
           name,
           allFiles
             .filter((f) => f.nodeType !== 'FOLDER')
             .map((file) => file.name)
         );
+        const targetProjectName = targetProjectFileName.replace(
+          dialProjectFileExtension,
+          ''
+        );
 
-        const createProjectRes = await createFile({
+        const updatedProjectSheets = updateFilesPathInputsInProject(
+          project.sheets,
+          constructPath([bucket, projectFoldersRootPrefix, path, projectName]),
+          constructPath([
+            targetBucket,
+            projectFoldersRootPrefix,
+            targetPath,
+            targetProjectName,
+          ])
+        );
+
+        const createdProjectRes = await createProject({
+          projectName: targetProjectName,
           bucket: targetBucket,
           path: targetPath,
-          fileName: targetFileName,
-          fileType: projectFile.type,
-          fileBlob: projectFile,
+          initialProjectData: updatedProjectSheets.reduce((acc, curr) => {
+            acc[curr.sheetName] = curr.content;
+
+            return acc;
+          }, {} as Record<string, string>),
+          skipFolderCreation: true,
         });
 
-        if (!createProjectRes) {
+        if (!createdProjectRes) {
           if (!suppressErrors) {
             displayToast('error', apiMessages.cloneProjectServer);
           }
@@ -1368,7 +1495,30 @@ export const useApiRequests = () => {
           return undefined;
         }
 
-        const projectName = name.replace(dialProjectFileExtension, '');
+        const projectFilesFromSheets = (collectFilesFromProject(
+          project.sheets.map((sheet) => sheet.content)
+        )
+          ?.map((url) => {
+            const [filesPathSegment, bucket, ...pathWithName] =
+              decodeApiUrl(url).split('/');
+            const parentPath = pathWithName
+              .slice(0, pathWithName.length - 1)
+              .join('/');
+            const name = pathWithName[pathWithName.length - 1];
+
+            if (!name || !bucket || !filesPathSegment) return null;
+
+            return {
+              bucket,
+              parentPath,
+              name,
+            };
+          })
+          .filter(Boolean) ?? []) as Pick<
+          FilesMetadata,
+          'bucket' | 'parentPath' | 'name'
+        >[];
+
         const projectFiles =
           (await getFiles({
             path:
@@ -1383,19 +1533,32 @@ export const useApiRequests = () => {
           })) ?? [];
 
         if (!projectFiles) {
-          if (suppressErrors) return { newClonedProjectName: targetFileName };
+          if (suppressErrors)
+            return { newClonedProjectName: targetProjectName };
 
           displayToast('error', apiMessages.cloneProjectServer);
 
           return undefined;
         }
 
-        const targetProjectName = targetFileName.replace(
-          dialProjectFileExtension,
-          ''
+        const projectFilesFullPaths = projectFiles.map((file) =>
+          constructPath([file.bucket, file.parentPath, file.name])
         );
+        const projectFilesUniqueInSheets = projectFilesFromSheets.filter(
+          (file) => {
+            const fullPath = constructPath([
+              file.bucket,
+              file.parentPath,
+              file.name,
+            ]);
 
-        for (const file of projectFiles) {
+            return !projectFilesFullPaths.includes(fullPath);
+          }
+        );
+        const projectFilesToClone =
+          projectFilesUniqueInSheets.concat(projectFiles);
+
+        for (const file of projectFilesToClone) {
           await cloneFile({
             bucket: file.bucket,
             name: file.name,
@@ -1409,31 +1572,31 @@ export const useApiRequests = () => {
           });
         }
 
-        return { newClonedProjectName: targetFileName };
+        return { newClonedProjectName: targetProjectName };
       } catch (e) {
         if (!suppressErrors) displayToast('error', apiMessages.cloneFileClient);
 
         return;
       }
     },
-    [cloneFile, createFile, getFileBlob, getFiles, userBucket]
+    [cloneFile, createProject, getFiles, getProject, userBucket]
   );
 
   const getViewport = useCallback<
     ApiRequestFunction<
       {
-        projectName: string;
+        projectPath: string;
         viewports: Viewport[];
         worksheets: Record<string, string>;
       },
       Response
     >
   >(
-    async ({ projectName, viewports, worksheets }) => {
+    async ({ projectPath, viewports, worksheets }) => {
       try {
         const body = JSON.stringify({
           calculateWorksheetsRequest: {
-            project_name: projectName,
+            project_name: projectPath,
             viewports,
             worksheets,
             includeCompilation: true,
@@ -1463,6 +1626,88 @@ export const useApiRequests = () => {
         return res;
       } catch {
         displayToast('error', apiMessages.computationClient);
+      }
+    },
+    [sendAuthorizedRequest]
+  );
+
+  const getCompileInfo = useCallback<
+    ApiRequestFunction<
+      {
+        worksheets: Record<string, string>;
+      },
+      Response
+    >
+  >(
+    async ({ worksheets }) => {
+      try {
+        const body = JSON.stringify({
+          compileWorksheetsRequest: {
+            worksheets,
+          },
+        } as CompileRequest);
+
+        const res = await sendAuthorizedRequest(`/v1/compile`, {
+          method: 'post',
+          body,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (res.status === 401) {
+          displayToast('error', apiMessages.compileForbidden);
+
+          return;
+        }
+
+        return res;
+      } catch {
+        displayToast('error', apiMessages.compileClient);
+      }
+    },
+    [sendAuthorizedRequest]
+  );
+
+  const downloadTableBlob = useCallback<
+    ApiRequestFunction<
+      {
+        projectPath: string;
+        worksheets: Record<string, string>;
+        table: string;
+        columns: string[];
+      },
+      Blob
+    >
+  >(
+    async ({ projectPath, table, columns, worksheets }) => {
+      try {
+        const body = JSON.stringify({
+          downloadRequest: {
+            project: projectPath,
+            table,
+            columns,
+            sheets: worksheets,
+          },
+        } as DownloadRequest);
+
+        const res = await sendAuthorizedRequest(`/v1/download`, {
+          method: 'post',
+          body,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (!res.ok) {
+          displayToast('error', apiMessages.downloadTableServer);
+
+          return;
+        }
+
+        return res.blob();
+      } catch {
+        displayToast('error', apiMessages.downloadTableClient);
       }
     },
     [sendAuthorizedRequest]
@@ -1569,7 +1814,11 @@ export const useApiRequests = () => {
         }
 
         return res;
-      } catch {
+      } catch (e) {
+        // This error appears when browser tries to cancel pending request, handle it on level above
+        if (e instanceof TypeError && e.message === 'Failed to fetch') {
+          throw e;
+        }
         displayToast('error', apiMessages.subscribeToProjectClient);
       }
     },
@@ -1591,6 +1840,7 @@ export const useApiRequests = () => {
     deleteProject,
 
     downloadFiles,
+    downloadTableBlob,
     getBucket,
     getDimensionalSchema,
     getFileNotifications,
@@ -1603,6 +1853,7 @@ export const useApiRequests = () => {
     getUserFiles,
     getUserProjects: getFlatUserProjects,
     getViewport,
+    getCompileInfo,
 
     moveFile,
     moveProject,
@@ -1617,5 +1868,8 @@ export const useApiRequests = () => {
     sendAuthorizedRequest,
     sendDialRequest,
     shareFiles,
+
+    getAIHintsContent,
+    putAIHintsContent,
   };
 };

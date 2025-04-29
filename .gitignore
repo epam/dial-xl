@@ -3,8 +3,8 @@
 .vscode/
 __pycache__/
 build/
+out/
 dist/
 api/backend/python/xl-client/dial_xl/model/api_pb2.py
 backend/web/src/main/resources/application-local.yaml
-
 .DS_Store

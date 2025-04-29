@@ -55,7 +55,7 @@ export const SelectFolderInput = ({
           title={`${rootFolderLabel}${path ? `/${path}` : ''}`}
           onClick={() => setIsSelectFolderOpen(true)}
         >
-          <span className="overflow-ellipsis text-nowrap shrink overflow-hidden">
+          <span className="overflow-ellipsis text-nowrap shrink overflow-hidden text-textPrimary">
             {[rootFolderLabel, pathLabel].filter(Boolean).join('/')}
           </span>
           <span className="text-textAccentPrimary">{changeLabel}</span>

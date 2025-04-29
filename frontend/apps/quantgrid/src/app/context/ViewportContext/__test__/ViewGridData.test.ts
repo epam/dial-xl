@@ -36,12 +36,11 @@ describe('ViewGridData', () => {
         chunks: {},
         fallbackChunks: {},
 
-        maxKnownRowIndex: 0,
-
         nestedColumnNames: new Set(),
         isDynamicFieldsRequested: false,
 
         total: {},
+        totalRows: 0,
         types: {},
         columnReferenceTableNames: {},
 
@@ -313,6 +312,7 @@ describe('ViewGridData', () => {
         data: dynamicFields,
         endRow: '4',
         startRow: '0',
+        totalRows: '4',
         isNested: false,
         errorMessage: '',
         type: ColumnDataType.STRING,
@@ -413,7 +413,7 @@ describe('ViewGridData', () => {
     it('should show tables from actual data', () => {
       // Arrange
       const dsl = `
-      !placement(5, 5)
+      !layout(5, 5, "title", "headers")
       table this_table
         [f1] = 1
         [f2] = 2
@@ -421,7 +421,7 @@ describe('ViewGridData', () => {
         [f4] = 4
         [f5] = 4
 
-      !placement(10, 10)
+      !layout(10, 10, "title", "headers")
       table another_table
         [somef] = 1
         [wtf1] = 2
@@ -431,6 +431,12 @@ describe('ViewGridData', () => {
       const { columnUpdates, tablesWithData } = generateTablesWithData(dsl, {
         rowCount: 100,
       });
+      const viewport = {
+        startRow: 0,
+        startCol: 0,
+        endRow: 100,
+        endCol: 100,
+      };
 
       // Act
       tablesWithData.forEach(({ table }) => {
@@ -444,7 +450,7 @@ describe('ViewGridData', () => {
       );
 
       // Assert
-      const gridData = viewGridData.toGridData();
+      const gridData = viewGridData.toGridData(viewport);
 
       tablesWithData.forEach(({ table, data }) => {
         const [startRow, startCol] = table.getPlacement();
@@ -472,7 +478,7 @@ describe('ViewGridData', () => {
     it('should show tables from fallback data', () => {
       // Arrange
       const dsl = `
-      !placement(5, 5)
+      !layout(5, 5, "title", "headers")
       table this_table
         [f1] = 1
         [f2] = 2
@@ -480,7 +486,7 @@ describe('ViewGridData', () => {
         [f4] = 4
         [f5] = 4
 
-      !placement(10, 10)
+      !layout(10, 10, "title", "headers")
       table another_table
         [somef] = 1
         [wtf1] = 2
@@ -490,6 +496,12 @@ describe('ViewGridData', () => {
       const { columnUpdates, tablesWithData } = generateTablesWithData(dsl, {
         rowCount: 100,
       });
+      const viewport = {
+        startRow: 0,
+        startCol: 0,
+        endRow: 100,
+        endCol: 100,
+      };
 
       // Act
       tablesWithData.forEach(({ table }) => {
@@ -507,7 +519,7 @@ describe('ViewGridData', () => {
       );
 
       // Assert
-      const gridData = viewGridData.toGridData();
+      const gridData = viewGridData.toGridData(viewport);
 
       tablesWithData.forEach(({ table, data }) => {
         const [startRow, startCol] = table.getPlacement();
@@ -535,7 +547,7 @@ describe('ViewGridData', () => {
     it('should show table data from actual and from fallback data', () => {
       // Arrange
       const dsl = `
-      !placement(5, 5)
+      !layout(5, 5, "title", "headers")
       table this_table
         [f1] = 1
         [f2] = 2
@@ -543,7 +555,7 @@ describe('ViewGridData', () => {
         [f4] = 4
         [f5] = 4
 
-      !placement(10, 10)
+      !layout(10, 10, "title", "headers")
       table another_table
         [somef] = 1
         [wtf1] = 2
@@ -553,6 +565,12 @@ describe('ViewGridData', () => {
       const { columnUpdates, tablesWithData } = generateTablesWithData(dsl, {
         rowCount: 100,
       });
+      const viewport = {
+        startRow: 0,
+        startCol: 0,
+        endRow: 100,
+        endCol: 100,
+      };
 
       const firstBatch = columnUpdates.filter(
         (_, index) => index < columnUpdates.length / 2
@@ -580,7 +598,7 @@ describe('ViewGridData', () => {
       );
 
       // Assert
-      const gridData = viewGridData.toGridData();
+      const gridData = viewGridData.toGridData(viewport);
 
       tablesWithData.forEach(({ table, data }) => {
         const [startRow, startCol] = table.getPlacement();

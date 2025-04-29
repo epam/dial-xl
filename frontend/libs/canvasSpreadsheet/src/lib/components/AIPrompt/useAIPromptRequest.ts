@@ -55,7 +55,7 @@ export const useAIPromptRequests = ({
       if (!responseId) return;
 
       try {
-        await sendDialRequest(`/v1/${qgBotDeploymentName}/rate`, {
+        await sendDialRequest(`/v1/${encodeURI(qgBotDeploymentName)}/rate`, {
           body: JSON.stringify({ rate: true, responseId }),
           method: 'POST',
           headers: {
@@ -72,7 +72,7 @@ export const useAIPromptRequests = ({
   const sendDislike = useCallback(
     async (responseId: string | undefined) => {
       try {
-        await sendDialRequest(`/v1/${qgBotDeploymentName}/rate`, {
+        await sendDialRequest(`/v1/${encodeURI(qgBotDeploymentName)}/rate`, {
           body: JSON.stringify({ rate: false, responseId }),
           method: 'POST',
           headers: {
@@ -103,7 +103,9 @@ export const useAIPromptRequests = ({
           userMessage,
         ];
         const res = await sendDialRequest(
-          `/openai/deployments/${qgBotDeploymentName}/chat/completions?api-version=2024-02-15-preview`,
+          `/openai/deployments/${encodeURI(
+            qgBotDeploymentName
+          )}/chat/completions?api-version=2024-02-15-preview`,
           {
             body: JSON.stringify({ stream: true, messages }),
             method: 'POST',

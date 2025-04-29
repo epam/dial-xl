@@ -46,7 +46,7 @@ public class CompiledRowTable extends CompiledAbstractTable {
             result = new CompiledSimpleColumn(expression, List.of());
         }
 
-        return context.projectQueryResult(this, result);
+        return context.projectQueryResult(this, result, field);
     }
 
     @Override

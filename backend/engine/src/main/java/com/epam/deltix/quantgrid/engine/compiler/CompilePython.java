@@ -40,8 +40,6 @@ public class CompilePython {
             return compilePythonExpression(context, code, name, args, result);
         }
 
-        CompileUtil.verify(context.promotedTable == null,
-                "Python function with list arguments is not allowed to use within another formula");
         return compilePythonPlan(context, code, name, args, result);
     }
 
@@ -52,6 +50,7 @@ public class CompilePython {
         IntArrayList simplePositions = new IntArrayList();
 
         List<CompiledNestedColumn> nestedArgs = new ArrayList<>();
+        List<CompiledSimpleColumn> simpleArgs = new ArrayList<>();
         List<FieldKey> dimensions = List.of();
 
         for (int i = 0; i < argumentTypes.size(); i++) {
@@ -64,24 +63,21 @@ public class CompilePython {
                 nestedArgs.add(argument);
                 nestedPositions.add(i);
             } else {
-                dimensions = context.combine(dimensions, context.collectArgument(i));
+                ResultValidator<CompiledSimpleColumn> validator = SimpleColumnValidators.forType(type.columnType());
+                CompiledSimpleColumn argument = context.compileArgument(i, validator);
+                dimensions = context.combine(dimensions, argument.dimensions());
+                simpleArgs.add(argument);
                 simplePositions.add(i);
             }
         }
 
         CompiledTable layout = context.currentTable(dimensions);
-        CompileContext nested = context.with(layout, false);
-
         List<Plan.Source> sources = new ArrayList<>();
         List<Expression> expressions = new ArrayList<>();
 
-        for (int i : simplePositions) {
-            ColumnType type = argumentTypes.get(i).columnType();
-            ResultValidator<CompiledSimpleColumn> validator = SimpleColumnValidators.forType(type);
-            CompiledSimpleColumn column = nested.compileArgument(i, validator);
-            column = nested.promote(column, dimensions).cast(CompiledSimpleColumn.class);
-            Expression expression = column.node();
-            expressions.add(expression);
+        for (CompiledSimpleColumn arg : simpleArgs) {
+            arg = context.promote(arg, dimensions).cast(CompiledSimpleColumn.class);
+            expressions.add(arg.node());
         }
 
         sources.add(Plan.sourceOf(layout.node(), expressions));
@@ -90,8 +86,8 @@ public class CompilePython {
             CompiledNestedColumn column = context.promote(arg, dimensions).cast(CompiledNestedColumn.class);
             Plan plan = column.node();
             List<Expression> keyValue = column.hasCurrentReference()
-                    ? List.of(column.currentReference(), column.flat().node())
-                    : List.of(column.flat().node());
+                    ? List.of(column.currentReference(), column.expression())
+                    : List.of(column.expression());
 
             sources.add(Plan.sourceOf(plan, keyValue));
         }
@@ -111,16 +107,21 @@ public class CompilePython {
         List<ResultValidator<CompiledColumn>> validators = argumentTypes.stream()
                 .map(type -> SimpleOrNestedValidators.forType(type.columnType())).toList();
 
-        List<CompiledColumn> arguments = CompileFunction.compileExpressions(context, validators);
-        List<CompiledSimpleColumn> flatArguments = context.flattenArguments(arguments);
-        List<Expression> expressions = flatArguments.stream().map(CompiledSimpleColumn::node).toList();
-        List<FieldKey> dimensions = arguments.isEmpty() ? List.of() : arguments.get(0).dimensions();
-
+        List<CompiledColumn> arguments = CompileFunction.compileArgs(context, validators);
+        List<Expression> expressions = arguments.stream().map(CompiledColumn::expression).toList();
         ColumnType type = resultType.columnType();
-        Plan layout = arguments.isEmpty() ? context.layout(dimensions).node() : arguments.get(0).node().getLayout();
-        PythonExpression expression = new PythonExpression(layout, expressions, code, name, type);
 
-        return context.nestResultIfNeeded(expression, arguments, dimensions);
+        if (arguments.isEmpty()) {
+            List<FieldKey> dimensions =  List.of();
+            Plan layout = context.layout(dimensions).node();
+            PythonExpression expression = new PythonExpression(layout, expressions, code, name, type);
+            return new CompiledSimpleColumn(expression, dimensions);
+        }
+
+        CompiledColumn first = arguments.get(0);
+        Plan layout = first.node().getLayout();
+        PythonExpression expression = new PythonExpression(layout, expressions, code, name, type);
+        return first.transform(ignore -> expression);
     }
 
     private ResultType type(String type) {

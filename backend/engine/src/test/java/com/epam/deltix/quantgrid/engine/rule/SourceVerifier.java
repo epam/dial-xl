@@ -7,12 +7,14 @@ import com.epam.deltix.quantgrid.engine.node.expression.Expression;
 import com.epam.deltix.quantgrid.engine.node.expression.PythonExpression;
 import com.epam.deltix.quantgrid.engine.node.plan.Plan;
 import com.epam.deltix.quantgrid.engine.node.plan.Scalar;
+import com.epam.deltix.quantgrid.engine.node.plan.local.InLocal;
 import com.epam.deltix.quantgrid.engine.node.plan.local.Projection;
 import com.epam.deltix.quantgrid.engine.node.plan.local.SelectLocal;
 import org.junit.jupiter.api.Assertions;
 
 import java.util.ArrayDeque;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Queue;
 import java.util.Set;
 
@@ -45,8 +47,16 @@ public class SourceVerifier implements Rule {
                         continue;
                     }
 
-                    // it has layout just to return it, will fix it later
-                    if (input instanceof PythonExpression expression) {
+                    if (input instanceof InLocal expression) {
+                        List<Node> inputs = expression.getInputs();
+
+                        for (Node in : inputs.subList(0, inputs.size() / 2)) {
+                            if (in instanceof Expression && visited.add(in)) {
+                                queue.add(in);
+                            }
+                        }
+                    } else if (input instanceof PythonExpression expression) {
+                        // it has layout just to return it, will fix it later
                         for (Node in : expression.getInputs()) {
                             if (in instanceof Expression && visited.add(in)) {
                                 queue.add(in);

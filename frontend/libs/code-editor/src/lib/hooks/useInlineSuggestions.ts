@@ -14,6 +14,7 @@ import {
 import { CodeEditorPlace } from '../types';
 
 type Props = {
+  isEnabled: boolean;
   monaco?: Monaco;
   codeEditorPlace: CodeEditorPlace;
   disableHelpers: boolean;
@@ -27,6 +28,7 @@ type Props = {
 const debounceDelay = 500;
 
 export function useInlineSuggestions({
+  isEnabled,
   codeEditorPlace,
   disableHelpers,
   monaco,
@@ -46,6 +48,8 @@ export function useInlineSuggestions({
   } | null>(null);
 
   useEffect(() => {
+    if (!isEnabled) return;
+
     if (!monaco) return;
 
     let inlineCompletionsEmpty = true;
@@ -173,6 +177,7 @@ export function useInlineSuggestions({
     currentTableName,
     currentFieldName,
     disableHelpers,
+    isEnabled,
   ]);
 
   return null;

@@ -111,6 +111,7 @@ export interface ColumnData {
 
   startRow: string;
   endRow: string;
+  totalRows: string;
 
   data: string[];
 
@@ -141,7 +142,7 @@ export interface DimensionalSchemaResponse {
     errorMessage?: string;
     schema: string[];
     keys: string[];
-    fieldInfo: FieldInfo;
+    fieldInfo?: FieldInfo;
   };
 }
 
@@ -208,13 +209,35 @@ export interface ViewportRequest {
   };
 }
 
+interface CompileResult {
+  compilationErrors?: CompilationError[];
+  sheets?: {
+    name: string;
+    parsingErrors: ParsingError[];
+  }[];
+  fieldInfo?: FieldInfo[];
+}
+
 export interface ViewportResponse {
   columnData: ColumnData;
-  compileResult?: {
-    compilationErrors?: CompilationError[];
-    sheets?: {
-      name: string;
-      parsingErrors: ParsingError[];
-    }[];
+  compileResult?: CompileResult;
+}
+
+export interface CompileRequest {
+  compileWorksheetsRequest: {
+    worksheets: Record<string, string>;
+  };
+}
+
+export interface CompileResponse {
+  compileResult: CompileResult;
+}
+
+export interface DownloadRequest {
+  downloadRequest: {
+    project: string;
+    sheets: Record<string, string>;
+    table: string;
+    columns: string[];
   };
 }

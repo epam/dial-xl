@@ -52,7 +52,7 @@ public class CompiledReferenceTable extends CompiledAbstractTable {
         }
 
         CompiledResult result = context.field(name, field, true);
-        return context.projectQueryResult(this, result);
+        return context.projectQueryResult(this, result, field);
     }
 
     @Override

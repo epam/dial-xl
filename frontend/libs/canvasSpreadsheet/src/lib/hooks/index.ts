@@ -11,3 +11,5 @@ export * from './useSelection';
 export * from './useSelectionEvents';
 export * from './useSelectionMoveNextAvailable';
 export * from './useShortcuts';
+export * from './usePan';
+export * from './useDraw';

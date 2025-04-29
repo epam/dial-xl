@@ -58,7 +58,11 @@ public class TestExecutor {
     }
 
     public static ResultCollector executeWithoutErrors(String dsl) {
-        ResultCollector collector = executeWithoutProjections(dsl);
+        return executeWithoutErrors(dsl, false);
+    }
+
+    public static ResultCollector executeWithoutErrors(String dsl, boolean withProjections) {
+        ResultCollector collector = execute(dsl, withProjections);
         assertThat(collector.getErrors()).as("No errors are expected").isEmpty();
         return collector;
     }
@@ -91,8 +95,8 @@ public class TestExecutor {
         return (ResultCollector) engine.getListener();
     }
 
-    public static ResultCollector executeWithoutProjections(String dsl) {
-        Engine engine = singleThreadEngine();
+    public static ResultCollector execute(String dsl, boolean withProjections) {
+        Engine engine = singleThreadEngine(withProjections);
 
         validateSheet(dsl);
         CompletableFuture<Void> computationFuture = engine.compute(dsl, null);

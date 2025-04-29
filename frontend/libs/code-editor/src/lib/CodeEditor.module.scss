@@ -19,13 +19,7 @@
 }
 
 :global(.arrow-background) {
-  background-color: #fcfcfc;
-}
-:global(.theme-dark .arrow-background) {
-  background-color: #222932;
-}
-:global(.theme-dark-mixed .arrow-background) {
-  background-color: #222932;
+  background-color: var(--bg-layer-3);
 }
 
 // Function description widget
@@ -58,7 +52,7 @@
   padding-bottom: 4px;
 }
 :global(.parameter-hints-widget .body .docs) {
-  padding-left: 0px;
+  padding-left: 0;
   padding-right: 4px;
 }
 :global(.parameter-hints-widget .body .docs > *) {

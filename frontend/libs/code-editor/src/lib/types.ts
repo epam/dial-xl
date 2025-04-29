@@ -32,7 +32,9 @@ export type Suggestion = Pick<
 > &
   Partial<{ range: IRange }>;
 
-export type SetCodeRefFunction = ((code: string) => void) | null;
+export type SetCodeRefFunction =
+  | ((code: string, keepHistory?: boolean) => void)
+  | null;
 export type SetFocusRefFunction =
   | ((options?: { cursorToEnd?: boolean; cursorOffset?: number }) => void)
   | null;

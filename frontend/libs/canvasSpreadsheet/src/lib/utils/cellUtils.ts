@@ -5,15 +5,131 @@ import { GridCell } from '@frontend/common';
 import { GridSizes } from '../constants';
 import { CellStyle, Coordinates, Theme } from '../types';
 
+function drawShadows(
+  graphics: PIXI.Graphics,
+  shadow: CellStyle['shadow'],
+  x: number,
+  y: number,
+  width: number,
+  height: number
+) {
+  if (shadow?.shadowBottom) {
+    let accumulatedHeight = 0;
+    shadow.shadowBottom.forEach((currentShadow) => {
+      graphics
+        .lineStyle({ ...currentShadow, alignment: 0 })
+        .moveTo(x, y + height + accumulatedHeight)
+        .lineTo(x + width, y + height + accumulatedHeight);
+
+      accumulatedHeight += currentShadow.width ?? 1;
+    });
+  }
+  if (shadow?.shadowBottomRight) {
+    const defaultShift = shadow.shadowBottomRight[0].width ?? 1;
+    let accumulatedHeight = 0;
+    shadow.shadowBottomRight.forEach((currentShadow) => {
+      graphics
+        .lineStyle({ ...currentShadow, alignment: 0 })
+        .moveTo(x + width, y + height + accumulatedHeight)
+        .lineTo(
+          x + width + defaultShift * shadow.shadowBottomRight!.length,
+          y + height + accumulatedHeight
+        );
+
+      accumulatedHeight += currentShadow.width ?? 1;
+    });
+  }
+  if (shadow?.shadowBottomLeft) {
+    const defaultShift = shadow.shadowBottomLeft[0].width ?? 1;
+    let accumulatedHeight = 0;
+    shadow.shadowBottomLeft.forEach((currentShadow) => {
+      graphics
+        .lineStyle({ ...currentShadow, alignment: 0 })
+        .moveTo(
+          x - defaultShift * shadow.shadowBottomLeft!.length,
+          y + height + accumulatedHeight
+        )
+        .lineTo(x, y + height + accumulatedHeight);
+
+      accumulatedHeight += currentShadow.width ?? 1;
+    });
+  }
+  if (shadow?.shadowTop) {
+    const defaultShift = shadow.shadowTop[0].width ?? 1;
+    let accumulatedHeight = 0;
+    shadow.shadowTop.forEach((currentShadow) => {
+      graphics
+        .lineStyle({ ...currentShadow, alignment: 0 })
+        .moveTo(x, y - accumulatedHeight - defaultShift)
+        .lineTo(x + width, y - accumulatedHeight - defaultShift);
+
+      accumulatedHeight += currentShadow.width ?? 1;
+    });
+  }
+  if (shadow?.shadowTopRight) {
+    const defaultShift = shadow.shadowTopRight[0].width ?? 1;
+    let accumulatedHeight = 0;
+    shadow.shadowTopRight.forEach((currentShadow) => {
+      graphics
+        .lineStyle({ ...currentShadow, alignment: 0 })
+        .moveTo(x + width, y - accumulatedHeight - defaultShift)
+        .lineTo(
+          x + width + defaultShift * shadow.shadowTopRight!.length,
+          y - accumulatedHeight - defaultShift
+        );
+
+      accumulatedHeight += currentShadow.width ?? 1;
+    });
+  }
+  if (shadow?.shadowTopLeft) {
+    const defaultShift = shadow.shadowTopLeft[0].width ?? 1;
+    let accumulatedHeight = 0;
+    shadow.shadowTopLeft.forEach((currentShadow, index) => {
+      graphics
+        .lineStyle({ ...currentShadow, alignment: 0 })
+        .moveTo(
+          x - defaultShift * shadow.shadowTopLeft!.length,
+          y - accumulatedHeight - defaultShift
+        )
+        .lineTo(x, y - accumulatedHeight - defaultShift);
+
+      accumulatedHeight += currentShadow.width ?? 1;
+    });
+  }
+  if (shadow?.shadowRight) {
+    const defaultShift = shadow.shadowRight[0].width ?? 1;
+    let accumulatedWidth = 0;
+    shadow.shadowRight.forEach((currentShadow) => {
+      graphics
+        .lineStyle({ ...currentShadow, alignment: 0 })
+        .moveTo(x + width + accumulatedWidth + defaultShift, y)
+        .lineTo(x + width + accumulatedWidth + defaultShift, y + height);
+
+      accumulatedWidth += currentShadow.width ?? 1;
+    });
+  }
+  if (shadow?.shadowLeft) {
+    let accumulatedWidth = 0;
+    shadow.shadowLeft.forEach((currentShadow) => {
+      graphics
+        .lineStyle({ ...currentShadow, alignment: 0 })
+        .moveTo(x - accumulatedWidth, y)
+        .lineTo(x - accumulatedWidth, y + height);
+
+      accumulatedWidth += currentShadow.width ?? 1;
+    });
+  }
+
+  graphics.lineStyle({});
+}
+
 export function applyCellStyle(
   graphics: PIXI.Graphics,
   style: CellStyle,
   x: number,
   y: number,
   width: number,
-  height: number,
-  borderLeftXOffset = 0,
-  borderBottomYOffset = 0
+  height: number
 ): void {
   if (style.bgColor) {
     graphics.beginFill(style.bgColor).drawRect(x, y, width, height).endFill();
@@ -46,24 +162,20 @@ export function applyCellStyle(
     if (border?.borderLeft) {
       graphics
         .lineStyle({ ...border.borderLeft, alignment: 0 })
-        .moveTo(x + borderLeftXOffset, y)
-        .lineTo(x + borderLeftXOffset, y + height);
-    }
-
-    if (border?.borderBottom) {
-      graphics
-        .lineStyle({ ...border.borderBottom, alignment: 0 })
-        .moveTo(x, y + height - borderBottomYOffset)
-        .lineTo(x + width, y + height - borderBottomYOffset);
+        .moveTo(x, y)
+        .lineTo(x, y + height);
     }
 
     graphics.lineStyle({});
   }
+
+  drawShadows(graphics, style.shadow, x, y, width, height);
 }
 
 export function applyCellGraphics(
   graphics: PIXI.Graphics,
   cell: GridCell,
+  bottomCell: GridCell | undefined,
   x: number,
   y: number,
   height: number,
@@ -71,26 +183,49 @@ export function applyCellGraphics(
   theme: Theme,
   gridSizes: GridSizes
 ): void {
-  const { borderWidth, tableBorderWidth } = gridSizes.cell;
+  const { borderWidth, shadowStepWidth: shadowLineWidth } = gridSizes.cell;
   let bgColor = theme.cell.bgColor;
   const cellBorder: PIXI.ILineStyleOptions = {
     width: borderWidth,
     color: theme.cell.borderColor,
   };
-  const tableBorder: PIXI.ILineStyleOptions = {
-    width: tableBorderWidth,
-    color: theme.cell.tableBorderColor,
-    alpha: theme.cell.tableBorderAlpha,
-  };
 
-  const isLeftTableBorder = cell?.table?.startCol === cell.startCol;
-  const isBottomTableBorder = cell?.table?.endRow === cell.row;
-  const borderRight =
-    cell?.table?.endCol === cell.endCol ? tableBorder : cellBorder;
-  const borderLeft = isLeftTableBorder ? tableBorder : cellBorder;
-  const borderBottom = isBottomTableBorder ? tableBorder : cellBorder;
-  const borderTop =
-    cell?.table?.startRow === cell.row ? tableBorder : cellBorder;
+  const bottomRightShadow: PIXI.ILineStyleOptions[] = [
+    {
+      width: shadowLineWidth,
+      color: theme.tableShadow.color,
+      alpha: 0.5,
+    },
+    {
+      width: shadowLineWidth,
+      color: theme.tableShadow.color,
+      alpha: 0.35,
+    },
+  ];
+  const topLeftShadow: PIXI.ILineStyleOptions[] = [
+    {
+      width: shadowLineWidth,
+      color: theme.tableShadow.color,
+      alpha: 0.425,
+    },
+    {
+      width: shadowLineWidth,
+      color: theme.tableShadow.color,
+      alpha: 0.25,
+    },
+  ];
+
+  const isBottomTableCell =
+    bottomCell?.table?.tableName !== cell.table?.tableName;
+  const isRightTableCell = cell?.table?.endCol === cell.endCol;
+  const isTopTableCell =
+    cell?.table?.startRow === cell.row || cell.isTableHeader;
+  const isLeftTableCell =
+    cell?.table?.startCol === cell.col || cell.isTableHeader;
+  const isTopRightTableCell = isRightTableCell && isTopTableCell;
+  const isTopLeftTableCell = isLeftTableCell && isTopTableCell;
+  const isBottomRightTableCell = isRightTableCell && isBottomTableCell;
+  const isBottomLeftTableCell = isLeftTableCell && isBottomTableCell;
 
   if (cell.isTableHeader) {
     bgColor = theme.cell.tableHeaderBgColor;
@@ -104,7 +239,7 @@ export function applyCellGraphics(
 
   let diffColor;
   if (
-    cell.table?.isNewAdded ||
+    cell.table?.isChanged ||
     cell.field?.isChanged ||
     cell.isOverrideChanged
   ) {
@@ -115,25 +250,23 @@ export function applyCellGraphics(
     bgColor,
     diffColor,
     border: {
-      borderTop,
-      borderBottom,
-      borderLeft,
-      borderRight,
+      borderTop: cellBorder,
+      borderLeft: cellBorder,
+      borderRight: cellBorder,
+    },
+    shadow: {
+      shadowRight: isRightTableCell ? bottomRightShadow : undefined,
+      shadowLeft: isLeftTableCell ? topLeftShadow : undefined,
+      shadowBottom: isBottomTableCell ? bottomRightShadow : undefined,
+      shadowTop: isTopTableCell ? topLeftShadow : undefined,
+      shadowBottomRight: isBottomRightTableCell ? bottomRightShadow : undefined,
+      shadowBottomLeft: isBottomLeftTableCell ? bottomRightShadow : undefined,
+      shadowTopRight: isTopRightTableCell ? topLeftShadow : undefined,
+      shadowTopLeft: isTopLeftTableCell ? topLeftShadow : undefined,
     },
   };
 
-  const borderLeftXOffset = isLeftTableBorder ? tableBorderWidth / 2 : 0;
-  const borderBottomYOffset = isBottomTableBorder ? tableBorderWidth / 2 : 0;
-  applyCellStyle(
-    graphics,
-    cellStyle,
-    x,
-    y,
-    width,
-    height,
-    borderLeftXOffset,
-    borderBottomYOffset
-  );
+  applyCellStyle(graphics, cellStyle, x, y, width, height);
 }
 
 export function cropText(
@@ -144,15 +277,18 @@ export function cropText(
   let currentTextWidth = 0;
   let croppedText = '';
 
-  for (let i = 0; i < text.length; i++) {
+  const singleLineText = text.replaceAll('\r', '').replaceAll('\n', ' ');
+
+  for (let i = 0; i < singleLineText.length; i++) {
     if (currentTextWidth + symbolWidth > width) {
-      croppedText = croppedText.slice(0, croppedText.length - 1) + '…';
+      const prevCroppedText = croppedText.slice(0, croppedText.length - 1);
+      croppedText = prevCroppedText.length ? prevCroppedText + '…' : '';
 
       return croppedText;
     }
 
     currentTextWidth += symbolWidth;
-    croppedText += text[i];
+    croppedText += singleLineText[i];
   }
 
   return croppedText;

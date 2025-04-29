@@ -113,7 +113,7 @@ export function FileListItemMenu({
               label: 'Rename',
               icon: (
                 <Icon
-                  className="stroke-textSecondary w-[18px]"
+                  className="text-textSecondary w-[18px]"
                   component={() => <EditIcon />}
                 />
               ),
@@ -122,7 +122,7 @@ export function FileListItemMenu({
               },
             })
           : undefined,
-        !isFolder && isAbleToEdit
+        !isFolder
           ? getDropdownItem({
               key: 'clone',
               label: 'Clone',

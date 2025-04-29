@@ -20,7 +20,6 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -29,16 +28,17 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 
 class DialInputProviderTest {
+    private static final String BUCKET_URL = "/v1/bucket";
     private static final String TEST_INPUT = "files/4jrKzSGoHdx8ghxuRKKpkmtPecRdJXt6foQZzt3iGq1b/country%20-%20data.csv";
     private static final String TEST_INPUT_URL = "/v1/" + TEST_INPUT;
     private static final String TEST_INPUT_META_URL = "/v1/metadata/" + TEST_INPUT + "?permissions=true";
     private static final String TEST_SCHEMA_URL = "/v1/files/4jrKzSGoHdx8ghxuRKKpkmtPecRdJXt6foQZzt3iGq1b/.country%20-%20data.schema";
     private static final String TEST_SCHEMA_OLD_CONTENT = """
-            {"columns":{"country":"STRING","date":"DATE","GDP":"DOUBLE","IR":"DOUBLE"},"etag":"test-etag"}""";
+            {"version":1,"timestamp":123,"columns":{"country":"STRING","date":"DATE","GDP":"DOUBLE","IR":"DOUBLE"},"etag":"test-etag"}""";
     private static final String TEST_SCHEMA_CONTENT = """
-            {"columns":{"country":"STRING","date":"DATE","GDP":"DOUBLE","IR":"DOUBLE"},"etag":"test-etag","error":null}""";
+            {"version":1,"timestamp":123,"columns":{"country":"STRING","date":"DATE","GDP":"DOUBLE","IR":"DOUBLE"},"etag":"test-etag","error":null}""";
     private static final String TEST_INVALID_SCHEMA_CONTENT = """
-            {"columns":null,"etag":"test-etag","error":"Expected 4 values per row, but was: 5"}""";
+            {"version":1,"timestamp":123,"columns":null,"etag":"test-etag","error":"The document doesn't have headers."}""";
     private static final String TEST_INPUT_CONTENT = """
             country,date,GDP,IR
             USA,2021-01-01,21060,
@@ -48,22 +48,14 @@ class DialInputProviderTest {
             EU,2021-01-01,13085,7
             EU,2022-01-01,,6.1
             """;
-    private static final String TEST_INVALID_INPUT_CONTENT = """
-            country,date,GDP,IR
-            USA,2021-01-01,21060,2.5,onemorecolumn
-            USA,2022-01-01,23315,4.9
-            China,2021-01-01,14688,0.1
-            China,2022-01-01,17734,0.2
-            EU,2021-01-01,13085,7
-            EU,2022-01-01,,6.1
-            """;
     private static final String TEST_INPUT_ETAG = "test-etag";
     private static final InputMetadata TEST_INPUT_METADATA = new InputMetadata(
-            TEST_INPUT, TEST_INPUT, TEST_INPUT_ETAG, InputType.CSV, new LinkedHashMap<>(Map.of(
-            "country", ColumnType.STRING,
-            "date", ColumnType.DATE,
-            "GDP", ColumnType.DOUBLE,
-            "IR", ColumnType.DOUBLE)));
+            TEST_INPUT, TEST_INPUT, TEST_INPUT_ETAG, InputType.CSV, new LinkedHashMap<>() {{
+                put("country", ColumnType.STRING);
+                put("date", ColumnType.DATE);
+                put("GDP", ColumnType.DOUBLE);
+                put("IR", ColumnType.DOUBLE);
+            }});
     private static final ApiKeyAuthenticationToken TEST_PRINCIPAL = new ApiKeyAuthenticationToken("test-api-key");
 
     @Test
@@ -73,7 +65,7 @@ class DialInputProviderTest {
             server.enqueue(new MockResponse().setHeader("ETag", TEST_INPUT_ETAG).setBody(TEST_INPUT_CONTENT));
 
             List<String> readColumns = List.of("country", "date", "GDP", "IR");
-            DialInputProvider inputProvider = new DialInputProvider(dialFileApi);
+            DialInputProvider inputProvider = new DialInputProvider(dialFileApi, "test.json");
 
             LocalTable actual = inputProvider.readData(readColumns, TEST_INPUT_METADATA, TEST_PRINCIPAL);
 
@@ -105,10 +97,15 @@ class DialInputProviderTest {
                     }
                     """));
             server.enqueue(new MockResponse().setResponseCode(404));
+            server.enqueue(new MockResponse().setBody("""
+                    {
+                        "bucket": "4jrKzSGoHdx8ghxuRKKpkmtPecRdJXt6foQZzt3iGq1b"
+                    }
+                    """));
             server.enqueue(new MockResponse().setHeader("ETag", TEST_INPUT_ETAG).setBody(TEST_INPUT_CONTENT));
             server.enqueue(new MockResponse());
 
-            DialInputProvider inputProvider = new DialInputProvider(dialFileApi);
+            DialInputProvider inputProvider = new DialInputProvider(dialFileApi, "test.json");
 
             InputMetadata inputMetadata = inputProvider.readMetadata(TEST_INPUT, TEST_PRINCIPAL);
 
@@ -124,6 +121,11 @@ class DialInputProviderTest {
             assertEquals("GET", getSchemaRequest.getMethod());
             assertEquals(TEST_PRINCIPAL.getApiKey(), getSchemaRequest.getHeader("api-key"));
 
+            RecordedRequest getBucketRequest = server.takeRequest();
+            assertEquals(BUCKET_URL, getBucketRequest.getPath());
+            assertEquals("GET", getBucketRequest.getMethod());
+            assertEquals(TEST_PRINCIPAL.getApiKey(), getBucketRequest.getHeader("api-key"));
+
             RecordedRequest getInputRequest = server.takeRequest();
             assertEquals(TEST_INPUT_URL, getInputRequest.getPath());
             assertEquals("GET", getInputRequest.getMethod());
@@ -133,7 +135,8 @@ class DialInputProviderTest {
             assertEquals(TEST_SCHEMA_URL, putSchemaRequest.getPath());
             assertEquals("PUT", putSchemaRequest.getMethod());
             assertEquals(TEST_PRINCIPAL.getApiKey(), putSchemaRequest.getHeader("api-key"));
-            assertTrue(putSchemaRequest.getBody().readString(StandardCharsets.UTF_8).contains(TEST_SCHEMA_CONTENT));
+            assertTrue(putSchemaRequest.getBody().readString(StandardCharsets.UTF_8).contains(
+                    TEST_SCHEMA_CONTENT.substring(TEST_SCHEMA_CONTENT.indexOf("\"columns\":"))));
             assertTrue(putSchemaRequest.getHeader("content-type").contains("multipart/form-data"));
         }
     }
@@ -150,7 +153,7 @@ class DialInputProviderTest {
                     """));
             server.enqueue(new MockResponse().setBody(TEST_SCHEMA_CONTENT));
 
-            DialInputProvider inputProvider = new DialInputProvider(dialFileApi);
+            DialInputProvider inputProvider = new DialInputProvider(dialFileApi, "test.json");
 
             InputMetadata inputMetadata = inputProvider.readMetadata(TEST_INPUT, TEST_PRINCIPAL);
 
@@ -183,7 +186,7 @@ class DialInputProviderTest {
             server.enqueue(new MockResponse().setHeader("ETag", TEST_INPUT_ETAG).setBody(TEST_INPUT_CONTENT));
             server.enqueue(new MockResponse());
 
-            DialInputProvider inputProvider = new DialInputProvider(dialFileApi);
+            DialInputProvider inputProvider = new DialInputProvider(dialFileApi, "test.json");
 
             InputMetadata inputMetadata = inputProvider.readMetadata(TEST_INPUT, TEST_PRINCIPAL);
 
@@ -208,7 +211,8 @@ class DialInputProviderTest {
             assertEquals(TEST_SCHEMA_URL, putSchemaRequest.getPath());
             assertEquals("PUT", putSchemaRequest.getMethod());
             assertEquals(TEST_PRINCIPAL.getApiKey(), putSchemaRequest.getHeader("api-key"));
-            assertTrue(putSchemaRequest.getBody().readString(StandardCharsets.UTF_8).contains(TEST_SCHEMA_CONTENT));
+            assertTrue(putSchemaRequest.getBody().readString(StandardCharsets.UTF_8).contains(
+                    TEST_SCHEMA_CONTENT.substring(TEST_SCHEMA_CONTENT.indexOf("\"columns\":"))));
             assertTrue(putSchemaRequest.getHeader("content-type").contains("multipart/form-data"));
         }
     }
@@ -222,7 +226,7 @@ class DialInputProviderTest {
                         "permissions": ["READ"]
                     }
                     """));
-            DialInputProvider inputProvider = new DialInputProvider(dialFileApi);
+            DialInputProvider inputProvider = new DialInputProvider(dialFileApi, "test.json");
 
             Exception exception = assertThrows(
                     NullPointerException.class, () -> inputProvider.readMetadata(TEST_INPUT, TEST_PRINCIPAL));
@@ -249,7 +253,7 @@ class DialInputProviderTest {
                     """));
             server.enqueue(new MockResponse().setBody(TEST_SCHEMA_OLD_CONTENT));
 
-            DialInputProvider inputProvider = new DialInputProvider(dialFileApi);
+            DialInputProvider inputProvider = new DialInputProvider(dialFileApi, "test.json");
             InputMetadata inputMetadata = inputProvider.readMetadata(TEST_INPUT, TEST_PRINCIPAL);
 
             assertEquals(TEST_INPUT_METADATA, inputMetadata);
@@ -267,16 +271,21 @@ class DialInputProviderTest {
                     }
                     """));
             server.enqueue(new MockResponse().setResponseCode(404));
-            server.enqueue(new MockResponse().setHeader("ETag", TEST_INPUT_ETAG).setBody(TEST_INVALID_INPUT_CONTENT));
+            server.enqueue(new MockResponse().setBody("""
+                    {
+                        "bucket": "4jrKzSGoHdx8ghxuRKKpkmtPecRdJXt6foQZzt3iGq1b"
+                    }
+                    """));
+            server.enqueue(new MockResponse().setHeader("ETag", TEST_INPUT_ETAG).setBody(""));
             server.enqueue(new MockResponse());
 
-            DialInputProvider inputProvider = new DialInputProvider(dialFileApi);
+            DialInputProvider inputProvider = new DialInputProvider(dialFileApi, "test.json");
 
             InvalidInputException exception = Assertions.assertThrows(InvalidInputException.class,
                     () -> inputProvider.readMetadata(TEST_INPUT, TEST_PRINCIPAL));
 
-            Assertions.assertEquals(exception.getEtag(), TEST_INPUT_ETAG);
-            Assertions.assertEquals(exception.getMessage(), "Expected 4 values per row, but was: 5");
+            assertEquals(TEST_INPUT_ETAG, exception.getEtag());
+            assertEquals("The document doesn't have headers.", exception.getMessage());
 
             RecordedRequest getAttributesRequest = server.takeRequest();
             assertEquals(TEST_INPUT_META_URL, getAttributesRequest.getPath());
@@ -286,6 +295,10 @@ class DialInputProviderTest {
             assertEquals(TEST_SCHEMA_URL, getSchemaRequest.getPath());
             assertEquals("GET", getSchemaRequest.getMethod());
 
+            RecordedRequest getBucketRequest = server.takeRequest();
+            assertEquals(BUCKET_URL, getBucketRequest.getPath());
+            assertEquals("GET", getBucketRequest.getMethod());
+
             RecordedRequest getInputRequest = server.takeRequest();
             assertEquals(TEST_INPUT_URL, getInputRequest.getPath());
             assertEquals("GET", getInputRequest.getMethod());
@@ -293,7 +306,8 @@ class DialInputProviderTest {
             RecordedRequest putSchemaRequest = server.takeRequest();
             assertEquals(TEST_SCHEMA_URL, putSchemaRequest.getPath());
             assertEquals("PUT", putSchemaRequest.getMethod());
-            assertTrue(putSchemaRequest.getBody().readString(StandardCharsets.UTF_8).contains(TEST_INVALID_SCHEMA_CONTENT));
+            assertTrue(putSchemaRequest.getBody().readString(StandardCharsets.UTF_8).contains(
+                    TEST_INVALID_SCHEMA_CONTENT.substring(TEST_INVALID_SCHEMA_CONTENT.indexOf("\"columns\":"))));
 
             server.enqueue(new MockResponse().setBody("""
                     {
@@ -306,8 +320,8 @@ class DialInputProviderTest {
             InvalidInputException exception2 = Assertions.assertThrows(InvalidInputException.class,
                     () -> inputProvider.readMetadata(TEST_INPUT, TEST_PRINCIPAL));
 
-            Assertions.assertEquals(exception2.getEtag(), TEST_INPUT_ETAG);
-            Assertions.assertEquals(exception2.getMessage(), "Expected 4 values per row, but was: 5");
+            assertEquals(TEST_INPUT_ETAG, exception2.getEtag());
+            assertEquals("The document doesn't have headers.", exception2.getMessage());
 
             RecordedRequest getAttributesRequest2 = server.takeRequest();
             assertEquals(TEST_INPUT_META_URL, getAttributesRequest2.getPath());
@@ -317,7 +331,7 @@ class DialInputProviderTest {
             assertEquals(TEST_SCHEMA_URL, getSchemaRequest2.getPath());
             assertEquals("GET", getSchemaRequest2.getMethod());
 
-            Assertions.assertEquals(6, server.getRequestCount(), "Some requests are not asserted");
+            Assertions.assertEquals(7, server.getRequestCount(), "Some requests are not asserted");
         }
     }
 

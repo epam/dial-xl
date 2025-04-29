@@ -1,7 +1,11 @@
-import { compareTableNames, escapeTableName } from '@frontend/common';
-import { findTableNameInExpression, SheetReader } from '@frontend/parser';
+import { compareTableNames } from '@frontend/common';
+import {
+  escapeTableName,
+  findTableNameInExpression,
+  SheetReader,
+} from '@frontend/parser';
 
-import { TableFields } from './getTableFields';
+import { TableFields } from './sheetUtils';
 
 export function autoFixTableNames(
   expression: string,

@@ -1,0 +1,80 @@
+[tool.poetry]
+name = "dial_xl"
+version = "0.1.4"
+description = ""
+authors = ["Alexey Klimov <alexey_klimov@epam.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+pydantic = "^2.7.1"
+protobuf = "3.20.*"
+aiohttp = "^3.9.5"
+ruamel-yaml = "^0.18.6"
+
+[tool.poetry.group.dev.dependencies]
+nox = "^2023.4.22"
+
+[tool.poetry.group.test.dependencies]
+pytest = "^8.2.0"
+pytest-asyncio = "^0.23.6"
+
+[tool.poetry.group.lint.dependencies]
+flake8 = "^7.1.1"
+black = "^24.10.0"
+isort = "^5.13.2"
+pyright = "^1.1.392"
+autoflake = "^2.3.1"
+
+[tool.pyright]
+typeCheckingMode = "basic"
+reportIncompatibleMethodOverride = "error"
+reportUnusedVariable = "error"
+
+exclude = [
+    ".git",
+    ".venv",
+    ".nox",
+    "**/__pycache__",
+    "**/.pytest_cache",
+    "**/*_pb2.py",
+]
+
+[tool.black]
+line-length = 88
+target-version = ['py311']
+exclude = '''
+/(
+    \.git
+  | \.venv
+  | \.nox
+  | \.pytest_cache
+  | \.__pycache__
+)/
+'''
+
+[tool.isort]
+profile = "black"
+
+line_length = 88
+py_version = 311
+
+lines_between_types = 1
+
+[tool.autoflake]
+ignore_init_module_imports = true
+remove_all_unused_imports = true
+in_place = true
+recursive = true
+quiet = true
+exclude = [
+    '\.git',
+    '\.venv',
+    '\.nox',
+    '\.pytest_cache',
+    '__pycache__',
+]
+
+[build-system]
+requires = ["poetry-core >= 1.0.0"]
+build-backend = "poetry.core.masonry.api"

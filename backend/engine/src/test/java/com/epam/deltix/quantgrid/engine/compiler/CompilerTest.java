@@ -6,7 +6,6 @@ import com.epam.deltix.quantgrid.engine.value.Period;
 import com.epam.deltix.quantgrid.engine.value.PeriodSeries;
 import com.epam.deltix.quantgrid.util.Doubles;
 import com.epam.deltix.quantgrid.util.Strings;
-import org.junit.Ignore;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
@@ -21,7 +20,6 @@ import java.util.stream.Stream;
 
 import static com.epam.deltix.quantgrid.engine.test.TestExecutor.executeWithErrors;
 import static com.epam.deltix.quantgrid.engine.test.TestExecutor.executeWithoutErrors;
-import static com.epam.deltix.quantgrid.engine.test.TestExecutor.executeWithoutProjections;
 import static java.lang.Double.NEGATIVE_INFINITY;
 import static java.lang.Double.POSITIVE_INFINITY;
 import static java.lang.Math.PI;
@@ -257,7 +255,7 @@ class CompilerTest {
                 """;
 
         ResultCollector data = executeWithErrors(dsl);
-        data.verifyError("B", "y", "The key 'a' of table 'A' must be a value, but was list");
+        data.verifyError("B", "y", "The key 'a' of table 'A' must be a text or a number, but got an array");
     }
 
     // We need to support nested arguments for FIND. It may require some adjustment of compiler utilities as we need
@@ -273,7 +271,7 @@ class CompilerTest {
                     table B
                        dim [d] = RANGE(4)
                        [x] = RANGE([d])
-                       [y] = "key" & [x] 
+                       [y] = "key" & [x]
                        [f] = A.FIND([x], [y])
                        [z] = SUM([f][a])
                        [f2] = A.FIND([x], "key 2").FILTER(NOT ISNA($))
@@ -445,7 +443,7 @@ class CompilerTest {
                            [c] = [b] + 20
                        
                     table B
-                       dim [d] = A.PERIODSERIES($[b], $[c], "DAY")
+                       dim [d] = PERIODSERIES(A[b], A[c], "DAY")
                            [e] = [d][period]
                            [f] = [d][timestamp]
                            [g] = [d][value]
@@ -470,7 +468,7 @@ class CompilerTest {
                        
                     table B
                        dim [d] = RANGE(4)
-                       dim [e] = A.FILTER([d] < $[a]).PERIODSERIES($[b], $[c], "DAY")
+                       dim [e] = PERIODSERIES(A.FILTER([d] < $[a])[b], A.FILTER([d] < $[a])[c], "DAY")
                            [f] = [e][period]
                            [g] = [e][timestamp]
                            [h] = [e][value]
@@ -497,7 +495,7 @@ class CompilerTest {
                        
                     table B
                        dim [d] = RANGE(4)
-                       dim [e] = A.FILTER([d] < $[a]).PERIODSERIES($[b], $[c], "DAY")
+                       dim [e] = PERIODSERIES(A.FILTER([d] < $[a])[b], A.FILTER([d] < $[a])[c], "DAY")
                        dim [f] = A.FILTER([d] = $[a])
                            [g] = [e][period]
                            [h] = [e][timestamp]
@@ -1047,7 +1045,20 @@ class CompilerTest {
                 """;
 
         ResultCollector data = executeWithErrors(dsl);
-        Assertions.assertEquals("Dereferencing a table within formula is not allowed", data.getError("A", "c"));
+        data.verifyError("A", "c", "Cannot access array of rows [b] from another array of rows. Try flattening one of arrays using dim keyword.");
+    }
+
+    @Test
+    void testInputErrors() {
+        String dsl = """
+                table A
+                   [a] = INPUT("empty.csv")
+                   [b] = INPUT("duplicated-column.csv")
+                """;
+
+        ResultCollector data = executeWithErrors(dsl);
+        data.verifyError("A", "a", "The document doesn't have headers.");
+        data.verifyError("A", "b", "Column names must be unique. Duplicate found: a.");
     }
 
     @Test
@@ -1144,6 +1155,36 @@ class CompilerTest {
     }
 
     @Test
+    void testInputWithEmptyAndAnonymousColumns() {
+        String dsl = """
+                table A
+                  dim [source] = INPUT("%s")
+                
+                table B
+                  dim [fields] = A[source].FIELDS()
+                
+                table C
+                  dim [source] = A[source]
+                  [Column2] = [source][Column2]
+                  [Column2_2] = [source][Column2_2]
+                  [Column8] = [source][Column8]
+                  [b] = [source][b]
+                  [c] = [source][c]
+                  [d] = [source][d]
+                """.formatted(TestInputs.EMPTY_AND_ANONYMOUS_COLUMNS_CSV);
+
+        ResultCollector data = executeWithoutErrors(dsl);
+
+        data.verify("B", "fields", "Column2", "Column2_2", "Column8", "b", "c", "d");
+        data.verify("C", "Column2", 0, 4);
+        data.verify("C", "Column2_2", 1, Doubles.EMPTY);
+        data.verify("C", "Column8", 3, Doubles.EMPTY);
+        data.verify("C", "b", Strings.EMPTY, Strings.EMPTY);
+        data.verify("C", "c", 2, 5);
+        data.verify("C", "d", Doubles.EMPTY, 6);
+    }
+
+    @Test
     void testSimplePeriodSeries() {
         String dsl = """
                 table A
@@ -1152,7 +1193,7 @@ class CompilerTest {
                         [value] = [a][value]
 
                 table B
-                    [a] = A.PERIODSERIES($[date], $[value], "DAY")
+                    [a] = PERIODSERIES(A[date], A[value], "DAY")
                     [b] = EXTRAPOLATE([a])
                     [c] = PERCENTCHANGE([a])
                 """.formatted(TestInputs.USA_GDP_SORTED_CSV);
@@ -1211,7 +1252,7 @@ class CompilerTest {
                            [country] = [a][country]
                            [date] = [a][date]
                            [row] = A.FILTER([country] = $[country] AND [date] = $[date])
-                           [*]   = [row].PIVOT($[indicator], B.COUNT() + $[value].FILTER($ > 0).COUNT())
+                           [*]   = [row].PIVOT($[indicator], B.COUNT() + $[value].COUNT())
                            [GDP Percent Change] = [GDP] + 1
                            [IR2] = [*][IR] + 1
                            [e] = [MISSING] + 1
@@ -1223,7 +1264,7 @@ class CompilerTest {
                             [c] = [b].COUNT()
                 """.formatted(TestInputs.COUNTRY_INDICATORS_CSV);
 
-        ResultCollector data = executeWithoutErrors(dsl);
+        ResultCollector data = executeWithErrors(dsl);
 
         data.verify("A", "country",
                 "USA", "China", "EU", "USA", "China", "EU", "USA", "China", "EU", "USA", "China", "EU");
@@ -1235,8 +1276,7 @@ class CompilerTest {
 
         data.verify("B", "GDP Percent Change", 8, 8, 8, 8, 8, 8);
         data.verify("B", "IR2", 8, 8, 8, 8, 8, 8);
-        data.verify("B", "e", Doubles.ERROR_NA, Doubles.ERROR_NA, Doubles.ERROR_NA, Doubles.ERROR_NA,
-                Doubles.ERROR_NA, Doubles.ERROR_NA);
+        data.verifyError("B", "e", "The column 'MISSING' does not exist in the pivot table.");
 
         data.verify("C", "c", 2, 2, 2);
     }
@@ -1291,12 +1331,13 @@ class CompilerTest {
                        dim [a]       = A.UNIQUEBY($[country])
                            [country] = [a][country]
                            [row]     = A.FILTER([country] = $[country])
-                           [*]       = [row].PIVOT($[indicator], $.PERIODSERIES($[date], $[value], "YEAR"))
+                           [*]       = [row].PIVOT($[indicator], PERIODSERIES($[date], $[value], "YEAR"))
                            [GDP_PS]  = [GDP]
                            [IR_PS]   = [IR]
+                           [e]       = [MISSING]
                 """.formatted(TestInputs.COUNTRY_INDICATORS_SORTED_CSV);
 
-        ResultCollector data = executeWithoutErrors(dsl);
+        ResultCollector data = executeWithErrors(dsl);
         data.verify("B", "GDP_PS",
                 new PeriodSeries(Period.YEAR, 121, 21060, 23315),
                 new PeriodSeries(Period.YEAR, 121, 14688, 17734),
@@ -1305,6 +1346,7 @@ class CompilerTest {
                 new PeriodSeries(Period.YEAR, 121, 5, 4.9),
                 new PeriodSeries(Period.YEAR, 121, 0.1, 0.2),
                 new PeriodSeries(Period.YEAR, 121, 7, 6.1));
+        data.verifyError("B", "e", "The column 'MISSING' does not exist in the pivot table.");
     }
 
     @Test
@@ -1327,10 +1369,9 @@ class CompilerTest {
                            [e]                  = [MISSING] + 1
                 """.formatted(TestInputs.COUNTRY_INDICATORS_CSV);
 
-        ResultCollector data = executeWithoutErrors(dsl);
+        ResultCollector data = executeWithErrors(dsl);
         data.verify("B", "GDP Percent Change", 2, 2, 2, 2, 2, 2);
-        data.verify("B", "e", Doubles.ERROR_NA, Doubles.ERROR_NA, Doubles.ERROR_NA,
-                Doubles.ERROR_NA, Doubles.ERROR_NA, Doubles.ERROR_NA);
+        data.verifyError("B", "e", "The column 'MISSING' does not exist in the pivot table.");
     }
 
     @Test
@@ -1343,10 +1384,10 @@ class CompilerTest {
                        [e] = [MISSING] + 1
                 """.formatted(TestInputs.COUNTRY_INDICATORS_CSV);
 
-        ResultCollector data = executeWithoutErrors(dsl);
+        ResultCollector data = executeWithErrors(dsl);
         data.verify("A", "IR2", 7);
         data.verify("A", "GDP Percent Change", 7);
-        data.verify("A", "e", Doubles.ERROR_NA);
+        data.verifyError("A", "e", "The column 'MISSING' does not exist in the pivot table.");
     }
 
     @Test
@@ -1360,10 +1401,10 @@ class CompilerTest {
                        [e] = [MISSING] + 1
                 """.formatted(TestInputs.COUNTRY_INDICATORS_CSV);
 
-        ResultCollector data = executeWithoutErrors(dsl);
+        ResultCollector data = executeWithErrors(dsl);
         data.verify("A", "IR2", 7, 7);
         data.verify("A", "GDP Percent Change", 7, 7);
-        data.verify("A", "e", Doubles.ERROR_NA, Doubles.ERROR_NA);
+        data.verifyError("A", "e", "The column 'MISSING' does not exist in the pivot table.");
     }
 
     @Test
@@ -1375,9 +1416,9 @@ class CompilerTest {
                       [e]                   = [MISSING] + 1;
                 """.formatted(TestInputs.COUNTRY_INDICATORS_CSV);
 
-        ResultCollector data = executeWithoutErrors(dsl);
+        ResultCollector data = executeWithErrors(dsl);
         data.verify("A", "GDP Percent Change", 7);
-        data.verify("A", "e", Doubles.ERROR_NA);
+        data.verifyError("A", "e", "The column 'MISSING' does not exist in the pivot table.");
     }
 
     @Test
@@ -1806,7 +1847,7 @@ class CompilerTest {
         data.verify("B", "indicator",
                 "GDP", "IR", "GDP", "IR", "GDP", "IR", "GDP", "IR", "GDP", "IR", "GDP", "IR");
         data.verify("B", "value",
-                21060, Doubles.ERROR_NA, 23315, 4.9, 14688, 0.1, 17734, 0.2, 13085, 7, Doubles.ERROR_NA, 6.1);
+                21060, Doubles.EMPTY, 23315, 4.9, 14688, 0.1, 17734, 0.2, 13085, 7, Doubles.EMPTY, 6.1);
     }
 
     @Test
@@ -1864,7 +1905,7 @@ class CompilerTest {
         data.verify("B", "indicator",
                 "GDP", "IR", "GDP", "IR", "GDP", "IR", "GDP", "IR", "GDP", "IR", "GDP", "IR");
         data.verify("B", "value",
-                21060, Doubles.ERROR_NA, 23315, 4.9, 14688, 0.1, 17734, 0.2, 13085, 7, Doubles.ERROR_NA, 6.1);
+                21060, Doubles.EMPTY, 23315, 4.9, 14688, 0.1, 17734, 0.2, 13085, 7, Doubles.EMPTY, 6.1);
     }
 
     @Test
@@ -1966,9 +2007,9 @@ class CompilerTest {
         data.verify("A", "minute", 37, 5, 40, 59, 0, 59);
         data.verify("A", "second", 28, 57, 3, 0, 59, 1);
 
-        Assertions.assertEquals("Invalid function YEAR argument \"date\": expected value of type DATE, but got STRING",
+        Assertions.assertEquals("Invalid argument \"date\" for function YEAR: expected a date, but got a text.",
                 data.getError("A", "invalidYear"));
-        Assertions.assertEquals("Invalid function MONTH argument \"date\": expected value of type DATE, but got STRING",
+        Assertions.assertEquals("Invalid argument \"date\" for function MONTH: expected a date, but got a text.",
                 data.getError("A", "invalidMonth"));
         Assertions.assertEquals("Function DAY expects 1 argument - \"date\", but 0 were provided",
                 data.getError("A", "invalidDay"));
@@ -2046,7 +2087,7 @@ class CompilerTest {
         Assertions.assertEquals(
                 "Function TEXT expects from 1 to 2 arguments - \"value\" and \"format\" (optional), but 0 were provided",
                 data.getError("A", "textInvalid2"));
-        Assertions.assertEquals("Invalid function TEXT argument \"format\": expected const string",
+        Assertions.assertEquals("Invalid argument \"format\" for function TEXT: constant text is expected, like \"Example\"",
                 data.getError("A", "textInvalid3"));
     }
 
@@ -2123,6 +2164,8 @@ class CompilerTest {
                     [b] = TEXT([a])
                     [c] = ISNA([a])
                     [d] = ISNA([b])
+                    [e] = A.FIND(ROW() + 1)
+                    [f] = ISNA([e])
                 override
                 [a]
                 1
@@ -2134,6 +2177,34 @@ class CompilerTest {
 
         collector.verify("A", "c", 0.0, 0.0, 1.0);
         collector.verify("A", "d", 0.0, 0.0, 1.0);
+        collector.verify("A", "f", 0.0, 0.0, 1.0);
+    }
+
+    @Test
+    void testNestedIsNa() {
+        String dsl = """
+                !manual()
+                table A
+                    [a] = NA
+                override
+                [a]
+                1
+                2
+                NA
+                
+                table Nested1
+                    dim [a] = ISNA(A[a])
+                
+                table Nested2
+                    dim [a] = RANGE(2)
+                    dim [b] = A.FILTER([a] <> $[a] AND NOT ISNA($[a]))
+                """;
+
+        ResultCollector collector = executeWithErrors(dsl);
+
+        collector.verify("Nested1", "a", 0, 0, 1);
+        collector.verify("Nested2", "a", 1, 2);
+        collector.verify("Nested2", "b", 2, 1);
     }
 
     @Test
@@ -2212,19 +2283,21 @@ class CompilerTest {
                 table A
                     dim [a] = RANGE(5)
                     [b] = [a] + 5
-                    
+                
                 table A
                     dim [a] = RANGE(10)
-                        [c] = [a] + 7
-                        
+                        [b] = [a] + 7
+                
                 table A
                     dim [a] = B.FILTER(1)
                         [c] = [a][country]
                 """;
 
-        ResultCollector data = executeWithErrors(dsl);
-        data.verifyError("A", null, "Table names must be unique across the project, duplicated name: A");
-        Assertions.assertEquals(0, data.getValues().size());
+        ResultCollector data = executeWithErrors(dsl, true);
+        data.verify("A", "a", 1, 2, 3, 4, 5);
+        data.verify("A", "b", 6, 7, 8, 9, 10);
+        Assertions.assertEquals(data.getValues().size(), 2);
+        Assertions.assertTrue(data.getErrors().isEmpty(), "There are compilation errors");
     }
 
     @Test
@@ -2238,10 +2311,11 @@ class CompilerTest {
                     [c] = [a] + [b]
                 """;
 
-        ResultCollector data = executeWithErrors(dsl);
-        data.verifyError("A", "b", "Table A contains duplicated field b");
-        data.verifyError("A", "c", "Table A contains duplicated field b");
+        ResultCollector data = executeWithErrors(dsl, true);
         data.verify("A", "a", 1, 2, 3, 4, 5);
+        data.verify("A", "b", 6, 7, 8, 9, 10);
+        data.verify("A", "c", 7, 9, 11, 13, 15);
+        Assertions.assertTrue(data.getErrors().isEmpty(), "There are compilation errors");
     }
 
     @Test
@@ -2258,7 +2332,7 @@ class CompilerTest {
         data.verify("A", "c", 0, 1, 1, 1, 0);
 
         data.verifyError("A", "d",
-                "Function CONTAINS expects 2 arguments - \"text\" and \"substring\", but 0 were provided");
+                "Function CONTAINS expects 2 arguments - \"text\" and \"value\", but 0 were provided");
     }
 
     @Test
@@ -2388,9 +2462,9 @@ class CompilerTest {
                         [b] = [a] + 3
                         [c] = -[a]
                         [d] = [a] * 1.5
-                        [e] = A.CORREL($[a], $[b])
-                        [f] = A.CORREL($[a], $[c])
-                        [g] = A.CORREL($[a], $[d])
+                        [e] = CORREL(A[a], A[b])
+                        [f] = CORREL(A[a], A[c])
+                        [g] = CORREL(A[a], A[d])
                     override
                     row, [d]
                     1, 3
@@ -2405,9 +2479,9 @@ class CompilerTest {
                     dim [source] = RANGE(8)
                         [a] = [source] - 1
                         [rows] = A.FILTER($[a] > [a])
-                        [b] = [rows].CORREL($[a], $[b])
-                        [c] = [rows].CORREL($[a], $[c])
-                        [d] = [rows].CORREL($[a], $[d])
+                        [b] = CORREL([rows][a], [rows][b])
+                        [c] = CORREL([rows][a], [rows][c])
+                        [d] = CORREL([rows][a], [rows][d])
                 """;
 
         ResultCollector data = executeWithoutErrors(dsl);
@@ -2440,7 +2514,7 @@ class CompilerTest {
         data.verify("A", "b", 1, 1, 2, 1, 2, 3);
         data.verify("A", "c", 3, 3, 6, 3, 6, 10);
 
-        data.verifyError("A", "e", "RANGE function cannot be used within another formula");
+        data.verifyError("A", "e", "The arguments 'table_or_array' and 'condition' of the FILTER function are from different origins and may have different sizes.");
     }
 
     @Test
@@ -2896,7 +2970,7 @@ class CompilerTest {
                                 "double", "0.5",
                                 "date", "1/1/2020 12:00:00 AM")),
                 Arguments.of(
-                        "CORREL(A, $[%1$s], $[%1$s])",
+                        "CORREL(A[%1$s], A[%1$s])",
                         Map.of(
                                 "int", "1.0",
                                 "bool", "1.0",
@@ -3044,11 +3118,11 @@ class CompilerTest {
                 "1/1/2025 12:00:00 AM", "4/1/2025 12:00:00 AM");
         data.verify("YEAR", "a", "1/1/2025 12:00:00 AM", "1/1/2026 12:00:00 AM");
         data.verifyError("VALIDATION1", "a",
-                "Invalid function DATERANGE argument \"date1\" or \"date2\": expected \"date1\" is greater or equal to \"date2\"");
+                "Invalid argument \"date1\" or \"date2\" for function DATERANGE: expected \"date1\" to be greater or equal to \"date2\".");
         data.verifyError("VALIDATION2", "a",
-                "Invalid function DATERANGE argument \"increment\": expected positive value of type INTEGER");
+                "Invalid argument \"increment\" for function DATERANGE: expected a positive number.");
         data.verifyError("VALIDATION3", "a",
-                "Invalid function DATERANGE argument \"date_type\": expected value of type INTEGER from 1 to 9");
+                "Invalid argument \"date_type\" for function DATERANGE: expected a number from 1 to 9.");
         data.verify("NA_TEST", "a");
         data.verify("NESTED", "dates", "25", "2");
     }
@@ -3105,8 +3179,8 @@ class CompilerTest {
         collector.verify("A", "b", 3, 3);
         collector.verify("A", "c", "0", "0");
 
-        collector.verifyError("A", "e1", "LIST function supports only scalar values");
-        collector.verifyError("A", "e2", "Invalid function LIST argument \"element\": expected value, but got table");
+        collector.verifyError("A", "e1", "LIST function accepts texts or numbers only.");
+        collector.verifyError("A", "e2", "Invalid argument \"element\" for function LIST: expected a text or a number, but got a table.");
     }
 
     @Test
@@ -3273,11 +3347,11 @@ class CompilerTest {
         collector.verify("A", "b", 1, 1, 1);
         collector.verify("A", "c", 2, 2, 2);
         collector.verifyError("A", "e1", "Unknown table: RANGE");
-        collector.verifyError("A", "e2", "RowReference must have 1 expression for a table without keys");
+        collector.verifyError("A", "e2", "RowReference must have 1 argument for a table without keys");
 
         collector.verify("B", "b", 3, 3, 3, 3);
         collector.verify("B", "c", 2, 3, Doubles.ERROR_NA, Doubles.ERROR_NA);
-        collector.verifyError("B", "e", "RowReference must have 1 expressions, but supplied: 2");
+        collector.verifyError("B", "e", "RowReference must have 1 arguments, but got: 2");
     }
 
     @Test
@@ -3378,10 +3452,12 @@ class CompilerTest {
                 table A
                   dim [a] = RANGE(2)
                   [b] = A.FILTER(B[x])
+                  [c] = A[a] + B[x]
                 """;
 
         ResultCollector collector = executeWithErrors(dsl);
-        collector.verifyError("A", "b", "FILTER table and condition are not aligned.");
+        collector.verifyError("A", "b", "The arguments 'table_or_array' and 'condition' of the FILTER function are from different origins and may have different sizes.");
+        collector.verifyError("A", "c", "Operands of the '+' operator are from different origins and may have different sizes.");
     }
 
     @Test
@@ -3410,7 +3486,7 @@ class CompilerTest {
 //
         ResultCollector collector = executeWithErrors(dsl);
         collector.verifyError("C", "f1",
-                "Invalid function COUNT argument \"table_or_array\": expected table or list, but got value");
+                "Invalid argument \"table_or_array\" for function COUNT: expected a table or an array, but got a number. Did you mean C[c]?");
         collector.verify("C", "f2", 2, 2, 2);
         collector.verify("C", "f2s", 0, 0, 0);
         collector.verify("C", "f3", 2, 2, 2);
@@ -3419,7 +3495,7 @@ class CompilerTest {
 //        collector.verify("C", "f6", 1, 0, 1);
 
         collector.verifyError("C", "f7",
-                "Invalid function COUNT argument \"table_or_array\": expected table or list, but got value");
+                "Invalid argument \"table_or_array\" for function COUNT: expected a table or an array, but got a number. Did you mean C[c]?");
         collector.verify("C", "f8", 3, 3, 3);
         collector.verify("C", "f9", 3, 3, 3);
 //        collector.verify("C", "f10", 3, 0, 3);
@@ -3439,7 +3515,7 @@ class CompilerTest {
 
         ResultCollector collector = executeWithErrors(dsl);
         collector.verifyError("A", "b",
-                "Invalid function FIND argument \"keys\": expected value, but got list");
+                "Invalid argument \"keys\" for function FIND: expected a text or a number, but got an array.");
     }
 
     @Test
@@ -3474,9 +3550,9 @@ class CompilerTest {
         collector.verify("T2", "f6", 5, 6, 7, 8, 9);
         collector.verify("T3", "r3", 5, 4, 3, 2, 1);
 
-        collector.verifyError("T2", "nf1", "FILTER table and condition are not aligned.");
-        collector.verifyError("T2", "nf2", "FILTER table and condition are not aligned.");
-        collector.verifyError("T2", "nf3", "FILTER table and condition are not aligned.");
+        collector.verifyError("T2", "nf1", "The arguments 'table_or_array' and 'condition' of the FILTER function are from different origins and may have different sizes.");
+        collector.verifyError("T2", "nf2", "The arguments 'table_or_array' and 'condition' of the FILTER function are from different origins and may have different sizes.");
+        collector.verifyError("T2", "nf3", "The arguments 'table_or_array' and 'condition' of the FILTER function are from different origins and may have different sizes.");
     }
 
     @Test
@@ -3608,7 +3684,7 @@ class CompilerTest {
                 """;
 
         ResultCollector collector = executeWithErrors(dsl);
-        String error = "Can't apply filter. Make sure you do not use overridden fields "
+        String error = "Can't apply filter. Make sure you do not use overridden columns "
                 + "in filter for a table without keys. Error: Cyclic dependency: A";
 
         collector.verifyError("A", "a", error);
@@ -3753,10 +3829,10 @@ class CompilerTest {
         ResultCollector collector = executeWithErrors(dsl, true);
         collector.verifyError("A", "c", "Table: A has only 1 total definitions");
         collector.verifyError("A", "d", "TOTAL function requires positive number in 2 argument");
-        collector.verifyError("A", "e", "Unknown total. Table: A. Field: d. Number: 1");
+        collector.verifyError("A", "e", "Unknown total. Table: A. Column: d. Number: 1");
 
-        collector.verifyTotalError("A", "a", 1, "Not allowed to reference current fields in total formula. Try: A[a]?");
-        collector.verifyTotalError("A", "b", 1, "expected value, but got table");
+        collector.verifyTotalError("A", "a", 1, "Cannot access current row's [a] outside of column formula. Try A[a]?");
+        collector.verifyTotalError("A", "b", 1, "expected a text or a number, but got a table.");
     }
 
     @Test
@@ -3812,7 +3888,7 @@ class CompilerTest {
                     [c3] = A.FILTER(A[r] = B.FILTER([r] = B[a])[a].SINGLE())[r].SINGLE()
                 """;
 
-        ResultCollector collector = executeWithoutProjections(dsl);
+        ResultCollector collector = executeWithoutErrors(dsl);
         collector.verify("A", "b1", 4, 4, 4, 4, 4);
         collector.verify("A", "c1", 3, 3, 3, 3, 3);
         collector.verify("A", "c2", 0, 0, 0, 5, 0);
@@ -3845,7 +3921,7 @@ class CompilerTest {
                   dim [f] = FIELDS(T3).SORT()
                 """;
 
-        ResultCollector collector = executeWithoutProjections(dsl);
+        ResultCollector collector = executeWithoutErrors(dsl);
         collector.verify("T1f", "f", "1", "2", "3", "r");
         collector.verify("T2f", "f", "1", "2", "3", "r");
         collector.verify("T3f", "f", "1.0", "2.0", "3.0", "r");
@@ -3974,10 +4050,10 @@ class CompilerTest {
         collector.verify("A", "b", 4, 2);
 
         collector.verifyOverrideError("A", "c", 2,
-                "Not allowed to use current fields and ROW() in overrides for manual table with keys or apply section");
+                "Not allowed to use current columns or use ROW() in overrides for manual table with keys or apply section");
         collector.verifyOverrideError("A", "d", 2, "Cyclic dependency: A[d]");
         collector.verifyOverrideError("A", "e", 2,
-                "Not allowed to use current fields and ROW() in overrides for manual table with keys or apply section");
+                "Not allowed to use current columns or use ROW() in overrides for manual table with keys or apply section");
     }
 
     @Test
@@ -4323,6 +4399,7 @@ class CompilerTest {
                   NA, 1
                   1,
                   1, NA
+                  ,
                 
                 !manual()
                 table C
@@ -4348,17 +4425,17 @@ class CompilerTest {
         collector.verify("A", "ISNA", "FALSE", "TRUE");
         collector.verify("A", "NOT", "FALSE", NA);
 
-        collector.verify("B", "b", "", NA, "1.0", "1.0");
-        collector.verify("B", "c", "1.0", "1.0", "", NA);
-        collector.verify("B", "IFNA", "", "1.0", "1.0", "1.0");
-        collector.verify("B", "AND", "TRUE", NA, "TRUE", NA);
-        collector.verify("B", "OR", "TRUE", NA, "TRUE", NA);
-        collector.verify("B", "LT", "TRUE", NA, "FALSE", NA);
-        collector.verify("B", "GT", "FALSE", NA, "TRUE", NA);
-        collector.verify("B", "LTE", "TRUE", NA, "FALSE", NA);
-        collector.verify("B", "GTE", "FALSE", NA, "TRUE", NA);
-        collector.verify("B", "NEQ", "TRUE", NA, "TRUE", NA);
-        collector.verify("B", "EQ", "FALSE", NA, "FALSE", NA);
+        collector.verify("B", "b", "", NA, "1.0", "1.0", "");
+        collector.verify("B", "c", "1.0", "1.0", "", NA, "");
+        collector.verify("B", "IFNA", "", "1.0", "1.0", "1.0", "");
+        collector.verify("B", "AND", "FALSE", NA, "FALSE", NA, "FALSE");
+        collector.verify("B", "OR", "TRUE", NA, "TRUE", NA, "FALSE");
+        collector.verify("B", "LT", "FALSE", NA, "FALSE", NA, "FALSE");
+        collector.verify("B", "GT", "FALSE", NA, "FALSE", NA, "FALSE");
+        collector.verify("B", "LTE", "FALSE", NA, "FALSE", NA, "TRUE");
+        collector.verify("B", "GTE", "FALSE", NA, "FALSE", NA, "TRUE");
+        collector.verify("B", "NEQ", "TRUE", NA, "TRUE", NA, "FALSE");
+        collector.verify("B", "EQ", "FALSE", NA, "FALSE", NA, "TRUE");
 
         collector.verify("C", "IF", "2.0", NA, "", NA, "2.0", "2.0", "1.0", "1.0");
     }
@@ -4401,7 +4478,7 @@ class CompilerTest {
                   # [LAST]    = [d].LAST($[b]) does not support errors
                   [MAXBY]   = [d].MAXBY($[b])
                   [MINBY]   = [d].MINBY($[b])
-                  [CORREL]  = [d].CORREL($[b], $[c])
+                  [CORREL]  = CORREL([d][b], [d][c])
                 override
                   [b], [c]
                   "", 1
@@ -4415,7 +4492,7 @@ class CompilerTest {
         ResultCollector collector = executeWithoutErrors(dsl);
 
         collector.verify("A", "c", "3", "3", "3", "3");
-        collector.verify("A", "COUNT", NA, "2", NA, NA);
+        collector.verify("A", "COUNT", "3", "2", "2", "2");
         collector.verify("A", "SUM", NA, "3.0", NA, NA);
         collector.verify("A", "AVERAGE", NA, "1.5", NA, NA);
         collector.verify("A", "MAX", NA, "2.0", NA, NA);
@@ -4479,7 +4556,7 @@ class CompilerTest {
         ResultCollector collector = executeWithoutErrors(dsl);
         String NA = Strings.ERROR_NA;
 
-        collector.verify("A", "FILTER", "2", "2", "0", "1");
+        collector.verify("A", "FILTER", "1", "1", "0", "1");
         collector.verify("A", "FIND", "1", "2", NA, "4");
 
         collector.verify("C", "UNIQUE", "0.0", "", NA, "1.0");
@@ -4549,7 +4626,7 @@ class CompilerTest {
         String dsl = """
                  table Table1
                    dim [source] = RANGE(3)
-                   [ps] = PERIODSERIES(Table1[source], $ + 1, $, "DAY")
+                   [ps] = PERIODSERIES(Table1[source] + 1, Table1[source], "DAY")
                 
                  table Table2
                    dim [source] = Table1[ps]
@@ -4714,5 +4791,607 @@ class CompilerTest {
 
         ResultCollector collector = executeWithoutErrors(dsl);
         collector.verify("B", "y", "0", "0", "0", "0");
+    }
+
+    @Test
+    void testBetween() {
+        String dsl = """
+                table A
+                  dim [a] = RANGE(5)
+                  [b] = BETWEEN([a], 2, 4)
+                  [c] = BETWEEN(TEXT([a]), 2, 4)
+                  [d] = BETWEEN([a] & "a", "2a", "4a")
+                
+                table B
+                  [x] = BETWEEN(NA, 2, 4)
+                """;
+
+        ResultCollector collector = executeWithoutErrors(dsl);
+
+        collector.verify("A", "b", "FALSE", "TRUE", "TRUE", "TRUE", "FALSE");
+        collector.verify("A", "c", "FALSE", "TRUE", "TRUE", "TRUE", "FALSE");
+        collector.verify("A", "d", "FALSE", "TRUE", "TRUE", "TRUE", "FALSE");
+        collector.verify("B", "x", Doubles.ERROR_NA);
+    }
+
+    @ParameterizedTest
+    @MethodSource("setOperations")
+    void testSetOperations(
+            String name,
+            double[] simpleDouble,
+            String[] simpleString,
+            double[] nestedRows,
+            double[] nestedValues) {
+        String dsl = """
+                !manual()
+                table A
+                  [num]
+                  [str]
+                override
+                [num],[str]
+                NA,NA
+                ,
+                1,"a"
+                10,"Z"
+                
+                !manual()
+                table B
+                  [num]
+                  [str]
+                override
+                [num],[str]
+                NA,NA
+                ,
+                1,"a"
+                2,"z"
+                
+                table SimpleNumeric
+                  dim [a] = A[num].%1$s(B[num])
+
+                table SimpleString
+                  dim [a] = A[str].%1$s(B[str])
+                
+                table Nested
+                  dim [a] = RANGE(2)
+                  dim [b] = A.FILTER($[num] <> [a])[num].%1$s(RANGE([a]))
+                """.formatted(name);
+
+        ResultCollector collector = executeWithoutErrors(dsl, true);
+
+        collector.verify("SimpleNumeric", "a", simpleDouble);
+        collector.verify("SimpleString", "a", simpleString);
+        collector.verify("Nested", "a", nestedRows);
+        collector.verify("Nested", "b", nestedValues);
+    }
+
+    private static Stream<Arguments> setOperations() {
+        return Stream.of(
+                Arguments.of(
+                        "UNION",
+                        new double[] {Doubles.ERROR_NA, Doubles.EMPTY, 1, 10, 2},
+                        new String[] {Strings.ERROR_NA, Strings.EMPTY, "a", "Z", "z"},
+                        new double[] {1, 1, 1, 2, 2, 2, 2},
+                        new double[] {Doubles.EMPTY, 10, 1, Doubles.EMPTY, 1, 10, 2}),
+                Arguments.of(
+                        "INTERSECT",
+                        new double[] {Doubles.ERROR_NA, Doubles.EMPTY, 1},
+                        new String[] {Strings.ERROR_NA, Strings.EMPTY, "a"},
+                        new double[] {2},
+                        new double[] {1}),
+                Arguments.of(
+                        "SUBTRACT",
+                        new double[] {10},
+                        new String[] {"Z"},
+                        new double[] {1, 1, 2, 2},
+                        new double[] {Doubles.EMPTY, 10, Doubles.EMPTY, 10}));
+    }
+
+    @Test
+    void testMixedDimensionsInUnion() {
+        String dsl = """
+                !manual()
+                table A
+                  [a]
+                override
+                [a]
+                NA
+                
+                1
+                10
+                
+                table DimMix
+                  dim [a] = RANGE(2)
+                  dim [b] = UNION(A[a] + [a], RANGE(3))
+                """;
+
+        ResultCollector collector = executeWithoutErrors(dsl, true);
+
+        collector.verify("DimMix", "a", 1, 1, 1, 1, 1, 2, 2, 2, 2, 2);
+        collector.verify("DimMix", "b", Doubles.ERROR_NA, 1, 2, 11, 3, Doubles.ERROR_NA, 2, 3, 12, 1);
+    }
+
+    @Test
+    void testStringAutoCastInUnion() {
+        String dsl = """
+                !manual()
+                table A
+                  [num]
+                  [str]
+                override
+                [num],[str]
+                NA,NA
+                ,
+                1,"1.0"
+                10,"Z"
+                
+                table B
+                  dim [a] = UNION(A[num], A[str])
+                """;
+
+        ResultCollector collector = executeWithoutErrors(dsl, true);
+
+        collector.verify("B", "a", Strings.ERROR_NA, Strings.EMPTY, "1.0", "10.0", "Z");
+    }
+
+    @Test
+    void testSimpleIn() {
+        String dsl = """
+                table A
+                  [a] = 1.IN({1})
+                  [b] = 1.IN({2})
+                """;
+
+        ResultCollector collector = executeWithoutErrors(dsl);
+
+        collector.verify("A", "a", 1);
+        collector.verify("A", "b", 0);
+    }
+
+    @Test
+    void testSimpleInWithCurrent() {
+        String dsl = """
+                !manual()
+                table A
+                  [a]
+                  [b]
+                override
+                [a],[b]
+                NA,NA
+                ,
+                2,"a"
+                2,"a"
+                3,"b"
+                
+                table B
+                  dim [a] = {NA, 0, 1, 10}
+                  [b] = [a].IN(A[a] - 1)
+                
+                table C
+                  dim [a] = {NA, "", "a", "A"}
+                  [b] = [a].IN(A[b])
+                
+                table D
+                  dim [a] = RANGE(3)
+                  [b] = [a].IN({1, 2, 6} - [a])
+                """;
+
+        ResultCollector collector = executeWithoutErrors(dsl);
+
+        collector.verify("B", "b", 0, 0, 1, 0);
+        collector.verify("C", "b", 0, 1, 1, 0);
+        collector.verify("D", "b", 1, 0, 1);
+    }
+
+    @Test
+    void testNestedIn() {
+        String dsl = """
+                !manual()
+                table A
+                  [a]
+                  [b]
+                override
+                [a],[b]
+                NA,NA
+                ,
+                2,"a"
+                2,"a"
+                3,"b"
+                
+                table B
+                  dim [a] = {NA, 0, 1, 10}.IN(A[a] - 1)
+                
+                table C
+                  dim [a] = {NA, "", "a", "A"}.IN(A[b])
+                
+                table D
+                  dim [a] = A.FILTER(A[a].IN({NA, 2, 4}))[a]
+
+                table E
+                  dim [a] = A.FILTER(1).FILTER($[a].IN({NA, 2, 4}))[a]
+                """;
+
+        ResultCollector collector = executeWithoutErrors(dsl);
+
+        collector.verify("B", "a", 0, 0, 1, 0);
+        collector.verify("C", "a", 0, 1, 1, 0);
+        collector.verify("D", "a", 2, 2);
+        collector.verify("E", "a", 2, 2);
+    }
+
+    @Test
+    void testNestedInWithCurrent() {
+        String dsl = """
+                table A
+                  dim [a] = RANGE(3)
+                
+                table B
+                  dim [a] = RANGE(4)
+                  dim [b] = A.FILTER(1).FILTER(([a] + $[a]).IN({2, 4}))[a]
+                
+                table C
+                  dim [a] = RANGE(4)
+                  dim [b] = A.FILTER(1).FILTER([a].IN({2, 4}))
+                
+                table D
+                  dim [a] = RANGE(4)
+                  dim [b] = A.FILTER(1).FILTER($[a].IN({2, 4} - [a]))[a]
+                
+                table E
+                  dim [a] = RANGE(4)
+                  dim [b] = A.FILTER(1).FILTER([a].IN({2, 4} - [a]))[a]
+                """;
+
+        ResultCollector collector = executeWithoutErrors(dsl);
+
+        collector.verify("B", "a", 1, 1, 2, 3);
+        collector.verify("B", "b", 1, 3, 2, 1);
+        collector.verify("C", "a", 2, 2, 2, 4, 4, 4);
+        collector.verify("C", "b", 1, 2, 3, 1, 2, 3);
+        collector.verify("D", "a", 1, 1, 2, 3);
+        collector.verify("D", "b", 1, 3, 2, 1);
+        collector.verify("E", "a", 1, 1, 1, 2, 2, 2);
+        collector.verify("E", "b", 1, 2, 3, 1, 2, 3);
+    }
+
+    @Test
+    void testErrorColumn() {
+        String dsl = """
+                table A
+                  dim [a] = RANGE(2)
+                      [*] = PIVOT(RANGE(3), $, SUM($))
+                      [b] = -[missing]
+                      [c] = [missing] + 1
+                      [d] = RANGE([missing])
+                      [e] = IF([missing], 1, 2)
+                
+                table B
+                  [a] = A.FILTER(1=1)[a].COUNT()
+                  [b] = A.FILTER(1=1)[missing].COUNT()
+                  [c] = A.FILTER($[missing]=1).COUNT()
+                  [d] = A(1)[a]
+                  [e] = A(1)[missing]
+                  [f] = A[missing].SUM()
+                
+                table C
+                   dim [a] = RANGE(3)
+                       [b] = A.FILTER($[a] = [a])[a].COUNT()
+                       [c] = A.FILTER($[a] = [a])[missing].COUNT()
+                       [d] = A.FILTER($[missing] = [a]).COUNT()
+                
+                table D
+                   dim [a] = RANGE(4)
+                   dim [b] = A
+                       [c] = [b][a] # carry on cartesian
+                       [d] = [b][missing]
+                
+                table E
+                   dim [a] = RANGE(5)
+                   dim [b] = A[missing]
+                
+                table F
+                   dim [a] = RANGE(6)
+                       [b] = A.FIRST()[missing]
+                """;
+
+        ResultCollector collector = executeWithErrors(dsl);
+
+        collector.verifyError("A", "b", "The column 'missing' does not exist in the pivot table.");
+        collector.verifyError("A", "c", "The column 'missing' does not exist in the pivot table.");
+        collector.verifyError("A", "d", "The column 'missing' does not exist in the pivot table.");
+        collector.verify("B", "a", 2);
+        collector.verifyError("B", "b", "The column 'missing' does not exist in the pivot table.");
+        collector.verifyError("B", "c", "The column 'missing' does not exist in the pivot table.");
+        collector.verify("B", "d", 1);
+        collector.verifyError("B", "e", "The column 'missing' does not exist in the pivot table.");
+        collector.verifyError("B", "f", "The column 'missing' does not exist in the pivot table.");
+        collector.verify("C", "b", 1, 1, 0);
+        collector.verifyError("C", "c", "The column 'missing' does not exist in the pivot table.");
+        collector.verifyError("C", "d", "The column 'missing' does not exist in the pivot table.");
+        collector.verify("D", "c", 1, 2, 1, 2, 1, 2, 1, 2);
+        collector.verifyError("D", "d", "The column 'missing' does not exist in the pivot table.");
+        collector.verifyError("E", "b", "The column 'missing' does not exist in the pivot table.");
+        collector.verifyError("F", "b", "The column 'missing' does not exist in the pivot table.");
+    }
+
+    @Test
+    void testVectorMathWithOneDim() {
+        String dsl = """
+                table A
+                  dim [a] = RANGE(5)
+                      [b] = [a] + 1
+                
+                table B
+                  dim [c] = RANGE(6)
+                      [d] = (A[a] + [c]) + (A[b] + [c])
+                      [e] = (-A[a] + [c]) + (A[b] + 5)
+                      [f] = (FILTER(A, 1)[a] + [c]) + (FILTER(A, 1)[b] + [c])
+                      [g] = FILTER(A, [d])
+                """;
+
+        executeWithoutErrors(dsl);
+    }
+
+    @Test
+    void testVectorMathWithTwoDims() {
+        String dsl = """
+                table A
+                  dim [a] = RANGE(5)
+                      [b] = [a] + 1
+                
+                table B
+                  dim [c] = RANGE(3)
+                  dim [d] = RANGE(4)
+                      [e] = (A[a] + [c]) + (A[b] + [d])
+                      [f] = (RANGE(10) + [c]) + (-RANGE(10) + [d])
+                """;
+
+        executeWithoutErrors(dsl);
+    }
+
+    @Test
+    void testVectorMathWithFourDims() {
+        String dsl = """
+                table A
+                  dim [a] = RANGE(5)
+                      [b] = [a] + 1
+                
+                table B
+                  dim [c] = RANGE(2)
+                  dim [d] = RANGE(3)
+                  dim [e] = RANGE([d])
+                  dim [f] = RANGE(4)
+                      [g] = (A[a] + [c]) + (A[b] - [d]) + (A[a] + [e]) + (-A[b] + [f])
+                      [h] = (RANGE(6) + [c]) + (RANGE(6) - [d]) + (RANGE(6) + [e]) + (-RANGE(6) + [f])
+                """;
+
+        executeWithoutErrors(dsl);
+    }
+
+    @Test
+    void testMinusOperator() {
+        String dsl = """
+                table A
+                  [a] = 2-1
+                  [b] = 2 - -1
+                  [c] = -(-5)
+                  [d] = - 7
+                """;
+
+        ResultCollector collector = executeWithoutErrors(dsl);
+
+        collector.verify("A", "a", 1);
+        collector.verify("A", "b", 3);
+        collector.verify("A", "c", 5);
+        collector.verify("A", "d", -7);
+    }
+
+    @Test
+    void testPowOperator() {
+        String dsl = """
+                table A
+                  [a] = 2 + 4 ^ 2
+                  [b] = 2 * 4 ^ 2
+                  [c] = 2 * 4 ^ -2
+                  [d] = 2 * 4 ^ -(2)
+                  [e] = 2 * 4 ^ 2 + 1
+                  [f] = 2 * 4 ^ 2 * 3
+                  [g] = 2 * 4 ^ 2 ^ 3  # excel pow has left associativity unlike other languages
+                """;
+
+        ResultCollector collector = executeWithoutErrors(dsl);
+
+        collector.verify("A", "a", 18);
+        collector.verify("A", "b", 32);
+        collector.verify("A", "c", 0.125);
+        collector.verify("A", "d", 0.125);
+        collector.verify("A", "e", 33);
+        collector.verify("A", "f", 96);
+        collector.verify("A", "g", 8192);
+    }
+
+    @Test
+    void testConcatOperator() {
+        String dsl = """
+                table A
+                  [a] = "a" & 1 + 2
+                  [b] = "a" & 1 = "a1"
+                  [c] = "a" & 1 >= 1
+                """;
+
+        ResultCollector collector = executeWithoutErrors(dsl);
+
+        collector.verify("A", "a", "a3");
+        collector.verify("A", "b", "TRUE");
+        collector.verify("A", "c", "TRUE");
+    }
+
+    @Test
+    void testBoolLiterals() {
+        String dsl = """
+                table A
+                  [a] = TRUE
+                  [b] = FALSE
+                  [c] = TRUE = TRUE
+                  [d] = A(TRUE)[a]
+                  [e] = A(FALSE)[a]
+                """;
+
+        ResultCollector collector = executeWithoutErrors(dsl);
+
+        collector.verify("A", "a", "TRUE");
+        collector.verify("A", "b", "FALSE");
+        collector.verify("A", "c", "TRUE");
+        collector.verify("A", "d", "TRUE");
+        collector.verify("A", "e", Doubles.ERROR_NA);
+    }
+
+    @Test
+    void testAggregationOnScalarError() {
+        String dsl = """
+                table A
+                  [a] = 1
+                  [b] = SUM([a])
+                """;
+
+        ResultCollector collector = executeWithErrors(dsl);
+
+        collector.verifyError("A", "b",
+                "Invalid argument \"array\" for function SUM: expected an array, but got a number. Did you mean A[a]?");
+    }
+
+    @Test
+    void testDimOnScalarError() {
+        String dsl = """
+                table A
+                  dim [a] = 1
+                """;
+
+        ResultCollector collector = executeWithErrors(dsl);
+
+        collector.verifyError("A", "a",
+                "Formula for column with dim keyword must return a table, an array or period series, but got a number.");
+    }
+
+    @Test
+    void testDimOnRowError() {
+        String dsl = """
+                table A
+                  dim [a] = RANGE(1)
+                
+                table B
+                  dim [a] = A(1)
+                """;
+
+        ResultCollector collector = executeWithErrors(dsl);
+
+        collector.verifyError("B", "a",
+                "Formula for column with dim keyword must return a table, an array or period series, but got a row.");
+    }
+
+    @Test
+    void testMissingQueryTableError() {
+        String dsl = """
+                table A
+                  dim [a] = RANGE(5)
+                
+                table B
+                  dim [b] = RANGE(3)
+                      [f] = FILTER(A, [a] = [b])
+                      [s] = SORTBY(A, [a])
+                      [u] = UNIQUEBY(A, [a])
+                """;
+
+        ResultCollector collector = executeWithErrors(dsl);
+
+        collector.verifyError("B", "f",
+                "The column 'a' does not exist in the table 'B'. Did you mean A[a]?");
+        collector.verifyError("B", "s",
+                "The column 'a' does not exist in the table 'B'. Did you mean A[a]?");
+        collector.verifyError("B", "u",
+                "The column 'a' does not exist in the table 'B'. Did you mean A[a]?");
+    }
+
+    @Test
+    void testAggregateAfterJoin() {
+        String dsl = """
+                !manual()
+                table A
+                  [key]
+                  [val1]
+                  [val2]
+                override
+                  [key], [val1], [val2]
+                  "France", 1, 2
+                  "Spain",  3, 4
+                  "France", 4, 5
+                  NA, 5, 6
+                
+                table B
+                  dim [key] = {"France", "UK", NA}
+                      [filter] = FILTER(A, A[key] = [key])
+                      [COUNT] =  COUNT([filter][val1])
+                      [SUM] = SUM([filter][val1])
+                      [AVERAGE] = AVERAGE([filter][val1])
+                      [MIN] = MIN([filter][val1])
+                      [MAX] = MAX([filter][val1])
+                      [STDEVS] = STDEVS([filter][val1])
+                      [STDEVP] = STDEVP([filter][val1])
+                      [GEOMEAN] = GEOMEAN([filter][val1])
+                      [MEDIAN] = MEDIAN([filter][val1])
+                      [MODE] = MODE([filter][val1])
+                      [CORREL] = CORREL([filter][val1], [filter][val2])
+                      [FIRST] = FIRST([filter][val1])
+                      [LAST] = LAST([filter][val1])
+                      [SINGLE] = SINGLE([filter][val1])
+                      [INDEX] = INDEX([filter][val1], 1)
+                      [MINBY] = MINBY([filter][val1], [filter][val2])
+                      [MAXBY] = MAXBY([filter][val1], [filter][val2])
+                      [FIRSTS] = FIRST([filter][val1], 1)
+                      [LASTS] = LAST([filter][val1], 1)
+                      [PERIODSERIES] = PERIODSERIES([filter][val1], [filter][val1], "DAY")
+                """;
+
+        ResultCollector data = executeWithoutErrors(dsl);
+
+        data.verify("B", "filter", "2", "0", "0");
+        data.verify("B", "COUNT", "2", "0", "0");
+        data.verify("B", "SUM", "5.0", "0.0", "0.0");
+        data.verify("B", "AVERAGE", "2.5", null, null);
+        data.verify("B", "MIN", "1.0", null, null);
+        data.verify("B", "MAX", "4.0", null, null);
+        data.verify("B", "STDEVS", "2.1213203435596424", null, null);
+        data.verify("B", "STDEVP", "1.5", null, null);
+        data.verify("B", "GEOMEAN", "2.0", null, null);
+        data.verify("B", "MEDIAN", "2.5", null, null);
+        data.verify("B", "MODE", (String) null, null, null);
+        data.verify("B", "CORREL", "1.0", null, null);
+
+        data.verify("B", "MINBY", "1.0", null, null);
+        data.verify("B", "MAXBY", "4.0", null, null);
+
+        data.verify("B", "FIRST", "1.0", null, null);
+        data.verify("B", "SINGLE", (String) null, null, null);
+        data.verify("B", "LAST", "4.0", null, null);
+        data.verify("B", "INDEX", "1.0", null, null);
+
+        data.verify("B", "FIRSTS", "1", "0", "0");
+        data.verify("B", "LASTS", "1", "0", "0");
+
+        data.verify("B", "PERIODSERIES",
+                new PeriodSeries(Period.DAY, 0, 1.0, Doubles.ERROR_NA, Doubles.ERROR_NA, 4.0),
+                null, null);
+    }
+
+    @Test
+    void testJoinSingleWithOneRow() {
+        String dsl = """
+                table A
+                  key [a] = NA
+                      [b] = 10
+                      [c] = A(NA)[b]
+                """;
+
+        ResultCollector data = executeWithoutErrors(dsl);
+        data.verify("A", "c", (String) null);
     }
 }

@@ -2,13 +2,15 @@ import { Menu } from 'antd';
 import type { MenuInfo } from 'rc-menu/lib/interface';
 import { useCallback, useContext, useEffect, useRef, useState } from 'react';
 
+import { GridEvent } from '@frontend/canvas-spreadsheet';
 import {
   defaultFieldName,
   FormulasContextMenuKeyData,
+  InsertChartContextMenuKeyData,
   MenuItem,
 } from '@frontend/common';
-import { GridEvent } from '@frontend/spreadsheet';
 
+import { routes } from '../../../AppRoutes';
 import { ModalRefFunction, PanelName } from '../../common';
 import {
   ApiContext,
@@ -21,12 +23,14 @@ import {
 } from '../../context';
 import {
   useCreateTableAction,
+  useCreateTableDsl,
+  useFieldEditDsl,
   useGridApi,
-  useManualAddTableRowDSL,
-  useManualCreateEntityDSL,
-  useManualEditDSL,
   useProjectActions,
 } from '../../hooks';
+import { useAddTableRow } from '../../hooks/EditDsl/useAddTableRow';
+import { getRecentProjects, RecentProject } from '../../services';
+import { getProjectNavigateUrl } from '../../utils';
 import { ShortcutsHelp } from '../Modals';
 import {
   editMenuKeys,
@@ -39,27 +43,29 @@ import {
 } from './MainMenuItems';
 
 export function MainMenu() {
-  const {
-    toggleChat,
-    toggleChatWindowPlacement,
-    chatWindowPlacement,
-    toggleGrid,
-  } = useContext(AppContext);
+  const { toggleChat, toggleChatWindowPlacement, chatWindowPlacement } =
+    useContext(AppContext);
   const { userBucket } = useContext(ApiContext);
-  const { togglePanel } = useContext(LayoutContext);
+  const {
+    togglePanel,
+    panelsSplitEnabled,
+    updateSplitPanelsEnabled,
+    collapsedPanelsTextHidden,
+    updateCollapsedPanelsTextHidden,
+  } = useContext(LayoutContext);
   const { clear, undo, redo } = useContext(UndoRedoContext);
   const { openSearchWindow } = useContext(SearchWindowContext);
   const gridApi = useGridApi();
   const { selectedCell, parsedSheets, projectBucket, isAIPendingChanges } =
     useContext(ProjectContext);
   const projectAction = useProjectActions();
-  const { addField } = useManualEditDSL();
   const { functions } = useContext(ProjectContext);
   const { inputList } = useContext(InputsContext);
   const { onCreateTableAction } = useCreateTableAction();
-  const { createManualTable } = useManualCreateEntityDSL();
+  const { createEmptyChartTable, createManualTable } = useCreateTableDsl();
   const { addTableRowToEnd, insertTableRowBefore, insertTableRowAfter } =
-    useManualAddTableRowDSL();
+    useAddTableRow();
+  const { addField } = useFieldEditDsl();
 
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const openShortcutHelpModal = useRef<ModalRefFunction | null>(null);
@@ -108,6 +114,26 @@ export function MainMenu() {
 
           return;
         }
+
+        if ((data as any as InsertChartContextMenuKeyData).chartType) {
+          const { chartType } = data as InsertChartContextMenuKeyData;
+
+          createEmptyChartTable(chartType);
+        }
+
+        if (action === fileMenuKeys.openProject) {
+          const recentProject = data as RecentProject;
+
+          window.open(
+            getProjectNavigateUrl({
+              projectBucket: recentProject.projectBucket,
+              projectName: recentProject.projectName,
+              projectPath: recentProject.projectPath,
+              projectSheetName: recentProject.sheetName,
+            }),
+            '_blank'
+          );
+        }
       } catch {
         // Empty catch
       }
@@ -129,8 +155,17 @@ export function MainMenu() {
         case fileMenuKeys.shareProject:
           projectAction.shareProjectAction();
           break;
+        case fileMenuKeys.cloneProject:
+          projectAction.cloneCurrentProjectAction();
+          break;
+        case fileMenuKeys.downloadProject:
+          projectAction.downloadCurrentProjectAction();
+          break;
         case fileMenuKeys.closeProject:
           projectAction.closeProjectAction();
+          break;
+        case fileMenuKeys.viewAllProjects:
+          window.open(routes.home, '_blank');
           break;
         case editMenuKeys.undo:
           undo();
@@ -195,10 +230,6 @@ export function MainMenu() {
             );
           }
           break;
-        case helpMenuKeys.toggleGrid: {
-          toggleGrid();
-          break;
-        }
         case viewMenuKeys.resetSheetColumns: {
           if (gridApi) {
             gridApi.event?.emit({
@@ -219,14 +250,22 @@ export function MainMenu() {
           toggleChatWindowPlacement();
           break;
         }
+        case viewMenuKeys.togglePanelLabels: {
+          updateCollapsedPanelsTextHidden(!collapsedPanelsTextHidden);
+          break;
+        }
+        case viewMenuKeys.toggleSplitPanels: {
+          updateSplitPanelsEnabled(!panelsSplitEnabled);
+          break;
+        }
         default:
           break;
       }
     },
     [
-      toggleGrid,
       togglePanel,
       onClickFormulaItem,
+      createEmptyChartTable,
       projectAction,
       clear,
       undo,
@@ -242,6 +281,10 @@ export function MainMenu() {
       chatWindowPlacement,
       toggleChat,
       toggleChatWindowPlacement,
+      updateCollapsedPanelsTextHidden,
+      collapsedPanelsTextHidden,
+      updateSplitPanelsEnabled,
+      panelsSplitEnabled,
     ]
   );
 
@@ -255,12 +298,13 @@ export function MainMenu() {
         rowsItems
       );
     },
-    [createManualTable, selectedCell?.col, selectedCell?.row]
+    [selectedCell?.col, selectedCell?.row, createManualTable]
   );
 
   useEffect(() => {
     const gridCell =
       selectedCell && gridApi?.getCell(selectedCell.col, selectedCell.row);
+    const recentProjects = getRecentProjects();
 
     setMenuItems(
       getMenuItems({
@@ -270,15 +314,20 @@ export function MainMenu() {
         inputFiles: inputList,
         isYourProject: userBucket === projectBucket,
         isAIPendingChanges,
+        recentProjects,
+        collapsedPanelsTextHidden,
+        panelsSplitEnabled,
         onCreateTable: handleCreateTableBySize,
       })
     );
   }, [
+    collapsedPanelsTextHidden,
     functions,
     gridApi,
     handleCreateTableBySize,
     inputList,
     isAIPendingChanges,
+    panelsSplitEnabled,
     parsedSheets,
     projectBucket,
     selectedCell,

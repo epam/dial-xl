@@ -1,8 +1,9 @@
 import { Button, Dropdown, Input } from 'antd';
 import cx from 'classnames';
-import { useContext } from 'react';
+import { useContext, useMemo } from 'react';
 
 import {
+  dialProjectFileExtension,
   inputClasses,
   primaryButtonClasses,
   SearchIcon,
@@ -12,9 +13,18 @@ import { DashboardContext } from '../../context';
 import { useDashboardCreateMenuItems } from './hooks';
 
 export function DashboardSearchBar() {
-  const { searchValue, search } = useContext(DashboardContext);
+  const { searchValue, search, displayedDashboardItems } =
+    useContext(DashboardContext);
 
-  const { dropdownItems } = useDashboardCreateMenuItems();
+  const projects = useMemo(
+    () =>
+      displayedDashboardItems
+        .filter((item) => item.name.endsWith(dialProjectFileExtension))
+        .map((item) => item.name.slice(0, -dialProjectFileExtension.length)),
+    [displayedDashboardItems]
+  );
+
+  const { dropdownItems } = useDashboardCreateMenuItems(projects);
 
   return (
     <div className="flex justify-between">
@@ -22,7 +32,7 @@ export function DashboardSearchBar() {
         className={cx('ant-input-md text-base', inputClasses)}
         placeholder="Search project..."
         prefix={
-          <div className="px-3 stroke-textSecondary">
+          <div className="px-3 w-[18px] text-textSecondary">
             <SearchIcon />
           </div>
         }

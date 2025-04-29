@@ -240,13 +240,18 @@ export function Inputs() {
                 selectable={false}
                 switcherIcon={
                   <Icon
-                    className="fill-textSecondary text-textSecondary"
+                    className="text-textSecondary w-2"
                     component={() => <DownOutlinedIcon />}
                   />
                 }
                 titleRender={(node) => (
                   <div
-                    className="flex w-full items-center justify-between"
+                    className="flex w-full items-center justify-between select-none"
+                    data-path={node.key}
+                    draggable={
+                      childData[node.key as string]?.nodeType === 'ITEM'
+                    }
+                    key={node.key}
                     onDoubleClick={() => {
                       const data = childData[node.key as string];
 
@@ -254,28 +259,24 @@ export function Inputs() {
                         onOpenFolder(data);
                       }
                     }}
+                    onDragStart={(ev) => onDragStart(node, ev)}
                   >
-                    <div
-                      className="inline-block overflow-hidden whitespace-nowrap text-ellipsis"
-                      data-path={node.key}
-                      draggable={!!childData[node.key as string]}
-                      key={node.key}
-                      onDragStart={() => onDragStart(node)}
-                    >
+                    <div className="inline-block overflow-hidden whitespace-nowrap text-ellipsis">
                       {node.title as string}
                     </div>
-                    {hoverKey === node.key && !!childData[node.key] && (
-                      <div className="flex items-center pointer-events-none">
-                        <Icon
-                          className="stroke-textSecondary mr-1"
-                          component={() => <DragIcon />}
-                        />
+                    {hoverKey === node.key &&
+                      childData[node.key]?.nodeType === 'ITEM' && (
+                        <div className="flex items-center pointer-events-none">
+                          <Icon
+                            className="w-[18px] text-textSecondary mr-1"
+                            component={() => <DragIcon />}
+                          />
 
-                        <span className="text-[13px] text-textSecondary">
-                          Drag
-                        </span>
-                      </div>
-                    )}
+                          <span className="text-[13px] text-textSecondary">
+                            Drag
+                          </span>
+                        </div>
+                      )}
                   </div>
                 )}
                 treeData={inputTree}

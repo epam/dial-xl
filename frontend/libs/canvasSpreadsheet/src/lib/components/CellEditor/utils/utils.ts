@@ -3,7 +3,7 @@ import { getTokens } from '@frontend/parser';
 
 import { cellEditorWrapperId } from '../../../constants';
 import { GridApi } from '../../../types';
-import { GridCellEditorMode } from '../types';
+import { CellEditorExplicitOpenOptions, GridCellEditorMode } from '../types';
 
 export const isCellEditorHasFocus = (): boolean => {
   const cellEditor = document.getElementById(cellEditorWrapperId);
@@ -15,20 +15,12 @@ export const isCellEditorHasFocus = (): boolean => {
   return !!monacoEditor;
 };
 
-export const isCellEditorOpen = (): boolean => {
-  const cellEditor = document.getElementById(cellEditorWrapperId);
-
-  if (!cellEditor) return false;
-
-  return cellEditor.style.display !== 'none';
-};
-
 export const canOpenCellEditor = (event: KeyboardEvent) => {
   const isPrintableChar = event.key && event.key.length === 1;
   const isShortcutEvent = event.ctrlKey || event.altKey || event.metaKey;
   const isOpenAIEvent = shortcutApi.is(Shortcut.OpenAIPromptBox, event);
 
-  return isPrintableChar && !isShortcutEvent && !isOpenAIEvent; // && isSpreadsheetTarget(event);
+  return isPrintableChar && !isShortcutEvent && !isOpenAIEvent;
 };
 
 export const shouldSendUpdateEvent = (
@@ -58,30 +50,33 @@ export const isCellEditorValueFormula = (
   value: string | undefined | null,
   isNewFieldFormula = false
 ) => {
-  if (!value || typeof value === 'number') {
-    return false;
-  }
+  if (!value || typeof value === 'number') return false;
 
   const tokens = getTokens(value);
 
-  if (!tokens.length) {
-    return false;
-  }
+  if (!tokens.length) return false;
 
-  if (
-    tokens.length >= 1 &&
-    (tokens[0].text === '=' || (isNewFieldFormula && tokens[1]?.text === '='))
-  ) {
-    return true;
-  }
+  const [firstToken, secondToken] = tokens;
+  const startsWithEqual = firstToken.text === '=';
+  const secondTokenIsEqual = isNewFieldFormula && secondToken?.text === '=';
 
-  return false;
+  return startsWithEqual || secondTokenIsEqual;
 };
 
-export const isOtherCellsInFieldDataHasOverrides = (
-  cell: GridCell,
-  api: GridApi
+export const isCellValueTypeChanged = (
+  newValue: string,
+  oldValue: string
 ): boolean => {
+  const isNewValueFormula = isCellEditorValueFormula(newValue);
+  const isOldValueFormula = isCellEditorValueFormula(oldValue);
+
+  return (
+    (isNewValueFormula && !isOldValueFormula) ||
+    (!isNewValueFormula && isOldValueFormula)
+  );
+};
+
+export const isOtherCellsInField = (cell: GridCell, api: GridApi): boolean => {
   if (!cell.table || !api) {
     return false;
   }
@@ -108,16 +103,33 @@ export const isOtherCellsInFieldDataHasOverrides = (
     directionEnd = endRow;
   }
 
-  for (let i = directionStart; i <= directionEnd; i++) {
-    const col = isTableHorizontal ? i : cell.col;
-    const row = isTableHorizontal ? cell.row : i;
+  return Math.abs(directionStart - directionEnd) > 0;
+};
 
-    const checkedCell = api.getCell(col, row);
+export const isSaveOnArrowEnabled = (
+  value: string,
+  openedWithNextChar: string
+): boolean => !!openedWithNextChar && value.indexOf('=') === -1;
 
-    if (checkedCell?.isOverride && (col !== cell.col || cell.row !== row)) {
-      return true;
+/**
+ * Special check when open cell editor explicitly and set target table and field
+ * (e.g. when use 'Add new column' from the context menu of the Project Panel)
+ * Needed for cases when tables are overlapped and target cell is behind the current cell
+ */
+export const canOpenExplicitlyWithTarget = (
+  options?: CellEditorExplicitOpenOptions,
+  cell?: GridCell
+): boolean => {
+  if (options?.targetTableName && options?.targetFieldName) {
+    const { targetTableName, targetFieldName } = options;
+
+    if (
+      targetTableName !== cell?.table?.tableName ||
+      targetFieldName !== cell?.field?.fieldName
+    ) {
+      return false;
     }
   }
 
-  return false;
+  return true;
 };

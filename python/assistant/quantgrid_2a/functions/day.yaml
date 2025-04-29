@@ -1,0 +1,4 @@
+name: day
+description: Extract day number from date
+signature: 'date.day() => number'
+manual: Extract day number from date.

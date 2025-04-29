@@ -10,6 +10,7 @@ import com.epam.deltix.quantgrid.engine.compiler.result.CompiledTable;
 import com.epam.deltix.quantgrid.engine.node.expression.Constant;
 import com.epam.deltix.quantgrid.engine.node.expression.RowNumber;
 import com.epam.deltix.quantgrid.engine.node.plan.local.SelectLocal;
+import com.epam.deltix.quantgrid.parser.ast.ConstBool;
 import com.epam.deltix.quantgrid.parser.ast.ConstNumber;
 import com.epam.deltix.quantgrid.parser.ast.ConstText;
 import com.epam.deltix.quantgrid.parser.ast.CurrentField;
@@ -26,6 +27,10 @@ import java.util.List;
 public class CompileFormula {
 
     public static CompiledResult compile(CompileContext context, Formula formula) {
+        if (formula instanceof CompiledFormula compiled) {
+            return compiled.result();
+        }
+
         if (formula instanceof TableReference reference) {
             return compileTableReference(context, reference);
         }
@@ -40,6 +45,10 @@ public class CompileFormula {
 
         if (formula instanceof QueryRow) {
             return compileQueryRowReference(context);
+        }
+
+        if (formula instanceof ConstBool constant) {
+            return new CompiledSimpleColumn(new Constant(constant.value()), List.of());
         }
 
         if (formula instanceof ConstNumber constant) {
@@ -68,44 +77,24 @@ public class CompileFormula {
     private static CompiledTable compileTableReference(CompileContext context, TableReference reference) {
         String name = reference.table();
         CompiledTable table = context.table(name);
-        CompiledTable promoted = context.promotedTable();
         SelectLocal select = new SelectLocal(new RowNumber(table.node()));
-
-        // check everything except for name, because we allow different tables with same layout to be used
-        // table A = RANGE(3), table B = RANGE(3), table C = A.FILTER(B) - A, B have same layout
-        if (promoted != null && promoted.nested() && promoted.dimensions().isEmpty()
-                && promoted.currentRef() == CompiledTable.REF_NA && promoted.queryRef() == 0
-                && select.semanticEqual(promoted.node(), true)) {
-            // table T3
-            //   dim [r3] = T2.ORDERBY(-T2[r2])[
-            return promoted;
-        }
-
         return new CompiledReferenceTable(name, select);
     }
 
     private static CompiledResult compileFieldReference(CompileContext context, FieldReference reference) {
-
         CompiledTable table = context.compileFormula(reference.table()).cast(CompiledTable.class);
         return table.field(context, reference.field());
     }
 
     private static CompiledResult compileCurrentField(CompileContext context, CurrentField reference) {
-        CompiledTable table = context.promotedTable();
         String fieldName = reference.field();
-
-        return (table == null)
-                ? context.currentField(fieldName)
-                : context.projectCurrentField(fieldName);
+        return context.currentField(fieldName);
     }
 
     private static CompiledResult compileQueryRowReference(CompileContext context) {
-        CompileUtil.verify(context.promotedTable != null, "Can't reference $ outside function");
-        // Used to prevent usage of PivotTable for other formulas. See testPivotInFormula.
-        CompileUtil.verify(
-                !(context.promotedTable instanceof CompiledPivotTable) && context.promotedTable.nested(),
-                "Pivot table can't be dimension or used in formulas");
-
-        return context.promotedTable;
+        CompileUtil.verify(context.placeholder != null, "Can't reference $ outside function");
+        CompiledResult result = context.compileFormula(context.placeholder);
+        CompileUtil.verify(!(result instanceof CompiledPivotTable), "Pivot table can't be dimension or used in formulas");
+        return result;
     }
 }

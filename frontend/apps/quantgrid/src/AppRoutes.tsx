@@ -6,6 +6,7 @@ import {
   ProtectedDashboardPage,
   ProtectedSharePage,
 } from './app';
+import { IconsPage } from './app/pages/IconsPage';
 
 export const routes = {
   home: '/home',
@@ -48,6 +49,9 @@ export function AppRoutes() {
         element={<ProtectedSharePage />}
         path={routes.share + '/:shareId'}
       />
+      {process.env.NODE_ENV === 'development' && (
+        <Route element={<IconsPage />} path="/icons" />
+      )}
       <Route element={<ErrorPage />} path="*" />
     </Routes>
   );

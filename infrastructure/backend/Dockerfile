@@ -1,7 +1,7 @@
 FROM eclipse-temurin:17-jdk
 
 RUN apt update && apt install -y python3-pip
-RUN pip3 install numpy pandas --break-system-packages
+RUN pip3 install numpy pandas scikit-learn --break-system-packages
 
 RUN mkdir /opt/quantgrid/
 WORKDIR /opt/quantgrid/

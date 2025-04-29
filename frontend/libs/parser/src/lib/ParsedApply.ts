@@ -1,13 +1,30 @@
-import { NumericFilter, ParsedFilter } from './ParsedFilter';
+import { Expose } from 'class-transformer';
+
+import { ParsedConditionFilter, ParsedFilter } from './ParsedFilter';
 import { ParsedSort } from './ParsedSort';
 import { FieldSortOrder, FullDSLPlacement } from './parser';
+import { Span } from './Span';
 
 export class ParsedApply {
+  @Expose()
+  span: Span | undefined;
+
+  @Expose()
+  filter: ParsedFilter | undefined;
+
+  @Expose()
+  sort: ParsedSort | undefined;
+
   constructor(
-    public dslPlacement: FullDSLPlacement | undefined,
-    public sort: ParsedSort | undefined,
-    public filter: ParsedFilter | undefined
-  ) {}
+    span: Span | undefined,
+    sort: ParsedSort | undefined,
+    filter: ParsedFilter | undefined,
+    public dslPlacement: FullDSLPlacement | undefined
+  ) {
+    this.span = span;
+    this.sort = sort;
+    this.filter = filter;
+  }
 
   public getFieldSortOrder(fieldName: string): FieldSortOrder {
     if (!this.sort) return null;
@@ -23,13 +40,13 @@ export class ParsedApply {
     return this.filter?.hasFieldFilter(fieldName) || false;
   }
 
-  public getFieldNumericFilterValue(
+  public getFieldConditionFilter(
     fieldName: string
-  ): NumericFilter | undefined {
-    return this.filter?.getFieldNumericFilterValue(fieldName);
+  ): ParsedConditionFilter | undefined {
+    return this.filter?.getFieldConditionFilter(fieldName);
   }
 
-  public getFieldTextFilterValues(fieldName: string): string[] {
-    return this.filter?.getFieldTextFilterValues(fieldName) || [];
+  public getFieldListFilterValues(fieldName: string): string[] {
+    return this.filter?.getFieldListFilterValues(fieldName) || [];
   }
 }

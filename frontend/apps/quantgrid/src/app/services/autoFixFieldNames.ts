@@ -1,6 +1,6 @@
 import { findFieldNameInExpression, SheetReader } from '@frontend/parser';
 
-import { TableFields } from './getTableFields';
+import { TableFields } from './sheetUtils';
 
 export function autoFixFieldNames(
   expression: string,

@@ -9,7 +9,6 @@ import {
   primaryDisabledButtonClasses,
   secondaryButtonClasses,
 } from '@frontend/common';
-import { focusSpreadsheet } from '@frontend/spreadsheet';
 
 import { DeleteProjectModalRefFunction } from '../../../common';
 import { ProjectContext } from '../../../context';
@@ -85,7 +84,6 @@ export function DeleteProject({ deleteProjectModal }: Props) {
 
   return (
     <Modal
-      afterClose={focusSpreadsheet}
       cancelButtonProps={{
         className: cx(modalFooterButtonClasses, secondaryButtonClasses),
       }}

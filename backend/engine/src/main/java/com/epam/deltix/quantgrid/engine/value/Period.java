@@ -107,4 +107,11 @@ public enum Period {
         double year = offset + ZERO_YEAR;
         return Dates.of(year, FIRST_MONTH, FIRST_DAY);
     }
+
+    public static boolean isValid(String value) {
+        return switch (value) {
+            case "YEAR", "QUARTER", "MONTH", "WEEK", "DAY" -> true;
+            default -> false;
+        };
+    }
 }

@@ -1,4 +1,9 @@
-import { formulaBarInput, formulaEditorId, projectTreeId } from '../constants';
+import {
+  codeEditorId,
+  formulaBarInput,
+  formulaEditorId,
+  projectTreeId,
+} from '../constants';
 
 export function isModalOpen() {
   const modals = document.querySelectorAll(
@@ -15,6 +20,23 @@ export function isModalOpen() {
 
   return false;
 }
+
+export const isCodeEditorMonacoInputFocused = (): boolean => {
+  const { activeElement } = document;
+
+  if (!activeElement) return false;
+
+  const codeEditorInputContainer = document.getElementById(codeEditorId);
+
+  const { classList } = activeElement;
+  const isMonacoEditorFocused =
+    classList.contains('inputarea') &&
+    classList.contains('monaco-mouse-cursor-text');
+
+  return (
+    isMonacoEditorFocused && !!codeEditorInputContainer?.contains(activeElement)
+  );
+};
 
 export const isFormulaBarMonacoInputFocused = (): boolean => {
   const { activeElement } = document;

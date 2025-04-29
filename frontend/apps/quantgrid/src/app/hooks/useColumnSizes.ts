@@ -1,15 +1,13 @@
 import { useContext, useEffect, useState } from 'react';
 
-import { GridApi } from '@frontend/canvas-spreadsheet';
-import { CachedViewport } from '@frontend/common';
 import {
   EventTypeColumnResize,
   EventTypeColumnResizeDbClick,
   EventTypeResetCurrentColumnSizes,
   filterByTypeAndCast,
-  Grid,
   GridEvent,
-} from '@frontend/spreadsheet';
+} from '@frontend/canvas-spreadsheet';
+import { CachedViewport } from '@frontend/common';
 
 import { AppContext, ProjectContext } from '../context';
 import { useGridApi } from './useGridApi';
@@ -27,8 +25,7 @@ export function useColumnSizes(viewport: CachedViewport) {
   useEffect(() => {
     if (!gridApi || !projectName || !sheetName) return;
 
-    // TODO: remove casting to old gridApi type when move fully to canvas
-    const columnSizeChangeSubscription = (gridApi as Grid).events$
+    const columnSizeChangeSubscription = gridApi.events$
       .pipe(filterByTypeAndCast<EventTypeColumnResize>(GridEvent.columnResize))
       .subscribe((event) => {
         const { column, width } = event;
@@ -57,8 +54,7 @@ export function useColumnSizes(viewport: CachedViewport) {
   useEffect(() => {
     if (!gridApi || !projectName || !sheetName) return;
 
-    // TODO: remove casting to old gridApi type when move fully to canvas
-    const columnResizeDbClickSubscription = (gridApi as Grid).events$
+    const columnResizeDbClickSubscription = gridApi.events$
       .pipe(
         filterByTypeAndCast<EventTypeColumnResizeDbClick>(
           GridEvent.columnResizeDbClick
@@ -86,13 +82,7 @@ export function useColumnSizes(viewport: CachedViewport) {
         const sheetColumnWidths =
           columnWidths[projectName + '/' + sheetName] || {};
 
-        // TODO: remove default value and casting when move to canvas
-        let symbolWidth = 8;
-
-        if ((gridApi as GridApi).getCanvasSymbolWidth) {
-          symbolWidth = (gridApi as GridApi).getCanvasSymbolWidth();
-        }
-
+        const symbolWidth = gridApi.getCanvasSymbolWidth();
         const paddingOffset = 2 * symbolWidth;
 
         sheetColumnWidths[column] = Math.max(
@@ -115,8 +105,7 @@ export function useColumnSizes(viewport: CachedViewport) {
   useEffect(() => {
     if (!gridApi || !projectName || !sheetName) return;
 
-    // TODO: remove casting to old gridApi type when move fully to canvas
-    const resetColumnSizesSubscription = (gridApi as Grid).events$
+    const resetColumnSizesSubscription = gridApi.events$
       .pipe(
         filterByTypeAndCast<EventTypeResetCurrentColumnSizes>(
           GridEvent.resetCurrentColumnSizes

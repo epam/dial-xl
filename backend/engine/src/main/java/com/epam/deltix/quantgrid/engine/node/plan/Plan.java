@@ -70,6 +70,10 @@ public abstract class Plan extends Node {
         return inputs.size() - planCount;
     }
 
+    public final int expressionCount(int sourceIndex) {
+        return groupCount[sourceIndex];
+    }
+
     protected final Expression expression(int sourceIndex) {
         int start = groupStart[sourceIndex];
         int size = groupCount[sourceIndex];
@@ -152,6 +156,11 @@ public abstract class Plan extends Node {
     @Override
     public Plan copy(List<Node> inputs) {
         return (Plan) super.copy(inputs);
+    }
+
+    @Override
+    public Plan copy(List<Node> inputs, boolean withIdentity) {
+        return (Plan) super.copy(inputs, withIdentity);
     }
 
     protected static Source sourceOf(Plan plan) {

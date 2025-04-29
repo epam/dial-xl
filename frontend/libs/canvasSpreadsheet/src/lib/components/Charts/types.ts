@@ -1,6 +1,7 @@
 import { MutableRefObject } from 'react';
 
-import { AppTheme, ChartsData, GridChart } from '@frontend/common';
+import { AppTheme, ChartsData, GridChart, GridTable } from '@frontend/common';
+import { ParsedSheets } from '@frontend/parser';
 
 import { GridApi, GridCallbacks } from '../../types';
 
@@ -12,6 +13,8 @@ export type Props = {
   charts?: GridChart[];
   theme: AppTheme;
   columnSizes: Record<number, number>;
+  tableStructure: GridTable[];
+  parsedSheets: ParsedSheets;
 };
 
 export type ChartConfig = {
@@ -25,6 +28,6 @@ export type ChartConfig = {
   toolBarHeight: number;
   minResizeWidth: number;
   minResizeHeight: number;
-
+  showToolbar: boolean;
   gridChart: GridChart;
 };

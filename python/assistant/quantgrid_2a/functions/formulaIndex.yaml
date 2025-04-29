@@ -1,0 +1,6 @@
+name: formulaIndex
+description: Get row index for which current formula is calculating (index is 1 for the first row)
+signature: 'formulaIndex() => number'
+manual: >-
+  `formulaIndex()` returns row index from (index is 1 for the first row).
+original_name: row

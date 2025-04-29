@@ -1,18 +1,25 @@
-import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { canvasId } from '../../constants';
-import { getPx, round } from '../../utils';
-import { LineChart } from './lineChart';
+import {
+  filterByTypeAndCast,
+  getMousePosition,
+  getPx,
+  round,
+} from '../../utils';
+import {
+  EventTypeStartMoveMode,
+  EventTypeStopMoveMode,
+  GridEvent,
+} from '../GridApiWrapper';
+import { Chart, EmptyChart } from './Chart';
 import { ResizeHandler } from './resizeHandler';
-import { ToolBar } from './toolBar';
+import { filterSelectorNames, ToolBar } from './toolBar';
 import { ChartConfig, Props } from './types';
 import { useHideCharts } from './useHideCharts';
 
 const toolbarRows = 2;
 
-// TODO:
-// 1. Subscribe to start/stop move mode events (setMoveMode(true/false))
-// 2. Subscribe to resize column event
 export function Charts({
   gridCallbacksRef,
   api,
@@ -21,9 +28,13 @@ export function Charts({
   zoom = 1,
   theme,
   columnSizes,
+  tableStructure,
+  parsedSheets,
 }: Props) {
   const [chartConfigs, setChartConfigs] = useState<ChartConfig[]>([]);
   const [moveMode, setMoveMode] = useState(false);
+  const [hoveredChart, setHoveredChart] = useState<string | null>(null);
+  const [resizingChart, setResizingChart] = useState<string | null>(null);
   const viewportNode = useRef<HTMLDivElement>(null);
   const containerNode = useRef<HTMLDivElement>(null);
 
@@ -52,11 +63,14 @@ export function Charts({
     charts.forEach((chart) => {
       const { startCol, startRow, endRow, endCol, tableName } = chart;
 
+      const showToolbar = filterSelectorNames(chart).length > 0;
+      const finalToolbarRows = showToolbar ? toolbarRows : 0;
+
       const x1 = api.getCellX(startCol) - xOffset;
-      const y1 = api.getCellY(startRow + toolbarRows) - yOffset;
+      const y1 = api.getCellY(startRow + finalToolbarRows) - yOffset;
 
       const x2 = api.getCellX(endCol) - xOffset;
-      const y2 = api.getCellY(endRow + toolbarRows) - yOffset;
+      const y2 = api.getCellY(endRow) - yOffset;
 
       const x3 = api.getCellX(startCol) - xOffset;
       const y3 = api.getCellY(startRow) - yOffset;
@@ -66,7 +80,7 @@ export function Charts({
 
       const width = round(Math.abs(x2 - x1));
       const height = round(Math.abs(y2 - y1));
-      const toolBarHeight = round(Math.abs(y3 - y1));
+      const toolBarHeight = showToolbar ? round(Math.abs(y3 - y1)) : 0;
       const minResizeWidth = Math.min(round(Math.abs(x4 - x3)), width);
       const minResizeHeight = Math.min(round(Math.abs(y4 - y3)), height);
 
@@ -81,6 +95,7 @@ export function Charts({
         minResizeWidth,
         minResizeHeight,
         tableName,
+        showToolbar,
         gridChart: chart,
       };
 
@@ -117,27 +132,12 @@ export function Charts({
   }, [api]);
 
   const handleChartResize = useCallback(
-    (tableName: string, x: number, y: number) => {
+    (tableName: string, cols: number, rows: number) => {
       if (!api) return;
-
-      const gridSizes = api.getGridSizes();
-      const { rowNumber, colNumber } = gridSizes;
-      const gridX = x + rowNumber.width;
-      const gridY = y + colNumber.height;
-
-      const cellPlacement = api.getCellFromCoords(gridX, gridY);
-      const chart = charts.find((c) => c.tableName === tableName);
-
-      if (!cellPlacement || !chart) return;
-
-      const { col, row } = cellPlacement;
-
-      const cols = col - chart.startCol + 1;
-      const rows = row - chart.startRow - 1;
 
       gridCallbacksRef.current.onChartResize?.(tableName, cols, rows);
     },
-    [api, charts, gridCallbacksRef]
+    [api, gridCallbacksRef]
   );
 
   const onLoadMoreKeys = useCallback(
@@ -148,11 +148,88 @@ export function Charts({
   );
 
   const onSelectKey = useCallback(
-    (tableName: string, fieldName: string, value: string) => {
-      gridCallbacksRef.current.onSelectChartKey?.(tableName, fieldName, value);
+    (
+      tableName: string,
+      fieldName: string,
+      value: string | string[],
+      isNoDataKey = false
+    ) => {
+      gridCallbacksRef.current.onSelectChartKey?.(
+        tableName,
+        fieldName,
+        value,
+        isNoDataKey
+      );
     },
     [gridCallbacksRef]
   );
+
+  const onSelectChart = useCallback(
+    (tableName: string) => {
+      if (!api) return;
+
+      const table = tableStructure.find((t) => t.tableName === tableName);
+
+      if (!table || table?.isTableNameHeaderHidden) return;
+
+      const { startCol, startRow, endCol } = table;
+
+      api.updateSelection({
+        startCol,
+        startRow,
+        endCol,
+        endRow: startRow,
+      });
+    },
+    [api, tableStructure]
+  );
+
+  const onChartDblClick = useCallback(() => {
+    gridCallbacksRef.current.onChartDblClick?.();
+  }, [gridCallbacksRef]);
+
+  const handleContextMenu = useCallback(
+    (
+      e: React.MouseEvent<HTMLDivElement, MouseEvent>,
+      chartConfig: ChartConfig
+    ) => {
+      e.preventDefault();
+      const mousePosition = getMousePosition(e);
+
+      if (!api || !mousePosition) return;
+
+      api.openContextMenuAtCoords(
+        mousePosition.x,
+        mousePosition.y,
+        chartConfig.gridChart.tableStartCol,
+        chartConfig.gridChart.tableStartRow,
+        'html-element'
+      );
+    },
+    [api]
+  );
+
+  // Allow to scroll spreadsheet when mouse is over charts
+  useEffect(() => {
+    if (!api) return;
+
+    const container = containerNode.current;
+
+    const onWheel = (e: WheelEvent) => {
+      if (e.deltaY) {
+        api.moveViewport(0, e.deltaY / 2);
+      } else if (e.deltaX) {
+        api.moveViewport(e.deltaX, 0);
+      }
+
+      e.preventDefault();
+    };
+    container?.addEventListener('wheel', onWheel, true);
+
+    return () => {
+      container?.removeEventListener('wheel', onWheel, true);
+    };
+  }, [api, containerNode]);
 
   useEffect(() => {
     setLayerPosition();
@@ -179,10 +256,26 @@ export function Charts({
   useEffect(() => {
     if (!api) return;
 
-    const unsubscribe = api.gridViewportSubscription(setupCharts);
+    const viewportUnsubscribe = api.gridViewportSubscription(setupCharts);
+
+    const startMoveModeSubscription = api.events$
+      .pipe(
+        filterByTypeAndCast<EventTypeStartMoveMode>(GridEvent.startMoveMode)
+      )
+      .subscribe(() => {
+        setMoveMode(true);
+      });
+
+    const stopMoveModeSubscription = api.events$
+      .pipe(filterByTypeAndCast<EventTypeStopMoveMode>(GridEvent.stopMoveMode))
+      .subscribe(() => {
+        setMoveMode(false);
+      });
 
     return () => {
-      unsubscribe();
+      viewportUnsubscribe();
+      startMoveModeSubscription.unsubscribe();
+      stopMoveModeSubscription.unsubscribe();
     };
   }, [api, setupCharts]);
 
@@ -193,18 +286,28 @@ export function Charts({
     >
       <div className="relative" id="chartsContainer" ref={containerNode}>
         {chartConfigs.map((chartConfig) => (
-          <Fragment key={chartConfig.tableName}>
-            <ToolBar
-              chartConfig={chartConfig}
-              isHidden={hiddenCharts.includes(chartConfig.tableName)}
-              moveMode={moveMode}
-              zoom={zoom}
-              onLoadMoreKeys={onLoadMoreKeys}
-              onSelectKey={onSelectKey}
-            />
+          <div
+            key={chartConfig.tableName}
+            onContextMenu={(e) => handleContextMenu(e, chartConfig)}
+            onMouseEnter={() => setHoveredChart(chartConfig.tableName)}
+            onMouseLeave={() => setHoveredChart(null)}
+          >
+            {chartConfig.showToolbar && (
+              <div>
+                <ToolBar
+                  chartConfig={chartConfig}
+                  isHidden={hiddenCharts.includes(chartConfig.tableName)}
+                  moveMode={moveMode}
+                  zoom={zoom}
+                  onLoadMoreKeys={onLoadMoreKeys}
+                  onSelectChart={() => onSelectChart(chartConfig.tableName)}
+                  onSelectKey={onSelectKey}
+                />
+              </div>
+            )}
 
             <div
-              className="absolute border-[0.3px] border-strokeGridMain border-opacity-50 bg-bgGridField"
+              className="absolute border-[0.3px] border-strokePrimary bg-bgLayer3"
               key={chartConfig.tableName}
               style={{
                 left: getPx(chartConfig.left),
@@ -217,20 +320,36 @@ export function Charts({
                 pointerEvents: moveMode ? 'none' : 'auto',
               }}
             >
-              <LineChart
-                chartConfig={chartConfig}
-                chartData={chartData}
-                theme={theme}
-                zoom={zoom}
-              />
+              {chartConfig.gridChart.isEmpty ? (
+                <EmptyChart
+                  gridCallbacksRef={gridCallbacksRef}
+                  parsedSheets={parsedSheets}
+                  tableName={chartConfig.tableName}
+                />
+              ) : (
+                <Chart
+                  chartConfig={chartConfig}
+                  chartData={chartData}
+                  theme={theme}
+                  zoom={zoom}
+                  onChartDblClick={onChartDblClick}
+                  onSelectChart={() => onSelectChart(chartConfig.tableName)}
+                />
+              )}
             </div>
-            <ResizeHandler
-              chartConfig={chartConfig}
-              onChartResize={(x, y) => {
-                handleChartResize(chartConfig.tableName, x, y);
-              }}
-            />
-          </Fragment>
+            {(hoveredChart === chartConfig.tableName ||
+              resizingChart === chartConfig.tableName) && (
+              <ResizeHandler
+                api={api}
+                chartConfig={chartConfig}
+                onChartResize={(cols, rows) => {
+                  handleChartResize(chartConfig.tableName, cols, rows);
+                }}
+                onStartResizing={() => setResizingChart(chartConfig.tableName)}
+                onStopResizing={() => setResizingChart(null)}
+              />
+            )}
+          </div>
         ))}
       </div>
     </div>

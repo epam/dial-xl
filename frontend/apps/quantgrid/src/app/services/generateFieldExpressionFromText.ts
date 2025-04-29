@@ -39,25 +39,25 @@ export const generateFieldExpressionFromText = (
       fieldName = fieldNameInBrackets
         ? SheetReader.stripQuotes(sourceFieldName) || defaultFieldName
         : sourceFieldName || defaultFieldName;
-      const checkedFieldName = createUniqueName(fieldName, existingFieldNames);
+      const uniqueFieldName = createUniqueName(fieldName, existingFieldNames);
       const fieldDsl = expression
-        ? `[${checkedFieldName}] = ${expression}`
-        : `[${checkedFieldName}]`;
+        ? `[${uniqueFieldName}] = ${expression}`
+        : `[${uniqueFieldName}]`;
 
-      return { fieldName, fieldDsl };
+      return { fieldName: uniqueFieldName, fieldDsl, expression };
     }
 
     const fieldDsl = `${sourceFieldName} = ${expression}`;
 
-    return { fieldName, fieldDsl };
+    return { fieldName, fieldDsl, expression };
   }
 
   if (parts.length === 1) {
     fieldName = createUniqueName(parts[0], existingFieldNames);
     const fieldDsl = `[${fieldName}]`;
 
-    return { fieldName, fieldDsl };
+    return { fieldName, fieldDsl, expression: null };
   }
 
-  return { fieldName, fieldDsl: fieldText };
+  return { fieldName, fieldDsl: fieldText, expression: null };
 };

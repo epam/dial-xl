@@ -3,6 +3,7 @@ export function PlusIcon() {
     <svg fill="none" viewBox="0 0 12 12" width="100%">
       <path
         d="M6 0.75V11.25M0.75 6H11.25"
+        stroke="currentColor"
         strokeLinecap="round"
         strokeLinejoin="round"
         strokeWidth="1.5"

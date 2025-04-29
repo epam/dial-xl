@@ -1,3 +1,4 @@
+import { Tooltip } from 'antd';
 import cx from 'classnames';
 import { ResizeDirection } from 're-resizable';
 import {
@@ -12,10 +13,15 @@ import { DraggableData, DraggableEvent } from 'react-draggable';
 import { Position, ResizableDelta, Rnd } from 'react-rnd';
 
 import Icon from '@ant-design/icons';
-import { ArrowAltIcon, ArrowNarrowUp, CloseIcon } from '@frontend/common';
-import { getPx } from '@frontend/spreadsheet';
+import { getPx } from '@frontend/canvas-spreadsheet';
+import {
+  ArrowAltIcon,
+  ArrowNarrowUp,
+  CloseIcon,
+  DialChatLogoIcon,
+} from '@frontend/common';
 
-import { AppContext } from '../../context';
+import { AppContext, ProjectContext } from '../../context';
 import { ApplySuggestionButton } from './ApplySuggestionButton';
 import { useApplySuggestions } from './useApplySuggestion';
 import { useOverlay } from './useOverlay';
@@ -41,6 +47,9 @@ const maximizedChatSize = '100%';
 const minSize = '200px';
 
 export function ChatFloatingWindow() {
+  const { toggleChatWindowPlacement, toggleChat, isChatOpen } =
+    useContext(AppContext);
+  const { projectSheets, sheetName } = useContext(ProjectContext);
   const containerRef = useRef<HTMLDivElement>(null);
   const [isInitialized, setIsInitialized] = useState(false);
   const [expanded, setExpanded] = useState(false);
@@ -50,7 +59,6 @@ export function ChatFloatingWindow() {
 
   const { GPTSuggestions, lastStageCompleted } = useOverlay(containerRef);
   const { applySuggestion } = useApplySuggestions();
-  const { toggleChat, isChatOpen } = useContext(AppContext);
 
   const toggleExpanded = useCallback(() => {
     const { height, width } = defaultChatWindowOptions;
@@ -174,7 +182,7 @@ export function ChatFloatingWindow() {
     >
       <div
         className={cx(
-          'z-[1001] flex flex-col h-full w-full border border-strokePrimary shadow-[0_2px_4px_1px_rgba(9,13,19,0.25)]',
+          'z-[1001] flex flex-col h-full w-full border border-strokePrimary shadow-[0_2px_4px_1px_rgba(9,13,19,0.25)] bg-bgLayer2',
           {
             hidden: isChatHidden,
           }
@@ -192,25 +200,43 @@ export function ChatFloatingWindow() {
               DIAL Chat
             </span>
           </div>
-          <Icon
-            className={cx('w-[14px] stroke-textSecondary mr-2', {
-              'transform rotate-[225deg]': expanded,
-              'transform rotate-45': !expanded,
-            })}
-            component={() => (expanded ? <ArrowNarrowUp /> : <ArrowAltIcon />)}
-            onClick={toggleExpanded}
-          />
-          <Icon
-            className="w-[14px] text-textSecondary mr-2"
-            component={() => <CloseIcon />}
-            onClick={toggleChat}
-          />
+          <Tooltip placement="top" title="Move Chat to Panel">
+            <Icon
+              className="w-[14px] text-textSecondary mr-2"
+              component={() => <DialChatLogoIcon />}
+              onClick={toggleChatWindowPlacement}
+            />
+          </Tooltip>
+          <Tooltip
+            placement="top"
+            title={expanded ? 'Restore Chat' : 'Expand Chat'}
+          >
+            <Icon
+              className={cx('w-[14px] text-textSecondary mr-2', {
+                'transform rotate-[225deg]': expanded,
+                'transform rotate-45': !expanded,
+              })}
+              component={() =>
+                expanded ? <ArrowNarrowUp /> : <ArrowAltIcon />
+              }
+              onClick={toggleExpanded}
+            />
+          </Tooltip>
+          <Tooltip placement="top" title="Close Chat">
+            <Icon
+              className="w-[14px] text-textSecondary mr-2"
+              component={() => <CloseIcon />}
+              onClick={toggleChat}
+            />
+          </Tooltip>
         </div>
         <div className={cx('h-full w-full')} ref={containerRef}></div>
         <ApplySuggestionButton
           applySuggestion={() => applySuggestion(GPTSuggestions)}
+          currentSheetName={sheetName}
           GPTSuggestions={GPTSuggestions}
           lastStageCompleted={lastStageCompleted}
+          projectSheets={projectSheets}
         />
       </div>
     </Rnd>

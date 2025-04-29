@@ -1,9 +1,11 @@
-import { FormulasContextMenuKeyData } from '@frontend/common';
+import { ChartType, FormulasContextMenuKeyData } from '@frontend/common';
 
 export type ContextMenuKeyData =
   | {
       col: number;
       row: number;
+      chartType?: ChartType;
+      fieldName?: string;
     }
   | FormulasContextMenuKeyData;
 
@@ -25,6 +27,7 @@ export type GridContextMenuEventOpen = {
   y: number;
   col: number;
   row: number;
+  source: 'canvas-element' | 'html-element';
 };
 
 export type GridContextMenuEvent = GridContextMenuEventOpen;

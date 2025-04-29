@@ -8,20 +8,19 @@ import {
   useState,
 } from 'react';
 
-import { Graphics, useTick } from '@pixi/react';
+import { Graphics } from '@pixi/react';
 
 import { ComponentLayer } from '../../constants';
 import { GridStateContext, GridViewportContext } from '../../context';
-import { useCellUtils } from '../../hooks';
+import { useCellUtils, useDraw } from '../../hooks';
 import { Rectangle } from '../../types';
 import { drawDashedRect } from '../../utils';
-import { getFullIconName } from '../Cells/iconUtils';
+import { getFullIconName } from '../Cells/utils';
 import { useSelection } from './useSelection';
 
 export function Selection() {
   const {
     gridSizes,
-    selectionEdges,
     theme,
     pointClickError,
     pointClickMode,
@@ -38,7 +37,7 @@ export function Selection() {
   const graphicsRef = useRef<PIXI.Graphics>(null);
 
   const { getDashedRectPolygons } = useCellUtils();
-  useSelection();
+  const { selectionEdges } = useSelection();
 
   const moveTableIcon = useMemo(() => {
     return PIXI.Sprite.from(getFullIconName('useArrowsMove', theme.themeName), {
@@ -74,7 +73,7 @@ export function Selection() {
     getSelectionCoords();
   }, [getSelectionCoords]);
 
-  useTick(() => {
+  const draw = useCallback(() => {
     if (!graphicsRef.current) return;
 
     const graphics = graphicsRef.current;
@@ -118,7 +117,21 @@ export function Selection() {
       .beginFill(bgColor, bgAlpha)
       .drawRect(x, y, width, height)
       .endFill();
-  }, true);
+  }, [
+    getDashedRectPolygons,
+    gridSizes,
+    isTableDragging,
+    moveTableIcon,
+    pointClickError,
+    pointClickMode,
+    selectedTable,
+    selectionCoords,
+    selectionEdges,
+    theme.pointClickSelection,
+    theme.selection,
+  ]);
+
+  useDraw(draw);
 
   return <Graphics ref={graphicsRef} zIndex={ComponentLayer.Selection} />;
 }

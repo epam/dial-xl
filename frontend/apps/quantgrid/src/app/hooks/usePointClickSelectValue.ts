@@ -1,7 +1,7 @@
 import { useCallback, useContext } from 'react';
 
-import { escapeTableName } from '@frontend/common';
-import { GridSelection } from '@frontend/spreadsheet';
+import { SelectionEdges } from '@frontend/canvas-spreadsheet';
+import { escapeTableName } from '@frontend/parser';
 
 import { AppContext, ProjectContext } from '../context';
 import { EventBusMessages } from '../services';
@@ -16,8 +16,7 @@ type ExternalValueOptions = {
 };
 
 export function usePointClickSelectValue() {
-  const { isPointClickMode, pointClickModeSource, canvasSpreadsheetMode } =
-    useContext(AppContext);
+  const { isPointClickMode, pointClickModeSource } = useContext(AppContext);
   const { selectedCell } = useContext(ProjectContext);
   const gridApi = useGridApi();
 
@@ -91,12 +90,12 @@ export function usePointClickSelectValue() {
 
   /**
    * Get value for point-click single selection
-   * @param selection {GridSelection} - selection object
+   * @param selection {SelectionEdges} - selection object
    * @returns {string | undefined} - value for point-click single selection
    */
   const getSingleSelectionPointClickValue = useCallback(
     (
-      pointClickSelection: GridSelection,
+      pointClickSelection: SelectionEdges,
       isRangeSelection = false
     ): string | undefined => {
       if (!gridApi || !selectedCell) return;
@@ -114,13 +113,7 @@ export function usePointClickSelectValue() {
       const targetCell = gridApi.getCell(targetStartCol, targetStartRow);
       const targetTable = findTable(targetCell?.table?.tableName || '');
 
-      if (!targetTable) {
-        if (!canvasSpreadsheetMode) {
-          gridApi.hideCellEditor();
-        }
-
-        return;
-      }
+      if (!targetTable) return;
 
       const targetTableName = targetTable.tableName;
       const targetFieldName = targetCell?.field?.fieldName || '';
@@ -164,7 +157,11 @@ export function usePointClickSelectValue() {
 
       if (isTableCell && isSameTable) {
         if (isFieldHeaderEditing || tableHasKeys) {
-          const findKeys = findTableKeys(targetTable, targetStartRow);
+          const findKeys = findTableKeys(
+            targetTable,
+            targetStartCol,
+            targetStartRow
+          );
 
           return `${sanitizedTargetTableName}(${findKeys})[${targetFieldName}]`;
         }
@@ -176,30 +173,27 @@ export function usePointClickSelectValue() {
       }
 
       if (isTableCell && !isSameTable) {
-        const findKeys = findTableKeys(targetTable, targetStartRow);
+        const findKeys = findTableKeys(
+          targetTable,
+          targetStartCol,
+          targetStartRow
+        );
 
         return `${sanitizedTargetTableName}(${findKeys})[${targetFieldName}]`;
       }
 
       return;
     },
-    [
-      canvasSpreadsheetMode,
-      findTable,
-      findTableKeys,
-      getSelectedCellContext,
-      gridApi,
-      selectedCell,
-    ]
+    [findTable, findTableKeys, getSelectedCellContext, gridApi, selectedCell]
   );
 
   /**
    * Get value for point-click range selection
-   * @param selection {GridSelection} - selection object
+   * @param selection {SelectionEdges} - selection object
    * @returns {string | undefined} - value for point-click range selection
    */
   const getRangeSelectionPointClickValue = useCallback(
-    (pointClickSelection: GridSelection): string | undefined => {
+    (pointClickSelection: SelectionEdges): string | undefined => {
       if (!gridApi || !selectedCell) return;
 
       const { startRow, endRow, endCol, startCol } = pointClickSelection;
@@ -247,11 +241,11 @@ export function usePointClickSelectValue() {
 
   /**
    * Get type of point-click selection (single or range) and get value
-   * @param pointClickSelection {GridSelection} - point-click selection object
+   * @param pointClickSelection {SelectionEdges} - point-click selection object
    * @returns {string | undefined} - value for point-click selection
    */
   const getPointClickValue = useCallback(
-    (pointClickSelection: GridSelection | null): string | undefined => {
+    (pointClickSelection: SelectionEdges | null): string | undefined => {
       if (!gridApi || !isPointClickMode || !selectedCell) return;
 
       if (!pointClickSelection) return;
@@ -276,12 +270,12 @@ export function usePointClickSelectValue() {
   /**
    * Handle event after select single cell, range of cells or project tree node
    * @param externalValue {string} - value from external source (e.g. after click on project tree table or field)
-   * @param pointClickSelection {GridSelection} - point-click selection object
+   * @param pointClickSelection {SelectionEdges} - point-click selection object
    */
   const handlePointClickSelectValue = useCallback(
     (
       externalValue?: ExternalValueOptions | null,
-      pointClickSelection: GridSelection | null = null
+      pointClickSelection: SelectionEdges | null = null
     ) => {
       if (!gridApi || !isPointClickMode || !selectedCell) return;
 

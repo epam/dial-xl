@@ -4,8 +4,9 @@ import { useCallback, useContext, useMemo, useRef } from 'react';
 import { Graphics } from '@pixi/react';
 
 import { GridStateContext, GridViewportContext } from '../../../context';
+import { useDraw } from '../../../hooks';
 import { Line, Rectangle, ScrollBarDirection } from '../../../types';
-import { getViewportPosition } from '../../../utils';
+import { calculateExponent, getViewportPosition } from '../../../utils';
 
 type Props = {
   direction: ScrollBarDirection;
@@ -13,6 +14,7 @@ type Props = {
 
 export function Track({ direction }: Props) {
   const {
+    isPanModeEnabled,
     gridHeight,
     gridWidth,
     fullHeight,
@@ -23,10 +25,24 @@ export function Track({ direction }: Props) {
   } = useContext(GridStateContext);
   const { moveViewport, viewportCoords } = useContext(GridViewportContext);
 
+  const graphicsRef = useRef<PIXI.Graphics>(null);
   const isHorizontal = direction === 'horizontal';
   const gridSize = isHorizontal ? gridWidth : gridHeight;
   const fullSize = isHorizontal ? fullWidth : fullHeight;
   const isTrackClicked = useRef(false);
+
+  const exponent = useMemo(
+    () =>
+      calculateExponent(
+        isHorizontal ? gridSizes.edges.col : gridSizes.edges.row
+      ),
+    [gridSizes, isHorizontal]
+  );
+
+  const totalScrollableSize = useMemo(
+    () => fullSize - gridSize,
+    [fullSize, gridSize]
+  );
 
   const trackWidth = useMemo(
     () =>
@@ -36,9 +52,14 @@ export function Track({ direction }: Props) {
     [gridSize, gridSizes]
   );
 
-  const onMouseDown = useCallback((e: PIXI.FederatedPointerEvent) => {
-    isTrackClicked.current = true;
-  }, []);
+  const onMouseDown = useCallback(
+    (e: PIXI.FederatedPointerEvent) => {
+      if (isPanModeEnabled) return;
+
+      isTrackClicked.current = true;
+    },
+    [isPanModeEnabled]
+  );
 
   const onMouseUp = useCallback(
     (e: PIXI.FederatedPointerEvent) => {
@@ -55,8 +76,21 @@ export function Track({ direction }: Props) {
         gridSizes.scrollBar.arrowWrapperSize -
         clientViewportRect.top;
 
-      const newX = getViewportPosition(trackWidth, fullSize, cursorX, 0);
-      const newY = getViewportPosition(trackWidth, fullSize, cursorY, 0);
+      const newX = getViewportPosition(
+        trackWidth,
+        totalScrollableSize,
+        cursorX,
+        exponent,
+        0
+      );
+      const newY = getViewportPosition(
+        trackWidth,
+        totalScrollableSize,
+        cursorY,
+        exponent,
+        0
+      );
+
       const deltaX = isHorizontal ? newX - viewportCoords.current.x1 : 0;
       const deltaY = !isHorizontal ? newY - viewportCoords.current.y1 : 0;
 
@@ -65,59 +99,57 @@ export function Track({ direction }: Props) {
     },
     [
       app,
-      fullSize,
+      exponent,
       gridSizes.scrollBar.arrowWrapperSize,
       isHorizontal,
       moveViewport,
+      totalScrollableSize,
       trackWidth,
       viewportCoords,
     ]
   );
 
-  const drawTrack = useCallback(
-    (rect: Rectangle, line: Line, g: PIXI.Graphics) => {
-      g.clear()
-        .beginFill(theme.grid.bgColor)
-        .drawRect(rect.x, rect.y, rect.width, rect.height)
-        .moveTo(line.x1, line.y1)
-        .lineStyle({
-          width: 1,
-          color: theme.scrollBar.trackColor,
-        })
-        .lineTo(line.x2, line.y2);
-    },
-    [theme]
-  );
+  const draw = useCallback(() => {
+    if (!graphicsRef.current) return;
 
-  const draw = useCallback(
-    (g: PIXI.Graphics) => {
-      const { scrollBar } = gridSizes;
-      const { trackSize } = scrollBar;
+    const g = graphicsRef.current;
 
-      const rect: Rectangle = {
-        x: isHorizontal ? 0 : gridWidth - trackSize,
-        y: isHorizontal ? gridHeight - trackSize : 0,
-        width: isHorizontal ? gridWidth : trackSize,
-        height: isHorizontal ? trackSize : gridHeight,
-      };
-      const line: Line = {
-        x1: isHorizontal ? 0 : gridWidth - trackSize,
-        y1: isHorizontal ? gridHeight - trackSize : 0,
-        x2: isHorizontal ? gridWidth : gridWidth - trackSize,
-        y2: isHorizontal ? gridHeight - trackSize : gridHeight,
-      };
+    const { scrollBar } = gridSizes;
+    const { trackSize } = scrollBar;
 
-      drawTrack(rect, line, g);
-    },
-    [drawTrack, gridHeight, gridSizes, gridWidth, isHorizontal]
-  );
+    const rect: Rectangle = {
+      x: isHorizontal ? 0 : gridWidth - trackSize,
+      y: isHorizontal ? gridHeight - trackSize : 0,
+      width: isHorizontal ? gridWidth : trackSize,
+      height: isHorizontal ? trackSize : gridHeight,
+    };
+    const line: Line = {
+      x1: isHorizontal ? 0 : gridWidth - trackSize,
+      y1: isHorizontal ? gridHeight - trackSize : 0,
+      x2: isHorizontal ? gridWidth : gridWidth - trackSize,
+      y2: isHorizontal ? gridHeight - trackSize : gridHeight,
+    };
+
+    g.clear();
+
+    g.beginFill(theme.scrollBar.trackColor)
+      .drawRect(rect.x, rect.y, rect.width, rect.height)
+      .moveTo(line.x1, line.y1)
+      .lineStyle({
+        width: 1,
+        color: theme.scrollBar.trackStrokeColor,
+      })
+      .lineTo(line.x2, line.y2);
+  }, [gridHeight, gridSizes, gridWidth, isHorizontal, theme]);
+
+  useDraw(draw);
 
   return (
     <Graphics
-      draw={draw}
       eventMode="static"
       onmousedown={onMouseDown}
       onmouseup={onMouseUp}
+      ref={graphicsRef}
     />
   );
 }

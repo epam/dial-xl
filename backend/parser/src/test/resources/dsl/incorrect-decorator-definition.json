@@ -1,0 +1,94 @@
+{
+  "name": "test",
+  "tables": [
+    {
+      "span": {
+        "from": 0,
+        "to": 59
+      },
+      "name": {
+        "span": {
+          "from": 46,
+          "to": 48
+        },
+        "text": "T1"
+      },
+      "fields": [
+        {
+          "span": {
+            "from": 51,
+            "to": 58
+          },
+          "name": {
+            "span": {
+              "from": 51,
+              "to": 54
+            },
+            "text": "a"
+          },
+          "formula": {
+            "span": {
+              "from": 57,
+              "to": 58
+            },
+            "formula": {
+              "number": 1.0,
+              "arguments": []
+            },
+            "errors": []
+          },
+          "decorators": [],
+          "docs": []
+        }
+      ],
+      "decorators": [
+        {
+          "span": {
+            "from": 18,
+            "to": 40
+          },
+          "name": {
+            "span": {
+              "from": 20,
+              "to": 30
+            },
+            "text": "decorator2"
+          },
+          "params": [
+            {
+              "span": {
+                "from": 31,
+                "to": 32
+              },
+              "value": 1.0
+            },
+            {
+              "span": {
+                "from": 34,
+                "to": 35
+              },
+              "value": 2.0
+            },
+            {
+              "span": {
+                "from": 37,
+                "to": 38
+              },
+              "value": 2.0
+            }
+          ]
+        }
+      ],
+      "docs": [],
+      "totals": []
+    }
+  ],
+  "pythons": [],
+  "errors": [
+    {
+      "line": 1,
+      "position": 15,
+      "message": "mismatched input '4' expecting {',', ')', LINE_BREAK}"
+    }
+  ]
+}

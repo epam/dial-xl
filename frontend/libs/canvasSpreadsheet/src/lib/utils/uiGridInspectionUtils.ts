@@ -1,4 +1,4 @@
-import { cellEditorWrapperId } from '../constants';
+import { cellEditorWrapperId, noteTextAreaId } from '../constants';
 
 export const isCellEditorFocused = (): boolean => {
   const cellEditor = document.getElementById(cellEditorWrapperId);
@@ -16,4 +16,18 @@ export const isCellEditorOpen = (): boolean => {
   if (!cellEditor) return false;
 
   return cellEditor.style.display !== 'none';
+};
+
+export const isCanvasEvent = (e: KeyboardEvent): boolean => {
+  const targetElement = e.target as HTMLElement;
+
+  return targetElement.tagName === 'BODY';
+};
+
+export const isNoteOpen = (): boolean => {
+  const note = document.getElementById(noteTextAreaId);
+
+  if (!note) return false;
+
+  return (note as HTMLInputElement).style.display !== 'none';
 };

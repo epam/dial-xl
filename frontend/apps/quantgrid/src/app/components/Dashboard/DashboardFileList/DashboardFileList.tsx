@@ -38,7 +38,7 @@ export function DashboardFileList() {
             <DashboardFileListSelectionToolbar />
           )}
         </div>
-        <div className="overflow-y-auto grow flex flex-col">
+        <div className="thin-scrollbar overflow-y-auto grow flex flex-col">
           {loadingDashboard ? (
             <div className="size-full flex items-center justify-center">
               <Spin className="z-50" size="large"></Spin>

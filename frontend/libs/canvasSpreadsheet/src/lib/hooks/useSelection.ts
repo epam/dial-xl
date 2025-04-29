@@ -1,17 +1,20 @@
-import { useCallback, useContext } from 'react';
+import { useCallback, useContext, useEffect, useState } from 'react';
 
 import { GridStateContext } from '../context';
+import { Edges } from '../types';
 
 export function useSelection() {
   const {
     gridSizes,
-    selectionEdges,
+    selection$,
     setSelectionEdges,
     getCell,
     tableStructure,
     selectedTable,
     gridCallbacks,
   } = useContext(GridStateContext);
+
+  const [selectionEdges, setLocalSelectionEdges] = useState<Edges | null>(null);
 
   const stopMoveTable = useCallback(() => {
     if (!selectionEdges) return;
@@ -165,6 +168,18 @@ export function useSelection() {
       endCol,
     });
   }, [getCell, gridSizes, selectionEdges, setSelectionEdges]);
+
+  useEffect(() => {
+    const selectionSubscription = selection$.subscribe(
+      (edges: Edges | null) => {
+        setLocalSelectionEdges(edges);
+      }
+    );
+
+    return () => {
+      selectionSubscription.unsubscribe();
+    };
+  }, [selection$]);
 
   return {
     selectRow,

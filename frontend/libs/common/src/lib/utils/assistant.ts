@@ -2,22 +2,20 @@ import { Message, Stage } from '@epam/ai-dial-overlay';
 
 import { GPTSuggestion } from '../types';
 
-function getSheetNameFromTitle(title: string): string | undefined {
-  const firstBracketIndex = title.indexOf('(');
-  const lastBracketIndex = title.indexOf(')');
+const getSheetName = (attachmentTitle: string) => {
+  const regex = /DSL \((.*)\)/;
 
-  if (firstBracketIndex === -1 || lastBracketIndex === -1) return;
-
-  return title.slice(firstBracketIndex + 1, lastBracketIndex);
-}
+  return regex.exec(attachmentTitle)?.[1];
+};
 
 function prepareDSL(data: string) {
-  if (data.slice(0, 3) === '```') {
+  const trimmedData = data.trim();
+  if (trimmedData.slice(0, 3) === '```') {
     // 4, because 1 symbol in data is \n
-    return data.slice(4, data.length - 3);
+    return trimmedData.slice(4, trimmedData.length - 3);
   }
 
-  return data;
+  return trimmedData;
 }
 
 export const getSuggestions = (
@@ -57,7 +55,7 @@ export const getSuggestions = (
 
   for (const { data, title } of attachments) {
     if (typeof data === 'string') {
-      const sheetName = getSheetNameFromTitle(title || '');
+      const sheetName = getSheetName(title);
 
       suggestions.push({
         sheetName,

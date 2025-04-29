@@ -1,0 +1,5 @@
+name: isNa
+description: Checks if value is `NA`
+signature: 'isNa(value: T) => boolean'
+manual: >-
+  If `value` is `NA`, returns True. If `value` is not `NA`, returns False.

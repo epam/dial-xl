@@ -1,19 +1,24 @@
 export const formulaEditorId = 'formulaEditor';
 export const formulaBarInput = 'formulaBarInput';
+export const codeEditorId = 'codeEditorId';
 export const projectTreeId = 'projectTree';
 export const overrideKeyFieldMessage =
-  'Override of the key field is not supported.';
+  'Override of the key column is not supported.';
+export const makeKeyFieldWithOverridesMessage =
+  'Making a column a key column when it has overrides is not supported.';
 export const overrideComplexFieldMessage =
-  'Override of the field with complex type is not supported.';
+  'Override of the column with complex type is not supported.';
 export const overrideFilteredOrSortedFieldMessage =
-  'Changing sort/filter fields are not allowed for table without key. Please assign keys.';
+  'Changing sort/filter columns are not allowed for table without key. Please assign keys.';
 
 export const firstRowNum = 1;
-export const defaultFieldName = 'Field1';
+export const defaultFieldName = 'Column1';
 
 export const formulaBarMenuClass = 'formula-bar-menu';
 
+export const filesEndpointPrefix = '/v1/files';
 export const dialProjectFileExtension = '.qg';
+export const dialAIHintsFileName = '.hints.ai';
 export const csvFileExtension = '.csv';
 export const schemaFileExtension = '.schema';
 export const emptyFileName = '.file';
@@ -23,12 +28,14 @@ export const csvTempFolder = '.temp';
 
 export const bindConversationsRootFolder = 'xl';
 
-export const publicAdminRole = 'admin';
 export const publicBucket = 'public';
 export const publicExamplesFolderRootPrefix = 'xl-examples';
 
-export const defaultChartCols = 15;
+export const defaultChartCols = 10;
 export const defaultChartRows = 15;
+
+export const chartRowNumberSelector = 'rowNumber';
+export const histogramChartSeriesSelector = 'histogramSeries';
 
 export const apiMessages = {
   generalError:
@@ -37,6 +44,8 @@ export const apiMessages = {
   getFilesClient: 'Client error happened during getting files',
   downloadFileServer: 'Server error happened during downloading file',
   downloadFileClient: 'Client error happened during downloading file',
+  downloadTableServer: 'Server error happened during downloading table data',
+  downloadTableClient: 'Client error happened during downloading table data',
   getSharedByMeFilesServer:
     'Server error happened during getting shared by you files',
   getSharedByMeFilesClient:
@@ -49,12 +58,18 @@ export const apiMessages = {
   getBucketClient: 'Client error happened during receiving bucket.',
   getProjectServer: 'Server error happened during getting project information.',
   getProjectClient: 'Client error happened during getting project information.',
+  getAIHintsServer: 'Server error happened during getting ai hints.',
+  getAIHintsClient: 'Client error happened during getting ai hints.',
   putProjectServer:
     'Server error happened during updating project information.',
   putProjectClient:
     'Client error happened during updating project information.',
   putProjectVersion: 'Version of project on server is ahead of yours.',
   putProjectForbidden: 'You are not allowed to edit this project.',
+  putAIHintsServer: 'Server error happened during updating ai hints.',
+  putAIHintsClient: 'Client error happened during updating ai hints.',
+  putAIHintsVersion: 'Version of ai hints on server is ahead of yours.',
+  putAIHintsForbidden: 'You are not allowed to edit ai hints.',
   deleteProjectForbidden: 'You are not allowed to delete this project.',
   deleteProjectServer:
     'Server error happened during deleting project information.',
@@ -91,6 +106,8 @@ export const apiMessages = {
     'Server error happened during subscribing to project changes.',
   subscribeToProjectClient:
     'Client error happened during subscribing to project changes.',
+  compileClient: 'Client error happened during compile request.',
+  compileForbidden: 'Unauthorized compile request.',
   computationPower:
     'There is no computation power at the moment. Please try again later.',
   computationClient: 'Client error happened during computation request.',
@@ -129,4 +146,6 @@ export const appMessages = {
   fileCloneSuccess: 'File successfully cloned',
   projectCloneSuccess: (projectToClone: string, newClonedProject: string) =>
     `Project "${projectToClone}" successfully cloned to new project "${newClonedProject}"`,
+  fileUploadSchemaError: (fileName: string, errorMessage: string) =>
+    `Getting error for ${fileName}: "${errorMessage}".`,
 };

@@ -1,0 +1,32 @@
+{
+  "name": "test",
+  "tables": [
+    {
+      "span": {
+        "from": 0,
+        "to": 32
+      },
+      "name": {
+        "span": {
+          "from": 6,
+          "to": 8
+        },
+        "text": "T2"
+      },
+      "fields": [],
+      "decorators": [],
+      "docs": [],
+      "totals": []
+    }
+  ],
+  "pythons": [],
+  "errors": [
+    {
+      "line": 2,
+      "position": 17,
+      "message": "mismatched input 'T1' expecting {',', ')'}",
+      "tableName": "T2",
+      "fieldName": "a"
+    }
+  ]
+}

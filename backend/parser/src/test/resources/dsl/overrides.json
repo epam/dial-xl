@@ -1,0 +1,276 @@
+{
+  "name": "test",
+  "tables": [
+    {
+      "span": {
+        "from": 0,
+        "to": 127
+      },
+      "name": {
+        "span": {
+          "from": 6,
+          "to": 8
+        },
+        "text": "t1"
+      },
+      "fields": [
+        {
+          "span": {
+            "from": 9,
+            "to": 31
+          },
+          "key": {
+            "span": {
+              "from": 9,
+              "to": 12
+            },
+            "text": "key"
+          },
+          "dim": {
+            "span": {
+              "from": 13,
+              "to": 16
+            },
+            "text": "dim"
+          },
+          "name": {
+            "span": {
+              "from": 17,
+              "to": 20
+            },
+            "text": "a"
+          },
+          "formula": {
+            "span": {
+              "from": 23,
+              "to": 31
+            },
+            "formula": {
+              "name": "RANGE",
+              "arguments": [
+                {
+                  "arguments": []
+                }
+              ]
+            },
+            "errors": []
+          },
+          "decorators": [],
+          "docs": []
+        },
+        {
+          "span": {
+            "from": 40,
+            "to": 48
+          },
+          "name": {
+            "span": {
+              "from": 40,
+              "to": 43
+            },
+            "text": "b"
+          },
+          "formula": {
+            "span": {
+              "from": 46,
+              "to": 48
+            },
+            "formula": {
+              "number": NaN,
+              "arguments": []
+            },
+            "errors": []
+          },
+          "decorators": [],
+          "docs": []
+        },
+        {
+          "span": {
+            "from": 57,
+            "to": 64
+          },
+          "name": {
+            "span": {
+              "from": 57,
+              "to": 60
+            },
+            "text": "c"
+          },
+          "formula": {
+            "span": {
+              "from": 63,
+              "to": 64
+            },
+            "formula": {
+              "number": 5.0,
+              "arguments": []
+            },
+            "errors": []
+          },
+          "decorators": [],
+          "docs": []
+        }
+      ],
+      "decorators": [],
+      "docs": [],
+      "totals": [],
+      "overrides": {
+        "span": {
+          "from": 65,
+          "to": 127
+        },
+        "headers": [
+          {
+            "span": {
+              "from": 78,
+              "to": 81
+            },
+            "text": "a"
+          },
+          {
+            "span": {
+              "from": 83,
+              "to": 86
+            },
+            "text": "b"
+          }
+        ],
+        "values": [
+          [
+            {
+              "span": {
+                "from": 87,
+                "to": 88
+              },
+              "formula": {
+                "number": 0.0,
+                "arguments": []
+              },
+              "errors": []
+            },
+            {
+              "span": {
+                "from": 90,
+                "to": 95
+              },
+              "formula": {
+                "text": "USA",
+                "arguments": []
+              },
+              "errors": []
+            }
+          ],
+          [
+            {
+              "span": {
+                "from": 96,
+                "to": 97
+              },
+              "formula": {
+                "number": 1.0,
+                "arguments": []
+              },
+              "errors": []
+            },
+            {
+              "span": {
+                "from": 99,
+                "to": 103
+              },
+              "formula": {
+                "text": "UK",
+                "arguments": []
+              },
+              "errors": []
+            }
+          ],
+          [
+            {
+              "span": {
+                "from": 104,
+                "to": 105
+              },
+              "formula": {
+                "number": 2.0,
+                "arguments": []
+              },
+              "errors": []
+            },
+            {
+              "span": {
+                "from": 107,
+                "to": 114
+              },
+              "formula": {
+                "text": "Spain",
+                "arguments": []
+              },
+              "errors": []
+            }
+          ],
+          [
+            {
+              "span": {
+                "from": 115,
+                "to": 116
+              },
+              "formula": {
+                "number": 3.0,
+                "arguments": []
+              },
+              "errors": []
+            },
+            {
+              "span": {
+                "from": 118,
+                "to": 126
+              },
+              "formula": {
+                "text": "Poland",
+                "arguments": []
+              },
+              "errors": []
+            }
+          ]
+        ],
+        "rowKey": {
+          "tableName": "t1",
+          "fieldName": "_row_20318401841084276546"
+        },
+        "map": {
+          "t1[a]": [
+            {
+              "arguments": []
+            },
+            {
+              "arguments": []
+            },
+            {
+              "arguments": []
+            },
+            {
+              "arguments": []
+            }
+          ],
+          "t1[b]": [
+            {
+              "arguments": []
+            },
+            {
+              "arguments": []
+            },
+            {
+              "arguments": []
+            },
+            {
+              "arguments": []
+            }
+          ]
+        },
+        "size": 4
+      }
+    }
+  ],
+  "pythons": [],
+  "errors": []
+}

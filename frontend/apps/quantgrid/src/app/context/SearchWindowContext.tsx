@@ -1,8 +1,6 @@
 import { Modal } from 'antd';
 import { createContext, PropsWithChildren, useCallback, useState } from 'react';
 
-import { focusSpreadsheet } from '@frontend/spreadsheet';
-
 import { SearchWindow } from '../components';
 import { ISearchFilter } from '../components/SearchWindow/search';
 
@@ -49,7 +47,6 @@ export function SearchWindowContextProvider({ children }: PropsWithChildren) {
       }}
     >
       <Modal
-        afterClose={focusSpreadsheet}
         closeIcon={null}
         destroyOnClose={true}
         footer={null}

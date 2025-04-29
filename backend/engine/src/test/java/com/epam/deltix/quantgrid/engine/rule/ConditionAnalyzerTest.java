@@ -30,12 +30,12 @@ class ConditionAnalyzerTest {
 
         val condition = new BinaryOperator(leftRowNumber, constant, BinaryOperation.GT);
 
-        ConditionAnalyzer.ConditionGroups conditionGroups = ConditionAnalyzer.analyzeCondition(condition, cartesian);
+        ConditionAnalyzer.Condition conditions = ConditionAnalyzer.analyzeCondition(condition, cartesian);
 
-        assertThat(conditionGroups.left).containsExactly(condition);
-        assertThat(conditionGroups.right).isEmpty();
-        assertThat(conditionGroups.constant).isEmpty();
-        assertThat(conditionGroups.mixed).isEmpty();
+        assertThat(conditions.left).containsExactly(condition);
+        assertThat(conditions.right).isEmpty();
+        assertThat(conditions.constant).isEmpty();
+        assertThat(conditions.mixed).isEmpty();
     }
 
     @Test
@@ -53,12 +53,12 @@ class ConditionAnalyzerTest {
 
         val condition = new BinaryOperator(rightRowNumber, constant, BinaryOperation.NEQ);
 
-        ConditionAnalyzer.ConditionGroups conditionGroups = ConditionAnalyzer.analyzeCondition(condition, cartesian);
+        ConditionAnalyzer.Condition conditions = ConditionAnalyzer.analyzeCondition(condition, cartesian);
 
-        assertThat(conditionGroups.right).containsExactly(condition);
-        assertThat(conditionGroups.left).isEmpty();
-        assertThat(conditionGroups.constant).isEmpty();
-        assertThat(conditionGroups.mixed).isEmpty();
+        assertThat(conditions.right).containsExactly(condition);
+        assertThat(conditions.left).isEmpty();
+        assertThat(conditions.constant).isEmpty();
+        assertThat(conditions.mixed).isEmpty();
     }
 
     @Test
@@ -76,12 +76,12 @@ class ConditionAnalyzerTest {
 
         val condition = new BinaryOperator(constant1, constant2, BinaryOperation.LT);
 
-        ConditionAnalyzer.ConditionGroups conditionGroups = ConditionAnalyzer.analyzeCondition(condition, cartesian);
+        ConditionAnalyzer.Condition conditions = ConditionAnalyzer.analyzeCondition(condition, cartesian);
 
-        assertThat(conditionGroups.constant).containsExactly(condition);
-        assertThat(conditionGroups.right).isEmpty();
-        assertThat(conditionGroups.left).isEmpty();
-        assertThat(conditionGroups.mixed).isEmpty();
+        assertThat(conditions.constant).containsExactly(condition);
+        assertThat(conditions.right).isEmpty();
+        assertThat(conditions.left).isEmpty();
+        assertThat(conditions.mixed).isEmpty();
     }
 
     @Test
@@ -99,15 +99,15 @@ class ConditionAnalyzerTest {
 
         val condition = new BinaryOperator(rightRowNum, leftRowNumber, BinaryOperation.EQ);
 
-        ConditionAnalyzer.ConditionGroups conditionGroups = ConditionAnalyzer.analyzeCondition(condition, cartesian);
+        ConditionAnalyzer.Condition conditions = ConditionAnalyzer.analyzeCondition(condition, cartesian);
 
-        assertThat(conditionGroups.mixed).containsExactly(condition);
-        assertThat(conditionGroups.right).isEmpty();
-        assertThat(conditionGroups.constant).isEmpty();
-        assertThat(conditionGroups.left).isEmpty();
+        assertThat(conditions.mixed).containsExactly(condition);
+        assertThat(conditions.right).isEmpty();
+        assertThat(conditions.constant).isEmpty();
+        assertThat(conditions.left).isEmpty();
 
-        ConditionAnalyzer.OptimizationConditionGroups mixedGroup =
-                ConditionAnalyzer.analyzeMixedCondition(conditionGroups.mixed, cartesian);
+        ConditionAnalyzer.MixedCondition mixedGroup =
+                ConditionAnalyzer.analyzeMixedConditions(conditions.mixed, cartesian);
 
         assertThat(mixedGroup.eq.size()).isEqualTo(1);
         assertTrue(condition.swapOperands().semanticEqual(mixedGroup.eq.get(0), true));
@@ -134,15 +134,15 @@ class ConditionAnalyzerTest {
 
         val condition = new BinaryOperator(leftCondition, rightCondition, BinaryOperation.EQ);
 
-        ConditionAnalyzer.ConditionGroups conditionGroups = ConditionAnalyzer.analyzeCondition(condition, cartesian);
+        ConditionAnalyzer.Condition conditions = ConditionAnalyzer.analyzeCondition(condition, cartesian);
 
-        assertThat(conditionGroups.mixed).containsExactly(condition);
-        assertThat(conditionGroups.right).isEmpty();
-        assertThat(conditionGroups.constant).isEmpty();
-        assertThat(conditionGroups.left).isEmpty();
+        assertThat(conditions.mixed).containsExactly(condition);
+        assertThat(conditions.right).isEmpty();
+        assertThat(conditions.constant).isEmpty();
+        assertThat(conditions.left).isEmpty();
 
-        ConditionAnalyzer.OptimizationConditionGroups mixedGroup =
-                ConditionAnalyzer.analyzeMixedCondition(conditionGroups.mixed, cartesian);
+        ConditionAnalyzer.MixedCondition mixedGroup =
+                ConditionAnalyzer.analyzeMixedConditions(conditions.mixed, cartesian);
 
         assertThat(mixedGroup.eq.size()).isEqualTo(1);
         assertThat(mixedGroup.eq.get(0)).isEqualTo(condition);
@@ -169,15 +169,15 @@ class ConditionAnalyzerTest {
 
         val condition = new BinaryOperator(leftCondition, rightCondition, BinaryOperation.GTE);
 
-        ConditionAnalyzer.ConditionGroups conditionGroups = ConditionAnalyzer.analyzeCondition(condition, cartesian);
+        ConditionAnalyzer.Condition conditions = ConditionAnalyzer.analyzeCondition(condition, cartesian);
 
-        assertThat(conditionGroups.mixed).containsExactly(condition);
-        assertThat(conditionGroups.right).isEmpty();
-        assertThat(conditionGroups.constant).isEmpty();
-        assertThat(conditionGroups.left).isEmpty();
+        assertThat(conditions.mixed).containsExactly(condition);
+        assertThat(conditions.right).isEmpty();
+        assertThat(conditions.constant).isEmpty();
+        assertThat(conditions.left).isEmpty();
 
-        ConditionAnalyzer.OptimizationConditionGroups mixedGroup =
-                ConditionAnalyzer.analyzeMixedCondition(conditionGroups.mixed, cartesian);
+        ConditionAnalyzer.MixedCondition mixedGroup =
+                ConditionAnalyzer.analyzeMixedConditions(conditions.mixed, cartesian);
 
         assertThat(mixedGroup.other.size()).isEqualTo(1);
         assertThat(mixedGroup.other.get(0)).isEqualTo(condition);

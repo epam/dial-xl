@@ -13,8 +13,8 @@ class CompileTotal {
     CompiledResult compile(CompileContext context, Formula formula) {
         TotalKey key = context.key.totalKey();
         CompiledSimpleColumn result = SimpleColumnValidators.STRING_OR_DOUBLE.convert(context.compileFormula(formula));
-        CompileUtil.verify(result.scalar(), "Total formula must be scalar. Field: %s. Number: %d",
-                context, key.number());
+        CompileUtil.verify(result.scalar(), "Total formula must be a text or a number. Column: %s. Number: %d",
+                key.field(), key.number());
         return result;
     }
 }

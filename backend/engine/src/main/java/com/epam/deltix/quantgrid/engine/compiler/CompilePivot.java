@@ -1,9 +1,11 @@
 package com.epam.deltix.quantgrid.engine.compiler;
 
-import com.epam.deltix.quantgrid.engine.compiler.result.CompiledSimpleColumn;
+import com.epam.deltix.quantgrid.engine.compiler.result.CompiledNestedColumn;
 import com.epam.deltix.quantgrid.engine.compiler.result.CompiledPivotTable;
+import com.epam.deltix.quantgrid.engine.compiler.result.CompiledSimpleColumn;
 import com.epam.deltix.quantgrid.engine.compiler.result.CompiledTable;
-import com.epam.deltix.quantgrid.engine.compiler.result.validator.SimpleOrNestedValidators;
+import com.epam.deltix.quantgrid.engine.compiler.result.validator.NestedColumnValidators;
+import com.epam.deltix.quantgrid.engine.compiler.result.validator.SimpleColumnValidators;
 import com.epam.deltix.quantgrid.engine.compiler.result.validator.TableValidators;
 import com.epam.deltix.quantgrid.engine.node.expression.Expression;
 import com.epam.deltix.quantgrid.engine.node.expression.Get;
@@ -107,16 +109,16 @@ public class CompilePivot {
     }
 
     private static CompiledSimpleColumn compileNames(CompileContext context, CompiledTable source) {
-        CompileContext nested = context.with(source, false);
-        CompiledSimpleColumn result = context.flattenArgument(nested.compileArgument(1, SimpleOrNestedValidators.STRING));
+        CompileContext nested = context.withPlaceholder(source);
+        CompiledNestedColumn result = nested.compileArgument(1, NestedColumnValidators.STRING);
         CompileUtil.verifySameLayout(source, result, "PIVOT 'field' argument misaligned with 'table'");
-        return result;
+        return result.flat();
     }
 
     private static CompiledSimpleColumn compileValue(CompileContext context, CompiledTable layout, CompiledTable table) {
         checkValueFormula(context.argument(2));
-        CompileContext valueContext = context.with(table, true, layout);
-        CompiledSimpleColumn result = context.flattenArgument(valueContext.compileArgument(2, SimpleOrNestedValidators.ANY));
+        CompileContext valueContext = context.withPivot(table, layout);
+        CompiledSimpleColumn result = valueContext.compileArgument(2, SimpleColumnValidators.ANY);
         CompileUtil.verifySameLayout(layout, result, "PIVOT 'aggregation' argument misaligned with 'table'");
         return result;
     }
@@ -137,7 +139,7 @@ public class CompilePivot {
         List<CurrentField> currentFields = CompileUtil.collectCurrentFields(valueFormula);
         if (!currentFields.isEmpty()) {
             throw new CompileError(
-                    "Value formula should not contain references to the current fields: %s.".formatted(currentFields)
+                    "Value formula should not contain references to the current columns: %s.".formatted(currentFields)
                             + " Did you forget to put $ sign before a field: $[field]?");
         }
     }

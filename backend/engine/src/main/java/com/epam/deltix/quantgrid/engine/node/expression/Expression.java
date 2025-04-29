@@ -50,6 +50,11 @@ public abstract class Expression extends Node {
         return (Expression) super.copy(inputs);
     }
 
+    @Override
+    public Expression copy(List<Node> inputs, boolean withIdentity) {
+        return (Expression) super.copy(inputs, withIdentity);
+    }
+
     protected static DoubleColumn requireDoubleColumn(Column source) {
         return requireColumn(source, DoubleColumn.class);
     }

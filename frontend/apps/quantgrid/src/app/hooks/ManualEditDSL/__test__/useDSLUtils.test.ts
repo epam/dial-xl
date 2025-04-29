@@ -1,49 +1,45 @@
-import { newLine, SheetReader } from '@frontend/parser';
-import { act, renderHook } from '@testing-library/react';
+import { newLine } from '@frontend/parser';
+import { act, RenderHookResult } from '@testing-library/react';
 
-import { createWrapper } from '../../../testUtils';
+import { hookTestSetup } from '../../EditDsl/__test__/hookTestSetup';
+import { RenderProps, TestWrapperProps } from '../../EditDsl/__test__/types';
 import { useDSLUtils } from '../useDSLUtils';
 
-const props = {
+const initialProps: TestWrapperProps = {
   appendToFn: jest.fn(),
-  updateSheetContent: jest.fn(() => true),
-  manuallyUpdateSheetContent: jest.fn(() => true),
+  manuallyUpdateSheetContent: jest.fn(() => Promise.resolve(true)),
   projectName: 'project1',
   sheetName: 'sheet1',
 };
 
-export function getWrapper(dsl: string, props: any) {
-  return createWrapper({
-    ...props,
-    sheetContent: dsl,
-    parsedSheet: SheetReader.parseSheet(dsl),
-  });
-}
-
-export function getRenderedHook(dsl: string, props: any) {
-  const { result } = renderHook(() => useDSLUtils(), {
-    wrapper: getWrapper(dsl, props),
-  });
-
-  return result.current;
-}
-
 describe('useDSLUtils', () => {
+  let props: TestWrapperProps;
+  let hook: RenderHookResult<
+    ReturnType<typeof useDSLUtils>,
+    { dsl: string }
+  >['result'];
+  let rerender: (props?: RenderProps) => void;
+
   beforeEach(() => {
+    props = { ...initialProps };
     jest.clearAllMocks();
-    jest.clearAllTimers();
+
+    const hookRender = hookTestSetup(useDSLUtils, props);
+
+    hook = hookRender.result;
+    rerender = hookRender.rerender;
   });
 
   describe('findTable', () => {
     it('should find table by table name', () => {
       // Arrange
       const dsl = 'table t1 key [f1]=1\n [f2]=2\n table t2 [f1]=1';
-      const hook = getRenderedHook(dsl, props);
+      rerender({ dsl });
       let result;
 
       // Act
       act(() => {
-        result = hook.findTable('t1');
+        result = hook.current.findTable('t1');
       });
 
       // Assert
@@ -57,12 +53,12 @@ describe('useDSLUtils', () => {
     it('should find table by table name in quotes', () => {
       // Arrange
       const dsl = `table t1 key [f1]=1\n [f2]=2\n table 'some table' [f1]=1`;
-      const hook = getRenderedHook(dsl, props);
+      rerender({ dsl });
       let result;
 
       // Act
       act(() => {
-        result = hook.findTable(`'some table'`);
+        result = hook.current.findTable(`'some table'`);
       });
 
       // Assert
@@ -76,12 +72,12 @@ describe('useDSLUtils', () => {
     it('should return undefined if table not found', () => {
       // Arrange
       const dsl = 'table t1 key [f1]=1\n [f2]=2\n table t2 [f1]=1';
-      const hook = getRenderedHook(dsl, props);
+      rerender({ dsl });
       let result;
 
       // Act
       act(() => {
-        result = hook.findTable('t111');
+        result = hook.current.findTable('t111');
       });
 
       // Assert
@@ -94,12 +90,12 @@ describe('useDSLUtils', () => {
       // Arrange
       const dsl =
         'table t1 key [f1]=1\n [f2]=2\n [f3]=3\n [f4]=4\n table t2 [f1]=1';
-      const hook = getRenderedHook(dsl, props);
+      rerender({ dsl });
       let result;
 
       // Act
       act(() => {
-        result = hook.findLastTableField('t1');
+        result = hook.current.findLastTableField('t1');
       });
 
       // Assert
@@ -118,12 +114,12 @@ describe('useDSLUtils', () => {
       // Arrange
       const dsl =
         'table t1 key [f1]=1\n [f2]=2\n [f3]=3\n [f4]=4\n table t2 [f1]=1';
-      const hook = getRenderedHook(dsl, props);
+      rerender({ dsl });
       let result;
 
       // Act
       act(() => {
-        result = hook.findLastTableField('t33');
+        result = hook.current.findLastTableField('t33');
       });
 
       // Assert
@@ -133,12 +129,12 @@ describe('useDSLUtils', () => {
     it('should return null if no fields in table', () => {
       // Arrange
       const dsl = 'table t1 key [f1]=1\n [f2]=2\n [f3]=3\n [f4]=4\n table t2';
-      const hook = getRenderedHook(dsl, props);
+      rerender({ dsl });
       let result;
 
       // Act
       act(() => {
-        result = hook.findLastTableField('t2');
+        result = hook.current.findLastTableField('t2');
       });
 
       // Assert
@@ -150,12 +146,12 @@ describe('useDSLUtils', () => {
     it('should find field in table', () => {
       // Arrange
       const dsl = 'table t1 key [f1]=1\n [f2]=2\n table t2 [f1]=1';
-      const hook = getRenderedHook(dsl, props);
+      rerender({ dsl });
       let result;
 
       // Act
       act(() => {
-        result = hook.findTableField('t1', 'f2');
+        result = hook.current.findTableField('t1', 'f2');
       });
 
       // Assert
@@ -173,12 +169,12 @@ describe('useDSLUtils', () => {
     it('should return null in no table found', () => {
       // Arrange
       const dsl = 'table t1 key [f1]=1\n [f2]=2\n table t2 [f1]=1';
-      const hook = getRenderedHook(dsl, props);
+      rerender({ dsl });
       let result;
 
       // Act
       act(() => {
-        result = hook.findTableField('t111', 'f2');
+        result = hook.current.findTableField('t111', 'f2');
       });
 
       // Assert
@@ -188,12 +184,12 @@ describe('useDSLUtils', () => {
     it('should return null in no field found', () => {
       // Arrange
       const dsl = 'table t1 key [f1]=1\n [f2]=2\n table t2 [f3]=3';
-      const hook = getRenderedHook(dsl, props);
+      rerender({ dsl });
       let result;
 
       // Act
       act(() => {
-        result = hook.findTableField('t1', 'f3');
+        result = hook.current.findTableField('t1', 'f3');
       });
 
       // Assert
@@ -205,37 +201,128 @@ describe('useDSLUtils', () => {
     it('should update sheet', async () => {
       // Arrange
       const dsl = 'table t1 key [f1]=1\n [f2]=2';
-      const hook = getRenderedHook(dsl, props);
+      rerender({ dsl });
 
       // Act
-      await act(() => hook.updateDSL(dsl, ''));
+      await act(() =>
+        hook.current.updateDSL({ updatedSheetContent: dsl, historyTitle: '' })
+      );
 
       // Assert
-      expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith(
-        props.sheetName,
-        dsl + newLine
-      );
+      expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
+        {
+          sheetName: props.sheetName,
+          content: dsl + newLine,
+        },
+      ]);
     });
 
     it('should add item to the history', async () => {
       // Arrange
       const dsl = 'table t1 key [f1]=1\n [f2]=2';
       const historyTitle = 'DSL change';
-      const hook = getRenderedHook(dsl, props);
+      rerender({ dsl });
 
       // Act
-      await act(() => hook.updateDSL(dsl, historyTitle));
+      await act(() =>
+        hook.current.updateDSL({ updatedSheetContent: dsl, historyTitle })
+      );
 
       // Assert
-      expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith(
-        props.sheetName,
-        dsl + newLine
+      expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
+        {
+          sheetName: props.sheetName,
+          content: dsl + newLine,
+        },
+      ]);
+      expect(props.appendToFn).toHaveBeenCalledWith(historyTitle, [
+        { sheetName: props.sheetName, content: dsl + newLine },
+      ]);
+    });
+
+    it('should add different dsl changes for different sheets under same history item when having same title', async () => {
+      // Arrange
+      const dsl = 'table t1 key [f1]=1\n [f2]=2';
+      const sheetName1 = 'Sheet1';
+      const sheetName2 = 'Sheet2';
+      const historyTitle = 'DSL change';
+      rerender({ dsl });
+
+      // Act
+      await act(() =>
+        hook.current.updateDSL([
+          {
+            updatedSheetContent: dsl,
+            historyTitle,
+            sheetNameToChange: sheetName1,
+          },
+          {
+            updatedSheetContent: dsl,
+            historyTitle,
+            sheetNameToChange: sheetName2,
+          },
+        ])
       );
-      expect(props.appendToFn).toHaveBeenCalledWith(
-        props.sheetName,
-        historyTitle,
-        dsl + newLine
+
+      // Assert
+      expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
+        {
+          sheetName: sheetName1,
+          content: dsl + newLine,
+        },
+        {
+          sheetName: sheetName2,
+          content: dsl + newLine,
+        },
+      ]);
+      expect(props.appendToFn).toHaveBeenCalledWith(historyTitle, [
+        { sheetName: sheetName1, content: dsl + newLine },
+        { sheetName: sheetName2, content: dsl + newLine },
+      ]);
+    });
+
+    it('should add different dsl changes for different sheets under different history item when having different title', async () => {
+      // Arrange
+      const dsl = 'table t1 key [f1]=1\n [f2]=2';
+      const sheetName1 = 'Sheet1';
+      const sheetName2 = 'Sheet2';
+      const historyTitle1 = 'DSL change1';
+      const historyTitle2 = 'DSL change2';
+      rerender({ dsl });
+
+      // Act
+      await act(() =>
+        hook.current.updateDSL([
+          {
+            updatedSheetContent: dsl,
+            historyTitle: historyTitle1,
+            sheetNameToChange: sheetName1,
+          },
+          {
+            updatedSheetContent: dsl,
+            historyTitle: historyTitle2,
+            sheetNameToChange: sheetName2,
+          },
+        ])
       );
+
+      // Assert
+      expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
+        {
+          sheetName: sheetName1,
+          content: dsl + newLine,
+        },
+        {
+          sheetName: sheetName2,
+          content: dsl + newLine,
+        },
+      ]);
+      expect(props.appendToFn).toHaveBeenNthCalledWith(1, historyTitle1, [
+        { sheetName: sheetName1, content: dsl + newLine },
+      ]);
+      expect(props.appendToFn).toHaveBeenNthCalledWith(2, historyTitle2, [
+        { sheetName: sheetName2, content: dsl + newLine },
+      ]);
     });
   });
 });

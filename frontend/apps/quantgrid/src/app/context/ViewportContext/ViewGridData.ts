@@ -1,34 +1,53 @@
-import { bufferTime, debounceTime, Observable, Subject } from 'rxjs';
+import { bufferTime, debounceTime, filter, Observable, Subject } from 'rxjs';
 
+import { ViewportEdges } from '@frontend/canvas-spreadsheet';
 import {
   ChartData,
+  chartRowNumberSelector,
+  ChartsData,
+  ChartTableWithoutSelectors,
+  ChartType,
   ColumnData,
+  ColumnDataType,
   CompilationError,
   defaultChartCols,
   defaultChartRows,
   DiffData,
-  escapeFieldName,
-  escapeTableName,
-  ParsingError,
-  RuntimeError,
-  Viewport,
-} from '@frontend/common';
-import {
-  ChartsData,
   GridChart,
+  GridChartSection,
   GridData,
+  GridListFilter,
   GridTable,
   GridViewport,
+  histogramChartSeriesSelector,
+  isNumericType,
+  ParsingError,
+  RuntimeError,
   SelectedChartKey,
   TableData,
   TablesData,
+  Viewport,
+  VirtualTableData,
+  VirtualTablesData,
 } from '@frontend/common';
-import { dynamicFieldName, ParsedTable } from '@frontend/parser';
+import {
+  dynamicFieldName,
+  escapeFieldName,
+  escapeTableName,
+  ParsedField,
+  ParsedTable,
+  unescapeValue,
+} from '@frontend/parser';
 
-import { getChartKeysByProject } from '../../services';
+import { hasValuesFieldName, histogramDefaultBucketCount } from '../../utils';
 import { GridBuilder } from './GridBuilder';
-import { ChartUpdate, TableDynamicFieldsLoadUpdate } from './types';
+import {
+  ChartUpdate,
+  FiltersUpdate,
+  TableDynamicFieldsLoadUpdate,
+} from './types';
 import { ViewportBuilder } from './ViewportBuilder';
+import { ViewportChartBuilder } from './ViewportChartBuilder';
 
 export const chunkSize = 500;
 export const defaultZIndex = 2;
@@ -48,10 +67,12 @@ export const chartUpdateBufferTime = 200;
  * @property {Subject} _tableDynamicFieldsRequest$ - An Observable which triggers additional calculation request for dynamic fields.
  * @property {GridBuilder} gridBuilder - Instance of GridBuilder class (build tablesData to necessary format for grid).
  * @property {ViewportBuilder} viewportBuilder - Instance of ViewportBuilder class (generating viewports request considering tablesData).
+ * @property {ViewportChartBuilder} viewportChartBuilder - Instance of ViewportChartBuilder class (generating viewports request considering charts).
  */
 export class ViewGridData {
   protected tablesData: TablesData;
   protected chartsData: ChartsData;
+  protected filtersData: Record<string, Record<string, string[]>>;
 
   protected parsingErrors: ParsingError[];
   protected compilationErrors: CompilationError[];
@@ -60,18 +81,27 @@ export class ViewGridData {
   protected _tableDynamicFieldsLoad$: Subject<TableDynamicFieldsLoadUpdate>;
   protected _tableDynamicFieldsRequest$: Subject<void>;
   protected _chartUpdate$: Subject<ChartUpdate>;
+  protected _filtersUpdate$: Subject<FiltersUpdate>;
 
   protected gridBuilder: GridBuilder;
   protected viewportBuilder: ViewportBuilder;
+  protected viewportChartBuilder: ViewportChartBuilder;
 
-  protected tableOrder: string[] = [];
+  protected tableOrder: string[];
+
+  protected virtualTablesData: VirtualTablesData;
+  protected chartKeyVirtualTableMapping: Map<string, Map<string, string>>;
+  protected chartDataVirtualTableMapping: Map<string, string>;
+  protected filterDataVirtualTableMapping: Map<string, Map<string, string>>;
 
   constructor() {
     this.tablesData = {};
     this.chartsData = {};
+    this.filtersData = {};
 
     this._shouldUpdate$ = new Subject();
     this._chartUpdate$ = new Subject();
+    this._filtersUpdate$ = new Subject();
     this._tableDynamicFieldsLoad$ = new Subject();
     this._tableDynamicFieldsRequest$ = new Subject();
 
@@ -80,8 +110,13 @@ export class ViewGridData {
 
     this.gridBuilder = new GridBuilder(this);
     this.viewportBuilder = new ViewportBuilder(this);
+    this.viewportChartBuilder = new ViewportChartBuilder(this);
 
     this.tableOrder = [];
+    this.chartKeyVirtualTableMapping = new Map();
+    this.chartDataVirtualTableMapping = new Map();
+    this.filterDataVirtualTableMapping = new Map();
+    this.virtualTablesData = {};
   }
 
   /**
@@ -93,12 +128,23 @@ export class ViewGridData {
   }
 
   /**
+   * Observable which trigger action if grid should update data
+   * @returns {Observable<boolean>} Actual observable
+   */
+  get filtersUpdate$(): Observable<FiltersUpdate> {
+    return this._filtersUpdate$.asObservable();
+  }
+
+  /**
    * Observable which trigger action if grid should update charts
    * @returns {Observable<ChartUpdate[]>} Actual observable
    */
   get chartUpdate(): Observable<ChartUpdate[]> {
     // TODO: Remove bufferTime -> check chartUpdateBufferTime description
-    return this._chartUpdate$.pipe(bufferTime(chartUpdateBufferTime));
+    return this._chartUpdate$.pipe(
+      bufferTime(chartUpdateBufferTime),
+      filter((events) => events.length > 0)
+    );
   }
 
   /**
@@ -129,6 +175,13 @@ export class ViewGridData {
    */
   protected triggerChartsUpdate(chartUpdate: ChartUpdate): void {
     this._chartUpdate$.next(chartUpdate);
+  }
+
+  /**
+   * Method which trigger grid filters update, check this observable
+   */
+  protected triggerFiltersUpdate(update: FiltersUpdate): void {
+    this._filtersUpdate$.next(update);
   }
 
   /**
@@ -188,6 +241,29 @@ export class ViewGridData {
   }
 
   /**
+   * Gets filters data
+   * @returns {Record<string, Record<string, string[]>>} filters data map
+   */
+  public getFiltersData(): Record<string, Record<string, string[]>> {
+    return this.filtersData;
+  }
+
+  /**
+   * Clear all data for specified chart
+   * @param tableName specified tableName
+   */
+  public clearChartData(tableName: string): void {
+    this.chartsData[tableName] = {};
+  }
+
+  /**
+   * Clear all filters data
+   */
+  public clearFiltersData(): void {
+    this.filtersData = {};
+  }
+
+  /**
    * Gets list of all table data
    * Sorted by tableOrder, which is actual order of tables in dsl
    * @returns {TableData[]} Actual list
@@ -239,6 +315,26 @@ export class ViewGridData {
   }
 
   /**
+   * Update existing Grid Charts with new keys for specified key
+   * @param charts - list of Grid Charts
+   * @param virtualTableName - virtual table name with chart keys
+   */
+  public updateChartWithNewKeys(
+    charts: GridChart[],
+    virtualTableName: string
+  ): GridChart[] {
+    const targetChart = charts.find((c) => c.tableName === virtualTableName);
+    const virtualKeyTable = this.virtualTablesData[virtualTableName];
+
+    if (!targetChart || !virtualKeyTable) return charts;
+
+    const { availableKeys } = targetChart;
+    this.updateAvailableKeys(availableKeys, virtualKeyTable);
+
+    return charts;
+  }
+
+  /**
    * Gets list of parsing errors
    * @returns {ParsingError[]} Actual list
    */
@@ -281,87 +377,289 @@ export class ViewGridData {
    * Gets list of saved charts by projectName, checking stored keys, available keys for this chart
    * @returns {GridTable[]} Actual list
    */
-  public getCharts(
-    projectName: string,
-    projectBucket: string,
-    projectPath: string | null | undefined
-  ): GridChart[] {
-    // projectName, because we store keys in localStorage by project, see getChartKeysByProject
-    const charts: GridChart[] = [];
-
+  public getCharts(): GridChart[] {
     const tablesData = this.getTablesData();
 
-    if (!tablesData.length) {
-      return [];
-    }
+    if (!tablesData.length) return [];
 
-    for (const { table, chunks } of tablesData) {
-      const { tableName } = table;
+    const charts: GridChart[] = [];
 
-      if (!table.isLineChart()) continue;
+    for (const { table, types, totalRows } of tablesData) {
+      const chartType = table.getChartType();
 
-      const [startRow, startCol] = table.getPlacement();
+      if (!chartType) continue;
 
       const chartSize = table.getChartSize();
+      const [startRow, startCol] = table.getPlacement();
+      const tableNameHeaderHeight = table.getTableNameHeaderHeight();
+      const showLegend = !table.getIsTableFieldsHidden();
+      const isEmpty = table.fields.length === 0;
+
       const chartRows = chartSize[0] || defaultChartRows;
       const chartCols = chartSize[1] || defaultChartCols;
-
       const endCol = startCol + chartCols;
-      const endRow = startRow + table.getTableNameHeaderHeight() + chartRows;
+      const chartStartRow = startRow + tableNameHeaderHeight;
+      const endRow = chartStartRow + chartRows;
+      const tableStartCol = startCol;
+      const tableStartRow = startRow;
 
-      const fieldKeys = table.fields
-        .filter((f) => f.isKey)
-        .map((f) => f.key.fieldName);
-
-      const selectedKeys: Record<string, string> = {};
-      const availableKeys: Record<string, string[]> = {};
-
-      for (const chunkIndex of Object.keys(chunks)) {
-        const chunk = chunks[+chunkIndex];
-
-        for (const fieldKey in chunk) {
-          if (!(fieldKey in availableKeys)) {
-            availableKeys[fieldKey] = [];
-          }
-
-          availableKeys[fieldKey].push(...chunk[fieldKey]);
-        }
-      }
-
-      for (const availableKey in availableKeys) {
-        availableKeys[availableKey] = Array.from(
-          new Set(availableKeys[availableKey])
-        );
-      }
-
-      const projectKeys = getChartKeysByProject(
-        projectName,
-        projectBucket,
-        projectPath
-      );
-
-      for (const fieldKey of fieldKeys) {
-        if (projectKeys[tableName] && projectKeys[tableName][fieldKey]) {
-          selectedKeys[fieldKey] = projectKeys[tableName][fieldKey];
-        }
-      }
-
-      const chart: GridChart = {
-        tableName,
-        chartType: 'line',
-        startCol,
-        startRow: startRow + table.getTableNameHeaderHeight(),
-        endCol,
-        endRow,
-        fieldKeys,
+      const {
+        selectorFieldNames,
         selectedKeys,
         availableKeys,
-      };
+        keysWithNoDataPoint,
+        customSeriesColors,
+      } = this.processChartSelectors(table);
 
-      charts.push(chart);
+      this.addRowNumberSelectors(
+        table,
+        chartType,
+        totalRows,
+        selectorFieldNames,
+        selectedKeys,
+        availableKeys
+      );
+
+      const histogramBucketsCount = this.processHistogram(
+        table,
+        chartType,
+        types,
+        totalRows,
+        selectorFieldNames,
+        selectedKeys,
+        availableKeys
+      );
+
+      const chartSections = this.getChartSections(
+        table,
+        types,
+        histogramBucketsCount,
+        chartType
+      );
+
+      charts.push({
+        tableName: table.tableName,
+        chartType,
+        startCol,
+        endCol,
+        endRow,
+        tableStartCol,
+        tableStartRow,
+        startRow: chartStartRow,
+        selectedKeys,
+        availableKeys,
+        keysWithNoDataPoint,
+        customSeriesColors,
+        selectorFieldNames,
+        chartSections,
+        showLegend,
+        isEmpty,
+      });
     }
 
     return charts;
+  }
+
+  /**
+   * Get saved values from table selector
+   */
+  private processChartSelectors(table: ParsedTable): {
+    selectorFieldNames: string[];
+    selectedKeys: Record<string, string | string[]>;
+    availableKeys: Record<string, string[]>;
+    keysWithNoDataPoint: Record<string, string[]>;
+    customSeriesColors: Record<string, string>;
+  } {
+    const selectorFieldNames: string[] = [];
+    const selectedKeys: Record<string, string | string[]> = {};
+    const availableKeys: Record<string, string[]> = {};
+    const keysWithNoDataPoint: Record<string, string[]> = {};
+    const customSeriesColors: Record<string, string> = {};
+
+    for (const field of table.fields) {
+      const fieldName = field.key.fieldName;
+      const seriesColor = field.getSeriesColor();
+
+      if (seriesColor) {
+        customSeriesColors[fieldName] = seriesColor;
+      }
+
+      if (field.isChartSelector()) {
+        this.populateSelectorData(
+          table.tableName,
+          fieldName,
+          availableKeys,
+          keysWithNoDataPoint
+        );
+        selectorFieldNames.push(fieldName);
+
+        const selectorValue = field.getChartSelectorValue();
+        if (selectorValue !== undefined) {
+          selectedKeys[fieldName] =
+            typeof selectorValue === 'number'
+              ? selectorValue.toString()
+              : unescapeValue(selectorValue);
+        }
+      }
+    }
+
+    return {
+      selectorFieldNames,
+      selectedKeys,
+      availableKeys,
+      keysWithNoDataPoint,
+      customSeriesColors,
+    };
+  }
+
+  /**
+   * Update available/not available keys for a chart
+   */
+  private populateSelectorData(
+    tableName: string,
+    fieldName: string,
+    availableKeys: Record<string, string[]>,
+    keysWithNoDataPoint: Record<string, string[]>
+  ): void {
+    const virtualKeyTableName = this.chartKeyVirtualTableMapping
+      .get(tableName)
+      ?.get(fieldName);
+
+    if (!virtualKeyTableName) return;
+
+    const virtualKeyTable = this.virtualTablesData[virtualKeyTableName];
+    if (!virtualKeyTable) return;
+
+    this.updateAvailableKeys(availableKeys, virtualKeyTable);
+    this.updateKeysWithNoDataPoint(
+      keysWithNoDataPoint,
+      virtualKeyTable,
+      fieldName
+    );
+  }
+
+  /**
+   * Special case for bar/pie charts: add specific selector, available keys
+   */
+  private addRowNumberSelectors(
+    table: ParsedTable,
+    chartType: ChartType,
+    totalRows: number,
+    selectorFieldNames: string[],
+    selectedKeys: Record<string, string | string[]>,
+    availableKeys: Record<string, string[]>
+  ): void {
+    const isRowNumberSelector =
+      chartType === ChartType.BAR || chartType === ChartType.PIE;
+
+    const isHistogram = chartType === ChartType.HISTOGRAM;
+    const tableSelectorValues = table.getChartSelectorValues();
+
+    if (isRowNumberSelector && !isHistogram) {
+      selectorFieldNames.push(chartRowNumberSelector);
+
+      if (table.isChartSelector() || isRowNumberSelector) {
+        if (tableSelectorValues?.length === 1) {
+          selectedKeys[chartRowNumberSelector] =
+            tableSelectorValues[0].toString();
+        } else if (tableSelectorValues && tableSelectorValues.length > 0) {
+          selectedKeys[chartRowNumberSelector] = tableSelectorValues;
+        }
+
+        // Special case: empty rowNumber selector, but table has 1 row -> show chart with 1 row
+        if (!selectedKeys[chartRowNumberSelector] && totalRows === 1) {
+          selectedKeys[chartRowNumberSelector] = '1';
+        }
+      }
+
+      availableKeys[chartRowNumberSelector] = Array.from(
+        { length: totalRows },
+        (_, i) => (i + 1).toString()
+      );
+    }
+  }
+
+  /**
+   * Special case for histogram chart: add specific selector, available keys and buckets count
+   */
+  private processHistogram(
+    table: ParsedTable,
+    chartType: ChartType,
+    types: Record<string, ColumnDataType>,
+    totalRows: number,
+    selectorFieldNames: string[],
+    selectedKeys: Record<string, string | string[]>,
+    availableKeys: Record<string, string[]>
+  ): number | null {
+    if (chartType !== ChartType.HISTOGRAM) return null;
+
+    selectorFieldNames.push(histogramChartSeriesSelector);
+    const tableSelectorValues = table.getChartSelectorValues();
+
+    if (tableSelectorValues?.length) {
+      selectedKeys[histogramChartSeriesSelector] = tableSelectorValues[0];
+    }
+
+    const visualizationValues = table.getVisualisationDecoratorValues();
+    const histogramBucketsCount = Math.min(
+      histogramDefaultBucketCount,
+      visualizationValues?.length === 2
+        ? parseInt(visualizationValues[1])
+        : totalRows
+    );
+
+    availableKeys[histogramChartSeriesSelector] = table.fields
+      .filter(
+        (f) => !f.isChartSelector() && isNumericType(types[f.key.fieldName])
+      )
+      .map((f) => f.key.fieldName);
+
+    return histogramBucketsCount;
+  }
+
+  /**
+   * Build chart sections to display chart data by sections
+   */
+  private getChartSections(
+    table: ParsedTable,
+    types: Record<string, ColumnDataType>,
+    histogramBucketsCount: number | null,
+    chartType: ChartType
+  ): GridChartSection[] {
+    const separatedFields = table.getChartSeparatedSections();
+
+    return separatedFields.map((fields) => ({
+      valueFieldNames: fields
+        .filter((f) => this.isChartValueField(f, types))
+        .map((f) => f.key.fieldName),
+      xAxisFieldName:
+        fields.find((f) => f.isChartXAxis())?.key.fieldName || null,
+      dotSizeFieldName:
+        fields.find((f) => f.isChartDotSize())?.key.fieldName || null,
+      dotColorFieldName:
+        fields.find((f) => f.isChartDotColor())?.key.fieldName || null,
+      histogramBucketsCount,
+      histogramDataTableName:
+        chartType === ChartType.HISTOGRAM
+          ? this.chartDataVirtualTableMapping.get(table.tableName) ?? null
+          : null,
+    }));
+  }
+
+  /**
+   * Check for chart if the field is used as value field (no specific chart decorators and is numeric type)
+   */
+  private isChartValueField(
+    field: ParsedField,
+    types: Record<string, ColumnDataType>
+  ): boolean {
+    return (
+      !field.isChartXAxis() &&
+      !field.isChartSelector() &&
+      !field.isChartDotSize() &&
+      !field.isChartDotColor() &&
+      isNumericType(types[field.key.fieldName])
+    );
   }
 
   /**
@@ -380,6 +678,24 @@ export class ViewGridData {
    */
   protected removeChartData(tableName: string): void {
     delete this.chartsData[tableName];
+
+    if (this.chartKeyVirtualTableMapping.has(tableName)) {
+      const fieldMap = this.chartKeyVirtualTableMapping.get(tableName);
+
+      if (fieldMap) {
+        for (const virtualTableName of fieldMap.values()) {
+          delete this.virtualTablesData[virtualTableName];
+        }
+      }
+      this.chartKeyVirtualTableMapping.delete(tableName);
+    }
+
+    if (this.chartDataVirtualTableMapping.has(tableName)) {
+      if (this.virtualTablesData[tableName]) {
+        delete this.virtualTablesData[tableName];
+      }
+      this.chartDataVirtualTableMapping.delete(tableName);
+    }
   }
 
   /**
@@ -400,7 +716,7 @@ export class ViewGridData {
 
       total: {},
 
-      maxKnownRowIndex: 0,
+      totalRows: 0,
 
       nestedColumnNames: new Set(),
       isDynamicFieldsRequested: false,
@@ -413,7 +729,7 @@ export class ViewGridData {
       fieldErrors: {},
     };
 
-    if (table.isLineChart()) {
+    if (table.isChart()) {
       this.chartsData[tableName] = {};
     }
 
@@ -443,9 +759,20 @@ export class ViewGridData {
     tableData.table = table;
     tableData.fallbackChunks = { ...tableData.chunks };
     tableData.chunks = {};
-    tableData.maxKnownRowIndex = 0;
     tableData.isDynamicFieldsRequested = false;
     tableData.diff = diff;
+
+    const isChart = table.isChart();
+
+    // Note: Do not clear totalRows for charts, not to cause toolbar hide and show
+    // totalRows will be updated after receiving new column data
+    if (!isChart) {
+      tableData.totalRows = 0;
+    }
+
+    if (isChart && !this.chartsData[tableName]) {
+      this.chartsData[tableName] = {};
+    }
 
     this.removeRedundantFields(tableName);
     this.triggerDataUpdate();
@@ -499,7 +826,7 @@ export class ViewGridData {
 
     const currentFieldNames = table.fields.map((field) => field.key.fieldName);
 
-    if (table.isLineChart()) {
+    if (table.isChart()) {
       const chartData = this.getChartData(table.tableName);
 
       if (chartData) {
@@ -622,84 +949,105 @@ export class ViewGridData {
   }
 
   /**
-   * If it's table column update -> clear fallback cache for this column -> save new column data using chunks algorithm -> trigger data update
-   * If it's chart -> save chart data -> trigger chartUpdate
-   * If it's update for dynamic field columns -> save new dynamic fields -> trigger dynamic fields and data update
-   * @param {ColumnData} columnData
-   * @returns
+   * Save columnData from the virtual table to chartsData.
+   * Currently used for histogram chart.
    */
-  public saveNewColumnData({
+  private saveNewColumnForVirtualDataTable(columnData: ColumnData) {
+    const { fieldKey, data } = columnData;
+    if (!fieldKey?.table) return;
+
+    const tableName = escapeTableName(fieldKey.table, true);
+
+    const isValidVirtualTable = Array.from(
+      this.chartDataVirtualTableMapping.values()
+    ).some((t) => t === tableName);
+
+    if (!isValidVirtualTable) return;
+
+    const chartData = this.getChartData(tableName);
+
+    if (!chartData) {
+      this.chartsData[tableName] = {};
+    }
+
+    this.chartsData[tableName][fieldKey.field] = data;
+  }
+
+  /**
+   * Save columnData from the virtual table to virtualTablesData.
+   * Currently used for getting data for the chart selectors.
+   */
+  private saveNewColumnDataForFiltersTable({
     fieldKey,
     data,
     endRow,
     startRow,
-    isNested,
-    errorMessage,
-    type,
-    referenceTableName,
-    periodSeries,
-  }: ColumnData): void {
-    if (!fieldKey) {
-      return;
-    }
+  }: ColumnData) {
+    if (!fieldKey?.table) return;
+
     const tableName = escapeTableName(fieldKey.table, true);
     const columnName = escapeFieldName(fieldKey.field, true);
-    const tableData = this.getTableData(tableName);
 
-    if (!tableData) {
-      return;
+    const sourceTableName = Array.from(
+      this.filterDataVirtualTableMapping.entries()
+    ).find(([_, fieldMap]) =>
+      Array.from(fieldMap.values()).includes(tableName)
+    )?.[0];
+    const rowsCount = data.length;
+    const responseEndRow = parseInt(endRow);
+    const responseStartRow =
+      startRow === undefined || !startRow
+        ? responseEndRow - rowsCount
+        : parseInt(startRow);
+
+    if (!sourceTableName) return;
+
+    const prevData = this.filtersData[sourceTableName]?.[columnName] ?? [];
+
+    if (!this.filtersData[sourceTableName]) {
+      this.filtersData[sourceTableName] = {};
     }
 
-    const isPeriodSeriesData = periodSeries.length > 0;
+    this.filtersData[sourceTableName][columnName] = prevData
+      .slice(0, responseStartRow)
+      .concat(data);
 
-    if (isPeriodSeriesData) {
-      const chartData = this.getChartData(tableName);
+    this.triggerFiltersUpdate({
+      sourceTableName,
+      virtualTableName: tableName,
+    });
+  }
 
-      if (!chartData) {
-        return;
-      }
+  /**
+   * Save columnData from the virtual table to virtualTablesData.
+   * Currently used for getting data for the chart selectors.
+   */
+  private saveNewColumnDataForVirtualKeyTable({
+    fieldKey,
+    data,
+    endRow,
+    startRow,
+    totalRows,
+  }: ColumnData) {
+    if (!fieldKey?.table) return;
 
-      chartData[columnName] = periodSeries;
+    const tableName = escapeTableName(fieldKey.table, true);
+    const columnName = escapeFieldName(fieldKey.field, true);
 
-      this.triggerChartsUpdate({
-        chartName: tableName,
-        isChartDataUpdate: true,
-      });
+    const hasVirtualTableName = Array.from(
+      this.chartKeyVirtualTableMapping.values()
+    ).some((fieldMap) => Array.from(fieldMap.values()).includes(tableName));
 
-      this.triggerDataUpdate();
+    if (!hasVirtualTableName) return;
 
-      return;
+    if (!this.virtualTablesData[tableName]) {
+      this.virtualTablesData[tableName] = {
+        chunks: {},
+        totalRows: +totalRows,
+      };
     }
 
-    if (columnName === dynamicFieldName) {
-      tableData.dynamicFields = [...data];
-      tableData.isDynamicFieldsRequested = true;
-
-      this.triggerTableDynamicFieldsLoaded(tableName, [...data]);
-
-      return;
-    }
-
-    if (referenceTableName) {
-      tableData.columnReferenceTableNames[columnName] = referenceTableName;
-    }
-
-    tableData.types[columnName] = type;
-
-    if (errorMessage) {
-      tableData.fieldErrors[columnName] = errorMessage;
-      this.clearRuntimeErrorFieldChunks(tableData, columnName);
-    }
-
-    // if data comes for specific field, should remove cache for this column
-    this.clearOldCachedDataForColumn(tableName, columnName);
-
-    const { chunks, table } = tableData;
-
-    // if we don't have actual chunks data, that mean we get new maxKnownRowIndex from actual data, not from old
-    if (!Object.keys(chunks).length) {
-      tableData.maxKnownRowIndex = 0;
-    }
+    const { chunks } = this.virtualTablesData[tableName];
 
     const rowsCount = data.length;
 
@@ -742,6 +1090,176 @@ export class ViewGridData {
       index++;
     }
 
+    this.virtualTablesData[tableName].totalRows = +totalRows;
+
+    this.triggerChartsUpdate({
+      chartName: this.getChartTableNameByVirtualKeyTableName(tableName),
+      virtualTableName: tableName,
+      isKeyUpdate: true,
+    });
+  }
+
+  /**
+   * If it's table column update -> clear fallback cache for this column -> save new column data using chunks algorithm -> trigger data update
+   * If it's chart -> save chart data -> trigger chartUpdate
+   * If it's update for dynamic field columns -> save new dynamic fields -> trigger dynamic fields and data update
+   * @param {ColumnData} columnData
+   * @returns
+   */
+  public saveNewColumnData(columnData: ColumnData): void {
+    const {
+      fieldKey,
+      data,
+      endRow,
+      startRow,
+      totalRows,
+      isNested,
+      errorMessage,
+      type,
+      referenceTableName,
+      periodSeries,
+    } = columnData;
+
+    if (!fieldKey) {
+      return;
+    }
+    const tableName = escapeTableName(fieldKey.table, true);
+    const columnName = escapeFieldName(fieldKey.field, true);
+    const tableData = this.getTableData(tableName);
+
+    if (!tableData) {
+      if (
+        Array.from(this.chartDataVirtualTableMapping.values()).some(
+          (t) => t === tableName
+        )
+      ) {
+        this.saveNewColumnForVirtualDataTable(columnData);
+
+        return;
+      }
+
+      if (
+        Array.from(this.filterDataVirtualTableMapping.values()).some(
+          (val) => val.get(columnName) === escapeTableName(tableName)
+        )
+      ) {
+        this.saveNewColumnDataForFiltersTable(columnData);
+
+        return;
+      }
+
+      this.saveNewColumnDataForVirtualKeyTable(columnData);
+
+      return;
+    }
+
+    const isPeriodSeriesData = periodSeries.length > 0;
+
+    if (isPeriodSeriesData) {
+      const chartData = this.getChartData(tableName);
+
+      if (!chartData) {
+        return;
+      }
+
+      chartData[columnName] = periodSeries;
+
+      this.triggerChartsUpdate({
+        chartName: tableName,
+        isChartDataUpdate: true,
+      });
+
+      this.triggerDataUpdate();
+
+      return;
+    }
+
+    if (errorMessage) {
+      tableData.fieldErrors[columnName] = errorMessage;
+      this.clearRuntimeErrorFieldChunks(tableData, columnName);
+    }
+
+    if (columnName === dynamicFieldName) {
+      tableData.dynamicFields = [...data];
+      tableData.isDynamicFieldsRequested = true;
+
+      this.triggerTableDynamicFieldsLoaded(tableName, [...data]);
+
+      return;
+    }
+
+    if (referenceTableName) {
+      tableData.columnReferenceTableNames[columnName] = referenceTableName;
+    }
+
+    tableData.types[columnName] = type;
+
+    // if data comes for specific field, should remove cache for this column
+    this.clearOldCachedDataForColumn(tableName, columnName);
+
+    const { chunks, table } = tableData;
+
+    const rowsCount = data.length;
+
+    // Note: calculation request with startRow = 0, endRow = 0 was made only for receiving Chart types etc.
+    // No need to update chartsData with empty data.
+    const isChartMetadataResponse =
+      parseInt(startRow) === 0 && parseInt(endRow) === 0;
+    const responseEndRow = parseInt(endRow);
+    const responseStartRow =
+      startRow === undefined || !startRow
+        ? responseEndRow - rowsCount
+        : parseInt(startRow);
+    const chartType = table.getChartType();
+    const isRegularChart = chartType && chartType !== ChartType.PERIOD_SERIES;
+    let index = Math.floor(responseStartRow / chunkSize);
+    let keepUpdating = true;
+
+    while (keepUpdating) {
+      keepUpdating = false;
+
+      const chunkStartRow = index * chunkSize;
+      const chunkEndRow = chunkStartRow + chunkSize;
+
+      if (!chunks[index]) {
+        chunks[index] = {};
+      }
+
+      const chunk = chunks[index];
+
+      const start = Math.max(chunkStartRow, responseStartRow);
+      const end = Math.min(chunkEndRow, responseStartRow + rowsCount);
+
+      if (responseStartRow + rowsCount > end) {
+        keepUpdating = true;
+      }
+
+      if (!chunk[columnName]) {
+        chunk[columnName] = new Array(Math.min(chunkSize, end - start));
+      }
+
+      for (let i = start; i < end; i++) {
+        chunk[columnName][i - chunkStartRow] = data[i - responseStartRow];
+      }
+
+      if (isRegularChart && !isChartMetadataResponse) {
+        const chartData = this.getChartData(tableName);
+        const isNumeric = isNumericType(type);
+        const tableField = table.fields.find(
+          (f) => f.key.fieldName === columnName
+        );
+        const isDotColor = tableField?.isChartDotColor();
+        const isDotSize = tableField?.isChartDotSize();
+        const isXAxis = tableField?.isChartXAxis();
+
+        if (chartData && (isNumeric || isDotColor || isDotSize || isXAxis)) {
+          chartData[columnName] = chunk[columnName];
+        }
+      }
+
+      index++;
+    }
+
     if (isNested) {
       tableData.nestedColumnNames.add(columnName);
     } else {
@@ -756,24 +1274,12 @@ export class ViewGridData {
       }
     }
 
-    if (columnName !== dynamicFieldName) {
-      const maxTableRow =
-        responseEndRow - rowsCount === 0
-          ? responseEndRow
-          : rowsCount > 0
-          ? responseStartRow + rowsCount
-          : tableData.maxKnownRowIndex;
-
-      tableData.maxKnownRowIndex = Math.max(
-        tableData.maxKnownRowIndex,
-        maxTableRow
-      );
-    }
+    tableData.totalRows = +totalRows;
 
     // trigger data update after at least one column is changed, grid applies data update without latency
     this.triggerDataUpdate();
 
-    if (table.isLineChart()) {
+    if (table.isChart()) {
       this.triggerChartsUpdate({
         chartName: tableName,
         isKeyUpdate: true,
@@ -793,27 +1299,16 @@ export class ViewGridData {
   /**
    * Builds chart request considering current data and selected keys
    * @param selectedKeys {SelectedChartKey[]} Current selected chart keys
+   * @param tablesWithoutSelectors {ChartTableWithoutSelectors[]} List of tables without selectors
    * @returns {Viewport[]} built viewport
    */
   public buildChartViewportRequest(
-    selectedKeys: SelectedChartKey[]
+    selectedKeys: SelectedChartKey[],
+    tablesWithoutSelectors: ChartTableWithoutSelectors[]
   ): Viewport[] {
-    return this.viewportBuilder.buildChartViewportRequest(selectedKeys);
-  }
-
-  /**
-   * After scrolling keys in chart -> should trigger new keys request viewport by specified tableName, fieldName (chart)
-   * @param tableName specified tableName
-   * @param fieldName specified fieldName
-   * @returns {Viewport[]} built viewports
-   */
-  public buildGetMoreChartKeysViewportRequest(
-    tableName: string,
-    fieldName: string
-  ): Viewport[] {
-    return this.viewportBuilder.buildGetMoreChartKeysViewportRequest(
-      tableName,
-      fieldName
+    return this.viewportChartBuilder.buildChartViewportRequest(
+      selectedKeys,
+      tablesWithoutSelectors
     );
   }
 
@@ -826,19 +1321,27 @@ export class ViewGridData {
   public getFieldFilterList(
     tableName: string,
     columnName: string
-  ): { value: string; isSelected: boolean }[] {
+  ): GridListFilter[] {
     if (!this.tablesData || !this.tablesData[tableName]) return [];
 
     const tableData = this.tablesData[tableName];
-    const viewportValues = this.getAllColumnValues(tableData, columnName);
+    const viewportValues = this.filtersData[tableName]?.[columnName] ?? [];
+    const viewportFilteredValues =
+      this.filtersData[tableName]?.[columnName + '_filtered'] ?? [];
 
-    const filterValues =
-      tableData.table.apply?.getFieldTextFilterValues(columnName) || [];
+    const selectedFilterValues =
+      tableData.table.apply?.getFieldListFilterValues(columnName) || [];
 
-    const listFilter = viewportValues.map((value) => ({
-      value,
-      isSelected: filterValues.includes(value.toString()),
-    }));
+    const listFilter: GridListFilter[] = viewportValues.map((value, index) => {
+      const stringifiedValue = value.toString();
+      const isPresentedInFiltered = viewportFilteredValues[index] === 'TRUE';
+
+      return {
+        value,
+        isSelected: selectedFilterValues.includes(stringifiedValue),
+        isFiltered: !isPresentedInFiltered,
+      };
+    });
 
     const selectedCount = listFilter.filter((item) => item.isSelected).length;
 
@@ -852,35 +1355,167 @@ export class ViewGridData {
   }
 
   /**
-   * Method which gets all column values from tableData
-   * @param tableData {TableData} Table data
-   * @param columnName {string} Column name
-   * @returns {string[]} List of column values
-   */
-  private getAllColumnValues(
-    tableData: TableData,
-    columnName: string
-  ): string[] {
-    const { chunks } = tableData;
-    const columnValues = new Set<string>();
-
-    for (const chunk of Object.keys(chunks)) {
-      if (chunks[parseInt(chunk)][columnName]) {
-        chunks[parseInt(chunk)][columnName].forEach((value) =>
-          columnValues.add(value)
-        );
-      }
-    }
-
-    return Array.from(columnValues);
-  }
-
-  /**
    * Builds grid data (using specified format) considering current tableData, chartsData
    * @returns {GridData} Grid data which grid takes in
    */
-  public toGridData(): GridData {
-    return this.gridBuilder.toGridData();
+  public toGridData(viewport: ViewportEdges): GridData {
+    return this.gridBuilder.toGridData(viewport);
+  }
+
+  /**
+   * Add virtual table name (using to get keys for chart) for specified chart table
+   * @param tableName - chart table name
+   * @param fieldName - chart field name
+   * @param virtualTableName - virtual table name
+   */
+  public addChartKeyVirtualTable(
+    tableName: string,
+    fieldName: string,
+    virtualTableName: string
+  ) {
+    if (!this.chartKeyVirtualTableMapping.has(tableName)) {
+      this.chartKeyVirtualTableMapping.set(tableName, new Map());
+    }
+
+    this.chartKeyVirtualTableMapping
+      .get(tableName)
+      ?.set(fieldName, virtualTableName);
+  }
+
+  /**
+   * Add virtual table name (using to get keys for chart) for specified chart table
+   * @param tableName - chart table name
+   * @param fieldName - chart field name
+   * @param virtualTableName - virtual table name
+   */
+  public addFilterKeyVirtualTable(
+    tableName: string,
+    fieldName: string,
+    virtualTableName: string
+  ) {
+    if (!this.filterDataVirtualTableMapping.has(tableName)) {
+      this.filterDataVirtualTableMapping.set(tableName, new Map());
+    }
+
+    this.filterDataVirtualTableMapping
+      .get(tableName)
+      ?.set(fieldName, virtualTableName);
+  }
+
+  /**
+   * Get saved virtual table name for specified chart table and field
+   */
+  public getVirtualTableName(
+    tableName: string,
+    fieldName: string
+  ): string | undefined {
+    if (!this.chartKeyVirtualTableMapping.has(tableName)) {
+      return;
+    }
+
+    return this.chartKeyVirtualTableMapping.get(tableName)?.get(fieldName);
+  }
+
+  /**
+   * Get original chart table name by virtual table name
+   */
+  private getChartTableNameByVirtualKeyTableName(
+    tableName: string
+  ): string | undefined {
+    for (const [
+      outerKey,
+      fieldMap,
+    ] of this.chartKeyVirtualTableMapping.entries()) {
+      for (const [, vTableName] of fieldMap.entries()) {
+        if (vTableName === tableName) {
+          return outerKey;
+        }
+      }
+    }
+
+    return;
+  }
+
+  /**
+   * Add chart virtual table data for specified virtualTableName
+   * @param virtualTableName
+   * @param virtualTableData
+   */
+  public addChartVirtualTableData(
+    virtualTableName: string,
+    virtualTableData: string
+  ) {
+    this.chartDataVirtualTableMapping.set(virtualTableName, virtualTableData);
+  }
+
+  /**
+   * Get virtual table name (using to get data for chart) for specified chart table
+   * @param virtualTableName
+   */
+  public getChartVirtualTableDataName(virtualTableName: string): string | null {
+    return this.chartDataVirtualTableMapping.get(virtualTableName) || null;
+  }
+
+  /**
+   * Get virtual table data rows count for specified virtualTableName
+   * @param virtualTableName - virtual table name for chart keys
+   */
+  public getVirtualChartDataMaxRows(virtualTableName: string): number {
+    const escapedTableName = escapeTableName(virtualTableName);
+    if (!this.virtualTablesData[escapedTableName]) return 0;
+
+    return this.virtualTablesData[escapedTableName].totalRows || 0;
+  }
+
+  /**
+   * Update charts keys with latest data
+   * @param availableKeys - Record in the Grid Charts with chart keys
+   * @param virtualKeyTable - Virtual table with keys data
+   * @private
+   */
+  private updateAvailableKeys(
+    availableKeys: Record<string, (string | number)[]>,
+    virtualKeyTable: VirtualTableData
+  ): void {
+    const { chunks } = virtualKeyTable;
+
+    for (const chunkIndex of Object.keys(chunks)) {
+      const chunk = chunks[+chunkIndex];
+
+      for (const fieldKey in chunk) {
+        if (!(fieldKey in availableKeys)) {
+          availableKeys[fieldKey] = [];
+        }
+
+        availableKeys[fieldKey].push(...chunk[fieldKey]);
+      }
+    }
+  }
+
+  private updateKeysWithNoDataPoint(
+    keysWithNoDataPoint: Record<string, string[]>,
+    virtualKeyTable: VirtualTableData,
+    fieldName: string
+  ): void {
+    const { chunks } = virtualKeyTable;
+
+    for (const chunkIndex of Object.keys(chunks)) {
+      const chunk = chunks[+chunkIndex];
+
+      for (const fieldKey in chunk) {
+        if (fieldKey === hasValuesFieldName) continue;
+
+        if (!(fieldKey in keysWithNoDataPoint)) {
+          keysWithNoDataPoint[fieldKey] = [];
+        }
+
+        for (let i = 0; i < chunk[hasValuesFieldName].length; i++) {
+          if (chunk[hasValuesFieldName][i] === 'FALSE' && chunk[fieldName][i]) {
+            keysWithNoDataPoint[fieldKey].push(chunk[fieldName][i]);
+          }
+        }
+      }
+    }
   }
 
   /**
@@ -912,6 +1547,7 @@ export class ViewGridData {
    */
   public clearCachedViewports() {
     this.viewportBuilder.clear();
+    this.viewportChartBuilder.clear();
   }
 
   /**
@@ -923,7 +1559,12 @@ export class ViewGridData {
 
     this.tablesData = {};
     this.chartsData = {};
+    this.filtersData = {};
     this.tableOrder = [];
+    this.chartKeyVirtualTableMapping = new Map();
+    this.chartDataVirtualTableMapping = new Map();
+    this.filterDataVirtualTableMapping = new Map();
+    this.virtualTablesData = {};
     this.clearCachedViewports();
   }
 }

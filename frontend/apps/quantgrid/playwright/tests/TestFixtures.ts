@@ -2,9 +2,17 @@ import * as fs from 'fs';
 
 import { Browser, expect, Page } from '@playwright/test';
 
+import { WorkArea } from '../components/abstractions/WorkArea';
+import { Canvas } from '../components/Canvas';
+import { Chat } from '../components/Chat';
 import { DeleteProjectForm } from '../components/DeleteProjectForm';
+import { Grid } from '../components/Grid';
 import { FileMenuItems } from '../enums/FileMenuItems';
 import { MenuItems } from '../enums/MenuItems';
+import {
+  expectCellTextToBe,
+  expectCellTextToBePresent,
+} from '../helpers/canvasExpects';
 import { SpreadSheet } from '../logic-entities/SpreadSheet';
 import { Table } from '../logic-entities/Table';
 import { ProjectPage } from '../pages/ProjectPage';
@@ -13,11 +21,19 @@ import { ProjectSelection } from '../pages/ProjectSelection';
 export class TestFixtures {
   public static bucketId = '';
 
+  public static MODE_TYPE = process.env['VISUAL_MODE'] || 'canvas';
+
+  public static getVisualComponent(page: Page): WorkArea {
+    if (this.MODE_TYPE === 'grid') return new Grid(page);
+    else return new Canvas(page);
+  }
+
   public static getFolderName() {
     return fs.readFileSync('./folderName.txt', 'utf-8').split('\n');
   }
 
   public static async createProjectNew(
+    storagePath: string,
     browser: Browser,
     projectName: string,
     spreadsheet: SpreadSheet
@@ -39,15 +55,18 @@ export class TestFixtures {
     }
     const projectPage = await ProjectPage.createInstance(workPage);
     await projectPage.addDSL(spreadsheet.toDsl());
-    await expect(
-      projectPage.getCellText(
-        spreadsheet.getTable(0).getTop(),
-        spreadsheet.getTable(0).getLeft()
-      )
-    ).not.toBeEmpty();
+    await this.setDataMode(projectPage);
+    await this.expectCellTableToBeDisplayed(
+      workPage,
+      spreadsheet.getTable(0).getTop(),
+      spreadsheet.getTable(0).getLeft()
+    );
     if (this.bucketId === '') {
       const projectUrl = workPage.url();
       this.bucketId = projectUrl.split('projectBucket=')[1].split('&')[0];
+    }
+    if (storagePath && storagePath !== '') {
+      await workPage.context().storageState({ path: storagePath });
     }
     if (workPage !== initPage) {
       await workPage.close();
@@ -55,7 +74,17 @@ export class TestFixtures {
     await initPage.close();
   }
 
+  public static async setDataMode(page: ProjectPage) {
+    if (
+      this.MODE_TYPE === 'grid' &&
+      !(await page.getVisualization().isVisible())
+    ) {
+      await page.performMenuCommand(MenuItems.Help, 'Toggle grid');
+    }
+  }
+
   public static async createProject(
+    storagePath: string,
     browser: Browser,
     projectName: string,
     rowToCheck: number,
@@ -81,12 +110,22 @@ export class TestFixtures {
     for (const dsl of dsls) {
       await projectPage.addDSL(dsl);
     }
-    await expect(projectPage.getCellText(rowToCheck, columnToCheck)).toHaveText(
+    await this.setDataMode(projectPage);
+    await expectCellTextToBe(
+      <Canvas>projectPage.getVisualization(),
+      rowToCheck,
+      columnToCheck,
       nameToCheck
     );
+    /* expect(await projectPage.getCellText(rowToCheck, columnToCheck)).toBe(
+      nameToCheck
+    );*/
     if (this.bucketId === '') {
       const projectUrl = workPage.url();
       this.bucketId = projectUrl.split('projectBucket=')[1].split('&')[0];
+    }
+    if (storagePath && storagePath !== '') {
+      await workPage.context().storageState({ path: storagePath });
     }
     if (workPage !== initPage) {
       await workPage.close();
@@ -100,7 +139,12 @@ export class TestFixtures {
     column: number
   ) {
     const projectPage = await ProjectPage.createInstance(page);
-    await expect(projectPage.getCellText(row, column)).not.toBeEmpty();
+    //await this.changeDataMode(projectPage);
+    await expectCellTextToBePresent(
+      <Canvas>projectPage.getVisualization(),
+      row,
+      column
+    );
     //  await expect(projectPage.getCellText(row + 1, column)).not.toBeEmpty();
   }
 
@@ -113,6 +157,7 @@ export class TestFixtures {
   }
 
   public static async createEmptyProject(
+    storagePath: string,
     browser: Browser,
     projectName: string
   ) {
@@ -125,6 +170,9 @@ export class TestFixtures {
       const projectUrl = initPage.url();
       this.bucketId = projectUrl.split('bucket=')[1].split('&')[0];
     }
+    if (storagePath && storagePath !== '') {
+      await initPage.context().storageState({ path: storagePath });
+    }
     await initPage.close();
   }
 
@@ -134,6 +182,7 @@ export class TestFixtures {
       this.bucketId
     }&projectPath=${folderNames.join('/')}`;
     await page.goto(url);
+    await this.setDataMode(await ProjectPage.createInstance(page));
   }
 
   public static async deleteProject(browser: Browser, projectName: string) {
@@ -141,9 +190,8 @@ export class TestFixtures {
     await cleaningPage.goto('/');
     const startPage = new ProjectSelection(cleaningPage);
     const folderName = TestFixtures.getFolderName();
-    await startPage.openProject(projectName, folderName);
-    const projectPage = await ProjectPage.createInstance(cleaningPage);
-    await this.deleteProjectFromPage(projectPage);
+    await startPage.openFolders(folderName);
+    await startPage.deleteFile(projectName);
     await cleaningPage.close();
   }
 

@@ -6,6 +6,7 @@ export type CellError = Edges & {
   message: string;
   key: string;
   isHorizontalFieldError: boolean;
+  tableName: string;
 };
 
 export function shouldShowFieldError(cell: GridCell, row: number): boolean {
@@ -57,6 +58,7 @@ export function createErrorCell(
     : `${startCol}_${endCol}_${startRow}`;
 
   return {
+    tableName: cell.table.tableName,
     startCol,
     endCol,
     startRow,

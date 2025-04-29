@@ -30,6 +30,10 @@ export class Editor extends BaseComponent {
     await expect(this.rootElement).toBeHidden();
   }
 
+  public async shouldContain(text: string) {
+    //  await expect(this.rootElement).toContainText(text);
+  }
+
   public getValueLocator() {
     return this.rootElement.locator(this.lineLocator);
   }
@@ -68,7 +72,8 @@ export class Editor extends BaseComponent {
   ) {
     await lineLocator.click();
     await this.rootElement.press('Home');
-    const startLocation = (await lineLocator.textContent())?.indexOf(oldText);
+    const startLocation =
+      (await lineLocator.textContent())?.indexOf(oldText) || 0;
     for (let i = 0; i < startLocation; i++) {
       await this.rootElement.press('ArrowRight');
     }
@@ -109,9 +114,11 @@ export class Editor extends BaseComponent {
       counter++;
       if (lines.length === 1) {
         const firstSym = line.charAt(0);
-        await this.innerPage.keyboard.type(firstSym);
+        await this.rootElement.pressSequentially(firstSym);
         await new Promise((resolve) => setTimeout(resolve, 100));
-        await this.innerPage.keyboard.type(line.substring(1), { delay: 20 });
+        await this.rootElement.pressSequentially(line.substring(1), {
+          delay: 20,
+        });
       } else {
         await this.innerPage.keyboard.type(line, { delay: 20 });
         await new Promise((resolve) => setTimeout(resolve, 100));

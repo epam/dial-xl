@@ -1,4 +1,23 @@
-import { BinOpExpression, Expression } from '../ast';
+import { BinOpExpression, CurrentFieldExpression, Expression } from '../ast';
+
+export function findFieldBinOpExpressions(
+  parsedExpression: Expression,
+  fieldName: string
+): BinOpExpression[] {
+  if (!parsedExpression) return [];
+
+  const binOpExpressions = findFieldBinOpExpression(parsedExpression);
+
+  return binOpExpressions.filter((e) => {
+    const { right, left } = e;
+
+    return (
+      (right instanceof CurrentFieldExpression &&
+        right.fieldName === fieldName) ||
+      (left instanceof CurrentFieldExpression && left.fieldName === fieldName)
+    );
+  });
+}
 
 export function findFieldBinOpExpression(
   expression: Expression

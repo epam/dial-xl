@@ -1,0 +1,6 @@
+name: isSubString
+description: Checks if string is substring of other string
+signature: 'isSubString(text: string, substring: string) => boolean'
+manual: >-
+  `isSubString` returns True if `text` contains `substring` and False otherwise.
+original_name: contains

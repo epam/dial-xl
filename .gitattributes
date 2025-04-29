@@ -6,7 +6,6 @@
 *.docx filter=lfs diff=lfs merge=lfs -text
 *.xlsx filter=lfs diff=lfs merge=lfs -text
 *.drawio filter=lfs diff=lfs merge=lfs -text
-*.zip filter=lfs diff=lfs merge=lfs -text
 
 *.txt   text
 *.java  text diff=java
@@ -18,3 +17,6 @@
 *.bat   text eol=crlf
 gradlew text eol=lf
 *.service text eol=lf
+
+# DIAL XL
+python/assistant/dial_xl/* filter=lfs diff=lfs merge=lfs -text

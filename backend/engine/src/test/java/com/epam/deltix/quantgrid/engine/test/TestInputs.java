@@ -18,6 +18,7 @@ public class TestInputs {
     public static final String COUNTRY_INDICATORS_SORTED_CSV = "country-indicators-sorted.csv"; // by country, indicator
     public static final String USA_GDP_SORTED_CSV = "usa-gdp-sorted.csv";
     public static final String COUNTRY_STATS_CSV = "country-stats.csv";
+    public static final String EMPTY_AND_ANONYMOUS_COLUMNS_CSV = "empty-and-anonymous-columns.csv";
 
     public static final String DATE_TIME_CSV = "date-time.csv";
 

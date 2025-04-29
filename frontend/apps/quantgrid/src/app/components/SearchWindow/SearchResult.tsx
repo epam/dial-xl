@@ -39,13 +39,15 @@ export function SearchResult({ className, result, onClick }: Props) {
         );
       }
       case 'sheet': {
-        return <Icon component={() => <FileIcon />} />;
+        return <Icon className="w-[18px]" component={() => <FileIcon />} />;
       }
       case 'table': {
-        return <Icon component={() => <TableIcon />} />;
+        return <Icon className="w-[18px]" component={() => <TableIcon />} />;
       }
       case 'field': {
-        return <Icon component={() => <ColumnsIcon />} />;
+        return (
+          <Icon className="size-[18px]" component={() => <ColumnsIcon />} />
+        );
       }
     }
   };

@@ -1,6 +1,10 @@
 import { useCallback, useContext, useEffect, useRef, useState } from 'react';
 
-import { CodeEditorContext, getDataScroller } from '@frontend/common';
+import {
+  CodeEditorContext,
+  getDataScroller,
+  isFeatureFlagEnabled,
+} from '@frontend/common';
 import { SheetReader } from '@frontend/parser';
 import Editor, { loader, Monaco } from '@monaco-editor/react';
 
@@ -82,6 +86,7 @@ export function CodeEditor({
   >(undefined);
 
   useInlineSuggestions({
+    isEnabled: isFeatureFlagEnabled('copilotAutocomplete'),
     monaco,
     codeEditorPlace,
     disableHelpers,
@@ -206,9 +211,23 @@ export function CodeEditor({
   );
 
   const setCodeEditorValue = useCallback(
-    (value: string) => {
+    (value: string, keepHistory = false) => {
       if (codeEditor && codeEditor.getValue() !== value) {
-        codeEditor.setValue(value);
+        const model = codeEditor.getModel();
+
+        if (model && keepHistory) {
+          const edits = [
+            {
+              range: model.getFullModelRange(),
+              text: value,
+              forceMoveMarkers: true,
+            },
+          ];
+          codeEditor.executeEdits('external-edit', edits);
+        } else {
+          codeEditor.setValue(value);
+        }
+
         checkEnablePointAndClick(value);
       }
     },
@@ -502,8 +521,8 @@ export function CodeEditor({
 
       // Go to field context menu item
       editor.addAction({
-        id: 'go-to-field',
-        label: 'Go To Field',
+        id: 'go-to-column',
+        label: 'Go To Column',
         contextMenuGroupId: 'navigation',
         contextMenuOrder: 2,
 

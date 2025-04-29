@@ -79,6 +79,10 @@ export class SearchForm extends BaseComponent {
     return this.innerPage.getByText(this.noResultsText);
   }
 
+  public async expectFormToAppear() {
+    await expect(this.innerPage.locator(this.rootElement)).toBeVisible();
+  }
+
   public async expectFormToDissapear() {
     await expect(this.innerPage.locator(this.rootElement)).toBeHidden();
   }

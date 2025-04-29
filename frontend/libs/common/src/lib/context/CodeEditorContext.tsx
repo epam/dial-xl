@@ -19,11 +19,7 @@ type CodeEditorContextActions = {
   updateSelectedError: (error: ParsingError | null) => void;
 
   hasUnsavedChanges: boolean;
-  unsavedChangesVersion: string | null;
-  updateHasUnsavedChanges: (
-    hasUnsavedChanges: boolean,
-    projectVersionEdit?: string
-  ) => void;
+  showHasUnsavedChanges: (show: boolean) => void;
 
   initialOffset: number | undefined;
   updateInitialOffset: (initialOffset: number | undefined) => void;
@@ -44,21 +40,10 @@ export function CodeEditorContextProvider({
 }: PropsWithChildren<CodeEditorProps>): JSX.Element {
   const auth = useAuth();
   const [selectedError, setSelectedError] = useState<ParsingError | null>(null);
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState<boolean>(false);
-  const [unsavedChangesVersion, setUnsavedChangesVersion] = useState<
-    string | null
-  >(null);
+  const [hasUnsavedChanges, showHasUnsavedChanges] = useState<boolean>(false);
   const [initialOffset, setInitialOffset] = useState<number | undefined>();
   const [codeEditorInstance, setCodeEditorInstance] =
     useState<editor.IStandaloneCodeEditor | null>(null);
-
-  const updateHasUnsavedChanges = useCallback(
-    (hasUnsavedChanges: boolean, projectVersionEdit?: string) => {
-      setHasUnsavedChanges(hasUnsavedChanges);
-      setUnsavedChangesVersion(projectVersionEdit ?? null);
-    },
-    []
-  );
 
   const updateSelectedError = useCallback((error: ParsingError | null) => {
     setSelectedError(error);
@@ -99,8 +84,7 @@ export function CodeEditorContextProvider({
       updateSelectedError,
 
       hasUnsavedChanges,
-      unsavedChangesVersion,
-      updateHasUnsavedChanges,
+      showHasUnsavedChanges,
 
       initialOffset,
       updateInitialOffset,
@@ -111,15 +95,12 @@ export function CodeEditorContextProvider({
       getCompletions,
     }),
     [
-      hasUnsavedChanges,
-      unsavedChangesVersion,
-      initialOffset,
       selectedError,
-      updateHasUnsavedChanges,
-      updateInitialOffset,
       updateSelectedError,
+      hasUnsavedChanges,
+      initialOffset,
+      updateInitialOffset,
       formatDocument,
-      setCodeEditorInstance,
       getCompletions,
     ]
   );

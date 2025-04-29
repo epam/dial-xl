@@ -39,6 +39,10 @@ export class ProjectSelection {
     return `[data-file-name='${folderName}']`;
   }
 
+  private getFileLocator(fileName: string) {
+    return this.getFolderLocator(fileName + '.qg');
+  }
+
   private cleanMaskWithException(exceptionItem: string) {
     return `[data-file-name]:not([data-file-name='${exceptionItem}'])`;
   }
@@ -53,6 +57,10 @@ export class ProjectSelection {
 
   private getFolderMenuLocator(folderName: string) {
     return `${this.getFolderLocator(folderName)} ${this.dropdownPart}`;
+  }
+
+  private getFileMenuLocator(fileName: string) {
+    return `${this.getFileLocator(fileName)} ${this.dropdownPart}`;
   }
 
   public async createFolder(folderName: string) {
@@ -162,6 +170,19 @@ export class ProjectSelection {
     await this.innerPage.locator(this.deleteMenuItem).click();
     const deleteForm = new DeleteProjectForm(this.innerPage);
     await deleteForm.confirmDelete();
+  }
+
+  public async deleteFile(fileName: string) {
+    await this.innerPage
+      .locator(this.getFileLocator(fileName))
+      .click({ button: 'right' });
+    //  await this.innerPage.locator(this.getFileMenuLocator(fileName)).click();
+    await this.innerPage.locator(this.deleteMenuItem).click();
+    const deleteForm = new DeleteProjectForm(this.innerPage);
+    await deleteForm.confirmDelete();
+    await expect(
+      this.innerPage.locator(this.getFileLocator(fileName))
+    ).toBeHidden();
   }
 
   public async deleteFolder(folderNames: string[]) {

@@ -1,5 +1,8 @@
 import Icon from '@ant-design/icons';
 import {
+  chartItems,
+  ChartPlusIcon,
+  FieldPlusIcon,
   FilesMetadata,
   FunctionInfo,
   getDropdownDivider,
@@ -7,14 +10,15 @@ import {
   getDropdownMenuKey,
   getFormulasMenuItems,
   GridCell,
-  Shortcut,
-  shortcutApi,
-  SparklesIcon,
+  InsertChartContextMenuKeyData,
+  isFeatureFlagEnabled,
+  RowPlusIcon,
 } from '@frontend/common';
 import { ParsedSheets } from '@frontend/parser';
 
 import { spreadsheetMenuKeys as menuKey } from '../config';
 import { ContextMenuKeyData } from '../types';
+import { askAIItem } from './commonItem';
 
 export const getEmptyCellMenuItems = (
   col: number,
@@ -26,28 +30,28 @@ export const getEmptyCellMenuItems = (
   if (!table) return [];
 
   const { isTableHorizontal } = table;
+  const isShowAIPrompt = isFeatureFlagEnabled('askAI');
 
   return [
+    isShowAIPrompt ? askAIItem(col, row) : null,
     getDropdownItem({
-      label: 'Ask AI',
-      key: getDropdownMenuKey<ContextMenuKeyData>(menuKey.askAI, {
+      label: isTableHorizontal ? 'Add row' : 'Add column',
+      key: getDropdownMenuKey<ContextMenuKeyData>(menuKey.addFieldOrRow, {
         col,
         row,
       }),
       icon: (
         <Icon
           className="text-textSecondary w-[18px]"
-          component={() => <SparklesIcon />}
+          component={() =>
+            isTableHorizontal ? (
+              <RowPlusIcon secondaryAccentCssVar="text-accent-tertiary" />
+            ) : (
+              <FieldPlusIcon secondaryAccentCssVar="text-accent-tertiary" />
+            )
+          }
         />
       ),
-      shortcut: shortcutApi.getLabel(Shortcut.OpenAIPromptBox),
-    }),
-    getDropdownItem({
-      label: isTableHorizontal ? 'Add row' : 'Add field',
-      key: getDropdownMenuKey<ContextMenuKeyData>(menuKey.addFieldOrRow, {
-        col,
-        row,
-      }),
     }),
   ];
 };
@@ -60,22 +64,11 @@ export const getEmptyCellWithoutContextMenuItem = (
   col: number,
   row: number
 ) => {
+  const isShowAIPrompt = isFeatureFlagEnabled('askAI');
+
   return [
-    getDropdownItem({
-      label: 'Ask AI',
-      key: getDropdownMenuKey<ContextMenuKeyData>(menuKey.askAI, {
-        col,
-        row,
-      }),
-      icon: (
-        <Icon
-          className="text-textSecondary w-[18px]"
-          component={() => <SparklesIcon />}
-        />
-      ),
-      shortcut: shortcutApi.getLabel(Shortcut.OpenAIPromptBox),
-    }),
-    getDropdownDivider(),
+    isShowAIPrompt ? askAIItem(col, row) : null,
+    isShowAIPrompt ? getDropdownDivider() : null,
     ...getFormulasMenuItems(
       functions,
       parsedSheets,
@@ -83,5 +76,38 @@ export const getEmptyCellWithoutContextMenuItem = (
       onCreateTable,
       false
     ),
+    getDropdownItem({
+      label: 'Create Chart',
+      key: 'CreateChart',
+      icon: (
+        <Icon
+          className="text-textSecondary w-[18px]"
+          component={() => (
+            <ChartPlusIcon secondaryAccentCssVar="text-accent-tertiary" />
+          )}
+        />
+      ),
+      children: [
+        ...chartItems.map((item) => {
+          return getDropdownItem({
+            label: item.label,
+            key: getDropdownMenuKey<InsertChartContextMenuKeyData>(
+              menuKey.insertChart,
+              {
+                col,
+                row,
+                chartType: item.type,
+              }
+            ),
+            icon: (
+              <Icon
+                className="text-textSecondary w-[18px]"
+                component={() => item.icon}
+              />
+            ),
+          });
+        }),
+      ],
+    }),
   ];
 };

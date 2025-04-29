@@ -57,6 +57,8 @@ export function SearchWindow() {
   const resultCountRef = useRef(0);
 
   useEffect(() => {
+    if (!isOpen) return;
+
     getProjects();
     if (!inputRef.current?.input) return;
 
@@ -245,7 +247,7 @@ export function SearchWindow() {
         className={cx('ant-input-sm h-[38px] text-[13px]', inputClasses)}
         placeholder="Search..."
         prefix={
-          <div className="pr-2 stroke-textSecondary">
+          <div className="pr-2 text-textSecondary w-[18px]">
             <SearchIcon />
           </div>
         }
@@ -284,7 +286,7 @@ export function SearchWindow() {
           Tab or Shift+Tab to switch
         </span>
       </div>
-      <div className="py-2 pr-2 overflow-auto h-max max-h-96 bg-bgLayer3">
+      <div className="thin-scrollbar py-2 pr-2 overflow-auto h-max max-h-96 bg-bgLayer3">
         {results && results.length === 0 && (
           <div className="text-textPrimary pl-3">No results.</div>
         )}

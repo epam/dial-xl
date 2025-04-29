@@ -3,6 +3,8 @@ import { MenuProps } from 'antd';
 import {
   OverrideRows,
   OverrideValue,
+  ParsedConditionFilter,
+  ParsedField,
   ParsedTable,
   TotalType,
 } from '@frontend/parser';
@@ -13,6 +15,12 @@ export type FormulasContextMenuKeyData = {
   insertFormula?: string;
   tableName?: string;
   type?: 'derived' | 'size' | 'copy';
+};
+
+export type InsertChartContextMenuKeyData = {
+  chartType: ChartType;
+  col?: number;
+  row?: number;
 };
 
 export type MenuItem = Required<MenuProps>['items'][number];
@@ -48,9 +56,15 @@ export type CachedViewports = {
 };
 
 export type SelectedChartKey = {
+  chartType: ChartType;
   tableName: string;
   fieldName: string;
-  key: string;
+  key: string | number | (string | number)[];
+};
+
+export type ChartTableWithoutSelectors = {
+  chartType: ChartType;
+  tableName: string;
 };
 
 export type TablesData = {
@@ -63,9 +77,20 @@ export type TotalData = {
 
 export interface DiffData {
   table: boolean;
-  fields: string[];
+  changedFields: string[];
+  deletedFields: string[];
   overrides: OverrideRows;
 }
+
+export type VirtualTablesData = {
+  [tableName: string]: VirtualTableData;
+};
+
+export type VirtualTableData = {
+  chunks: { [index: number]: ColumnChunk };
+
+  totalRows: number;
+};
 
 export type TableData = {
   chunks: { [index: number]: ColumnChunk };
@@ -80,7 +105,7 @@ export type TableData = {
 
   diff: DiffData | undefined;
 
-  maxKnownRowIndex: number;
+  totalRows: number;
 
   fieldErrors: { [columnName: string]: string };
 
@@ -97,7 +122,7 @@ export type ChartsData = {
 };
 
 export type ChartData = {
-  [columnName: string]: PeriodSeries[];
+  [columnName: string]: PeriodSeries[] | string[];
 };
 
 export type RuntimeError = CompilationError;
@@ -110,15 +135,23 @@ export enum AppTheme {
 
 // Spreadsheet types
 
-export type ChartType = 'line' | 'tabular';
+export enum ChartType {
+  PERIOD_SERIES = 'period-series-chart',
+  LINE = 'line-chart',
+  HEATMAP = 'heat-map',
+  SCATTER_PLOT = 'scatter-plot',
+  PIE = 'pie-chart',
+  BAR = 'bar-chart',
+  FLAT_BAR = '2d-bar-chart',
+  STACKED_BAR = 'stacked-bar-chart',
+  HISTOGRAM = 'histogram',
+}
 export type FieldSortOrder = 'asc' | 'desc' | null;
-export type GridNumericFilter = {
-  operator: string;
-  value: string;
-};
+
 export type GridListFilter = {
   value: string;
   isSelected: boolean;
+  isFiltered?: boolean;
 };
 
 export type GridTable = {
@@ -134,7 +167,9 @@ export type GridTable = {
   totalSize: number;
   hasKeys: boolean;
   isManual: boolean;
-  isNewAdded: boolean;
+  isChanged: boolean;
+  note: string;
+  fieldNames: string[];
 };
 
 export type GridField = {
@@ -146,7 +181,7 @@ export type GridField = {
   isPeriodSeries: boolean;
   isDynamic: boolean;
   isFiltered: boolean;
-  numericFilter?: GridNumericFilter;
+  filter?: ParsedConditionFilter;
   totalFieldTypes?: TotalType[];
   sort: FieldSortOrder;
   isFieldUsedInSort: boolean;
@@ -156,6 +191,10 @@ export type GridField = {
   hasError: boolean;
   errorMessage?: string;
   isChanged: boolean;
+  isIndex: boolean;
+  isDescription: boolean;
+  descriptionField?: string;
+  dataLength: number;
 };
 
 export type GridCell = {
@@ -186,7 +225,6 @@ export type GridCell = {
 
   zIndex?: number;
 
-  isPlaceholder?: boolean;
   isRightAligned?: boolean;
 
   startCol: number;
@@ -204,19 +242,45 @@ export type CellPlacement = {
   col: number;
 };
 
+export type GridChartSection = {
+  valueFieldNames: string[];
+  xAxisFieldName: string | null;
+  dotSizeFieldName: string | null;
+  dotColorFieldName: string | null;
+  histogramBucketsCount: number | null;
+  histogramDataTableName: string | null;
+};
+
 export type GridChart = {
   tableName: string;
   startRow: number;
   startCol: number;
   endCol: number;
   endRow: number;
+  tableStartCol: number;
+  tableStartRow: number;
 
   chartType: ChartType;
-  fieldKeys: string[];
+  selectorFieldNames: string[];
+  availableKeys: Record<string, string[] | number[]>;
+  selectedKeys: Record<string, string | string[] | number | number[]>;
+  keysWithNoDataPoint: Record<string, string[]>;
 
-  availableKeys: Record<string, string[]>;
+  chartSections?: GridChartSection[];
 
-  selectedKeys: Record<string, string>;
+  customSeriesColors: Record<string, string>;
+
+  showLegend: boolean;
+  isEmpty: boolean;
+};
+
+export type GridFieldCache = {
+  field: ParsedField;
+  fieldIndex: number;
+  dataFieldSecondaryDirectionStart: number;
+  fieldSize: number;
+  isRightAligned: boolean;
+  cellField: GridField;
 };
 
 export type FormulaBarMode = 'formula' | 'value';
@@ -225,3 +289,7 @@ export type PointClickModeSource = 'cell-editor' | 'formula-bar' | null;
 export type GetCompletionFunction = (body: string) => Promise<Response>;
 
 export type TableArrangeType = 'forward' | 'backward' | 'front' | 'back';
+
+export type GridFilterType = 'numeric' | 'text';
+
+export type ViewportInteractionMode = 'pan' | 'select';

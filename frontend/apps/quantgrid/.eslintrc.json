@@ -1,7 +1,7 @@
 {
   "extends": [
     "plugin:playwright/recommended",
-    "plugin:@nrwl/nx/react",
+    "plugin:@nx/react",
     "../../.eslintrc.json"
   ],
   "ignorePatterns": ["!**/*", "external-env.js"],

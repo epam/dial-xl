@@ -1,0 +1,150 @@
+{
+  "name": "test",
+  "tables": [
+    {
+      "span": {
+        "from": 0,
+        "to": 87
+      },
+      "name": {
+        "span": {
+          "from": 6,
+          "to": 7
+        },
+        "text": "A"
+      },
+      "fields": [
+        {
+          "span": {
+            "from": 10,
+            "to": 18
+          },
+          "name": {
+            "span": {
+              "from": 10,
+              "to": 13
+            },
+            "text": "a"
+          },
+          "formula": {
+            "span": {
+              "from": 16,
+              "to": 18
+            },
+            "formula": {
+              "number": NaN,
+              "arguments": []
+            },
+            "errors": []
+          },
+          "decorators": [],
+          "docs": []
+        }
+      ],
+      "decorators": [],
+      "docs": [],
+      "apply": {
+        "span": {
+          "from": 35,
+          "to": 54
+        },
+        "filter": {
+          "span": {
+            "from": 43,
+            "to": 54
+          },
+          "formula": {
+            "span": {
+              "from": 50,
+              "to": 53
+            },
+            "formula": {
+              "field": "a",
+              "arguments": []
+            },
+            "errors": []
+          }
+        }
+      },
+      "totals": [
+        {
+          "span": {
+            "from": 19,
+            "to": 35
+          },
+          "fields": [
+            {
+              "span": {
+                "from": 27,
+                "to": 34
+              },
+              "name": {
+                "span": {
+                  "from": 27,
+                  "to": 30
+                },
+                "text": "a"
+              },
+              "formula": {
+                "span": {
+                  "from": 33,
+                  "to": 34
+                },
+                "formula": {
+                  "number": 1.0,
+                  "arguments": []
+                },
+                "errors": []
+              },
+              "decorators": [],
+              "docs": []
+            }
+          ]
+        },
+        {
+          "span": {
+            "from": 54,
+            "to": 70
+          },
+          "fields": [
+            {
+              "span": {
+                "from": 62,
+                "to": 69
+              },
+              "name": {
+                "span": {
+                  "from": 62,
+                  "to": 65
+                },
+                "text": "a"
+              },
+              "formula": {
+                "span": {
+                  "from": 68,
+                  "to": 69
+                },
+                "formula": {
+                  "number": 2.0,
+                  "arguments": []
+                },
+                "errors": []
+              },
+              "decorators": [],
+              "docs": []
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "pythons": [],
+  "errors": [
+    {
+      "line": 9,
+      "position": 1,
+      "message": "Only one apply section is expected",
+      "tableName": "A"
+    }
+  ]
+}

@@ -13,7 +13,6 @@ import {
   modalFooterButtonClasses,
   secondaryButtonClasses,
 } from '@frontend/common';
-import { focusSpreadsheet } from '@frontend/spreadsheet';
 
 import { ShareModalRefFunction } from '../../../common';
 import { useShareResources } from '../../../hooks';
@@ -121,7 +120,6 @@ export function ShareFiles({ shareProjectModal }: Props) {
 
   return (
     <Modal
-      afterClose={focusSpreadsheet}
       cancelButtonProps={{
         className: classNames(modalFooterButtonClasses, secondaryButtonClasses),
       }}

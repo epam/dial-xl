@@ -9,8 +9,6 @@ import {
 } from 'react';
 import { useAuth } from 'react-oidc-context';
 
-import { publicAdminRole } from '@frontend/common';
-
 import { useApiRequests } from '../hooks/useApiRequests';
 import { AppContext } from './AppContext';
 
@@ -34,7 +32,11 @@ export function ApiContextProvider({
   const [userRoles, setUserRoles] = useState<string[]>([]);
 
   const isAdmin = useMemo(() => {
-    return !!userRoles?.includes(publicAdminRole);
+    const adminRoles = window.externalEnv.adminRoles ?? [];
+
+    return adminRoles.length
+      ? !!userRoles?.some((role) => adminRoles.includes(role))
+      : false;
   }, [userRoles]);
 
   useEffect(() => {

@@ -1,3 +1,6 @@
+// eslint-disable-next-line simple-import-sort/imports
+import 'reflect-metadata';
+
 import { ConfigProvider } from 'antd';
 import Bowser from 'bowser';
 import { WebStorageStateStore } from 'oidc-client-ts';
@@ -9,6 +12,7 @@ import { ToastContainer } from 'react-toastify';
 import { CodeEditorContextProvider } from '@frontend/common';
 
 import {
+  AIHintsContextProvider,
   ApiContextProvider,
   AppContextProvider,
   AppSpreadsheetInteractionContextProvider,
@@ -17,11 +21,14 @@ import {
   Loader,
   ProjectContextProvider,
   SearchWindowContextProvider,
-  SpreadsheetContextProvider,
   UndoRedoProvider,
   ViewportContextProvider,
 } from './app';
 import { AppRoutes } from './AppRoutes';
+
+import { Log } from 'oidc-client-ts';
+Log.setLevel(Log.ERROR);
+Log.setLogger(console);
 
 const root = ReactDOM.createRoot(
   document.getElementById('root') as HTMLElement
@@ -48,8 +55,9 @@ const finalSearchParams = search.size > 0 ? '?' + search.toString() : '';
 const oidcConfig: AuthProviderProps = {
   authority: window.externalEnv.authAuthority || '',
   client_id: window.externalEnv.authClientId || '',
-  redirect_uri:
-    window.location.origin + window.location.pathname + finalSearchParams,
+  redirect_uri: encodeURI(
+    window.location.origin + window.location.pathname + finalSearchParams
+  ),
   automaticSilentRenew: true,
   // monitorSession: true causing 'error=login_required' in Firefox with infinite loop
   monitorSession: !['Firefox', 'Safari'].includes(browser.getBrowserName()),
@@ -70,10 +78,10 @@ root.render(
             <ApiContextProvider>
               <ViewportContextProvider>
                 <ProjectContextProvider>
-                  <UndoRedoProvider>
-                    <InputsContextProvider>
-                      <CanvasSpreadsheetContextProvider>
-                        <SpreadsheetContextProvider>
+                  <CanvasSpreadsheetContextProvider>
+                    <UndoRedoProvider>
+                      <InputsContextProvider>
+                        <AIHintsContextProvider>
                           <AppSpreadsheetInteractionContextProvider>
                             <SearchWindowContextProvider>
                               <CodeEditorContextProvider
@@ -95,10 +103,10 @@ root.render(
                               </CodeEditorContextProvider>
                             </SearchWindowContextProvider>
                           </AppSpreadsheetInteractionContextProvider>
-                        </SpreadsheetContextProvider>
-                      </CanvasSpreadsheetContextProvider>
-                    </InputsContextProvider>
-                  </UndoRedoProvider>
+                        </AIHintsContextProvider>
+                      </InputsContextProvider>
+                    </UndoRedoProvider>
+                  </CanvasSpreadsheetContextProvider>
                 </ProjectContextProvider>
               </ViewportContextProvider>
             </ApiContextProvider>

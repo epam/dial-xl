@@ -6,8 +6,8 @@ import { createWrapper } from '../../../testUtils';
 import { useManualEditDSL } from '../useManualEditDSL';
 
 export function getWrapper(dsl: string, props: any) {
-  const parsedSheets: ParsedSheets = {};
-  const projectSheets: WorksheetState[] = [];
+  const parsedSheets: ParsedSheets = props.parsedSheets ?? {};
+  const projectSheets: WorksheetState[] = props.projectSheets ?? [];
 
   if (props.sheetName && props.projectName) {
     parsedSheets[props.sheetName] = SheetReader.parseSheet(dsl);

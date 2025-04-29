@@ -1,7 +1,11 @@
-import { GridViewport, unescapeFieldName } from '@frontend/common';
-import { dynamicFieldName, ParsedTable } from '@frontend/parser';
+import { GridViewport } from '@frontend/common';
+import {
+  dynamicFieldName,
+  ParsedTable,
+  unescapeFieldName,
+} from '@frontend/parser';
 
-const extraDirectionOffset = 10;
+const extraDirectionOffset = 50;
 
 export function getTableFieldsForViewport(
   viewport: GridViewport,
@@ -68,7 +72,11 @@ export function getTableFieldsForViewport(
     })
     .map(({ fieldName }) => fieldName);
 
-  if (table.hasDynamicFields() && !isDynamicFieldsRequested) {
+  const shouldRequestDynamicField =
+    (!isDynamicFieldsRequested && table.hasDynamicFields()) ||
+    (isDynamicFieldsRequested && dynamicFields.length === 0);
+
+  if (shouldRequestDynamicField) {
     fieldsToRequest.push('*');
   }
 

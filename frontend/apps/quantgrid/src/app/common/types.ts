@@ -23,16 +23,20 @@ export enum PanelName {
   CodeEditor = 'editor',
   UndoRedo = 'undoRedo',
   Chat = 'chat',
+  Details = 'details',
+  AIHints = 'aiHints',
 }
 
 export type PanelRecord = Record<PanelName, PanelInfo>;
 
 export type MinimizedPanelProps = {
   name: PanelName;
-  title?: string | JSX.Element;
+  title: string | JSX.Element;
+  icon: JSX.Element;
 };
 
 export type PanelProps = {
+  isActive: boolean;
   position: PanelPosition;
   panelName: PanelName;
   title: string;
@@ -42,6 +46,7 @@ export type PanelProps = {
 export type LayoutPanelProps = {
   initialPosition?: PanelPosition;
   component: React.FunctionComponent<PanelProps>;
+  icon: JSX.Element;
   title: string;
   inactive?: boolean;
 };
@@ -59,6 +64,7 @@ export type ModalRefFunction = (onSuccess?: () => void) => void;
 export type NewProjectModalRefFunction = (args: {
   projectPath?: string | null;
   projectBucket: string;
+  existingProjectNames?: string[];
   onSuccess?: () => void;
   openInNewTab?: boolean;
 }) => void;
@@ -76,6 +82,12 @@ export type DeleteProjectModalRefFunction = (args: {
 export type ShareModalRefFunction = (
   resources: Omit<FilesMetadata, 'resourceType' | 'url'>[]
 ) => void;
+export type NewFolderModalRefFunction = (args: {
+  path: string | null;
+  bucket: string;
+  newFolderName?: string;
+  silent?: boolean;
+}) => void;
 
 // Dashboard
 
@@ -118,6 +130,7 @@ export interface SelectedCell {
   overrideValue?: OverrideValue;
   totalIndex?: number;
   isDynamic?: boolean;
+  isChart?: boolean;
 }
 
 export enum SelectedCellType {

@@ -9,6 +9,7 @@ import {
 
 import { PanelName } from '../../../common';
 import { LayoutContext, ProjectContext } from '../../../context';
+import { PanelEmptyMessage } from '../PanelEmptyMessage';
 import { CompileOrRuntimeError } from './CompileOrRuntimeError';
 
 function getParsingErrorLink(error: ParsingError): string {
@@ -38,11 +39,7 @@ export function Errors() {
   const isRuntimeErrors = runtimeErrors && runtimeErrors.length > 0;
 
   if (!isSheetErrors && !isCompilationErrors && !isRuntimeErrors) {
-    return (
-      <span className="w-full h-full bg-bgLayer3 text-center pt-3 text-[13px] text-textPrimary">
-        No errors
-      </span>
-    );
+    return <PanelEmptyMessage message="No errors" />;
   }
 
   return (
@@ -51,8 +48,9 @@ export function Errors() {
         <div className="mt-1 p-1 bg-bgError rounded-[3px]" key={index}>
           <div className="flex">
             <Icon
-              className="stroke-textError mx-2"
+              className="shrink-0 block mt-[3px] text-textError mx-2 w-[18px]"
               component={() => <ParsingErrorIcon />}
+              title="Parsing error"
             />
             <div className="pr-2">
               <span

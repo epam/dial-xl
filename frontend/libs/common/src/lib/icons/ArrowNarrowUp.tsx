@@ -1,4 +1,4 @@
-export function ArrowNarrowUp() {
+export const ArrowNarrowUp = () => {
   return (
     <svg
       fill="none"
@@ -15,4 +15,4 @@ export function ArrowNarrowUp() {
       />
     </svg>
   );
-}
+};

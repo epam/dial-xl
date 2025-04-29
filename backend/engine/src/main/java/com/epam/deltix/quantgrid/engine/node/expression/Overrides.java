@@ -27,8 +27,8 @@ public class Overrides extends ExpressionN<Column, Column> {
         super(sources(searchKeys, originalValues, overrideValues));
         this.overrideKeys = overrideKeys.toArray(new Object[0]);
 
-        TableHashStrategy overrideStrategy = TableHashStrategy.fromColumns(toColumns(this.overrideKeys), false, false);
-        overrideIndex = TableIndex.build(overrideValues.size(), overrideStrategy);
+        TableHashStrategy overrideStrategy = TableHashStrategy.fromColumns(toColumns(this.overrideKeys));
+        overrideIndex = TableIndex.build(overrideValues.size(), overrideStrategy, false);
     }
 
     @Override
@@ -41,7 +41,7 @@ public class Overrides extends ExpressionN<Column, Column> {
         List<Column> searchKeys = columns.subList(0, overrideKeys.length);
         Column originalValues = columns.get(overrideKeys.length);
         List<Column> overrideValues = columns.subList(overrideKeys.length + 1, columns.size());
-        TableHashStrategy searchStrategy = TableHashStrategy.fromColumns(searchKeys, overrideIndex.strategy(), false, false);
+        TableHashStrategy searchStrategy = TableHashStrategy.fromColumns(searchKeys, overrideIndex.strategy());
 
         if (originalValues instanceof DoubleColumn originalDoubles) {
             return override(originalDoubles, overrideValues, searchStrategy);

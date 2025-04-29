@@ -2,18 +2,27 @@ import { useEffect, useRef, useState } from 'react';
 
 import { KeyboardCode } from '@frontend/common';
 
-import { getPx } from '../../../utils';
+import { GridApi } from '../../../types';
+import { getMousePosition, getPx } from '../../../utils';
 import { ChartConfig } from '../types';
 
 type Props = {
   chartConfig: ChartConfig;
+  api: GridApi | null;
   onChartResize: (x: number, y: number) => void;
+  onStartResizing: () => void;
+  onStopResizing: () => void;
 };
 
-export function ResizeHandler({ chartConfig, onChartResize }: Props) {
+export function ResizeHandler({
+  chartConfig,
+  api,
+  onStartResizing,
+  onStopResizing,
+  onChartResize,
+}: Props) {
   const isResizing = useRef(false);
   const handlerRef = useRef<HTMLDivElement>(null);
-  const borderRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(chartConfig.width);
   const [height, setHeight] = useState(
     chartConfig.height + chartConfig.toolBarHeight
@@ -27,15 +36,32 @@ export function ResizeHandler({ chartConfig, onChartResize }: Props) {
   }, [chartConfig]);
 
   useEffect(() => {
-    let startMouseX = 0;
-    let startMouseY = 0;
+    let cellWidth = 0;
+    let cellHeight = 0;
 
     function onMove(e: MouseEvent) {
-      if (!isResizing.current) return;
+      if (!isResizing.current || !api) return;
 
-      const updateWidth = chartConfig.width + e.pageX - startMouseX;
-      const initialHeight = chartConfig.height + chartConfig.toolBarHeight;
-      const updateHeight = initialHeight + e.pageY - startMouseY;
+      const mousePosition = getMousePosition(e);
+
+      if (!mousePosition) return;
+
+      const { col, row } = api.getCellFromCoords(
+        mousePosition.x,
+        mousePosition.y
+      );
+      const cellCoordX = api.getCellX(col + 1);
+      const cellCoordY = api.getCellY(row + 1);
+
+      const chartStartCellX = api.getCellX(chartConfig.gridChart.startCol);
+      const chartStartCellY = api.getCellY(chartConfig.gridChart.startRow);
+
+      cellWidth = col + 1 - chartConfig.gridChart.startCol;
+      cellHeight = row + 1 - chartConfig.gridChart.startRow;
+
+      const updateWidth = cellCoordX - chartStartCellX;
+
+      const updateHeight = cellCoordY - chartStartCellY;
 
       if (updateWidth >= chartConfig.minResizeWidth) {
         setWidth(updateWidth);
@@ -49,16 +75,7 @@ export function ResizeHandler({ chartConfig, onChartResize }: Props) {
     function onStopResize(e: MouseEvent) {
       if (!isResizing.current) return;
 
-      const border = borderRef.current;
-
-      if (!border) return;
-
-      const borderRect = border?.getBoundingClientRect();
-
-      const x = chartConfig.toolBarLeft + borderRect.width;
-      const y = chartConfig.toolBarTop + borderRect.height;
-
-      onChartResize(x, y);
+      onChartResize(cellWidth, cellHeight);
       cleanup();
     }
 
@@ -72,8 +89,7 @@ export function ResizeHandler({ chartConfig, onChartResize }: Props) {
       if ((e.target as HTMLDivElement) !== handlerRef.current) return;
 
       isResizing.current = true;
-      startMouseX = e.pageX;
-      startMouseY = e.pageY;
+      onStartResizing();
 
       document.body.style.userSelect = 'none';
       document.body.addEventListener('mouseup', onStopResize, true);
@@ -88,6 +104,7 @@ export function ResizeHandler({ chartConfig, onChartResize }: Props) {
       document.body.removeEventListener('keydown', onResizeCancel);
 
       isResizing.current = false;
+      onStopResizing();
       setWidth(chartConfig.width);
       setHeight(chartConfig.height + chartConfig.toolBarHeight);
     }
@@ -98,14 +115,14 @@ export function ResizeHandler({ chartConfig, onChartResize }: Props) {
       document.body.removeEventListener('mousedown', onStartResize, true);
       cleanup();
     };
-  }, [chartConfig, onChartResize]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [api, chartConfig]);
 
   return (
     <>
       {isResizing.current && (
         <div
           className="absolute border-2 border-strokeGridAccentPrimary"
-          ref={borderRef}
           style={{
             width: getPx(width),
             height: getPx(height),

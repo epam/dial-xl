@@ -55,6 +55,7 @@ export function findFieldNameInExpression(
       'left',
       'right',
       'expression',
+      'exp',
       'children',
     ];
 

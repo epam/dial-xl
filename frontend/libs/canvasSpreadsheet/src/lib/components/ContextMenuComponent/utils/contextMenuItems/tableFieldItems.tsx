@@ -1,40 +1,62 @@
 import Icon from '@ant-design/icons';
 import {
-  getCheckboxDropdownSubmenuItem,
+  FormulaIcon,
   getDropdownDivider,
   getDropdownItem,
   getDropdownMenuKey,
   GridCell,
+  GridListFilter,
+  Header2Icon,
   isComplexType,
+  isFeatureFlagEnabled,
   isNumericType,
+  isOtherCellsInFieldDataHasOverrides,
+  isTextType,
   Shortcut,
   shortcutApi,
-  SparklesIcon,
+  TableArrowIcon,
+  TagIcon,
 } from '@frontend/common';
 
-import { GridCallbacks } from '../../../../types';
-import { ListFilter, NumericFilter } from '../../components';
-import { spreadsheetMenuKeys as menuKey, totalItems } from '../config';
+import { GridApi, GridCallbacks } from '../../../../types';
+import { spreadsheetMenuKeys as menuKey } from '../config';
 import { ContextMenuKeyData } from '../types';
-import { arrangeTableItems } from './commonItem';
+import {
+  arrangeTableItems,
+  askAIItem,
+  deleteItem,
+  dimensionItem,
+  fieldItem,
+  fieldTagsItem,
+  filterItem,
+  hideItem,
+  insertItem,
+  noteEditItem,
+  noteRemoveItem,
+  orientationItem,
+  sortItem,
+  totalItem,
+} from './commonItem';
 
 export const getTableFieldMenuItems = (
   col: number,
   row: number,
   cell: GridCell,
-  gridCallbacks: GridCallbacks
+  gridCallbacks: GridCallbacks,
+  filterList: GridListFilter[],
+  gridApi: GridApi | null
 ) => {
-  const { field, table, endCol, startCol } = cell;
+  const { field, table } = cell;
 
   if (!table || !field) return [];
-
-  const { isManual } = table;
 
   const {
     isTableNameHeaderHidden,
     isTableFieldsHeaderHidden,
-    tableName,
     isTableHorizontal,
+    chartType,
+    isManual,
+    fieldNames,
   } = table;
   const {
     isKey,
@@ -43,364 +65,122 @@ export const getTableFieldMenuItems = (
     isNested,
     isPeriodSeries,
     note,
-    fieldName,
     type,
     totalFieldTypes,
+    isIndex,
+    isDescription,
   } = field;
 
-  const colSize = endCol - startCol + 1;
   const isNumeric = isNumericType(type);
+  const isText = isTextType(type);
   const isComplex = isComplexType(field) || isNested || isDynamic;
+  const filterType = isNumeric ? 'numeric' : isText ? 'text' : null;
   const showCollapseNestedField = !isManual && isDim;
   const showExpandNestedField =
     !isManual && !isDim && (isNested || isPeriodSeries);
+  const isChart = !!chartType;
+  const isShowAIPrompt = isFeatureFlagEnabled('askAI');
+
+  const isFieldHasOverrides = cell
+    ? cell.isOverride ||
+      isOtherCellsInFieldDataHasOverrides(cell, gridApi?.getCell)
+    : false;
 
   return [
+    isShowAIPrompt ? askAIItem(col, row) : null,
+    isShowAIPrompt ? getDropdownDivider() : null,
     getDropdownItem({
-      label: 'Ask AI',
-      key: getDropdownMenuKey<ContextMenuKeyData>(menuKey.askAI, {
+      label: 'Move table',
+      key: getDropdownMenuKey<ContextMenuKeyData>(menuKey.moveTable, {
         col,
         row,
       }),
       icon: (
         <Icon
           className="text-textSecondary w-[18px]"
-          component={() => <SparklesIcon />}
+          component={() => (
+            <TableArrowIcon secondaryAccentCssVar="text-accent-secondary" />
+          )}
         />
       ),
-      shortcut: shortcutApi.getLabel(Shortcut.OpenAIPromptBox),
     }),
     getDropdownDivider(),
-    !isComplex
-      ? getDropdownItem({
-          key: 'SortMenu',
-          label: 'Sort',
-          children: [
-            getDropdownItem({
-              label: isNumeric ? 'Sort Smallest to Largest' : 'Sort A-Z',
-              key: getDropdownMenuKey<ContextMenuKeyData>(menuKey.sortAsc, {
-                col,
-                row,
-              }),
-            }),
-            getDropdownItem({
-              label: isNumeric ? 'Sort Largest to Smallest' : 'Sort Z-A',
-              key: getDropdownMenuKey<ContextMenuKeyData>(menuKey.sortDesc, {
-                col,
-                row,
-              }),
-            }),
-            getDropdownItem({
-              label: 'Clear sort',
-              key: getDropdownMenuKey<ContextMenuKeyData>(menuKey.clearSort, {
-                col,
-                row,
-              }),
-            }),
-          ],
-        })
+    !isComplex ? sortItem(col, row, isNumeric) : null,
+    filterType && !isComplex
+      ? filterItem(col, row, cell, gridCallbacks, filterList)
       : null,
-    isNumeric && !isComplex
-      ? getDropdownItem({
-          key: 'NumFilter',
-          label: 'Filter',
-          children: [
-            getDropdownItem({
-              key: getDropdownMenuKey<ContextMenuKeyData>(menuKey.numFilter, {
-                col,
-                row,
-              }),
-              stopPropagationOnClick: true,
-              label: (
-                <NumericFilter
-                  fieldName={fieldName}
-                  filter={cell.field?.numericFilter}
-                  gridCallbacks={gridCallbacks}
-                  tableName={tableName}
-                />
-              ),
-            }),
-            getDropdownItem({
-              key: getDropdownMenuKey<ContextMenuKeyData>(menuKey.textFilter, {
-                col,
-                row,
-              }),
-              stopPropagationOnClick: true,
-              label: (
-                <ListFilter
-                  cell={cell}
-                  gridCallbacks={gridCallbacks}
-                  isNumeric={true}
-                />
-              ),
-            }),
-          ],
-        })
-      : null,
-    !isNumeric && !isComplex
-      ? getDropdownItem({
-          key: 'TextFilter',
-          label: 'Filter',
-          children: [
-            getDropdownItem({
-              key: getDropdownMenuKey<ContextMenuKeyData>(menuKey.textFilter, {
-                col,
-                row,
-              }),
-              stopPropagationOnClick: true,
-              label: <ListFilter cell={cell} gridCallbacks={gridCallbacks} />,
-            }),
-          ],
-        })
-      : null,
-    !isComplex
-      ? getDropdownItem({
-          key: 'Total',
-          label: 'Total',
-          children: [
-            ...totalItems.map((totalItem) => {
-              if (totalItem.isCheckbox) {
-                return getCheckboxDropdownSubmenuItem(
-                  {
-                    label: totalItem.label,
-                    key: getDropdownMenuKey<ContextMenuKeyData>(totalItem.key, {
-                      col,
-                      row,
-                    }),
-                  },
-                  totalFieldTypes?.includes(totalItem.type) ?? false
-                );
-              }
-
-              return getDropdownItem({
-                label: totalItem.label,
-                key: getDropdownMenuKey<ContextMenuKeyData>(totalItem.key, {
-                  col,
-                  row,
-                }),
-              });
-            }),
-          ],
-        })
-      : null,
-    getDropdownDivider(),
+    totalItem(col, row, totalFieldTypes, isComplex),
+    !isComplex ? getDropdownDivider() : null,
     getDropdownItem({
       label: 'Edit formula',
       key: getDropdownMenuKey<ContextMenuKeyData>(menuKey.editFormula, {
         col,
         row,
       }),
+      icon: (
+        <Icon
+          className="text-textAccentPrimary w-[18px]"
+          component={() => <FormulaIcon />}
+        />
+      ),
       shortcut: shortcutApi.getLabel(Shortcut.EditExpression),
     }),
     getDropdownItem({
-      label: 'Rename field',
+      label: 'Rename column',
       key: getDropdownMenuKey<ContextMenuKeyData>(menuKey.renameField, {
         col,
         row,
       }),
+      icon: (
+        <Icon
+          className="text-textSecondary w-[18px]"
+          component={() => <Header2Icon />}
+        />
+      ),
       shortcut: shortcutApi.getLabel(Shortcut.Rename),
       disabled: isDynamic,
     }),
-    getDropdownItem({
-      label: isKey ? 'Unmake a key field' : 'Make key field',
-      key: getDropdownMenuKey<ContextMenuKeyData>(
-        isKey ? menuKey.removeKey : menuKey.addKey,
-        {
-          col,
-          row,
-        }
-      ),
-      disabled: isDynamic,
-    }),
+    fieldTagsItem(
+      col,
+      row,
+      isKey,
+      isDynamic,
+      isManual,
+      isFieldHasOverrides,
+      isIndex,
+      isDescription,
+      isText,
+      fieldNames
+    ),
     showCollapseNestedField || showExpandNestedField
-      ? getDropdownItem({
-          label: showCollapseNestedField ? 'Collapse all' : 'Expand all',
-          key: getDropdownMenuKey<ContextMenuKeyData>(
-            showCollapseNestedField
-              ? menuKey.removeDimension
-              : menuKey.addDimension,
-            { col, row }
-          ),
-          disabled: isDynamic,
-        })
+      ? dimensionItem(col, row, showCollapseNestedField, isDynamic)
       : null,
     getDropdownDivider(),
-    getDropdownItem({
-      key: 'InsertMenu',
-      label: 'Insert',
-      children: [
-        getDropdownItem({
-          label: isTableHorizontal ? 'Field above' : 'Field to the left',
-          key: getDropdownMenuKey<ContextMenuKeyData>(
-            menuKey.insertFieldToLeft,
-            { col, row }
-          ),
-        }),
-        getDropdownItem({
-          label: isTableHorizontal ? 'Field below' : 'Field to the right',
-          key: getDropdownMenuKey<ContextMenuKeyData>(
-            menuKey.insertFieldToRight,
-            { col, row }
-          ),
-        }),
-        getDropdownItem({
-          label: 'New row',
-          key: getDropdownMenuKey<ContextMenuKeyData>(menuKey.addRow, {
-            col,
-            row,
-          }),
-          disabled: !isManual,
-          tooltip: !isManual ? 'Only available for manual table' : undefined,
-        }),
-      ],
-    }),
-    getDropdownItem({
-      label: 'Delete',
-      key: 'Delete',
-      children: [
-        getDropdownItem({
-          label: 'Delete field',
-          key: getDropdownMenuKey<ContextMenuKeyData>(menuKey.deleteField, {
-            col,
-            row,
-          }),
-          shortcut: shortcutApi.getLabel(Shortcut.Delete),
-        }),
-        getDropdownItem({
-          label: 'Delete table',
-          key: getDropdownMenuKey<ContextMenuKeyData>(menuKey.deleteTable, {
-            col,
-            row,
-          }),
-        }),
-      ],
-    }),
-    getDropdownItem({
-      label: 'Field',
-      key: 'Field',
-      children: [
-        getDropdownItem({
-          label: 'Swap left',
-          key: getDropdownMenuKey<ContextMenuKeyData>(menuKey.swapLeft, {
-            col,
-            row,
-          }),
-          shortcut: shortcutApi.getLabel(Shortcut.SwapFieldsLeft),
-        }),
-        getDropdownItem({
-          label: 'Swap right',
-          key: getDropdownMenuKey<ContextMenuKeyData>(menuKey.swapRight, {
-            col,
-            row,
-          }),
-          shortcut: shortcutApi.getLabel(Shortcut.SwapFieldsRight),
-        }),
-        getDropdownDivider(),
-        !isDynamic && !table?.isTableHorizontal
-          ? getDropdownItem({
-              label: 'Increase field width',
-              key: getDropdownMenuKey<ContextMenuKeyData>(
-                menuKey.increaseFieldWidth,
-                { col, row }
-              ),
-            })
-          : null,
-        !isDynamic && !table?.isTableHorizontal
-          ? getDropdownItem({
-              label: 'Decrease field width',
-              key: getDropdownMenuKey<ContextMenuKeyData>(
-                menuKey.decreaseFieldWidth,
-                { col, row }
-              ),
-              disabled: colSize <= 1,
-            })
-          : null,
-      ],
-    }),
+    insertItem(col, row, isTableHorizontal, isManual),
+    deleteItem(col, row, table, false),
+    fieldItem(col, row, cell, table, isDynamic),
     getDropdownDivider(),
-    getDropdownItem({
-      label: note ? 'Edit Note' : 'Add Note',
-      key: getDropdownMenuKey<ContextMenuKeyData>(
-        note ? menuKey.editNote : menuKey.addNote,
-        {
-          col,
-          row,
-        }
-      ),
-      shortcut: shortcutApi.getLabel(Shortcut.AddNote),
-    }),
-    note
-      ? getDropdownItem({
-          label: 'Remove Note',
-          key: getDropdownMenuKey<ContextMenuKeyData>(menuKey.removeNote, {
-            col,
-            row,
-          }),
-        })
-      : null,
+    noteEditItem(col, row, note),
+    note ? noteRemoveItem(col, row) : null,
     getDropdownDivider(),
-
     arrangeTableItems(col, row),
-
-    getDropdownItem({
-      label: 'Orientation',
-      key: 'Orientation',
-      children: [
-        getCheckboxDropdownSubmenuItem(
-          {
-            label: 'Horizontal',
-            key: getDropdownMenuKey<ContextMenuKeyData>(
-              menuKey.flipTableToVertical,
-              { col, row }
-            ),
-          },
-          isTableHorizontal
-        ),
-        getCheckboxDropdownSubmenuItem(
-          {
-            label: 'Vertical',
-            key: getDropdownMenuKey<ContextMenuKeyData>(
-              menuKey.flipTableToHorizontal,
-              {
-                col,
-                row,
-              }
-            ),
-          },
-          !isTableHorizontal
-        ),
-      ],
-    }),
-    getDropdownItem({
-      label: 'Hide',
-      key: 'Hide',
-      children: [
-        getDropdownItem({
-          label: isTableNameHeaderHidden
-            ? 'Show table header'
-            : 'Hide table header',
-          key: getDropdownMenuKey<ContextMenuKeyData>(
-            menuKey.toggleTableNameHeader,
-            { col, row }
-          ),
-        }),
-        getDropdownItem({
-          label: isTableFieldsHeaderHidden
-            ? 'Show fields header'
-            : 'Hide fields header',
-          key: getDropdownMenuKey<ContextMenuKeyData>(
-            menuKey.toggleTableFieldsHeader,
-            {
-              col,
-              row,
-            }
-          ),
-        }),
-      ],
-    }),
+    !isChart ? orientationItem(col, row, isTableHorizontal) : null,
+    hideItem(
+      col,
+      row,
+      isTableNameHeaderHidden,
+      isTableFieldsHeaderHidden,
+      isChart
+    ),
     getDropdownDivider(),
     getDropdownItem({
       label: 'Open in Editor',
+      icon: (
+        <Icon
+          className="text-textSecondary w-[18px]"
+          component={() => <TagIcon />}
+        />
+      ),
       key: getDropdownMenuKey<ContextMenuKeyData>(menuKey.openFieldInEditor, {
         col,
         row,

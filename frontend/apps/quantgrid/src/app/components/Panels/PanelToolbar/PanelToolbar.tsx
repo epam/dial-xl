@@ -1,11 +1,24 @@
 import { Tooltip } from 'antd';
 import { Dropdown } from 'antd';
 import cx from 'classnames';
-import { PropsWithChildren, ReactNode, useContext, useMemo } from 'react';
+import classNames from 'classnames';
+import {
+  PropsWithChildren,
+  ReactNode,
+  useContext,
+  useMemo,
+  useState,
+} from 'react';
 import { ReflexHandle } from 'react-reflex';
 
 import Icon from '@ant-design/icons';
-import { iconClasses, MenuIcon, MinimizePanelIcon } from '@frontend/common';
+import {
+  ArrowAltIcon,
+  ArrowNarrowUp,
+  CloseIcon,
+  iconClasses,
+  SettingsIcon,
+} from '@frontend/common';
 
 import { PanelPosition, PanelProps } from '../../../common';
 import { HandleContext, LayoutContext } from '../../../context';
@@ -17,8 +30,15 @@ export function PanelToolbar({
   secondaryTitle,
   panelName,
   position,
-}: PropsWithChildren<Omit<PanelProps, 'dimensions'>>) {
-  const { togglePanel } = useContext(LayoutContext);
+  showExpand,
+}: PropsWithChildren<
+  Omit<PanelProps, 'dimensions' | 'isActive'> & { showExpand?: boolean }
+>) {
+  const { togglePanel, toggleExpandPanel, expandedPanelSide } =
+    useContext(LayoutContext);
+  const expanded = expandedPanelSide === position;
+  const [isExpandTooltipOpen, setIsExpandTooltipOpen] = useState(false);
+  const [isCollapseTooltipOpen, setIsCollapseTooltipOpen] = useState(false);
 
   const { getPanelSettingsItems } = usePanelSettings();
 
@@ -36,7 +56,7 @@ export function PanelToolbar({
     <div className="flex items-center h-5 w-full bg-bgLayer2 border-b border-b-strokeTertiary">
       <WrapHandle>
         <div className="flex flex-1 items-center h-5 min-w-0 ml-2 text-textSecondary select-none">
-          <span className="text-[10px] text-textSecondary tracking-[0.6px] font-bold uppercase">
+          <span className="text-[10px] leading-none text-textSecondary tracking-[0.6px] font-bold uppercase">
             {title}
           </span>
           {secondaryTitle && (
@@ -50,15 +70,48 @@ export function PanelToolbar({
           {children && <div className="w-px h-full bg-strokeTertiary mx-2" />}
           <Dropdown
             className="cursor-pointer"
-            menu={{ items: getPanelSettingsItems(panelName) }}
+            menu={{ items: getPanelSettingsItems(panelName, position) }}
           >
-            <Icon className={iconClasses} component={() => <MenuIcon />} />
-          </Dropdown>
-          <Tooltip placement="bottom" title="Collapse panel">
             <Icon
-              className={cx('h-[16px] w-[16px] ml-2', iconClasses, rotateIcon)}
-              component={() => <MinimizePanelIcon />}
-              onClick={() => togglePanel(panelName)}
+              className={classNames(iconClasses, 'w-[16px]')}
+              component={() => <SettingsIcon />}
+            />
+          </Dropdown>
+          {showExpand && (
+            <Tooltip
+              open={isExpandTooltipOpen}
+              placement="top"
+              title={expanded ? `Restore ${title}` : `Expand ${title}`}
+              onOpenChange={setIsExpandTooltipOpen}
+            >
+              <Icon
+                className={cx('w-[16px] text-textSecondary ml-2', {
+                  'transform rotate-[225deg]': expanded,
+                  'transform rotate-45': !expanded,
+                })}
+                component={() =>
+                  expanded ? <ArrowNarrowUp /> : <ArrowAltIcon />
+                }
+                onClick={() => {
+                  setIsExpandTooltipOpen(false);
+                  toggleExpandPanel(panelName);
+                }}
+              />
+            </Tooltip>
+          )}
+          <Tooltip
+            open={isCollapseTooltipOpen}
+            placement="bottom"
+            title="Collapse panel"
+            onOpenChange={setIsCollapseTooltipOpen}
+          >
+            <Icon
+              className={cx('w-[16px] ml-2', iconClasses, rotateIcon)}
+              component={() => <CloseIcon />}
+              onClick={() => {
+                setIsCollapseTooltipOpen(false);
+                togglePanel(panelName);
+              }}
             />
           </Tooltip>
         </div>

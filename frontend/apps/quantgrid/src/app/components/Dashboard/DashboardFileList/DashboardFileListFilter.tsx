@@ -11,6 +11,7 @@ import {
   FolderIcon,
   QGLogo,
   SelectClasses,
+  selectStyles,
 } from '@frontend/common';
 
 import { DashboardFilter } from '../../../common';
@@ -58,7 +59,7 @@ function SelectIcon({ size, isTransparent, filter }: SelectIconProps) {
       case 'projects':
         return <QGLogo />;
       case 'files':
-        return <FileIcon width="100%" />;
+        return <FileIcon />;
       case 'csvFiles':
         return (
           <Icon
@@ -74,8 +75,8 @@ function SelectIcon({ size, isTransparent, filter }: SelectIconProps) {
   return (
     <Icon
       className={cx(`w-[${size}px]`, {
-        'stroke-textSecondary text-textSecondary': !isTransparent,
-        'stroke-transparent text-transparent': isTransparent,
+        'text-textSecondary': !isTransparent,
+        'text-transparent': isTransparent,
       })}
       component={() => itemIcon}
     ></Icon>
@@ -140,9 +141,7 @@ export function DashboardFileListFilter() {
         menuPortalTarget={document.body}
         name="fitlerSelect"
         options={filterOptions}
-        styles={{
-          menuPortal: (base) => ({ ...base, zIndex: 9999 }),
-        }}
+        styles={selectStyles}
         value={selectedFilter}
         onChange={onChange}
       />

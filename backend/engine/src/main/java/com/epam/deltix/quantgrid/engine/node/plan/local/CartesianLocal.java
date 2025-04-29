@@ -8,6 +8,7 @@ import com.epam.deltix.quantgrid.engine.node.plan.Plan;
 import com.epam.deltix.quantgrid.engine.node.plan.Plan2;
 import com.epam.deltix.quantgrid.engine.value.Column;
 import com.epam.deltix.quantgrid.engine.value.DoubleColumn;
+import com.epam.deltix.quantgrid.engine.value.ErrorColumn;
 import com.epam.deltix.quantgrid.engine.value.PeriodSeriesColumn;
 import com.epam.deltix.quantgrid.engine.value.StringColumn;
 import com.epam.deltix.quantgrid.engine.value.Table;
@@ -37,23 +38,11 @@ public class CartesianLocal extends Plan2<Table, Table, Table> {
 
     @Override
     public Table execute(Table left, Table right) {
-        long leftSize = left.size();
-        long rightSize = right.size();
-        long totalSize = Math.multiplyExact(leftSize, rightSize);
-
-        List<Column> columns = new ArrayList<>(left.getColumnCount() + right.getColumnCount());
-
-        for (Column column : left.getColumns()) {
-            Column result = createLeftColumn(column, rightSize, totalSize);
-            columns.add(result);
-        }
-
-        for (Column column : right.getColumns()) {
-            Column result = creareRightColumn(column, rightSize, totalSize);
-            columns.add(result);
-        }
-
-        return new LocalTable(columns);
+        long size = Math.multiplyExact(left.size(), right.size());
+        return LocalTable.compositeOf(
+                LocalTable.lambdaOf(left, index -> index / right.size(), size),
+                LocalTable.lambdaOf(right, index -> index % right.size(), size)
+        );
     }
 
     public boolean isOnLeft(Get get) {
@@ -61,37 +50,5 @@ public class CartesianLocal extends Plan2<Table, Table, Table> {
         Schema schema = getMeta().getSchema();
         int planIndex = schema.getInput(get.getColumn());
         return planIndex == 0;
-    }
-
-    private static Column createLeftColumn(Column left, long rightSize, long totalSize) {
-        if (left instanceof DoubleColumn column) {
-            return new DoubleLambdaColumn(index -> column.get(index / rightSize), totalSize);
-        }
-
-        if (left instanceof StringColumn column) {
-            return new StringLambdaColumn(index -> column.get(index / rightSize), totalSize);
-        }
-
-        if (left instanceof PeriodSeriesColumn column) {
-            return new PeriodSeriesLambdaColumn(index -> column.get(index / rightSize), totalSize);
-        }
-
-        throw new IllegalArgumentException("Unsupported colum type: " + left.getClass());
-    }
-
-    private static Column creareRightColumn(Column right, long rightSize, long totalSize) {
-        if (right instanceof DoubleColumn column) {
-            return new DoubleLambdaColumn(index -> column.get(index % rightSize), totalSize);
-        }
-
-        if (right instanceof StringColumn column) {
-            return new StringLambdaColumn(index -> column.get(index % rightSize), totalSize);
-        }
-
-        if (right instanceof PeriodSeriesColumn column) {
-            return new PeriodSeriesLambdaColumn(index -> column.get(index % rightSize), totalSize);
-        }
-
-        throw new IllegalArgumentException("Unsupported colum type: " + right.getClass());
     }
 }

@@ -5,7 +5,7 @@ import com.epam.deltix.quantgrid.engine.node.plan.ControllablePlan;
 import com.epam.deltix.quantgrid.engine.node.plan.Executed;
 import com.epam.deltix.quantgrid.engine.node.plan.local.FilterLocal;
 import com.epam.deltix.quantgrid.engine.node.plan.local.JoinAllLocal;
-import com.epam.deltix.quantgrid.engine.node.plan.local.SimplePivotLocal;
+import com.epam.deltix.quantgrid.engine.node.plan.local.PivotLocal;
 import com.epam.deltix.quantgrid.engine.rule.ExecutionController;
 import com.epam.deltix.quantgrid.engine.rule.ProjectionVerifier;
 import com.epam.deltix.quantgrid.engine.test.PostOptimizationCallback;
@@ -39,7 +39,7 @@ class EngineTest {
                         [b] = [a] + 10
                         
                   table B
-                    dim [r] = A.FILTER($[a]).FILTER($[b])
+                    dim [r] = A.FILTER(1).FILTER($[a]).FILTER($[b])
                 """;
 
         CompletableFuture<Void> v1 = engine.compute(dslV1, null);
@@ -50,7 +50,7 @@ class EngineTest {
                         [b] = [a] + 10
                         
                   table B
-                    dim [r] = A.FILTER($[a]).FILTER($[b])
+                    dim [r] = A.FILTER(1).FILTER($[a]).FILTER($[b])
                         [a] = [r][a]
                         [b] = [r][b]
                 """;
@@ -107,7 +107,7 @@ class EngineTest {
                         [b] = [a] + 10
                         
                   table B
-                    dim [r] = A.FILTER($[a]).FILTER($[b])
+                    dim [r] = A.FILTER(1).FILTER($[a]).FILTER($[b])
                 """;
 
         String dslV2 = """
@@ -116,7 +116,7 @@ class EngineTest {
                         [b] = [a] + 10
                         
                   table B
-                    dim [r] = A.FILTER($[a]).FILTER($[b])
+                    dim [r] = A.FILTER(1).FILTER($[a]).FILTER($[b])
                         [a] = [r][a]
                         [b] = [r][b]
                 """;
@@ -135,7 +135,7 @@ class EngineTest {
 
     @Test
     void testSimplePivot() throws Exception {
-        VerifyNodeCount pivots = new VerifyNodeCount(SimplePivotLocal.class);
+        VerifyNodeCount pivots = new VerifyNodeCount(PivotLocal.class);
         Engine engine = TestExecutor.multiThreadEngine(pivots);
 
         String dslV1 = """
@@ -184,7 +184,7 @@ class EngineTest {
                         
                   table B
                     dim [c] = RANGE(6)
-                        [d] = A.FILTER($[a] > 1 AND [c] > 2 AND $[b] == [c] AND $[a] <> [c]).COUNT()
+                        [d] = A.FILTER($[a] > 1 AND [c] > 2 AND $[b] = [c] AND $[a] <> [c]).COUNT()
                 """;
 
         String dslV2 = """
@@ -194,7 +194,7 @@ class EngineTest {
                         
                   table B
                     dim [c] = RANGE(6)
-                        [d] = A.FILTER($[a] > 1 AND [c] > 2 AND $[b] == [c] AND $[a] <> [c]).COUNT()
+                        [d] = A.FILTER($[a] > 1 AND [c] > 2 AND $[b] = [c] AND $[a] <> [c]).COUNT()
                         [e] = [d] + 5
                 """;
 
@@ -226,7 +226,7 @@ class EngineTest {
                         
                   table B
                     dim [c] = RANGE(6)
-                    dim [d] = A.FILTER($[a] > 1 AND [c] > 2 AND $[b] == [c] AND $[a] <> [c])
+                     dim [d] = A.FILTER($[a] > 1 AND [c] > 2 AND $[b] = [c] AND $[a] <> [c]).FILTER($[b])
                 """;
 
         String dslV2 = """
@@ -236,7 +236,7 @@ class EngineTest {
                         
                   table B
                     dim [c] = RANGE(6)
-                    dim [d] = A.FILTER($[a] > 1 AND [c] > 2 AND $[b] == [c] AND $[a] <> [c])
+                    dim [d] = A.FILTER($[a] > 1 AND [c] > 2 AND $[b] = [c] AND $[a] <> [c]).FILTER($[b])
                         [e] = [d][b]
                 """;
 
@@ -301,8 +301,8 @@ class EngineTest {
                 """;
 
         ResultCollector data = TestExecutor.executeWithErrors(dsl);
-        assertEquals("Invalid function RANGE argument \"count\": expected value of type INTEGER", data.getError("A", "a"));
-        assertEquals("Invalid function RANGE argument \"count\": expected value of type INTEGER", data.getError("A", "b"));
+        assertEquals("Invalid argument \"count\" for function RANGE: expected an integer number.", data.getError("A", "a"));
+        assertEquals("Invalid argument \"count\" for function RANGE: expected an integer number.", data.getError("A", "b"));
         data.verify("B", "a", 1, 2, 3);
         data.verify("B", "b", 4, 5, 6);
     }

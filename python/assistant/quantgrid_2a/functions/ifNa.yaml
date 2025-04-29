@@ -1,0 +1,5 @@
+name: ifNa
+description: Return value if value is not `NA` and other value otherwise
+signature: 'ifNa(value: T, fallback_value: T) => T'
+manual: >-
+  If `value` is `NA`, then `fallback_value` is returned. If `value` is not `NA`, then `value` is returned.

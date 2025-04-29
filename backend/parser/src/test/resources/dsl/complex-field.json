@@ -1,0 +1,308 @@
+{
+  "name": "test",
+  "tables": [
+    {
+      "span": {
+        "from": 0,
+        "to": 140
+      },
+      "name": {
+        "span": {
+          "from": 6,
+          "to": 8
+        },
+        "text": "T1"
+      },
+      "fields": [
+        {
+          "span": {
+            "from": 11,
+            "to": 18
+          },
+          "name": {
+            "span": {
+              "from": 11,
+              "to": 14
+            },
+            "text": "a"
+          },
+          "formula": {
+            "span": {
+              "from": 17,
+              "to": 18
+            },
+            "formula": {
+              "number": 1.0,
+              "arguments": []
+            },
+            "errors": []
+          },
+          "decorators": [],
+          "docs": []
+        },
+        {
+          "span": {
+            "from": 23,
+            "to": 118
+          },
+          "name": {
+            "span": {
+              "from": 23,
+              "to": 26
+            },
+            "text": "b"
+          },
+          "formula": {
+            "span": {
+              "from": 29,
+              "to": 118
+            },
+            "formula": {
+              "table": {
+                "table": {
+                  "name": "FILTER",
+                  "arguments": [
+                    {
+                      "arguments": [
+                        {
+                          "arguments": [
+                            {
+                              "arguments": []
+                            },
+                            {
+                              "arguments": []
+                            },
+                            {
+                              "arguments": []
+                            }
+                          ]
+                        },
+                        {
+                          "arguments": []
+                        },
+                        {
+                          "arguments": []
+                        }
+                      ]
+                    },
+                    {
+                      "arguments": [
+                        {
+                          "arguments": [
+                            {
+                              "arguments": [
+                                {
+                                  "arguments": []
+                                }
+                              ]
+                            },
+                            {
+                              "arguments": [
+                                {
+                                  "arguments": []
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "arguments": [
+                            {
+                              "arguments": []
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                "field": "f",
+                "arguments": [
+                  {
+                    "arguments": [
+                      {
+                        "arguments": [
+                          {
+                            "arguments": [
+                              {
+                                "arguments": []
+                              },
+                              {
+                                "arguments": []
+                              },
+                              {
+                                "arguments": []
+                              }
+                            ]
+                          },
+                          {
+                            "arguments": []
+                          },
+                          {
+                            "arguments": []
+                          }
+                        ]
+                      },
+                      {
+                        "arguments": [
+                          {
+                            "arguments": [
+                              {
+                                "arguments": [
+                                  {
+                                    "arguments": []
+                                  }
+                                ]
+                              },
+                              {
+                                "arguments": [
+                                  {
+                                    "arguments": []
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "arguments": [
+                              {
+                                "arguments": []
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              "field": "g",
+              "arguments": [
+                {
+                  "arguments": [
+                    {
+                      "arguments": [
+                        {
+                          "arguments": [
+                            {
+                              "arguments": [
+                                {
+                                  "arguments": []
+                                },
+                                {
+                                  "arguments": []
+                                },
+                                {
+                                  "arguments": []
+                                }
+                              ]
+                            },
+                            {
+                              "arguments": []
+                            },
+                            {
+                              "arguments": []
+                            }
+                          ]
+                        },
+                        {
+                          "arguments": [
+                            {
+                              "arguments": [
+                                {
+                                  "arguments": [
+                                    {
+                                      "arguments": []
+                                    }
+                                  ]
+                                },
+                                {
+                                  "arguments": [
+                                    {
+                                      "arguments": []
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "arguments": [
+                                {
+                                  "arguments": []
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            "errors": []
+          },
+          "decorators": [],
+          "docs": []
+        },
+        {
+          "span": {
+            "from": 121,
+            "to": 128
+          },
+          "name": {
+            "span": {
+              "from": 121,
+              "to": 124
+            },
+            "text": "c"
+          },
+          "formula": {
+            "span": {
+              "from": 127,
+              "to": 128
+            },
+            "formula": {
+              "number": 2.0,
+              "arguments": []
+            },
+            "errors": []
+          },
+          "decorators": [],
+          "docs": []
+        },
+        {
+          "span": {
+            "from": 131,
+            "to": 139
+          },
+          "name": {
+            "span": {
+              "from": 131,
+              "to": 134
+            },
+            "text": "d"
+          },
+          "formula": {
+            "span": {
+              "from": 137,
+              "to": 139
+            },
+            "formula": {
+              "number": 42.0,
+              "arguments": []
+            },
+            "errors": []
+          },
+          "decorators": [],
+          "docs": []
+        }
+      ],
+      "decorators": [],
+      "docs": [],
+      "totals": []
+    }
+  ],
+  "pythons": [],
+  "errors": []
+}

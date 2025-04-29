@@ -15,6 +15,8 @@ public interface CompiledResult {
 
     List<FieldKey> dimensions();
 
+    boolean nested();
+
     CompiledResult withDimensions(List<FieldKey> dimensions);
 
     default boolean scalar() {
@@ -27,8 +29,8 @@ public interface CompiledResult {
 
     default <T extends CompiledResult> T cast(Class<T> type, BinaryOperator<String> errorProvider) {
         if (!type.isInstance(this)) {
-            String expected = CompileUtil.getTypeDisplayName(type);
-            String actual = CompileUtil.getTypeDisplayName(getClass());
+            String expected = CompileUtil.getResultTypeDisplayName(type);
+            String actual = CompileUtil.getResultTypeDisplayName(this);
             throw new CompileError(errorProvider.apply(expected, actual));
         }
 

@@ -1,0 +1,4 @@
+name: year
+description: Extract year number from date
+signature: 'date.year() => number'
+manual: Extract year number from date.

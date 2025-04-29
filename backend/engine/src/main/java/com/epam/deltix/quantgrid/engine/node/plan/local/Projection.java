@@ -6,11 +6,6 @@ import com.epam.deltix.quantgrid.engine.node.expression.Expression2;
 import com.epam.deltix.quantgrid.engine.node.plan.Plan;
 import com.epam.deltix.quantgrid.engine.value.Column;
 import com.epam.deltix.quantgrid.engine.value.DoubleColumn;
-import com.epam.deltix.quantgrid.engine.value.PeriodSeriesColumn;
-import com.epam.deltix.quantgrid.engine.value.StringColumn;
-import com.epam.deltix.quantgrid.engine.value.local.DoubleLambdaColumn;
-import com.epam.deltix.quantgrid.engine.value.local.PeriodSeriesLambdaColumn;
-import com.epam.deltix.quantgrid.engine.value.local.StringLambdaColumn;
 import com.epam.deltix.quantgrid.type.ColumnType;
 import com.epam.deltix.quantgrid.util.Doubles;
 
@@ -40,30 +35,10 @@ public class Projection extends Expression2<DoubleColumn, Column, Column> {
 
     @Override
     protected Column evaluate(DoubleColumn keys, Column values) {
-        int size = Util.toIntSize(keys);
-
-        if (values instanceof DoubleColumn column) {
-            return new DoubleLambdaColumn(index -> {
-                double key = keys.get(index);
-                return Doubles.isError(key) ? key : column.get((long) key);
-            }, size);
-        }
-
-        if (values instanceof StringColumn column) {
-            return new StringLambdaColumn(index -> {
-                double key = keys.get(index);
-                return Doubles.isError(key) ? Doubles.toStringError(key) : column.get((long) key);
-            }, size);
-        }
-
-        if (values instanceof PeriodSeriesColumn column) {
-            return new PeriodSeriesLambdaColumn(index -> {
-                double key = keys.get(index);
-                return Doubles.isError(key) ? null : column.get((long) key);
-            }, size);
-        }
-
-        throw new UnsupportedOperationException();
+        return Column.lambdaOf(values, (index) -> {
+            double key = keys.get(index);
+            return Doubles.isError(key) ? Util.NA_REF : (long) key;
+        }, keys.size());
     }
 
     @Override

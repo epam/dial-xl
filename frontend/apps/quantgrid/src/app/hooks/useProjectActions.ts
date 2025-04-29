@@ -4,8 +4,10 @@ import { toast } from 'react-toastify';
 import { dialProjectFileExtension } from '@frontend/common';
 
 import { ProjectContext } from '../context';
+import { useApiRequests } from './useApiRequests';
 
 export function useProjectActions() {
+  const { downloadFiles } = useApiRequests();
   const {
     createProject,
     projectName,
@@ -20,6 +22,7 @@ export function useProjectActions() {
     shareResources,
     projectBucket,
     projectPath,
+    cloneCurrentProject,
   } = useContext(ProjectContext);
 
   const closeProjectAction = useCallback(() => {
@@ -79,6 +82,29 @@ export function useProjectActions() {
     createSheet();
   }, [createSheet]);
 
+  const cloneCurrentProjectAction = useCallback(() => {
+    cloneCurrentProject();
+  }, [cloneCurrentProject]);
+
+  const downloadCurrentProjectAction = useCallback(async () => {
+    if (!projectBucket) return;
+
+    toast.loading(`Downloading project...`);
+    const result = await downloadFiles({
+      files: [
+        {
+          bucket: projectBucket,
+          name: `${projectName}${dialProjectFileExtension}`,
+          path: projectPath,
+        },
+      ],
+    });
+    toast.dismiss();
+    if (!result) {
+      toast.error('Error happened during downloading file');
+    }
+  }, [downloadFiles, projectBucket, projectName, projectPath]);
+
   const shareProjectAction = useCallback(() => {
     if (!projectName || !projectBucket) return;
 
@@ -102,5 +128,7 @@ export function useProjectActions() {
     createWorksheetAction,
     closeProjectAction,
     shareProjectAction,
+    cloneCurrentProjectAction,
+    downloadCurrentProjectAction,
   };
 }

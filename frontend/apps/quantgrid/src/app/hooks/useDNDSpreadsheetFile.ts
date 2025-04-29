@@ -9,8 +9,6 @@ export const useDNDSpreadsheetFile = () => {
 
   const handleDrop = useCallback(
     (e: DragEvent) => {
-      e.preventDefault();
-
       const files = e.dataTransfer?.files;
 
       if (!files || !files.length) return;
@@ -19,6 +17,7 @@ export const useDNDSpreadsheetFile = () => {
 
       if (!dropCell) return;
 
+      e.preventDefault();
       const { col, row } = dropCell;
 
       uploadFiles({ files, col: col, row: row });

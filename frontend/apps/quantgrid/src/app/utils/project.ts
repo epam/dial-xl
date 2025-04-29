@@ -214,3 +214,13 @@ export const updateFilesPathInputsInProject = (
     };
   });
 };
+
+export const getProjectSheetsRecord = (
+  sheets: WorksheetState[]
+): Record<string, string> => {
+  return sheets.reduce((acc, sheet) => {
+    acc[sheet.sheetName] = sheet.content;
+
+    return acc;
+  }, {} as Record<string, string>);
+};

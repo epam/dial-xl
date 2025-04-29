@@ -12,6 +12,7 @@ import com.epam.deltix.quantgrid.engine.node.expression.RowNumber;
 import com.epam.deltix.quantgrid.engine.node.plan.Plan;
 import com.epam.deltix.quantgrid.engine.node.plan.local.CartesianLocal;
 import com.epam.deltix.quantgrid.engine.node.plan.local.Explode;
+import com.epam.deltix.quantgrid.engine.node.plan.local.Projection;
 import com.epam.deltix.quantgrid.engine.node.plan.local.SelectLocal;
 import com.epam.deltix.quantgrid.parser.FieldKey;
 
@@ -66,7 +67,9 @@ public class CompileExplode {
             table = explode(result, column);
         } else {
             table = result.cast(CompiledTable.class);
-            CompileUtil.verify(table.nested(), "Dimension is not nested table");
+            CompileUtil.verify(table.nested(),
+                    "Formula for column with dim keyword must return a table, an array or period series, but got %s.",
+                    CompileUtil.getResultTypeDisplayName(table));
         }
 
         boolean independent = result.dimensions().isEmpty();
@@ -117,17 +120,26 @@ public class CompileExplode {
                 return right.withNode(select).withDimensions(target);
             }
 
-            SelectLocal leftNode = new SelectLocal(new RowNumber(to.node()));
+            SelectLocal leftSelect = new SelectLocal(new RowNumber(to.node().getLayout()));
+            SelectLocal rightSelect = new SelectLocal(new RowNumber(right.node().getLayout()));
+            CartesianLocal cartesian = new CartesianLocal(leftSelect, rightSelect);
 
-            if (!isDimension) {
-                CartesianLocal cartesian = new CartesianLocal(leftNode, right.node());
-                return right.withCurrent(cartesian, target);
+            if (isDimension) {
+                // note this type is not valid, we just want to save references positions and node
+                return new CompiledReferenceTable("_invalid", cartesian, target, 0, 1, true);
             }
 
-            SelectLocal rightNode = new SelectLocal(new RowNumber(right.node()));
-            CartesianLocal cartesian = new CartesianLocal(leftNode, rightNode);
-            // note this type is not valid, we just want to save references positions and node
-            return new CompiledReferenceTable("_invalid", cartesian, target, 0, 1, true);
+            // to guarantee that cartesian will result in the same layout
+            // project all columns from right side
+            List<Expression> columns = new ArrayList<>();
+            columns.add(new Get(cartesian, 0));
+
+            for (int i = 0; i < right.node().getMeta().getSchema().size(); i++) {
+                Projection projection = new Projection(new Get(cartesian, 1), new Get(right.node(), i));
+                columns.add(projection);
+            }
+
+            return right.withCurrent(new SelectLocal(columns), target);
         }
 
         CompileUtil.verify(!toIndependent);
@@ -201,7 +213,9 @@ public class CompileExplode {
 
     // query ref is not really needed, but other code fails, needs to be refactored
     private static CompiledTable explode(CompiledResult result, CompiledSimpleColumn column) {
-        CompileUtil.verify(column.type().isPeriodSeries(), "Cannot create a dimension from a scalar value");
+        CompileUtil.verify(column.type().isPeriodSeries(),
+                "Formula for column with dim keyword must return a table, an array or period series, but got %s.",
+                CompileUtil.getColumnTypeDisplayName(column.type()));
         Expression series = column.node();
         RowNumber numbers = new RowNumber(series.getLayout());
 

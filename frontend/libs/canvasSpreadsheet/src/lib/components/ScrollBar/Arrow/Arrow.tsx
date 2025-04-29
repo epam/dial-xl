@@ -1,23 +1,28 @@
 import * as PIXI from 'pixi.js';
-import { useCallback, useContext, useMemo, useRef } from 'react';
+import { useCallback, useContext, useMemo, useRef, useState } from 'react';
 
-import { HorizontalDirection } from '@frontend/spreadsheet';
-import { Graphics, useTick } from '@pixi/react';
+import { Graphics } from '@pixi/react';
 
 import { GridStateContext, GridViewportContext } from '../../../context';
-import { Coordinates, Rectangle, VerticalDirection } from '../../../types';
+import { useDraw } from '../../../hooks';
+import {
+  Coordinates,
+  HorizontalDirection,
+  Rectangle,
+  VerticalDirection,
+} from '../../../types';
 
 type Props = {
   place: HorizontalDirection | VerticalDirection;
 };
 
 export function Arrow({ place }: Props) {
-  const { gridHeight, gridWidth, gridSizes, theme } =
+  const { gridHeight, gridWidth, gridSizes, theme, isPanModeEnabled } =
     useContext(GridStateContext);
   const { moveViewport } = useContext(GridViewportContext);
 
   const graphicsRef = useRef<PIXI.Graphics>(null);
-  const isArrowHovered = useRef(false);
+  const [isArrowHovered, setIsArrowHovered] = useState(false);
   const mouseDownInterval = useRef<ReturnType<typeof setInterval>>();
 
   const isHorizontal = place === 'left' || place === 'right';
@@ -100,16 +105,27 @@ export function Arrow({ place }: Props) {
     return arrowWrapperRect;
   }, [gridHeight, gridSizes, gridWidth, isHorizontal, place]);
 
-  const onMouseOver = useCallback((e: PIXI.FederatedPointerEvent) => {
-    isArrowHovered.current = true;
-  }, []);
+  const onMouseOver = useCallback(
+    (e: PIXI.FederatedPointerEvent) => {
+      if (isPanModeEnabled) return;
 
-  const onMouseOut = useCallback((e: PIXI.FederatedPointerEvent) => {
-    isArrowHovered.current = false;
-  }, []);
+      setIsArrowHovered(true);
+    },
+    [isPanModeEnabled]
+  );
+
+  const onMouseOut = useCallback(
+    (e: PIXI.FederatedPointerEvent) => {
+      if (isPanModeEnabled) return;
+      setIsArrowHovered(false);
+    },
+    [isPanModeEnabled]
+  );
 
   const onMouseDown = useCallback(
     (e: PIXI.FederatedPointerEvent) => {
+      if (isPanModeEnabled) return;
+
       const moveX = isHorizontal
         ? place === 'left'
           ? -gridSizes.cell.width
@@ -132,6 +148,7 @@ export function Arrow({ place }: Props) {
       isHorizontal,
       moveViewport,
       place,
+      isPanModeEnabled,
     ]
   );
 
@@ -139,38 +156,41 @@ export function Arrow({ place }: Props) {
     clearInterval(mouseDownInterval.current);
   }, []);
 
-  const drawArrow = useCallback(
-    (
-      arrowCoords: Coordinates[],
-      arrowWrapperRect: Rectangle,
-      g: PIXI.Graphics
-    ) => {
-      // We need to draw wrapper to have events not only on arrow but in bigger sizes
-      g.beginFill(theme.scrollBar.trackColor)
-        .drawRect(
-          arrowWrapperRect.x,
-          arrowWrapperRect.y,
-          arrowWrapperRect.width,
-          arrowWrapperRect.height
-        )
-        .beginFill(
-          isArrowHovered.current
-            ? theme.scrollBar.thumbColorHovered
-            : theme.scrollBar.thumbColor,
-          1
-        )
-        .drawPolygon(arrowCoords);
-    },
-    [theme]
-  );
-
-  useTick(() => {
+  const drawArrow = useCallback(() => {
     if (!graphicsRef.current) return;
 
-    graphicsRef.current.clear();
+    const g = graphicsRef.current;
 
-    drawArrow(arrowCoords, arrowWrapperRect, graphicsRef.current);
-  }, true);
+    g.clear();
+
+    // We need to draw wrapper to have events not only on arrow but in bigger sizes
+    g.beginFill(theme.scrollBar.trackColor, 0.01)
+      .drawRect(
+        arrowWrapperRect.x,
+        arrowWrapperRect.y,
+        arrowWrapperRect.width,
+        arrowWrapperRect.height
+      )
+      .beginFill(
+        isArrowHovered
+          ? theme.scrollBar.thumbColorHovered
+          : theme.scrollBar.thumbColor,
+        1
+      )
+      .drawPolygon(arrowCoords);
+  }, [
+    arrowCoords,
+    arrowWrapperRect.height,
+    arrowWrapperRect.width,
+    arrowWrapperRect.x,
+    arrowWrapperRect.y,
+    isArrowHovered,
+    theme.scrollBar.thumbColor,
+    theme.scrollBar.thumbColorHovered,
+    theme.scrollBar.trackColor,
+  ]);
+
+  useDraw(drawArrow);
 
   return (
     <Graphics

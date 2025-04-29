@@ -1,6 +1,8 @@
 import { Dropdown } from 'antd';
 import { useContext, useMemo } from 'react';
 
+import { dialProjectFileExtension } from '@frontend/common';
+
 import { DashboardContext } from '../../../context';
 import { useDashboardCreateMenuItems } from '../hooks';
 import { EmptySearchResults } from './EmptySearchResults';
@@ -14,7 +16,16 @@ export function DashboardFileListItems() {
     () => !loadingDashboard && displayedDashboardItems.length === 0,
     [displayedDashboardItems.length, loadingDashboard]
   );
-  const { dropdownItems } = useDashboardCreateMenuItems();
+
+  const projects = useMemo(
+    () =>
+      displayedDashboardItems
+        .filter((item) => item.name.endsWith(dialProjectFileExtension))
+        .map((item) => item.name.slice(0, -dialProjectFileExtension.length)),
+    [displayedDashboardItems]
+  );
+
+  const { dropdownItems } = useDashboardCreateMenuItems(projects);
 
   return (
     <>

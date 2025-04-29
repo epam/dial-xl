@@ -3,7 +3,7 @@ import { ParsedSheets, SheetReader } from '@frontend/parser';
 import { autoFixFieldNames } from './autoFixFieldNames';
 import { autoFixTableNames } from './autoFixTableNames';
 import { ExpressionToUpdate } from './autoFunctionsToUppercase';
-import { getTableFields, TableFields } from './getTableFields';
+import { getTableFields, TableFields } from './sheetUtils';
 
 export function autoFixSheetTableOrFieldName(
   dsl: string,

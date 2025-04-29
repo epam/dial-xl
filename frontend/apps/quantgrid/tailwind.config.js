@@ -26,9 +26,11 @@ module.exports = {
         bgGridLayerMain: 'var(--bg-grid-layer-main)',
         bgInverted: 'var(--bg-inverted)',
         bgLayer0: 'var(--bg-layer-0)',
+        bgLayer1: 'var(--bg-layer-1)',
         bgLayer2: 'var(--bg-layer-2)',
         bgLayer3: 'var(--bg-layer-3)',
         bgLayer4: 'var(--bg-layer-4)',
+        bgLayer5: 'var(--bg-layer-5)',
         bgScrollbarHover: 'var(--bg-scrollbar-hover)',
         controlsBgAccent: 'var(--controls-bg-accent)',
         controlsBgAccentHover: 'var(--controls-bg-accent-hover)',
@@ -57,6 +59,7 @@ module.exports = {
         textInverted: 'var(--text-inverted)',
         textPrimary: 'var(--text-primary)',
         textSecondary: 'var(--text-secondary)',
+        textWarning: 'var(--text-warning)',
       },
       keyframes: {
         'fast-pulse': {

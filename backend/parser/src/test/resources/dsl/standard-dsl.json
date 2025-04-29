@@ -1,0 +1,218 @@
+{
+  "name": "test",
+  "tables": [
+    {
+      "name": {
+        "text": "T1"
+      },
+      "fields": [
+        {
+          "key": {
+            "text": "key"
+          },
+          "name": {
+            "text": "a"
+          },
+          "formula": {
+            "formula": {
+              "number": -1.0,
+              "arguments": []
+            },
+            "errors": []
+          },
+          "decorators": [
+            {
+              "name": {
+                "text": "format"
+              },
+              "params": [
+                {
+                  "value": "#.##"
+                }
+              ]
+            }
+          ],
+          "docs": []
+        },
+        {
+          "dim": {
+            "text": "dim"
+          },
+          "name": {
+            "text": "b"
+          },
+          "formula": {
+            "formula": {
+              "number": 2.5,
+              "arguments": []
+            },
+            "errors": []
+          },
+          "decorators": [],
+          "docs": []
+        },
+        {
+          "name": {
+            "text": "c"
+          },
+          "formula": {
+            "formula": {
+              "number": 3.42,
+              "arguments": []
+            },
+            "errors": []
+          },
+          "decorators": [],
+          "docs": []
+        },
+        {
+          "key": {
+            "text": "key"
+          },
+          "dim": {
+            "text": "dim"
+          },
+          "name": {
+            "text": "d"
+          },
+          "formula": {
+            "formula": {
+              "number": 5.0,
+              "arguments": []
+            },
+            "errors": []
+          },
+          "decorators": [],
+          "docs": []
+        }
+      ],
+      "decorators": [
+        {
+          "name": {
+            "text": "placement"
+          },
+          "params": [
+            {
+              "value": 1.0
+            },
+            {
+              "value": 1.0
+            }
+          ]
+        }
+      ],
+      "docs": [],
+      "totals": []
+    },
+    {
+      "name": {
+        "text": "T2"
+      },
+      "fields": [
+        {
+          "key": {
+            "text": "key"
+          },
+          "dim": {
+            "text": "dim"
+          },
+          "name": {
+            "text": "x"
+          },
+          "formula": {
+            "formula": {
+              "table": "T1",
+              "arguments": []
+            },
+            "errors": []
+          },
+          "decorators": [],
+          "docs": []
+        },
+        {
+          "name": {
+            "text": "y"
+          },
+          "formula": {
+            "formula": {
+              "table": "T2",
+              "arguments": []
+            },
+            "errors": []
+          },
+          "decorators": [],
+          "docs": []
+        },
+        {
+          "dim": {
+            "text": "dim"
+          },
+          "name": {
+            "text": "z"
+          },
+          "formula": {
+            "formula": {
+              "table": {
+                "table": "T1",
+                "arguments": []
+              },
+              "field": "a",
+              "arguments": [
+                {
+                  "arguments": []
+                }
+              ]
+            },
+            "errors": []
+          },
+          "decorators": [],
+          "docs": []
+        },
+        {
+          "key": {
+            "text": "key"
+          },
+          "name": {
+            "text": "w"
+          },
+          "formula": {
+            "formula": {
+              "table": {
+                "field": "x",
+                "arguments": []
+              },
+              "field": "y",
+              "arguments": [
+                {
+                  "arguments": []
+                }
+              ]
+            },
+            "errors": []
+          },
+          "decorators": [],
+          "docs": []
+        }
+      ],
+      "decorators": [
+        {
+          "name": {
+            "text": "placement"
+          },
+          "params": [
+            {
+              "value": 5.0
+            },
+            {
+              "value": 1.0
+            }
+          ]
+        }
+      ],
+      "docs": [],
+      "totals": []
+    }
+  ],
+  "pythons": [],
+  "errors": []
+}

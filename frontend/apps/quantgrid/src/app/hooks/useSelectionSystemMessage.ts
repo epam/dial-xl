@@ -11,6 +11,12 @@ export const useSelectionSystemMessage = () => {
   const { projectName, sheetName, projectSheets, selectedCell } =
     useContext(ProjectContext);
 
+  const [selection, setSelection] = useState<{
+    startCol: number;
+    startRow: number;
+    endRow: number;
+    endCol: number;
+  } | null>(null);
   const [systemMessageContent, setSystemMessageContent] =
     useState<SystemMessageParsedContent>();
 
@@ -21,8 +27,6 @@ export const useSelectionSystemMessage = () => {
     for (const sheet of projectSheets) {
       sheets[sheet.sheetName] = sheet.content;
     }
-
-    const selection = gridApi.selection;
 
     const state: SystemMessageParsedContent = {
       sheets,
@@ -36,16 +40,26 @@ export const useSelectionSystemMessage = () => {
     setSystemMessageContent(state);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
-    gridApi?.selection?.startCol,
-    gridApi?.selection?.startRow,
-    gridApi?.selection?.endCol,
-    gridApi?.selection?.endRow,
+    selection?.startCol,
+    selection?.startRow,
+    selection?.endCol,
+    selection?.endRow,
     inputs,
     projectName,
     projectSheets,
     selectedCell?.tableName,
     sheetName,
   ]);
+
+  useEffect(() => {
+    if (!gridApi) return;
+
+    const subscription = gridApi.selection$.subscribe((selection) => {
+      setSelection(selection);
+    });
+
+    return () => subscription.unsubscribe();
+  }, [gridApi]);
 
   return { systemMessageContent };
 };

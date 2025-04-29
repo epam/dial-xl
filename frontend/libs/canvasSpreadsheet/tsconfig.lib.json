@@ -3,7 +3,7 @@
   "compilerOptions": {
     "outDir": "../../dist/out-tsc",
     "types": ["node"],
-    "lib": ["dom", "dom.iterable"]
+    "lib": ["dom", "dom.iterable", "es2021"]
   },
   "files": [
     "../../node_modules/@nx/react/typings/cssmodule.d.ts",

@@ -1,21 +1,36 @@
 package com.epam.deltix.quantgrid.web.controller;
 
+import com.epam.deltix.quantgrid.engine.service.input.storage.DialInputProvider;
 import com.epam.deltix.quantgrid.engine.service.input.storage.InputProvider;
-import com.google.protobuf.util.JsonFormat;
+import com.epam.deltix.quantgrid.util.DialFileApi;
+import com.epam.deltix.quantgrid.util.EtaggedStream;
+import com.epam.deltix.quantgrid.web.utils.ApiMessageMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.epam.deltix.proto.Api;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.Bean;
+import org.springframework.core.io.ResourceLoader;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.io.FileNotFoundException;
+import java.io.InputStream;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -24,14 +39,23 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WebMvcTest(CompileController.class)
 class CompileControllerTest {
     private static final String TEST_ID = UUID.randomUUID().toString();
-    private static final JsonFormat.Parser PARSER = JsonFormat.parser();
-    private static final JsonFormat.Printer PRINTER = JsonFormat.printer();
+
+    @TestConfiguration
+    public static class Configuration {
+        @Bean
+        public InputProvider dialInputProvider(DialFileApi fileApi) {
+            return new DialInputProvider(fileApi, "input_schemas.json");
+        }
+    }
 
     @Autowired
     private MockMvc mockMvc;
 
     @MockBean
-    private InputProvider inputProvider;
+    private DialFileApi dialFileApi;
+
+    @Autowired
+    private ResourceLoader resourceLoader;
 
     @Test
     void testCompile() throws Exception {
@@ -110,6 +134,50 @@ class CompileControllerTest {
         assertThat(actual).isEqualTo(expected);
     }
 
+    @ParameterizedTest
+    @MethodSource("inputErrors")
+    void testSchemaParsingErrors(String name, String expectedError) throws Exception {
+        String bucket = "test-bucket";
+        String etag = "test-etag";
+        String prefix = "files/" + bucket + "/";
+        String input = prefix + name + ".csv";
+        String schema = prefix + "." + name + ".schema";
+        InputStream inputStream = resourceLoader.getResource("classpath:test-inputs/malformed/" + name + ".csv")
+                .getInputStream();
+        when(dialFileApi.getAttributes(eq(input), any()))
+                .thenReturn(new DialFileApi.Attributes(etag, List.of("READ")));
+        when(dialFileApi.readFile(eq(schema), any()))
+                .thenThrow(new FileNotFoundException());
+        when(dialFileApi.getBucket(any()))
+                .thenReturn(bucket);
+        when(dialFileApi.readFile(eq(input), any()))
+                .thenReturn(new EtaggedStream(inputStream, inputStream, etag));
+
+        String formula = "INPUT(\"%s\")".formatted(input);
+        Api.Request request = Api.Request.newBuilder()
+                .setId(TEST_ID)
+                .setDimensionalSchemaRequest(Api.DimensionalSchemaRequest.newBuilder()
+                        .putAllWorksheets(Map.of("Test", ""))
+                        .setFormula(formula))
+                .build();
+        Api.Response expected = Api.Response.newBuilder()
+                .setId(TEST_ID)
+                .setDimensionalSchemaResponse(Api.DimensionalSchemaResponse.newBuilder()
+                        .setFormula(formula)
+                        .setErrorMessage(expectedError))
+                .build();
+
+        Api.Response actual = sendRequest("/v1/schema", request);
+
+        assertThat(actual).isEqualTo(expected);
+    }
+
+    private static Stream<Arguments> inputErrors() {
+        return Stream.of(
+                Arguments.of("duplicated-column", "Column names must be unique. Duplicate found: a."),
+                Arguments.of("empty", "The document doesn't have headers."));
+    }
+
     @Test
     void testFunctions() throws Exception {
         Api.Request request = Api.Request.newBuilder()
@@ -141,15 +209,13 @@ class CompileControllerTest {
     private Api.Response sendRequest(String endpoint, Api.Request request) throws Exception {
         String response = mockMvc.perform(post(endpoint)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(PRINTER.print(request))
+                        .content(ApiMessageMapper.fromApiRequest(request))
                         .with(jwt()))
                 .andExpect(status().isOk())
                 .andReturn()
                 .getResponse()
                 .getContentAsString();
 
-        Api.Response.Builder builder = Api.Response.newBuilder();
-        PARSER.merge(response, builder);
-        return builder.build();
+        return ApiMessageMapper.toApiResponse(response);
     }
 }

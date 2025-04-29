@@ -41,8 +41,8 @@ public class InputUtils {
                         CsvInputParser.parseCsvInput(reader, readColumns, metadata.columnTypes()));
             };
         } catch (IOException e) {
-            log.error("Failed to parse input file: {}", metadata.path(), e);
-            throw new UncheckedIOException("Failed to parse input file: " + metadata.name(), e);
+            log.error("Failed to read input file: {}", metadata.path(), e);
+            throw new UncheckedIOException("Failed to read input file: " + metadata.name(), e);
         }
     }
 
@@ -62,8 +62,8 @@ public class InputUtils {
             }
 
         } catch (IOException e) {
-            log.error("Failed to parse input file: {}", path, e);
-            throw new UncheckedIOException("Failed to parse input file: " + name, e);
+            log.error("Failed to read input file: {}", path, e);
+            throw new UncheckedIOException("Failed to read input file: " + name, e);
         }
     }
 

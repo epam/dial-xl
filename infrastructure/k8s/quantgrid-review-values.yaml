@@ -1,0 +1,155 @@
+global:
+  imagePullSecrets:
+    - epm-rtc-registry-test
+
+backendControl:
+  enabled: true
+  image:
+    registry: registry-test.deltixhub.com
+    pullPolicy: Always
+  args:
+    - server
+
+  podAnnotations:
+    autorestart: '{{ dateInZone "2023-01-02 15:04:05Z" (now) "UTC" }}'
+  env:
+    WEB_REDIS_ADDRESS: "[redis://redis-cluster.quantgrid-review.svc.cluster.local.:6379]"
+    WEB_NODE_TYPE: "CONTROL"
+    WEB_SERVER_PORT: "8080"
+    PROJECTS_FOLDER: "/deltix/data/projects"
+    INPUTS_FOLDER: "/deltix/data/inputs"
+    SECURITY_ENABLED: "true"
+    JWKS_URI: "https://chatbot-ui-staging.eu.auth0.com/.well-known/jwks.json"
+    WEB_STORAGE_DIAL_ENABLED: "true"
+    WEB_STORAGE_DIAL_BASE_URL: "https://core-{{ .Values.global.url }}"
+
+  secret:
+    SOME_SECRET_ENV: secret_env
+
+  resources:
+    requests:
+      cpu: 0.5
+      memory: 1Gi
+    limits:
+      cpu: 1
+      memory: 2Gi
+
+  hpa:
+    enabled: true
+    minReplicas: 1
+    maxReplicas: 1
+
+  persistence:
+    enabled: false
+
+backendCompute:
+  enabled: true
+  image:
+    registry: registry-test.deltixhub.com
+    pullPolicy: Always
+  args:
+    - server
+
+  podAnnotations:
+    autorestart: '{{ dateInZone "2023-01-02 15:04:05Z" (now) "UTC" }}'
+  env:
+    WEB_REDIS_ADDRESS: "[redis://redis-cluster.quantgrid-review.svc.cluster.local.:6379]"
+    WEB_NODE_TYPE: "COMPUTE"
+    WEB_SERVER_PORT: "10001"
+    PROJECTS_FOLDER: "/deltix/data/projects"
+    INPUTS_FOLDER: "/deltix/data/inputs"
+    SECURITY_ENABLED: "true"
+    JWKS_URI: "https://chatbot-ui-staging.eu.auth0.com/.well-known/jwks.json"
+    WEB_STORAGE_DIAL_ENABLED: "true"
+    WEB_STORAGE_DIAL_BASE_URL: "https://core-{{ .Values.global.url }}"
+
+  secret:
+    SOME_SECRET_ENV: secret_env
+
+  resources:
+    requests:
+      cpu: 4
+      memory: 4Gi
+    limits:
+      cpu: 4
+      memory: 4Gi
+
+  hpa:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 2
+
+  persistence:
+    enabled: false
+
+frontend:
+  enabled: true
+  image:
+    registry: registry-test.deltixhub.com
+    pullPolicy: Always
+
+  podAnnotations:
+    autorestart: '{{ dateInZone "2023-01-02 15:04:05Z" (now) "UTC" }}'
+
+  config: |
+    const dialOverlayUrl = 'https://chat-{{ .Values.global.url }}';
+    const authAuthority = 'https://chatbot-ui-staging.eu.auth0.com';
+    const authClientId = 'CWg7UOOe8VuN5yTX23GiUs3fxW5BVqU8';
+    const authProvider = 'auth0';
+    const dialBaseUrl = 'https://core-{{ .Values.global.url }}';
+    const qgBotDeploymentName = 'qg';
+    const adminRoles = ['admin'];
+    const featureFlags = ['askAI', 'copilotAutocomplete'];
+    const defaultPanelsSettings = {
+      chat: {
+        isActive: true,
+        position: 'left',
+      },
+      project: {
+        isActive: false,
+        position: 'right',
+      },
+      inputs: {
+        isActive: false,
+        position: 'right',
+      },
+      error: {
+        isActive: false,
+        position: 'right',
+      },
+      editor: {
+        isActive: false,
+        position: 'right',
+      },
+      undoRedo: {
+        isActive: false,
+        position: 'left',
+      },
+      aiHints: {
+        isActive: false,
+        position: 'left',
+      },
+      details: {
+        isActive: false,
+        position: 'right',
+      },
+    };
+
+    const defaultLeftPanelSize = 550;
+    const defaultRightPanelSize = 550;
+
+ingress:
+  enabled: true
+  pathType: "Prefix"
+  path: "/"
+  ingressClassName: allow-all
+  annotations:
+    alb.ingress.kubernetes.io/target-type: "ip"
+    alb.ingress.kubernetes.io/healthcheck-path: "/health"
+    alb.ingress.kubernetes.io/target-group-attributes: "stickiness.enabled=true,stickiness.lb_cookie.duration_seconds=86400"
+    alb.ingress.kubernetes.io/listen-ports: '[{ "HTTP" : 80, "HTTPS" : 443 }]'
+    alb.ingress.kubernetes.io/certificate-arn: "arn:aws:acm:eu-north-1:725751206603:certificate/373e8fd1-088e-4022-adf1-5f3e7820fb4a"
+    alb.ingress.kubernetes.io/ssl-redirect: "443"
+
+redis:
+  enabled: false

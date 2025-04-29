@@ -1,0 +1,6 @@
+name: if
+description: Check a condition, return one value if true or another if false
+signature: 'if(condition: boolean, true_case: T, false_case: T) => T'
+manual: >-
+  If `condition` results in True, then `true_case` is returned. If `condition` results in False, then `false_case` is
+  returned.

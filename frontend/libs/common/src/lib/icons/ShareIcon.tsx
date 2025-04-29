@@ -2,7 +2,6 @@ export const ShareIcon = () => {
   return (
     <svg
       fill="none"
-      height="18"
       viewBox="0 0 18 18"
       width="100%"
       xmlns="http://www.w3.org/2000/svg"

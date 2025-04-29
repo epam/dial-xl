@@ -2,14 +2,15 @@ import { useCallback, useContext } from 'react';
 
 import { ProjectContext } from '../context';
 import { EventBusMessages } from '../services';
-import { useManualCreateEntityDSL, useManualEditDSL } from './ManualEditDSL';
+import { useCreateTableDsl } from './EditDsl';
+import { useManualEditDSL } from './ManualEditDSL';
 import useEventBus from './useEventBus';
 import { useGridApi } from './useGridApi';
 
 export function useCreateTableAction() {
   const eventBus = useEventBus<EventBusMessages>();
   const { onCloneTable } = useManualEditDSL();
-  const { createDerivedTable } = useManualCreateEntityDSL();
+  const { createDerivedTable } = useCreateTableDsl();
   const gridApi = useGridApi();
   const { selectedCell } = useContext(ProjectContext);
 

@@ -2,6 +2,7 @@ package com.epam.deltix.quantgrid.parser;
 
 import com.epam.deltix.quantgrid.parser.ast.BinaryOperation;
 import com.epam.deltix.quantgrid.parser.ast.BinaryOperator;
+import com.epam.deltix.quantgrid.parser.ast.ConstBool;
 import com.epam.deltix.quantgrid.parser.ast.ConstNumber;
 import com.epam.deltix.quantgrid.parser.ast.ConstText;
 import com.epam.deltix.quantgrid.parser.ast.CurrentField;
@@ -76,7 +77,9 @@ public record ParsedFormula(@Expose Span span, Formula formula, List<ParsingErro
             arguments.add(new TableReference(name));
             ctx.row_ref().expression().stream().map(ParsedFormula::buildFormula).forEach(arguments::add);
             return new Function("RowReference", arguments);
-        } else if (ctx.na_expression() != null) {
+        } else if (ctx.bool() != null) {
+            return new ConstBool(Boolean.parseBoolean(ctx.getText()));
+        } else if (ctx.na() != null) {
             return new ConstNumber(Doubles.ERROR_NA);
         } else {
             throw new UnsupportedOperationException("Unsupported formula context");
@@ -90,14 +93,14 @@ public record ParsedFormula(@Expose Span span, Formula formula, List<ParsingErro
             return ctx.bin_and();
         } else if (ctx.bin_compare() != null) {
             return ctx.bin_compare();
+        } else if (ctx.bin_concat() != null) {
+            return ctx.bin_concat();
         } else if (ctx.bin_add_sub() != null) {
             return ctx.bin_add_sub();
         } else if (ctx.bin_mul_div_mod() != null) {
             return ctx.bin_mul_div_mod();
         } else if (ctx.bin_pow() != null) {
             return ctx.bin_pow();
-        } else if (ctx.bin_concat() != null) {
-            return ctx.bin_concat();
         }
         return null;
     }

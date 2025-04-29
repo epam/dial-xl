@@ -1728,6 +1728,48 @@ const testCases = [
       value: '=ABS(1)',
     },
   },
+
+  // Special case
+  // Manual table with single override
+  {
+    name: [
+      'Has no formula',
+      'No other field overrides',
+      'Cell formula override',
+      'Type value action',
+    ],
+    input: {
+      cell: {
+        col: 1,
+        row: 1,
+        field: {
+          expression: naExpression,
+        } as any,
+        table: {
+          isManual: true,
+        },
+        isFieldHeader: false,
+        isTableHeader: false,
+        isOverride: true,
+        overrideIndex: 123,
+        value: '1',
+        overrideValue: '1',
+      } as GridCell,
+      options: {
+        hasOtherOverrides: true,
+        isEditExpressionShortcut: false,
+        isAddOverride: false,
+        isEditOverride: true,
+        initialValue: '=ABS(1)',
+        onKeyDown: true,
+        isRenameShortcut: false,
+      } as GridCellEditorOpenOptions,
+    },
+    expectedResult: {
+      editMode: 'edit_override' as GridCellEditorMode,
+      value: '=ABS(1)',
+    },
+  },
 ];
 
 describe('getCellEditorParams', () => {

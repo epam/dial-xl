@@ -46,9 +46,13 @@ public class EmbeddingIndexLocal extends Plan2<Table, Table, Table> {
         return this;
     }
 
+    private boolean hasDescription() {
+        return expressionCount(0) == 2;
+    }
+
     @Override
     protected Meta meta() {
-        if (expressions(0).size() == 3) {
+        if (hasDescription()) {
             return new Meta(Schema.of(ColumnType.STRING, ColumnType.DOUBLE, ColumnType.STRING));
         } else {
             return new Meta(Schema.of(ColumnType.STRING, ColumnType.DOUBLE));
@@ -78,7 +82,7 @@ public class EmbeddingIndexLocal extends Plan2<Table, Table, Table> {
 
         StringColumn modelColumn = (StringColumn) columns[columns.length - 1];
         if (modelColumn.size() == 0) {
-            if (expressions(0).size() == 3) {
+            if (hasDescription()) {
                 return List.of(new StringDirectColumn(), new DoubleDirectColumn(), new StringDirectColumn()).toArray(new Column[3]);
             } else {
                 return List.of(new StringDirectColumn(), new DoubleDirectColumn()).toArray(new Column[2]);
@@ -91,7 +95,7 @@ public class EmbeddingIndexLocal extends Plan2<Table, Table, Table> {
         String prefix = EmbeddingModels.getPrefix(modelName, this.embeddingType);
 
         StringColumn targetColumn = (StringColumn) columns[0];
-        StringColumn descriptionColumn = columns.length == 3 ? (StringColumn) columns[1] : null;
+        StringColumn descriptionColumn = hasDescription() ? (StringColumn) columns[1] : null;
 
         List<String> embeddingBatch = new ArrayList<>((int) targetColumn.size());
         for (int i = 0; i < targetColumn.size(); ++i) {
@@ -152,10 +156,5 @@ public class EmbeddingIndexLocal extends Plan2<Table, Table, Table> {
         }
 
         return model;
-    }
-
-    @Override
-    public String toString() {
-        return "Embedding()";
     }
 }

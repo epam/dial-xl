@@ -19,9 +19,9 @@ class TestExcelDateTime {
 
     @Test
     void testDateFromString() {
-        assertEquals(2, from("01/01/1900"));
+        assertEquals(2, from("01/1/1900"));
         assertEquals(60, from("02/28/1900"));
-        assertEquals(61, from("03/01/1900"));
+        assertEquals(61, from("3/01/1900"));
         assertEquals(44014, from("07/02/2020"));
         assertEquals(43101, from("2018-01-01"));
         assertEquals(36526, from("2000-01-01"));
@@ -33,12 +33,19 @@ class TestExcelDateTime {
 
     @Test
     void testDateTimeFromString() {
-        assertDoubles(2.6411226851851852, from("01/01/1900 03:23:13 PM"));
+        assertDoubles(2.6411226851851852, from("1/1/1900 03:23:13 PM"));
+        assertDoubles(2.6411226851851852, from("01/1/1900 03:23:13 PM"));
+        assertDoubles(44014.453634259, from("7/02/2020 10:53:14 AM"));
         assertDoubles(44014.453634259, from("07/02/2020 10:53:14 AM"));
         assertDoubles(43101, from("2018-01-01T00:00:00"));
         assertDoubles(36526.5525, from("2000-01-01T13:15:36"));
         assertDoubles(42186.999988426, from("2015-07-01T23:59:59"));
         assertDoubles(44661.5, from("2022-04-10T12:00:00"));
+        assertDoubles(44661.5, from("2022-04-10 12:00:00."));
+        assertDoubles(44661.5, from("2022-04-10 12:00:00.00"));
+
+        assertDoubles(from(LocalDateTime.of(2022, 4, 10, 0,0,0, 500_000_000)), from("2022-04-10 00:00:00.5"));
+        assertDoubles(from(LocalDateTime.of(2022, 4, 10, 0,0,0, 123_456_789)), from("2022-04-10 00:00:00.123456789"));
     }
 
     @Test
@@ -135,6 +142,6 @@ class TestExcelDateTime {
     }
 
     private static void assertDoubles(double expected, double actual) {
-        assertEquals(expected, actual, 1e-6f);
+        assertEquals(expected, actual, 1e-9f);
     }
 }

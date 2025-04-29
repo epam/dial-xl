@@ -1,4 +1,4 @@
-import { getFormulaType, stripValuesInsideQuotes } from '../formula';
+import { getFormulaType, stripQuotesBrackets } from '../formula';
 
 describe('formula', () => {
   describe('getFormulaType', () => {
@@ -65,7 +65,7 @@ describe('formula', () => {
       const expectedResult = 'link = "" + 1';
 
       // Act
-      const result = stripValuesInsideQuotes(value);
+      const result = stripQuotesBrackets(value);
 
       // Assert
       expect(result).toEqual(expectedResult);
@@ -77,7 +77,19 @@ describe('formula', () => {
       const expectedResult = `link = '' + 1`;
 
       // Act
-      const result = stripValuesInsideQuotes(value);
+      const result = stripQuotesBrackets(value);
+
+      // Assert
+      expect(result).toEqual(expectedResult);
+    });
+
+    it('should strip content from the brackets', () => {
+      // Arrange
+      const value = `= Table1(2)[VS: Regional Origin]`;
+      const expectedResult = `= Table1()[]`;
+
+      // Act
+      const result = stripQuotesBrackets(value);
 
       // Assert
       expect(result).toEqual(expectedResult);

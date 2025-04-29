@@ -5,8 +5,9 @@ import com.epam.deltix.quantgrid.engine.compiler.CompileUtil;
 import com.epam.deltix.quantgrid.engine.node.expression.Expand;
 import com.epam.deltix.quantgrid.engine.node.plan.Plan;
 import com.epam.deltix.quantgrid.parser.FieldKey;
+import com.epam.deltix.quantgrid.parser.ParsedField;
 import com.epam.deltix.quantgrid.parser.ParsedTable;
-import com.epam.deltix.quantgrid.parser.ast.Formula;
+import com.epam.deltix.quantgrid.parser.ParsedTotal;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -42,10 +43,9 @@ public class CompiledTotalTable extends CompiledAbstractTable {
     public List<String> fields(CompileContext context) {
         List<String> fields = new ArrayList<>();
 
-        for (FieldKey field : table.total().fields()) {
-            List<Formula> formulas = table.total().getTotals(field);
-
-            if (formulas.get(number - 1) != null) {
+        ParsedTotal total = table.totals().get(number - 1);
+        for (ParsedField field : total.fields()) {
+            if (field.formula() != null) {
                 fields.add(field.fieldName());
             }
         }

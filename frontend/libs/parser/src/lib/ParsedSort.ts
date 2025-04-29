@@ -1,13 +1,28 @@
+import { Expose } from 'class-transformer';
+
 import { CurrentFieldExpression, Expression, UniOpExpression } from './ast';
+import { ParsedText } from './ParsedText';
 import { FieldSortOrder, ShortDSLPlacement } from './parser';
 import { findFieldNameInExpression } from './services';
+import { Span } from './Span';
 
 export class ParsedSort {
+  @Expose()
+  span: Span | undefined;
+
+  @Expose({ name: 'formulas' })
+  formula: ParsedText[] | undefined;
+
   constructor(
+    span: Span | undefined,
+    formulas: ParsedText[] | undefined,
     public dslPlacement: ShortDSLPlacement | undefined,
     public parsedExpression: Expression[] | undefined,
     public text: string
-  ) {}
+  ) {
+    this.span = span;
+    this.formula = formulas;
+  }
 
   public getChangedFieldSort(
     targetFieldName: string,

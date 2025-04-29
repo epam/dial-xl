@@ -1,37 +1,18 @@
 import { useCallback, useContext } from 'react';
 
+import { GridCellEditorMode } from '@frontend/canvas-spreadsheet';
 import { extractExpression } from '@frontend/parser';
-import {
-  cellEditorSaveValue,
-  GridCellEditorMode,
-  SelectedCell,
-  SelectedCellType,
-} from '@frontend/spreadsheet';
 
+import { SelectedCell, SelectedCellType } from '../../../common';
 import { AppContext, ProjectContext } from '../../../context';
-import {
-  useDSLUtils,
-  useGridApi,
-  useManualEditDSL,
-  useOverridesManualEditDSL,
-  useSubmitCellEditor,
-  useTotalManualEditDSL,
-} from '../../../hooks';
+import { useDSLUtils, useGridApi, useSubmitCellEditor } from '../../../hooks';
 import { isOverrideValueFormula } from '../../../utils/override';
 
 export function useFormulaInput() {
   const { projectName, openStatusModal } = useContext(ProjectContext);
   const { formulaBarMode } = useContext(AppContext);
   const { findTableField, findTable } = useDSLUtils();
-  const { editOverride, addOverride } = useOverridesManualEditDSL();
-  const {
-    editExpressionWithOverrideRemove,
-    editExpression,
-    renameField,
-    renameTable,
-  } = useManualEditDSL();
   const { submitCellEditor } = useSubmitCellEditor();
-  const { addTotalExpression, editTotalExpression } = useTotalManualEditDSL();
   const gridApi = useGridApi();
 
   const getSelectedCellValue = useCallback(
@@ -99,40 +80,16 @@ export function useFormulaInput() {
 
       const cell = gridApi.getCell(selectedCell.col, selectedCell.row);
 
-      return cellEditorSaveValue({
+      return submitCellEditor({
         editMode,
         currentCell: selectedCell,
         cell,
         value: code,
-        gridCallbacks: {
-          onAddOverride: addOverride,
-          onAddTotalExpression: addTotalExpression,
-          onCellEditorSubmit: submitCellEditor,
-          onEditExpression: editExpression,
-          onEditExpressionWithOverrideRemove: editExpressionWithOverrideRemove,
-          onEditOverride: editOverride,
-          onEditTotalExpression: editTotalExpression,
-          onRenameField: renameField,
-          onRenameTable: renameTable,
-        },
         dimFieldName,
         openStatusModal,
       });
     },
-    [
-      projectName,
-      gridApi,
-      addOverride,
-      addTotalExpression,
-      submitCellEditor,
-      editExpression,
-      editExpressionWithOverrideRemove,
-      editOverride,
-      editTotalExpression,
-      renameField,
-      renameTable,
-      openStatusModal,
-    ]
+    [projectName, gridApi, submitCellEditor, openStatusModal]
   );
 
   return {

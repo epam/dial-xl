@@ -7,7 +7,7 @@ import { normalizeCol, normalizeRow } from '../utils';
 export function useNavigation() {
   const {
     gridSizes,
-    selectionEdges,
+    selection$,
     setSelectionEdges,
     getCell,
     gridHeight,
@@ -20,34 +20,63 @@ export function useNavigation() {
     useContext(GridViewportContext);
 
   const moveViewportToCell = useCallback(
-    (col: number, row: number) => {
+    (col: number, row: number, centerCellInViewport?: boolean) => {
       const { cell } = gridSizes;
 
       const nextCellX = getCellX(col);
       const nextCellY = getCellY(row);
+
       const vp = viewportCoords.current;
-      const viewportYOffset = Math.abs(vp.y1 - vp.y2);
-      const viewportXOffset = Math.abs(vp.x1 - vp.x2);
+      const viewportWidth = Math.abs(vp.x2 - vp.x1);
+      const viewportHeight = Math.abs(vp.y2 - vp.y1);
+
+      if (centerCellInViewport) {
+        const cellCenterX = nextCellX + cell.width / 2;
+        const cellCenterY = nextCellY + cell.height / 2;
+
+        const targetViewportX = cellCenterX - viewportWidth / 2;
+        const targetViewportY = cellCenterY - viewportHeight / 2;
+
+        const maxViewportX = fullWidth - viewportWidth;
+        const maxViewportY = fullHeight - viewportHeight;
+        const moveViewportX = Math.min(targetViewportX, maxViewportX);
+        const moveViewportY = Math.min(targetViewportY, maxViewportY);
+
+        moveViewport(moveViewportX, moveViewportY);
+
+        return;
+      }
+
       const cellWidthOffset = cell.width * 2;
       const cellHeightOffset = cell.height * 2;
 
       if (nextCellX - cellWidthOffset < 0) {
         moveViewport(nextCellX - cellWidthOffset, 0);
-      } else if (nextCellX + cellWidthOffset > viewportXOffset) {
-        moveViewport(nextCellX + cellWidthOffset - viewportXOffset, 0);
+      } else if (nextCellX + cellWidthOffset > viewportWidth) {
+        moveViewport(nextCellX + cellWidthOffset - viewportWidth, 0);
       }
 
       if (nextCellY - cellHeightOffset < 0) {
         moveViewport(0, nextCellY - cellHeightOffset);
-      } else if (nextCellY + cellHeightOffset > viewportYOffset) {
-        moveViewport(0, nextCellY + cellHeightOffset - viewportYOffset);
+      } else if (nextCellY + cellHeightOffset > viewportHeight) {
+        moveViewport(0, nextCellY + cellHeightOffset - viewportHeight);
       }
     },
-    [getCellX, getCellY, gridSizes, moveViewport, viewportCoords]
+    [
+      fullHeight,
+      fullWidth,
+      getCellX,
+      getCellY,
+      gridSizes,
+      moveViewport,
+      viewportCoords,
+    ]
   );
 
   const moveTableSelection = useCallback(
     (key: string) => {
+      const selectionEdges = selection$.getValue();
+
       if (!selectionEdges || !selectedTable) return;
 
       const { edges } = gridSizes;
@@ -97,13 +126,15 @@ export function useNavigation() {
       gridSizes,
       moveViewportToCell,
       selectedTable,
-      selectionEdges,
+      selection$,
       setSelectionEdges,
     ]
   );
 
   const arrowNavigation = useCallback(
     (key: string) => {
+      const selectionEdges = selection$.getValue();
+
       if (!selectionEdges) return;
 
       if (selectedTable) {
@@ -154,13 +185,15 @@ export function useNavigation() {
       moveTableSelection,
       moveViewportToCell,
       selectedTable,
-      selectionEdges,
+      selection$,
       setSelectionEdges,
     ]
   );
 
   const extendSelection = useCallback(
     (direction: HorizontalDirection | VerticalDirection) => {
+      const selectionEdges = selection$.getValue();
+
       if (!selectionEdges) return;
 
       const { edges } = gridSizes;
@@ -255,10 +288,12 @@ export function useNavigation() {
       moveViewportToCell(nextStartCol, nextEndRow);
       setSelectionEdges(updatedSelection);
     },
-    [getCell, gridSizes, moveViewportToCell, selectionEdges, setSelectionEdges]
+    [getCell, gridSizes, moveViewportToCell, selection$, setSelectionEdges]
   );
 
   const tabNavigation = useCallback(() => {
+    const selectionEdges = selection$.getValue();
+
     if (!selectionEdges) return;
 
     const { edges } = gridSizes;
@@ -307,7 +342,7 @@ export function useNavigation() {
     gridCallbacks,
     gridSizes,
     moveViewportToCell,
-    selectionEdges,
+    selection$,
     setSelectionEdges,
   ]);
 
@@ -324,6 +359,8 @@ export function useNavigation() {
 
   const moveSelectionToEdge = useCallback(
     (direction: HorizontalDirection | VerticalDirection) => {
+      const selectionEdges = selection$.getValue();
+
       if (!selectionEdges) return;
 
       const { startRow, startCol } = selectionEdges;
@@ -383,7 +420,7 @@ export function useNavigation() {
       getCell,
       gridSizes,
       moveViewport,
-      selectionEdges,
+      selection$,
       setSelectionEdges,
     ]
   );

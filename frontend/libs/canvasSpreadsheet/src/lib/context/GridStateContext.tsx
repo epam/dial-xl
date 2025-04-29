@@ -6,10 +6,18 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
+import isEqual from 'react-fast-compare';
+import { BehaviorSubject } from 'rxjs';
 
-import { AppTheme, GridData, GridTable } from '@frontend/common';
+import {
+  AppTheme,
+  GridData,
+  GridTable,
+  ViewportInteractionMode,
+} from '@frontend/common';
 import { Application } from '@pixi/app';
 
 import { defaultGridSizes, GridSizes } from '../constants';
@@ -17,6 +25,7 @@ import { useGridResize } from '../hooks';
 import { fontNameScale } from '../setup';
 import { getTheme } from '../theme';
 import {
+  Edges,
   GetCell,
   GridApi,
   GridCallbacks,
@@ -37,6 +46,7 @@ type GridStateProps = {
   tableStructure: GridTable[];
   zoom: number;
   columnSizes: Record<string, number>;
+  viewportInteractionMode: ViewportInteractionMode;
 };
 
 type GridStateContextActions = {
@@ -52,6 +62,7 @@ type GridStateContextActions = {
   setRowNumberWidth: (newWidth: number) => void;
   setIsTableDragging: (isDragging: boolean) => void;
   setDNDSelection: (selection: SelectionEdges | null) => void;
+  selection$: BehaviorSubject<Edges | null>;
 };
 
 type GridStateContextValues = {
@@ -67,12 +78,12 @@ type GridStateContextValues = {
   pointClickMode: boolean;
   pointClickError: boolean;
   dndSelection: SelectionEdges | null;
-  selectionEdges: SelectionEdges | null;
   selectedTable: string | null;
   dottedSelectionEdges: SelectionEdges | null;
   tableStructure: GridTable[];
   theme: Theme;
   columnSizes: Record<string, number>;
+  isPanModeEnabled: boolean;
 };
 
 export const GridStateContext = createContext<
@@ -91,24 +102,24 @@ export function GridStateContextProvider({
   themeName,
   zoom,
   columnSizes,
+  viewportInteractionMode,
 }: PropsWithChildren<GridStateProps>): JSX.Element {
-  const [gridSizes, setGridSizes] = useState<GridSizes>(defaultGridSizes);
-
   const { gridWidth, gridHeight } = useGridResize({ gridContainerRef, app });
 
   const theme = useMemo(() => getTheme(themeName), [themeName]);
 
+  const [gridSizes, setGridSizes] = useState<GridSizes>(defaultGridSizes);
   const [fullHeight, setFullHeight] = useState(0);
   const [fullWidth, setFullWidth] = useState(0);
-  const [selectionEdges, _setSelectionEdges] = useState<SelectionEdges | null>(
-    null
-  );
+
   const [dottedSelectionEdges, setDottedSelectionEdges] =
     useState<SelectionEdges | null>(null);
   const [pointClickError, setPointClickError] = useState(false);
   const [selectedTable, setSelectedTable] = useState<string | null>(null);
   const [isTableDragging, setIsTableDragging] = useState(false);
   const [dndSelection, setDNDSelection] = useState<SelectionEdges | null>(null);
+
+  const selectionEdgesRef = useRef<SelectionEdges | null>(null);
 
   const getCell = useCallback(
     (col: number, row: number) => {
@@ -144,9 +155,19 @@ export function GridStateContextProvider({
     [gridSizes]
   );
 
+  const selection$: BehaviorSubject<Edges | null> = useMemo(
+    () => new BehaviorSubject<Edges | null>(null),
+    []
+  );
+
   const setSelectionEdges = useCallback(
     (edges: SelectionEdges | null, selectionOptions?: SelectionOptions) => {
-      _setSelectionEdges(edges);
+      const isSameSelection = isEqual(edges, selectionEdgesRef.current);
+      selectionEdgesRef.current = edges;
+
+      if (!isSameSelection) {
+        selection$.next(edges);
+      }
 
       if (selectionOptions?.selectedTable) {
         setSelectedTable(selectionOptions.selectedTable);
@@ -154,12 +175,16 @@ export function GridStateContextProvider({
         setSelectedTable(null);
       }
 
-      if (!selectionOptions?.silent) {
+      if (!selectionOptions?.silent && !isSameSelection) {
         gridCallbacksRef?.current?.onSelectionChange?.(edges);
       }
     },
-    [gridCallbacksRef, selectedTable]
+    [gridCallbacksRef, selectedTable, selection$]
   );
+
+  const isPanModeEnabled = useMemo(() => {
+    return viewportInteractionMode === 'pan';
+  }, [viewportInteractionMode]);
 
   useEffect(() => {
     const updatedSizes = Object.fromEntries(
@@ -212,7 +237,7 @@ export function GridStateContextProvider({
       pointClickError,
       pointClickMode,
       selectedTable,
-      selectionEdges,
+      selection$,
       setCellValue,
       setDottedSelectionEdges,
       setDNDSelection,
@@ -223,6 +248,7 @@ export function GridStateContextProvider({
       tableStructure,
       theme,
       columnSizes,
+      isPanModeEnabled,
     }),
     [
       app,
@@ -241,13 +267,14 @@ export function GridStateContextProvider({
       pointClickError,
       pointClickMode,
       selectedTable,
-      selectionEdges,
+      selection$,
       setCellValue,
       setRowNumberWidth,
       setSelectionEdges,
       tableStructure,
       theme,
       columnSizes,
+      isPanModeEnabled,
     ]
   );
 

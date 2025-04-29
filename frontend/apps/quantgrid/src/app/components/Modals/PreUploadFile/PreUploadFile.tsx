@@ -259,7 +259,7 @@ export function PreUploadFile({
       title={`Upload files`}
       onCancel={handleClose}
     >
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-3 text-textPrimary">
         <span>
           Max file size is 512 Mb.{' '}
           {allowedExtensions && allowedExtensions.length > 0

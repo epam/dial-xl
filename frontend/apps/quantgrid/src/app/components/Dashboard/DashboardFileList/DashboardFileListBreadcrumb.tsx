@@ -62,10 +62,12 @@ export function DashboardFileListBreadcrumb() {
   }, [currentTab, folderPath, searchParams, userBucket]);
 
   return (
-    <Breadcrumbs
-      breadcrumbs={breadcrumbs}
-      classNames="text-textPrimary text-[16px] grow"
-      onSelectBreadcrumb={handleSelectBreadcrumb}
-    />
+    <div className="grow shrink overflow-hidden">
+      <Breadcrumbs
+        breadcrumbs={breadcrumbs}
+        classNames="text-textPrimary text-[16px] grow"
+        onSelectBreadcrumb={handleSelectBreadcrumb}
+      />
+    </div>
   );
 }

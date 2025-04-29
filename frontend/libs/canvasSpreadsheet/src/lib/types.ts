@@ -5,6 +5,7 @@ import {
   AppTheme,
   CellPlacement,
   ChartsData,
+  ChartType,
   FieldSortOrder,
   FilesMetadata,
   FormulaBarMode,
@@ -13,14 +14,17 @@ import {
   GridCell,
   GridChart,
   GridData,
+  GridFilterType,
   GridListFilter,
   GridTable,
   SystemMessageParsedContent,
   TableArrangeType,
+  ViewportInteractionMode,
 } from '@frontend/common';
 import { OverrideValue, ParsedSheets, TotalType } from '@frontend/parser';
 
 import {
+  CellEditorExplicitOpenOptions,
   EventType,
   GridCellEditorEvent,
   GridCellEditorEventInsertValue,
@@ -35,9 +39,12 @@ export type GridApi = {
   getViewportCoords: () => ViewportCoords;
   getViewportEdges: () => ViewportEdges;
   moveViewport: (x: number, y: number) => void;
-  moveViewportToCell: (col: number, row: number) => void;
+  moveViewportToCell: (
+    col: number,
+    row: number,
+    centerCellInViewport?: boolean
+  ) => void;
 
-  getSelection: () => SelectionEdges | null;
   updateSelection: (
     selection: SelectionEdges | null,
     selectionOptions?: SelectionOptions
@@ -71,7 +78,8 @@ export type GridApi = {
     x: number,
     y: number,
     col: number,
-    row: number
+    row: number,
+    source?: 'canvas-element' | 'html-element'
   ) => void;
 
   cellEditorEvent$: Subject<GridCellEditorEvent>;
@@ -87,10 +95,7 @@ export type GridApi = {
     col: number,
     row: number,
     value: string,
-    options?: {
-      dimFieldName?: string;
-      withFocus?: boolean;
-    }
+    options?: CellEditorExplicitOpenOptions
   ) => void;
 
   setPointClickValue: (value: string) => void;
@@ -99,15 +104,17 @@ export type GridApi = {
   hideDottedSelection: () => void;
   showDottedSelection: (selection: SelectionEdges) => void;
 
+  dndSelection: SelectionEdges | null;
   setDNDSelection: (selection: SelectionEdges | null) => void;
 
   arrowNavigation: (key: string) => void;
   tabNavigation: () => void;
 
+  isPanModeEnabled: boolean;
+
   events$: Observable<EventType>;
 
   event: any;
-  selection: SelectionEdges | null;
   updateSelectionAfterDataChanged: (selection: SelectionEdges) => void;
 
   selection$: BehaviorSubject<Edges | null>;
@@ -120,6 +127,7 @@ export type GetCell = (col: number, row: number) => GridCell | undefined;
 export type GridProps = {
   data: GridData;
   chartData: ChartsData;
+  filterList: GridListFilter[];
   tableStructure: GridTable[];
   columnSizes: Record<string, number>;
   inputFiles: FilesMetadata[] | null;
@@ -137,6 +145,7 @@ export type GridProps = {
   sheetContent: string;
   systemMessageContent: SystemMessageParsedContent | undefined;
   currentSheetName: string | null;
+  viewportInteractionMode: ViewportInteractionMode;
 } & GridCallbacks;
 
 export type GridCallbacks = {
@@ -147,8 +156,7 @@ export type GridCallbacks = {
     startRow: number,
     endRow: number
   ) => void;
-  onRenameTable?: (oldName: string, newName: string) => void;
-  onRenameField?: (tableName: string, oldName: string, newName: string) => void;
+
   onDeleteField?: (tableName: string, fieldName: string) => void;
   onDeleteTable?: (tableName: string) => void;
   onAddField?: (
@@ -160,12 +168,7 @@ export type GridCallbacks = {
       withSelection?: boolean;
     }
   ) => void;
-  onSwapFields?: (
-    tableName: string,
-    rightFieldName: string,
-    leftFieldName: string,
-    direction: HorizontalDirection
-  ) => void;
+  onSwapFields?: (direction: HorizontalDirection) => void;
   onIncreaseFieldColumnSize?: (tableName: string, fieldName: string) => void;
   onDecreaseFieldColumnSize?: (tableName: string, fieldName: string) => void;
   onChangeFieldColumnSize?: (
@@ -173,29 +176,40 @@ export type GridCallbacks = {
     fieldName: string,
     valueAdd: number
   ) => void;
-  onEditExpression?: (
-    tableName: string,
-    fieldName: string,
-    expression: string
-  ) => void;
-  onEditExpressionWithOverrideRemove?: (
-    tableName: string,
-    fieldName: string,
-    expression: string,
-    overrideIndex: number,
-    overrideValue: OverrideValue
-  ) => void;
   onMoveTable?: (tableName: string, rowDelta: number, colDelta: number) => void;
   onCloneTable?: (tableName: string) => void;
-  onToggleTableHeaderVisibility?: (tableName: string) => void;
-  onToggleTableFieldsVisibility?: (tableName: string) => void;
+  onToggleTableTitleOrHeaderVisibility?: (
+    tableName: string,
+    toggleTableHeader: boolean
+  ) => void;
   onFlipTable?: (tableName: string) => void;
   onDNDTable?: (tableName: string, row: number, col: number) => void;
-  onRemoveDimension?: (tableName: string, fieldName: string) => void;
-  onAddKey?: (tableName: string, fieldName: string) => void;
-  onRemoveKey?: (tableName: string, fieldName: string) => void;
-  onCloseTable?: (tableName: string) => void;
-  onAddDimension?: (tableName: string, fieldName: string) => void;
+  onMoveTableToSheet?: (
+    tableName: string,
+    sourceSheetName: string,
+    destinationSheetName: string
+  ) => void;
+  onChangeFieldDimension?: (
+    tableName: string,
+    fieldName: string,
+    isRemove?: boolean
+  ) => void;
+  onChangeFieldKey?: (
+    tableName: string,
+    fieldName: string,
+    isRemove?: boolean
+  ) => void;
+  onChangeFieldIndex?: (
+    tableName: string,
+    fieldName: string,
+    isRemove?: boolean
+  ) => void;
+  onChangeDescription?: (
+    tableName: string,
+    fieldName: string,
+    descriptionFieldName: string,
+    isRemove?: boolean
+  ) => void;
   onCreateDerivedTable?: (tableName: string) => void;
   onCreateManualTable?: (
     col: number,
@@ -205,11 +219,21 @@ export type GridCallbacks = {
     hideFieldHeader?: boolean,
     customTableName?: string
   ) => void;
-  onCellEditorSubmit?: (
-    col: number,
-    overrideIndex: number,
-    value: string
-  ) => void;
+  onCellEditorSubmit?: ({
+    editMode,
+    currentCell,
+    cell,
+    value,
+    dimFieldName,
+    openStatusModal,
+  }: {
+    editMode: GridCellEditorMode;
+    currentCell: CellPlacement;
+    cell: GridCell | undefined;
+    value: string;
+    dimFieldName?: string;
+    openStatusModal?: (text: string) => void;
+  }) => void;
   onRemoveOverride?: (
     tableName: string,
     fieldName: string,
@@ -217,24 +241,12 @@ export type GridCallbacks = {
     value: OverrideValue
   ) => void;
   onRemoveOverrideRow?: (tableName: string, overrideIndex: number) => void;
-  onAddOverride?: (
-    col: number,
-    row: number,
-    tableName: string,
-    value: string
-  ) => void;
-  onEditOverride?: (
-    tableName: string,
-    fieldName: string,
-    overrideIndex: number,
-    value: string
-  ) => void;
   onCellEditorUpdateValue?: (
     value: string,
     cancelEdit: boolean,
     dimFieldName?: string
   ) => void;
-  onCellEditorMessage?: (message: string) => void;
+  onMessage?: (message: string) => void;
   onExpandDimTable?: (
     tableName: string,
     fieldName: string,
@@ -252,14 +264,23 @@ export type GridCallbacks = {
   onSelectChartKey?: (
     tableName: string,
     fieldName: string,
-    key: string
+    key: string | string[],
+    isNoDataKey?: boolean
   ) => void;
-  onAddChart?: (tableName: string) => void;
+  onAddChart?: (tableName: string, chartType: ChartType) => void;
   onConvertToTable?: (tableName: string) => void;
-  onConvertToChart?: (tableName: string) => void;
+  onConvertToChart?: (tableName: string, chartType: ChartType) => void;
   onPaste?: (cells: string[][]) => void;
-  onRemoveNote?: (tableName: string, fieldName: string) => void;
-  onUpdateNote?: (tableName: string, fieldName: string, note: string) => void;
+  onRemoveNote?: (tableName: string, fieldName?: string) => void;
+  onUpdateNote?: ({
+    tableName,
+    fieldName,
+    note,
+  }: {
+    tableName: string;
+    fieldName?: string | undefined;
+    note: string;
+  }) => void;
   onCellEditorChangeEditMode?: (editMode: GridCellEditorMode) => void;
   onAddTableRow?: (
     col: number,
@@ -284,22 +305,18 @@ export type GridCallbacks = {
     fieldName: string,
     order: FieldSortOrder
   ) => void;
-  onApplyNumericFilter?: (
+  onApplyConditionFilter?: (
     tableName: string,
     fieldName: string,
     operator: string,
-    value: number | null
+    value: string | string[] | null,
+    filterType: GridFilterType
   ) => void;
   onApplyListFilter?: (
     tableName: string,
     fieldName: string,
     values: string[],
     isNumeric: boolean
-  ) => void;
-  onRemoveTotalByType?: (
-    tableName: string,
-    fieldName: string,
-    type: TotalType
   ) => void;
   onRemoveTotalByIndex?: (
     tableName: string,
@@ -311,22 +328,13 @@ export type GridCallbacks = {
     fieldName: string,
     type: TotalType
   ) => void;
-  onAddTotalExpression?: (
-    tableName: string,
-    fieldName: string,
-    index: number,
-    expression: string
-  ) => void;
-  onEditTotalExpression?: (
-    tableName: string,
-    fieldName: string,
-    index: number,
-    expression: string
-  ) => void;
-  onGetFieldFilterList?: (
-    tableName: string,
-    fieldName: string
-  ) => GridListFilter[];
+  onUpdateFieldFilterList?: (args: {
+    tableName: string;
+    fieldName: string;
+    getMoreValues?: boolean;
+    searchValue: string;
+    sort: 1 | -1;
+  }) => void;
   onPromoteRow?: (tableName: string, dataIndex: number) => void;
   onCreateTableAction?: (
     action: string,
@@ -334,26 +342,34 @@ export type GridCallbacks = {
     insertFormula: string | undefined,
     tableName: string | undefined
   ) => void;
+  onAutoFitFields?: (tableName: string) => void;
+  onRemoveFieldSizes?: (tableName: string) => void;
   onApplySuggestion?: (GPTSuggestions: GPTSuggestion[] | null) => void;
   onUndo?: () => void;
   onAIPendingChanges?: (isPending: boolean) => void;
   onAIPendingBanner?: (isVisible: boolean) => void;
   onOpenSheet?: (args: { sheetName: string }) => void;
   onArrangeTable?: (tableName: string, arrangeType: TableArrangeType) => void;
+  onAddAllFieldTotals?: (tableName: string, fieldName: string) => void;
+  onAddAllTableTotals?: (tableName: string) => void;
+  onInsertChart?: (chartType: ChartType) => void;
+  onSelectTableForChart?: (tableName: string, chartTableName: string) => void;
+  onChartDblClick?: () => void;
+  onDownloadTable?: (tableName: string) => Promise<void>;
 };
+
+export type Color = number | string;
 
 export type Theme = {
   themeName: AppTheme;
-  grid: { lineColor: number; bgColor: number };
+  grid: { lineColor: Color; bgColor: Color };
   cell: {
-    borderColor: number;
-    tableBorderColor: number;
-    tableBorderAlpha: number;
-    bgColor: number;
-    bgEvenColor: number;
-    tableHeaderBgColor: number;
-    fieldHeaderBgColor: number;
-    totalBgColor: number;
+    borderColor: Color;
+    bgColor: Color;
+    bgEvenColor: Color;
+    tableHeaderBgColor: Color;
+    fieldHeaderBgColor: Color;
+    totalBgColor: Color;
     cellFontColorName: FontColorName;
     cellFontFamily: FontFamilies;
     boldCellFontFamily: FontFamilies;
@@ -362,42 +378,54 @@ export type Theme = {
     keyFontColorName: FontColorName;
     linkFontColorName: FontColorName;
     linkFontFamily: FontFamilies;
-    resizerHoverColor: number;
-    resizerActiveColor: number;
+    indexFontColorName: FontColorName;
+    resizerHoverColor: Color;
+    resizerActiveColor: Color;
   };
   colNumber: {
-    borderColor: number;
-    bgColor: number;
-    bgColorSelected: number;
+    borderColor: Color;
+    bgColor: Color;
+    bgColorSelected: Color;
+    bgColorFullSelected: Color;
+    bgColorHover: Color;
     fontColorName: FontColorName;
     fontFamily: FontFamilies;
-    resizerHoverColor: number;
-    resizerActiveColor: number;
+    resizerHoverColor: Color;
+    resizerActiveColor: Color;
   };
   rowNumber: {
-    bgColor: number;
-    bgColorSelected: number;
+    bgColor: Color;
+    bgColorSelected: Color;
+    bgColorFullSelected: Color;
+    bgColorHover: Color;
     fontColorName: FontColorName;
     fontFamily: FontFamilies;
   };
   scrollBar: {
-    trackColor: number;
-    thumbColor: number;
-    thumbColorHovered: number;
+    trackColor: Color;
+    trackStrokeColor: Color;
+    thumbColor: Color;
+    thumbColorHovered: Color;
   };
-  selection: { bgColor: number; bgAlpha: number; borderColor: number };
+  selection: { bgColor: Color; bgAlpha: number; borderColor: Color };
   pointClickSelection: {
-    color: number;
-    errorColor: number;
+    color: Color;
+    errorColor: Color;
     alpha: 1;
     alignment: 0;
   };
-  dottedSelection: { color: number; alpha: number; alignment: number };
-  override: { borderColor: number };
-  error: { borderColor: number };
-  noteLabel: { bgColor: number };
-  diff: { bgColor: number };
-  dndSelection: { borderColor: number };
+  dottedSelection: { color: Color; alpha: number; alignment: number };
+  override: { borderColor: Color };
+  error: { borderColor: Color };
+  noteLabel: { bgColor: Color };
+  diff: { bgColor: Color };
+  dndSelection: { borderColor: Color };
+  hiddenCell: { fontColorName: FontColorName; fontFamily: FontFamilies };
+  tableShadow: {
+    color: Color;
+    alpha: number;
+    rectangleAlpha: number;
+  };
 };
 
 export type Coordinates = {
@@ -426,18 +454,40 @@ export type Cell = {
   col: number;
   row: number;
   text: PIXI.BitmapText;
+};
+
+export type IconMetadata = {
+  path: string;
+  iconSize: number;
+  tableName?: string;
+  tooltip?: string;
+};
+
+export type IconCell = {
   icon?: PIXI.Sprite;
   secondaryIcon?: PIXI.Sprite; // e.g. for the table header context menu
+  iconMetadata?: IconMetadata;
+  secondaryIconMetadata?: IconMetadata;
 };
 
 export type CellStyle = {
-  bgColor?: number;
-  diffColor?: number;
+  bgColor?: Color;
+  diffColor?: Color;
   border?: {
     borderTop?: PIXI.ILineStyleOptions;
     borderRight?: PIXI.ILineStyleOptions;
     borderBottom?: PIXI.ILineStyleOptions;
     borderLeft?: PIXI.ILineStyleOptions;
+  };
+  shadow?: {
+    shadowTop?: PIXI.ILineStyleOptions[];
+    shadowTopRight?: PIXI.ILineStyleOptions[];
+    shadowTopLeft?: PIXI.ILineStyleOptions[];
+    shadowRight?: PIXI.ILineStyleOptions[];
+    shadowBottom?: PIXI.ILineStyleOptions[];
+    shadowBottomRight?: PIXI.ILineStyleOptions[];
+    shadowBottomLeft?: PIXI.ILineStyleOptions[];
+    shadowLeft?: PIXI.ILineStyleOptions[];
   };
 };
 

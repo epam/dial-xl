@@ -1,5 +1,7 @@
 /* eslint-disable playwright/expect-expect */
-import { expect, test } from '@playwright/test';
+import fs from 'fs';
+
+import { BrowserContext, expect, Page, test } from '@playwright/test';
 
 import { ProjectPage } from '../../pages/ProjectPage';
 import { TestFixtures } from '../TestFixtures';
@@ -20,11 +22,18 @@ const table2Column = 10;
 
 const table2Name = 'ForIndexes';
 
-test.beforeAll(async ({ browser }) => {
-  const table1Dsl = `!placement(${tableRow}, ${tableColumn})\ntable ${tableName}\n[Field1] = 5\n[Field2] = 7\n[Field3] = 4\n[Field4] = 10\n`;
+const storagePath = `playwright/${projectName}.json`;
+
+let browserContext: BrowserContext;
+
+let page: Page;
+
+test.beforeAll(async ({ browser }, testInfo) => {
+  const table1Dsl = `!layout(${tableRow}, ${tableColumn}, "title", "headers")\ntable ${tableName}\n[Field1] = 5\n[Field2] = 7\n[Field3] = 4\n[Field4] = 10\n`;
   tableDslSize = table1Dsl.split('\n').length;
-  const table2Dsl = `!placement(${table2Row}, ${table2Column})\ntable ${table2Name}\n[Field1] = 5\n key [Field2] = 7\n[Field3] = RANGE(6)\ndim [Field4] = RANGE(4)`;
+  const table2Dsl = `!layout(${table2Row}, ${table2Column}, "title", "headers")\ntable ${table2Name}\n[Field1] = 5\n key [Field2] = 7\n[Field3] = RANGE(6)\ndim [Field4] = RANGE(4)`;
   await TestFixtures.createProject(
+    storagePath,
     browser,
     projectName,
     tableRow,
@@ -33,52 +42,69 @@ test.beforeAll(async ({ browser }) => {
     table1Dsl,
     table2Dsl
   );
+  browserContext = await browser.newContext({
+    storageState: storagePath,
+    /* recordVideo: {
+      dir: testInfo.outputPath('videos'),
+    },*/
+  });
 });
 
-test.beforeEach(async ({ page }) => {
+test.beforeEach(async () => {
+  page = await browserContext.newPage();
   await TestFixtures.openProject(page, projectName);
 });
 
-test.afterAll(async ({ browser }) => {
+test.afterEach(async (testInfo) => {
+  //  const videoPath = testInfo.outputPath('my-video.webm');
+  await page.close();
+});
+
+test.afterAll(async ({ browser }, testInfo) => {
+  await browserContext.close();
   await TestFixtures.deleteProject(browser, projectName);
 });
 
 test.describe('editor', () => {
-  //change placement
-  test('edit placement row in dsl', async ({ page }) => {
+  //change placement layout
+  test('edit placement row in dsl', async () => {
     const projectPage = await ProjectPage.createInstance(page);
     const newRow = 4;
     await projectPage
       .getEditor()
-      .setTokenValue(0, 12, tableRow.toString().length, newRow.toString());
+      .setTokenValue(0, 9, tableRow.toString().length, newRow.toString());
     await projectPage.getEditor().saveDsl();
     await projectPage
-      .getGrid()
+      .getVisualization()
       .expectTableHeaderToDissapear(tableRow, tableColumn);
-    await projectPage.getGrid().expectTableHeaderToAppear(newRow, tableColumn);
+    await projectPage
+      .getVisualization()
+      .expectTableHeaderToAppear(newRow, tableColumn);
     tableRow = newRow;
   });
 
-  test('edit placement column in dsl', async ({ page }) => {
+  test('edit placement column in dsl', async () => {
     const projectPage = await ProjectPage.createInstance(page);
     const newColumn = 4;
     await projectPage
       .getEditor()
       .setTokenValue(
         0,
-        15,
+        12,
         tableColumn.toString().length,
         newColumn.toString()
       );
     await projectPage.getEditor().saveDsl();
     await projectPage
-      .getGrid()
+      .getVisualization()
       .expectTableHeaderToDissapear(tableRow, tableColumn);
-    await projectPage.getGrid().expectTableHeaderToAppear(tableRow, newColumn);
+    await projectPage
+      .getVisualization()
+      .expectTableHeaderToAppear(tableRow, newColumn);
     tableColumn = newColumn;
   });
   //change tableName
-  test('edit table name in dsl', async ({ page }) => {
+  test('edit table name in dsl', async () => {
     const projectPage = await ProjectPage.createInstance(page);
     const newName = 'TableNew';
     await projectPage
@@ -86,85 +112,91 @@ test.describe('editor', () => {
       .setTokenValue(1, 12, tableName.length, newName);
     await projectPage.getEditor().saveDsl();
     await projectPage
-      .getGrid()
+      .getVisualization()
       .expectCellTextChange(tableRow, tableColumn, newName);
     tableName = newName;
   });
   //change fieldName
-  test('edit table field name in dsl', async ({ page }) => {
+  test('edit table field name in dsl', async () => {
     const projectPage = await ProjectPage.createInstance(page);
     const newName = 'ChangedName';
     await projectPage.getEditor().setTokenValue(2, 7, 6, newName);
     await projectPage.getEditor().saveDsl();
     await projectPage
-      .getGrid()
+      .getVisualization()
       .expectCellTextChange(tableRow + 1, tableColumn, newName);
   });
   //change fieldValue
-  test('edit table field value in dsl', async ({ page }) => {
+  test('edit table field value in dsl', async () => {
     const projectPage = await ProjectPage.createInstance(page);
     const newName = '8';
     await projectPage.getEditor().setTokenValue(3, 12, 1, newName);
     await projectPage.getEditor().saveDsl();
-    await projectPage.getGrid().clickOnCell(tableRow + 1, tableColumn + 1);
+    await projectPage
+      .getVisualization()
+      .clickOnCell(tableRow + 1, tableColumn + 1);
     await expect(projectPage.getFormula()).toHaveText('=' + newName);
   });
 
   //delete field
-  test('delete field in dsl', async ({ page }) => {
+  test('delete field in dsl', async () => {
     const projectPage = await ProjectPage.createInstance(page);
     await projectPage.getEditor().setTokenValue(5, 13, 13, '');
     await projectPage.getEditor().saveDsl();
     await projectPage
-      .getGrid()
+      .getVisualization()
       .expectTableToDissapear(tableRow + 1, tableColumn + 3);
     tableDslSize--;
   });
   //add key
-  test('add key in dsl', async ({ page }) => {
+  test('add key in dsl', async () => {
     const projectPage = await ProjectPage.createInstance(page);
     await projectPage.getEditor().setTokenValue(tableDslSize + 3, 0, 0, 'key ');
     await projectPage.getEditor().saveDsl();
-    await projectPage.getGrid().expectFieldToBeKey(table2Row + 1, table2Column);
+    await projectPage
+      .getVisualization()
+      .expectFieldToBeKey(table2Row + 1, table2Column);
   });
   //remove key
-  test('remove key in dsl', async ({ page }) => {
+  test('remove key in dsl', async () => {
     const projectPage = await ProjectPage.createInstance(page);
     await projectPage.getEditor().setTokenValue(tableDslSize + 4, 4, 4, '');
     await projectPage.getEditor().saveDsl();
     await projectPage
-      .getGrid()
+      .getVisualization()
       .expectFieldNotBeKey(table2Row + 1, table2Column + 1);
   });
   //add dim
-  test('add dimension in dsl', async ({ page }) => {
+  test('add dimension in dsl', async () => {
     const projectPage = await ProjectPage.createInstance(page);
     await projectPage.getEditor().setTokenValue(tableDslSize + 5, 0, 0, 'dim ');
     await projectPage.getEditor().saveDsl();
     await projectPage
-      .getGrid()
+      .getVisualization()
       .expectCellToNotBeDim(table2Row + 2, table2Column + 2);
     await projectPage
-      .getGrid()
+      .getVisualization()
       .expectFieldIsDimension(table2Row + 1, table2Column + 2);
   });
   //remove dim
-  test('remove dimension in dsl', async ({ page }) => {
+  test('remove dimension in dsl', async () => {
     const projectPage = await ProjectPage.createInstance(page);
     await projectPage.getEditor().setTokenValue(tableDslSize + 6, 4, 4, '');
     await projectPage.getEditor().saveDsl();
     await projectPage
-      .getGrid()
+      .getVisualization()
       .expectCellToBeDim(table2Row + 2, table2Column + 3);
     await projectPage
-      .getGrid()
+      .getVisualization()
       .expectFieldIsNotDimension(table2Row + 1, table2Column + 3);
   });
   //add new table
-  test('add new table in dsl', async ({ page }) => {
+  test('add new table in dsl', async () => {
     const projectPage = await ProjectPage.createInstance(page);
-    await projectPage.addDSL('!placement(1, 1)\ntable NewTable\n[Field1] = 3');
-    await projectPage.getGrid().expectTableHeaderToAppear(1, 1);
+    await projectPage.addDSL(
+      '!layout(1, 1, "title", "headers")\ntable NewTable\n[Field1] = 3'
+    );
+    await projectPage.getVisualization().expectTableHeaderToAppear(1, 1);
   });
   //cancel last change
   //create table with existing name

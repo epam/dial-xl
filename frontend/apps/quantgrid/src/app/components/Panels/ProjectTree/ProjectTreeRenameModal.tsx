@@ -11,7 +11,6 @@ import {
   secondaryButtonClasses,
   shouldStopPropagation,
 } from '@frontend/common';
-import { focusSpreadsheet } from '@frontend/spreadsheet';
 
 type Props = {
   modalTitle: string;
@@ -84,7 +83,6 @@ export function ProjectTreeRenameModal({
 
   return (
     <Modal
-      afterClose={focusSpreadsheet}
       cancelButtonProps={{
         className: cx(modalFooterButtonClasses, secondaryButtonClasses),
       }}

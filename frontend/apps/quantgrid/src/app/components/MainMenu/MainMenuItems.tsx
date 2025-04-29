@@ -1,6 +1,13 @@
+import { ItemType } from 'antd/es/menu/interface';
+
 import Icon from '@ant-design/icons';
 import {
+  AdjustmentsIcon,
+  chartItems,
+  ColumnsIcon,
+  DialChatLogoIcon,
   EditIcon,
+  ExclamationCircleIcon,
   FileIcon,
   FilesMetadata,
   FormulasContextMenuKeyData,
@@ -10,16 +17,26 @@ import {
   getDropdownMenuKey,
   getTableBySizeDropdownItem,
   GridCell,
+  HintStarIcon,
+  HistoryIcon,
+  InsertChartContextMenuKeyData,
   InsertIcon,
+  ListTreeIcon,
   MenuItem,
+  QGLogo,
   QuestionIcon,
   Shortcut,
   shortcutApi,
+  TagIcon,
+  TypographyIcon,
+  TypographyOffIcon,
   ViewIcon,
+  ViewportNarrowIcon,
 } from '@frontend/common';
 import { ParsedSheets } from '@frontend/parser';
 
 import { PanelName } from '../../common';
+import { RecentProject } from '../../services';
 
 export const togglePanelKeys: Record<string, PanelName> = {
   ToggleProjectTree: PanelName.ProjectTree,
@@ -27,6 +44,8 @@ export const togglePanelKeys: Record<string, PanelName> = {
   ToggleCodeEditor: PanelName.CodeEditor,
   ToggleErrorPanel: PanelName.Errors,
   ToggleHistoryPanel: PanelName.UndoRedo,
+  ToggleAIHints: PanelName.AIHints,
+  ToggleChartPanel: PanelName.Details,
 };
 
 export const fileMenuKeys = {
@@ -34,8 +53,12 @@ export const fileMenuKeys = {
   deleteProject: 'DeleteProject',
   closeProject: 'CloseProject',
   shareProject: 'Share project',
+  cloneProject: 'CloneProject',
+  downloadProject: 'DownloadProject',
   createWorksheet: 'CreateWorksheet',
   clearProjectHistory: 'Clear project history',
+  openProject: 'OpenProject',
+  viewAllProjects: 'ViewAllProjects',
 };
 
 export const editMenuKeys = {
@@ -49,12 +72,15 @@ export const editMenuKeys = {
 
 export const viewMenuKeys = {
   toggleChat: 'ToggleChat',
+  togglePanelLabels: 'TogglePanelLabels',
+  toggleSplitPanels: 'ToggleSplitPanels',
   ToggleChatPlacement: 'ToggleChatPlacement',
   resetSheetColumns: 'Reset spreadsheet columns',
 };
 
 export const insertMenuKeys = {
   table: 'Table',
+  chart: 'Chart',
   newField: 'NewField',
   insertLeft: 'InsertLeft',
   insertRight: 'InsertRight',
@@ -65,7 +91,6 @@ export const insertMenuKeys = {
 
 export const helpMenuKeys = {
   shortcuts: 'Shortcuts',
-  toggleGrid: 'Toggle grid',
 };
 
 const createTableMenuKeys = {
@@ -77,6 +102,25 @@ const createTableMenuKeys = {
   filter: 'filter',
   sortTable: 'sortTable',
   uniqueValues: 'uniqueValues',
+};
+
+export const getCreateChartChildren = () => {
+  return [
+    ...chartItems.map((item) => {
+      return getDropdownItem({
+        label: item.label,
+        key: getDropdownMenuKey<InsertChartContextMenuKeyData>('insertChart', {
+          chartType: item.type,
+        }),
+        icon: (
+          <Icon
+            className="text-textSecondary w-[18px]"
+            component={() => item.icon}
+          />
+        ),
+      });
+    }),
+  ];
 };
 
 export const getCreateTableChildren = (
@@ -244,6 +288,9 @@ export function getMenuItems({
   inputFiles,
   isYourProject,
   isAIPendingChanges,
+  recentProjects,
+  panelsSplitEnabled,
+  collapsedPanelsTextHidden,
   onCreateTable,
 }: {
   selectedCell: GridCell | null | undefined;
@@ -252,6 +299,9 @@ export function getMenuItems({
   inputFiles: FilesMetadata[] | null;
   isYourProject: boolean;
   isAIPendingChanges: boolean;
+  recentProjects: RecentProject[];
+  panelsSplitEnabled: boolean;
+  collapsedPanelsTextHidden: boolean;
   onCreateTable: (cols: number, rows: number) => void;
 }) {
   return [
@@ -259,7 +309,10 @@ export function getMenuItems({
       label: 'File',
       key: 'FileMenu',
       icon: (
-        <Icon className="stroke-textSecondary" component={() => <FileIcon />} />
+        <Icon
+          className="text-textSecondary w-[18px]"
+          component={() => <FileIcon />}
+        />
       ),
       children: [
         getDropdownItem({
@@ -275,6 +328,31 @@ export function getMenuItems({
         getDropdownItem({
           label: 'Clear project history',
           key: fileMenuKeys.clearProjectHistory,
+        }),
+        getDropdownItem({
+          label: 'Open project',
+          key: 'OpenProjectParent',
+          children: [
+            ...recentProjects.map((recentProject) =>
+              getDropdownItem({
+                label: (
+                  <div className="flex items-center truncate gap-2">
+                    <Icon className="w-[18px]" component={() => <QGLogo />} />
+                    {recentProject.projectName}
+                  </div>
+                ),
+                key: getDropdownMenuKey(
+                  fileMenuKeys.openProject,
+                  recentProject
+                ),
+              })
+            ),
+            recentProjects.length ? getDropdownDivider() : undefined,
+            getDropdownItem({
+              label: 'View all projects',
+              key: fileMenuKeys.viewAllProjects,
+            }),
+          ].filter(Boolean) as ItemType[],
         }),
         getDropdownDivider(),
         getDropdownItem({
@@ -294,6 +372,14 @@ export function getMenuItems({
             ? 'You are not allowed to share projects which are not yours'
             : undefined,
         }),
+        getDropdownItem({
+          label: 'Clone project',
+          key: fileMenuKeys.cloneProject,
+        }),
+        getDropdownItem({
+          label: 'Download project',
+          key: fileMenuKeys.downloadProject,
+        }),
         getDropdownDivider(),
         getDropdownItem({
           label: 'Back to projects',
@@ -307,7 +393,7 @@ export function getMenuItems({
       key: 'EditMenu',
       icon: (
         <Icon
-          className="w-[18px] text-textSecondary stroke-textSecondary"
+          className="w-[18px] text-textSecondary"
           component={() => <EditIcon />}
         />
       ),
@@ -360,52 +446,162 @@ export function getMenuItems({
       label: 'View',
       key: 'ViewMenu',
       icon: (
-        <Icon className="stroke-textSecondary" component={() => <ViewIcon />} />
+        <Icon
+          className="text-textSecondary w-[18px]"
+          component={() => <ViewIcon />}
+        />
       ),
       children: [
         getDropdownItem({
           label: 'Panels',
+          icon: (
+            <Icon
+              className="text-textSecondary w-[18px]"
+              component={() => <ViewIcon />}
+            />
+          ),
           key: 'PanelMenu',
           children: [
             getDropdownItem({
               label: 'Toggle Project Tree',
               key: 'ToggleProjectTree',
               shortcut: shortcutApi.getLabel(Shortcut.ToggleProjects),
+              icon: (
+                <Icon
+                  className="text-textAccentPrimary w-[18px]"
+                  component={() => <ListTreeIcon />}
+                />
+              ),
             }),
             getDropdownItem({
               label: 'Toggle Code Editor',
               key: 'ToggleCodeEditor',
               shortcut: shortcutApi.getLabel(Shortcut.ToggleCodeEditor),
+              icon: (
+                <Icon
+                  className="text-textSecondary w-[18px]"
+                  component={() => <TagIcon />}
+                />
+              ),
             }),
             getDropdownItem({
               label: 'Toggle Inputs',
               key: 'ToggleInputs',
               shortcut: shortcutApi.getLabel(Shortcut.ToggleInputs),
+              icon: (
+                <Icon
+                  className="text-textSecondary w-[18px]"
+                  component={() => <FileIcon />}
+                />
+              ),
             }),
             getDropdownItem({
               label: 'Toggle Error Panel',
               key: 'ToggleErrorPanel',
               shortcut: shortcutApi.getLabel(Shortcut.ToggleErrors),
+              icon: (
+                <Icon
+                  className="text-textError w-[18px]"
+                  component={() => <ExclamationCircleIcon />}
+                />
+              ),
             }),
             getDropdownItem({
               label: 'Toggle History Panel',
               key: 'ToggleHistoryPanel',
               shortcut: shortcutApi.getLabel(Shortcut.ToggleHistory),
+              icon: (
+                <Icon
+                  className="text-textSecondary w-[18px]"
+                  component={() => <HistoryIcon />}
+                />
+              ),
             }),
             getDropdownItem({
               label: 'Toggle Chat',
               key: 'ToggleChat',
               shortcut: shortcutApi.getLabel(Shortcut.ToggleChat),
+              icon: (
+                <Icon
+                  className="text-textSecondary w-[18px]"
+                  component={() => <DialChatLogoIcon />}
+                />
+              ),
+            }),
+            getDropdownItem({
+              label: 'Toggle AI Hints',
+              key: 'ToggleAIHints',
+              shortcut: shortcutApi.getLabel(Shortcut.ToggleAIHints),
+              icon: (
+                <Icon
+                  className="text-textSecondary w-[18px]"
+                  component={() => (
+                    <HintStarIcon secondaryAccentCssVar="text-accent-tertiary" />
+                  )}
+                />
+              ),
+            }),
+            getDropdownItem({
+              label: 'Toggle details',
+              key: 'ToggleChartPanel',
+              shortcut: shortcutApi.getLabel(Shortcut.ToggleChart),
+              icon: (
+                <Icon
+                  className="text-textSecondary w-[18px]"
+                  component={() => <AdjustmentsIcon />}
+                />
+              ),
             }),
           ],
         }),
         getDropdownItem({
+          label: collapsedPanelsTextHidden ? 'Show labels' : 'Hide labels',
+          key: viewMenuKeys.togglePanelLabels,
+          icon: (
+            <Icon
+              className="text-textSecondary w-[18px]"
+              component={() =>
+                collapsedPanelsTextHidden ? (
+                  <TypographyIcon />
+                ) : (
+                  <TypographyOffIcon />
+                )
+              }
+            />
+          ),
+        }),
+        getDropdownItem({
+          label: panelsSplitEnabled ? 'Merge panels' : 'Split panels',
+          key: viewMenuKeys.toggleSplitPanels,
+          icon: (
+            <Icon
+              className="text-textSecondary w-[18px] rotate-90"
+              component={() => <ColumnsIcon />}
+            />
+          ),
+        }),
+        getDropdownDivider(),
+        getDropdownItem({
           label: 'Reset spreadsheet columns',
           key: viewMenuKeys.resetSheetColumns,
+          icon: (
+            <Icon
+              className="text-textSecondary w-[18px]"
+              component={() => (
+                <ViewportNarrowIcon secondaryAccentCssVar="text-accent-primary" />
+              )}
+            />
+          ),
         }),
         getDropdownItem({
           label: 'Toggle Chat Placement',
           key: 'ToggleChatPlacement',
+          icon: (
+            <Icon
+              className="text-textSecondary w-[18px]"
+              component={() => <DialChatLogoIcon />}
+            />
+          ),
         }),
       ],
     },
@@ -415,7 +611,7 @@ export function getMenuItems({
       key: 'InsertMenu',
       icon: (
         <Icon
-          className="w-4 stroke-textSecondary"
+          className="w-4 text-textSecondary"
           component={() => <InsertIcon />}
         />
       ),
@@ -430,9 +626,14 @@ export function getMenuItems({
             onCreateTable
           ) as MenuItem[],
         }),
+        getDropdownItem({
+          label: 'Chart',
+          key: insertMenuKeys.chart,
+          children: getCreateChartChildren() as MenuItem[],
+        }),
         getDropdownDivider(),
         getDropdownItem({
-          label: 'New field',
+          label: 'New column',
           key: insertMenuKeys.newField,
           disabled: !selectedCell?.table?.tableName,
           tooltip: !selectedCell?.table?.tableName
@@ -441,19 +642,19 @@ export function getMenuItems({
         }),
         getDropdownItem({
           label: selectedCell?.table?.isTableHorizontal
-            ? 'Field above'
-            : 'Field to the left',
+            ? 'Column above'
+            : 'Column to the left',
           key: insertMenuKeys.insertLeft,
           disabled: !selectedCell?.field?.fieldName,
-          tooltip: !selectedCell?.field ? 'No field cell selected' : undefined,
+          tooltip: !selectedCell?.field ? 'No column cell selected' : undefined,
         }),
         getDropdownItem({
           label: selectedCell?.table?.isTableHorizontal
-            ? 'Field below'
-            : 'Field to the right',
+            ? 'Column below'
+            : 'Column to the right',
           key: insertMenuKeys.insertRight,
           disabled: !selectedCell?.field?.fieldName,
-          tooltip: !selectedCell?.field ? 'No field cell selected' : undefined,
+          tooltip: !selectedCell?.field ? 'No column cell selected' : undefined,
         }),
         getDropdownDivider(),
         getDropdownItem({
@@ -508,7 +709,7 @@ export function getMenuItems({
       key: 'HelpMenu',
       icon: (
         <Icon
-          className="stroke-textSecondary"
+          className="text-textSecondary w-[18px]"
           component={() => <QuestionIcon />}
         />
       ),
@@ -516,10 +717,6 @@ export function getMenuItems({
         getDropdownItem({
           label: 'Keyboard Shortcuts',
           key: helpMenuKeys.shortcuts,
-        }),
-        getDropdownItem({
-          label: 'Toggle grid',
-          key: helpMenuKeys.toggleGrid,
         }),
       ],
     },

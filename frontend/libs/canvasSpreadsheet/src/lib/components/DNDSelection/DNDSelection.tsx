@@ -1,10 +1,11 @@
 import * as PIXI from 'pixi.js';
 import { useCallback, useContext, useEffect, useRef, useState } from 'react';
 
-import { Graphics, useTick } from '@pixi/react';
+import { Graphics } from '@pixi/react';
 
 import { ComponentLayer } from '../../constants';
 import { GridStateContext, GridViewportContext } from '../../context';
+import { useDraw } from '../../hooks';
 import { Rectangle } from '../../types';
 
 export function DNDSelection() {
@@ -50,7 +51,7 @@ export function DNDSelection() {
     getSelectionCoords();
   }, [getSelectionCoords]);
 
-  useTick(() => {
+  const draw = useCallback(() => {
     if (!graphicsRef.current) return;
 
     const graphics = graphicsRef.current;
@@ -65,7 +66,9 @@ export function DNDSelection() {
       .lineStyle(gridSizes.selection.width, borderColor)
       .drawRect(x, y, width, height)
       .endFill();
-  }, true);
+  }, [gridSizes.selection.width, selectionCoords, theme.dndSelection]);
+
+  useDraw(draw);
 
   return <Graphics ref={graphicsRef} zIndex={ComponentLayer.DNDSelection} />;
 }

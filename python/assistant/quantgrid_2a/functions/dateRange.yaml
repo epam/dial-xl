@@ -1,0 +1,4 @@
+name: dateRange
+description: "Generates an array of dates from date to date (inclusive bounds). `increment_type`: 4 - DAY (default), 5 - WORKDAY, 6 - WEEK, 7 - MONTH, 8 - QUARTER, 9 - YEAR"
+signature: 'dateRange(from: date, to: date, increment: number = 1, increment_type: number = 4) => array<date>'
+manual: Generates an array of dates from date 1 to date 2 (inclusive bounds).

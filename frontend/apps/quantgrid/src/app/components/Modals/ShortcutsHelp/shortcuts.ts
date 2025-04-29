@@ -1,6 +1,12 @@
-import { Shortcut, shortcutApi } from '@frontend/common';
+import { isFeatureFlagEnabled, Shortcut, shortcutApi } from '@frontend/common';
 
-export const shortcuts = [
+interface ShortcutModel {
+  key: string;
+  shortcut: string;
+  description: string;
+}
+
+export const shortcuts: ShortcutModel[] = [
   {
     key: '1',
     shortcut: shortcutApi.getLabel(Shortcut.PageUp),
@@ -113,22 +119,22 @@ export const shortcuts = [
   {
     key: '19',
     shortcut: shortcutApi.getLabel(Shortcut.Rename),
-    description: 'Rename table or field',
+    description: 'Rename table or column',
   },
   {
     key: '20',
     shortcut: shortcutApi.getLabel(Shortcut.EditExpression),
-    description: 'Edit field expression',
+    description: 'Edit column expression',
   },
   {
     key: '21',
     shortcut: shortcutApi.getLabel(Shortcut.SwapFieldsLeft),
-    description: 'Swap fields left',
+    description: 'Swap columns left',
   },
   {
     key: '22',
     shortcut: shortcutApi.getLabel(Shortcut.SwapFieldsRight),
-    description: 'Swap fields right',
+    description: 'Swap columns right',
   },
   {
     key: '23',
@@ -155,4 +161,9 @@ export const shortcuts = [
     shortcut: shortcutApi.getLabel(Shortcut.MoveToSheetEnd),
     description: 'Move selection to the sheet end',
   },
-];
+  isFeatureFlagEnabled('askAI') && {
+    key: '28',
+    shortcut: shortcutApi.getLabel(Shortcut.OpenAIPromptBox),
+    description: 'Open Ask AI',
+  },
+].filter(Boolean) as ShortcutModel[];

@@ -19,9 +19,10 @@ export function useDragTable() {
     gridSizes,
     getCell,
     gridCallbacks,
-    selectionEdges,
+    selection$,
     setSelectionEdges,
     setIsTableDragging,
+    isPanModeEnabled,
   } = useContext(GridStateContext);
   const { getCellFromCoords } = useContext(GridViewportContext);
 
@@ -34,6 +35,8 @@ export function useDragTable() {
 
   const onMouseDown = useCallback(
     (e: MouseEvent) => {
+      if (isPanModeEnabled) return;
+
       const mousePosition = getMousePosition(e);
 
       if (!mousePosition) return;
@@ -51,7 +54,7 @@ export function useDragTable() {
       initialMousePosition.current = { x, y };
       selectedCell.current = cell;
     },
-    [getCell, getCellFromCoords, gridSizes]
+    [getCell, getCellFromCoords, gridSizes, isPanModeEnabled]
   );
 
   const onMouseUp = useCallback(
@@ -70,6 +73,8 @@ export function useDragTable() {
 
       const mousePosition = getMousePosition(e);
       if (!mousePosition) return;
+
+      const selectionEdges = selection$.getValue();
 
       if (
         !selectedCell.current ||
@@ -92,7 +97,7 @@ export function useDragTable() {
       setIsTableDragging(false);
       setSelectionEdges(selectionEdges);
     },
-    [gridCallbacks, selectionEdges, setIsTableDragging, setSelectionEdges]
+    [gridCallbacks, selection$, setIsTableDragging, setSelectionEdges]
   );
 
   const onMouseMove = useCallback(
@@ -121,6 +126,7 @@ export function useDragTable() {
       if (!isDragging.current) return;
 
       const { col, row } = getCellFromCoords(x, y);
+      const selectionEdges = selection$.getValue();
 
       if (
         !selectedCell.current ||
@@ -160,7 +166,7 @@ export function useDragTable() {
       getCellFromCoords,
       gridSizes,
       moveViewportToCell,
-      selectionEdges,
+      selection$,
       setIsTableDragging,
       setSelectionEdges,
     ]

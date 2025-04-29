@@ -46,7 +46,10 @@ export const useHideCharts = (
   useEffect(() => {
     if (!api) return;
 
-    const unsubscribe = api.gridViewportSubscription(updateHiddenCharts);
+    // setTimeout to wait when viewportNode changes its size (e.g. after panel collapse) to calculate hidden charts properly
+    const unsubscribe = api.gridViewportSubscription(() =>
+      setTimeout(() => updateHiddenCharts(), 0)
+    );
 
     return () => {
       unsubscribe();

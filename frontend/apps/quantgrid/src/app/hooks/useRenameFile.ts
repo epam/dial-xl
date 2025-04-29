@@ -8,11 +8,7 @@ import {
 } from '@frontend/common';
 
 import { FileReference } from '../common';
-import {
-  renameChartKeysProject,
-  renameProjectHistory,
-  renameRecentProject,
-} from '../services';
+import { renameProjectHistory, renameRecentProject } from '../services';
 import { displayToast } from '../utils';
 import { useApiRequests } from './useApiRequests';
 
@@ -73,7 +69,6 @@ export function useRenameFile() {
 
       if (isProject) {
         renameProjectHistory(initialFileName, newName, bucket, path);
-        renameChartKeysProject(initialFileName, newName, bucket, path);
         renameRecentProject(initialFileName, newName, bucket, path);
       }
 

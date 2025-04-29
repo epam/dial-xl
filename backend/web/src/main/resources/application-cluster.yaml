@@ -7,8 +7,8 @@ server.port: ${WEB_SERVER_PORT}
 
 web:
   cluster:
+    namespace: ${WEB_CLUSTER_NAMESPACE:qg_cluster}
     nodeType: ${WEB_NODE_TYPE}
-    nodeRoutingType: ${WEB_ROUTING_TYPE:}
   redis: |
     clusterServersConfig:
         nodeAddresses: ${WEB_REDIS_ADDRESS}
@@ -20,15 +20,12 @@ web:
     dial:
       enabled: ${WEB_STORAGE_DIAL_INPUT_ENABLED:false}
       baseUrl: ${WEB_STORAGE_DIAL_BASE_URL}
-  heartbeatPeriodMillis: 60000
+  heartbeatPeriodMillis: 5000
 
 server:
   max-http-request-header-size: 40KB
 
 spring:
-  mvc:
-    async:
-      request-timeout: 600000 # 10 min
   security:
     enabled: ${SECURITY_ENABLED:false}
     oauth2:

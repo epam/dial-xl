@@ -1,0 +1,7 @@
+name: last
+description: Returns last element(s) of array
+signature: 'array<T>.last() => T` or `array<T>.last(count: number) => array<T>'
+manual: >-
+  `last` returns either the last element of array of the new array from last few entries.
+  When `count` is not specified, returns element type. When count is specified, returns array of last few entries.
+  If array is empty, returns `NA`.

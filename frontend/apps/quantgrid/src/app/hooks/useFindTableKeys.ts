@@ -9,19 +9,21 @@ export function useFindTableKeys() {
   const { viewGridData } = useContext(ViewportContext);
 
   const findTableKeys = useCallback(
-    (table: ParsedTable, row: number): string | number => {
+    (table: ParsedTable, col: number, row: number): string | number => {
       const tableKeys = table.fields
         .filter((f) => f.isKey)
         .map((f) => f.key.fieldName);
 
-      const [startRow] = table.getPlacement();
+      const [startRow, startCol] = table.getPlacement();
       const keyValues: string[] = [];
       const isTableHorizontal = table.getIsTableDirectionHorizontal();
-      const tableRow =
-        Math.abs(row - startRow) -
-        table.getTableNameHeaderHeight() -
-        table.getTotalSize() -
-        (isTableHorizontal ? 0 : table.getTableFieldsHeaderHeight());
+      const totalSize = table.getTotalSize();
+      const tableRow = isTableHorizontal
+        ? col - startCol - totalSize - (table.getIsTableFieldsHidden() ? 0 : 1)
+        : Math.abs(row - startRow) -
+          table.getTableNameHeaderHeight() -
+          totalSize -
+          (isTableHorizontal ? 0 : table.getTableFieldsHeaderHeight());
 
       tableKeys.forEach((key) => {
         const tableData = viewGridData.getTableData(table.tableName);

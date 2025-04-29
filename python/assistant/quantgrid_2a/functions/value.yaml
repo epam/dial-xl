@@ -1,0 +1,4 @@
+name: value
+description: Converts primitive to number value
+signature: 'primitive.value() => number'
+manual: Converts primitive to `number` type.

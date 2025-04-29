@@ -5,6 +5,7 @@ import {
   CellPlacement,
   defaultFieldName,
   FormulasContextMenuKeyData,
+  InsertChartContextMenuKeyData,
   isComplexType,
   overrideComplexFieldMessage,
   overrideKeyFieldMessage,
@@ -13,7 +14,7 @@ import {
 
 import { useAIPrompt } from '../../../hooks/useAIPrompt';
 import { GridApi, GridCallbacks } from '../../../types';
-import { swapFields } from '../../../utils';
+import { getCellContext } from '../../../utils';
 import { GridCellEditorEventType } from '../../CellEditor';
 import { GridEvent } from '../../GridApiWrapper';
 import { spreadsheetMenuKeys as menuKey, totalItems } from './config';
@@ -123,10 +124,10 @@ export function useOnClickContextMenu({ api, gridCallbacks }: Props) {
           }
           break;
         case menuKey.swapLeft:
-          swapFields(api, gridCallbacks, 'left');
+          callbacks.onSwapFields?.('left');
           break;
         case menuKey.swapRight:
-          swapFields(api, gridCallbacks, 'right');
+          callbacks.onSwapFields?.('right');
           break;
         case menuKey.increaseFieldWidth:
           if (currentTableName && currentFieldName) {
@@ -142,6 +143,16 @@ export function useOnClickContextMenu({ api, gridCallbacks }: Props) {
               currentTableName,
               currentFieldName
             );
+          }
+          break;
+        case menuKey.fieldsAutoFit:
+          if (currentTableName) {
+            callbacks.onAutoFitFields?.(currentTableName);
+          }
+          break;
+        case menuKey.removeFieldSizes:
+          if (currentTableName) {
+            callbacks.onRemoveFieldSizes?.(currentTableName);
           }
           break;
         case menuKey.insertFieldToLeft:
@@ -171,9 +182,12 @@ export function useOnClickContextMenu({ api, gridCallbacks }: Props) {
           break;
         }
         case menuKey.addFieldOrRow: {
-          if (currentCell?.table) {
+          // Get cell context, because it is a menu item for the empty cell
+          const contextCell = getCellContext(api.getCell, col, row);
+
+          if (contextCell?.table) {
             callbacks.onAddField?.(
-              currentCell.table.tableName,
+              contextCell.table.tableName,
               defaultFieldName
             );
           }
@@ -198,6 +212,11 @@ export function useOnClickContextMenu({ api, gridCallbacks }: Props) {
             });
           }
           break;
+        case menuKey.downloadTable:
+          if (currentCell?.table) {
+            callbacks.onDownloadTable?.(currentCell.table.tableName);
+          }
+          break;
         case menuKey.cloneTable:
           if (currentTableName) {
             callbacks.onCloneTable?.(currentTableName);
@@ -205,12 +224,18 @@ export function useOnClickContextMenu({ api, gridCallbacks }: Props) {
           break;
         case menuKey.toggleTableNameHeader:
           if (currentTableName) {
-            callbacks.onToggleTableHeaderVisibility?.(currentTableName);
+            callbacks.onToggleTableTitleOrHeaderVisibility?.(
+              currentTableName,
+              true
+            );
           }
           break;
         case menuKey.toggleTableFieldsHeader:
           if (currentTableName) {
-            callbacks.onToggleTableFieldsVisibility?.(currentTableName);
+            callbacks.onToggleTableTitleOrHeaderVisibility?.(
+              currentTableName,
+              false
+            );
           }
           break;
         case menuKey.flipTableToHorizontal:
@@ -220,35 +245,64 @@ export function useOnClickContextMenu({ api, gridCallbacks }: Props) {
           }
           break;
         case menuKey.addKey:
-          if (currentFieldName && currentTableName) {
-            callbacks.onAddKey?.(currentTableName, currentFieldName);
-          }
-          break;
         case menuKey.removeKey:
           if (currentFieldName && currentTableName) {
-            callbacks.onRemoveKey?.(currentTableName, currentFieldName);
+            callbacks.onChangeFieldKey?.(
+              currentTableName,
+              currentFieldName,
+              action === menuKey.removeKey
+            );
+          }
+          break;
+        case menuKey.addIndex:
+        case menuKey.removeIndex:
+          if (currentFieldName && currentTableName) {
+            callbacks.onChangeFieldIndex?.(
+              currentTableName,
+              currentFieldName,
+              action === menuKey.removeIndex
+            );
+          }
+          break;
+        case menuKey.addDescription:
+          if (currentTableName && currentFieldName && (data as any).fieldName) {
+            callbacks.onChangeDescription?.(
+              currentTableName,
+              currentFieldName,
+              (data as any).fieldName
+            );
+          }
+          break;
+        case menuKey.removeDescription:
+          if (currentTableName && currentFieldName) {
+            callbacks.onChangeDescription?.(
+              currentTableName,
+              currentFieldName,
+              '',
+              true
+            );
           }
           break;
         case menuKey.addDimension:
-          if (currentFieldName && currentTableName) {
-            callbacks.onAddDimension?.(currentTableName, currentFieldName);
-          }
-          break;
         case menuKey.removeDimension:
           if (currentFieldName && currentTableName) {
-            callbacks.onRemoveDimension?.(currentTableName, currentFieldName);
+            callbacks.onChangeFieldDimension?.(
+              currentTableName,
+              currentFieldName,
+              action === menuKey.removeDimension
+            );
           }
           break;
         case menuKey.addOverride:
         case menuKey.editOverride:
           if (currentCell?.field?.isKey) {
-            callbacks.onCellEditorMessage?.(overrideKeyFieldMessage);
+            callbacks.onMessage?.(overrideKeyFieldMessage);
 
             break;
           }
 
           if (isComplexType(currentCell?.field)) {
-            callbacks.onCellEditorMessage?.(overrideComplexFieldMessage);
+            callbacks.onMessage?.(overrideComplexFieldMessage);
 
             break;
           }
@@ -279,13 +333,19 @@ export function useOnClickContextMenu({ api, gridCallbacks }: Props) {
           }
           break;
         case menuKey.addChart:
-          if (currentCell?.table?.tableName) {
-            callbacks.onAddChart?.(currentCell.table.tableName);
+          if (currentCell?.table?.tableName && (data as any).chartType) {
+            callbacks.onAddChart?.(
+              currentCell.table.tableName,
+              (data as any).chartType
+            );
           }
           break;
         case menuKey.convertToChart:
-          if (currentCell?.table?.tableName) {
-            callbacks.onConvertToChart?.(currentCell.table.tableName);
+          if (currentCell?.table?.tableName && (data as any).chartType) {
+            callbacks.onConvertToChart?.(
+              currentCell.table.tableName,
+              (data as any).chartType
+            );
           }
           break;
         case menuKey.convertToTable:
@@ -294,10 +354,10 @@ export function useOnClickContextMenu({ api, gridCallbacks }: Props) {
           }
           break;
         case menuKey.removeNote:
-          if (currentCell?.table?.tableName && currentCell?.field) {
+          if (currentCell?.table?.tableName) {
             callbacks.onRemoveNote?.(
               currentCell.table.tableName,
-              currentCell.field.fieldName
+              currentCell.field?.fieldName
             );
           }
           break;
@@ -398,6 +458,23 @@ export function useOnClickContextMenu({ api, gridCallbacks }: Props) {
               currentFieldName,
               totalType
             );
+          }
+          break;
+        case menuKey.allTotals:
+          if (currentTableName && currentFieldName) {
+            callbacks.onAddAllFieldTotals?.(currentTableName, currentFieldName);
+          }
+          break;
+        case menuKey.allTotalsSeparateTable:
+          if (currentTableName) {
+            callbacks.onAddAllTableTotals?.(currentTableName);
+          }
+          break;
+        case menuKey.insertChart:
+          if ((data as any as InsertChartContextMenuKeyData).chartType) {
+            const { chartType } = data as InsertChartContextMenuKeyData;
+
+            callbacks.onInsertChart?.(chartType);
           }
           break;
       }

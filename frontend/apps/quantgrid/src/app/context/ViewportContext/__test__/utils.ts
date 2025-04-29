@@ -37,11 +37,10 @@ export const generateTablesWithData = (
 
     if (tableParams.hasErrors) {
       errorsMessages[fields[0].key.fieldName] =
-        'Some error in field ' + fields[0].key.fieldName;
+        'Some error in column ' + fields[0].key.fieldName;
     }
 
     const rowCount = tableParams.rowCount || defaultRowCount;
-
     const data: Record<string, string[]> = {};
 
     for (const {
@@ -91,6 +90,7 @@ export const generateTablesWithData = (
           data: sendData,
           endRow: endRow.toString(),
           startRow: startRow.toString(),
+          totalRows: rowCount.toString(),
           isNested: false,
           errorMessage: errorsMessages[fieldName],
           type: ColumnDataType.STRING,

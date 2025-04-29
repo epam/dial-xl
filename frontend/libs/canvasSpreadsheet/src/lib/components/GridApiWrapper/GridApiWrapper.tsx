@@ -1,14 +1,13 @@
 import {
-  forwardRef,
+  MutableRefObject,
   RefObject,
   useCallback,
   useContext,
   useEffect,
-  useImperativeHandle,
   useMemo,
   useRef,
 } from 'react';
-import { BehaviorSubject, Subject } from 'rxjs';
+import { Subject } from 'rxjs';
 
 import { GridStateContext, GridViewportContext } from '../../context';
 import {
@@ -16,11 +15,12 @@ import {
   useDragTable,
   useMouseWheel,
   useNavigation,
+  usePan,
   useRowNumberWidth,
   useSelectionEvents,
   useShortcuts,
 } from '../../hooks';
-import { Edges, GridApi, SelectionEdges } from '../../types';
+import { GridApi, SelectionEdges } from '../../types';
 import {
   getSymbolWidth,
   isCellEditorFocused,
@@ -44,10 +44,14 @@ export interface WindowTestUtils extends Window {
 
 declare let window: WindowTestUtils;
 
-export const GridApiWrapper = forwardRef<GridApi, unknown>((_, gridApiRef) => {
+export const GridApiWrapper = ({
+  gridApiRef,
+}: {
+  gridApiRef: MutableRefObject<GridApi | null>;
+}) => {
   const {
     setDottedSelectionEdges,
-    selectionEdges,
+    selection$,
     setSelectionEdges,
     getCell,
     setCellValue,
@@ -57,6 +61,7 @@ export const GridApiWrapper = forwardRef<GridApi, unknown>((_, gridApiRef) => {
     setDNDSelection,
     theme,
     getBitmapFontName,
+    isPanModeEnabled,
   } = useContext(GridStateContext);
   const {
     viewportEdges,
@@ -71,6 +76,7 @@ export const GridApiWrapper = forwardRef<GridApi, unknown>((_, gridApiRef) => {
     useNavigation();
 
   useMouseWheel();
+  usePan();
   useShortcuts(gridApiRef as RefObject<GridApi>);
   useDottedSelection(gridApiRef as RefObject<GridApi>);
   useSelectionEvents();
@@ -90,10 +96,6 @@ export const GridApiWrapper = forwardRef<GridApi, unknown>((_, gridApiRef) => {
   const getViewportCoords = useCallback(() => {
     return viewportCoords.current;
   }, [viewportCoords]);
-
-  const getSelection = useCallback(() => {
-    return selectionEdges;
-  }, [selectionEdges]);
 
   const getGridSizes = useCallback(() => {
     return gridSizes;
@@ -127,7 +129,7 @@ export const GridApiWrapper = forwardRef<GridApi, unknown>((_, gridApiRef) => {
     const fontName = getBitmapFontName(cellFontFamily, cellFontColorName);
 
     return getSymbolWidth(fontSize, fontName);
-  }, [getBitmapFontName, gridSizes, theme]);
+  }, [getBitmapFontName, gridSizes.cell, theme.cell]);
 
   const tooltipEvent$ = useRef<Subject<GridTooltipEvent>>(new Subject());
 
@@ -144,18 +146,26 @@ export const GridApiWrapper = forwardRef<GridApi, unknown>((_, gridApiRef) => {
     new Subject()
   );
 
-  const openContextMenuAtCoords = useCallback(
-    (x: number, y: number, col: number, row: number) => {
-      contextMenuEvent$.current.next({
-        type: GridContextMenuEventType.Open,
-        x,
-        y,
-        col,
-        row,
-      });
-    },
-    []
-  );
+  const openContextMenuAtCoords: GridApi['openContextMenuAtCoords'] =
+    useCallback(
+      (
+        x: number,
+        y: number,
+        col: number,
+        row: number,
+        source = 'canvas-element'
+      ) => {
+        contextMenuEvent$.current.next({
+          type: GridContextMenuEventType.Open,
+          x,
+          y,
+          col,
+          row,
+          source,
+        });
+      },
+      []
+    );
 
   // TODO: move cell editor events to separate hook
   const cellEditorEvent$ = useRef<Subject<GridCellEditorEvent>>(new Subject());
@@ -229,7 +239,8 @@ export const GridApiWrapper = forwardRef<GridApi, unknown>((_, gridApiRef) => {
       },
     };
   }, []);
-  const selection = useMemo(() => selectionEdges, [selectionEdges]);
+
+  // const selection = useMemo(() => selectionEdges, [selectionEdges]);
 
   const updateSelectionAfterDataChanged = useCallback(
     (selection: SelectionEdges) => {
@@ -249,99 +260,92 @@ export const GridApiWrapper = forwardRef<GridApi, unknown>((_, gridApiRef) => {
     [setDottedSelectionEdges]
   );
 
-  const selection$: BehaviorSubject<Edges | null> = useMemo(
-    () => new BehaviorSubject<Edges | null>(null),
-    []
-  );
-
   useEffect(() => {
-    selection$.next(selectionEdges);
-  }, [selectionEdges, selection$]);
+    if (!gridApiRef) return;
 
-  useImperativeHandle(
+    if (gridApiRef.current === null) {
+      gridApiRef.current = {} as GridApi;
+    }
+
+    gridApiRef.current.arrowNavigation = arrowNavigation;
+    gridApiRef.current.cellEditorEvent$ = cellEditorEvent$.current;
+    gridApiRef.current.clearSelection = clearSelection;
+    gridApiRef.current.closeTooltip = closeTooltip;
+    gridApiRef.current.contextMenuEvent$ = contextMenuEvent$.current;
+    gridApiRef.current.event = event;
+    gridApiRef.current.events$ = events$;
+    gridApiRef.current.getCanvasSymbolWidth = getCanvasSymbolWidth;
+    gridApiRef.current.getCell = getCell;
+    gridApiRef.current.getCellFromCoords = getCellFromCoords;
+    gridApiRef.current.getCellX = getCellX;
+    gridApiRef.current.getCellY = getCellY;
+    gridApiRef.current.getGridSizes = getGridSizes;
+    gridApiRef.current.getViewportCoords = getViewportCoords;
+    gridApiRef.current.getViewportEdges = getViewportEdges;
+    gridApiRef.current.gridViewportSubscription = gridViewportSubscription;
+    gridApiRef.current.hideCellEditor = hideCellEditor;
+    gridApiRef.current.hideDottedSelection = hideDottedSelection;
+    gridApiRef.current.insertCellEditorValue = insertCellEditorValue;
+    gridApiRef.current.isCellEditorFocused = isCellEditorFocused;
+    gridApiRef.current.isCellEditorOpen = isCellEditorOpen;
+    gridApiRef.current.moveViewport = moveViewport;
+    gridApiRef.current.moveViewportToCell = moveViewportToCell;
+    gridApiRef.current.openContextMenuAtCoords = openContextMenuAtCoords;
+    gridApiRef.current.openTooltip = openTooltip;
+    gridApiRef.current.selection$ = selection$;
+    gridApiRef.current.setCellEditorValue = setCellEditorValue;
+    gridApiRef.current.setCellValue = setCellValue;
+    gridApiRef.current.setPointClickError = setPointClickError;
+    gridApiRef.current.setPointClickValue = setPointClickValue;
+    gridApiRef.current.showCellEditor = showCellEditor;
+    gridApiRef.current.showDottedSelection = showDottedSelection;
+    gridApiRef.current.tabNavigation = tabNavigation;
+    gridApiRef.current.tooltipEvent$ = tooltipEvent$.current;
+    gridApiRef.current.updateSelection = setSelectionEdges;
+    gridApiRef.current.updateSelectionAfterDataChanged =
+      updateSelectionAfterDataChanged;
+    gridApiRef.current.getColumnContentMaxSymbols = getColumnContentMaxSymbols;
+    gridApiRef.current.setDNDSelection = setDNDSelection;
+    gridApiRef.current.dndSelection = dndSelection;
+    gridApiRef.current.isPanModeEnabled = isPanModeEnabled;
+  }, [
+    arrowNavigation,
+    clearSelection,
+    closeTooltip,
+    dndSelection,
+    event,
+    events$,
+    getCanvasSymbolWidth,
+    getCell,
+    getCellFromCoords,
+    getCellX,
+    getCellY,
+    getColumnContentMaxSymbols,
+    getGridSizes,
+    getViewportCoords,
+    getViewportEdges,
     gridApiRef,
-    () => ({
-      arrowNavigation,
-      cellEditorEvent$: cellEditorEvent$.current,
-      clearSelection,
-      closeTooltip,
-      contextMenuEvent$: contextMenuEvent$.current,
-      event,
-      events$,
-      getCanvasSymbolWidth,
-      getCell,
-      getCellFromCoords,
-      getCellX,
-      getCellY,
-      getGridSizes,
-      getSelection,
-      getViewportCoords,
-      getViewportEdges,
-      gridViewportSubscription,
-      hideCellEditor,
-      hideDottedSelection,
-      insertCellEditorValue,
-      isCellEditorFocused,
-      isCellEditorOpen,
-      moveViewport,
-      moveViewportToCell,
-      openContextMenuAtCoords,
-      openTooltip,
-      selection,
-      selection$,
-      setCellEditorValue,
-      setCellValue,
-      setPointClickError,
-      setPointClickValue,
-      showCellEditor,
-      showDottedSelection,
-      tabNavigation,
-      tooltipEvent$: tooltipEvent$.current,
-      updateSelection: setSelectionEdges,
-      updateSelectionAfterDataChanged,
-      getColumnContentMaxSymbols,
-      setDNDSelection,
-      dndSelection,
-    }),
-    [
-      arrowNavigation,
-      clearSelection,
-      closeTooltip,
-      event,
-      events$,
-      getCanvasSymbolWidth,
-      getCell,
-      getCellFromCoords,
-      getCellX,
-      getCellY,
-      getGridSizes,
-      getSelection,
-      getViewportCoords,
-      getViewportEdges,
-      gridViewportSubscription,
-      hideCellEditor,
-      hideDottedSelection,
-      insertCellEditorValue,
-      moveViewport,
-      moveViewportToCell,
-      openContextMenuAtCoords,
-      openTooltip,
-      selection,
-      selection$,
-      setCellEditorValue,
-      setCellValue,
-      setPointClickError,
-      setPointClickValue,
-      showCellEditor,
-      showDottedSelection,
-      tabNavigation,
-      setSelectionEdges,
-      updateSelectionAfterDataChanged,
-      getColumnContentMaxSymbols,
-      setDNDSelection,
-      dndSelection,
-    ]
-  );
+    gridViewportSubscription,
+    hideCellEditor,
+    hideDottedSelection,
+    insertCellEditorValue,
+    moveViewport,
+    moveViewportToCell,
+    openContextMenuAtCoords,
+    openTooltip,
+    selection$,
+    setCellEditorValue,
+    setCellValue,
+    setDNDSelection,
+    setPointClickError,
+    setPointClickValue,
+    setSelectionEdges,
+    showCellEditor,
+    showDottedSelection,
+    tabNavigation,
+    updateSelectionAfterDataChanged,
+    isPanModeEnabled,
+  ]);
 
   useEffect(() => {
     if (!gridApiRef) return;
@@ -352,4 +356,4 @@ export const GridApiWrapper = forwardRef<GridApi, unknown>((_, gridApiRef) => {
   }, [(gridApiRef as RefObject<GridApi>).current]);
 
   return null;
-});
+};

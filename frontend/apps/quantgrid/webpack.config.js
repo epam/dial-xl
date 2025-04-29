@@ -15,7 +15,7 @@ module.exports = composePlugins(withNx(), withReact(), (config) => {
 
   config.plugins.push(
     new MonacoWebpackPlugin({
-      languages: [],
+      languages: ['markdown', 'python'],
     })
   );
 

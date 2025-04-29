@@ -1,250 +1,139 @@
+import { Expose } from 'class-transformer';
+
 import {
   BinOpExpression,
-  ConstNumberExpression,
-  ConstStringExpression,
-  CurrentFieldExpression,
   Expression,
+  FunctionExpression,
+  UniOpExpression,
 } from './ast';
-import { ShortDSLPlacement } from './parser';
+import { ParsedText } from './ParsedText';
+import { ModifyFilterProps, ShortDSLPlacement } from './parser';
 import {
-  findFieldBinOpExpression,
+  findFieldBinOpExpressions,
+  findFieldExpressionsWithParent,
   findFieldNameInExpression,
+  unescapeValue,
 } from './services';
+import {
+  getModifiedFilters,
+  handleBinOpExpression,
+  handleFunctionExpression,
+  handleUniOpExpression,
+  isConstNumberOrStringExpression,
+} from './services/filterUtils';
+import { Span } from './Span';
 
-export type NumericFilter = { operator: string; value: string };
-type ExpressionResult = { [fieldName: string]: string[] };
-type ValidExpression =
-  | ConstNumberExpression
-  | ConstStringExpression
-  | CurrentFieldExpression;
-type GetFilterExpressionProps = {
-  excludeFieldName?: string;
-  oldFieldName?: string;
-  newFieldName?: string;
+export type ParsedConditionFilter = {
+  operator: string;
+  value: string;
+  secondaryValue?: string;
 };
+
 export class ParsedFilter {
+  @Expose()
+  span: Span | undefined;
+
+  @Expose()
+  formula: ParsedText | undefined;
+
   constructor(
+    span: Span | undefined,
+    formula: ParsedText | undefined,
     public dslPlacement: ShortDSLPlacement | undefined,
+    public filterExpressionDSLPlacement: ShortDSLPlacement | undefined,
     public parsedExpression: Expression | undefined,
     public text: string
-  ) {}
+  ) {
+    this.span = span;
+    this.formula = formula;
+  }
 
   /**
-   * Recursively traverses the expression tree and builds an array of strings with filter expression
+   * Collect string filter expressions for the table
+   * Modify filter props can be used to modify filters:
+   * excludeFiledName - to remove filters for the field
+   * oldFieldName/newFieldName - to rename existing filter for the field
+   * fieldName/conditionFilter -to add new filter for the field
    *
-   * @param fieldName - the field name to apply the filter
-   * @param operator - the operator to apply the filter
-   * @param value - the value to apply the filter
-   *
-   * @returns an array of strings with filter expression
+   * @param props - the modify filter props
    */
-  public applyNumericFilter(
-    fieldName: string,
-    operator: string,
-    value: number | null
-  ): string[] {
+  public getFilterExpressionsWithModify(props: ModifyFilterProps): string[] {
     if (!this.parsedExpression) return [];
 
-    const results: ExpressionResult = {};
-    let isFieldFilterFound = false;
+    const fieldFilters: Map<string, string[]> = getModifiedFilters(
+      this.parsedExpression,
+      props
+    );
 
-    function traverseExpression(expr: any): ValidExpression | null {
-      if (!expr) {
-        return null;
-      }
-
-      if (expr instanceof BinOpExpression) {
-        const leftResult = traverseExpression(expr.left);
-        const rightResult = traverseExpression(expr.right);
-
-        if (leftResult && rightResult) {
-          const { fieldExpression, constExpression } =
-            ParsedFilter.getFieldAndConstExpressions(leftResult, rightResult);
-
-          if (!fieldExpression || !constExpression) return null;
-
-          if (
-            fieldExpression.fieldName === fieldName &&
-            !isFieldFilterFound &&
-            value
-          ) {
-            if (!results[fieldExpression.fieldName]) {
-              results[fieldExpression.fieldName] = [];
-            }
-            results[fieldExpression.fieldName].push(
-              `[${fieldName}] ${operator} ${value}`
-            );
-            isFieldFilterFound = true;
-          } else if (fieldExpression.fieldName !== fieldName) {
-            const convertedValue =
-              ParsedFilter.getConvertedFilterValue(constExpression);
-            if (!results[fieldExpression.fieldName]) {
-              results[fieldExpression.fieldName] = [];
-            }
-            results[fieldExpression.fieldName].push(
-              `${fieldExpression.fullFieldName} ${expr.operator} ${convertedValue}`
-            );
-          }
-        }
-
-        return null;
-      }
-
-      if (ParsedFilter.isValidExpression(expr)) {
-        return expr;
-      }
-
-      return traverseExpression(expr.left) || traverseExpression(expr.right);
-    }
-
-    traverseExpression(this.parsedExpression);
-
-    if (!isFieldFilterFound && value) {
-      if (!results[fieldName]) {
-        results[fieldName] = [];
-      }
-
-      results[fieldName].push(`[${fieldName}] ${operator} ${value}`);
-    }
-
-    return Object.keys(results).map((field) => {
-      if (results[field].length > 1) {
-        return `(${results[field].join(' OR ')})`;
+    return Array.from(fieldFilters.entries()).map(([, filters]) => {
+      if (filters.length > 1) {
+        return `(${filters.join(' OR ')})`;
       } else {
-        return results[field][0];
+        return filters[0];
       }
     });
   }
 
   /**
-   * Recursively traverses the expression tree and builds an array of strings with filter expression
-   * excluding the field name passed in the argument
-   *
-   * @param props {GetFilterExpressionProps} - object with props
-   * excludeFieldName - the field name to exclude from the filter
-   * oldFieldName - the old field name to replace in the filter
-   * newFieldName - the new field name to replace in the filter
-   * @returns an array of strings with filter expression
-   */
-  public getFilterExpressions(props: GetFilterExpressionProps): string[] {
-    if (!this.parsedExpression) return [];
-
-    const { excludeFieldName = '', oldFieldName, newFieldName } = props;
-    const results: ExpressionResult = {};
-
-    function traverseExpression(expr: any): ValidExpression | null {
-      if (!expr) {
-        return null;
-      }
-
-      if (expr instanceof BinOpExpression) {
-        const leftResult = traverseExpression(expr.left);
-        const rightResult = traverseExpression(expr.right);
-
-        if (leftResult && rightResult) {
-          const { fieldExpression, constExpression } =
-            ParsedFilter.getFieldAndConstExpressions(leftResult, rightResult);
-
-          if (!fieldExpression || !constExpression) return null;
-
-          if (fieldExpression.fieldName !== excludeFieldName) {
-            const convertedValue =
-              ParsedFilter.getConvertedFilterValue(constExpression);
-            const fieldName =
-              oldFieldName && newFieldName
-                ? newFieldName
-                : fieldExpression.fieldName;
-
-            if (!results[fieldName]) {
-              results[fieldName] = [];
-            }
-            results[fieldName].push(
-              `[${fieldName}] ${expr.operator} ${convertedValue}`
-            );
-          }
-        }
-
-        return null;
-      }
-
-      if (ParsedFilter.isValidExpression(expr)) {
-        return expr;
-      }
-
-      return traverseExpression(expr.left) || traverseExpression(expr.right);
-    }
-
-    traverseExpression(this.parsedExpression);
-
-    return Object.keys(results).map((field) => {
-      if (results[field].length > 1) {
-        return `(${results[field].join(' OR ')})`;
-      } else {
-        return results[field][0];
-      }
-    });
-  }
-
-  /**
-   * Get the numeric filter operator and value for the field
+   * Get the text or numeric condition filter operator and value for the field
    *
    * @param fieldName - the field name to get the filter value
    */
-  public getFieldNumericFilterValue(
+  public getFieldConditionFilter(
     fieldName: string
-  ): NumericFilter | undefined {
+  ): ParsedConditionFilter | undefined {
     if (!this.parsedExpression) return;
 
-    const fieldBinOpExpressions = this.findFieldBinOpExpressions(fieldName);
+    const expressionsWithParents = findFieldExpressionsWithParent(
+      this.parsedExpression,
+      fieldName
+    );
 
-    if (fieldBinOpExpressions.length === 0) return;
+    if (expressionsWithParents.length === 0) return;
 
-    const expression = fieldBinOpExpressions[0];
-    let value;
+    for (const { expression, parent } of expressionsWithParents) {
+      let result: ParsedConditionFilter | undefined;
 
-    if (expression.right instanceof ConstNumberExpression) {
-      value = expression.right.text;
-    } else if (expression.left instanceof ConstNumberExpression) {
-      value = expression.left.text;
+      if (parent instanceof BinOpExpression) {
+        result = handleBinOpExpression(expression, parent);
+      } else if (parent instanceof UniOpExpression) {
+        result = handleUniOpExpression(expression, parent);
+      } else if (expression instanceof FunctionExpression) {
+        result = handleFunctionExpression(expression);
+      }
+
+      if (result) return result;
     }
 
-    return value === undefined
-      ? undefined
-      : {
-          operator: expression.operator,
-          value,
-        };
+    return;
   }
 
   /**
-   * Get the text filter values for the field
+   * Get the filter list values for the field
    *
    * @param fieldName - the field name to get the filter values
    */
-  public getFieldTextFilterValues(fieldName: string): string[] {
+  public getFieldListFilterValues(fieldName: string): string[] {
     if (!this.parsedExpression) return [];
 
-    const fieldBinOpExpressions = this.findFieldBinOpExpressions(fieldName);
+    const fieldBinOpExpressions = findFieldBinOpExpressions(
+      this.parsedExpression,
+      fieldName
+    );
 
     if (fieldBinOpExpressions.length === 0) return [];
 
     const values = new Set<string>();
 
     fieldBinOpExpressions.forEach((expression) => {
-      if (
-        expression.right instanceof ConstNumberExpression ||
-        expression.right instanceof ConstStringExpression
-      ) {
-        values.add(expression.right.text.toString());
-      } else if (
-        expression.left instanceof ConstNumberExpression ||
-        expression.left instanceof ConstStringExpression
-      ) {
-        values.add(expression.left.text.toString());
+      if (isConstNumberOrStringExpression(expression.right)) {
+        values.add(unescapeValue(expression.right.text));
+      } else if (isConstNumberOrStringExpression(expression.left)) {
+        values.add(unescapeValue(expression.left.text));
       }
     });
 
-    return Array.from(values);
+    return Array.from(values).map((v) => unescapeValue(v));
   }
 
   /**
@@ -258,67 +147,5 @@ export class ParsedFilter {
     const expressions = findFieldNameInExpression(this.parsedExpression);
 
     return !!expressions.find((e) => e?.fieldName === fieldName);
-  }
-
-  /**
-   * Find the bin op expressions that contain the field name
-   *
-   * @param fieldName - the field name to find the bin op expressions
-   */
-  private findFieldBinOpExpressions(fieldName: string): BinOpExpression[] {
-    if (!this.parsedExpression) return [];
-
-    const binOpExpressions = findFieldBinOpExpression(this.parsedExpression);
-
-    return binOpExpressions.filter((e) => {
-      const { right, left } = e;
-
-      return (
-        (right instanceof CurrentFieldExpression &&
-          right.fieldName === fieldName) ||
-        (left instanceof CurrentFieldExpression && left.fieldName === fieldName)
-      );
-    });
-  }
-
-  private static isValidExpression(expr: any): boolean {
-    return (
-      expr instanceof CurrentFieldExpression ||
-      expr instanceof ConstNumberExpression ||
-      expr instanceof ConstStringExpression
-    );
-  }
-
-  private static getFieldAndConstExpressions(
-    leftResult: any,
-    rightResult: any
-  ): {
-    fieldExpression: CurrentFieldExpression | null;
-    constExpression: ConstNumberExpression | ConstStringExpression | null;
-  } {
-    const fieldExpression =
-      leftResult instanceof CurrentFieldExpression
-        ? leftResult
-        : rightResult instanceof CurrentFieldExpression
-        ? rightResult
-        : null;
-    const constExpression =
-      leftResult instanceof ConstNumberExpression ||
-      leftResult instanceof ConstStringExpression
-        ? leftResult
-        : rightResult instanceof ConstNumberExpression ||
-          rightResult instanceof ConstStringExpression
-        ? rightResult
-        : null;
-
-    return { fieldExpression, constExpression };
-  }
-
-  private static getConvertedFilterValue(
-    constExpression: ConstNumberExpression | ConstStringExpression
-  ): string | number {
-    return constExpression instanceof ConstNumberExpression
-      ? constExpression.text
-      : `"${constExpression.text}"`;
   }
 }

@@ -19,7 +19,7 @@ export function SearchButton() {
       )}
       icon={
         <Icon
-          className="stroke-textSecondary"
+          className="text-textSecondary w-[18px]"
           component={() => <SearchIcon />}
         />
       }

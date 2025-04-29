@@ -18,6 +18,8 @@ export function findTableNameInExpression(
     const tableReference = new TableReferenceExpression(
       text,
       start.start,
+      stop?.stop || start.start + text.length,
+      start.start,
       stop?.stop || start.start + text.length
     );
 

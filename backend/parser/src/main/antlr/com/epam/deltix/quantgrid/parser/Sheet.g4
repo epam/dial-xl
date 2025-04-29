@@ -4,23 +4,24 @@ sheet: (lb | table_definition | python_definition)* EOF;
 formula: expression EOF;
 
 /* * Parser Rules */
-number: FLOAT;
+number: '-'? FLOAT;
 string: STRING_LITERAL;
+bool: 'TRUE' | 'FALSE';
+na: 'NA';
+query_row: '$';
+uni_op: 'NOT' | '-';
+bin_pow: '^';
+bin_mul_div_mod: '*' | '/' | 'MOD';
+bin_add_sub: '+' | '-';
+bin_concat: '&';
+bin_compare: '<' | '>' | '=' | '<=' | '>=' | '<>';
+bin_and: 'AND';
+bin_or: 'OR';
 primitive: number | string;
 function_name: IDENTIFIER;
 table_name: IDENTIFIER | MULTI_WORD_TABLE_IDENTIFIER;
 field_name: FIELD_NAME;
 decorator_name: IDENTIFIER;
-bin_add_sub: '+' | '-';
-bin_mul_div_mod: '*' | '/' | 'MOD';
-bin_pow: '^';
-bin_and: 'AND';
-bin_or: 'OR';
-bin_compare: '<' | '>' | '=' | '<=' | '>=' | '<>';
-bin_concat: '&';
-uni_op: 'NOT' | '-';
-query_row: '$';
-na_expression: 'NA';
 lb: LINE_BREAK+;
 doc_comment: DOC_COMMENT lb;
 list_expression: '{' (expression (',' expression)*)? '}';
@@ -44,23 +45,24 @@ total_definition: 'total' lb (field_definition lb)*;
 
 expression: number
          | string
+         | bool
+         | na
+         | query_row
          | function_name '(' (expression (',' expression)*)? ')'
          | expression '.' function_name '(' (expression (',' expression)*)? ')'
-         | expression field_name
          | table_name
+         | field_name
+         | expression field_name
+         | row_ref
          | '(' expression ')'
-         | <assoc=right> expression bin_pow expression
          | uni_op expression
+         | expression bin_pow expression
          | expression bin_mul_div_mod expression
          | expression bin_add_sub expression
+         | expression bin_concat expression
          | expression bin_compare expression
          | expression bin_and expression
          | expression bin_or expression
-         | expression bin_concat expression
-         | field_name
-         | query_row
-         | row_ref
-         | na_expression
          | list_expression
          ;
 
@@ -71,7 +73,7 @@ ROW_KEYWORD: 'row';
 TABLE_KEYWORD: 'table';
 DIMENSION_KEYWORD: 'dim';
 KEY_KEYWORD: 'key';
-FLOAT: ('-')? DIGIT+ ('.' DIGIT+)?;
+FLOAT: DIGIT+ ('.' DIGIT+)?;
 IDENTIFIER: [a-zA-Z0-9_]+;
 STRING_LITERAL: '"' (('\'\'' | '\'"') | ~('\n' | '\r' | '"' | '\''))*? '"';
 FIELD_NAME: '[' (('\'\'' | '\'[' | '\']') | ~('\n' | '\r' | '[' | ']' | '\''))* ']';

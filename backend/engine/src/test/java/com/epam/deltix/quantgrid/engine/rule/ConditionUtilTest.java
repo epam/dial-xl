@@ -47,7 +47,7 @@ class ConditionUtilTest {
         Int2IntFunction mapping = getIndex -> (getIndex == 4) ? 1 : getIndex;
 
         // clones expression and remaps to the enrichedSource from inputLocal
-        Expression newExpression = ConditionUtil.cloneExpressionAndConnectToSource(
+        Expression newExpression = ConditionUtil.reconnectExpressions(
                 expression, inputLocal, enrichedSource, mapping);
 
         verifyClone(expression, inputLocal, enrichedSource, newExpression);
@@ -76,7 +76,7 @@ class ConditionUtilTest {
         clonedExpressions.put(getFreq, getFreqNew);
 
         // clones expression and remaps to the enrichedSource from inputLocal
-        Expression newExpression = ConditionUtil.cloneExpressionAndConnectToSource(
+        Expression newExpression = ConditionUtil.reconnectExpressions(
                 expression, inputLocal, enrichedSource, clonedExpressions);
 
         verifyClone(expression, inputLocal, enrichedSource, newExpression);

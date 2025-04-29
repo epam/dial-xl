@@ -1,0 +1,122 @@
+user_name: dice_example_user
+ai_name: dice_example_ai
+messages:
+  - HumanMessage:
+      content: >-
+        Find the average value of the sum of points when throwing two dices,
+        provided that the second dice always shows less or equal than the first.
+  - AIMessage:
+      content: >-
+        I am planning to create a table with two unnested columns (one column for every dice) 
+        to simulate all satisfying dice combinations,
+        as for every value on first dice, several values from the second dice should be present in the table.
+        
+        Later, I could use that table to count sum for every combination and find its mean.
+        
+        First column may be generated using explicit array syntax (`{1, 2, 3, 4, 5, 6}`). 
+        However, there is a special condition for second column values, so I'll examine, whether QuantGrid functions can help me.
+      tool:
+        name: supported_functions
+  - ToolMessage:
+  - AIMessage:
+      content: >-
+        Looks like I can use "range" function to generate numbers from 1 to first dice value.
+        I need the "range" function documentation first to understand function signature and ensure correct type usage.
+      tool:
+        name: function_documentation
+        args:
+          function_names: [ range ]
+  - ToolMessage:
+  - AIMessage:
+      content: >-
+        As expected, I can define upper bound to generate integer sequence. I'll use "range" function to generate second
+        unnested column and satisfy requested condition.
+        
+        I will create two unnested columns, representing dice rolls,
+        and will parametrize second column by first column cells for usage in "range" function.
+
+        Now I need to create first unnested column for first dice results. I'll initialize new table by this column.
+      tool:
+        name: new_column
+        args:
+          table_name: Dices
+          column_name: First
+          cell_formula: '{ 1, 2, 3, 4, 5, 6 }'
+          parametrize_by: [ ]
+          unnest: true
+          create_table: true
+          expected_cell_type: 'number'
+  - ToolMessage:
+      content: >-
+        OK. Column First has been created. Data type in every cell: number.
+  - AIMessage:
+      content: >-
+        Now the second constrained column.
+        I'll just pass value of first dice as upper bound to RANGE function and unnest the result.
+        Such way, table will contain all requested combinations.
+      tool:
+        name: new_column
+        args:
+          table_name: Dices
+          column_name: Second
+          cell_formula: 'range(First)'
+          parametrize_by: [ First ]
+          unnest: true
+          create_table: false
+          expected_cell_type: 'number'
+  - ToolMessage:
+      content: >-
+        OK. Column Second has been created. Data type in every cell: number.
+  - AIMessage:
+      content: >-
+        Great, now I have all info to actually find requested sum and mean.
+        
+        I can calculate mean of point sum using one calculate formula, but for clarity,
+        I'll create regular column in Dices, that will contain sum of dice points for every combination.
+      tool:
+        name: new_column
+        args:
+          table_name: Dices
+          column_name: Sum
+          cell_formula: 'First + Second'
+          parameterize_by: [ First, Second ]
+          create_table: false
+          expected_cell_type: 'number'
+  - ToolMessage:
+      content: >-
+        OK. Column Sum has been created. Data type in every cell: number.
+  - AIMessage:
+      content: >-
+        As expected, resulting column contains integers.
+        
+        "average" function was listed in QuantGrid documentation, 
+        so I'll request additional documentation to ensure correct usage.
+      tool:
+        name: function_documentation
+        args:
+          function_names: [ average ]
+  - ToolMessage:
+  - AIMessage:
+      content: >-
+        Good! Now I have all info I need to solve user task.
+        
+        One option I have is to just create additional regular column in Dices table,
+        but such way all column cells will hold the same value, 
+        as mean value do not depends on particular Dices cells (rather than on whole column).
+        
+        That is not very convenient for user, so I'll just create new table with one column of single cell.
+      tool:
+        name: new_column
+        args:
+          table_name: Dices Mean
+          column_name: Mean
+          cell_formula: 'average(Dices.Sum)'
+          parameterize_by: [ First, Second ]
+          create_table: true
+          expected_cell_type: 'number'
+  - ToolMessage:
+      content: >-
+        OK. Column Mean has been created. Data type in every cell: number.
+  - AIMessage:
+      content: >-
+        Table Dices Mean contains answer in its single cell.

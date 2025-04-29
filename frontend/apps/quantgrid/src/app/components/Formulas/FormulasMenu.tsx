@@ -10,11 +10,7 @@ import {
 } from '@frontend/common';
 
 import { InputsContext, ProjectContext } from '../../context';
-import {
-  useGridApi,
-  useManualCreateEntityDSL,
-  useManualEditDSL,
-} from '../../hooks';
+import { useCreateTableDsl, useGridApi, useManualEditDSL } from '../../hooks';
 import useEventBus from '../../hooks/useEventBus';
 import { EventBusMessages } from '../../services';
 
@@ -30,7 +26,7 @@ export function FormulasMenu({ position, place }: Props) {
   const eventBus = useEventBus<EventBusMessages>();
   const { onCloneTable } = useManualEditDSL();
   const { inputList } = useContext(InputsContext);
-  const { createDerivedTable, createManualTable } = useManualCreateEntityDSL();
+  const { createDerivedTable, createManualTable } = useCreateTableDsl();
 
   const [contextMenuOpen, setContextMenuOpen] = useState(false);
   const [contextMenuItems, setContextMenuItems] = useState<MenuItem[]>([]);

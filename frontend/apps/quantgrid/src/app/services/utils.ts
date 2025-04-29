@@ -11,10 +11,3 @@ export function getApiUrl() {
 
   return isProd ? `https://${hostname}` : `http://${hostname}:8080`;
 }
-
-export function getDialApiUrl() {
-  const hostname = window.location.hostname;
-  const isProd = window.location.protocol === 'https:';
-
-  return isProd ? `https://${hostname}` : `http://${hostname}:4545`;
-}

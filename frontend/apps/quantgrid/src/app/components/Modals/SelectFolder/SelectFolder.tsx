@@ -301,7 +301,7 @@ export function SelectFolder({
             onSelectBreadcrumb={handleSelectBreadcrumb}
           />
 
-          <div className="flex flex-col flex-grow overflow-auto">
+          <div className="flex flex-col flex-grow overflow-auto thin-scrollbar">
             {isLoading ? (
               <div className="size-full flex flex-grow items-center justify-center">
                 <Spin className="z-50" size="large"></Spin>

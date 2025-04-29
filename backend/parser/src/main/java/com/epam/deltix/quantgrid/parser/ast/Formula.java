@@ -12,7 +12,7 @@ import java.util.List;
 public abstract class Formula {
     private final List<Formula> arguments;
 
-    Formula() {
+    protected Formula() {
         this.arguments = List.of();
     }
 

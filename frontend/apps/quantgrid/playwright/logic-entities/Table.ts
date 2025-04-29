@@ -1,3 +1,5 @@
+import { GridMenuItems } from '../enums/GridMenuItems';
+import { Orientation } from '../enums/Orientation';
 import { Field } from './Field';
 import { Override } from './Override';
 
@@ -15,6 +17,10 @@ export class Table {
   private isTableHeaderHidden: boolean;
 
   private isFieldHeaderHidden: boolean;
+
+  private isHorizontal: boolean;
+
+  private menu: GridMenuItems;
 
   public width() {
     return this.fields.length;
@@ -39,6 +45,9 @@ export class Table {
   public getName() {
     return this.name;
   }
+  public getMenu() {
+    return this.menu;
+  }
 
   constructor(top: number, left: number, name: string) {
     this.top = top;
@@ -46,6 +55,7 @@ export class Table {
     this.name = name;
     this.fields = new Array<Field>(0);
     this.overrides = new Array<Override>(0);
+    this.menu = new GridMenuItems(Orientation.Vertical);
   }
 
   public makeManual() {
@@ -72,21 +82,35 @@ export class Table {
     this.isFieldHeaderHidden = false;
   }
 
+  public makeHorizontal() {
+    this.isHorizontal = true;
+    this.menu = new GridMenuItems(Orientation.Horizontal);
+  }
+
+  public makeVertical() {
+    this.isHorizontal = false;
+    this.menu = new GridMenuItems(Orientation.Vertical);
+  }
+
   private fields: Array<Field>;
 
   private overrides: Array<Override>;
 
   public toDsl() {
-    let dsl = `!placement(${this.top},${this.left})\ntable ${this.name}\n`;
-    if (this.isFieldHeaderHidden) {
-      dsl = `!hideFields()\n${dsl}`;
+    let dsl = `!layout(${this.top},${this.left}`;
+    if (!this.isFieldHeaderHidden) {
+      dsl += `, "headers"`;
     }
-    if (this.isTableHeaderHidden) {
-      dsl = `!hideHeader()\n${dsl}`;
+    if (!this.isTableHeaderHidden) {
+      dsl += `, "title"`;
+    }
+    if (this.isHorizontal) {
+      dsl += `, "horizontal"`;
     }
     if (this.isManual) {
       dsl = `!manual()\n${dsl}`;
     }
+    dsl += `)\ntable ${this.name}\n`;
     for (const field of this.fields) {
       dsl += field.toDsl() + '\n';
     }
@@ -203,4 +227,6 @@ export class Table {
 
     return this.getTop() + verticalShift;
   }
+
+  public get;
 }

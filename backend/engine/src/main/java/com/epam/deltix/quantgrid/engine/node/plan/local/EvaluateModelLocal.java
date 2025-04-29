@@ -18,8 +18,8 @@ import java.util.List;
 public class EvaluateModelLocal extends PlanN<Table, Table> {
     private final @NotSemantic List<String> models;
 
-    public EvaluateModelLocal(List<Plan> plans, List<String> models) {
-        super(plans.stream().map(Plan::sourceOf).toList());
+    public EvaluateModelLocal(List<Plan.Source> sources, List<String> models) {
+        super(sources);
         this.models = models;
     }
 
@@ -41,8 +41,7 @@ public class EvaluateModelLocal extends PlanN<Table, Table> {
         double bestScore = -1;
 
         for (int i = 0; i < models.size(); ++i) {
-            Table table = tables.get(i);
-            DoubleColumn scoreColumn = table.getDoubleColumn(1);
+            DoubleColumn scoreColumn = expression(i + 1, 0).evaluate();
             double avgScore = 0;
 
             for (int j = 0; j < scoreColumn.size(); ++j) {

@@ -52,7 +52,10 @@ export function FormulaBarMenu() {
         rootClassName={formulaBarMenuClass}
         trigger={['click']}
       >
-        <Icon className="stroke-textPrimary" component={() => <DotsIcon />} />
+        <Icon
+          className="w-[18px] text-textPrimary hover:text-textAccentPrimary"
+          component={() => <DotsIcon />}
+        />
       </Dropdown>
     </div>
   );

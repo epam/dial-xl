@@ -43,6 +43,7 @@ export function useSelectedCell() {
         overrideValue: cell.overrideValue,
         totalIndex: cell.totalIndex,
         isDynamic: cell.field?.isDynamic,
+        isChart: !!cell.table.chartType,
         col: cell.col,
         row: cell.row,
         type,

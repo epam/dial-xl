@@ -21,6 +21,10 @@ public class Constant extends ExpressionWithPlan<Table, Column> {
     private final ColumnType type;
     private final Object constant;
 
+    public Constant(boolean value) {
+        this(new Scalar(), value ? 1.0 : 0.0, ColumnType.BOOLEAN);
+    }
+
     public Constant(double number) {
         this(new Scalar(), number);
     }

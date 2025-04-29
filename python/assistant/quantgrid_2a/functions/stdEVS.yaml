@@ -1,0 +1,6 @@
+name: stdEVS
+description: Calculates sample standard deviation of array
+signature: 'array<number>.stdEVS() => number'
+manual: >-
+  `stdEVS` returns sample standard deviation of array.
+original_name: STDEVS

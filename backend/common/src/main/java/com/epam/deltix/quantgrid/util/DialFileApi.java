@@ -3,10 +3,12 @@ package com.epam.deltix.quantgrid.util;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.http.Header;
 import org.apache.http.HttpHeaders;
 import org.apache.http.HttpMessage;
+import org.apache.http.HttpStatus;
 import org.apache.http.StatusLine;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.CloseableHttpResponse;
@@ -22,7 +24,9 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
+import java.nio.file.AccessDeniedException;
 import java.security.Principal;
+import java.util.ConcurrentModificationException;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -48,9 +52,29 @@ public class DialFileApi implements AutoCloseable {
                 .setConnectionTimeToLive(10, TimeUnit.MINUTES)
                 .evictExpiredConnections()
                 .evictIdleConnections(5, TimeUnit.MINUTES)
+                // Disable compression to improve download speed for large input files
+                .disableContentCompression()
                 .build();
 
         this.baseUriV1 = URI.create(baseUri).resolve("/v1/");
+    }
+
+    public String getBucket(Principal principal) throws IOException {
+        HttpGet httpGet = new HttpGet(baseUriV1.resolve("bucket"));
+        setAuthorizationHeader(httpGet, principal);
+
+        return httpClient.execute(httpGet, response -> {
+            try (InputStream stream = response.getEntity().getContent()) {
+                StatusLine statusLine = response.getStatusLine();
+                if (statusLine.getStatusCode() != HttpStatus.SC_OK) {
+                    throw new IOException("Failed to retrieve user bucket: %s".formatted(statusLine.getReasonPhrase()));
+                }
+
+                Map<String, String> dict = MAPPER.readValue(stream, new TypeReference<>() {
+                });
+                return dict.get("bucket");
+            }
+        });
     }
 
     public EtaggedStream readFile(String path, Principal principal) throws IOException {
@@ -81,24 +105,37 @@ public class DialFileApi implements AutoCloseable {
         }
     }
 
-    public void writeFile(String path, byte[] bytes, String contentType, Principal principal)
+    public void writeFile(String path, String etag, byte[] bytes, String contentType, Principal principal)
             throws IOException {
         HttpPut httpPut = new HttpPut(baseUriV1.resolve(path));
         setAuthorizationHeader(httpPut, principal);
+        if (StringUtils.isNotBlank(etag)) {
+            httpPut.setHeader(HttpHeaders.IF_MATCH, etag);
+        } else {
+            httpPut.setHeader(HttpHeaders.IF_NONE_MATCH, "*");
+        }
 
         MultipartEntityBuilder entityBuilder = MultipartEntityBuilder.create();
         entityBuilder.addBinaryBody("file", bytes, ContentType.getByMimeType(contentType), "file.txt");
         httpPut.setEntity(entityBuilder.build());
 
-        try (CloseableHttpResponse response = httpClient.execute(httpPut);
-             InputStream ignore = response.getEntity().getContent()) {
+        httpClient.execute(httpPut, response -> {
+            try (InputStream ignore = response.getEntity().getContent()) {
 
-            StatusLine statusLine = response.getStatusLine();
-            if (statusLine.getStatusCode() != 200) {
-                throw new IOException(
-                        "Failed to upload file to %s: %s".formatted(path, statusLine.getReasonPhrase()));
+                StatusLine statusLine = response.getStatusLine();
+                if (statusLine.getStatusCode() == HttpStatus.SC_PRECONDITION_FAILED) {
+                    throw new ConcurrentModificationException(statusLine.getReasonPhrase());
+                }
+                if (statusLine.getStatusCode() == HttpStatus.SC_FORBIDDEN) {
+                    throw new AccessDeniedException(statusLine.getReasonPhrase());
+                }
+                if (statusLine.getStatusCode() != HttpStatus.SC_OK) {
+                    throw new IOException(
+                            "Failed to upload file to %s: %s".formatted(path, statusLine.getReasonPhrase()));
+                }
             }
-        }
+            return null;
+        });
     }
 
     public Attributes getAttributes(String path, Principal principal) {

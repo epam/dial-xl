@@ -30,6 +30,11 @@ export function registerQuantgridLanguage(
     comments: {
       lineComment: `#`,
     },
+    brackets: [
+      ['[', ']'],
+      ['(', ')'],
+      ['{', '}'],
+    ],
   });
 }
 

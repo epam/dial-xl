@@ -15,12 +15,12 @@ export function functionsToUppercase(
     const functionExpressions = findFunctionExpressions(parsedExpression);
 
     for (const functionExpression of functionExpressions) {
-      const { end, start, name } = functionExpression;
+      const { start, name } = functionExpression;
       if (functionNames.includes(name.toLowerCase())) {
         expression =
           expression.substring(0, start) +
           name.toUpperCase() +
-          expression.substring(end + 1);
+          expression.substring(start + name.length);
       }
     }
   } catch (e) {

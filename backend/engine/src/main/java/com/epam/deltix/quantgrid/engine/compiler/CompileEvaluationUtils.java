@@ -11,6 +11,7 @@ import java.util.List;
 
 @UtilityClass
 public class CompileEvaluationUtils {
+    public final String INDEX_DECORATOR = "index";
     public final String DESCRIPTION_DECORATOR = "description";
     public final String EVALUATION_FIELD_DECORATOR = "evaluation_field";
 

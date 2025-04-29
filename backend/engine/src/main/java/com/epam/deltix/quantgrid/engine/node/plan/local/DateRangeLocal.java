@@ -97,13 +97,13 @@ public class DateRangeLocal extends Plan1<Table, Table> {
             DateRangeType dateType = DateRangeType.fromId((int) Math.round(dateTypeColumn.get(i)));
 
             if (date1 > date2) {
-                throw new IllegalArgumentException("Invalid function DATERANGE argument \"date1\" or \"date2\": expected \"date1\" is greater or equal to \"date2\"");
+                throw new IllegalArgumentException("Invalid argument \"date1\" or \"date2\" for function DATERANGE: expected \"date1\" to be greater or equal to \"date2\".");
             }
             if (increment <= 0) {
-                throw new IllegalArgumentException("Invalid function DATERANGE argument \"increment\": expected positive value of type INTEGER");
+                throw new IllegalArgumentException("Invalid argument \"increment\" for function DATERANGE: expected a positive number.");
             }
             if (dateType == null) {
-                throw new IllegalArgumentException("Invalid function DATERANGE argument \"date_type\": expected value of type INTEGER from 1 to 9");
+                throw new IllegalArgumentException("Invalid argument \"date_type\" for function DATERANGE: expected a number from 1 to 9.");
             }
 
             int dayOfWeek;

@@ -26,6 +26,7 @@ import com.epam.deltix.quantgrid.parser.FieldKey;
 import com.epam.deltix.quantgrid.parser.ParsedApply;
 import com.epam.deltix.quantgrid.parser.ParsedDecorator;
 import com.epam.deltix.quantgrid.parser.ParsedField;
+import com.epam.deltix.quantgrid.parser.ParsedFormula;
 import com.epam.deltix.quantgrid.parser.ParsedKey;
 import com.epam.deltix.quantgrid.parser.ParsedPython;
 import com.epam.deltix.quantgrid.parser.ParsedSheet;
@@ -52,7 +53,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Accessors(fluent = true)
@@ -122,7 +122,7 @@ public class Compiler {
             return;
         }
 
-        CompileFormulaContext context = new CompileFormulaContext(this);
+        CompileContext context = new CompileContext(this);
         CompiledResult result = context.compileFormula(new ConstText(similarityRequest.query()));
 
         Plan queryPlan = CompileEmbeddingIndex.compileEmbeddingIndex(
@@ -186,7 +186,17 @@ public class Compiler {
         for (ParsedSheet sheet : sheets) {
             for (ParsedTable table : sheet.tables()) {
                 for (ParsedField field : table.fields()) {
-                    if (!field.isKey()) {
+                    FieldKey descriptionField = null;
+                    boolean toIndex = field.isKey();
+                    for (ParsedDecorator decorator : field.decorators()) {
+                        if (decorator.decoratorName().equals(CompileEvaluationUtils.DESCRIPTION_DECORATOR)) {
+                            descriptionField = new FieldKey(table.tableName(), (String) decorator.params().get(0).value());
+                        }
+
+                        toIndex |= decorator.decoratorName().equals(CompileEvaluationUtils.INDEX_DECORATOR);
+                    }
+
+                    if (!toIndex) {
                         continue;
                     }
 
@@ -201,15 +211,6 @@ public class Compiler {
 
                     if (result.type() != ColumnType.STRING) {
                         continue;
-                    }
-
-                    FieldKey descriptionField = null;
-                    for (ParsedDecorator decorator : field.decorators()) {
-                        if (decorator.decoratorName().equals(CompileEvaluationUtils.DESCRIPTION_DECORATOR)) {
-                            descriptionField = new FieldKey(table.tableName(), (String) decorator.params().get(0).value());
-
-                            break;
-                        }
                     }
 
                     fields.add(new SimilarityRequestField(key, descriptionField, -1));
@@ -233,60 +234,33 @@ public class Compiler {
             log.warn("Parsing error: {}", error);
         }
 
-        Set<ParsedKey> duplicates = getDuplicatedFieldKeys(tables);
         for (ParsedTable table : tables) {
             String tableName = table.tableName();
             TableKey tableKey = new TableKey(tableName);
-            if (duplicates.contains(tableKey)) {
-                compileErrors.put(tableKey,
-                        new CompileError(
-                                "Table names must be unique across the project, duplicated name: " + tableName));
-                continue;
-            }
 
             if (table.overrides() != null) {
                 CompileContext context = new CompileContext(this, CompileKey.tableKey(tableName));
                 overrides.put(table.tableName(), new CompileOverride(context, table));
             }
 
-            List<ParsedField> uniqueFields = new ArrayList<>();
             for (ParsedField field : table.fields()) {
                 FieldKey fieldKey = new FieldKey(tableName, field.fieldName());
-                if (duplicates.contains(fieldKey)) {
-                    compileErrors.put(fieldKey,
-                            new CompileError("Table %s contains duplicated field %s".formatted(tableName,
-                                    fieldKey.fieldName())));
-                } else {
-                    parsed.put(fieldKey, field);
-                    uniqueFields.add(field);
-                }
+                parsed.put(fieldKey, field);
             }
 
-            ParsedTotal total = table.total();
-            if (total != null) {
-                for (FieldKey field : total.fields()) {
-                    List<Formula> formulas = total.getTotals(field);
-
-                    for (int i = 0; i < formulas.size(); i++) {
-                        Formula formula = formulas.get(i);
-                        if (formula != null) {
-                            TotalKey totalKey = new TotalKey(field.table(), field.fieldName(), i + 1);
-                            parsed.put(totalKey, formula);
-                        }
+            List<ParsedTotal> totals = table.totals();
+            for (int i = 0; i < totals.size(); i++) {
+                ParsedTotal total = totals.get(i);
+                for (ParsedField field : total.fields()) {
+                    ParsedFormula formula = field.formula();
+                    if (formula != null) {
+                        TotalKey totalKey = new TotalKey(tableName, field.fieldName(), i + 1);
+                        parsed.put(totalKey, formula);
                     }
                 }
             }
 
-            parsed.put(tableKey, ParsedTable.builder()
-                    .span(table.span())
-                    .fields(uniqueFields)
-                    .name(table.name())
-                    .apply(table.apply())
-                    .total(table.total())
-                    .overrides(table.overrides())
-                    .decorators(table.decorators())
-                    .docs(table.docs())
-                    .build());
+            parsed.put(tableKey, table);
         }
 
         for (ParsedSheet sheet : sheets) {
@@ -314,36 +288,6 @@ public class Compiler {
 
     private static String defaultErrorMessage(ParsedKey key) {
         return DEFAULT_COMPILATION_ERROR + key;
-    }
-
-    private Set<ParsedKey> getDuplicatedFieldKeys(List<ParsedTable> tables) {
-        Map<String, List<ParsedTable>> groupedTables = tables.stream()
-                .collect(Collectors.groupingBy(ParsedTable::tableName, Collectors.toList()));
-
-        Set<ParsedKey> duplicates = new HashSet<>();
-        for (Map.Entry<String, List<ParsedTable>> tableEntry : groupedTables.entrySet()) {
-            String tableName = tableEntry.getKey();
-            List<ParsedTable> tableGroup = tableEntry.getValue();
-            if (tableGroup.size() > 1) {
-                duplicates.add(new TableKey(tableName));
-                continue;
-            }
-
-            ParsedTable table = tableGroup.get(0);
-            Map<String, List<ParsedField>> groupedFields = table.fields().stream()
-                    .collect(Collectors.groupingBy(ParsedField::fieldName, Collectors.toList()));
-
-            for (Map.Entry<String, List<ParsedField>> fieldEntry : groupedFields.entrySet()) {
-                String fieldName = fieldEntry.getKey();
-                List<ParsedField> fieldGroup = fieldEntry.getValue();
-
-                if (fieldGroup.size() > 1) {
-                    duplicates.add(new FieldKey(tableName, fieldName));
-                }
-            }
-        }
-
-        return duplicates;
     }
 
     private void setViewports(Collection<Viewport> newViewports) {
@@ -535,8 +479,8 @@ public class Compiler {
 
     private CompiledResult compileTotal(CompileKey key) {
         CompileContext context = new CompileContext(this, key);
-        Formula formula = parsedObject(key);
-        return CompileTotal.compile(context, formula);
+        ParsedFormula formula = parsedObject(key);
+        return CompileTotal.compile(context, formula.formula());
     }
 
     private List<ViewportLocal> compileViewports(CompileKey key, CompiledResult explodedResult) {
@@ -572,16 +516,28 @@ public class Compiler {
     }
 
     CompiledTable layoutTable(String table, List<FieldKey> dimensions) {
+        if (dimensions.isEmpty()) {
+            return scalar;
+        }
+
         CompileExplode explode = explodes.get(table);
         return explode.layout(dimensions);
     }
 
-    CompiledResult promoteResult(CompileContext context, CompiledResult formula, List<FieldKey> dimensions) {
+    CompiledResult promoteResult(CompileContext context, CompiledResult result, List<FieldKey> dimensions) {
+        if (dimensions.isEmpty()) {
+            return result;
+        }
+
         CompileExplode explode = explodes.get(context.key().table());
-        return explode.promote(formula, dimensions);
+        return explode.promote(result, dimensions);
     }
 
     List<FieldKey> combineDimensions(CompileContext context, List<FieldKey> left, List<FieldKey> right) {
+        if (left.equals(right)) {
+            return left;
+        }
+
         CompileExplode explode = explodes.get(context.key().table());
         return explode.combine(left, right);
     }
@@ -597,12 +553,12 @@ public class Compiler {
         if (object == null && key.isTotal()) {
             TotalKey totalKey = key.totalKey();
             throw new CompileError("Unknown total. Table: " + totalKey.table()
-                    + ". Field: " + totalKey.field() + ". Number: " + totalKey.number());
+                    + ". Column: " + totalKey.field() + ". Number: " + totalKey.number());
         }
 
         if (object == null && key.isField()) {
             ParsedField pivot = (ParsedField) parsed.get(CompilePivot.pivotKey(key.table()));
-            CompileUtil.verify(pivot != null, "The field '%s' does not exist in the table '%s'.",
+            CompileUtil.verify(pivot != null, "The column '%s' does not exist in the table '%s'.",
                     key.fieldKey().fieldName(), key.table());
 
             object = CompilePivot.pivotParsedField(key.fieldKey());

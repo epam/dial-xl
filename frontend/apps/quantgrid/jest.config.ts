@@ -1,4 +1,5 @@
 /* eslint-disable */
+
 export default {
   displayName: 'quantgrid',
   preset: '../../jest.preset.js',
@@ -20,10 +21,7 @@ export default {
   },
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx'],
   coverageDirectory: '../../coverage/apps/quantgrid',
-  transformIgnorePatterns: [
-    '<rootDir>/node_modules/(?!(@deltix)/).*/',
-    '<rootDir>/node_modules/(?!monaco-editor).+\\.js$',
-  ],
+  transformIgnorePatterns: ['<rootDir>/node_modules/(?!monaco-editor).+\\.js$'],
   testPathIgnorePatterns: ['apps/quantgrid/playwright/'],
   setupFilesAfterEnv: ['../../jest-canvas.js'],
 };

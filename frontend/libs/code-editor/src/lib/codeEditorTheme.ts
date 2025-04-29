@@ -1,48 +1,68 @@
-import { AppTheme } from '@frontend/common';
+import { AppTheme, themeColors } from '@frontend/common';
 import { Monaco } from '@monaco-editor/react';
 
 import { codeEditorTheme } from './codeEditorConfig';
 
-export function registerTheme(monaco: Monaco, theme: AppTheme) {
-  monaco.editor.defineTheme(codeEditorTheme, {
+export function registerTheme(
+  monaco: Monaco,
+  theme: AppTheme,
+  themeName: string = codeEditorTheme
+) {
+  monaco.editor.defineTheme(themeName, {
     base: theme === AppTheme.ThemeLight ? 'vs' : 'vs-dark',
     inherit: true,
-    colors: theme === AppTheme.ThemeLight ? lightThemeColors : darkThemeColors,
-    rules: theme === AppTheme.ThemeLight ? lightThemeRules : darkThemeRules,
+    colors: getMonacoThemeColors(
+      theme === AppTheme.ThemeLight ? AppTheme.ThemeLight : AppTheme.ThemeDark
+    ),
+    rules:
+      themeName !== codeEditorTheme
+        ? []
+        : theme === AppTheme.ThemeLight
+        ? lightThemeRules
+        : darkThemeRules,
   });
 }
 
-const lightThemeColors = {
-  'editor.background': '#fcfcfc',
+/*
+ * There is another bug in monaco, so we set bracket colors explicitly
+ * https://github.com/microsoft/monaco-editor/issues/3829
+ */
 
-  'editorLineNumber.foreground': '#3f8792',
-  'editorSuggestWidget.selectedBackground': '#843ef31a',
-  'editorSuggestWidget.background': '#fcfcfc',
-  'editorSuggestWidget.foreground': '#141a23',
-  'editorSuggestWidget.selectedForeground': '#141a23',
-  'editorSuggestWidget.border': '#dde1e6',
-  'editorHoverWidget.background': '#f3f4f6',
-  'editorHoverWidget.border': '#dde1e6',
-  'editorHoverWidget.foreground': '#141a23',
-  'editorHoverWidget.highlightForeground': '#2764d9',
-  'editorSuggestWidget.focusHighlightForeground': '#2764d9',
+const monacoColorMap: Record<string, string> = {
+  'editor.background': 'bgLayer3',
+  'editorLineNumber.foreground': 'textPrimary',
+  'editorSuggestWidget.selectedBackground': 'bgAccentPrimaryAlphaRGB',
+  'editorSuggestWidget.background': 'bgLayer0',
+  'editorSuggestWidget.foreground': 'textPrimary',
+  'editorSuggestWidget.selectedForeground': 'textPrimary',
+  'editorSuggestWidget.border': 'strokePrimary',
+  'editorHoverWidget.background': 'bgLayer2',
+  'editorHoverWidget.border': 'strokePrimary',
+  'editorHoverWidget.foreground': 'textPrimary',
+  'editorHoverWidget.highlightForeground': 'bgAccentTertiary',
+  'editorSuggestWidget.focusHighlightForeground': 'strokeAccentTertiary',
+
+  'editorBracketHighlight.foreground1': 'textPrimary',
+  'editorBracketHighlight.foreground2': 'textPrimary',
+  'editorBracketHighlight.foreground3': 'textPrimary',
+  'editorBracketHighlight.foreground4': 'textPrimary',
+  'editorBracketHighlight.foreground5': 'textPrimary',
+  'editorBracketHighlight.foreground6': 'textPrimary',
+  'editorBracketHighlight.unexpectedBracket.foreground': 'textPrimary',
 };
 
-const darkThemeColors = {
-  'editor.background': '#222932',
-  'editorLineNumber.foreground': '#f3f4f6',
-  'editorSuggestWidget.selectedBackground': '#a972ff2b',
-  'editorSuggestWidget.background': '#000',
-  'editorSuggestWidget.foreground': '#f3f4f6',
-  'editorSuggestWidget.selectedForeground': '#f3f4f6',
-  'editorSuggestWidget.border': '#333942',
-  'editorHoverWidget.background': '#141a23',
-  'editorHoverWidget.border': '#333942',
-  'editorHoverWidget.foreground': '#f3f4f6',
-  'editorHoverWidget.highlightForeground': '#5c8dea',
-  'editorSuggestWidget.focusHighlightForeground': '#5c8dea',
-};
+function getMonacoThemeColors(theme: AppTheme) {
+  const c = themeColors[theme];
+  const result: Record<string, string> = {};
 
+  for (const [monacoKey, tokenKey] of Object.entries(monacoColorMap)) {
+    result[monacoKey] = c[tokenKey];
+  }
+
+  return result;
+}
+
+// Colors below are used only for code coloring, no need to add them to the global colors
 const lightThemeRules = [
   { token: 'TABLE_KEYWORD', foreground: '#b1501e' },
   { token: 'KEY_KEYWORD', foreground: '#b1501e' },

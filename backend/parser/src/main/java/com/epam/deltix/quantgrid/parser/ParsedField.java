@@ -9,8 +9,9 @@ import lombok.experimental.Accessors;
 import lombok.extern.slf4j.Slf4j;
 import org.antlr.v4.runtime.Token;
 
-import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 
 @Slf4j
@@ -76,14 +77,15 @@ public class ParsedField {
     }
 
     public static List<ParsedField> from(
-            List<SheetParser.Field_definitionContext> contexts, ErrorListener errorListener, String tableName) {
-        List<ParsedField> fields = new ArrayList<>();
-        for (SheetParser.Field_definitionContext ctx : contexts) {
-            ParsedField parsedField = ParsedField.from(ctx, tableName, errorListener);
-            if (parsedField != null) {
-                fields.add(parsedField);
+            List<SheetParser.Field_definitionContext> contexts, String tableName, ErrorListener errorListener) {
+        Map<String, ParsedField> fields = new LinkedHashMap<>();
+        for (SheetParser.Field_definitionContext fieldCtx : contexts) {
+            ParsedField field = ParsedField.from(fieldCtx, tableName, errorListener);
+            if (field != null && fields.putIfAbsent(field.fieldName(), field) != null) {
+                errorListener.syntaxError(fieldCtx.start,
+                        "Duplicate column. Table: " + tableName + ". Column: " + field.fieldName(), null, null);
             }
         }
-        return fields;
+        return List.copyOf(fields.values());
     }
 }

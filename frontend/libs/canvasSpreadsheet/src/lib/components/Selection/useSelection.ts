@@ -1,4 +1,5 @@
-import { useCallback, useContext, useEffect, useRef } from 'react';
+import { useCallback, useContext, useEffect, useRef, useState } from 'react';
+import isEqual from 'react-fast-compare';
 
 import {
   isFormulaBarInputFocused,
@@ -8,7 +9,7 @@ import {
 
 import { canvasId } from '../../constants';
 import { GridStateContext, GridViewportContext } from '../../context';
-import { DocumentScrollOptions, SelectionEdges } from '../../types';
+import { DocumentScrollOptions, Edges, SelectionEdges } from '../../types';
 import {
   getMousePosition,
   isCellEditorOpen,
@@ -16,6 +17,7 @@ import {
   normalizeCol,
   normalizeRow,
 } from '../../utils';
+import { GridEvent } from '../GridApiWrapper';
 
 export const maxInterval = 600;
 export const minInterval = 100;
@@ -25,12 +27,14 @@ export function useSelection() {
   const {
     app,
     getCell,
+    gridApi,
     gridSizes,
-    selectionEdges,
     setSelectionEdges,
+    selection$,
     gridCallbacks,
     pointClickMode,
     isTableDragging,
+    isPanModeEnabled,
   } = useContext(GridStateContext);
   const { getCellFromCoords, viewportEdges, moveViewport } =
     useContext(GridViewportContext);
@@ -38,113 +42,22 @@ export function useSelection() {
   const isMouseDown = useRef<boolean>(false);
   const documentScrollInterval = useRef<number | null>(null);
   const documentScrollOptions = useRef<DocumentScrollOptions | null>(null);
+  const [selectionEdges, setLocalSelectionEdges] = useState<Edges | null>(null);
+
+  const [isColumnSelection, setIsColumnSelection] = useState(false);
+  const [isRowSelection, setIsRowSelection] = useState(false);
 
   const onDocumentMouseClick = useCallback(() => {
     isMouseDown.current = false;
     documentScrollInterval.current = null;
+    setIsColumnSelection(false);
+    setIsRowSelection(false);
+    document.body.style.userSelect = 'auto';
   }, []);
-
-  const onDocumentMouseMove = useCallback(
-    (e: MouseEvent) => {
-      documentScrollInterval.current = null;
-      const container = document.getElementById(canvasId);
-
-      if (!container || !isMouseDown.current || isTableDragging) return;
-
-      const {
-        bottom,
-        top: containerTop,
-        left: containerLeft,
-        right,
-      } = container.getBoundingClientRect();
-      const { rowNumber, colNumber } = gridSizes;
-      const top = containerTop + rowNumber.height;
-      const left = containerLeft + colNumber.width;
-      const { pageX, pageY } = e;
-
-      if (!window.innerHeight || !window.innerWidth) return;
-
-      let interval = 0;
-      const { innerWidth, innerHeight } = window;
-
-      if (pageY > bottom) {
-        interval = (innerHeight - pageY) / (innerHeight - bottom);
-      } else if (pageY < top) {
-        interval = pageY / top;
-      } else if (pageX < left) {
-        interval = pageX / left;
-      } else if (pageX > right) {
-        interval = (innerWidth - pageX) / (innerWidth - right);
-      }
-
-      documentScrollInterval.current = Math.max(
-        interval * maxInterval,
-        minInterval
-      );
-      documentScrollOptions.current = {
-        pageX,
-        pageY,
-        top,
-        bottom,
-        left,
-        right,
-      };
-      e.preventDefault();
-    },
-    [gridSizes, isTableDragging]
-  );
-
-  const onCanvasMouseDown = useCallback(
-    (e: Event) => {
-      const mousePosition = getMousePosition(e);
-
-      if (!mousePosition) return;
-
-      const { x, y } = mousePosition;
-
-      if (!isClickInsideCanvas(x, y, gridSizes)) return;
-
-      if (!pointClickMode) {
-        if (
-          isCellEditorOpen() ||
-          isFormulaBarMonacoInputFocused() ||
-          isFormulaBarInputFocused()
-        )
-          return;
-      }
-
-      if ((e as MouseEvent).button === 0) {
-        isMouseDown.current = true;
-      }
-
-      const { edges } = gridSizes;
-      const { col, row } = getCellFromCoords(x, y);
-
-      const cellData = getCell(col, row);
-
-      let endCol = col;
-      let startCol = col;
-
-      if (cellData && cellData.startCol !== cellData.endCol) {
-        startCol = cellData.startCol;
-        endCol = cellData.endCol;
-      }
-
-      const selection: SelectionEdges = {
-        startRow: normalizeRow(row, edges.row),
-        startCol: normalizeCol(startCol, edges.col),
-        endCol: normalizeCol(endCol, edges.col),
-        endRow: normalizeRow(row, edges.row),
-      };
-
-      setSelectionEdges(selection, { silent: pointClickMode });
-    },
-    [getCell, getCellFromCoords, gridSizes, pointClickMode, setSelectionEdges]
-  );
 
   const onCanvasMouseMove = useCallback(
     (e: Event) => {
-      const mousePosition = getMousePosition(e);
+      const mousePosition = getMousePosition(e as MouseEvent);
 
       if (
         !isMouseDown.current ||
@@ -172,12 +85,32 @@ export function useSelection() {
         nextStartCol = endCol;
       }
 
-      const selection: SelectionEdges = {
-        startCol: normalizeCol(nextStartCol, edges.col),
-        startRow: normalizeRow(startRow, edges.row),
-        endCol: normalizeCol(nextEndCol, edges.col),
-        endRow: normalizeRow(row, edges.row),
-      };
+      let selection: SelectionEdges;
+
+      if (isColumnSelection) {
+        selection = {
+          startRow: 1,
+          startCol: normalizeCol(nextStartCol, edges.col),
+          endCol: normalizeCol(nextEndCol, edges.col),
+          endRow: edges.row,
+        };
+      } else if (isRowSelection) {
+        selection = {
+          startRow: normalizeRow(startRow, edges.row),
+          startCol: 1,
+          endCol: edges.col,
+          endRow: normalizeRow(row, edges.row),
+        };
+      } else {
+        selection = {
+          startRow: normalizeRow(startRow, edges.row),
+          startCol: normalizeCol(nextStartCol, edges.col),
+          endCol: normalizeCol(nextEndCol, edges.col),
+          endRow: normalizeRow(row, edges.row),
+        };
+      }
+
+      if (isEqual(selection, selectionEdges)) return;
 
       setSelectionEdges(selection, { silent: pointClickMode });
     },
@@ -185,6 +118,8 @@ export function useSelection() {
       getCell,
       getCellFromCoords,
       gridSizes,
+      isColumnSelection,
+      isRowSelection,
       isTableDragging,
       pointClickMode,
       selectionEdges,
@@ -192,9 +127,158 @@ export function useSelection() {
     ]
   );
 
-  const onCanvasMouseClick = useCallback((e: Event) => {
-    isMouseDown.current = false;
-  }, []);
+  const onDocumentMouseMove = useCallback(
+    (e: MouseEvent) => {
+      documentScrollInterval.current = null;
+      const container = document.getElementById(canvasId);
+
+      if (!container || !isMouseDown.current || isTableDragging) return;
+
+      const {
+        bottom,
+        top: containerTop,
+        left: containerLeft,
+        right,
+      } = container.getBoundingClientRect();
+      const top = containerTop;
+      const left = containerLeft;
+      const { pageX, pageY } = e;
+
+      if (!window.innerHeight || !window.innerWidth) return;
+
+      let interval = 0;
+      const { innerWidth, innerHeight } = window;
+
+      if (pageY > bottom && !isColumnSelection) {
+        interval = (innerHeight - pageY) / (innerHeight - bottom);
+      } else if (pageY < top && !isColumnSelection) {
+        interval = pageY / top;
+      } else if (pageX < left && !isRowSelection) {
+        interval = pageX / left;
+      } else if (pageX > right && !isRowSelection) {
+        interval = (innerWidth - pageX) / (innerWidth - right);
+      } else if (isColumnSelection || isRowSelection) {
+        onCanvasMouseMove(e);
+      }
+
+      documentScrollInterval.current = Math.max(
+        interval * maxInterval,
+        minInterval
+      );
+      documentScrollOptions.current = {
+        pageX,
+        pageY,
+        top,
+        bottom,
+        left,
+        right,
+      };
+      e.preventDefault();
+    },
+    [isColumnSelection, isRowSelection, isTableDragging, onCanvasMouseMove]
+  );
+
+  const onCanvasMouseDown = useCallback(
+    (e: Event) => {
+      if (isPanModeEnabled) return;
+
+      const mousePosition = getMousePosition(e as MouseEvent);
+
+      if (!mousePosition) return;
+
+      const { x, y } = mousePosition;
+
+      if (!isClickInsideCanvas(x, y, gridSizes, true, true)) return;
+
+      if (!pointClickMode) {
+        if (
+          isCellEditorOpen() ||
+          isFormulaBarMonacoInputFocused() ||
+          isFormulaBarInputFocused()
+        )
+          return;
+      }
+
+      if ((e as MouseEvent).button === 0) {
+        isMouseDown.current = true;
+        gridApi.event.emit({
+          type: GridEvent.startMoveMode,
+        });
+
+        const container = document.getElementById(canvasId);
+        if (container) {
+          document.body.style.pointerEvents = 'none';
+          container.style.pointerEvents = 'auto';
+        }
+      }
+
+      const { edges, rowNumber, colNumber } = gridSizes;
+      const cell = getCellFromCoords(x, y);
+      const col = x < rowNumber.width ? 0 : cell.col;
+      const row = y < colNumber.height ? 0 : cell.row;
+
+      const cellData = getCell(col, row);
+
+      let endCol = col;
+      let startCol = col;
+
+      if (cellData && cellData.startCol !== cellData.endCol) {
+        startCol = cellData.startCol;
+        endCol = cellData.endCol;
+      }
+
+      let selection: SelectionEdges;
+
+      if (row === 0) {
+        setIsColumnSelection(true);
+        document.body.style.userSelect = 'none';
+        selection = {
+          startRow: 1,
+          startCol: normalizeCol(startCol, edges.col),
+          endCol: normalizeCol(endCol, edges.col),
+          endRow: edges.row,
+        };
+      } else if (col === 0) {
+        setIsRowSelection(true);
+        document.body.style.userSelect = 'none';
+        selection = {
+          startRow: normalizeRow(row, edges.row),
+          startCol: 1,
+          endCol: edges.col,
+          endRow: normalizeRow(row, edges.row),
+        };
+      } else {
+        selection = {
+          startRow: normalizeRow(row, edges.row),
+          startCol: normalizeCol(startCol, edges.col),
+          endCol: normalizeCol(endCol, edges.col),
+          endRow: normalizeRow(row, edges.row),
+        };
+      }
+
+      setSelectionEdges(selection, { silent: pointClickMode });
+    },
+    [
+      getCell,
+      getCellFromCoords,
+      gridApi,
+      gridSizes,
+      pointClickMode,
+      setSelectionEdges,
+      isPanModeEnabled,
+    ]
+  );
+
+  const onCanvasMouseClick = useCallback(
+    (e: Event) => {
+      document.body.style.pointerEvents = 'auto';
+      isMouseDown.current = false;
+      gridApi.event.emit({
+        type: GridEvent.stopMoveMode,
+      });
+    },
+    [gridApi]
+  );
 
   const documentAutoScroll = useCallback(() => {
     if (!documentScrollOptions.current || !selectionEdges) return;
@@ -206,23 +290,27 @@ export function useSelection() {
     const { edges, cell } = gridSizes;
     const updatedSelection = { ...selectionEdges };
 
-    if (pageY > bottom) {
+    if (pageY > bottom && !isColumnSelection) {
       updatedSelection.endRow = normalizeRow(endRow + 1, edges.row);
       moveViewport(0, cell.height * viewportScrollOffset);
-    } else if (pageY < top) {
+    } else if (pageY < top && !isColumnSelection) {
       updatedSelection.endRow = normalizeRow(startRow - 1, edges.row);
       moveViewport(0, -cell.height * viewportScrollOffset);
-    } else if (pageX < left) {
+    } else if (pageX < left && !isRowSelection) {
       updatedSelection.endCol = normalizeCol(startCol - 1, edges.col);
       moveViewport(-cell.width * viewportScrollOffset, 0);
-    } else if (pageX > right) {
+    } else if (pageX > right && !isRowSelection) {
       updatedSelection.endCol = normalizeCol(endCol + 1, edges.col);
       moveViewport(cell.width * viewportScrollOffset, 0);
     }
 
+    if (isEqual(updatedSelection, selectionEdges)) return;
+
     setSelectionEdges(updatedSelection, { silent: pointClickMode });
   }, [
     gridSizes,
+    isColumnSelection,
+    isRowSelection,
     moveViewport,
     pointClickMode,
     selectionEdges,
@@ -230,15 +318,37 @@ export function useSelection() {
     viewportEdges,
   ]);
 
-  const onDocumentMouseUp = useCallback(() => {
-    if (!pointClickMode) return;
+  const onDocumentMouseUp = useCallback(
+    (e: MouseEvent) => {
+      if (!pointClickMode) return;
 
-    gridCallbacks.onPointClickSelectValue?.(selectionEdges);
-  }, [gridCallbacks, pointClickMode, selectionEdges]);
+      // Handle point-click only for canvas element.
+      // Point-click on Project Tree items will be handled by the app.
+      if ((e.target as HTMLElement).tagName === 'CANVAS') {
+        gridCallbacks.onPointClickSelectValue?.(selectionEdges);
+      }
+      setIsColumnSelection(false);
+      setIsRowSelection(false);
+      document.body.style.userSelect = 'auto';
+    },
+    [gridCallbacks, pointClickMode, selectionEdges]
+  );
 
   useInterval(() => {
     documentAutoScroll();
   }, documentScrollInterval.current);
+
+  useEffect(() => {
+    const selectionSubscription = selection$.subscribe(
+      (edges: Edges | null) => {
+        setLocalSelectionEdges(edges);
+      }
+    );
+
+    return () => {
+      selectionSubscription.unsubscribe();
+    };
+  }, [selection$]);
 
   useEffect(() => {
     document.addEventListener('click', onDocumentMouseClick, false);
@@ -265,4 +375,8 @@ export function useSelection() {
       app?.view?.removeEventListener?.('click', onCanvasMouseClick);
     };
   }, [app, onCanvasMouseClick, onCanvasMouseDown, onCanvasMouseMove]);
+
+  return {
+    selectionEdges,
+  };
 }

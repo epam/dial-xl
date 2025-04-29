@@ -28,7 +28,7 @@ import {
   DashboardFilter,
   DashboardSortType,
   DashboardTab,
-  ModalRefFunction,
+  NewFolderModalRefFunction,
 } from '../common';
 import { NewDashboardFolder, PreUploadFile } from '../components';
 import { useApiRequests } from '../hooks';
@@ -50,8 +50,10 @@ type DashboardContextActions = {
   sortChange: (newSortType: DashboardSortType) => void;
   setFilter: (filter: DashboardFilter) => void;
   refetchData: () => void;
-  uploadFiles: () => void;
-  createEmptyFolder: (args?: {
+  uploadFiles: (path: string | null, bucket: string) => void;
+  createEmptyFolder: (args: {
+    path: string | null;
+    bucket: string;
     newFolderName?: string;
     silent?: boolean;
   }) => void;
@@ -117,8 +119,15 @@ export function DashboardContextProvider({ children }: Props) {
     DashboardItem[]
   >([]);
   const [loadingDashboard, setLoadingDashboard] = useState(false);
-  const createNewFolderModal = useRef<ModalRefFunction | null>(null);
+  const createNewFolderModal = useRef<NewFolderModalRefFunction | null>(null);
+
   const [uploadFileDisplayed, setUploadFileDisplayed] = useState(false);
+  const [uploadFilePath, setUploadFilePath] = useState<
+    string | null | undefined
+  >(null);
+  const [uploadFileBucket, setUploadFileBucket] = useState<
+    string | null | undefined
+  >(null);
 
   const filterFiles = useCallback(
     (file: DashboardItem) => {
@@ -156,10 +165,8 @@ export function DashboardContextProvider({ children }: Props) {
 
     if (!result) return;
 
-    return result
-      .filter(filterFiles)
-      .map((item) => ({ ...item, isSharedByMe: true }));
-  }, [filterFiles, folderBucket, folderPath, getFiles, getSharedByMeFiles]);
+    return result.map((item) => ({ ...item, isSharedByMe: true }));
+  }, [folderBucket, folderPath, getFiles, getSharedByMeFiles]);
 
   const searchSharedWithMeItems = useCallback(async () => {
     let result: DashboardItem[] | undefined;
@@ -175,8 +182,8 @@ export function DashboardContextProvider({ children }: Props) {
 
     if (!result) return;
 
-    return result.filter(filterFiles);
-  }, [filterFiles, folderBucket, folderPath, getFiles, getSharedWithMeFiles]);
+    return result;
+  }, [folderBucket, folderPath, getFiles, getSharedWithMeFiles]);
 
   const searchExamplesItems = useCallback(
     async (isRecursive = false) => {
@@ -185,9 +192,9 @@ export function DashboardContextProvider({ children }: Props) {
         isRecursive,
       });
 
-      return result?.filter(filterFiles) ?? [];
+      return result ?? [];
     },
-    [filterFiles, folderPath, getFiles]
+    [folderPath, getFiles]
   );
 
   const searchAllItems = useCallback(
@@ -218,7 +225,7 @@ export function DashboardContextProvider({ children }: Props) {
         return;
       }
 
-      return result.filter(filterFiles).map((item) => {
+      return result.map((item) => {
         const isPresentedInSharedItems = sharedResult?.some(
           (sharedItem) =>
             sharedItem.parentPath === item.parentPath &&
@@ -234,14 +241,7 @@ export function DashboardContextProvider({ children }: Props) {
         return item;
       });
     },
-    [
-      filterFiles,
-      folderPath,
-      getFiles,
-      getSharedByMeFiles,
-      navigate,
-      userBucket,
-    ]
+    [folderPath, getFiles, getSharedByMeFiles, navigate, userBucket]
   );
 
   const searchRecentItems = useCallback(() => {
@@ -329,11 +329,14 @@ export function DashboardContextProvider({ children }: Props) {
         ? itemsFuse.search(searchValue).map((i) => i.item)
         : items;
       const sortedResultItems = sortDashboardItems(
-        resultItems,
+        resultItems.filter((i) => i.name),
         sortType,
         sortAsc
       );
-      const filteredItems = filterDashboardItems(sortedResultItems, filter);
+      const filteredItems = filterDashboardItems(
+        sortedResultItems,
+        filter
+      ).filter(filterFiles);
       setDisplayedDashboardItems(filteredItems);
       setLoadingDashboard(false);
       setSelectedItems([]);
@@ -341,6 +344,7 @@ export function DashboardContextProvider({ children }: Props) {
     [
       currentTab,
       filter,
+      filterFiles,
       searchAllItems,
       searchExamplesItems,
       searchRecentItems,
@@ -356,7 +360,9 @@ export function DashboardContextProvider({ children }: Props) {
     updateDashboardItems(true);
   }, [updateDashboardItems]);
 
-  const uploadFiles = useCallback(() => {
+  const uploadFiles = useCallback((path: string | null, bucket: string) => {
+    setUploadFilePath(path);
+    setUploadFileBucket(bucket);
     setUploadFileDisplayed(true);
   }, []);
 
@@ -437,32 +443,33 @@ export function DashboardContextProvider({ children }: Props) {
 
   const createEmptyFolder = useCallback(
     async ({
+      path,
+      bucket,
       newFolderName,
       silent,
     }: {
+      path: string | null;
+      bucket: string;
       newFolderName?: string;
       silent?: boolean;
-    } = {}) => {
+    }) => {
       setSearchValue('');
       setSelectedItems([]);
 
       if (!silent || !newFolderName) {
-        createNewFolderModal.current?.();
+        createNewFolderModal.current?.({
+          path,
+          bucket,
+        });
 
         return;
       }
 
-      if (folderPath?.split('/').length === 4) {
+      if (path?.split('/').length === 4) {
         toast.error(`It's not allowed to create more than 4 nested folders`);
 
         return;
       }
-
-      const bucket =
-        !folderPath && currentTab === 'examples'
-          ? publicBucket
-          : folderBucket ?? userBucket;
-      const path = folderPath;
 
       if (!bucket) return;
 
@@ -477,7 +484,12 @@ export function DashboardContextProvider({ children }: Props) {
       const toastText = `Folder '${newFolderName}' created successfully`;
       toast.success(toastText, {});
 
-      refetchData();
+      if (
+        (bucket === folderBucket && path === folderPath) ||
+        (bucket === userBucket && !folderPath && currentTab === 'home')
+      ) {
+        refetchData();
+      }
     },
     [
       createFolder,
@@ -494,7 +506,7 @@ export function DashboardContextProvider({ children }: Props) {
       updateDashboardItems();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filter, searchValue]);
+  }, [filter, searchValue, showHiddenFiles]);
 
   useEffect(() => {
     if (userBucket) {
@@ -526,6 +538,16 @@ export function DashboardContextProvider({ children }: Props) {
       return;
     }
 
+    if (tab === 'recent') {
+      sortChange('updatedAt');
+      setSortAsc(false);
+    }
+
+    if (tab !== 'recent' && currentTab === 'recent') {
+      sortChange('name');
+      setSortAsc(true);
+    }
+
     setCurrentTab(tab);
     setFolderPath(folderPath);
     setFolderBucket(folderBucket);
@@ -533,7 +555,7 @@ export function DashboardContextProvider({ children }: Props) {
     setSelectedItems([]);
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location, showHiddenFiles, userBucket]);
+  }, [location, userBucket]);
 
   return (
     <DashboardContext.Provider
@@ -561,14 +583,10 @@ export function DashboardContextProvider({ children }: Props) {
       {children}
       <NewDashboardFolder newFolderModal={createNewFolderModal} />
 
-      {uploadFileDisplayed && userBucket && (
+      {uploadFileDisplayed && uploadFileBucket && (
         <PreUploadFile
-          initialBucket={
-            currentTab === 'examples'
-              ? publicBucket
-              : folderBucket ?? userBucket
-          }
-          initialPath={folderPath}
+          initialBucket={uploadFileBucket}
+          initialPath={uploadFilePath}
           onCancel={() => setUploadFileDisplayed(false)}
           onOk={handleUploadFiles}
         />

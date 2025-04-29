@@ -78,13 +78,11 @@ export const getCellEditorStyle = (
   const height = gridSizes.cell.height;
   let requiresIgnoreScroll = false;
 
-  const style = {
+  const style: EditorStyle = {
     top: getPx(y + borderOffset - selectionOffset),
     left: getPx(x + borderOffset - gridSizes.gridLine.width),
     width: getCellEditorWidthPx(api, x, value, zoom, true, cellWidth),
     height: getPx(height),
-    initialScrollTop: 0,
-    initialScrollLeft: 0,
   };
 
   const container = document.getElementById(canvasId);
@@ -100,7 +98,6 @@ export const getCellEditorStyle = (
     requiresIgnoreScroll = true;
     api.moveViewport(scrollOffset, 0);
     style.left = getPx(x + borderOffset - scrollOffset);
-    style.initialScrollLeft += scrollOffset;
   }
 
   if (x < 0) {
@@ -108,7 +105,6 @@ export const getCellEditorStyle = (
     requiresIgnoreScroll = true;
     api.moveViewport(-scrollOffset, 0);
     style.left = getPx(Math.abs(x + borderOffset + scrollOffset));
-    style.initialScrollLeft -= scrollOffset;
   }
 
   if (y + height > rootHeight) {
@@ -116,7 +112,6 @@ export const getCellEditorStyle = (
     requiresIgnoreScroll = true;
     api.moveViewport(0, scrollOffset);
     style.top = getPx(y - scrollOffset);
-    style.initialScrollTop += scrollOffset;
   }
 
   return { style, requiresIgnoreScroll };

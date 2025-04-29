@@ -45,7 +45,6 @@ public class CompiledInputTable extends CompiledAbstractTable {
     public CompiledResult field(CompileContext context, String name) {
         int index = columnNames.indexOf(name);
         CompileUtil.verify(index != -1, "Unknown field [%s] in INPUT", name);
-        ColumnType type = columnTypes.get(index);
 
         Get inputRef = queryReference();
         Get inputColumn = new Get(input, index);

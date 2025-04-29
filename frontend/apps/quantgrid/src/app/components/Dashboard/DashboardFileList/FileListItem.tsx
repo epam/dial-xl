@@ -2,7 +2,7 @@ import { Checkbox } from 'antd';
 import { CheckboxChangeEvent } from 'antd/es/checkbox';
 import cx from 'classnames';
 import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 
 import Icon from '@ant-design/icons';
 import {
@@ -26,7 +26,7 @@ import {
   DashboardContext,
   defaultSheetName,
 } from '../../../context';
-import { useApiRequests, useManualCreateEntityDSL } from '../../../hooks';
+import { useApiRequests, useCreateTableDsl } from '../../../hooks';
 import { DashboardItem } from '../../../types/dashboard';
 import {
   constructPath,
@@ -56,8 +56,7 @@ export function FileListItem({ item }: Props) {
     createProject: createProjectRequest,
     getDimensionalSchema: getDimensionalSchemaRequest,
   } = useApiRequests();
-  const { getDimensionalTableFromFormula } = useManualCreateEntityDSL();
-  const navigate = useNavigate();
+  const { getDimensionalTableFromFormula } = useCreateTableDsl();
 
   const isProject = useMemo(
     () => item.name.endsWith(dialProjectFileExtension),
@@ -157,9 +156,8 @@ export function FileListItem({ item }: Props) {
       return;
     }
 
-    const { dimTable } = getDimensionalTableFromFormula(
+    const { dsl } = getDimensionalTableFromFormula(
       'Table1',
-      [],
       true,
       '',
       formula,
@@ -181,7 +179,7 @@ export function FileListItem({ item }: Props) {
       path: projectPath,
       projectName,
       initialProjectData: {
-        [defaultSheetName]: dimTable,
+        [defaultSheetName]: dsl,
       },
       forceCreation: true,
     });
@@ -194,7 +192,7 @@ export function FileListItem({ item }: Props) {
 
     setLoading(false);
 
-    navigate(
+    window.open(
       getProjectNavigateUrl({
         projectName,
         projectBucket: userBucket,
@@ -210,7 +208,6 @@ export function FileListItem({ item }: Props) {
     item.bucket,
     item.name,
     item.parentPath,
-    navigate,
     setLoading,
     userBucket,
   ]);
@@ -232,6 +229,7 @@ export function FileListItem({ item }: Props) {
             'cursor-pointer': isProject || isFolder || isCSV,
             'bg-bgAccentPrimaryAlpha': isHovered || isSelected,
           })}
+          target={isProject ? '_blank' : '_self'}
           to={itemLink}
           onClick={handleItemClick}
           onMouseLeave={() => setIsHovered(false)}
@@ -239,7 +237,7 @@ export function FileListItem({ item }: Props) {
         >
           <div className="flex grow items-center overflow-x-hidden">
             <div className="flex items-center min-w-[60%] pl-4 pr-2 gap-4 overflow-hidden text-ellipsis">
-              <div className="text-lg stroke-textSecondary flex items-center justify-center relative">
+              <div className="text-lg flex items-center justify-center relative">
                 {!isFolder && (isHovered || isSelected) ? (
                   <Checkbox
                     checked={isSelected}
@@ -252,8 +250,8 @@ export function FileListItem({ item }: Props) {
                   <>
                     <Icon
                       className={cx('w-[18px]', {
-                        'stroke-textSecondary text-textSecondary': !isProject,
-                        'stroke-transparent text-transparent': isProject,
+                        'text-textSecondary': !isProject,
+                        'text-transparent': isProject,
                       })}
                       component={() => itemIcon}
                     ></Icon>
@@ -311,12 +309,13 @@ export function FileListItem({ item }: Props) {
         </Tag>
       </FileListItemMenu>
       <FileListItemMenu
-        className="absolute top-4 right-0 w-6 flex items-center justify-center pr-4 cursor-pointer mr-4 stroke-transparent group-hover:stroke-textSecondary group-hover:hover:stroke-textAccentPrimary"
+        className="absolute top-4 right-0 w-6 flex items-center justify-center pr-4 cursor-pointer mr-4 text-transparent group-hover:text-textSecondary group-hover:hover:text-textAccentPrimary"
         isFolder={isFolder}
         item={item}
         trigger={'click'}
       >
         <Icon
+          className="w-[18px] shrink-0"
           component={() => <DotsIcon />}
           onClick={(e) => e.stopPropagation()}
         />

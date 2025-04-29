@@ -1,25 +1,58 @@
 import { useCallback, useContext } from 'react';
 
+import { HorizontalDirection } from '@frontend/canvas-spreadsheet';
 import {
   dynamicFieldName,
-  fieldColSizeDecoratorName,
-  getFieldSizesDecorator,
+  Field,
   newLine,
   ParsedField,
+  ParsedSheet,
   ParsedTable,
-  ShortDSLPlacement,
+  Sheet,
+  Table,
+  unescapeFieldName,
+  unescapeTableName,
 } from '@frontend/parser';
-import { HorizontalDirection } from '@frontend/spreadsheet';
 
-import { ProjectContext, UndoRedoContext } from '../../context';
+import {
+  AppSpreadsheetInteractionContext,
+  ProjectContext,
+  UndoRedoContext,
+} from '../../context';
 import { stripNewLinesAtEnd } from '../../utils';
 
 export type ParsedContext = {
   table: ParsedTable;
   field?: ParsedField;
+  parsedSheet: ParsedSheet;
   sheetName: string;
   sheetContent: string;
 };
+
+export type ParsedEditableContext = {
+  parsedTable: ParsedTable;
+  parsedField?: ParsedField;
+  parsedSheet: ParsedSheet;
+  sheetName: string;
+  sheetContent: string;
+  sheet: Sheet;
+  table: Table;
+  field?: Field;
+};
+
+export interface UpdateDslParams {
+  updatedSheetContent: string;
+  historyTitle: string;
+  sheetNameToChange?: string;
+  tableName?: string;
+}
+
+interface StrictUpdateDslParams {
+  updatedSheetContent: string;
+  historyTitle: string;
+  sheetNameToChange: string;
+  tableName?: string;
+}
 
 export function useDSLUtils() {
   const {
@@ -30,29 +63,72 @@ export function useDSLUtils() {
     manuallyUpdateSheetContent,
   } = useContext(ProjectContext);
   const { appendTo } = useContext(UndoRedoContext);
+  const { autoCleanUpTable } = useContext(AppSpreadsheetInteractionContext);
 
   const updateDSL = useCallback(
-    async (
-      updatedSheetContent: string,
-      historyTitle: string,
-      sheetNameToChange?: string
-    ) => {
-      const sheet = sheetNameToChange || sheetName;
+    async (dslChanges: UpdateDslParams | UpdateDslParams[]) => {
+      if (!sheetName) return;
 
-      if (!sheet) return;
+      const resultedDslChanges = Array.isArray(dslChanges)
+        ? dslChanges
+        : [dslChanges];
 
-      const newSheetContent = stripNewLinesAtEnd(updatedSheetContent) + newLine;
+      const normalizedChangeParams = resultedDslChanges.map((item) => ({
+        ...item,
+        sheetNameToChange: item.sheetNameToChange || sheetName,
+        updatedSheetContent:
+          stripNewLinesAtEnd(item.updatedSheetContent) + newLine,
+      }));
 
-      const isUpdateSuccess = await manuallyUpdateSheetContent(
-        sheet,
-        newSheetContent
+      const tableNamesToCleanUp = Array.from(
+        new Set(
+          normalizedChangeParams.map((item) => item.tableName).filter(Boolean)
+        )
       );
 
-      if (isUpdateSuccess) {
-        appendTo(sheet, historyTitle, newSheetContent);
+      const updateDslParams = normalizedChangeParams.reduce((acc, curr) => {
+        acc[curr.historyTitle] = acc[curr.historyTitle]
+          ? acc[curr.historyTitle].concat(curr)
+          : [curr];
+
+        return acc;
+      }, {} as Record<string, StrictUpdateDslParams[]>);
+      const combinerUpdateDslParams = Object.entries(updateDslParams);
+
+      // History items 1 per history title
+      for (const paramsEntries of combinerUpdateDslParams) {
+        const historyTitle = paramsEntries[0];
+        const changeParams = paramsEntries[1];
+
+        appendTo(
+          historyTitle,
+          changeParams.map((item) => ({
+            sheetName: item.sheetNameToChange,
+            content: item.updatedSheetContent,
+          }))
+        );
+      }
+
+      // Take the last change of dsl for sheet
+      const finalDslChanges = normalizedChangeParams.reduce((acc, curr) => {
+        acc[curr.sheetNameToChange] = curr.updatedSheetContent;
+
+        return acc;
+      }, {} as Record<string, string>);
+      await manuallyUpdateSheetContent(
+        Object.entries(finalDslChanges).map((entry) => ({
+          sheetName: entry[0],
+          content: entry[1],
+        }))
+      );
+
+      if (tableNamesToCleanUp.length > 0) {
+        tableNamesToCleanUp.forEach((tableNameToCleanUp) => {
+          tableNameToCleanUp && autoCleanUpTable(tableNameToCleanUp);
+        });
       }
     },
-    [sheetName, manuallyUpdateSheetContent, appendTo]
+    [sheetName, manuallyUpdateSheetContent, appendTo, autoCleanUpTable]
   );
 
   const findTable = useCallback(
@@ -62,6 +138,16 @@ export function useDSLUtils() {
       return parsedSheet.tables.find((table) => table.tableName === tableName);
     },
     [parsedSheet]
+  );
+
+  const findTableInSheet = useCallback(
+    (tableName: string, sheetName: string) => {
+      const parsedSheet = parsedSheets?.[sheetName];
+      if (!parsedSheet) return;
+
+      return parsedSheet.tables.find((table) => table.tableName === tableName);
+    },
+    [parsedSheets]
   );
 
   const findTableField = useCallback(
@@ -89,14 +175,6 @@ export function useDSLUtils() {
     },
     [findTable]
   );
-
-  const isKeyField = useCallback((table: ParsedTable, fieldName: string) => {
-    const field = table.fields.find((f) => f.key.fieldName === fieldName);
-
-    if (!field) return false;
-
-    return field.isKey;
-  }, []);
 
   const findFieldOnLeftOrRight = useCallback(
     (tableName: string, fieldName: string, direction: HorizontalDirection) => {
@@ -144,7 +222,13 @@ export function useDSLUtils() {
         }
 
         if (table && sheetContent !== undefined) {
-          return { table, field, sheetName, sheetContent };
+          return {
+            table,
+            field,
+            sheetName,
+            sheetContent,
+            parsedSheet: parsedSheets[sheetName],
+          };
         }
       }
 
@@ -153,102 +237,67 @@ export function useDSLUtils() {
     [parsedSheets, projectSheets]
   );
 
-  const isChartKeyField = useCallback(
-    (tableName: string, fieldName: string) => {
-      const table = findTable(tableName);
-      const field = findTableField(tableName, fieldName);
+  const findEditContext = useCallback(
+    (tableName: string, fieldName?: string): ParsedEditableContext | null => {
+      for (const sheetName of Object.keys(parsedSheets)) {
+        const parsedTable = parsedSheets[sheetName].tables.find(
+          (t) => t.tableName === tableName
+        );
 
-      if (!table || !field) return false;
+        const sheetContent = projectSheets?.find(
+          (s) => s.sheetName === sheetName
+        )?.content;
 
-      return table.isChart() && field?.isKey;
-    },
-    [findTable, findTableField]
-  );
+        let parsedField: ParsedField | undefined;
 
-  const updateFieldSize = ({
-    targetField,
-    newValue,
-  }: {
-    targetField: ParsedField | undefined;
-    newValue: number | undefined;
-  }) => {
-    const sizesDecorator = targetField?.decorators?.find(
-      (dec) => dec.decoratorName === fieldColSizeDecoratorName
-    );
+        if (fieldName && parsedTable) {
+          parsedField = parsedTable.fields.find(
+            (f) => f.key.fieldName === fieldName
+          );
+        }
 
-    const noPlacementFallback = {
-      start: -1,
-      end: -1,
-    };
-    let sizesDecoratorPlacement: ShortDSLPlacement;
+        if (parsedTable && sheetContent !== undefined) {
+          try {
+            const parsedSheet = parsedSheets[sheetName];
+            const sheet = parsedSheet.editableSheet;
+            if (!sheet) return null;
+            const table = sheet.getTable(unescapeTableName(tableName));
 
-    if (sizesDecorator?.dslPlacement) {
-      sizesDecoratorPlacement = {
-        ...sizesDecorator.dslPlacement,
-        // Remove trailing whitespace
-        end:
-          newValue === 1
-            ? sizesDecorator.dslPlacement.end + 1
-            : sizesDecorator.dslPlacement.end,
-      };
-    } else if (targetField?.dslPlacement) {
-      sizesDecoratorPlacement = {
-        start: targetField.dslPlacement.start,
-        end: targetField.dslPlacement.start,
-      };
-    } else {
-      sizesDecoratorPlacement = noPlacementFallback;
-    }
+            let field: Field | undefined;
 
-    const fieldSizesSheetContent =
-      newValue && newValue !== 1
-        ? getFieldSizesDecorator(newValue) + (sizesDecorator ? '' : ' ')
-        : '';
+            if (fieldName) {
+              field = table.getField(unescapeFieldName(fieldName));
+            }
 
-    return {
-      sizesDecoratorPlacement,
-      fieldSizesSheetContent,
-    };
-  };
-
-  const findNewApplyBlockOffset = useCallback(
-    (tableName: string): number | null => {
-      const lastField = findLastTableField(tableName);
-
-      if (!lastField || !lastField.dslPlacement) return null;
-
-      return lastField.dslPlacement.end;
-    },
-    [findLastTableField]
-  );
-
-  const findNewTotalSectionOffset = useCallback(
-    (table: ParsedTable): number | null => {
-      const { total } = table;
-      if (total && total.dslPlacement) {
-        return total.dslPlacement.stopOffset;
+            return {
+              parsedSheet,
+              parsedTable,
+              parsedField,
+              sheet,
+              table,
+              field,
+              sheetName,
+              sheetContent,
+            };
+          } catch (e) {
+            return null;
+          }
+        }
       }
 
-      const lastField = findLastTableField(table.tableName);
-
-      if (!lastField || !lastField.dslPlacement) return null;
-
-      return lastField.dslPlacement.end;
+      return null;
     },
-    [findLastTableField]
+    [parsedSheets, projectSheets]
   );
 
   return {
-    isKeyField,
-    isChartKeyField,
-    updateDSL,
+    findContext,
+    findEditContext,
+    findFieldOnLeftOrRight,
+    findLastTableField,
     findTable,
     findTableField,
-    findLastTableField,
-    findContext,
-    findFieldOnLeftOrRight,
-    findNewApplyBlockOffset,
-    findNewTotalSectionOffset,
-    updateFieldSize,
+    updateDSL,
+    findTableInSheet,
   };
 }

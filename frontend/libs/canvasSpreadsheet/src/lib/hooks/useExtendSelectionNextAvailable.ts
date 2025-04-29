@@ -1,19 +1,18 @@
 import { useCallback, useContext } from 'react';
 
 import { GridTable } from '@frontend/common';
-import { GridSelection } from '@frontend/spreadsheet';
 
 import { GridStateContext } from '../context';
-import { Edges, HorizontalDirection, VerticalDirection } from '../types';
+import {
+  Edges,
+  HorizontalDirection,
+  SelectionEdges,
+  VerticalDirection,
+} from '../types';
 
 export function useExtendSelectionNextAvailable() {
-  const {
-    gridSizes,
-    selectionEdges,
-    getCell,
-    tableStructure,
-    setSelectionEdges,
-  } = useContext(GridStateContext);
+  const { gridSizes, selection$, getCell, tableStructure, setSelectionEdges } =
+    useContext(GridStateContext);
 
   const createSingleSelectionFromRangeSelection = useCallback(
     (
@@ -123,6 +122,8 @@ export function useExtendSelectionNextAvailable() {
 
   const extendSelectionNextAvailable = useCallback(
     (direction: HorizontalDirection | VerticalDirection) => {
+      const selectionEdges = selection$.getValue();
+
       if (!selectionEdges) return;
 
       const singleSelection = createSingleSelectionFromRangeSelection(
@@ -178,7 +179,7 @@ export function useExtendSelectionNextAvailable() {
       checkIsNavigateInsideTable,
       createSingleSelectionFromRangeSelection,
       gridSizes,
-      selectionEdges,
+      selection$,
       setSelectionEdges,
       tableStructure,
     ]
@@ -303,7 +304,7 @@ function extendSelectionToTable(
 
 function findNextTableToNavigate(
   tableStructure: GridTable[],
-  selection: GridSelection,
+  selection: SelectionEdges,
   direction: HorizontalDirection | VerticalDirection
 ) {
   let closestTable = null;
@@ -326,7 +327,7 @@ function findNextTableToNavigate(
 
 function tableIsValidToNavigate(
   direction: HorizontalDirection | VerticalDirection,
-  selection: GridSelection,
+  selection: SelectionEdges,
   table: GridTable
 ): boolean {
   const { startRow, endRow, startCol, endCol } = table;

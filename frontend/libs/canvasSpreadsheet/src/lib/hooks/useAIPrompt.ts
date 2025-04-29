@@ -7,7 +7,7 @@ export function useAIPrompt(api: GridApi | null) {
   const openAIPrompt = useCallback(() => {
     if (!api) return;
 
-    const selection = api.selection;
+    const selection = api.selection$.getValue();
 
     if (!selection) return;
 

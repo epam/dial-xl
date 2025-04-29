@@ -1,5 +1,7 @@
 import { expect, Page } from '@playwright/test';
 
+import { WorkArea } from '../components/abstractions/WorkArea';
+import { Chat } from '../components/Chat';
 import { Editor } from '../components/Editor';
 import { EditorPanel } from '../components/EditorPanel';
 import { ErrorsPanel } from '../components/ErrorsPanel';
@@ -9,15 +11,21 @@ import { InputsPanel } from '../components/InputsPanel';
 import { ProjectTree } from '../components/ProjectTree';
 import { TopMenu } from '../components/TopMenu';
 import { Panels } from '../enums/Panels';
+import { TestFixtures } from '../tests/TestFixtures';
 
 export class ProjectPage {
   // private dslEditors = 'div[data-mode-id="quant-dsl"]>div';
 
-  private codeEditor = 'div[data-mode-id="code-editor"]>div';
+  //private codeEditor = 'div[data-mode-id="code-editor"]>div';
 
   private editorText = 'Editor';
 
+  private openEditorPanel =
+    '[data-panel="editor"][data-qa="collapsed-panel-button"]';
+
   private monacoEditor = 'div.monaco-editor';
+
+  private chatButton = '#toggleDialChatButton';
 
   private formulaValue =
     'div[data-mode-id="formula-bar"] .view-lines>.view-line';
@@ -38,7 +46,7 @@ export class ProjectPage {
 
   private formulaBar: Editor;
 
-  private grid: Grid;
+  private grid: WorkArea;
 
   private menu: TopMenu;
 
@@ -52,7 +60,9 @@ export class ProjectPage {
 
   private errors: ErrorsPanel;
 
-  public getGrid() {
+  private chat: Chat;
+
+  public getVisualization() {
     return this.grid;
   }
 
@@ -74,18 +84,21 @@ export class ProjectPage {
 
   public static async createInstance(page: Page) {
     const projectPage = new ProjectPage(page);
-    await projectPage.openEditor();
     projectPage.formulaBar = new Editor(
       page,
       page.locator(projectPage.formulaEditorLocator)
     );
-    projectPage.grid = new Grid(page);
+    projectPage.grid = TestFixtures.getVisualComponent(page);
     projectPage.menu = new TopMenu(page);
     projectPage.projectTree = new ProjectTree(page);
     projectPage.inputs = new InputsPanel(page);
     projectPage.errors = new ErrorsPanel(page);
     projectPage.history = new HistoryPanel(page);
     projectPage.editor = new EditorPanel(page);
+    projectPage.chat = new Chat(page);
+    // await projectPage.chat.waitForChat();
+    await projectPage.openEditor();
+    await projectPage.getEditor().focus();
 
     return projectPage;
   }
@@ -96,30 +109,24 @@ export class ProjectPage {
       page,
       page.locator(projectPage.formulaEditorLocator)
     );
-    projectPage.grid = new Grid(page);
+    projectPage.grid = TestFixtures.getVisualComponent(page);
     projectPage.menu = new TopMenu(page);
     projectPage.projectTree = new ProjectTree(page);
     projectPage.inputs = new InputsPanel(page);
     projectPage.errors = new ErrorsPanel(page);
     projectPage.history = new HistoryPanel(page);
     projectPage.editor = new EditorPanel(page);
-    await projectPage.grid.waitGridVisible();
+    await projectPage.grid.waitForComponentLoaded();
 
     return projectPage;
   }
 
   public async openEditor() {
-    let visible = false,
-      i = 0;
-    const retries = 20,
-      interval = 200;
-    while (i < retries && !visible) {
-      visible = await this.innerPage.locator(this.codeEditor).isVisible();
-      await new Promise((resolve) => setTimeout(resolve, interval));
-      i++;
-    }
-    if (!visible) {
-      await this.innerPage.getByText(this.editorText, { exact: true }).click();
+    await expect(
+      this.innerPage.getByText(this.editorText, { exact: true }).first()
+    ).toBeVisible();
+    if (!(await this.editor.isVisible())) {
+      await this.innerPage.locator(this.openEditorPanel).click();
     }
   }
 
@@ -144,10 +151,9 @@ export class ProjectPage {
     await this.formulaBar.typeValue(formula);
   }
 
-  public async;
-
-  public getCellText = (row: number, column: number) =>
-    this.grid.getCellTableText(row, column);
+  public async getCellText(row: number, column: number) {
+    return await this.grid.getCellTableText(row, column);
+  }
 
   public async projectShouldBeInProjectsTree(projectName: string) {
     await expect(this.projectTree.getTreeNode(projectName)).toBeVisible();
@@ -203,6 +209,10 @@ export class ProjectPage {
     await this.errors.closePanel();
   }
 
+  public async showProjectPanel() {
+    await this.projectTree.showPanel();
+  }
+
   private getPanelByName(panelName: Panels) {
     switch (panelName) {
       case Panels.ProjectTree:
@@ -240,5 +250,9 @@ export class ProjectPage {
 
   public async openFormulasList() {
     await this.innerPage.locator(this.formulaMenu).click();
+  }
+
+  public async openChat() {
+    await this.innerPage.locator(this.chatButton).click();
   }
 }

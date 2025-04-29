@@ -9,6 +9,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.Objects;
+
 @RestController
 public class ParseSheetController {
     private static final Gson GSON = new GsonBuilder()
@@ -16,8 +18,8 @@ public class ParseSheetController {
             .create();
 
     @PostMapping(value = "/v1/parse-sheet", produces = "application/json")
-    public ResponseEntity<String> parse(@RequestBody String dsl) {
-        ParsedSheet parsedSheet = SheetReader.parseSheet("unused", dsl);
+    public ResponseEntity<String> parse(@RequestBody(required = false) String dsl) {
+        ParsedSheet parsedSheet = SheetReader.parseSheet("unused", Objects.requireNonNullElse(dsl, ""));
         return ResponseEntity.ok(GSON.toJson(parsedSheet));
     }
 }

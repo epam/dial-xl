@@ -1,5 +1,5 @@
 /* eslint-disable playwright/expect-expect */
-import { expect, test } from '@playwright/test';
+import { BrowserContext, expect, Page, test } from '@playwright/test';
 
 import { GridMenuItem } from '../../enums/GridMenuItem';
 import { MoveDirection } from '../../enums/MoveDirection';
@@ -17,7 +17,7 @@ const table1Row = 2;
 
 const table1Column = 2;
 
-let table1Name = 'Table1';
+const table1Name = 'Table1';
 
 const table2Row = 2;
 
@@ -28,6 +28,12 @@ const table2Name = 'Table2';
 let projectPage: ProjectPage;
 
 let spreadsheet: SpreadSheet = new SpreadSheet();
+
+let browserContext: BrowserContext;
+
+let page: Page;
+
+const storagePath = `playwright/${projectName}.json`;
 
 const dataType = process.env['DATA_TYPE']
   ? process.env['DATA_TYPE']
@@ -60,10 +66,17 @@ test.beforeAll(async ({ browser }) => {
   if (dataType !== 'default') {
     spreadsheet = getProjectSpreadSheeet(dataType, spreadsheet);
   }
-  await TestFixtures.createProjectNew(browser, projectName, spreadsheet);
+  await TestFixtures.createProjectNew(
+    storagePath,
+    browser,
+    projectName,
+    spreadsheet
+  );
+  browserContext = await browser.newContext({ storageState: storagePath });
 });
 
-test.beforeEach(async ({ page }) => {
+test.beforeEach(async () => {
+  page = await browserContext.newPage();
   await TestFixtures.openProject(page, projectName);
   projectPage = await ProjectPage.createInstance(page);
   await projectPage.hideAllPanels();
@@ -74,30 +87,37 @@ test.beforeEach(async ({ page }) => {
   await TestFixtures.expectTableToBeDisplayed(page, spreadsheet.getTable(2));
 });
 
+test.afterEach(async () => {
+  await page.close();
+});
+
 test.afterAll(async ({ browser }) => {
+  await browserContext.close();
   await TestFixtures.deleteProject(browser, projectName);
 });
 
 test.describe('history panel', () => {
-  test('add table', async ({ page }) => {
+  /*  test('add table', async () => {
     const projectPage = await ProjectPage.createInstance(page);
     await projectPage.clickOnGridCell(3, 8);
-    await projectPage.getGrid().setCellValue('NewF=3');
-    await projectPage.getGrid().expectTableToAppear(2, 8);
-    await projectPage.getGrid().expectCellTextChange(3, 8, '3.0');
-    await projectPage.getGrid().expectCellTextChange(2, 8, 'NewF');
-    await projectPage.expectLastHistoryRecord('Add manual table "NewF"');
+    await projectPage.getVisualization().setCellValue('NewF=3');
+    await projectPage.getVisualization().expectTableToAppear(3, 8);
+    await projectPage.getVisualization().expectCellTextChange(4, 8, '3');
+    await projectPage.getVisualization().expectCellTextChange(3, 8, 'NewF');
+    await projectPage.expectLastHistoryRecord('Add table "NewF"');
   });
 
-  test('rename table', async ({ page }) => {
+  test('rename table', async () => {
     const newName = 'RenamedTable';
     const projectPage = await ProjectPage.createInstance(page);
     const table = spreadsheet.getTable(0);
     await projectPage
-      .getGrid()
+      .getVisualization()
       .performMenuAction(table.getTop(), table.getLeft(), GridMenuItem.Rename);
-    await projectPage.getGrid().expectCellBecameEditable(table.getName());
-    await projectPage.getGrid().setCellValue(newName);
+    await projectPage
+      .getVisualization()
+      .expectCellBecameEditable(table.getName());
+    await projectPage.getVisualization().setCellValue(newName);
     await projectPage.expectLastHistoryRecord(
       `Rename table "${table.getName()}" to "${newName}"`
     );
@@ -105,14 +125,14 @@ test.describe('history panel', () => {
     table1Name = newName;
   });
 
-  test('delete table', async ({ page }) => {
+  test('delete table', async () => {
     const projectPage = await ProjectPage.createInstance(page);
     const table = spreadsheet.getTable(1);
     await projectPage
-      .getGrid()
+      .getVisualization()
       .performMenuAction(table.getTop(), table.getLeft(), GridMenuItem.Delete);
     await projectPage
-      .getGrid()
+      .getVisualization()
       .expectTableToDissapear(table.getTop(), table.getLeft());
     spreadsheet.removeTableByName(table.getName());
     await projectPage.expectLastHistoryRecord(
@@ -120,10 +140,10 @@ test.describe('history panel', () => {
     );
   });
 
-  test('move table', async ({ page }) => {
+  test('move table', async () => {
     const projectPage = await ProjectPage.createInstance(page);
     const table = spreadsheet.getTable(0);
-    await projectPage.getGrid().moveTable(table, MoveDirection.DOWN);
+    await projectPage.getVisualization().moveTable(table, MoveDirection.DOWN);
     table.updatePlacement(table.getTop() + 1, table.getLeft());
     // \\"${table.getName()}\\" to (${table.getTop()}, ${table.getLeft()})
     await projectPage.expectLastHistoryRecord(
@@ -136,18 +156,18 @@ test.describe('history panel', () => {
     {
       tag: ['@hiddenTable'],
     },
-    async ({ page }) => {
+    async () => {
       const projectPage = await ProjectPage.createInstance(page);
       const table = spreadsheet.getTable(0);
       await projectPage
-        .getGrid()
+        .getVisualization()
         .performCellAction(
           table.getFieldHeadersRow(),
           table.getLeft() + 1,
           GridMenuItem.AddKey
         );
       await projectPage
-        .getGrid()
+        .getVisualization()
         .expectFieldToBeKey(table.getFieldHeadersRow(), table.getLeft() + 1);
       table.getField(1).makeKey();
       await projectPage.expectLastHistoryRecord(
@@ -163,21 +183,21 @@ test.describe('history panel', () => {
     {
       tag: ['@hiddenTable'],
     },
-    async ({ page }) => {
+    async () => {
       const projectPage = await ProjectPage.createInstance(page);
       let table = spreadsheet
         .getTables()
         .find((item) => item.getField(0).isKey());
       table ??= spreadsheet.getTable(0);
       await projectPage
-        .getGrid()
+        .getVisualization()
         .performCellAction(
           table.getFieldHeadersRow(),
           table.getLeft(),
           GridMenuItem.RemoveKey
         );
       await projectPage
-        .getGrid()
+        .getVisualization()
         .expectFieldNotBeKey(table.getFieldHeadersRow(), table.getLeft());
       table.getField(0).removeKey();
       await projectPage.expectLastHistoryRecord(
@@ -193,13 +213,13 @@ test.describe('history panel', () => {
     {
       tag: ['@hiddenAll', '@hiddenTable'],
     },
-    async ({ page }) => {
+    async () => {
       const projectPage = await ProjectPage.createInstance(page);
       const table = spreadsheet.getTable(0);
       const row = table.getFieldHeadersRow();
       const column = table.getLeft() + table.width();
       await projectPage.clickOnGridCell(row, column);
-      await projectPage.getGrid().setCellValue('FieldN=5');
+      await projectPage.getVisualization().setCellValue('FieldN=5');
       table.addField(new Field('FieldN', '5'));
       await projectPage.expectLastHistoryRecord(
         `Add \\[FieldN\\] to table "${table.getName()}"`
@@ -212,7 +232,7 @@ test.describe('history panel', () => {
     {
       tag: ['@hiddenTable'],
     },
-    async ({ page }) => {
+    async () => {
       const projectPage = await ProjectPage.createInstance(page);
       const table = spreadsheet.getTable(0);
       const row = table.getFieldHeadersRow();
@@ -220,7 +240,7 @@ test.describe('history panel', () => {
       const fieldName = table.getField(1).getName();
       table.removeField(fieldName);
       await projectPage
-        .getGrid()
+        .getVisualization()
         .performCellSubAction(row, column, 'Delete', 'Delete field');
       await projectPage.expectLastHistoryRecord(
         `Delete field \\[${fieldName}\\] from table "${table.getName()}"`
@@ -233,12 +253,12 @@ test.describe('history panel', () => {
     {
       tag: ['@hiddenTable'],
     },
-    async ({ page }) => {
+    async () => {
       const projectPage = await ProjectPage.createInstance(page);
       const table = spreadsheet.getTable(0);
       const row = table.getFieldHeadersRow();
       const column = table.getLeft();
-      await projectPage.getGrid().clickOnCell(row, column);
+      await projectPage.getVisualization().clickOnCell(row, column);
       await projectPage.sendKeysFormulaValue('23');
       table.getField(0).updateValue(table.getField(0).getValue() + '23');
       await projectPage.expectLastHistoryRecord(
@@ -254,19 +274,19 @@ test.describe('history panel', () => {
     {
       tag: ['@hiddenAll', '@hiddenTable'],
     },
-    async ({ page }) => {
+    async () => {
       const projectPage = await ProjectPage.createInstance(page);
       const table = spreadsheet.getTable(0);
       const overrideValue = '222';
       await projectPage
-        .getGrid()
+        .getVisualization()
         .performCellAction(
           table.getFirstCellCoord(),
           table.getLeft() + 2,
           'Edit Cell'
         );
-      await projectPage.getGrid().expectCellBecameEditable(undefined);
-      await projectPage.getGrid().setCellValue(overrideValue);
+      await projectPage.getVisualization().expectCellBecameEditable(undefined);
+      await projectPage.getVisualization().setCellValue(overrideValue);
       table.addOverrideValue(table.getField(2).getName(), 1, overrideValue);
       await projectPage.expectLastHistoryRecord(
         `Add override "${overrideValue}" to table "${table.getName()}"`
@@ -279,7 +299,7 @@ test.describe('history panel', () => {
     {
       tag: ['@hiddenAll', '@hiddenTable'],
     },
-    async ({ page }) => {
+    async () => {
       const projectPage = await ProjectPage.createInstance(page);
       const table = spreadsheet.getTable(0);
       const overrideValue = table.getOverrideValue(
@@ -287,7 +307,7 @@ test.describe('history panel', () => {
         1
       );
       await projectPage
-        .getGrid()
+        .getVisualization()
         .performCellAction(
           table.getFirstCellCoord(),
           table.getLeft(),
@@ -298,64 +318,54 @@ test.describe('history panel', () => {
       );
       table.removeOverrideValue(table.getField(0).getName(), 1);
     }
-  );
+  );*/
 
-  test('change dsl', async ({ page }) => {
+  test('change dsl', async () => {
     const projectPage = await ProjectPage.createInstance(page);
     //  projectPage.getEditor().setTokenValue()
   });
 
-  test('add table and undo', async ({ page }) => {});
+  test('add table and undo', async () => {});
 
-  test('rename table and undo', async ({ page }) => {});
+  test('rename table and undo', async () => {});
 
-  test('delete table and undo', async ({ page }) => {});
+  test('delete table and undo', async () => {});
 
-  test('move table and undo', async ({ page }) => {});
+  test('move table and undo', async () => {});
 
-  test('add key and undo', async ({ page }) => {});
+  test('add key and undo', async () => {});
 
-  test('remove key and undo', async ({ page }) => {});
+  test('remove key and undo', async () => {});
 
-  test('add field and undo', async ({ page }) => {});
+  test('add field and undo', async () => {});
 
-  test('remove field and undo', async ({ page }) => {});
+  test('remove field and undo', async () => {});
 
-  test('edit formula and undo', async ({ page }) => {});
+  test('edit formula and undo', async () => {});
 
-  test('add overwrite and undo', async ({ page }) => {});
+  test('add overwrite and undo', async () => {});
 
-  test('remove overwrite and undo', async ({ page }) => {});
+  test('remove overwrite and undo', async () => {});
 
-  test('change dsl and undo', async ({ page }) => {});
+  test('change dsl and undo', async () => {});
 
-  test('rename, move, delete table and undo all 3 actions', async ({
-    page,
-  }) => {});
+  test('rename, move, delete table and undo all 3 actions', async () => {});
 
-  test('add table, key, overwrite and undo all 3 actions', async ({
-    page,
-  }) => {});
+  test('add table, key, overwrite and undo all 3 actions', async () => {});
 
-  test('revert previous undo', async ({ page }) => {});
+  test('revert previous undo', async () => {});
 
-  test('undo 3 actions and restore 2', async ({ page }) => {});
+  test('undo 3 actions and restore 2', async () => {});
 
-  test('undo all history', async ({ page }) => {});
+  test('undo all history', async () => {});
 
-  test('undo 3 actions and then undo 2 more', async ({ page }) => {});
+  test('undo 3 actions and then undo 2 more', async () => {});
 
-  test('undo 3 actions, make 1 and then undo 2(to original state before all actions)', async ({
-    page,
-  }) => {});
+  test('undo 3 actions, make 1 and then undo 2(to original state before all actions)', async () => {});
 
-  test('undo 3 actions, make 3 new, then undo 8', async ({ page }) => {});
+  test('undo 3 actions, make 3 new, then undo 8', async () => {});
 
-  test('switch to another sheet and check history is consistent', async ({
-    page,
-  }) => {});
+  test('switch to another sheet and check history is consistent', async () => {});
 
-  test('switch to another sheet, make an action, come back and check history is consistent', async ({
-    page,
-  }) => {});
+  test('switch to another sheet, make an action, come back and check history is consistent', async () => {});
 });

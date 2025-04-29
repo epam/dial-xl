@@ -1,5 +1,6 @@
 import {
   createContext,
+  JSX,
   PropsWithChildren,
   useCallback,
   useContext,
@@ -9,20 +10,19 @@ import {
 } from 'react';
 
 import {
-  focusSpreadsheet as focusCanvasSpreadsheet,
-  GridApi,
-} from '@frontend/canvas-spreadsheet';
-import {
   focusSpreadsheet,
-  Grid,
   GridCellEditorEventType,
-  GridSelectionShortcutType,
-} from '@frontend/spreadsheet';
+} from '@frontend/canvas-spreadsheet';
 
-import { useGridApi } from '../hooks';
-import { AppContext } from './AppContext';
+import { useGridApi, useManualModifyTableDSL } from '../hooks';
 import { ProjectContext } from './ProjectContext';
 import { ViewportContext } from './ViewportContext';
+
+export type CellEditorOpenOptions = {
+  tableName: string;
+  fieldName: string;
+  value: string;
+};
 
 export type OpenTableSideEffect = 'move';
 export type OpenFieldSideEffect = 'editFormula';
@@ -40,6 +40,8 @@ type AppSpreadsheetInteractionContextActions = {
     fieldName: string,
     sideEffect?: OpenFieldSideEffect
   ) => void;
+  openCellEditor: (options: CellEditorOpenOptions) => void;
+  autoCleanUpTable: (tableName: string) => void;
 };
 
 export const AppSpreadsheetInteractionContext =
@@ -55,15 +57,22 @@ export function AppSpreadsheetInteractionContextProvider({
   const { viewGridData } = useContext(ViewportContext);
 
   const gridApi = useGridApi();
-  const { canvasSpreadsheetMode } = useContext(AppContext);
+  const { autoCleanUpTableDSL } = useManualModifyTableDSL();
 
   const [tableToOpen, setTableToOpen] = useState<string | null>(null);
   const [fieldToOpen, setFieldToOpen] = useState<string | null>(null);
   const [sheetToOpen, setSheetToOpen] = useState<string | null>(null);
+  const [cellEditorOptionsToOpen, setCellEditorOptionsToOpen] =
+    useState<CellEditorOpenOptions | null>(null);
   const [openTableSideEffect, setOpenTableSideEffect] =
     useState<OpenTableSideEffect | null>(null);
   const [openFieldSideEffect, setOpenFieldSideEffect] =
     useState<OpenFieldSideEffect | null>(null);
+  const [tableToCleanUp, setTableToCleanUp] = useState<string | null>(null);
+
+  const autoCleanUpTable = useCallback((tableName: string) => {
+    setTableToCleanUp(tableName);
+  }, []);
 
   const openTable = useCallback(
     (
@@ -111,7 +120,10 @@ export function AppSpreadsheetInteractionContextProvider({
     [openSheet, projectName, sheetName]
   );
 
-  // TODO: remove old grid effects when move to canvas
+  const openCellEditor = useCallback((options: CellEditorOpenOptions) => {
+    setCellEditorOptionsToOpen(options);
+  }, []);
+
   useEffect(() => {
     if (!tableToOpen || !parsedSheet || !gridApi || !sheetName) return;
 
@@ -125,85 +137,61 @@ export function AppSpreadsheetInteractionContextProvider({
     let structure;
     let tableStructure;
 
-    if (canvasSpreadsheetMode) {
-      focusCanvasSpreadsheet();
-    } else {
-      focusSpreadsheet();
-    }
+    focusSpreadsheet();
 
     if (openTableSideEffect) {
       switch (openTableSideEffect) {
         case 'move':
-          if (canvasSpreadsheetMode) {
-            setTimeout(() => {
-              (gridApi as GridApi).moveViewportToCell(col, row);
+          setTimeout(() => {
+            gridApi.moveViewportToCell(col, row, true);
 
-              setTimeout(() => {
-                structure = viewGridData.getGridTableStructure();
-                tableStructure = structure.find(
-                  (t) => t.tableName === tableToOpen
-                );
-
-                (gridApi as GridApi).updateSelection(
-                  {
-                    startCol: col,
-                    startRow: row,
-                    endCol: tableStructure ? tableStructure.endCol : col,
-                    endRow: tableStructure ? tableStructure.endRow : row,
-                  },
-                  { selectedTable: tableToOpen }
-                );
-              }, spreadsheetRenderWait);
-            }, spreadsheetRenderWait);
-          } else {
             setTimeout(() => {
-              gridApi.updateSelection({
-                startCol: col,
-                startRow: row,
-                endCol: col,
-                endRow: row,
-              });
-              (gridApi as Grid).sendSelectionEvent({
-                type: GridSelectionShortcutType.SelectAll,
-              });
+              structure = viewGridData.getGridTableStructure();
+              tableStructure = structure.find(
+                (t) => t.tableName === tableToOpen
+              );
+
+              gridApi.updateSelection(
+                {
+                  startCol: col,
+                  startRow: row,
+                  endCol: tableStructure ? tableStructure.endCol : col,
+                  endRow: tableStructure ? tableStructure.endRow : row,
+                },
+                { selectedTable: tableToOpen }
+              );
             }, spreadsheetRenderWait);
-          }
+          }, spreadsheetRenderWait);
+
           break;
       }
     }
 
     if (fieldToOpen) {
-      const fieldIndex = table.fields.findIndex(
-        (f) => f.key.fieldName === fieldToOpen
-      );
+      const fieldHeaderPlacement = table.getFieldHeaderPlacement(fieldToOpen);
 
-      if (fieldIndex === -1) return;
-      const startCol = col + fieldIndex;
-      const startRow = row + table.getTableNameHeaderHeight();
-      const fieldSize = table.fields[fieldIndex].getSize();
+      if (!fieldHeaderPlacement) return;
+
+      const { startCol, startRow, endCol, endRow } = fieldHeaderPlacement;
 
       gridApi.updateSelection({
         startCol,
         startRow,
-        endCol: startCol + fieldSize - 1,
-        endRow: startRow,
+        endCol,
+        endRow,
       });
+
+      gridApi.moveViewportToCell(startCol, startRow, true);
 
       if (openFieldSideEffect) {
         switch (openFieldSideEffect) {
           case 'editFormula':
             setTimeout(() => {
-              if (canvasSpreadsheetMode) {
-                (gridApi as GridApi).moveViewportToCell(col, row);
-              }
-
-              setTimeout(() => {
-                gridApi.cellEditorEvent$.next({
-                  type: GridCellEditorEventType.Edit,
-                  col: startCol,
-                  row: startRow,
-                });
-              }, spreadsheetRenderWait);
+              gridApi.cellEditorEvent$.next({
+                type: GridCellEditorEventType.Edit,
+                col: startCol,
+                row: startRow,
+              });
             }, spreadsheetRenderWait);
             break;
         }
@@ -222,9 +210,7 @@ export function AppSpreadsheetInteractionContextProvider({
       structure = viewGridData.getGridTableStructure();
       tableStructure = structure.find((t) => t.tableName === tableToOpen);
 
-      if (canvasSpreadsheetMode) {
-        (gridApi as GridApi).moveViewportToCell(col, row);
-      }
+      gridApi.moveViewportToCell(col, row, true);
 
       gridApi.updateSelection({
         startCol: col,
@@ -239,7 +225,6 @@ export function AppSpreadsheetInteractionContextProvider({
     setOpenTableSideEffect(null);
     setOpenFieldSideEffect(null);
   }, [
-    canvasSpreadsheetMode,
     fieldToOpen,
     gridApi,
     openFieldSideEffect,
@@ -251,12 +236,76 @@ export function AppSpreadsheetInteractionContextProvider({
     viewGridData,
   ]);
 
+  useEffect(() => {
+    if (!cellEditorOptionsToOpen || !parsedSheet || !gridApi || !sheetName)
+      return;
+
+    const { tableName, fieldName, value } = cellEditorOptionsToOpen;
+
+    const table = parsedSheet.tables.find((t) => t.tableName === tableName);
+
+    if (!table) return;
+
+    const field = table.fields.find((f) => f.key.fieldName === fieldName);
+
+    if (!field) return;
+
+    focusSpreadsheet();
+
+    const fieldHeaderPlacement = table.getFieldHeaderPlacement(fieldName);
+
+    if (!fieldHeaderPlacement) return;
+
+    const { startCol, startRow } = fieldHeaderPlacement;
+
+    setTimeout(() => {
+      gridApi.moveViewportToCell(startCol, startRow, true);
+
+      gridApi.updateSelection(fieldHeaderPlacement);
+
+      setTimeout(() => {
+        gridApi?.showCellEditor(startCol, startRow, value, {
+          withFocus: true,
+          targetTableName: tableName,
+          targetFieldName: fieldName,
+        });
+      }, spreadsheetRenderWait);
+    }, spreadsheetRenderWait);
+
+    setCellEditorOptionsToOpen(null);
+  }, [
+    cellEditorOptionsToOpen,
+    fieldToOpen,
+    gridApi,
+    parsedSheet,
+    sheetName,
+    viewGridData,
+  ]);
+
+  useEffect(() => {
+    if (!tableToCleanUp || !parsedSheet || !gridApi || !sheetName) return;
+
+    autoCleanUpTableDSL(tableToCleanUp);
+
+    setTableToCleanUp(null);
+  }, [
+    tableToCleanUp,
+    parsedSheet,
+    sheetName,
+    viewGridData,
+    gridApi,
+    autoCleanUpTable,
+    autoCleanUpTableDSL,
+  ]);
+
   const value = useMemo(
     () => ({
       openField,
       openTable,
+      openCellEditor,
+      autoCleanUpTable,
     }),
-    [openField, openTable]
+    [openField, openTable, openCellEditor, autoCleanUpTable]
   );
 
   return (

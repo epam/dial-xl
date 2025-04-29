@@ -1,0 +1,5 @@
+name: filter
+description: Filter array by lambda predicate condition
+signature: 'array<T>.filter((element: T) => boolean) => array<T>'
+manual: >-
+  `filter` function apply provided lambda to every element of array and leave only elements satisfying to provided lambda.

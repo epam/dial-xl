@@ -1,0 +1,161 @@
+{
+  "name": "test",
+  "tables": [
+    {
+      "span": {
+        "from": 0,
+        "to": 65
+      },
+      "name": {
+        "span": {
+          "from": 6,
+          "to": 8
+        },
+        "text": "T1"
+      },
+      "fields": [
+        {
+          "span": {
+            "from": 11,
+            "to": 18
+          },
+          "name": {
+            "span": {
+              "from": 11,
+              "to": 14
+            },
+            "text": "a"
+          },
+          "formula": {
+            "span": {
+              "from": 17,
+              "to": 18
+            },
+            "formula": {
+              "number": 1.0,
+              "arguments": []
+            },
+            "errors": []
+          },
+          "decorators": [],
+          "docs": []
+        },
+        {
+          "span": {
+            "from": 21,
+            "to": 28
+          },
+          "name": {
+            "span": {
+              "from": 21,
+              "to": 24
+            },
+            "text": "b"
+          },
+          "formula": {
+            "span": {
+              "from": 27,
+              "to": 28
+            },
+            "formula": {
+              "number": 2.0,
+              "arguments": []
+            },
+            "errors": []
+          },
+          "decorators": [],
+          "docs": []
+        },
+        {
+          "span": {
+            "from": 31,
+            "to": 46
+          },
+          "name": {
+            "span": {
+              "from": 31,
+              "to": 34
+            },
+            "text": "c"
+          },
+          "formula": {
+            "span": {
+              "from": 37,
+              "to": 46
+            },
+            "formula": {
+              "left": {
+                "field": "a",
+                "arguments": []
+              },
+              "right": {
+                "field": "b",
+                "arguments": []
+              },
+              "operation": "EQ",
+              "name": "BinaryOperator",
+              "arguments": [
+                {
+                  "arguments": []
+                },
+                {
+                  "arguments": []
+                }
+              ]
+            },
+            "errors": []
+          },
+          "decorators": [],
+          "docs": []
+        },
+        {
+          "span": {
+            "from": 49,
+            "to": 64
+          },
+          "name": {
+            "span": {
+              "from": 49,
+              "to": 52
+            },
+            "text": "d"
+          },
+          "formula": {
+            "span": {
+              "from": 55,
+              "to": 64
+            },
+            "formula": {
+              "left": {
+                "field": "b",
+                "arguments": []
+              },
+              "right": {
+                "field": "a",
+                "arguments": []
+              },
+              "operation": "EQ",
+              "name": "BinaryOperator",
+              "arguments": [
+                {
+                  "arguments": []
+                },
+                {
+                  "arguments": []
+                }
+              ]
+            },
+            "errors": []
+          },
+          "decorators": [],
+          "docs": []
+        }
+      ],
+      "decorators": [],
+      "docs": [],
+      "totals": []
+    }
+  ],
+  "pythons": [],
+  "errors": []
+}

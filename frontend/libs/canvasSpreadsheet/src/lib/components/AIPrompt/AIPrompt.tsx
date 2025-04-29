@@ -85,6 +85,7 @@ export function AIPrompt({
   const [loadingLabel, setLoadingLabel] = useState('Generating answer');
   const [maxHeight, setMaxHeight] = useState(0);
   const [responseId, setResponseId] = useState<string>();
+  const [selectionEdges, setSelectionEdges] = useState<Edges | null>(null);
 
   const systemPrompt = useMemo(() => {
     return systemMessageContent
@@ -284,11 +285,11 @@ export function AIPrompt({
       promptAreaRef.current?.focus();
 
       // Cover case when cell already outside of screen - we don't need to move ai prompt in such case
-      const isCellInXViewport = x > 0 && x < left + rootWidth;
-      const isCellInYViewport = y > 0 && y < top + rootHeight;
+      const isCellInXViewport = x > 0 && x < rootWidth;
+      const isCellInYViewport = y > 0 && y < rootHeight;
       if (!isCellInXViewport || !isCellInYViewport) return;
 
-      const desiredX = x - Math.floor((aiPromptWidth - width) / 2) - left;
+      const desiredX = x - Math.floor((aiPromptWidth - width) / 2);
       const limitedX = Math.max(desiredX, defaultGridSizes.rowNumber.width);
       const maxX = rootWidth - aiPromptWidth - 10;
 
@@ -392,13 +393,13 @@ export function AIPrompt({
 
     const cell = api?.getCell(selection.startCol, selection.startRow);
 
-    if (!cell?.table?.tableName || !cell.field?.fieldName) return;
+    if (!cell?.table?.tableName) return;
 
-    gridCallbacksRef.current?.onUpdateNote?.(
-      cell.table.tableName,
-      cell.field.fieldName,
-      assistantTextAnswer
-    );
+    gridCallbacksRef.current?.onUpdateNote?.({
+      tableName: cell.table.tableName,
+      fieldName: cell.field?.fieldName,
+      note: assistantTextAnswer,
+    });
     gridCallbacksRef.current.onAIPendingChanges?.(false);
     gridCallbacksRef.current.onAIPendingBanner?.(false);
 
@@ -438,6 +439,12 @@ export function AIPrompt({
 
       if (isUndo) {
         handleDiscard();
+
+        return;
+      }
+
+      if (isEnter && isSuggestionReview) {
+        handleKeep();
 
         return;
       }
@@ -493,6 +500,7 @@ export function AIPrompt({
       assistantTextAnswer,
       contextMenuItems,
       handleDiscard,
+      handleKeep,
       hide,
       isError,
       isLoading,
@@ -518,11 +526,26 @@ export function AIPrompt({
     const cellY = api.getCellY(selection.startRow);
 
     api.updateSelection(selection);
+    showAIPromptExplicitly(selection.startCol, selection.startRow);
+
+    const {
+      x1: left,
+      x2: right,
+      y1: top,
+      y2: bottom,
+    } = api.getViewportCoords();
+    const rootWidth = right - left;
+    const rootHeight = bottom - top;
+    const yThreshold = 200;
+    const isCellInXViewport = cellX > 0 && cellX < left + rootWidth;
+    const isCellInYViewport =
+      cellY > 0 && cellY < top + rootHeight - yThreshold;
+    if (isCellInXViewport && isCellInYViewport) return;
+
     api.moveViewport(
       cellX - 3 * gridSizes.cell.width,
       cellY - 5 * gridSizes.cell.height
     );
-    showAIPromptExplicitly(selection.startCol, selection.startRow);
   }, [
     api,
     currentSheetName,
@@ -597,23 +620,23 @@ export function AIPrompt({
   }, [selection]);
 
   useEffect(() => {
-    if (!api?.selection) return;
+    if (!selectionEdges) return;
 
     if (
       !isSuggestionReview &&
       !assistantTextAnswer &&
       !isLoading &&
       !isError &&
-      (api?.selection?.endCol !== selection?.endCol ||
-        api?.selection?.startCol !== selection?.startCol ||
-        api?.selection?.startRow !== selection?.startRow ||
-        api?.selection?.endRow !== selection?.endRow)
+      (selectionEdges?.endCol !== selection?.endCol ||
+        selectionEdges?.startCol !== selection?.startCol ||
+        selectionEdges?.startRow !== selection?.startRow ||
+        selectionEdges?.endRow !== selection?.endRow)
     ) {
-      setSelection(api?.selection);
+      setSelection(selectionEdges);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
-    api?.selection,
+    selectionEdges,
     selection?.endCol,
     selection?.endRow,
     selection?.startCol,
@@ -658,6 +681,16 @@ export function AIPrompt({
     selection?.startRow,
     showAIPromptExplicitly,
   ]);
+
+  useEffect(() => {
+    if (!api) return;
+
+    const subscription = api.selection$.subscribe((selection) => {
+      setSelectionEdges(selection);
+    });
+
+    return () => subscription.unsubscribe();
+  }, [api]);
 
   useEffect(() => {
     document.addEventListener('keydown', onKeydown);

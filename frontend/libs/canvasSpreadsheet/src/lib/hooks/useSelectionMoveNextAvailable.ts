@@ -10,7 +10,7 @@ import { useNavigation } from './useNavigation';
 export function useSelectionMoveNextAvailable() {
   const {
     gridSizes,
-    selectionEdges,
+    selection$,
     setSelectionEdges,
     gridApi,
     tableStructure,
@@ -39,6 +39,8 @@ export function useSelectionMoveNextAvailable() {
 
   const moveSelectionNextAvailable = useCallback(
     (direction: VerticalDirection | HorizontalDirection) => {
+      const selectionEdges = selection$.getValue();
+
       if (
         !gridApi ||
         !selectionEdges ||
@@ -202,7 +204,7 @@ export function useSelectionMoveNextAvailable() {
         return;
       }
     },
-    [gridApi, gridSizes, selectionEdges, selectEntireCell, tableStructure]
+    [selection$, gridApi, tableStructure, gridSizes, selectEntireCell]
   );
 
   return {

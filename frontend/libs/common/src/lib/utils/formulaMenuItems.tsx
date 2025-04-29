@@ -1,5 +1,7 @@
+import Icon from '@ant-design/icons';
 import { ParsedSheets } from '@frontend/parser';
 
+import { TablePlusIcon } from '../icons';
 import { FilesMetadata, FunctionInfo, FunctionType } from '../services';
 import { FormulasContextMenuKeyData, MenuItem } from '../types';
 import { getDropdownItem, getDropdownMenuKey } from './getDropdownItem';
@@ -214,6 +216,14 @@ export const getFormulasMenuItems = (
   const createTableMenuItem = getDropdownItem({
     key: 'CreateTable',
     label: 'Create Table',
+    icon: (
+      <Icon
+        className="text-textSecondary w-[18px]"
+        component={() => (
+          <TablePlusIcon secondaryAccentCssVar="text-accent-tertiary" />
+        )}
+      />
+    ),
     children: getCreateTableChildren(
       functions,
       parsedSheets,

@@ -5,7 +5,7 @@ import com.epam.deltix.quantgrid.engine.meta.Meta;
 import com.epam.deltix.quantgrid.engine.meta.Schema;
 import com.epam.deltix.quantgrid.engine.node.plan.Plan;
 import com.epam.deltix.quantgrid.engine.node.plan.Plan2;
-import com.epam.deltix.quantgrid.engine.node.plan.local.AggregateFunction;
+import com.epam.deltix.quantgrid.engine.node.plan.local.aggregate.AggregateType;
 import com.epam.deltix.quantgrid.engine.node.plan.spark.NestedAggregateSpark.Aggregation;
 import com.epam.deltix.quantgrid.engine.value.Table;
 import com.epam.deltix.quantgrid.engine.value.local.DoubleDirectColumn;
@@ -21,9 +21,9 @@ import java.util.List;
 
 public class SimpleAggregateSpark extends Plan2<Table, SparkValue, Table> {
 
-    private final AggregateFunction function;
+    private final AggregateType function;
 
-    public SimpleAggregateSpark(Plan layout, Plan source, AggregateFunction function) {
+    public SimpleAggregateSpark(Plan layout, Plan source, AggregateType function) {
         super(layout, source);
         this.function = function;
     }

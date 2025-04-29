@@ -12,6 +12,7 @@ import {
 } from '@frontend/common';
 
 import { ProjectContext } from '../../../context';
+import { useUnsavedChanges } from '../../../hooks';
 import { constructPath } from '../../../utils';
 
 export const TemporaryProjectNotificationBar = () => {
@@ -27,6 +28,8 @@ export const TemporaryProjectNotificationBar = () => {
     [projectPath]
   );
 
+  useUnsavedChanges(!!isTemporaryOpenedProject);
+
   if (!isTemporaryOpenedProject || isHidden) return null;
 
   return (
@@ -39,7 +42,7 @@ export const TemporaryProjectNotificationBar = () => {
           ></Icon>
         </span>
         <span>TEMPORARY</span>
-        <span>This project is temporary</span>
+        <span>This project is temporary and changes may not be saved</span>
         <Button
           className={classNames(
             secondaryOutlineInvertedButtonClasses,

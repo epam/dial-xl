@@ -22,6 +22,7 @@ export function getNode(
       <Icon
         className="text-strokeAccentSecondary w-[18px]"
         component={() => <CSVFileIcon />}
+        id={`dragged-image-${key}`}
       />
     );
 
@@ -36,7 +37,7 @@ export function getNode(
       isLeaf: true,
       icon: (
         <Icon
-          className="stroke-textSecondary"
+          className="size-[18px] text-textSecondary"
           component={() => <ColumnsIcon />}
         />
       ),

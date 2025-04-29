@@ -11,7 +11,6 @@ import com.epam.deltix.quantgrid.engine.node.expression.DisplayPeriodPoint;
 import com.epam.deltix.quantgrid.engine.node.expression.Expression;
 import com.epam.deltix.quantgrid.engine.node.expression.Get;
 import com.epam.deltix.quantgrid.engine.node.expression.Text;
-import com.epam.deltix.quantgrid.engine.node.plan.local.AggregateFunction;
 import com.epam.deltix.quantgrid.engine.node.plan.local.ViewportLocal;
 import com.epam.deltix.quantgrid.parser.FieldKey;
 import lombok.experimental.UtilityClass;
@@ -65,7 +64,7 @@ public class CompileViewport {
             DisplayPeriodPoint display = new DisplayPeriodPoint(table.period(), table.timestamp(), table.value());
             return new CompiledSimpleColumn(display, original.dimensions());
         } else {
-            Expression display = CompileUtil.plus(context, original, original.queryReference(), 1);
+            Expression display = CompileUtil.plus(original.queryReference(), 1);
             return new CompiledSimpleColumn(display, original.dimensions());
         }
     }

@@ -1,17 +1,16 @@
 package com.epam.deltix.quantgrid.engine.compiler.result;
 
+import java.util.List;
+
 import com.epam.deltix.quantgrid.engine.compiler.CompileContext;
 import com.epam.deltix.quantgrid.engine.compiler.CompileUtil;
 import com.epam.deltix.quantgrid.engine.node.expression.Get;
 import com.epam.deltix.quantgrid.engine.node.plan.Plan;
-import com.epam.deltix.quantgrid.engine.node.plan.local.NestedPivotLocal;
-import com.epam.deltix.quantgrid.engine.node.plan.local.SimplePivotLocal;
+import com.epam.deltix.quantgrid.engine.node.plan.local.PivotLocal;
 import com.epam.deltix.quantgrid.parser.FieldKey;
 import com.epam.deltix.quantgrid.type.ColumnType;
 import lombok.Getter;
 import lombok.experimental.Accessors;
-
-import java.util.List;
 
 @Accessors(fluent = true)
 public class CompiledPivotTable extends CompiledAbstractTable {
@@ -58,10 +57,9 @@ public class CompiledPivotTable extends CompiledAbstractTable {
     public CompiledResult field(CompileContext context, String name) {
         Plan layout = context.layout(dimensions).node().getLayout();
         String[] names = {name};
-        Plan pivot = hasCurrentReference()
-                ? new NestedPivotLocal(layout, node, currentReference(), pivotName(), pivotValue(),
-                pivotNames, pivotNamesKey(), names)
-                : new SimplePivotLocal(layout, node, pivotName(), pivotValue(), pivotNames, pivotNamesKey(), names);
+        Plan pivot = new PivotLocal(layout,
+                node, hasCurrentReference() ? currentReference() : null, pivotName(), pivotValue(),
+                pivotNames, pivotNamesKey(), names);
 
         Get column = new Get(pivot, 0);
         return new CompiledSimpleColumn(column, dimensions);

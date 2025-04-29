@@ -61,17 +61,17 @@ public class LocalTable implements Table {
 
     @Override
     public DoubleColumn getDoubleColumn(int index) {
-        return (DoubleColumn) columns[index];
+        return (DoubleColumn) Util.throwIfError(getColumn(index));
     }
 
     @Override
     public StringColumn getStringColumn(int index) {
-        return (StringColumn) columns[index];
+        return (StringColumn) Util.throwIfError(getColumn(index));
     }
 
     @Override
     public PeriodSeriesColumn getPeriodSeriesColumn(int index) {
-        return (PeriodSeriesColumn) columns[index];
+        return (PeriodSeriesColumn) Util.throwIfError(getColumn(index));
     }
 
     public static Table compositeOf(Table... tables) {
@@ -93,7 +93,7 @@ public class LocalTable implements Table {
 
         for (int i = 0; i < columns.length; i++) {
             Column column = table.getColumn(i);
-            columns[i] = indirectOf(column, references);
+            columns[i] = Column.indirectOf(column, references);
         }
 
         return (table.getColumnCount() == 0) ? new LocalTable(references.size()) : new LocalTable(columns);
@@ -104,41 +104,9 @@ public class LocalTable implements Table {
 
         for (int i = 0; i < columns.length; i++) {
             Column column = table.getColumn(i);
-            columns[i] = lambdaOf(column, lambda, size);
+            columns[i] = Column.lambdaOf(column, lambda, size);
         }
 
         return (table.getColumnCount() == 0) ? new LocalTable(size) : new LocalTable(columns);
-    }
-
-    private static Column indirectOf(Column column, LongArrayList references) {
-        if (column instanceof DoubleColumn original) {
-            return new DoubleIndirectColumn(original, references);
-        }
-
-        if (column instanceof StringColumn original) {
-            return new StringIndirectColumn(original, references);
-        }
-
-        if (column instanceof PeriodSeriesColumn original) {
-            return new PeriodSeriesIndirectColumn(original, references);
-        }
-
-        throw new IllegalArgumentException("Unsupported column type: " + column.getClass());
-    }
-
-    private static Column lambdaOf(Column column, Long2LongFunction lambda, long size) {
-        if (column instanceof DoubleColumn original) {
-            return new DoubleLambdaColumn(index -> original.get(lambda.get(index)), size);
-        }
-
-        if (column instanceof StringColumn original) {
-            return new StringLambdaColumn(index -> original.get(lambda.get(index)), size);
-        }
-
-        if (column instanceof PeriodSeriesColumn original) {
-            return new PeriodSeriesLambdaColumn(index -> original.get(lambda.get(index)), size);
-        }
-
-        throw new IllegalArgumentException("Unsupported column type: " + column.getClass());
     }
 }

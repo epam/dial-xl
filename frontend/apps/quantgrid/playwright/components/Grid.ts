@@ -4,10 +4,11 @@ import { FieldMenuItem } from '../enums/FieldMenuItem';
 import { GridMenuItem } from '../enums/GridMenuItem';
 import { MoveDirection } from '../enums/MoveDirection';
 import { Table } from '../logic-entities/Table';
+import { WorkArea } from './abstractions/WorkArea';
 import { BaseComponent } from './BaseComponent';
 import { Editor } from './Editor';
 
-export class Grid extends BaseComponent {
+export class Grid extends BaseComponent implements WorkArea {
   private gridHorizontalCellsHeaders = 'div.grid-header-cell__content';
 
   private gridHorizontalCellHeaderPlaceholder =
@@ -95,8 +96,12 @@ export class Grid extends BaseComponent {
     return `button.context-menu-button${this.keyGridLocator(row, column)}`;
   }
 
-  public getCellTableText(row: number, column: number) {
-    return this.innerPage.locator(this.gridCellTableContent(row, column));
+  public async getCellTableText(row: number, column: number) {
+    return (
+      (await this.innerPage
+        .locator(this.gridCellTableContent(row, column))
+        .textContent()) || ''
+    );
   }
 
   public getCellEditor() {
@@ -196,11 +201,15 @@ export class Grid extends BaseComponent {
     await this.innerPage.getByText(actionText, { exact: true }).click();
   }
 
-  public async waitGridVisible() {
+  public async waitForComponentLoaded() {
     await expect(
       this.innerPage.locator(this.gridHorizontalHeaders)
     ).toBeVisible();
     await expect(this.innerPage.locator(this.gridData)).toBeVisible();
+  }
+
+  public async isVisible() {
+    return await this.innerPage.locator(this.gridData).isVisible();
   }
 
   public async expectCellBecameEditable(cellText: string | undefined) {

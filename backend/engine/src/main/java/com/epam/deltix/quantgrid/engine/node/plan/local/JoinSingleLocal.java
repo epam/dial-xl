@@ -27,7 +27,7 @@ public class JoinSingleLocal extends Plan2<Table, Table, Table> {
 
     @Override
     protected Meta meta() {
-        return new Meta(Schema.inputs(this, 0, 1));
+        return new Meta(Schema.inputs(this, 1));
     }
 
     @Override
@@ -35,8 +35,8 @@ public class JoinSingleLocal extends Plan2<Table, Table, Table> {
         List<Expression> leftKeys = expressions(0);
         List<Expression> rightKeys = expressions(1);
 
-        TableHashStrategy rightStrategy = new TableHashStrategy(rightKeys, false, false);
-        TableHashStrategy leftStrategy = new TableHashStrategy(leftKeys, rightStrategy, false, false);
+        TableHashStrategy rightStrategy = new TableHashStrategy(rightKeys);
+        TableHashStrategy leftStrategy = new TableHashStrategy(leftKeys, rightStrategy);
 
         int leftSize = Util.toIntSize(leftTable.size());
         int rightSize = Util.toIntSize(rightTable.size());
@@ -47,14 +47,11 @@ public class JoinSingleLocal extends Plan2<Table, Table, Table> {
         if (leftSize == 1) {
             filterJoin(leftStrategy, rightSize, leftRefs, rightRefs);
         } else {
-            TableIndex index = TableIndex.build(rightSize, rightStrategy);
+            TableIndex index = TableIndex.build(rightSize, rightStrategy, false);
             hashJoin(leftStrategy, index, leftSize, leftRefs, rightRefs);
         }
 
-        Table leftIndirect = LocalTable.indirectOf(leftTable, leftRefs);
-        Table rightIndirect = LocalTable.indirectOf(rightTable, rightRefs);
-
-        return LocalTable.compositeOf(leftIndirect, rightIndirect);
+        return LocalTable.indirectOf(rightTable, rightRefs);
     }
 
     private static void hashJoin(TableHashStrategy strategy, TableIndex index, int size,
@@ -82,11 +79,13 @@ public class JoinSingleLocal extends Plan2<Table, Table, Table> {
                                    LongArrayList lefts, LongArrayList rights) {
         long ref = Util.NA_REF;
 
-        for (long rightRef = 0; rightRef < size; rightRef++) {
-            if (strategy.equals(0, rightRef)) {
-                // verify that we have only one position for the given key
-                Util.verify(ref == Util.NA_REF, "Table contains non unique keys");
-                ref = rightRef;
+        if (!strategy.hasError(0)) {
+            for (long rightRef = 0; rightRef < size; rightRef++) {
+                if (strategy.equals(0, rightRef)) {
+                    // verify that we have only one position for the given key
+                    Util.verify(ref == Util.NA_REF, "Table contains non unique keys");
+                    ref = rightRef;
+                }
             }
         }
 

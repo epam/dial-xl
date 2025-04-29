@@ -1,0 +1,105 @@
+{
+  "name": "test",
+  "tables": [
+    {
+      "span": {
+        "from": 0,
+        "to": 44
+      },
+      "name": {
+        "span": {
+          "from": 6,
+          "to": 7
+        },
+        "text": "A"
+      },
+      "fields": [
+        {
+          "span": {
+            "from": 10,
+            "to": 25
+          },
+          "key": {
+            "span": {
+              "from": 10,
+              "to": 13
+            },
+            "text": "key"
+          },
+          "dim": {
+            "span": {
+              "from": 14,
+              "to": 17
+            },
+            "text": "dim"
+          },
+          "name": {
+            "span": {
+              "from": 18,
+              "to": 21
+            },
+            "text": "a"
+          },
+          "formula": {
+            "span": {
+              "from": 24,
+              "to": 25
+            },
+            "formula": {
+              "number": 1.0,
+              "arguments": []
+            },
+            "errors": []
+          },
+          "decorators": [],
+          "docs": []
+        },
+        {
+          "span": {
+            "from": 28,
+            "to": 43
+          },
+          "key": {
+            "span": {
+              "from": 32,
+              "to": 35
+            },
+            "text": "key"
+          },
+          "dim": {
+            "span": {
+              "from": 28,
+              "to": 31
+            },
+            "text": "dim"
+          },
+          "name": {
+            "span": {
+              "from": 36,
+              "to": 39
+            },
+            "text": "b"
+          },
+          "formula": {
+            "span": {
+              "from": 42,
+              "to": 43
+            },
+            "formula": {
+              "number": 2.0,
+              "arguments": []
+            },
+            "errors": []
+          },
+          "decorators": [],
+          "docs": []
+        }
+      ],
+      "decorators": [],
+      "docs": [],
+      "totals": []
+    }
+  ],
+  "pythons": [],
+  "errors": []
+}

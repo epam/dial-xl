@@ -19,8 +19,5 @@ web:
   heartbeatPeriodMillis: 60000
 
 spring:
-  mvc:
-    async:
-      request-timeout: 600000 # 10 min
   security:
     enabled: ${SECURITY_ENABLED:false}

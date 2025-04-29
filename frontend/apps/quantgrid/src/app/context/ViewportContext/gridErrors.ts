@@ -1,12 +1,11 @@
 import {
   CompilationError,
-  escapeFieldName,
-  escapeTableName,
   OverrideKey,
   ParsingError,
   RuntimeError,
   TotalKey,
 } from '@frontend/common';
+import { escapeFieldName, escapeTableName } from '@frontend/parser';
 
 export function getFieldErrors(
   parsingError: ParsingError[] | null,

@@ -1,0 +1,204 @@
+{
+  "name": "test",
+  "tables": [
+    {
+      "span": {
+        "from": 0,
+        "to": 39
+      },
+      "name": {
+        "span": {
+          "from": 36,
+          "to": 38
+        },
+        "text": "t1"
+      },
+      "fields": [],
+      "decorators": [
+        {
+          "span": {
+            "from": 14,
+            "to": 30
+          },
+          "name": {
+            "span": {
+              "from": 15,
+              "to": 24
+            },
+            "text": "placement"
+          },
+          "params": [
+            {
+              "span": {
+                "from": 25,
+                "to": 26
+              },
+              "value": 2.0
+            },
+            {
+              "span": {
+                "from": 27,
+                "to": 28
+              },
+              "value": 2.0
+            }
+          ]
+        }
+      ],
+      "docs": [],
+      "totals": []
+    },
+    {
+      "span": {
+        "from": 41,
+        "to": 156
+      },
+      "name": {
+        "span": {
+          "from": 119,
+          "to": 121
+        },
+        "text": "t2"
+      },
+      "fields": [
+        {
+          "span": {
+            "from": 126,
+            "to": 155
+          },
+          "name": {
+            "span": {
+              "from": 148,
+              "to": 151
+            },
+            "text": "x"
+          },
+          "formula": {
+            "span": {
+              "from": 154,
+              "to": 155
+            },
+            "formula": {
+              "number": 5.0,
+              "arguments": []
+            },
+            "errors": []
+          },
+          "decorators": [
+            {
+              "span": {
+                "from": 126,
+                "to": 144
+              },
+              "name": {
+                "span": {
+                  "from": 127,
+                  "to": 133
+                },
+                "text": "format"
+              },
+              "params": [
+                {
+                  "span": {
+                    "from": 134,
+                    "to": 142
+                  },
+                  "value": "number"
+                }
+              ]
+            }
+          ],
+          "docs": []
+        }
+      ],
+      "decorators": [
+        {
+          "span": {
+            "from": 63,
+            "to": 82
+          },
+          "name": {
+            "span": {
+              "from": 67,
+              "to": 73
+            },
+            "text": "format"
+          },
+          "params": [
+            {
+              "span": {
+                "from": 74,
+                "to": 80
+              },
+              "value": "#.##"
+            }
+          ]
+        },
+        {
+          "span": {
+            "from": 95,
+            "to": 113
+          },
+          "name": {
+            "span": {
+              "from": 98,
+              "to": 107
+            },
+            "text": "placement"
+          },
+          "params": [
+            {
+              "span": {
+                "from": 108,
+                "to": 109
+              },
+              "value": 1.0
+            },
+            {
+              "span": {
+                "from": 110,
+                "to": 111
+              },
+              "value": 1.0
+            }
+          ]
+        }
+      ],
+      "docs": [],
+      "totals": []
+    }
+  ],
+  "pythons": [],
+  "errors": [
+    {
+      "line": 2,
+      "position": 1,
+      "message": "mismatched input '!' expecting {'-', FLOAT, STRING_LITERAL}"
+    },
+    {
+      "line": 5,
+      "position": 3,
+      "message": "mismatched input 'key' expecting {'(', LINE_BREAK}"
+    },
+    {
+      "line": 7,
+      "position": 3,
+      "message": "extraneous input 'dim' expecting {'!', 'table', LINE_BREAK}"
+    },
+    {
+      "line": 14,
+      "position": 5,
+      "message": "mismatched input '[c]' expecting {'(', LINE_BREAK}"
+    },
+    {
+      "line": 15,
+      "position": 1,
+      "message": "mismatched input '<EOF>' expecting {'(', LINE_BREAK}"
+    },
+    {
+      "line": 13,
+      "position": 5,
+      "message": "Missing table name"
+    }
+  ]
+}

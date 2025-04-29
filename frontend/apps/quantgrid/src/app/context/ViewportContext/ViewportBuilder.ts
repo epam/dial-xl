@@ -1,15 +1,14 @@
 import {
   CachedViewports,
-  ColumnDataType,
+  ChartType,
   GridViewport,
-  SelectedChartKey,
-  unescapeTableName,
   Viewport,
 } from '@frontend/common';
+import { dynamicFieldName, unescapeTableName } from '@frontend/parser';
 
 import { getExtendedRoundedBorders } from './getExtendedRoundedBorders';
 import { getTableFieldsForViewport } from './getTableFieldsForViewport';
-import { chunkSize, ViewGridData } from './ViewGridData';
+import { ViewGridData } from './ViewGridData';
 
 /**
  * Class which is generating viewports request considering tablesData
@@ -47,13 +46,16 @@ export class ViewportBuilder {
       const { tableName: escapedTableName } = table;
       const tableName = unescapeTableName(escapedTableName);
       const isTableHorizontal = table.getIsTableDirectionHorizontal();
+      const chartType = table.getChartType();
+      const isRegularChartTable =
+        chartType && chartType !== ChartType.PERIOD_SERIES;
       const [tableStartRow, tableStartCol] = table.getPlacement();
       const startDirectionValue = isTableHorizontal ? start_col : start_row;
       const endDirectionValue = isTableHorizontal ? end_col : end_row;
       const tableStart = isTableHorizontal ? tableStartCol : tableStartRow;
 
       const normalizedStartRow = Math.max(0, startDirectionValue - tableStart);
-      const normalizedEndRow = endDirectionValue - tableStart;
+      const normalizedEndRow = Math.abs(endDirectionValue - tableStart);
 
       const fields = getTableFieldsForViewport(
         viewport,
@@ -97,8 +99,12 @@ export class ViewportBuilder {
         viewports.push(
           ...fields.map(
             (field): Viewport => ({
-              start_row: rowStart,
-              end_row: rowEnd,
+              start_row:
+                isRegularChartTable && field !== dynamicFieldName
+                  ? 0
+                  : rowStart,
+              end_row:
+                isRegularChartTable && field !== dynamicFieldName ? 0 : rowEnd,
               fieldKey: { field, table: tableName },
             })
           )
@@ -187,80 +193,6 @@ export class ViewportBuilder {
     mergedRows.push(currentRange);
 
     return mergedRows.filter(([start, end]) => start < end);
-  }
-
-  public buildChartViewportRequest(
-    selectedKeys: SelectedChartKey[]
-  ): Viewport[] {
-    const viewportsToRequest: Viewport[] = [];
-
-    for (const { tableName, fieldName, key } of selectedKeys) {
-      // 1. Find key row in table data (only single key per table is supported)
-      let row = -1;
-      const tableData = this.viewGridData.getTableData(tableName);
-
-      if (!tableData) return [];
-
-      for (const chunkIndex of Object.keys(tableData.chunks)) {
-        const chunk = tableData.chunks[parseInt(chunkIndex)];
-        const columnChunk = chunk[fieldName];
-
-        if (!columnChunk) continue;
-
-        for (let i = 0; i < columnChunk.length; i++) {
-          if (columnChunk[i] === key) {
-            row = i;
-            break;
-          }
-        }
-      }
-
-      if (row === -1) return [];
-
-      // 2. Create viewport request for chart only for PERIOD_SERIES fields
-      const fields: string[] = [];
-      for (const field of Object.keys(tableData.types)) {
-        if (tableData.types[field] === ColumnDataType.PERIOD_SERIES) {
-          fields.push(field);
-        }
-      }
-
-      if (fields.length === 0) return [];
-
-      viewportsToRequest.push(
-        ...fields.map((field) => ({
-          start_row: row,
-          end_row: row + 1,
-          is_content: true,
-          fieldKey: {
-            field,
-            table: tableName,
-          },
-        }))
-      );
-    }
-
-    return viewportsToRequest;
-  }
-
-  public buildGetMoreChartKeysViewportRequest(
-    tableName: string,
-    fieldName: string
-  ): Viewport[] {
-    const tableData = this.viewGridData.getTableData(tableName);
-
-    const { maxKnownRowIndex } = tableData;
-
-    return [
-      {
-        start_row: maxKnownRowIndex,
-        end_row: maxKnownRowIndex + chunkSize,
-        fieldKey: {
-          field: fieldName,
-          table: tableName,
-        },
-      },
-    ];
   }
 
   clear() {

@@ -3,7 +3,7 @@ export function commentToNote(comment: string): string {
     .replaceAll('\r', '')
     .split('\n')
     .map((line) => line.replace(/^##/, ''))
-    .join('\r\n');
+    .join('\n');
 }
 
 export function noteToComment(note: string): string {
@@ -11,6 +11,6 @@ export function noteToComment(note: string): string {
     .replaceAll('\r', '')
     .trim()
     .split('\n')
-    .map((line) => `##${line}`)
-    .join('\r\n');
+    .map((line) => `${line}`)
+    .join('\n');
 }

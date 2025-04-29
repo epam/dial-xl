@@ -4,28 +4,42 @@ import { useCallback, useContext } from 'react';
 import Icon from '@ant-design/icons';
 import {
   BottomPositionIcon,
+  ColumnsIcon,
   getDropdownDivider,
   getDropdownItem,
   LeftPositionIcon,
   MinimizePanelIcon,
   RightPositionIcon,
+  TypographyIcon,
+  TypographyOffIcon,
 } from '@frontend/common';
 
 import { PanelName, PanelPosition } from '../common';
 import { LayoutContext } from '../context';
 
 export function usePanelSettings() {
-  const { changePanelPosition, togglePanel, openedPanels } =
-    useContext(LayoutContext);
+  const {
+    changePanelPosition,
+    togglePanel,
+    openedPanels,
+    collapsedPanelsTextHidden,
+    panelsSplitEnabled,
+    updateSplitPanelsEnabled,
+    updateCollapsedPanelsTextHidden,
+  } = useContext(LayoutContext);
 
   const getPanelSettingsItems = useCallback(
-    (panelName: PanelName, isPanelCollapsed = false): MenuProps['items'] => {
+    (
+      panelName: PanelName,
+      panelsPosition: PanelPosition,
+      isPanelCollapsed = false
+    ): MenuProps['items'] => {
       const positionItems: MenuProps['items'] = [
         getDropdownItem({
           key: 'left',
           icon: (
             <Icon
-              className="stroke-textSecondary"
+              className="text-textSecondary w-[18px]"
               component={() => <LeftPositionIcon />}
             />
           ),
@@ -38,7 +52,7 @@ export function usePanelSettings() {
           key: 'right',
           icon: (
             <Icon
-              className="stroke-textSecondary"
+              className="text-textSecondary w-[18px]"
               component={() => <RightPositionIcon />}
             />
           ),
@@ -51,7 +65,7 @@ export function usePanelSettings() {
           key: 'bottom',
           icon: (
             <Icon
-              className="stroke-textSecondary"
+              className="text-textSecondary w-[18px]"
               component={() => <BottomPositionIcon />}
             />
           ),
@@ -62,16 +76,67 @@ export function usePanelSettings() {
         }),
       ];
 
+      const generalPanelsSettingsItems: MenuProps['items'] = [
+        getDropdownDivider(),
+        getDropdownItem({
+          key: 'hideText',
+          icon: (
+            <Icon
+              className="text-textSecondary w-[18px]"
+              component={() =>
+                collapsedPanelsTextHidden ? (
+                  <TypographyIcon />
+                ) : (
+                  <TypographyOffIcon />
+                )
+              }
+            />
+          ),
+          label: (
+            <span>
+              {collapsedPanelsTextHidden ? 'Show labels' : 'Hide labels'}
+            </span>
+          ),
+          onClick: () => {
+            updateCollapsedPanelsTextHidden(!collapsedPanelsTextHidden);
+          },
+        }),
+        getDropdownItem({
+          key: 'split',
+          icon: (
+            <Icon
+              className="text-textSecondary rotate-90 w-[18px]"
+              component={() => <ColumnsIcon />}
+            />
+          ),
+          label: (
+            <span>{panelsSplitEnabled ? 'Merge panels' : 'Split panels'}</span>
+          ),
+          onClick: () => {
+            updateSplitPanelsEnabled(!panelsSplitEnabled);
+          },
+        }),
+      ];
+
       const isPanelOpened =
         openedPanels[panelName] && openedPanels[panelName].isActive;
-      const iconRotate = isPanelOpened ? '' : 'rotate-180';
+      let iconRotate = '';
+
+      if (panelsPosition === PanelPosition.Left) {
+        iconRotate = isPanelOpened ? '' : 'rotate-180';
+      } else if (panelsPosition === PanelPosition.Right) {
+        iconRotate = isPanelOpened ? 'rotate-180' : '';
+      } else {
+        iconRotate = isPanelOpened ? '-rotate-90' : 'rotate-90';
+      }
+
       const expandItem: MenuProps['items'] = isPanelCollapsed
         ? [
             getDropdownItem({
               key: 'expand',
               icon: (
                 <Icon
-                  className={`h-[18px] w-[18px] text-textSecondary ${iconRotate}`}
+                  className={`h-[16px] w-[16px] text-textSecondary ${iconRotate}`}
                   component={() => <MinimizePanelIcon />}
                 />
               ),
@@ -84,9 +149,17 @@ export function usePanelSettings() {
           ]
         : [];
 
-      return [...expandItem, ...positionItems];
+      return [...expandItem, ...positionItems, ...generalPanelsSettingsItems];
     },
-    [changePanelPosition, togglePanel, openedPanels]
+    [
+      collapsedPanelsTextHidden,
+      panelsSplitEnabled,
+      openedPanels,
+      changePanelPosition,
+      updateCollapsedPanelsTextHidden,
+      updateSplitPanelsEnabled,
+      togglePanel,
+    ]
   );
 
   return {

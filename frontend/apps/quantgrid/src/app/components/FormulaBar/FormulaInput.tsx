@@ -8,7 +8,10 @@ import {
   useState,
 } from 'react';
 
-import { GridApi, isCellEditorOpen } from '@frontend/canvas-spreadsheet';
+import {
+  GridCellEditorMode,
+  isCellEditorOpen,
+} from '@frontend/canvas-spreadsheet';
 import {
   CodeEditor,
   editor,
@@ -16,8 +19,8 @@ import {
   SetFocusRefFunction,
 } from '@frontend/code-editor';
 import { isFormulaBarMonacoInputFocused } from '@frontend/common';
-import { GridCellEditorMode, SelectedCellType } from '@frontend/spreadsheet';
 
+import { SelectedCellType } from '../../common';
 import { AppContext, ProjectContext } from '../../context';
 import { useGridApi } from '../../hooks';
 import useEventBus from '../../hooks/useEventBus';
@@ -53,7 +56,6 @@ export function FormulaInput({ fieldName, inputIndex = 0 }: Props) {
     theme,
     switchPointClickMode,
     isPointClickMode,
-    canvasSpreadsheetMode,
   } = useContext(AppContext);
   const gridApi = useGridApi();
 
@@ -281,11 +283,11 @@ export function FormulaInput({ fieldName, inputIndex = 0 }: Props) {
       isCurrentPointClickDimField.current = false;
 
       switchPointClickMode(false);
-      if (canvasSpreadsheetMode && gridApi) {
-        (gridApi as GridApi).updateSelection(null, { silent: true });
+      if (gridApi) {
+        gridApi.updateSelection(null, { silent: true });
       }
     },
-    [canvasSpreadsheetMode, gridApi, switchPointClickMode]
+    [gridApi, switchPointClickMode]
   );
 
   const handleFormulaBarFormulasMenuItemApply = useCallback(

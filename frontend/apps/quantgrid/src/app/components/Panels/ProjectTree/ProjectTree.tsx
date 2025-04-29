@@ -9,6 +9,7 @@ import Icon from '@ant-design/icons';
 import {
   ColumnsIcon,
   DownOutlinedIcon,
+  DragIcon,
   FileIcon,
   projectTreeId,
   QGLogo,
@@ -17,7 +18,11 @@ import {
 import { dynamicFieldName } from '@frontend/parser';
 
 import { AppContext, ProjectContext } from '../../../context';
-import { useManualEditDSL } from '../../../hooks';
+import {
+  useManualEditDSL,
+  useRenameFieldDsl,
+  useTableEditDsl,
+} from '../../../hooks';
 import { ProjectTreeRenameModal } from './ProjectTreeRenameModal';
 import {
   ProjectTreeChildData,
@@ -37,8 +42,11 @@ export function ProjectTree() {
     sheetName,
     parsedSheet,
     tablesDiffData,
+    selectedCell,
   } = useContext(ProjectContext);
-  const { renameTable, renameField } = useManualEditDSL();
+  const { moveTableToSheet } = useManualEditDSL();
+  const { renameTable } = useTableEditDsl();
+  const { renameField } = useRenameFieldDsl();
 
   const onRenameTableRef = useRef<RenameItemCallback>();
   const onRenameFieldRef = useRef<RenameItemCallback>();
@@ -114,10 +122,21 @@ export function ProjectTree() {
 
       return {
         key,
-        title: name,
+        title: (
+          <span
+            className={classNames(
+              'truncate flex justify-between group items-center',
+              sheetName === name && '!text-textAccentPrimary'
+            )}
+            id={key}
+            title={name}
+          >
+            <span className="truncate">{name}</span>
+          </span>
+        ),
         icon: (
           <Icon
-            className="stroke-textSecondary"
+            className="text-textSecondary w-[18px]"
             component={() => <FileIcon />}
           />
         ),
@@ -129,9 +148,10 @@ export function ProjectTree() {
           };
           const tableDiff = tablesDiffData[t.tableName];
           const isTableDiff =
-            tableDiff.table ||
-            tableDiff.fields.length ||
-            tableDiff.overrides?.length;
+            tableDiff?.table ||
+            tableDiff?.changedFields.length ||
+            tableDiff?.overrides?.length ||
+            tableDiff?.deletedFields.length;
 
           const key = `0-0-${index}-${tableIndex}`;
           if (expandedTables.current.has(t.tableName)) {
@@ -140,14 +160,33 @@ export function ProjectTree() {
 
           return {
             key,
-            title: t.tableName,
+            title: (
+              <span
+                className={classNames(
+                  'truncate flex justify-between group items-center',
+                  selectedCell?.tableName === t.tableName &&
+                    '!text-textAccentPrimary'
+                )}
+                id={key}
+                title={t.tableName}
+              >
+                <span className="truncate">{t.tableName}</span>
+                <div className="text-textSecondary hidden group-hover:block">
+                  <Icon
+                    className="w-[18px] text-textSecondary mr-1"
+                    component={() => <DragIcon />}
+                  />
+                  Drag
+                </div>
+              </span>
+            ),
             className: classNames(
               isPointClickMode && 'point-click',
               isTableDiff && 'text-textAccentTertiary font-semibold'
             ),
             icon: (
               <Icon
-                className="stroke-textSecondary"
+                className="text-textSecondary w-[18px]"
                 component={() => <TableIcon />}
               />
             ),
@@ -160,15 +199,32 @@ export function ProjectTree() {
                   sheetName: name,
                   fieldName: f.key.fieldName,
                 };
-                const isFieldDiff = tableDiff.fields.includes(f.key.fieldName);
-                const isOverrideDiff = !!tableDiff.overrides?.some(
-                  (override) =>
-                    Object.keys(override).includes(f.key.fieldName) && !f.isKey
+                const isFieldDiff = tableDiff?.changedFields.includes(
+                  f.key.fieldName
                 );
+                const isOverrideDiff = !!tableDiff?.overrides?.some(
+                  (override) =>
+                    Object.keys(override).includes(f.key.fieldName) &&
+                    !f.isKey &&
+                    override[f.key.fieldName] !== '""'
+                );
+                const key = `0-0-${index}-${tableIndex}-${fieldIndex}`;
 
                 return {
-                  title: f.key.fieldName,
-                  key: `0-0-${index}-${tableIndex}-${fieldIndex}`,
+                  key,
+                  title: (
+                    <span
+                      className={classNames(
+                        'truncate flex justify-between group items-center',
+                        selectedCell?.fieldName === f.key.fieldName &&
+                          '!text-textAccentPrimary'
+                      )}
+                      id={key}
+                      title={f.key.fieldName}
+                    >
+                      <span className="truncate">{f.key.fieldName}</span>
+                    </span>
+                  ),
                   className: classNames(
                     isPointClickMode && 'point-click',
                     (isFieldDiff || isOverrideDiff) &&
@@ -176,21 +232,55 @@ export function ProjectTree() {
                   ),
                   icon: (
                     <Icon
-                      className="stroke-textSecondary"
+                      className="size-[18px] text-textSecondary"
                       component={() => <ColumnsIcon />}
                     />
                   ),
                   isLeaf: true,
                 };
               }),
-          };
+          } as DataNode;
         }),
       };
     });
 
     children.forEach((child) => {
-      if (child.title === sheetName) {
-        setSelectedKeys([child.key]);
+      const itemSheetName = childData[child.key.toString()]?.sheetName;
+
+      if (itemSheetName === sheetName) {
+        let localSelectedKeys = [child.key];
+        if (!expandedSheets.current.has(child.key.toString())) {
+          sheetsToExpand.push(child.key.toString());
+        }
+
+        child.children?.forEach((child) => {
+          const tableName = childData[child.key.toString()].tableName;
+
+          if (tableName === selectedCell?.tableName) {
+            localSelectedKeys = [child.key];
+            if (!expandedTables.current.has(child.key.toString())) {
+              tablesToExpand.push(child.key.toString());
+            }
+
+            child.children?.forEach((child) => {
+              const fieldName = childData[child.key.toString()].fieldName;
+
+              if (fieldName === selectedCell?.fieldName) {
+                localSelectedKeys = [child.key];
+              }
+            });
+          }
+        });
+
+        if (localSelectedKeys[0]) {
+          // We need to have timeout because there is some animation for expanding item in tree
+          setTimeout(() => {
+            document
+              .getElementById(localSelectedKeys[0].toString())
+              ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }, 300);
+        }
+        setSelectedKeys(localSelectedKeys);
       }
     });
 
@@ -229,6 +319,8 @@ export function ProjectTree() {
     expandedSheets,
     expandedTables,
     tablesDiffData,
+    selectedCell?.tableName,
+    selectedCell?.fieldName,
   ]);
 
   const onSelect = useCallback(
@@ -248,25 +340,28 @@ export function ProjectTree() {
       info: {
         node: EventDataNode<DataNode>;
         expanded: boolean;
+        nativeEvent: Event;
       }
     ) => {
-      setExpandedKeys(expandedKeys as string[]);
-
-      const { expanded, node } = info;
-      const title = node.title as string;
+      const { expanded, node, nativeEvent } = info;
       const parsedKey = node.key.toString().split('-');
       const isSheet = parsedKey.length === 3;
       const isTable = parsedKey.length === 4;
+      const sheetName = childData[node.key.toString()].sheetName;
+      const tableName = childData[node.key.toString()].tableName;
 
+      if (isTable && nativeEvent instanceof DragEvent) return;
+
+      setExpandedKeys(expandedKeys as string[]);
       if (expanded) {
-        if (isSheet) expandedSheets.current.add(title);
-        if (isTable) expandedTables.current.add(title);
+        if (isSheet && sheetName) expandedSheets.current.add(sheetName);
+        if (isTable && tableName) expandedTables.current.add(tableName);
       } else {
-        if (isSheet) expandedSheets.current.delete(title);
-        if (isTable) expandedTables.current.delete(title);
+        if (isSheet && sheetName) expandedSheets.current.delete(sheetName);
+        if (isTable && tableName) expandedTables.current.delete(tableName);
       }
     },
-    []
+    [childData]
   );
 
   const onSaveName = useCallback(
@@ -299,6 +394,41 @@ export function ProjectTree() {
     setRenamingLeafData(undefined);
   }, []);
 
+  const handleIsNodeDraggable = useCallback(
+    (node: DataNode) =>
+      // We need to allow dragging sheet (3 segments)
+      // otherwise it's not registering events for on drop
+      node.key.toString().split('-').length === 3 ||
+      node.key.toString().split('-').length === 4,
+    []
+  );
+
+  const handleNodeDropAllowed = useCallback(
+    ({ dropNode }: { dropNode: DataNode }) => {
+      return dropNode.key.toString().split('-').length === 3;
+    },
+    []
+  );
+
+  const handleDrop = useCallback(
+    ({ node, dragNode }: { node: DataNode; dragNode: DataNode }) => {
+      const tableName = childData[dragNode.key.toString()].tableName;
+      const sourceSheetName = childData[dragNode.key.toString()].sheetName;
+      const destinationSheetName = childData[node.key.toString()].sheetName;
+
+      if (
+        !tableName ||
+        !sourceSheetName ||
+        !destinationSheetName ||
+        sourceSheetName === destinationSheetName
+      )
+        return;
+
+      moveTableToSheet(tableName, sourceSheetName, destinationSheetName);
+    },
+    [childData, moveTableToSheet]
+  );
+
   if (!projectName) {
     return <span className="w-full text-center pt-3">No opened project</span>;
   }
@@ -315,18 +445,21 @@ export function ProjectTree() {
         >
           <div>
             <Tree.DirectoryTree
+              allowDrop={handleNodeDropAllowed}
               className="bg-bgLayer3 text-textPrimary"
+              draggable={{ icon: false, nodeDraggable: handleIsNodeDraggable }}
               expandAction={false}
               expandedKeys={expandedKeys}
               multiple={false}
               selectedKeys={selectedKeys}
               switcherIcon={
                 <Icon
-                  className="fill-textSecondary text-textSecondary pointer-events-none"
+                  className="text-textSecondary pointer-events-none w-2"
                   component={() => <DownOutlinedIcon />}
                 />
               }
               treeData={projectTreeData}
+              onDrop={handleDrop}
               onExpand={onExpand}
               onRightClick={(info) => createContextMenuItems(info, childData)}
               onSelect={(_, info) => onSelect(info.node)}
@@ -337,7 +470,7 @@ export function ProjectTree() {
         <ProjectTreeRenameModal
           isOpened={!!renamingLeafData}
           modalTitle={
-            renamingLeafData?.fieldName ? 'Rename field' : 'Rename table'
+            renamingLeafData?.fieldName ? 'Rename column' : 'Rename table'
           }
           oldName={
             renamingLeafData?.fieldName ?? renamingLeafData?.tableName ?? ''

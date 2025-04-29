@@ -9,7 +9,7 @@ export class TopMenu extends BaseComponent {
 
   public async clickOnDropdownItem(itemName: string) {
     const loc = this.innerPage.locator(
-      `span.ant-menu-title-content:has-text("${itemName}")`
+      `span.ant-menu-title-content:has(>button[data-label="${itemName}"])`
     );
     await expect(loc).toBeVisible();
     await loc.click();
@@ -17,7 +17,9 @@ export class TopMenu extends BaseComponent {
 
   public async hoverOverItem(itemName: string) {
     await this.innerPage
-      .locator(`span.ant-menu-title-content:has-text("${itemName}")`)
+      .locator(
+        `span.ant-menu-title-content:has(>button[data-label="${itemName}"])`
+      )
       .hover();
   }
 

@@ -1,6 +1,6 @@
 export function QGLogo() {
   return (
-    <svg fill="none" viewBox="0 0 20 20" width="100%">
+    <svg fill="none" stroke="none" viewBox="0 0 20 20" width="100%">
       <path
         d="M6.42933 3.57115L3.57185 6.42863L6.42933 9.28611L9.28681 6.42863L6.42933 3.57115Z"
         fill="#843EF3"

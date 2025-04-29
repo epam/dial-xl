@@ -1,7 +1,7 @@
 import { RefObject, useContext, useEffect, useMemo, useState } from 'react';
 import { debounce } from 'ts-debounce';
 
-import { getPx } from '@frontend/spreadsheet';
+import { getPx } from '@frontend/canvas-spreadsheet';
 
 import { AppContext } from '../../../context';
 

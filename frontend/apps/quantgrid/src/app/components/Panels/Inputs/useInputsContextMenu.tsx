@@ -116,7 +116,7 @@ export const useInputsContextMenu = ({
               label: 'Rename',
               icon: (
                 <Icon
-                  className="stroke-textSecondary w-[18px]"
+                  className="text-textSecondary w-[18px]"
                   component={() => <EditIcon />}
                 />
               ),

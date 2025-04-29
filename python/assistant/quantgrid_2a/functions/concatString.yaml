@@ -1,0 +1,6 @@
+name: concatString
+description: Concatenate variadic number of strings
+signature: 'concatString(text: string, ...) => string'
+manual: >-
+  `concatString` receives variadic number of `text` arguments and returns concatenated `string`.
+original_name: concatenate

@@ -1,17 +1,11 @@
 import { useCallback, useContext, useEffect } from 'react';
 
+import { isCellEditorHasFocus } from '@frontend/canvas-spreadsheet';
 import {
   formulaBarMenuClass,
   isFormulaBarMonacoInputFocused,
   isProjectTreeTarget,
 } from '@frontend/common';
-import {
-  gridCellClass,
-  gridDataContainerClass,
-  gridRowDataContainerClass,
-  isCellEditorHasFocus,
-  isSpreadsheetCellFocused,
-} from '@frontend/spreadsheet';
 
 import { AppContext } from '../context';
 import { useGridApi } from './useGridApi';
@@ -33,11 +27,6 @@ export function usePointClickClickWatcher() {
       if (!isPointClickMode || !event.target) return;
 
       const targetElement = event.target as HTMLElement;
-      const isGridElement = [
-        gridDataContainerClass,
-        gridCellClass,
-        gridRowDataContainerClass,
-      ].some((className) => targetElement.classList.contains(className));
       const isDropdown =
         targetElement.classList.toString().includes('ant-dropdown') ||
         targetElement.parentElement?.classList
@@ -48,8 +37,6 @@ export function usePointClickClickWatcher() {
       );
 
       if (
-        isGridElement ||
-        isSpreadsheetCellFocused(targetElement) ||
         isProjectTreeTarget(event) ||
         isCellEditorHasFocus() ||
         isFormulaBarMonacoInputFocused() ||

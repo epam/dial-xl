@@ -10,3 +10,5 @@ export * from './shortcuts';
 export * from './spreadsheet';
 export * from './uiInspectionUtils';
 export * from './utils';
+export * from './aiHint';
+export * from './cell';

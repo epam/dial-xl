@@ -17,7 +17,7 @@ export function InputUpload() {
         onClick={() => uploadFiles()}
       >
         <Icon
-          className="w-[12px] stroke-textSecondary mr-2 group-disabled:stroke-controlsTextDisable"
+          className="w-[12px] text-textSecondary mr-2 group-disabled:stroke-controlsTextDisable"
           component={() => <PlusIcon />}
         />
         <span className="text-[13px] leading-[14px]">Upload file</span>

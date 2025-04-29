@@ -295,12 +295,8 @@ public class DoubleFunctions {
             return b;
         }
 
-        if (Doubles.isEmpty(a)) {
-            a = 0.0;
-        }
-
-        if (Doubles.isEmpty(b)) {
-            b = 0.0;
+        if (Doubles.isEmpty(a) || Doubles.isEmpty(b)) {
+            return 0.0;
         }
 
         return (a < b) ? 1.0 : 0.0;
@@ -315,12 +311,12 @@ public class DoubleFunctions {
             return b;
         }
 
-        if (Doubles.isEmpty(a)) {
-            a = 0.0;
+        if (Doubles.isEmpty(a) && Doubles.isEmpty(b)) {
+            return 1.0;
         }
 
-        if (Doubles.isEmpty(b)) {
-            b = 0.0;
+        if (Doubles.isEmpty(a) || Doubles.isEmpty(b)) {
+            return 0.0;
         }
 
         return (a <= b) ? 1.0 : 0.0;
@@ -335,12 +331,12 @@ public class DoubleFunctions {
             return b;
         }
 
-        if (Doubles.isEmpty(a)) {
-            a = 0.0;
+        if (Doubles.isEmpty(a) && Doubles.isEmpty(b)) {
+           return 1.0;
         }
 
-        if (Doubles.isEmpty(b)) {
-            b = 0.0;
+        if (Doubles.isEmpty(a) || Doubles.isEmpty(b)) {
+            return 0.0;
         }
 
         return (a == b) ? 1.0 : 0.0;
@@ -355,12 +351,12 @@ public class DoubleFunctions {
             return b;
         }
 
-        if (Doubles.isEmpty(a)) {
-            a = 0.0;
+        if (Doubles.isEmpty(a) && Doubles.isEmpty(b)) {
+            return 0.0;
         }
 
-        if (Doubles.isEmpty(b)) {
-            b = 0.0;
+        if (Doubles.isEmpty(a) || Doubles.isEmpty(b)) {
+            return 1.0;
         }
 
         return (a == b) ? 0.0 : 1.0;
@@ -375,12 +371,8 @@ public class DoubleFunctions {
             return b;
         }
 
-        if (Doubles.isEmpty(a)) {
-            a = 0.0;
-        }
-
-        if (Doubles.isEmpty(b)) {
-            b = 0.0;
+        if (Doubles.isEmpty(a) || Doubles.isEmpty(b)) {
+            return 0.0;
         }
 
         return (a > b) ? 1.0 : 0.0;
@@ -395,12 +387,12 @@ public class DoubleFunctions {
             return b;
         }
 
-        if (Doubles.isEmpty(a)) {
-            a = 0.0;
+        if (Doubles.isEmpty(a) && Doubles.isEmpty(b)) {
+            return 1.0;
         }
 
-        if (Doubles.isEmpty(b)) {
-            b = 0.0;
+        if (Doubles.isEmpty(a) || Doubles.isEmpty(b)) {
+            return 0.0;
         }
 
         return (a >= b) ? 1.0 : 0.0;
@@ -415,16 +407,12 @@ public class DoubleFunctions {
             return b;
         }
 
-        if (Doubles.isEmpty(a) && Doubles.isEmpty(b)) {
-            return Doubles.ERROR_NA; // #VALUE!
-        }
-
         if (Doubles.isEmpty(a)) {
-            a = 1.0;
+            a = 0.0;
         }
 
         if (Doubles.isEmpty(b)) {
-            b = 1.0;
+            b = 0.0;
         }
 
         return (a != 0.0 && b != 0.0) ? 1.0 : 0.0;
@@ -437,10 +425,6 @@ public class DoubleFunctions {
 
         if (Doubles.isError(b)) {
             return b;
-        }
-
-        if (Doubles.isEmpty(a) && Doubles.isEmpty(b)) {
-            return Doubles.ERROR_NA; // #VALUE!
         }
 
         if (Doubles.isEmpty(a)) {

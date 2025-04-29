@@ -11,7 +11,6 @@ import {
   secondaryButtonClasses,
   shouldStopPropagation,
 } from '@frontend/common';
-import { focusSpreadsheet } from '@frontend/spreadsheet';
 
 import { useRenameFile } from '../../../hooks';
 import { DashboardItem } from '../../../types/dashboard';
@@ -118,7 +117,6 @@ export function RenameFileModal({ item, onModalClose }: Props) {
 
   return (
     <Modal
-      afterClose={focusSpreadsheet}
       cancelButtonProps={{
         className: cx(modalFooterButtonClasses, secondaryButtonClasses),
       }}

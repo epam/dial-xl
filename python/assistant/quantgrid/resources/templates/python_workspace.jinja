@@ -1,0 +1,23 @@
+{% for table in tables %}
+class {{ table.var_name }}(Table{% if table.var_name != table.ui_name %}, ui_name="{{ table.ui_name }}"{% endif %}{% if table.note %}, ui_note={{ table.note|tojson }}{% endif %}):
+    {% for field in table.fields %}
+    {{ field.var_name }}: {{ field.annotation }}[{{ field.field_type }}]
+    {%- set params = [] %}
+        {% if field.var_name != field.ui_name and field.ui_name != '*' %}{% do params.append('ui_name="' ~ field.ui_name ~ '"') %}{% endif %}
+        {% if field.note %}{% do params.append("ui_note=" ~ field.note|tojson) %}{% endif %}
+    {% if params %} = {{ field.annotation }}({{ params|join(", ") }}){% endif %}
+
+    {% endfor %}
+
+{% for field in table.fields %}
+{% if field.function %}
+{{ field.function }}
+{% endif %}
+{% endfor %}
+{% if table.fields %}
+
+{% else %}
+
+
+{% endif %}
+{% endfor %}

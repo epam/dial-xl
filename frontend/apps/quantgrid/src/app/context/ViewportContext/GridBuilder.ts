@@ -1,3 +1,4 @@
+import { ViewportEdges } from '@frontend/canvas-spreadsheet';
 import {
   ColumnChunk,
   ColumnDataType,
@@ -6,17 +7,19 @@ import {
   GridCell,
   GridData,
   GridField,
+  GridFieldCache,
   GridTable,
   isNumericType,
+  isTextType,
   isValidUrl,
   TableData,
 } from '@frontend/common';
 import {
   CachedOverrideRow,
+  defaultRowKey,
   dynamicFieldName,
   OverrideValue,
   ParsedTable,
-  unescapeOverrideValue,
 } from '@frontend/parser';
 
 import { getOverrideRow } from './getOverrideRow';
@@ -62,6 +65,7 @@ export class GridBuilder {
   /**
    * Gets real dimension which cached table (by specified tableName) occupies on grid (startRow, endRow, startCol, endCol)
    * @param tableName {string} specified tableName
+   * @param isTableHorizontal {boolean} is table horizontal
    * @returns {TableDimensions} table dimensions
    */
   public getTableDimensions(
@@ -77,12 +81,12 @@ export class GridBuilder {
       );
     }
 
-    const { table, maxKnownRowIndex } = tableData;
+    const { table, totalRows } = tableData;
 
     const [startRow, startCol] = table.getPlacement();
     const totalSize = table.getTotalSize();
 
-    if (table.isLineChart()) {
+    if (table.isChart()) {
       const chartSize = table.getChartSize();
       const chartRows = chartSize[0] || defaultChartRows;
       const chartCols = chartSize[1] || defaultChartCols;
@@ -91,11 +95,7 @@ export class GridBuilder {
         startCol,
         startRow,
         endCol: startCol + chartCols - 1,
-        endRow:
-          startRow +
-          chartRows +
-          table.getTableNameHeaderHeight() +
-          table.getTableFieldsHeaderHeight(),
+        endRow: startRow + chartRows - 1 + table.getTableNameHeaderHeight(),
       };
     }
 
@@ -103,7 +103,7 @@ export class GridBuilder {
 
     if (isTableHorizontal) {
       const maxCol =
-        (maxKnownRowIndex || 0) +
+        (totalRows || 0) +
         startCol +
         totalSize +
         table.getTableFieldsHeaderHeight() -
@@ -123,7 +123,7 @@ export class GridBuilder {
     }
 
     const maxRow =
-      (maxKnownRowIndex || 0) +
+      (totalRows || 0) +
       startRow +
       totalSize +
       table.getTableNameHeaderHeight() +
@@ -133,10 +133,13 @@ export class GridBuilder {
     const endRow =
       maxRow > 0
         ? maxRow
-        : startRow +
-          table.getTableNameHeaderHeight() +
-          table.getTableFieldsHeaderHeight() -
-          1;
+        : Math.max(
+            startRow,
+            startRow +
+              table.getTableNameHeaderHeight() +
+              table.getTableFieldsHeaderHeight() -
+              1
+          );
     const endCol =
       fieldsCount > 0 ? startCol + table.getTableFieldsSizes() - 1 : startCol;
 
@@ -169,7 +172,9 @@ export class GridBuilder {
         totalSize: table.getTotalSize(),
         hasKeys: table.hasKeys(),
         isManual: table.isManual(),
-        isNewAdded: !!diff?.table,
+        isChanged: !!diff?.table || !!diff?.deletedFields.length,
+        note: table.note?.text || '',
+        fieldNames: table.getFieldNames(),
       });
     }
 
@@ -183,50 +188,65 @@ export class GridBuilder {
    * @returns {GridData} Grid Data
    */
   public buildGridTableHeader(tableData: TableData, zIndex: number): GridData {
-    const { table, diff } = tableData;
+    const { table, diff, totalRows } = tableData;
     const { tableName } = table;
     const isTableHorizontal = table.getIsTableDirectionHorizontal();
     const isTableHeaderHidden = table.getIsTableHeaderHidden();
     const isFieldsHeaderHidden = table.getIsTableFieldsHidden();
     const totalSize = table.getTotalSize();
-
     const tableDimensions = this.getTableDimensions(
       tableName,
       isTableHorizontal
     );
     const { startCol, startRow, endCol } = tableDimensions;
+    const parsingErrors = this.viewGridData.getParsingErrors();
+    const compilationErrors = this.viewGridData.getCompilationErrors();
+    const isTableChanged = !!diff?.table || !!diff?.deletedFields.length;
+    const hasKeys = table.hasKeys();
+    const isManual = table.isManual();
+    const tableHeaderHeight = table.getTableNameHeaderHeight();
 
     const data: GridData = {};
 
+    const commonTableProps = {
+      ...tableDimensions,
+      tableName,
+      isManual,
+      hasKeys,
+      totalSize,
+      isTableHorizontal,
+      isTableNameHeaderHidden: isTableHeaderHidden,
+      isTableFieldsHeaderHidden: isFieldsHeaderHidden,
+      isChanged: isTableChanged,
+      note: table.note?.text || '',
+      fieldNames: table.getFieldNames(),
+    };
+
     // Add table header (first table row with tableName)
     if (!isTableHeaderHidden) {
+      const tableHeaderCell = {
+        table: commonTableProps,
+        value: tableName,
+        row: startRow,
+        startCol,
+        endCol,
+        zIndex,
+        isFieldHeader: false,
+        isTableHeader: true,
+      };
+
       for (let col = startCol; col <= endCol; col++) {
         GridBuilder.setSafeDataCell(data, startRow, col, {
-          table: {
-            ...tableDimensions,
-            tableName,
-            isTableNameHeaderHidden: isTableHeaderHidden,
-            isTableFieldsHeaderHidden: isFieldsHeaderHidden,
-            hasKeys: table.hasKeys(),
-            isTableHorizontal,
-            totalSize,
-            isManual: table.isManual(),
-            isNewAdded: !!diff?.table,
-          },
-          value: tableName,
-          row: startRow,
+          ...tableHeaderCell,
           col,
-          startCol: tableDimensions.startCol,
-          endCol: tableDimensions.endCol,
           zIndex: col === startCol ? zIndex + 1 : zIndex,
-          isFieldHeader: false,
-          isTableHeader: true,
         });
       }
     }
 
     // Add table fields headers (second table row with names of the fields)
-    const fieldRow = startRow + table.getTableNameHeaderHeight();
+    const fieldRow = startRow + tableHeaderHeight;
+    const fieldErrorsCache = new Map<string, string | undefined>();
     let directionIndex = isTableHorizontal ? fieldRow : startCol;
 
     for (const field of table.fields) {
@@ -242,20 +262,49 @@ export class GridBuilder {
       const type = tableData.types[columnName];
       const isPeriodSeries = type === ColumnDataType.PERIOD_SERIES;
       const expression = field.expressionMetadata?.text || '';
-      const viewportErrorMessage = tableData?.fieldErrors[columnName];
-      const fieldErrorMessage = getFieldErrors(
-        this.viewGridData.getParsingErrors(),
-        this.viewGridData.getCompilationErrors(),
-        viewportErrorMessage,
-        tableName,
-        columnName
-      );
-
       const note = field.note?.text || '';
-      const { sort, isFiltered, numericFilter, isFieldUsedInSort } =
+      const isFieldChanged = !!diff?.changedFields.includes(columnName);
+      const { sort, isFiltered, filter, isFieldUsedInSort } =
         this.getApplyBlockGridParams(tableData, table, columnName);
+      const isRightAligned = this.isValueRightAligned(isNested, type);
+      const viewportErrorMessage = tableData?.fieldErrors[columnName];
+      let fieldErrorMessage = fieldErrorsCache.get(columnName);
 
-      // This iterations needed for case when table is NOT horizontal and fields sizes not 1
+      if (!fieldErrorMessage) {
+        fieldErrorMessage = getFieldErrors(
+          parsingErrors,
+          compilationErrors,
+          viewportErrorMessage,
+          tableName,
+          columnName
+        );
+        fieldErrorsCache.set(columnName, fieldErrorMessage);
+      }
+
+      const cellField: GridField = {
+        fieldName: columnName,
+        note,
+        expression,
+        isPeriodSeries,
+        isDynamic: field.isDynamic,
+        isNested,
+        isKey: field.isKey,
+        isDim: field.isDim,
+        hasError: !!fieldErrorMessage,
+        errorMessage: fieldErrorMessage,
+        isFiltered,
+        filter,
+        sort,
+        isFieldUsedInSort,
+        type,
+        isChanged: isFieldChanged,
+        isIndex: field.isIndex(),
+        isDescription: field.isDescription(),
+        descriptionField: field.getDescriptionFieldName(),
+        dataLength: totalRows,
+      };
+
+      // These iterations needed for case when table is NOT horizontal and fields sizes not 1
       for (
         let innerFieldIndex = 0;
         innerFieldIndex < fieldSize;
@@ -274,44 +323,12 @@ export class GridBuilder {
         const targetColumnName = field.isDynamic
           ? dynamicFieldName
           : columnName;
-        const totalFieldTypes =
+        cellField.totalFieldTypes =
           table.total?.getFieldTotalTypes(targetColumnName);
-
-        const cellTable: GridTable = {
-          ...tableDimensions,
-          tableName,
-          isTableNameHeaderHidden: isTableHeaderHidden,
-          isTableFieldsHeaderHidden: isFieldsHeaderHidden,
-          hasKeys: table.hasKeys(),
-          isTableHorizontal,
-          totalSize,
-          isManual: table.isManual(),
-          isNewAdded: !!diff?.table,
-        };
-
-        const cellField: GridField = {
-          fieldName: columnName,
-          note,
-          expression,
-          isPeriodSeries,
-          isDynamic: field.isDynamic,
-          isNested,
-          isKey: field.isKey,
-          isDim: field.isDim,
-          hasError: !!fieldErrorMessage,
-          errorMessage: fieldErrorMessage,
-          isFiltered,
-          numericFilter,
-          totalFieldTypes,
-          sort,
-          isFieldUsedInSort,
-          type,
-          isChanged: !!diff?.fields.includes(columnName),
-        };
 
         if (!isFieldsHeaderHidden) {
           GridBuilder.setSafeDataCell(data, cellRow, cellCol, {
-            table: cellTable,
+            table: commonTableProps,
             value: isMainFieldCell ? columnName : '',
             field: cellField,
             row: cellRow,
@@ -340,19 +357,15 @@ export class GridBuilder {
           const totalValue = tableData.total[targetColumnName]?.[i];
           const value = totalValue && totalExpression ? totalValue : '';
           const totalErrorMessage = getTotalErrors(
-            this.viewGridData.getParsingErrors(),
-            this.viewGridData.getCompilationErrors(),
+            parsingErrors,
+            compilationErrors,
             tableName,
             columnName,
             i
           );
-          const isRightAligned = this.isValueRightAligned(
-            cellField.isNested,
-            cellField.type
-          );
 
           GridBuilder.setSafeDataCell(data, row, col, {
-            table: cellTable,
+            table: commonTableProps,
             field: cellField,
             totalExpression: totalExpression?.expression || '',
             totalIndex: i,
@@ -382,29 +395,135 @@ export class GridBuilder {
    * Converts tableData to table grid values (actual values, borders, styles, meta information, etc...)
    * @param tableData {TableData} Table data
    * @param zIndex {number} zIndex, needed in case of table/charts intersection
+   * @param viewport {ViewportEdges} Viewport edges
    * @returns {GridData} Grid data
    */
-  public buildGridTableData(tableData: TableData, zIndex: number): GridData {
+  public buildGridTableData(
+    tableData: TableData,
+    zIndex: number,
+    viewport: ViewportEdges
+  ): GridData {
     const data: GridData = {};
-    const { table, diff } = tableData;
-    const { tableName } = table;
+    const { table, diff, totalRows } = tableData;
+    const { tableName, note } = table;
     const isTableHorizontal = table.getIsTableDirectionHorizontal();
+    const isTableHeaderHidden = table.getIsTableHeaderHidden();
+    const isFieldsHeaderHidden = table.getIsTableFieldsHidden();
+    const hasKeys = table.hasKeys();
+    const isManual = table.isManual();
+    const tableNameHeaderHeight = table.getTableNameHeaderHeight();
+    const tableFieldsHeaderHeight = table.getTableFieldsHeaderHeight();
+    const totalSize = table.getTotalSize();
+    const isTableChanged = !!diff?.table || !!diff?.deletedFields.length;
+    const parsingErrors = this.viewGridData.getParsingErrors();
+    const compilationErrors = this.viewGridData.getCompilationErrors();
     const tableDimensions = this.getTableDimensions(
       tableName,
-      table.getIsTableDirectionHorizontal()
+      isTableHorizontal
     );
-    const { startCol: tableStartCol, startRow: tableStartRow } =
-      tableDimensions;
-    const totalSize = table.getTotalSize();
+    const {
+      startCol: tableStartCol,
+      endCol: tableEndCol,
+      startRow: tableStartRow,
+    } = tableDimensions;
     const allDataMainDirectionStart = isTableHorizontal
-      ? tableStartCol + table.getTableFieldsHeaderHeight() + totalSize
+      ? tableStartCol + tableFieldsHeaderHeight + totalSize
       : tableStartRow +
-        table.getTableNameHeaderHeight() +
-        table.getTableFieldsHeaderHeight() +
+        tableNameHeaderHeight +
+        tableFieldsHeaderHeight +
         totalSize;
     const allDataSecondaryDirectionStart = isTableHorizontal
-      ? tableStartRow + table.getTableNameHeaderHeight()
+      ? tableStartRow + tableNameHeaderHeight
       : tableStartCol;
+
+    const commonTableProps: GridTable = {
+      ...tableDimensions,
+      tableName,
+      isManual,
+      hasKeys,
+      totalSize,
+      isTableHorizontal,
+      isTableNameHeaderHidden: isTableHeaderHidden,
+      isTableFieldsHeaderHidden: isFieldsHeaderHidden,
+      isChanged: isTableChanged,
+      note: note?.text || '',
+      fieldNames: table.getFieldNames(),
+    };
+
+    const tableFields = table.fields.filter(
+      (f) => f.key.fieldName !== dynamicFieldName
+    );
+    const fieldMap = new Map<string, GridFieldCache>();
+
+    let accumulatedSecondaryDirectionStart = allDataSecondaryDirectionStart;
+    const fieldErrorsCache = new Map<string, string | undefined>();
+    const applyBlockParamsCache = new Map<string, ApplyBlockGridParams>();
+
+    tableFields.forEach((field, index) => {
+      const fieldName = field.key.fieldName;
+      const fieldSize = isTableHorizontal ? 1 : field.getSize();
+      const type = tableData.types[fieldName];
+      const isNested = tableData.nestedColumnNames.has(fieldName);
+      const isRightAligned = this.isValueRightAligned(isNested, type);
+
+      let fieldErrorMessage = fieldErrorsCache.get(fieldName);
+      if (!fieldErrorMessage) {
+        const viewportErrorMessage = tableData?.fieldErrors[fieldName];
+        fieldErrorMessage = getFieldErrors(
+          parsingErrors,
+          compilationErrors,
+          viewportErrorMessage,
+          tableName,
+          fieldName
+        );
+        fieldErrorsCache.set(fieldName, fieldErrorMessage);
+      }
+
+      let applyBlockParams = applyBlockParamsCache.get(fieldName);
+      if (!applyBlockParams) {
+        applyBlockParams = this.getApplyBlockGridParams(
+          tableData,
+          table,
+          fieldName
+        );
+        applyBlockParamsCache.set(fieldName, applyBlockParams);
+      }
+
+      const cellField: GridField = {
+        fieldName,
+        isNested,
+        type,
+        note: field.note?.text || '',
+        expression: field.expressionMetadata?.text || '',
+        isPeriodSeries: type === ColumnDataType.PERIOD_SERIES,
+        isKey: field.isKey,
+        isDim: field.isDim,
+        isDynamic: field.isDynamic,
+        hasError: !!fieldErrorMessage,
+        errorMessage: fieldErrorMessage,
+        isFiltered: applyBlockParams.isFiltered,
+        filter: applyBlockParams.filter,
+        isFieldUsedInSort: applyBlockParams.isFieldUsedInSort,
+        sort: applyBlockParams.sort,
+        referenceTableName: tableData.columnReferenceTableNames[fieldName],
+        isChanged: !!diff?.changedFields.includes(fieldName),
+        isIndex: field.isIndex(),
+        isDescription: field.isDescription(),
+        descriptionField: field.getDescriptionFieldName(),
+        dataLength: totalRows,
+      };
+
+      fieldMap.set(fieldName, {
+        field,
+        fieldIndex: index,
+        dataFieldSecondaryDirectionStart: accumulatedSecondaryDirectionStart,
+        fieldSize,
+        isRightAligned,
+        cellField,
+      });
+
+      accumulatedSecondaryDirectionStart += fieldSize;
+    });
 
     const buildChunk = (chunk: ColumnChunk, chunkIndex: number) => {
       let minDirectionIndex = Number.MAX_SAFE_INTEGER;
@@ -417,20 +536,18 @@ export class GridBuilder {
           continue;
         }
 
-        const field = table.fields.find((f) => f.key.fieldName === chunkKey);
-        const fieldIndex = table.fields
-          .filter((f) => f.key.fieldName !== dynamicFieldName)
-          .findIndex((f) => f.key.fieldName === chunkKey);
-        const dataFieldSecondaryDirectionStart = table.fields
-          .filter((f) => f.key.fieldName !== dynamicFieldName)
-          .map((field) => (isTableHorizontal ? 1 : field.getSize()))
-          .slice(0, fieldIndex)
-          .reduce((acc, curr) => acc + curr, allDataSecondaryDirectionStart);
+        const fieldData = fieldMap.get(chunkKey);
+        if (!fieldData) continue;
 
+        const {
+          dataFieldSecondaryDirectionStart,
+          fieldSize,
+          isRightAligned,
+          cellField,
+        } = fieldData;
+
+        const { fieldName } = cellField;
         const chunkData = chunk[chunkKey];
-
-        if (fieldIndex === -1 || !field) continue;
-
         const accChunkOffset = chunkIndex * chunkSize;
 
         for (
@@ -452,32 +569,9 @@ export class GridBuilder {
               chunk[fieldName][innerChunkDataIndex];
           });
 
-          const referenceTableName =
-            tableData.columnReferenceTableNames[chunkKey];
-          const type = tableData.types[chunkKey];
-          const fieldName = chunkKey;
-          const expression = field?.expressionMetadata?.text || '';
-          const isPeriodSeries = type === ColumnDataType.PERIOD_SERIES;
-          const isNested = tableData.nestedColumnNames.has(chunkKey);
-          const isKey = field?.isKey;
-          const isDim = field?.isDim;
-          const isDynamic = field?.isDynamic;
-          const note = field?.note?.text || '';
-          const { sort, isFiltered, numericFilter, isFieldUsedInSort } =
-            this.getApplyBlockGridParams(tableData, table, chunkKey);
-          const fieldSize = isTableHorizontal ? 1 : field.getSize();
-          const viewportErrorMessage = tableData?.fieldErrors[fieldName];
-          const fieldErrorMessage = getFieldErrors(
-            this.viewGridData.getParsingErrors(),
-            this.viewGridData.getCompilationErrors(),
-            viewportErrorMessage,
-            tableName,
-            fieldName
-          );
-          const isRightAligned = this.isValueRightAligned(isNested, type);
-
           let overrideValue: OverrideValue = null;
           let overrideIndex = null;
+          let isOverrideChanged = false;
 
           const {
             overrideRow,
@@ -491,24 +585,39 @@ export class GridBuilder {
             cachedOverrideValues
           );
 
-          let isOverrideChanged = false;
           if (overrideRow) {
             overrideValue = overrideRow[fieldName];
             overrideIndex = index;
-            isOverrideChanged =
-              !!overrideValue &&
-              !!diff?.overrides?.some(
-                (diffOverrideRow) =>
-                  overrideValue && diffOverrideRow[fieldName] === overrideValue
-              );
+
+            const fieldKeys = table
+              .getKeys()
+              .map((field) => field.key.fieldName);
+            const keys = fieldKeys.length
+              ? fieldKeys
+              : !table.isManual()
+              ? [defaultRowKey]
+              : [];
+            const overrideMatch = keys.length
+              ? diff?.overrides?.find(
+                  (diffOverrideRow) =>
+                    overrideValue &&
+                    keys.every(
+                      (key) => diffOverrideRow[key] === overrideRow[key]
+                    ) &&
+                    diffOverrideRow[fieldName] === overrideValue
+                )
+              : index
+              ? diff?.overrides?.[index]
+              : undefined;
+            isOverrideChanged = !!overrideValue && !!overrideMatch?.[fieldName];
           }
 
           const overrideErrorMessage =
             overrideSectionIndex !== null &&
             overrideSectionIndex !== undefined &&
             getOverrideErrors(
-              this.viewGridData.getParsingErrors(),
-              this.viewGridData.getCompilationErrors(),
+              parsingErrors,
+              compilationErrors,
               tableName,
               fieldName,
               overrideSectionIndex + 1
@@ -534,50 +643,16 @@ export class GridBuilder {
             const fieldEndCol = isTableHorizontal
               ? col
               : dataFieldSecondaryDirectionStart + fieldSize - 1;
-            const finalValue =
-              fieldStartCol === col ||
-              [ColumnDataType.DOUBLE, ColumnDataType.INTEGER].includes(type)
-                ? value
-                : '';
 
             GridBuilder.setSafeDataCell(data, row, col, {
-              table: {
-                ...tableDimensions,
-                tableName,
-                isTableNameHeaderHidden: table.getIsTableHeaderHidden(),
-                isTableFieldsHeaderHidden: table.getIsTableFieldsHidden(),
-                hasKeys: table.hasKeys(),
-                isTableHorizontal,
-                totalSize,
-                isManual: table.isManual(),
-                isNewAdded: !!diff?.table,
-              },
-
-              field: {
-                fieldName,
-                note,
-                expression,
-                isPeriodSeries,
-                isNested,
-                isKey,
-                isDim,
-                isDynamic,
-                isFiltered,
-                numericFilter,
-                type,
-                referenceTableName,
-                sort,
-                isFieldUsedInSort,
-                hasError: !!fieldErrorMessage,
-                errorMessage: fieldErrorMessage,
-                isChanged: !!diff?.fields.includes(fieldName),
-              },
+              table: commonTableProps,
+              field: cellField,
               isOverride: !!overrideValue,
               isOverrideChanged,
-              overrideValue: overrideValue,
+              overrideValue,
               overrideIndex: overrideIndex !== null ? overrideIndex : undefined,
-              value: finalValue,
-              isUrl: isValidUrl(finalValue),
+              value: value,
+              isUrl: isValidUrl(value),
               row,
               col,
               dataIndex,
@@ -596,38 +671,17 @@ export class GridBuilder {
 
       // TODO: Possible redraw problem
       // Add cells that have no data in chunks
-      const noDataFieldNames = table.fields.filter(
-        (f) => !chunk[f.key.fieldName] && f.key.fieldName !== dynamicFieldName
-      );
+      const noDataFieldNames = tableFields
+        .map((f) => f.key.fieldName)
+        .filter((fieldName) => !chunk[fieldName]);
 
-      for (const field of noDataFieldNames) {
-        const dataName = field.key.fieldName;
-        const noDynamicFields = table.fields.filter(
-          (f) => f.key.fieldName !== dynamicFieldName
-        );
-        const fieldIndex = noDynamicFields.findIndex(
-          (f) => f.key.fieldName === dataName
-        );
-        const dataFieldSecondaryDirectionStart = noDynamicFields
-          .filter((f) => f.key.fieldName !== dynamicFieldName)
-          .map((field) => (isTableHorizontal ? 1 : field.getSize()))
-          .slice(0, fieldIndex)
-          .reduce((acc, curr) => acc + curr, allDataSecondaryDirectionStart);
-        const type = tableData.types[dataName];
-        const { sort, isFiltered, numericFilter, isFieldUsedInSort } =
-          this.getApplyBlockGridParams(tableData, table, dataName);
-        const fieldSize = isTableHorizontal ? 1 : field.getSize();
-        const viewportErrorMessage = tableData?.fieldErrors[dataName];
-        const fieldErrorMessage = getFieldErrors(
-          this.viewGridData.getParsingErrors(),
-          this.viewGridData.getCompilationErrors(),
-          viewportErrorMessage,
-          tableName,
-          dataName
-        );
+      for (const fieldName of noDataFieldNames) {
+        const fieldData = fieldMap.get(fieldName);
 
-        const referenceTableName =
-          tableData.columnReferenceTableNames[dataName];
+        if (!fieldData) continue;
+
+        const { dataFieldSecondaryDirectionStart, fieldSize, cellField } =
+          fieldData;
 
         for (
           let directionIndex = minDirectionIndex;
@@ -636,7 +690,7 @@ export class GridBuilder {
         ) {
           for (
             let fieldInnerIndex = 0;
-            fieldInnerIndex < field.getSize();
+            fieldInnerIndex < fieldSize;
             fieldInnerIndex++
           ) {
             const col = isTableHorizontal
@@ -653,37 +707,9 @@ export class GridBuilder {
               : dataFieldSecondaryDirectionStart + fieldSize - 1;
 
             GridBuilder.setSafeDataCell(data, row, col, {
-              table: {
-                ...tableDimensions,
-                tableName,
-                isTableNameHeaderHidden: table.getIsTableHeaderHidden(),
-                isTableFieldsHeaderHidden: table.getIsTableFieldsHidden(),
-                hasKeys: table.hasKeys(),
-                isTableHorizontal,
-                totalSize,
-                isManual: table.isManual(),
-                isNewAdded: !!diff?.table,
-              },
+              table: commonTableProps,
+              field: cellField,
               isOverride: false,
-              field: {
-                fieldName: dataName,
-                note: field?.note?.text || '',
-                expression: field?.expressionMetadata?.text || '',
-                isPeriodSeries: type === ColumnDataType.PERIOD_SERIES,
-                isNested: tableData.nestedColumnNames.has(dataName),
-                isKey: field?.isKey,
-                isDim: field?.isDim,
-                isDynamic: field?.isDynamic,
-                hasError: !!fieldErrorMessage,
-                errorMessage: fieldErrorMessage,
-                isFiltered,
-                numericFilter,
-                isFieldUsedInSort,
-                sort,
-                type,
-                referenceTableName,
-                isChanged: !!diff?.fields.includes(dataName),
-              },
               overrideIndex: undefined,
               value: undefined,
               row,
@@ -705,7 +731,25 @@ export class GridBuilder {
       ...Object.keys(tableData.chunks),
     ];
 
-    const indexes = Array.from(new Set(existingIndexes));
+    const tableColInsideViewport =
+      viewport.startCol <= tableEndCol && viewport.endCol >= tableStartCol;
+
+    if (!tableColInsideViewport) {
+      return data;
+    }
+
+    const startViewportChunk = Math.floor(
+      (viewport.startRow - tableStartRow) / chunkSize
+    );
+    const endViewportChunk = Math.floor(
+      (viewport.endRow - tableStartRow) / chunkSize
+    );
+
+    const indexes = Array.from(new Set(existingIndexes)).filter((index) => {
+      const chunkIndex = +index;
+
+      return chunkIndex >= startViewportChunk && chunkIndex <= endViewportChunk;
+    });
 
     for (const index of indexes) {
       const chunkIndex = +index;
@@ -740,32 +784,41 @@ export class GridBuilder {
       table.getIsTableDirectionHorizontal()
     );
 
-    const { startCol, startRow, endCol } = tableDimensions;
+    const { startCol, startRow, endCol, endRow } = tableDimensions;
+    const chartType = table.getChartType() || undefined;
+    const fieldNames = table.getFieldNames();
 
-    for (let col = startCol; col <= endCol; col++) {
-      GridBuilder.setSafeDataCell(data, startRow, col, {
-        table: {
-          ...tableDimensions,
-          chartType: 'line',
-          tableName,
-          isTableNameHeaderHidden: table.getIsTableHeaderHidden(),
-          isTableFieldsHeaderHidden: table.getIsTableFieldsHidden(),
-          isTableHorizontal: table.getIsTableDirectionHorizontal(),
-          hasKeys: table.hasKeys(),
-          totalSize,
-          isManual: table.isManual(),
-          isNewAdded: !!diff?.table,
-        },
-        value: tableName,
-        row: startRow,
-        col,
-        startCol,
-        endCol,
-        zIndex,
+    for (let row = startRow; row <= endRow; row++) {
+      for (let col = startCol; col <= endCol; col++) {
+        GridBuilder.setSafeDataCell(data, row, col, {
+          table: {
+            ...tableDimensions,
+            chartType,
+            tableName,
+            isTableNameHeaderHidden: table.getIsTableHeaderHidden(),
+            isTableFieldsHeaderHidden: table.getIsTableFieldsHidden(),
+            isTableHorizontal: table.getIsTableDirectionHorizontal(),
+            hasKeys: table.hasKeys(),
+            totalSize,
+            isManual: table.isManual(),
+            isChanged: !!diff?.table || !!diff?.deletedFields.length,
+            note: table.note?.text || '',
+            fieldNames,
+          },
+          value:
+            row === startRow && !table.getIsTableHeaderHidden()
+              ? tableName
+              : '',
+          row,
+          col,
+          startCol,
+          endCol,
+          zIndex,
 
-        isFieldHeader: false,
-        isTableHeader: true,
-      });
+          isFieldHeader: false,
+          isTableHeader: row === startRow,
+        });
+      }
     }
 
     return data;
@@ -775,7 +828,7 @@ export class GridBuilder {
    * Build a data object with tables and charts to provide to the Grid (table - table header, field headers, values, errors), merging parts of tables
    * @returns {GridData} Data object which would be provided to the Grid
    */
-  public toGridData(): GridData {
+  public toGridData(viewport: ViewportEdges): GridData {
     let data: GridData = {};
     const tablesData = this.viewGridData.getTablesData();
 
@@ -786,14 +839,18 @@ export class GridBuilder {
     for (const tableData of tablesData) {
       zIndex++;
 
-      if (tableData.table.isLineChart()) {
+      if (tableData.table.isChart()) {
         const gridChartHeader = this.buildGridChartHeader(tableData, zIndex);
         data = this.mergeGridData(data, gridChartHeader);
         continue;
       }
 
       const gridTableHeader = this.buildGridTableHeader(tableData, zIndex);
-      const gridTableData = this.buildGridTableData(tableData, zIndex);
+      const gridTableData = this.buildGridTableData(
+        tableData,
+        zIndex,
+        viewport
+      );
 
       data = this.mergeGridData(data, gridTableHeader, gridTableData);
     }
@@ -813,19 +870,31 @@ export class GridBuilder {
     table: ParsedTable,
     columnName: string
   ): ApplyBlockGridParams {
-    const sort = table.apply?.getFieldSortOrder(columnName) || null;
+    if (!table.apply) {
+      return {
+        sort: null,
+        isFiltered: false,
+        filter: undefined,
+        isFieldUsedInSort: false,
+      };
+    }
+
+    const sort = table.apply.getFieldSortOrder(columnName) || null;
     const isFieldUsedInSort =
-      table.apply?.isFieldUsedInSort(columnName) || false;
-    const isFiltered = table.apply?.isFieldFiltered(columnName) || false;
+      table.apply.isFieldUsedInSort(columnName) || false;
+    const isFiltered = table.apply.isFieldFiltered(columnName) || false;
     const isNumeric = isNumericType(tableData.types[columnName]);
-    const numericFilter = isNumeric
-      ? table.apply?.getFieldNumericFilterValue(columnName)
-      : undefined;
+    const isText = isTextType(tableData.types[columnName]);
+
+    const filter =
+      isNumeric || isText
+        ? table.apply.getFieldConditionFilter(columnName)
+        : undefined;
 
     return {
       sort,
       isFiltered,
-      numericFilter,
+      filter,
       isFieldUsedInSort,
     };
   }

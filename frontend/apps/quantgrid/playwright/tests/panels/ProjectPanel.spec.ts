@@ -1,5 +1,5 @@
 /* eslint-disable playwright/expect-expect */
-import { expect, test } from '@playwright/test';
+import { BrowserContext, expect, Page, test } from '@playwright/test';
 
 import { ProjectPage } from '../../pages/ProjectPage';
 import { TestFixtures } from '../TestFixtures';
@@ -18,10 +18,17 @@ const table2Column = 10;
 
 const table2Name = 'Table2';
 
+let browserContext: BrowserContext;
+
+let page: Page;
+
+const storagePath = `playwright/${projectName}.json`;
+
 test.beforeAll(async ({ browser }) => {
-  const table1Dsl = `!placement(${tableRow}, ${tableColumn})\ntable ${tableName}\n[Field1] = 5\n[Field2] = 7\n[Field3] = 4\n[Field4] = 10`;
-  const table2Dsl = `!placement(${table2Row}, ${table2Column})\ntable ${table2Name}\n[Field1] = 5\n key [Field2] = 7\n[Field3] = 4\ndim [Field4] = 10`;
+  const table1Dsl = `!layout(${tableRow}, ${tableColumn}, "title", "headers")\ntable ${tableName}\n[Field1] = 5\n[Field2] = 7\n[Field3] = 4\n[Field4] = 10`;
+  const table2Dsl = `!layout(${table2Row}, ${table2Column}, "title", "headers")\ntable ${table2Name}\n[Field1] = 5\n key [Field2] = 7\n[Field3] = 4\ndim [Field4] = 10`;
   await TestFixtures.createProject(
+    storagePath,
     browser,
     projectName,
     tableRow,
@@ -30,58 +37,108 @@ test.beforeAll(async ({ browser }) => {
     table1Dsl,
     table2Dsl
   );
+  browserContext = await browser.newContext({ storageState: storagePath });
 });
 
-test.beforeEach(async ({ page }) => {
+test.beforeEach(async () => {
+  page = await browserContext.newPage();
   await TestFixtures.openProject(page, projectName);
 });
 
+test.afterEach(async () => {
+  await page.close();
+});
+
 test.afterAll(async ({ browser }) => {
+  await browserContext.close();
   await TestFixtures.deleteProject(browser, projectName);
 });
 
 test.describe('project panel', () => {
-  test('rename project', async ({ page }) => {});
+  test.describe('project level', () => {
+    test('rename project', async () => {});
 
-  test('delete project', async ({ page }) => {});
+    test('delete project', async () => {});
 
-  test('create worksheet', async ({ page }) => {});
+    test('create worksheet', async () => {});
+  });
 
-  test('select worksheet', async ({ page }) => {});
+  test.describe('sheet level', () => {
+    test('select worksheet', async () => {});
 
-  test('rename worksheet', async ({ page }) => {});
+    test('rename worksheet', async () => {});
 
-  test('delete worksheet', async ({ page }) => {});
+    test('delete worksheet', async () => {});
+  });
 
-  test('select table', async ({ page }) => {});
+  test.describe('table level', () => {
+    test('select table', async () => {});
 
-  test('move table', async ({ page }) => {});
+    test('move table', async () => {});
 
-  test('hide table header', async ({ page }) => {});
+    test('hide table header', async () => {});
 
-  test('hide fields header', async ({ page }) => {});
+    test('hide fields header', async () => {});
 
-  test('create derived table', async ({ page }) => {});
+    test('show table header', async () => {});
 
-  test('rename table', async ({ page }) => {});
+    test('show fields header', async () => {});
 
-  test('delete table', async ({ page }) => {});
+    test('create derived table', async () => {});
 
-  test('select field', async ({ page }) => {});
+    test('clone table', async () => {});
 
-  test('swap left', async ({ page }) => {});
+    test('new field', async () => {});
 
-  test('swap right', async ({ page }) => {});
+    test('new row', async () => {});
 
-  test('increase field width', async ({ page }) => {});
+    test('rename table', async () => {});
 
-  test('decrease field width', async ({ page }) => {});
+    test('delete table', async () => {});
 
-  test('rename field', async ({ page }) => {});
+    test('make vertical', async () => {});
 
-  test('edit formula', async ({ page }) => {});
+    test('make horizontal', async () => {});
 
-  test('delete field', async ({ page }) => {});
+    test('open in editor', async () => {});
+  });
+  test.describe('field level', async () => {
+    test('select field', async () => {});
 
-  test('add key', async ({ page }) => {});
+    test('swap left', async () => {});
+
+    test('swap right', async () => {});
+
+    test('increase field width', async () => {});
+
+    test('decrease field width', async () => {});
+
+    test('insert field to left', async () => {});
+
+    test('insert field to right', async () => {});
+
+    test('new row', async () => {});
+
+    test('rename field', async () => {});
+
+    test('edit formula', async () => {});
+
+    test('delete field', async () => {});
+
+    test('add key', async () => {});
+
+    test('make vertical', async () => {});
+
+    test('make horizontal', async () => {});
+
+    test('open in editor', async () => {});
+
+    test('hide table header', async () => {});
+
+    test('hide fields header', async () => {});
+
+    test('show table header', async () => {});
+
+    test('show fields header', async () => {});
+  });
 });

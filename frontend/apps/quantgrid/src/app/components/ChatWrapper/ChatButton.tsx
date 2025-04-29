@@ -27,6 +27,7 @@ export function ChatButton() {
     x: 0,
     y: 0,
   });
+  const [ratioPos, setRatioPos] = useState({ rx: 0, ry: 0 });
 
   const handleDragStart = useCallback(() => {
     setIsDragging(true);
@@ -38,28 +39,25 @@ export function ChatButton() {
       const { x, y } = data;
       setRndOptions({ x, y });
       setIsDragging(false);
+      setRatioPos(getRatioPos());
       document.body.style.pointerEvents = 'auto';
     },
     []
   );
 
   const handleWindowResize = useCallback(() => {
-    const { x, y } = rndOptions;
-
-    if (x + defaultButtonOffsetX > window.innerWidth) {
-      setRndOptions((prev) => ({
-        ...prev,
-        x: Math.max(0, window.innerWidth - defaultButtonOffsetX),
-      }));
-    }
-
-    if (y + defaultButtonOffsetY > window.innerHeight) {
-      setRndOptions((prev) => ({
-        ...prev,
-        y: Math.max(0, window.innerHeight - defaultButtonOffsetY),
-      }));
-    }
-  }, [rndOptions]);
+    setRndOptions((prev) => ({
+      ...prev,
+      x: Math.min(
+        ratioPos.rx * window.innerWidth,
+        window.innerWidth - defaultButtonOffsetX
+      ),
+      y: Math.min(
+        ratioPos.ry * window.innerHeight,
+        window.innerHeight - defaultButtonOffsetY
+      ),
+    }));
+  }, [ratioPos]);
 
   useEffect(() => {
     setRndOptions({
@@ -67,6 +65,7 @@ export function ChatButton() {
       y: window.innerHeight - defaultButtonOffsetY,
     });
     setIsInit(true);
+    setRatioPos(getRatioPos());
   }, []);
 
   useEffect(() => {
@@ -77,7 +76,7 @@ export function ChatButton() {
     };
   }, [handleWindowResize]);
 
-  if (!isInit) return null;
+  if (!isInit || isChatOpen) return null;
 
   return (
     <Rnd
@@ -104,7 +103,7 @@ export function ChatButton() {
           )}
         >
           <Icon
-            className="stroke-textInverted mr-1"
+            className="w-[18px] text-textInverted mr-1"
             component={() => <DragIcon />}
           />
 
@@ -121,4 +120,11 @@ export function ChatButton() {
       </div>
     </Rnd>
   );
+}
+
+function getRatioPos(): { rx: number; ry: number } {
+  return {
+    rx: (window.innerWidth - defaultButtonOffsetX) / window.innerWidth,
+    ry: (window.innerHeight - defaultButtonOffsetY) / window.innerHeight,
+  };
 }

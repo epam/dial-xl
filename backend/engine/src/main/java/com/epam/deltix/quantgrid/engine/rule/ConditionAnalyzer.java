@@ -1,11 +1,13 @@
 package com.epam.deltix.quantgrid.engine.rule;
 
+import com.epam.deltix.quantgrid.engine.meta.Schema;
 import com.epam.deltix.quantgrid.engine.node.expression.BinaryOperator;
 import com.epam.deltix.quantgrid.engine.node.expression.Expand;
 import com.epam.deltix.quantgrid.engine.node.expression.Expression;
 import com.epam.deltix.quantgrid.engine.node.expression.Get;
 import com.epam.deltix.quantgrid.engine.node.plan.Plan;
-import com.epam.deltix.quantgrid.engine.node.plan.local.CartesianLocal;
+import com.epam.deltix.quantgrid.engine.node.plan.local.Projection;
+import com.epam.deltix.quantgrid.engine.node.plan.local.SelectLocal;
 import com.epam.deltix.quantgrid.parser.ast.BinaryOperation;
 import lombok.experimental.UtilityClass;
 
@@ -15,22 +17,21 @@ import java.util.List;
 @UtilityClass
 public class ConditionAnalyzer {
 
-    public ConditionGroups analyzeCondition(Expression condition, CartesianLocal cartesian) {
+    public Condition analyzeCondition(Expression condition, Plan join) {
         List<Expression> subConditions = new ArrayList<>();
         splitConditionAroundAnd(condition, subConditions);
 
-        return classifyConditions(subConditions, cartesian);
+        return classifyConditions(subConditions, join);
     }
 
-    public OptimizationConditionGroups analyzeMixedCondition(List<Expression> conditions,
-                                                             CartesianLocal cartesian) {
-        OptimizationConditionGroups group = new OptimizationConditionGroups();
+    public MixedCondition analyzeMixedConditions(List<Expression> conditions, Plan join) {
+        MixedCondition group = new MixedCondition();
         for (Expression condition : conditions) {
             if (condition instanceof BinaryOperator binop) {
                 BinaryOperation operation = binop.getOperation();
                 if (operation.equals(BinaryOperation.EQ)) {
-                    ConditionKind leftKind = classifyCondition(binop.getLeft(), cartesian);
-                    ConditionKind rightKind = classifyCondition(binop.getRight(), cartesian);
+                    ConditionKind leftKind = classifyCondition(binop.getLeft(), join);
+                    ConditionKind rightKind = classifyCondition(binop.getRight(), join);
 
                     boolean isLeftRight = leftKind == ConditionKind.LEFT && rightKind == ConditionKind.RIGHT;
                     boolean isRightLeft = leftKind == ConditionKind.RIGHT && rightKind == ConditionKind.LEFT;
@@ -57,10 +58,10 @@ public class ConditionAnalyzer {
         }
     }
 
-    private ConditionGroups classifyConditions(List<Expression> conditions, CartesianLocal cartesian) {
-        ConditionGroups conditionGroups = new ConditionGroups();
+    private Condition classifyConditions(List<Expression> conditions, Plan join) {
+        Condition conditionGroups = new Condition();
         for (Expression condition : conditions) {
-            switch (classifyCondition(condition, cartesian)) {
+            switch (classifyCondition(condition, join)) {
                 case LEFT -> conditionGroups.left.add(condition);
                 case RIGHT -> conditionGroups.right.add(condition);
                 case CONSTANT -> conditionGroups.constant.add(condition);
@@ -71,26 +72,31 @@ public class ConditionAnalyzer {
         return conditionGroups;
     }
 
-    private ConditionKind classifyCondition(Expression condition, CartesianLocal cartesian) {
+    private ConditionKind classifyCondition(Expression condition, Plan join) {
         if (condition instanceof Get get) {
-            Plan plan = get.plan();
+            while (get.plan() instanceof SelectLocal select && select.getExpression(get.getColumn()) instanceof Get next) {
+                get = next;
+            }
 
-            if (plan != cartesian) {
+            if (get.plan() != join) {
                 return ConditionKind.MIXED;
             }
 
-            return cartesian.isOnLeft(get) ? ConditionKind.LEFT : ConditionKind.RIGHT;
-        } else if (condition instanceof Expand expand) {
-            Plan plan = expand.plan();
-            return plan == cartesian ? ConditionKind.CONSTANT : ConditionKind.MIXED;
+            Schema schema = join.getMeta().getSchema();
+            int planIndex = schema.getInput(get.getColumn());
+            return planIndex == 0 ? ConditionKind.LEFT : ConditionKind.RIGHT;
+        } else if (condition instanceof Expand) {
+            return ConditionKind.CONSTANT;
+        } else if (condition instanceof Projection projection) {
+            return classifyCondition(projection.getKey(), join);
         } else {
             return condition.getInputs().stream()
                     .map(input -> {
                         if (input instanceof Expression expression) {
-                            return classifyCondition(expression, cartesian);
+                            return classifyCondition(expression, join);
                         }
 
-                        return (cartesian == input) ? ConditionKind.CONSTANT : ConditionKind.MIXED;
+                        return (join == input) ? ConditionKind.CONSTANT : ConditionKind.MIXED;
                     })
                     .reduce(ConditionKind.CONSTANT, ConditionAnalyzer::combine);
         }
@@ -116,14 +122,14 @@ public class ConditionAnalyzer {
         MIXED
     }
 
-    public static class ConditionGroups {
+    public static class Condition {
         List<Expression> constant = new ArrayList<>();
         List<Expression> left = new ArrayList<>();
         List<Expression> right = new ArrayList<>();
         List<Expression> mixed = new ArrayList<>();
     }
 
-    public static class OptimizationConditionGroups {
+    public static class MixedCondition {
         List<BinaryOperator> eq = new ArrayList<>();
         List<Expression> other = new ArrayList<>();
     }

@@ -1,8 +1,15 @@
 package com.epam.deltix.quantgrid.engine;
 
 import com.epam.deltix.quantgrid.engine.value.Column;
+import com.epam.deltix.quantgrid.engine.value.DoubleColumn;
+import com.epam.deltix.quantgrid.engine.value.ErrorColumn;
 import com.epam.deltix.quantgrid.engine.value.PeriodSeries;
+import com.epam.deltix.quantgrid.engine.value.PeriodSeriesColumn;
+import com.epam.deltix.quantgrid.engine.value.StringColumn;
 import com.epam.deltix.quantgrid.engine.value.Table;
+import com.epam.deltix.quantgrid.engine.value.local.DoubleLambdaColumn;
+import com.epam.deltix.quantgrid.engine.value.local.PeriodSeriesLambdaColumn;
+import com.epam.deltix.quantgrid.engine.value.local.StringLambdaColumn;
 import lombok.experimental.UtilityClass;
 
 import java.util.ArrayList;
@@ -12,6 +19,7 @@ import java.util.List;
 public final class Util {
 
     public static final long NA_REF = -1;
+    public static final long NA_ERROR = -2;
 
     @SuppressWarnings("unchecked")
     public static <T> T as(Object object, Class<T> type) {
@@ -83,6 +91,13 @@ public final class Util {
         return list;
     }
 
+    public static <T> List<T> combine(List<T> left, List<T> right) {
+        List<T> list = new ArrayList<>(left.size() + right.size());
+        list.addAll(left);
+        list.addAll(right);
+        return list;
+    }
+
     @SafeVarargs
     public static <T> List<T> listSkipNulls(T... elements) {
         List<T> list = new ArrayList<>(elements.length);
@@ -94,5 +109,36 @@ public final class Util {
         }
 
         return list;
+    }
+
+    public Column concat(Column first, Column second) {
+        long resultSize = first.size() + second.size();
+        if (first instanceof DoubleColumn firstColumn && second instanceof DoubleColumn secondColumn) {
+            return new DoubleLambdaColumn(
+                    i -> i < firstColumn.size() ? firstColumn.get(i) : secondColumn.get(i - firstColumn.size()),
+                    resultSize);
+        }
+
+        if (first instanceof StringColumn firstColumn && second instanceof StringColumn secondColumn) {
+            return new StringLambdaColumn(
+                    i -> i < firstColumn.size() ? firstColumn.get(i) : secondColumn.get(i - firstColumn.size()),
+                    resultSize);
+        }
+
+        if (first instanceof PeriodSeriesColumn firstColumn && second instanceof PeriodSeriesColumn secondColumn) {
+            return new PeriodSeriesLambdaColumn(
+                    i -> i < firstColumn.size() ? firstColumn.get(i) : secondColumn.get(i - firstColumn.size()),
+                    resultSize);
+        }
+
+        throw new IllegalArgumentException("Cannot concat column types: " + first.getClass() + " and " + second.getClass());
+    }
+
+    public Column throwIfError(Column column) {
+        if (column instanceof ErrorColumn errorColumn) {
+            throw new IllegalArgumentException(errorColumn.message());
+        }
+
+        return column;
     }
 }

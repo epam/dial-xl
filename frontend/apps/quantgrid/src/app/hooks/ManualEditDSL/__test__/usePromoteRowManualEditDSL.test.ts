@@ -31,8 +31,8 @@ describe('usePromoteRowManualEditDSL', () => {
   describe('promoteRow', () => {
     it('should promote override value as table field', async () => {
       // Arrange
-      const dsl = `!hideHeader()\r\n!hideFields()\r\n!manual()\r\n!placement(4, 4)\r\ntable t1\r\n[Field1] = NA\r\noverride\r\n[Field1]\r\n"cities"\r\n"London"\r\n"Berlin"\r\n"Boston"\r\n`;
-      const expectedDsl = `!hideHeader()\r\n!manual()\r\n!placement(4, 4)\r\ntable t1\r\n[cities] = NA\r\noverride\r\n[cities]\r\n"London"\r\n"Berlin"\r\n"Boston"\r\n`;
+      const dsl = `!manual()\r\n!layout(4, 4)\r\ntable t1\r\n[Field1] = NA\r\noverride\r\n[Field1]\r\n"cities"\r\n"London"\r\n"Berlin"\r\n"Boston"\r\n`;
+      const expectedDsl = `!manual()\r\n!layout(4, 4, "headers")\r\ntable t1\r\n[cities] = NA\r\noverride\r\n[cities]\r\n"London"\r\n"Berlin"\r\n"Boston"\r\n`;
       const hook = getRenderedHook(dsl, props);
 
       // Act
@@ -41,21 +41,19 @@ describe('usePromoteRowManualEditDSL', () => {
 
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
-        props.sheetName,
-        `Set row 0 in table t1 as field headers`,
-        expectedDsl
+        `Set row 0 in table t1 as column headers`,
+        [{ sheetName: props.sheetName, content: expectedDsl }]
       );
-      expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith(
-        props.sheetName,
-        expectedDsl
-      );
+      expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
+        { sheetName: props.sheetName, content: expectedDsl },
+      ]);
     });
   });
 
   it('should promote all override values in a row as table fields', async () => {
     // Arrange
-    const dsl = `!hideHeader()\r\n!hideFields()\r\n!manual()\r\n!placement(4, 4)\r\ntable t1\r\n[Field1] = NA\r\n[Field2] = NA\r\noverride\r\n[Field1],[Field2]\r\n"cities","population"\r\n"London",1\r\n"Berlin",2\r\n"Boston",3\r\n`;
-    const expectedDsl = `!hideHeader()\r\n!manual()\r\n!placement(4, 4)\r\ntable t1\r\n[cities] = NA\r\n[population] = NA\r\noverride\r\n[cities],[population]\r\n"London",1\r\n"Berlin",2\r\n"Boston",3\r\n`;
+    const dsl = `!manual()\r\n!layout(4, 4)\r\ntable t1\r\n[Field1] = NA\r\n[Field2] = NA\r\noverride\r\n[Field1],[Field2]\r\n"cities","population"\r\n"London",1\r\n"Berlin",2\r\n"Boston",3\r\n`;
+    const expectedDsl = `!manual()\r\n!layout(4, 4, "headers")\r\ntable t1\r\n[cities] = NA\r\n[population] = NA\r\noverride\r\n[cities],[population]\r\n"London",1\r\n"Berlin",2\r\n"Boston",3\r\n`;
     const hook = getRenderedHook(dsl, props);
 
     // Act
@@ -64,13 +62,11 @@ describe('usePromoteRowManualEditDSL', () => {
 
     // Assert
     expect(props.appendToFn).toHaveBeenCalledWith(
-      props.sheetName,
-      `Set row 0 in table t1 as field headers`,
-      expectedDsl
+      `Set row 0 in table t1 as column headers`,
+      [{ sheetName: props.sheetName, content: expectedDsl }]
     );
-    expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith(
-      props.sheetName,
-      expectedDsl
-    );
+    expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
+      { sheetName: props.sheetName, content: expectedDsl },
+    ]);
   });
 });

@@ -20,6 +20,14 @@ public class JoinAllLocal extends Plan2<Table, Table, Table> {
         super(sourceOf(left, leftKeys), sourceOf(right, rightKeys));
     }
 
+    public List<Expression> getLeftKeys() {
+        return expressions(0);
+    }
+
+    public List<Expression> getRightKeys() {
+        return expressions(1);
+    }
+
     @Override
     protected Plan layout() {
         return this;
@@ -35,9 +43,9 @@ public class JoinAllLocal extends Plan2<Table, Table, Table> {
         List<Expression> leftKeys = expressions(0);
         List<Expression> rightKeys = expressions(1);
 
-        TableIndex rightIndex = TableIndex.build(rightTable, rightKeys, false, true);
+        TableIndex rightIndex = TableIndex.build(rightTable, rightKeys, false);
         TableHashStrategy rightStrategy = rightIndex.strategy();
-        TableHashStrategy leftStrategy = new TableHashStrategy(leftKeys, rightStrategy, false, true);
+        TableHashStrategy leftStrategy = new TableHashStrategy(leftKeys, rightStrategy);
 
         int leftSize = Util.toIntSize(leftTable);
         int rightSize = Util.toIntSize(rightTable);

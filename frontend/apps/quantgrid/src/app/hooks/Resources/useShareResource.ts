@@ -17,6 +17,7 @@ import {
   encodeApiUrl,
   getFilesShareUrl,
   getProjectShareUrl,
+  safeEncodeURIComponent,
 } from '../../utils';
 import { useApiRequests } from '../';
 
@@ -131,7 +132,9 @@ export function useShareResources() {
                 resource.bucket,
                 bindConversationsRootFolder,
                 resource.parentPath,
-                resource.name.replaceAll(dialProjectFileExtension, ''),
+                safeEncodeURIComponent(
+                  resource.name.replaceAll(dialProjectFileExtension, '')
+                ),
               ]) + '/'
             );
           }

@@ -6,6 +6,11 @@ import { cellEditorWrapperId } from '../../constants';
 import { GridApi } from '../../types';
 import { filterByTypeAndCast, getPx } from '../../utils';
 import {
+  EventTypeStartMoveMode,
+  EventTypeStopMoveMode,
+  GridEvent,
+} from '../GridApiWrapper';
+import {
   GridTooltipEventClose,
   GridTooltipEventOpen,
   GridTooltipEventType,
@@ -22,6 +27,7 @@ export function Tooltip({ apiRef }: Props) {
   const [tooltipPos, setTooltipPos] = useState(defaultPosition);
   const [targetPos, setTargetPos] = useState(defaultPosition);
   const [tooltipContent, setTooltipContent] = useState('');
+  const [restrictOpening, setRestrictOpening] = useState(false);
   const [width, setWidth] = useState(0);
   const [height, setHeight] = useState(0);
 
@@ -39,6 +45,8 @@ export function Tooltip({ apiRef }: Props) {
 
   const showTooltip = useCallback(
     (x: number, y: number, content: string) => {
+      if (restrictOpening) return;
+
       const container = document.getElementById(cellEditorWrapperId);
 
       if (!container) return;
@@ -63,7 +71,7 @@ export function Tooltip({ apiRef }: Props) {
         setTooltipOpen(true);
       }, 1000);
     },
-    [targetPos]
+    [restrictOpening, targetPos]
   );
 
   useEffect(() => {
@@ -88,6 +96,26 @@ export function Tooltip({ apiRef }: Props) {
         )
         .subscribe(() => {
           clear();
+        })
+    );
+
+    subscriptions.push(
+      api.events$
+        .pipe(
+          filterByTypeAndCast<EventTypeStartMoveMode>(GridEvent.startMoveMode)
+        )
+        .subscribe(() => {
+          setRestrictOpening(true);
+        })
+    );
+
+    subscriptions.push(
+      api.events$
+        .pipe(
+          filterByTypeAndCast<EventTypeStopMoveMode>(GridEvent.stopMoveMode)
+        )
+        .subscribe(() => {
+          setRestrictOpening(false);
         })
     );
 

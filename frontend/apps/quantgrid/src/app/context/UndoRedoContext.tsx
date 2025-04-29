@@ -7,11 +7,14 @@ import {
   useState,
 } from 'react';
 
+import useEventBus from '../hooks/useEventBus';
 import {
   appendToProjectHistory,
   clearProjectHistory,
+  EventBusMessages,
   getProjectHistory,
   initialHistoryTitle,
+  maxHistoryDepth,
   removeLastProjectHistoryElement,
   UndoRedoHistoryState,
 } from '../services';
@@ -22,9 +25,10 @@ type UndoRedoActions = {
 
   redo: () => void;
 
-  append: (name: string, dsl: string) => void;
-
-  appendTo: (sheetNameToAppend: string, name: string, dsl: string) => void;
+  appendTo: (
+    historyTitle: string,
+    changedSheets: { sheetName: string; content: string | undefined }[]
+  ) => void;
 
   clear: () => void;
 };
@@ -45,9 +49,11 @@ export function UndoRedoProvider({ children }: PropsWithChildren) {
     projectBucket,
     sheetName,
     sheetContent,
+    projectSheets,
     updateSheetContent,
     isAIPendingChanges,
   } = useContext(ProjectContext);
+  const eventBus = useEventBus<EventBusMessages>();
   const [history, setHistory] = useState<UndoRedoHistoryState[]>([]);
 
   const [revertedIndex, setRevertedIndex] = useState<number | null>(0);
@@ -81,11 +87,16 @@ export function UndoRedoProvider({ children }: PropsWithChildren) {
             projectPath
           );
 
-          if (
-            newLastHistoryElement &&
-            sheetName === newLastHistoryElement.sheetName
-          ) {
-            updateSheetContent(sheetName, newLastHistoryElement.dsl);
+          if (newLastHistoryElement) {
+            const updatedSheets = Object.entries(
+              newLastHistoryElement.sheetsState
+            ).map(([key, value]) => ({ sheetName: key, content: value }));
+            const changes = combineSheetChanges(
+              projectSheets ?? [],
+              updatedSheets
+            );
+
+            updateSheetContent(changes);
           }
 
           setHistory(
@@ -96,22 +107,20 @@ export function UndoRedoProvider({ children }: PropsWithChildren) {
         }
 
         const title = getTitle(countChanges, newRevertedIndex, isPlural);
-        const dsl = currentHistory[newRevertedIndex].dsl;
-        const revertedSheetName = currentHistory[newRevertedIndex].sheetName;
+        const sheetsState = currentHistory[newRevertedIndex].sheetsState;
 
         appendToProjectHistory(
-          revertedSheetName,
           title,
-          dsl,
+          sheetsState,
           projectName,
           projectBucket,
           projectPath,
           true
         );
-
-        if (sheetName === revertedSheetName) {
-          updateSheetContent(sheetName, dsl);
-        }
+        const updatedSheets = Object.entries(sheetsState).map(
+          ([key, value]) => ({ sheetName: key, content: value })
+        );
+        updateSheetContent(updatedSheets);
 
         setHistory(getProjectHistory(projectName, projectBucket, projectPath));
 
@@ -123,6 +132,7 @@ export function UndoRedoProvider({ children }: PropsWithChildren) {
       projectBucket,
       projectName,
       projectPath,
+      projectSheets,
       sheetName,
       updateSheetContent,
     ]
@@ -144,14 +154,18 @@ export function UndoRedoProvider({ children }: PropsWithChildren) {
         const fallbackIndex = (revertedIndex ?? currentHistory.length - 1) - 1;
 
         const newRevertedIndex = undoIndex ?? fallbackIndex;
+        const isNewItemOverflow = currentHistory.length === maxHistoryDepth;
 
         if (newRevertedIndex < 0) return revertedIndex;
 
         const undoElement = currentHistory[newRevertedIndex];
 
-        if (sheetName === undoElement.sheetName) {
-          updateSheetContent(sheetName, currentHistory[newRevertedIndex].dsl);
-        }
+        const updatedSheets = Object.entries(undoElement.sheetsState).map(
+          ([key, value]) => ({ sheetName: key, content: value })
+        );
+        const changes = combineSheetChanges(projectSheets ?? [], updatedSheets);
+
+        updateSheetContent(changes);
 
         const countChanges =
           currentHistory.length -
@@ -169,9 +183,8 @@ export function UndoRedoProvider({ children }: PropsWithChildren) {
         const title = getTitle(countChanges, newRevertedIndex, isPlural);
 
         appendToProjectHistory(
-          undoElement.sheetName,
           title,
-          undoElement.dsl,
+          undoElement.sheetsState,
           projectName,
           projectBucket,
           projectPath,
@@ -180,13 +193,16 @@ export function UndoRedoProvider({ children }: PropsWithChildren) {
 
         setHistory(getProjectHistory(projectName, projectBucket, projectPath));
 
-        return newRevertedIndex;
+        return isNewItemOverflow && revertedIndex === null
+          ? newRevertedIndex - 1
+          : newRevertedIndex;
       });
     },
     [
       projectBucket,
       projectName,
       projectPath,
+      projectSheets,
       redo,
       sheetName,
       updateSheetContent,
@@ -198,45 +214,46 @@ export function UndoRedoProvider({ children }: PropsWithChildren) {
 
     setRevertedIndex(null);
 
+    const currentHistory = getProjectHistory(
+      projectName,
+      projectBucket,
+      projectPath
+    );
+
     clearProjectHistory(
-      sheetName,
       projectName,
       projectBucket,
       projectPath,
-      sheetContent ?? undefined
+      currentHistory[currentHistory.length - 1].sheetsState ?? undefined
     );
 
     setHistory(getProjectHistory(projectName, projectBucket, projectPath));
-  }, [projectName, projectBucket, sheetName, sheetContent, projectPath]);
-
-  const append = useCallback(
-    (title: string, dsl: string) => {
-      if (!projectName || !projectBucket || !sheetName) return;
-
-      appendToProjectHistory(
-        sheetName,
-        title,
-        dsl,
-        projectName,
-        projectBucket,
-        projectPath
-      );
-
-      setHistory(getProjectHistory(projectName, projectBucket, projectPath));
-
-      setRevertedIndex(null);
-    },
-    [projectBucket, projectName, projectPath, sheetName]
-  );
+  }, [projectName, projectBucket, sheetName, projectPath]);
 
   const appendTo = useCallback(
-    (sheetNameToAppend: string, name: string, dsl: string) => {
+    (
+      historyTitle: string,
+      changedSheets: { sheetName: string; content: string | undefined }[]
+    ) => {
       if (!projectName || !projectBucket) return;
 
+      const sheets =
+        projectSheets?.reduce((acc, current) => {
+          const changedValue = changedSheets.find(
+            ({ sheetName }) => sheetName === current.sheetName
+          );
+          if (!changedValue) {
+            acc[current.sheetName] = current.content;
+          } else if (changedValue.content != null) {
+            acc[current.sheetName] = changedValue.content;
+          }
+
+          return acc;
+        }, {} as Record<string, string>) ?? {};
+
       appendToProjectHistory(
-        sheetNameToAppend,
-        name,
-        dsl,
+        historyTitle,
+        sheets,
         projectName,
         projectBucket,
         projectPath
@@ -246,7 +263,7 @@ export function UndoRedoProvider({ children }: PropsWithChildren) {
 
       setRevertedIndex(null);
     },
-    [projectBucket, projectName, projectPath]
+    [projectBucket, projectName, projectPath, projectSheets]
   );
 
   useEffect(() => {
@@ -261,10 +278,12 @@ export function UndoRedoProvider({ children }: PropsWithChildren) {
     if (history.length) {
       setHistory(history);
     } else {
-      append(initialHistoryTitle, sheetContent ?? '');
+      appendTo(initialHistoryTitle, [
+        { sheetName, content: sheetContent ?? '' },
+      ]);
     }
   }, [
-    append,
+    appendTo,
     projectBucket,
     projectName,
     projectPath,
@@ -276,9 +295,19 @@ export function UndoRedoProvider({ children }: PropsWithChildren) {
     setRevertedIndex(null);
   }, [projectName]);
 
+  useEffect(() => {
+    const subscription = eventBus.subscribe('AppendToHistory', (options) => {
+      appendTo(options.historyTitle, options.changes);
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [appendTo, eventBus]);
+
   return (
     <UndoRedoContext.Provider
-      value={{ append, appendTo, undo, history, redo, revertedIndex, clear }}
+      value={{ appendTo, undo, history, redo, revertedIndex, clear }}
     >
       {children}
     </UndoRedoContext.Provider>
@@ -293,4 +322,20 @@ function getTitle(
   return `Undo ${countChanges} change${
     isPlural ? 's' : ''
   } (reverted to [${newRevertedIndex}] change)`;
+}
+
+function combineSheetChanges(
+  oldSheets: { sheetName: string; content: string | undefined }[],
+  newSheets: { sheetName: string; content: string | undefined }[]
+) {
+  const changes = newSheets.concat(
+    oldSheets
+      .filter(
+        ({ sheetName: exSheetName }) =>
+          !newSheets.some(({ sheetName }) => sheetName === exSheetName)
+      )
+      .map(({ sheetName }) => ({ sheetName, content: undefined }))
+  );
+
+  return changes;
 }

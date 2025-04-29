@@ -60,7 +60,7 @@ public class LocalInputProviderTest {
         columnTypes.put("FREQ.id", ColumnType.STRING);
         columnTypes.put("TIME_PERIOD", ColumnType.DATE);
         columnTypes.put("OBS_VALUE", ColumnType.DOUBLE);
-        columnTypes.put("COMMENT", ColumnType.STRING);
+        columnTypes.put("COMMENT", ColumnType.DOUBLE);
 
         String path = TestInputs.INPUTS_PATH.resolve(inputCsv).toString();
         return new InputMetadata(inputCsv, path, null, InputType.CSV, columnTypes);

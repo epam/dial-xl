@@ -1,4 +1,4 @@
-import { escapeOverrideValue } from '../escapeOverrideValue';
+import { escapeValue } from '../escapeUtils';
 
 describe('escapeOverrideValue', () => {
   it('should remove quotes at beginning and end of the override value and replace them with ""', () => {
@@ -7,7 +7,7 @@ describe('escapeOverrideValue', () => {
     const expectedResult = '"test"';
 
     // Act
-    const result = escapeOverrideValue(value);
+    const result = escapeValue(value);
 
     // Assert
     expect(result).toEqual(expectedResult);
@@ -18,7 +18,7 @@ describe('escapeOverrideValue', () => {
     const expectedResult = '"test"';
 
     // Act
-    const result = escapeOverrideValue(value);
+    const result = escapeValue(value);
 
     // Assert
     expect(result).toEqual(expectedResult);
@@ -29,7 +29,7 @@ describe('escapeOverrideValue', () => {
     const expectedResult = '"test \'"name\'""';
 
     // Act
-    const result = escapeOverrideValue(value);
+    const result = escapeValue(value);
 
     // Assert
     expect(result).toEqual(expectedResult);
@@ -40,7 +40,7 @@ describe('escapeOverrideValue', () => {
     const expectedResult = '"\'"test \'"name\'"\'"\'""';
 
     // Act
-    const result = escapeOverrideValue(value);
+    const result = escapeValue(value);
 
     // Assert
     expect(result).toEqual(expectedResult);

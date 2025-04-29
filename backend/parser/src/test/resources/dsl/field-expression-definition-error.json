@@ -1,0 +1,185 @@
+{
+  "name": "test",
+  "tables": [
+    {
+      "span": {
+        "from": 0,
+        "to": 87
+      },
+      "name": {
+        "span": {
+          "from": 6,
+          "to": 8
+        },
+        "text": "t1"
+      },
+      "fields": [
+        {
+          "span": {
+            "from": 11,
+            "to": 26
+          },
+          "key": {
+            "span": {
+              "from": 11,
+              "to": 14
+            },
+            "text": "key"
+          },
+          "name": {
+            "span": {
+              "from": 15,
+              "to": 18
+            },
+            "text": "a"
+          },
+          "formula": {
+            "span": {
+              "from": 21,
+              "to": 26
+            },
+            "formula": {
+              "left": {
+                "number": 1.0,
+                "arguments": []
+              },
+              "right": {
+                "number": 2.0,
+                "arguments": []
+              },
+              "operation": "ADD",
+              "name": "BinaryOperator",
+              "arguments": [
+                {
+                  "arguments": []
+                },
+                {
+                  "arguments": []
+                }
+              ]
+            },
+            "errors": []
+          },
+          "decorators": [],
+          "docs": []
+        },
+        {
+          "span": {
+            "from": 74,
+            "to": 85
+          },
+          "dim": {
+            "span": {
+              "from": 74,
+              "to": 77
+            },
+            "text": "dim"
+          },
+          "name": {
+            "span": {
+              "from": 78,
+              "to": 81
+            },
+            "text": "d"
+          },
+          "formula": {
+            "span": {
+              "from": 84,
+              "to": 85
+            },
+            "formula": {
+              "number": 5.0,
+              "arguments": []
+            },
+            "errors": []
+          },
+          "decorators": [],
+          "docs": []
+        }
+      ],
+      "decorators": [],
+      "docs": [],
+      "totals": []
+    },
+    {
+      "span": {
+        "from": 87,
+        "to": 120
+      },
+      "name": {
+        "span": {
+          "from": 93,
+          "to": 95
+        },
+        "text": "t2"
+      },
+      "fields": [
+        {
+          "span": {
+            "from": 100,
+            "to": 107
+          },
+          "name": {
+            "span": {
+              "from": 100,
+              "to": 103
+            },
+            "text": "x"
+          },
+          "formula": {
+            "span": {
+              "from": 106,
+              "to": 107
+            },
+            "formula": {
+              "number": 5.0,
+              "arguments": []
+            },
+            "errors": []
+          },
+          "decorators": [],
+          "docs": []
+        },
+        {
+          "span": {
+            "from": 112,
+            "to": 119
+          },
+          "name": {
+            "span": {
+              "from": 112,
+              "to": 115
+            },
+            "text": "c"
+          },
+          "formula": {
+            "span": {
+              "from": 118,
+              "to": 119
+            },
+            "formula": {
+              "number": 3.0,
+              "arguments": []
+            },
+            "errors": []
+          },
+          "decorators": [],
+          "docs": []
+        }
+      ],
+      "decorators": [],
+      "docs": [],
+      "totals": []
+    }
+  ],
+  "pythons": [],
+  "errors": [
+    {
+      "line": 4,
+      "position": 14,
+      "message": "mismatched input '\\n' expecting {'-', 'TRUE', 'FALSE', 'NA', '$', 'NOT', '{', '(', FLOAT, IDENTIFIER, STRING_LITERAL, FIELD_NAME, MULTI_WORD_TABLE_IDENTIFIER}",
+      "tableName": "t1",
+      "fieldName": "c"
+    }
+  ]
+}

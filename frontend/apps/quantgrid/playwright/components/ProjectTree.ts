@@ -11,7 +11,9 @@ export class ProjectTree extends BasePanel {
     return `li.ant-dropdown-menu-item:has-text('${name}')`;
   }
 
-  panelName = 'Project';
+  panelName = 'project';
+
+  private openElement = `[data-panel="project"][data-qa="collapsed-panel-button"]`;
 
   public getTreeNode(nodeName: string) {
     return this.innerPage.locator(this.nodeTitle).getByText(nodeName);
@@ -35,5 +37,11 @@ export class ProjectTree extends BasePanel {
 
   public async selectMenuItem(name: string) {
     return await this.getTreeNode(name).click({ button: 'right' });
+  }
+
+  public async showPanel() {
+    if (!(await this.isVisible())) {
+      await this.innerPage.locator(this.openElement).click();
+    }
   }
 }

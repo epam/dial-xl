@@ -1,5 +1,10 @@
 import { DiffData } from '@frontend/common';
-import { OverrideRow, OverrideRows, ParsedTable } from '@frontend/parser';
+import {
+  defaultRowKey,
+  OverrideRow,
+  OverrideRows,
+  ParsedTable,
+} from '@frontend/parser';
 
 function isEqualRow(row1: OverrideRow, row2: OverrideRow): boolean {
   return Object.keys(row1).every((key) => row1[key] === row2[key]);
@@ -7,7 +12,8 @@ function isEqualRow(row1: OverrideRow, row2: OverrideRow): boolean {
 
 function getOverrideRowsDiff(
   oldRows: OverrideRows,
-  newRows: OverrideRows
+  newRows: OverrideRows,
+  keys?: string[]
 ): OverrideRows {
   if (!oldRows) return newRows;
   if (!newRows) return null;
@@ -18,20 +24,33 @@ function getOverrideRowsDiff(
     const newRow = newRows[i];
     const match = oldRows.find((oldRow) => isEqualRow(oldRow, newRow));
 
-    if (!match) {
-      const changedRow: OverrideRow = {};
-      const oldMatch = oldRows.find((oldRow) =>
-        Object.keys(oldRow).some((key) => newRow[key] !== undefined)
-      );
-
-      for (const key in newRow) {
-        if (newRow[key] !== oldMatch?.[key]) {
-          changedRow[key] = newRow[key];
-        }
-      }
-
+    const changedRow: OverrideRow = {};
+    if (match) {
       differences.push(changedRow);
+
+      continue;
     }
+
+    const oldMatch = keys?.length
+      ? oldRows.find((oldRow) =>
+          keys.every((key) => oldRow[key] === newRow[key])
+        )
+      : oldRows[i];
+
+    let isAddKeys = false;
+    for (const overrideKey in newRow) {
+      if (newRow[overrideKey] !== oldMatch?.[overrideKey]) {
+        isAddKeys = true;
+        changedRow[overrideKey] = newRow[overrideKey];
+      }
+    }
+
+    if (isAddKeys) {
+      for (const key in keys) {
+        changedRow[key] = newRow[key];
+      }
+    }
+    differences.push(changedRow);
   }
 
   return differences.length > 0 ? differences : null;
@@ -44,7 +63,8 @@ export const getTableDiff = (
   if (!previousTableValue)
     return {
       table: true,
-      fields: [],
+      changedFields: [],
+      deletedFields: [],
       overrides: [],
     };
 
@@ -59,14 +79,32 @@ export const getTableDiff = (
     );
   });
 
+  const deletedFields = previousTableValue.fields
+    .filter(
+      (field) =>
+        !table.fields.find(
+          (newField) => newField.key.fieldName === field.key.fieldName
+        )
+    )
+    .map((field) => field.key.fieldName);
+
+  const fieldKeys = table.getKeys().map((field) => field.key.fieldName);
+  const keys = fieldKeys.length
+    ? fieldKeys
+    : !table.isManual()
+    ? [defaultRowKey]
+    : [];
+
   const overridesDiff = getOverrideRowsDiff(
     previousTableValue.overrides?.overrideRows ?? [],
-    table.overrides?.overrideRows ?? []
+    table.overrides?.overrideRows ?? [],
+    keys
   );
 
   return {
     table: false,
-    fields: changedFields.map((field) => field.key.fieldName),
+    changedFields: changedFields.map((field) => field.key.fieldName),
+    deletedFields,
     overrides: overridesDiff,
   };
 };

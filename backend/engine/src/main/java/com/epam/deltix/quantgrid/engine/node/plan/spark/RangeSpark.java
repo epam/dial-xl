@@ -5,7 +5,6 @@ import com.epam.deltix.quantgrid.engine.meta.Schema;
 import com.epam.deltix.quantgrid.engine.node.expression.Expression;
 import com.epam.deltix.quantgrid.engine.node.plan.Plan;
 import com.epam.deltix.quantgrid.engine.node.plan.Plan0;
-import com.epam.deltix.quantgrid.engine.node.plan.local.RangeLocal;
 import com.epam.deltix.quantgrid.engine.spark.PartitionUtil;
 import com.epam.deltix.quantgrid.engine.spark.TablePartition;
 import com.epam.deltix.quantgrid.engine.spark.TablePartition.ColumnPartition;
@@ -49,7 +48,7 @@ public class RangeSpark extends Plan0<SparkTable> {
         long integer = (long) value;
 
         if (integer != value) {
-            throw new IllegalArgumentException("Invalid function RANGE argument \"count\": expected value of type INTEGER");
+            throw new IllegalArgumentException("Invalid argument \"count\" for function RANGE: expected an integer number.");
         }
 
         if (integer < 0) {

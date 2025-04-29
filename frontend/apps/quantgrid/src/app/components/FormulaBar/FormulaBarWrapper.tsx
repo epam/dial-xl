@@ -1,6 +1,13 @@
 import classNames from 'classnames';
-import { Fragment } from 'react';
-import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
+import { Fragment, useCallback, useRef } from 'react';
+import {
+  ImperativePanelHandle,
+  Panel,
+  PanelGroup,
+  PanelResizeHandle,
+} from 'react-resizable-panels';
+
+import { formulaEditorId } from '@frontend/common';
 
 import {
   FormulaBarDivider,
@@ -13,14 +20,43 @@ import { useFormulaBarWrapper } from './utils';
 
 const headerSectionWidth = 10;
 const fullWidth = 100;
+const headerMaxSize = 60;
 
 export function FormulaBarWrapper() {
   const { fields } = useFormulaBarWrapper();
+  const panelRef = useRef<ImperativePanelHandle>(null);
+  const panelGroupToolsRef = useRef<HTMLDivElement>(null);
+
+  const handleAutoResize = useCallback((size: number) => {
+    const formulaBarEl = document.getElementById(formulaEditorId);
+
+    if (!panelRef.current || !panelGroupToolsRef.current || !formulaBarEl)
+      return;
+
+    const { width: toolsWidth } =
+      panelGroupToolsRef.current.getBoundingClientRect();
+    const formulaBarWidth = formulaBarEl.clientWidth - toolsWidth;
+    const currentPanelSizeInPercent = panelRef.current.getSize();
+    const updatedSizeInPercent = Math.ceil((size / formulaBarWidth) * 100);
+
+    if (
+      updatedSizeInPercent > currentPanelSizeInPercent &&
+      updatedSizeInPercent <= headerMaxSize
+    ) {
+      panelRef.current.resize(updatedSizeInPercent);
+    }
+  }, []);
 
   return (
     <PanelGroup autoSaveId="formulaBarPanels" direction="horizontal">
-      <Panel defaultSize={headerSectionWidth} id="cell" minSize={0} order={1}>
-        <FormulaBarHeaderSection />
+      <Panel
+        defaultSize={headerSectionWidth}
+        id="cell"
+        minSize={0}
+        order={1}
+        ref={panelRef}
+      >
+        <FormulaBarHeaderSection onPanelAutoResize={handleAutoResize} />
       </Panel>
 
       <PanelResizeHandle children={<FormulaBarDivider />} />
@@ -54,7 +90,10 @@ export function FormulaBarWrapper() {
           <FormulaInput />
         </Panel>
       )}
-      <div className={classNames('flex gap-2 px-3 py-1 items-center h-[28px]')}>
+      <div
+        className={classNames('flex gap-2 px-3 py-1 items-center h-[28px]')}
+        ref={panelGroupToolsRef}
+      >
         <FormulaBarExpandButton />
         <FormulaBarMenu />
       </div>

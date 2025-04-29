@@ -14,6 +14,11 @@ export function getProjectSpreadSheeet(type: string, spreadsheet: SpreadSheet) {
         table.hideHeader();
       }
       break;
+    case 'horizontl':
+      for (const table of spreadsheet.getTables()) {
+        table.makeHorizontal();
+      }
+      break;
   }
 
   return spreadsheet;

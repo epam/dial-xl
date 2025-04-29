@@ -5,10 +5,12 @@ import com.epam.deltix.quantgrid.engine.python.PythonExec;
 import com.epam.deltix.quantgrid.engine.value.Column;
 import com.epam.deltix.quantgrid.engine.value.Table;
 import com.epam.deltix.quantgrid.type.ColumnType;
+import lombok.Getter;
 
 import java.util.ArrayList;
 import java.util.List;
 
+@Getter
 public class PythonExpression extends ExpressionWithPlan<Table, Column> {
 
     private final String code;

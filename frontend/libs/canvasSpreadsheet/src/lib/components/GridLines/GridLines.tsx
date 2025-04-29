@@ -1,9 +1,10 @@
 import * as PIXI from 'pixi.js';
 import { useCallback, useContext, useRef } from 'react';
 
-import { Graphics, useTick } from '@pixi/react';
+import { Graphics } from '@pixi/react';
 
 import { GridStateContext, GridViewportContext } from '../../context';
+import { useDraw } from '../../hooks';
 
 export function GridLines() {
   const { gridWidth, gridHeight, gridSizes, theme } =
@@ -27,12 +28,12 @@ export function GridLines() {
 
     for (let col = startCol; col <= endCol; ++col) {
       const x = getCellX(col);
-      graphics.moveTo(x, 0).lineTo(x, gridHeight);
+      graphics.moveTo(x, gridSizes.colNumber.height).lineTo(x, gridHeight);
     }
 
     for (let row = startRow; row <= endRow; ++row) {
       const y = getCellY(row);
-      graphics.moveTo(0, y).lineTo(gridWidth, y);
+      graphics.moveTo(gridSizes.rowNumber.width, y).lineTo(gridWidth, y);
     }
   }, [
     getCellX,
@@ -44,7 +45,7 @@ export function GridLines() {
     gridSizes,
   ]);
 
-  useTick(drawLines, true);
+  useDraw(drawLines);
 
   return <Graphics ref={graphicsRef} />;
 }

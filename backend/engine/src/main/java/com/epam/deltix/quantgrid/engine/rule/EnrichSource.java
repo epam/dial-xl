@@ -120,7 +120,7 @@ public class EnrichSource implements Rule {
         List<Expression> toClone = source.expressions();
         List<Expression> expressionClones = new ArrayList<>(toClone.size());
         for (Expression expression : toClone) {
-            Expression clone = ConditionUtil.cloneExpressionAndConnectToSource(
+            Expression clone = ConditionUtil.reconnectExpressions(
                     expression, select, newSelect, clonedNodes);
             expressionClones.add(clone);
         }

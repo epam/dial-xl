@@ -10,7 +10,7 @@ import com.epam.deltix.quantgrid.engine.node.expression.ps.Extrapolate;
 import com.epam.deltix.quantgrid.engine.node.expression.ps.PercentChange;
 import com.epam.deltix.quantgrid.engine.node.plan.Plan;
 import com.epam.deltix.quantgrid.engine.node.plan.Scalar;
-import com.epam.deltix.quantgrid.engine.node.plan.local.AggregateFunction;
+import com.epam.deltix.quantgrid.engine.node.plan.local.AggregateLocal;
 import com.epam.deltix.quantgrid.engine.node.plan.local.CartesianLocal;
 import com.epam.deltix.quantgrid.engine.node.plan.local.DistinctByLocal;
 import com.epam.deltix.quantgrid.engine.node.plan.local.FilterLocal;
@@ -18,19 +18,18 @@ import com.epam.deltix.quantgrid.engine.node.plan.local.GapFillerJoinLocal;
 import com.epam.deltix.quantgrid.engine.node.plan.local.InputLocal;
 import com.epam.deltix.quantgrid.engine.node.plan.local.JoinAllLocal;
 import com.epam.deltix.quantgrid.engine.node.plan.local.JoinSingleLocal;
-import com.epam.deltix.quantgrid.engine.node.plan.local.NestedAggregateLocal;
-import com.epam.deltix.quantgrid.engine.node.plan.local.NestedPivotLocal;
 import com.epam.deltix.quantgrid.engine.node.plan.local.OrderByLocal;
+import com.epam.deltix.quantgrid.engine.node.plan.local.PivotLocal;
 import com.epam.deltix.quantgrid.engine.node.plan.local.PivotNamesLocal;
 import com.epam.deltix.quantgrid.engine.node.plan.local.RangeLocal;
 import com.epam.deltix.quantgrid.engine.node.plan.local.SelectLocal;
-import com.epam.deltix.quantgrid.engine.node.plan.local.SimpleAggregateLocal;
-import com.epam.deltix.quantgrid.engine.node.plan.local.SimplePivotLocal;
+import com.epam.deltix.quantgrid.engine.node.plan.local.aggregate.AggregateType;
 import com.epam.deltix.quantgrid.engine.service.input.InputMetadata;
 import com.epam.deltix.quantgrid.engine.service.input.storage.LocalInputProvider;
 import com.epam.deltix.quantgrid.engine.test.TestInputs;
 import com.epam.deltix.quantgrid.engine.value.Column;
 import com.epam.deltix.quantgrid.engine.value.DoubleColumn;
+import com.epam.deltix.quantgrid.engine.value.ErrorColumn;
 import com.epam.deltix.quantgrid.engine.value.Period;
 import com.epam.deltix.quantgrid.engine.value.PeriodSeries;
 import com.epam.deltix.quantgrid.engine.value.Table;
@@ -38,9 +37,10 @@ import com.epam.deltix.quantgrid.engine.value.local.DoubleDirectColumn;
 import com.epam.deltix.quantgrid.engine.value.local.PeriodSeriesDirectColumn;
 import com.epam.deltix.quantgrid.engine.value.local.StringDirectColumn;
 import com.epam.deltix.quantgrid.parser.ast.BinaryOperation;
-import com.epam.deltix.quantgrid.util.Doubles;
 import com.epam.deltix.quantgrid.util.Dates;
+import com.epam.deltix.quantgrid.util.Doubles;
 import lombok.val;
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -142,41 +142,11 @@ class NodeTest {
     }
 
     @Test
-    void testJoinSingle() {
-        // left (current) table
-        RangeLocal leftRange = new RangeLocal(new Constant(4));
-        Get leftNumber = new Get(leftRange, 0);
-        BinaryOperator leftValue =
-                new BinaryOperator(leftNumber, new Expand(leftRange, new Constant(5)),
-                        BinaryOperation.ADD);
-        // 0 1 2 3
-        // 5 6 7 8
-        SelectLocal leftTable = new SelectLocal(leftNumber, leftValue);
-        // right (query) table
-        RangeLocal rightRange = new RangeLocal(new Constant(10));
-        Get rightNumber = new Get(rightRange, 0);
-        BinaryOperator rightValue =
-                new BinaryOperator(rightNumber, new Expand(rightRange, new Constant(3)),
-                        BinaryOperation.SUB);
-
-        // 0  1  2 3 4 5 6 7 8 9
-        //-3 -2 -1 0 1 2 3 4 5 6
-        SelectLocal rightTable = new SelectLocal(rightNumber, rightValue);
-        JoinSingleLocal join = new JoinSingleLocal(leftTable, rightTable,
-                List.of(new Get(leftTable, 1)), List.of(new Get(rightTable, 1)));
-
-        Table result = execute(join);
-        verify(result.getDoubleColumn(0), 1, 2, 3, 4);
-        verify(result.getDoubleColumn(1), 6, 7, 8, 9);
-        verify(result.getDoubleColumn(2), 9, 10, Doubles.ERROR_NA, Doubles.ERROR_NA);
-        verify(result.getDoubleColumn(3), 6, 7, Doubles.ERROR_NA, Doubles.ERROR_NA);
-    }
-
-    @Test
     void testSimpleAggregation() {
         RangeLocal range = new RangeLocal(new Constant(7));
-        SimpleAggregateLocal count = new SimpleAggregateLocal(AggregateFunction.COUNT_ALL, new Scalar(), range, new Get(range, 0));
-        SimpleAggregateLocal sum = new SimpleAggregateLocal(AggregateFunction.SUM, new Scalar(), range,
+        AggregateLocal count = new AggregateLocal(AggregateType.COUNT_ALL, new Scalar(), range, null,
+                new Get(range, 0));
+        AggregateLocal sum = new AggregateLocal(AggregateType.SUM, new Scalar(), range, null,
                 new Get(range, 0));
         SelectLocal select = new SelectLocal(new Get(count, 0), new Get(sum, 0));
 
@@ -190,9 +160,9 @@ class NodeTest {
         RangeLocal range = new RangeLocal(new Constant(7));
         SelectLocal current = new SelectLocal(new RowNumber(range));
         CartesianLocal cartesian = new CartesianLocal(current, range);
-        NestedAggregateLocal count = new NestedAggregateLocal(AggregateFunction.COUNT_ALL, range, cartesian,
+        AggregateLocal count = new AggregateLocal(AggregateType.COUNT_ALL, range, cartesian,
                 new Get(cartesian, 0), new Get(cartesian, 1));
-        NestedAggregateLocal sum = new NestedAggregateLocal(AggregateFunction.SUM, range, cartesian,
+        AggregateLocal sum = new AggregateLocal(AggregateType.SUM, range, cartesian,
                 new Get(cartesian, 0), new Get(cartesian, 1));
         SelectLocal select = new SelectLocal(new Get(count, 0), new Get(sum, 0));
 
@@ -212,7 +182,7 @@ class NodeTest {
                 new DoubleDirectColumn(1, 2, 3)
         );
 
-        SimpleAggregateLocal aggregate = new SimpleAggregateLocal(AggregateFunction.PERIOD_SERIES, new Scalar(), table,
+        AggregateLocal aggregate = new AggregateLocal(AggregateType.PERIOD_SERIES, new Scalar(), table, null,
                 new Get(table, 0), new Get(table, 1), new Expand(table, new Constant("YEAR")));
         Table result = execute(aggregate);
 
@@ -233,7 +203,7 @@ class NodeTest {
                 new DoubleDirectColumn(1, 2, 3, 4)
         );
 
-        NestedAggregateLocal aggregate = new NestedAggregateLocal(AggregateFunction.PERIOD_SERIES, layout, table,
+        AggregateLocal aggregate = new AggregateLocal(AggregateType.PERIOD_SERIES, layout, table,
                 new Get(table, 0), new Get(table, 1), new Get(table, 2),
                 new Expand(table, new Constant("YEAR")));
         Table result = execute(aggregate);
@@ -281,14 +251,14 @@ class NodeTest {
         );
 
         // vertical aggregate: vGroup.Sum([z])
-        NestedAggregateLocal vSum = new NestedAggregateLocal(AggregateFunction.SUM, vLayout, vGroup,
+        AggregateLocal vSum = new AggregateLocal(AggregateType.SUM, vLayout, vGroup,
                 new Get(vGroup, 0), new Get(vGroup, 4));
 
         // horizontal aggregate to produce pivoted [a], [b], [c] for: [d] = [a] + [b] + [c]
         SelectLocal hSource = new SelectLocal(new Get(vLayout, 0), new Get(vSum, 0));
-        SimplePivotLocal hPivot = new SimplePivotLocal(
+        PivotLocal hPivot = new PivotLocal(
                 new Scalar(),
-                hSource,
+                hSource, null,
                 new Get(hSource, 0), new Get(hSource, 1),
                 allNamesPlan, new Get(allNamesPlan, 1),
                 new String[] {"a", "b", "d"}
@@ -297,7 +267,8 @@ class NodeTest {
         Table result = execute(hPivot);
         verify(result.getDoubleColumn(0), 304);
         verify(result.getDoubleColumn(1), 206);
-        verify(result.getDoubleColumn(2), Doubles.ERROR_NA);
+        Assertions.assertThat(result.getColumn(2))
+                .isEqualTo(new ErrorColumn("The column 'd' does not exist in the pivot table.", 1));
     }
 
     @Test
@@ -337,14 +308,14 @@ class NodeTest {
         );
 
         // vertical aggregate: vGroup.Sum([z])
-        NestedAggregateLocal vSum = new NestedAggregateLocal(AggregateFunction.SUM, vLayout, vGroup,
+        AggregateLocal vSum = new AggregateLocal(AggregateType.SUM, vLayout, vGroup,
                 new Get(vGroup, 0), new Get(vGroup, 6));
 
         // horizontal layout: Table.DistinctBy([x])
         RangeLocal hLayout = new RangeLocal(new Constant(2));
         // horizontal aggregate to produce pivoted [a], [b], [c] for: [d] = [a] + [b] + [c]
         SelectLocal hSource = new SelectLocal(new Get(vLayout, 0), new Get(vLayout, 1), new Get(vSum, 0));
-        NestedPivotLocal hPivot = new NestedPivotLocal(
+        PivotLocal hPivot = new PivotLocal(
                 hLayout,
                 hSource,
                 new Get(hSource, 0), new Get(hSource, 1), new Get(hSource, 2),
@@ -354,7 +325,8 @@ class NodeTest {
 
         Table result = execute(hPivot);
         verify(result.getDoubleColumn(0), 201, 103);
-        verify(result.getDoubleColumn(1), Doubles.ERROR_NA, Doubles.ERROR_NA);
+        Assertions.assertThat(result.getColumn(1))
+                .isEqualTo(new ErrorColumn("The column 'd' does not exist in the pivot table.", 2));
         verify(result.getDoubleColumn(2), Doubles.EMPTY, 105);
     }
 
@@ -379,7 +351,7 @@ class NodeTest {
         // OBS_VALUE
         verify(result.getDoubleColumn(6), 105.57, 104.67, 99.87, 135.987, 145.4);
         // COMMENT
-        verify(result.getStringColumn(7), null, null, null, null, null);
+        verify(result.getDoubleColumn(7), Doubles.EMPTY, Doubles.EMPTY, Doubles.EMPTY, Doubles.EMPTY, Doubles.EMPTY);
     }
 
     @Test

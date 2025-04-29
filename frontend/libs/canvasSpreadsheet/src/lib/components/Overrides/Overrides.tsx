@@ -2,11 +2,11 @@ import * as PIXI from 'pixi.js';
 import { useCallback, useContext, useEffect, useRef, useState } from 'react';
 
 import { naExpression } from '@frontend/parser';
-import { Container, Graphics, useTick } from '@pixi/react';
+import { Container, Graphics } from '@pixi/react';
 
 import { ComponentLayer } from '../../constants';
 import { GridStateContext, GridViewportContext } from '../../context';
-import { useCellUtils } from '../../hooks';
+import { useCellUtils, useDraw } from '../../hooks';
 import { Edges } from '../../types';
 
 export function Overrides() {
@@ -77,7 +77,7 @@ export function Overrides() {
     });
   }, [calculateCellDimensions, gridSizes, overrideCells, theme]);
 
-  useTick(draw, true);
+  useDraw(draw);
 
   return (
     <Container zIndex={ComponentLayer.Override}>

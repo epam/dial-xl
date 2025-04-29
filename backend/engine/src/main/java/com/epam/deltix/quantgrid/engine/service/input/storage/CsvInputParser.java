@@ -1,81 +1,97 @@
 package com.epam.deltix.quantgrid.engine.service.input.storage;
 
 import com.epam.deltix.quantgrid.type.ColumnType;
-import com.epam.deltix.quantgrid.util.DeduplicateSet;
 import com.epam.deltix.quantgrid.util.Dates;
+import com.epam.deltix.quantgrid.util.DeduplicateSet;
 import com.epam.deltix.quantgrid.util.ParserException;
 import com.epam.deltix.quantgrid.util.ParserUtils;
-import com.epam.deltix.quantgrid.util.ParserException;
-import com.epam.deltix.quantgrid.util.type.EscapeType;
+import com.epam.deltix.quantgrid.util.Strings;
 import com.univocity.parsers.common.IterableResult;
 import com.univocity.parsers.common.ParsingContext;
+import com.univocity.parsers.common.TextParsingException;
 import com.univocity.parsers.csv.Csv;
 import com.univocity.parsers.csv.CsvParser;
 import com.univocity.parsers.csv.CsvParserSettings;
 import it.unimi.dsi.fastutil.doubles.DoubleArrayList;
+import it.unimi.dsi.fastutil.objects.Object2IntMap;
+import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import lombok.experimental.UtilityClass;
+import org.apache.commons.lang3.StringUtils;
 
 import java.io.Reader;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.function.Consumer;
 
+@UtilityClass
 public class CsvInputParser {
-
+    private static final int MAX_COLUMN_DEDUPLICATION_COUNT = Integer.MAX_VALUE;
     private static final int MAX_ROWS_TO_BUILD_METADATA = Integer.MAX_VALUE;
+    private static final int MAX_COLUMNS = 512;
+    private static final int MAX_CHARS = 1_048_576;
 
-    public static LinkedHashMap<String, ColumnType> inferSchema(Reader reader) {
-        CsvParser parser = new CsvParser(metadataCsvSettings());
-        IterableResult<String[], ParsingContext> rows = parser.iterate(reader);
+    public LinkedHashMap<String, ColumnType> inferSchema(Reader reader) {
+        try {
+            CsvParser parser = new CsvParser(inputCsvSettings());
+            IterableResult<String[], ParsingContext> rows = parser.iterate(reader);
 
-        List<String> columnNames = Arrays.stream(rows.getContext().headers())
-                .map(ParserUtils::parseColumnName)
-                .map(header -> ParserUtils.decodeEscapes(header, EscapeType.STRING))
-                .toList();
+            LinkedHashMap<String, Boolean> parsedHeader = parseHeader(rows.getContext().headers());
+            List<ColumnType> columnTypes = new ArrayList<>(Collections.nCopies(parsedHeader.size(), null));
+            int processedRows = 0;
+            for (String[] row : rows) {
+                for (int i = 0; i < row.length; i++) {
+                    if (i == columnTypes.size()) {
+                        columnTypes.add(null);
+                        String columnName = generateColumnName(parsedHeader.keySet(), i);
+                        parsedHeader.put(columnName, Boolean.FALSE);
+                    }
 
-        ColumnType[] columnTypes = new ColumnType[columnNames.size()];
+                    ColumnType prevType = columnTypes.get(i);
 
-        if (columnNames.size() != new HashSet<>(columnNames).size()) {
-            throw new ParserException("Column names must be unique: " + columnNames);
-        }
+                    if (prevType != ColumnType.STRING) {
+                        columnTypes.set(i, ParserUtils.inferType(emptyIfNull(row[i]), prevType));
+                    }
+                }
 
-        int processedRows = 0;
-        for (String[] row : rows) {
-            // Some parsers treat CSV as a valid if values in a rows are missing, some require strict definition.
-            // We choose a strict definition for now for better ambiguity detection in overrides.
-            // It can be reconsidered later.
-            // Please note, that parseInput() still can handle missing values if any.
-            if (row.length != columnTypes.length) {
-                throw new ParserException(
-                        "Expected " + columnTypes.length + " values per row, but was: " + row.length);
-            }
-
-            for (int i = 0; i < row.length; i++) {
-                ColumnType prevType = columnTypes[i];
-
-                if (prevType != ColumnType.STRING) {
-                    columnTypes[i] = ParserUtils.inferType(row[i], prevType);
+                if (processedRows++ == MAX_ROWS_TO_BUILD_METADATA) {
+                    break;
                 }
             }
 
-            if (processedRows++ == MAX_ROWS_TO_BUILD_METADATA) {
-                break;
+            LinkedHashMap<String, ColumnType> schema = new LinkedHashMap<>();
+            int index = 0;
+            for (Map.Entry<String, Boolean> entry : parsedHeader.entrySet()) {
+                String columnName = entry.getKey();
+                ColumnType columnType = columnTypes.get(index++);
+                schema.put(columnName, columnType == null && entry.getValue() ? ColumnType.DOUBLE : columnType);
             }
+
+            return schema;
+        } catch (TextParsingException e) {
+            if (e.getColumnIndex() > MAX_COLUMNS) {
+                throw new ParserException(
+                        "The document exceeds the maximum column count of %d.".formatted(MAX_COLUMNS));
+            }
+
+            if (e.getParsedContent() != null && e.getParsedContent().length() >= MAX_CHARS) {
+                // Likely that the value exceeds the buffer size, but cannot confirm due to lack of specific error flags
+                throw new ParserException(
+                        "Value exceeds max size of %d at column number %d, row %d."
+                                .formatted(MAX_CHARS, e.getColumnIndex() + 1, e.getLineIndex() + 1));
+            }
+
+            throw e;
         }
-
-        LinkedHashMap<String, ColumnType> schema = new LinkedHashMap<>();
-
-        for (int i = 0; i < columnTypes.length; i++) {
-            String columnName = columnNames.get(i);
-            ColumnType columnType = columnTypes[i];
-            schema.put(columnName, (columnType == null) ? ColumnType.STRING : columnType);
-        }
-
-        return schema;
     }
 
     /**
@@ -84,9 +100,9 @@ public class CsvInputParser {
      * @param columnTypes full CSV schema
      * @return Object[] of DoubleArrayList(s) for doubles and ObjectArrayList(s) for strings
      */
-    public static Object[] parseCsvInput(Reader reader,
-                                         List<String> readColumns,
-                                         LinkedHashMap<String, ColumnType> columnTypes) {
+    public Object[] parseCsvInput(Reader reader,
+                                  List<String> readColumns,
+                                  LinkedHashMap<String, ColumnType> columnTypes) {
 
         Map<String, ObjectArrayList<String>> stringColumns = new HashMap<>();
         Map<String, DoubleArrayList> doubleColumns = new HashMap<>();
@@ -100,7 +116,7 @@ public class CsvInputParser {
             if (columnType == ColumnType.STRING) {
                 DeduplicateSet<String> set = new DeduplicateSet<>();
                 ObjectArrayList<String> stringData = new ObjectArrayList<>();
-                consumers[columnIndex++] = s -> stringData.add(set.add(s));
+                consumers[columnIndex++] = s -> stringData.add(set.add(ParserUtils.parseString(s)));
                 stringColumns.put(columnName, stringData);
             } else {
                 DoubleArrayList doubleData = new DoubleArrayList();
@@ -115,7 +131,7 @@ public class CsvInputParser {
             }
         }
 
-        parse(consumers, readColumns, reader, inputCsvSettings());
+        parse(consumers, columnTypes.keySet(), readColumns, reader);
 
         Object[] columns = new Object[expectedColumns];
         columnIndex = 0;
@@ -134,47 +150,84 @@ public class CsvInputParser {
         return columns;
     }
 
-    private static void parse(StringConsumer[] consumers,
-                              List<String> columnsToRead,
-                              Reader reader,
-                              CsvParserSettings settings) {
+    private void parse(StringConsumer[] consumers,
+                       Collection<String> allColumns,
+                       List<String> columnsToRead,
+                       Reader reader) {
+        int index = 0;
+        Object2IntMap<String> columnIndices = new Object2IntOpenHashMap<>();
+        for (String columnName : allColumns) {
+            columnIndices.put(columnName, index++);
+        }
         // carry only required columns
-        settings.selectFields(columnsToRead.toArray(String[]::new));
+        CsvParserSettings settings = inputCsvSettings();
+        settings.selectIndexes(columnsToRead.stream()
+                .map(columnIndices::getInt)
+                .toArray(Integer[]::new));
 
         CsvParser parser = new CsvParser(settings);
         for (String[] row : parser.iterate(reader)) {
             for (int i = 0; i < columnsToRead.size(); i++) {
-                consumers[i].accept(row[i]);
+                consumers[i].accept(emptyIfNull(row[i]));
             }
         }
     }
 
-    private static CsvParserSettings metadataCsvSettings() {
-        CsvParserSettings settings = inputCsvSettings();
-        settings.setMaxCharsPerColumn(1_048_576);
-        settings.setInputBufferSize(1_000);
-        settings.setKeepQuotes(true);
-
-        return settings;
-    }
-
-    private static CsvParserSettings inputCsvSettings() {
+    private CsvParserSettings inputCsvSettings() {
         CsvParserSettings settings = Csv.parseRfc4180();
         settings.setLineSeparatorDetectionEnabled(true);
         settings.setHeaderExtractionEnabled(true);
         settings.setIgnoreTrailingWhitespaces(true);
         settings.setIgnoreLeadingWhitespaces(true);
         settings.setSkipEmptyLines(true);
-        settings.setMaxCharsPerColumn(1_048_576);
+        settings.setMaxCharsPerColumn(MAX_CHARS);
+        settings.setMaxColumns(MAX_COLUMNS);
 
         return settings;
     }
 
-    private static CsvParserSettings overrideCsvSettings() {
-        CsvParserSettings settings = inputCsvSettings();
-        settings.setKeepQuotes(true);
+    private LinkedHashMap<String, Boolean> parseHeader(String[] headers) {
+        if (headers == null) {
+            throw new ParserException("The document doesn't have headers.");
+        }
 
-        return settings;
+        List<String> escapedHeaders = Arrays.stream(headers)
+                .map(CsvInputParser::emptyIfNull)
+                .toList();
+        Set<String> uniqueHeaders = new HashSet<>(escapedHeaders);
+        LinkedHashMap<String, Boolean> result = new LinkedHashMap<>();
+        for (int i = 0; i < escapedHeaders.size(); ++i) {
+            String header = escapedHeaders.get(i);
+            if (StringUtils.isBlank(header)) {
+                String columnName = generateColumnName(uniqueHeaders, i);
+                result.put(columnName, Boolean.FALSE);
+            } else if (result.put(header, Boolean.TRUE) != null) {
+                throw new ParserException("Column names must be unique. Duplicate found: %s.".formatted(header));
+            }
+        }
+
+        return result;
+    }
+
+    private String generateColumnName(Set<String> existingNames, int index) {
+        String name = "Column" + (index + 1);
+        if (!existingNames.contains(name)) {
+            return name;
+        }
+
+        for (int i = 1; i < MAX_COLUMN_DEDUPLICATION_COUNT; ++i) {
+            String deduplicatedName = name + "_" + (i + 1);
+            if (!existingNames.contains(deduplicatedName)) {
+                return deduplicatedName;
+            }
+        }
+
+        throw new ParserException("Cannot generate a new column name. Maximum number " + MAX_COLUMN_DEDUPLICATION_COUNT
+                + " is reached.");
+    }
+
+    private String emptyIfNull(String value) {
+        return Objects.requireNonNullElse(value, Strings.EMPTY);
     }
 
     private interface StringConsumer extends Consumer<String> {

@@ -11,11 +11,16 @@ import { History } from '../History';
 import { PanelToolbar } from '../PanelToolbar';
 import { PanelWrapper } from './PanelWrapper';
 
-export const UndoRedoPanel = ({ panelName, title, position }: PanelProps) => {
+export const UndoRedoPanel = ({
+  panelName,
+  title,
+  position,
+  isActive,
+}: PanelProps) => {
   const { clear } = useContext(UndoRedoContext);
 
   return (
-    <PanelWrapper>
+    <PanelWrapper isActive={isActive} panelName={panelName}>
       <PanelToolbar panelName={panelName} position={position} title={title}>
         <Tooltip placement="bottom" title="Clear history">
           <Icon

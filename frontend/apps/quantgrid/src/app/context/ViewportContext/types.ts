@@ -1,10 +1,16 @@
 import { FieldSortOrder } from '@frontend/common';
-import { NumericFilter } from '@frontend/parser';
+import { ParsedConditionFilter } from '@frontend/parser';
 
 export type ChartUpdate = {
   chartName?: string;
   isKeyUpdate?: boolean;
   isChartDataUpdate?: boolean;
+  virtualTableName?: string;
+};
+
+export type FiltersUpdate = {
+  sourceTableName?: string;
+  virtualTableName?: string;
 };
 
 export type TableDynamicFieldsLoadUpdate = {
@@ -22,6 +28,6 @@ export type TableDimensions = {
 export type ApplyBlockGridParams = {
   sort: FieldSortOrder;
   isFiltered: boolean;
-  numericFilter: NumericFilter | undefined;
+  filter: ParsedConditionFilter | undefined;
   isFieldUsedInSort: boolean;
 };

@@ -69,7 +69,7 @@ public class RangeLocal extends Plan1<Table, Table> {
         int integer = (int) value;
 
         if (integer != value) {
-            throw new IllegalArgumentException("Invalid function RANGE argument \"count\": expected value of type INTEGER");
+            throw new IllegalArgumentException("Invalid argument \"count\" for function RANGE: expected an integer number.");
         }
 
         if (integer < 0) {

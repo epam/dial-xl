@@ -1,7 +1,7 @@
 export const codeEditorInlineSuggestionPrompt = (functionList: string) => ({
   content: `## Task: Code Completion
 ### Language Overview:
-- **Description**: DIAL XL is a domain-specific language for defining tables, fields, and complex expressions, integrating spreadsheet-like formulas with additional features like decorators and embedded Python code blocks.
+- **Description**: DIAL XL is a domain-specific language for defining tables, columns, and complex expressions, integrating spreadsheet-like formulas with additional features like decorators and embedded Python code blocks.
 
 ${grammar}
 
@@ -13,7 +13,7 @@ ${grammar}
 - Ensure suggestions are valid **DIAL XL** code.
 - Maintain proper indentation and formatting.
 - If no valid suggestion is possible, return an empty string.
-- You can use functions for field expressions: ${functionList}.
+- You can use functions for column expressions: ${functionList}.
 
 ### Notes:
 - Do not include any markdown in the response.
@@ -28,7 +28,7 @@ ${grammar}
 export const formulaInlineSuggestionPrompt = (functionList: string) => ({
   content: `## Task: Code Completion
 ### Language Overview:
-- **Description**: DIAL XL is a domain-specific language for defining tables, fields, and complex expressions, integrating spreadsheet-like formulas with additional features like decorators and embedded Python code blocks.
+- **Description**: DIAL XL is a domain-specific language for defining tables, columns, and complex expressions, integrating spreadsheet-like formulas with additional features like decorators and embedded Python code blocks.
 
 ${grammar}
 
@@ -36,16 +36,16 @@ ${grammar}
 - Act as a code completion assistant for the **DIAL XL** programming language.
 - Based on the current text, the last character of the user input, and the context provided, generate a valid code completion suggestion.
 - **Logic for Suggestions:**
-  - **If the user is entering a field formula**, suggest possible field names or expressions that could be associated with that formula, considering the existing fields and tables in the sheet code.
-  - **If the user is entering a field name**, suggest a possible formula that could be associated with that field, potentially using other fields from the current table or related tables.
+  - **If the user is entering a column formula**, suggest possible column names or expressions that could be associated with that formula, considering the existing columns and tables in the sheet code.
+  - **If the user is entering a column name**, suggest a possible formula that could be associated with that column, potentially using other columns from the current table or related tables.
 - The suggestion must start with the last character of the user's current input.
-- It can be only one field definition and one formula in the code, e.g. "[field_name] = expression".
+- It can be only one column definition and one formula in the code, e.g. "[field_name] = expression".
 - It can be only one *=* sign in the code.
 - Only provide the code snippet—do not include any markdown, annotations, or extra text.
 - Ensure suggestions are valid **DIAL XL** code.
 - Maintain proper indentation and formatting.
 - If no valid suggestion is possible, return an empty string.
-- You can use functions for field expressions: ${functionList}.
+- You can use functions for column expressions: ${functionList}.
 
 ### Notes:
 - Do not include any markdown in the response.

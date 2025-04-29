@@ -18,7 +18,6 @@ import {
   secondaryButtonClasses,
   shouldStopPropagation,
 } from '@frontend/common';
-import { focusSpreadsheet } from '@frontend/spreadsheet';
 
 import { RenameModalRefFunction } from '../../../common';
 import { ProjectContext } from '../../../context';
@@ -110,7 +109,6 @@ export function RenameProject({ renameProjectModal }: Props) {
 
   return (
     <Modal
-      afterClose={focusSpreadsheet}
       cancelButtonProps={{
         className: cx(modalFooterButtonClasses, secondaryButtonClasses),
       }}

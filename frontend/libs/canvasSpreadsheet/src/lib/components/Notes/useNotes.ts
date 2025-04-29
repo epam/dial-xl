@@ -39,7 +39,11 @@ export function useNotes() {
       for (let col = startCol; col <= endCol; ++col) {
         const cell = getCell(col, row);
 
-        if (!cell?.isFieldHeader || !cell?.field?.note) continue;
+        if (
+          !(cell?.isFieldHeader && cell?.field?.note) &&
+          !(cell?.isTableHeader && cell.table?.note)
+        )
+          continue;
 
         const { startCol, endCol } = cell;
 

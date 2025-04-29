@@ -7,6 +7,8 @@ export enum KeyboardCode {
   Four = 'Digit4',
   Five = 'Digit5',
   Six = 'Digit6',
+  Seven = 'Digit7',
+  Eight = 'Digit8',
   Zero = 'Digit0',
   Space = ' ',
   Shift = 'Shift',

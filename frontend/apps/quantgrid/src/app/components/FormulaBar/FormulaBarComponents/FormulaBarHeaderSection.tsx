@@ -10,26 +10,38 @@ import {
 } from 'react';
 
 import { formulaBarInput, shouldStopPropagation } from '@frontend/common';
-import { SelectedCell, SelectedCellType } from '@frontend/spreadsheet';
 
+import { SelectedCell, SelectedCellType } from '../../../common';
 import { AppContext, ProjectContext } from '../../../context';
-import { useManualEditDSL } from '../../../hooks';
+import { useRenameFieldDsl, useTableEditDsl } from '../../../hooks';
 import {
   formulaBarInputClasses,
   formulaBarTextAreaClasses,
 } from '../utils/common';
+import { useFormulaBarHeaderAutoExtend } from '../utils/useFormulaBarHeaderAutoExtend';
 
 const tableFieldRegex = /^[^[\]]+\[[^[\]]+]$/;
 
-export function FormulaBarHeaderSection() {
+type Props = {
+  onPanelAutoResize: (size: number) => void;
+};
+
+export function FormulaBarHeaderSection({ onPanelAutoResize }: Props) {
   const { formulaBarExpanded, editMode } = useContext(AppContext);
   const { selectedCell } = useContext(ProjectContext);
-  const { renameTable, renameField } = useManualEditDSL();
+
+  const { renameField } = useRenameFieldDsl();
+  const { renameTable } = useTableEditDsl();
 
   const inputRef = useRef<any>(null);
   const [inputFocused, setInputFocused] = useState(false);
   const [inputDisabled, setInputDisabled] = useState(false);
   const [value, setValue] = useState('');
+
+  const { triggerAutoExtend } = useFormulaBarHeaderAutoExtend({
+    onPanelAutoResize,
+    inputRef,
+  });
 
   const saveTableOrFieldName = useCallback(() => {
     if (
@@ -118,31 +130,39 @@ export function FormulaBarHeaderSection() {
     [value, selectedCell]
   );
 
-  const init = useCallback((selectedCell: SelectedCell | null) => {
-    if (!selectedCell) {
-      setValue('');
-      setInputDisabled(true);
-
-      return;
-    }
-
-    switch (selectedCell.type) {
-      case SelectedCellType.EmptyCell:
-        setValue(`${selectedCell.row}:${selectedCell.col}`);
+  const init = useCallback(
+    (selectedCell: SelectedCell | null) => {
+      if (!selectedCell) {
+        setValue('');
         setInputDisabled(true);
-        break;
-      case SelectedCellType.Table:
-        setValue(selectedCell.tableName || '');
-        setInputDisabled(false);
-        break;
-      case SelectedCellType.Field:
-      case SelectedCellType.Cell:
-      case SelectedCellType.Override:
-        setValue(`${selectedCell.tableName}[${selectedCell.fieldName}]`);
-        setInputDisabled(false);
-        break;
-    }
-  }, []);
+
+        return;
+      }
+
+      const { tableName, fieldName, row, col } = selectedCell;
+      const currentInputValue = inputRef.current?.input?.value || '';
+
+      switch (selectedCell.type) {
+        case SelectedCellType.EmptyCell:
+          setValue(`${row}:${col}`);
+          setInputDisabled(true);
+          break;
+        case SelectedCellType.Table:
+          setValue(tableName || '');
+          setInputDisabled(false);
+          tableName && triggerAutoExtend(tableName, currentInputValue);
+          break;
+        case SelectedCellType.Field:
+        case SelectedCellType.Cell:
+        case SelectedCellType.Override:
+          setValue(`${tableName}[${fieldName}]`);
+          setInputDisabled(false);
+          triggerAutoExtend(`${tableName}[${fieldName}]`, currentInputValue);
+          break;
+      }
+    },
+    [triggerAutoExtend]
+  );
 
   const onKeyDown = useCallback(
     (e: KeyboardEvent) => {

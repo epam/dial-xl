@@ -2,10 +2,11 @@ import { useCallback, useContext } from 'react';
 
 import { defaultFieldName } from '@frontend/common';
 import {
-  hideTableFieldsDecoratorName,
+  layoutDecoratorName,
   newLine,
   overrideKeyword,
-  unescapeOverrideValue,
+  unescapeValue,
+  updateLayoutDecorator,
 } from '@frontend/parser';
 
 import { ProjectContext } from '../../context';
@@ -32,13 +33,13 @@ export function usePromoteRowManualEditDSL() {
 
       if (overrides.getSize() <= 1) return;
 
-      const hideFieldsHeaderDecorator = decorators.find(
-        (decorator) => decorator.decoratorName === hideTableFieldsDecoratorName
+      const layoutDecorator = decorators.find(
+        (decorator) => decorator.decoratorName === layoutDecoratorName
       );
       let decoratorStart = 0;
       let decoratorEnd = 0;
-      if (hideFieldsHeaderDecorator) {
-        const { dslPlacement } = hideFieldsHeaderDecorator;
+      if (layoutDecorator) {
+        const { dslPlacement } = layoutDecorator;
         decoratorStart = dslPlacement?.start ?? 0;
         decoratorEnd = dslPlacement?.end ?? 0;
       }
@@ -55,9 +56,7 @@ export function usePromoteRowManualEditDSL() {
         );
 
         if (overrideValue !== null) {
-          const sanitizedNewName = unescapeOverrideValue(
-            overrideValue.toString()
-          );
+          const sanitizedNewName = unescapeValue(overrideValue.toString());
 
           const uniqueNewFieldName = createUniqueName(
             sanitizedNewName || defaultFieldName,
@@ -99,10 +98,12 @@ export function usePromoteRowManualEditDSL() {
 
       updatedSheetContent =
         updatedSheetContent.substring(0, decoratorStart) +
+        updateLayoutDecorator(layoutDecorator, { showFieldHeaders: true }) +
+        newLine +
         updatedSheetContent.substring(decoratorEnd);
 
-      const historyTitle = `Set row ${dataIndex} in table ${tableName} as field headers`;
-      updateDSL(updatedSheetContent, historyTitle);
+      const historyTitle = `Set row ${dataIndex} in table ${tableName} as column headers`;
+      updateDSL({ updatedSheetContent, historyTitle, tableName });
     },
     [findTable, projectName, sheetContent, updateDSL]
   );

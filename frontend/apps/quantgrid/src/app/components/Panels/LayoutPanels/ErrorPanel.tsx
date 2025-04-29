@@ -3,9 +3,14 @@ import { Errors } from '../Errors';
 import { PanelToolbar } from '../PanelToolbar';
 import { PanelWrapper } from './PanelWrapper';
 
-export function ErrorPanel({ panelName, title, position }: PanelProps) {
+export function ErrorPanel({
+  panelName,
+  title,
+  position,
+  isActive,
+}: PanelProps) {
   return (
-    <PanelWrapper>
+    <PanelWrapper isActive={isActive} panelName={panelName}>
       <PanelToolbar panelName={panelName} position={position} title={title} />
       <Errors />
     </PanelWrapper>

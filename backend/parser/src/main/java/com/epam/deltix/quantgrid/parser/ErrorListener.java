@@ -1,6 +1,7 @@
 package com.epam.deltix.quantgrid.parser;
 
 import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import org.antlr.v4.runtime.BaseErrorListener;
 import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.RecognitionException;
@@ -10,7 +11,9 @@ import org.antlr.v4.runtime.Token;
 import java.util.ArrayList;
 import java.util.List;
 
+@RequiredArgsConstructor
 public class ErrorListener extends BaseErrorListener {
+    private final SheetReader sheetReader;
 
     @Getter
     private final List<ParsingError> errors = new ArrayList<>();
@@ -28,6 +31,21 @@ public class ErrorListener extends BaseErrorListener {
             ParserRuleContext currentContext = sheetParser.getContext();
             tableName = findTableName(currentContext);
             fieldName = findFieldName(currentContext);
+
+            boolean isIncompleteFormula = fieldName != null && e == null
+                    && offendingSymbol instanceof Token token
+                    && token.getType() == SheetLexer.LINE_BREAK;
+            SheetParser.Field_definitionContext lastFieldContext = sheetReader.getLastFieldContext();
+            boolean isUnparsedAfterFormula = lastFieldContext != null
+                    && lastFieldContext.expression() != null;
+            if (isIncompleteFormula || isUnparsedAfterFormula) {
+                msg = "Column formula is expected to fit on a single line."
+                        + " Use backslash \"\\\" to continue the formula on the next line.";
+            }
+            if (fieldName == null && lastFieldContext != null) {
+                tableName = findTableName(lastFieldContext);
+                fieldName = findFieldName(lastFieldContext);
+            }
         }
 
         syntaxError(line, charPositionInLine, msg, tableName, fieldName);

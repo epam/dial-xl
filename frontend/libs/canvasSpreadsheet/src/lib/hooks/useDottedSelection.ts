@@ -5,13 +5,15 @@ import { Edges, GridApi } from '../types';
 import { getTableRowDottedSelection, showFieldDottedSelection } from '../utils';
 
 export function useDottedSelection(gridApi: RefObject<GridApi>) {
-  const { selectionEdges } = useContext(GridStateContext);
+  const { selection$, getCell } = useContext(GridStateContext);
 
   const updateDottedSelection = useCallback(
     (selection: Edges | null) => {
       if (!gridApi.current) return;
 
       const api = gridApi.current;
+
+      if (api.isCellEditorOpen()) return;
 
       if (!selection) {
         api.hideDottedSelection();
@@ -115,6 +117,10 @@ export function useDottedSelection(gridApi: RefObject<GridApi>) {
   );
 
   useEffect(() => {
-    updateDottedSelection(selectionEdges);
-  }, [selectionEdges, updateDottedSelection]);
+    const subscription = selection$.subscribe((selection) => {
+      updateDottedSelection(selection);
+    });
+
+    return () => subscription.unsubscribe();
+  }, [selection$, updateDottedSelection, getCell]);
 }

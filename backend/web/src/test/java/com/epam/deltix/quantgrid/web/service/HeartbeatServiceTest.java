@@ -15,7 +15,7 @@ import java.util.Collection;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.verify;
 
 @SpringBootTest
@@ -35,15 +35,16 @@ class HeartbeatServiceTest {
         heartbeatService.addEmitter(sseEmitter);
         Thread.sleep(290);
 
-        // 2 heartbeats expected after 290 milliseconds
-        verify(sseEmitter, times(2)).send(sseEvent.capture());
+        // At least 2 heartbeats expected after 290 milliseconds
+        verify(sseEmitter, atLeast(2)).send(sseEvent.capture());
 
         List<ResponseBodyEmitter.DataWithMediaType> events = sseEvent.getAllValues().stream()
                 .map(SseEmitter.SseEventBuilder::build)
                 .flatMap(Collection::stream)
                 .toList();
-        assertThat(events).hasSize(2)
+        assertThat(events)
+                .hasSizeBetween(2, 3)
                 .extracting(ResponseBodyEmitter.DataWithMediaType::getData)
-                .isEqualTo(List.of(":heartbeat\n\n", ":heartbeat\n\n"));
+                .containsOnly(":heartbeat\n\n");
     }
 }

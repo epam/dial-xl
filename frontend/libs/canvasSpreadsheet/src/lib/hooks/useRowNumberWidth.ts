@@ -1,4 +1,4 @@
-import { useCallback, useContext, useEffect } from 'react';
+import { useCallback, useContext, useEffect, useMemo } from 'react';
 
 import { GridStateContext, GridViewportContext } from '../context';
 import { getFirstVisibleColOrRow, getSymbolWidth } from '../utils';
@@ -9,28 +9,42 @@ export const useRowNumberWidth = () => {
   const { gridViewportSubscriber, viewportCoords } =
     useContext(GridViewportContext);
 
-  const handleViewportChange = useCallback(() => {
-    const { cell } = gridSizes;
-    const { cellFontFamily, cellFontColorName } = theme.cell;
-    const y2 = viewportCoords.current.y2;
-    const firstVisibleEndRow = getFirstVisibleColOrRow(y2, {}, cell.height);
+  const fontName = useMemo(() => {
+    return getBitmapFontName(
+      theme.cell.cellFontFamily,
+      theme.cell.cellFontColorName
+    );
+  }, [
+    getBitmapFontName,
+    theme.cell.cellFontColorName,
+    theme.cell.cellFontFamily,
+  ]);
+  const symbolWidth = useMemo(() => {
+    return getSymbolWidth(gridSizes.cell.fontSize, fontName);
+  }, [fontName, gridSizes.cell.fontSize]);
 
-    const newWidth =
-      ((firstVisibleEndRow + '').length + 2) *
-      getSymbolWidth(
-        gridSizes.cell.fontSize,
-        getBitmapFontName(cellFontFamily, cellFontColorName)
-      );
+  const handleViewportChange = useCallback(() => {
+    const y2 = viewportCoords.current.y2;
+    const firstVisibleEndRow = getFirstVisibleColOrRow(
+      y2,
+      {},
+      gridSizes.cell.height
+    );
+
+    let newWidth = ((firstVisibleEndRow + '').length + 2) * symbolWidth;
+
+    newWidth = Math.max(newWidth, gridSizes.rowNumber.minWidth);
 
     if (newWidth !== gridSizes.rowNumber.width) {
       setRowNumberWidth(newWidth);
     }
   }, [
-    getBitmapFontName,
-    gridSizes,
-    setRowNumberWidth,
-    theme.cell,
     viewportCoords,
+    gridSizes.cell.height,
+    gridSizes.rowNumber.minWidth,
+    gridSizes.rowNumber.width,
+    symbolWidth,
+    setRowNumberWidth,
   ]);
 
   useEffect(() => {
@@ -40,5 +54,5 @@ export const useRowNumberWidth = () => {
     return () => {
       unsubscribe();
     };
-  });
+  }, [gridViewportSubscriber, handleViewportChange]);
 };

@@ -11,3 +11,4 @@ export * from './SelectFolder';
 export * from './Settings';
 export * from './ShareFiles';
 export * from './ShortcutsHelp';
+export * from './EditAIHint';

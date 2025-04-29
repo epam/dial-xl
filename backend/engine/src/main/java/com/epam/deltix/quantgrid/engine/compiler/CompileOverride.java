@@ -16,6 +16,7 @@ import com.epam.deltix.quantgrid.parser.OverrideKey;
 import com.epam.deltix.quantgrid.parser.ParsedField;
 import com.epam.deltix.quantgrid.parser.ParsedOverride;
 import com.epam.deltix.quantgrid.parser.ParsedTable;
+import com.epam.deltix.quantgrid.parser.ast.ConstBool;
 import com.epam.deltix.quantgrid.parser.ast.ConstNumber;
 import com.epam.deltix.quantgrid.parser.ast.ConstText;
 import com.epam.deltix.quantgrid.parser.ast.Formula;
@@ -120,7 +121,7 @@ class CompileOverride {
         CompiledSimpleColumn override = SimpleColumnValidators.STRING_OR_DOUBLE
                 .convert(context.compileFormula(formula));
 
-        CompileUtil.verify(override.scalar(), "Override formula must be scalar. Field: %s. Position: %d",
+        CompileUtil.verify(override.scalar(), "Override formula must produce a text or a number. Column: %s. Position: %d",
                 fieldKey, position);
 
         return override;
@@ -187,7 +188,7 @@ class CompileOverride {
     private void initManualTable() {
         dimensions.add(CompileManual.dimension(table));
         CompiledTable layout = context.layout(dimensions);
-        expressions.add(CompileUtil.plus(context, layout, new RowNumber(layout.node()), 1));
+        expressions.add(CompileUtil.plus(new RowNumber(layout.node()), 1));
 
         if (keys.isEmpty()) {
             for (int row = 0; row < overrides.size(); row++) {
@@ -203,7 +204,7 @@ class CompileOverride {
     private void initTableWithoutKeys() {
         CompiledTable layout = context.layout();
         dimensions.addAll(layout.dimensions());
-        expressions.add(CompileUtil.plus(context, layout, new RowNumber(layout.node()), 1));
+        expressions.add(CompileUtil.plus(new RowNumber(layout.node()), 1));
         List<Formula> formulas = overrides.map().get(overrides.rowKey());
 
         for (int row = 0; row < overrides.size(); row++) {
@@ -330,7 +331,7 @@ class CompileOverride {
 
         if (manual && type.isDouble()) {
             for (Formula formula : formulas) {
-                if (formula instanceof ConstNumber) {
+                if (formula instanceof ConstNumber || formula instanceof ConstBool) {
                     continue;
                 }
 
@@ -367,6 +368,10 @@ class CompileOverride {
                         ? Long.toString((long) number)
                         : Double.toString(number);
             }
+
+            if (formula instanceof ConstBool constant) {
+                return constant.value() ? "TRUE" : "FALSE";
+            }
         }
 
         if (type.isDouble()) {
@@ -381,11 +386,16 @@ class CompileOverride {
                     return Doubles.EMPTY;
                 }
 
+                // VALUE() does not convert TRUE/FALSE into 1/0
                 return Double.parseDouble(text);
             }
 
             if (formula instanceof ConstNumber constant) {
                 return constant.number();
+            }
+
+            if (formula instanceof ConstBool constant) {
+                return constant.value() ? 1 : 0;
             }
         }
 

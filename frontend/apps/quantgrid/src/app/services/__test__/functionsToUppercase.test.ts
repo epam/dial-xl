@@ -23,6 +23,11 @@ export const functionsMock: FunctionInfo[] = [
     arguments: [],
     description: '',
   },
+  {
+    name: 'F',
+    arguments: [],
+    description: '',
+  },
 ];
 
 describe('functionsToUppercase', () => {

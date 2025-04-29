@@ -13,9 +13,15 @@ import {
   useClickOutside,
 } from '@frontend/common';
 
+import { noteTextAreaId } from '../../constants';
 import { GridApi, GridCallbacks } from '../../types';
 import { filterByTypeAndCast, focusSpreadsheet, getPx } from '../../utils';
-import { EventTypeOpenNote, GridEvent } from '../GridApiWrapper';
+import {
+  EventTypeOpenNote,
+  EventTypeStartMoveMode,
+  EventTypeStopMoveMode,
+  GridEvent,
+} from '../GridApiWrapper';
 
 const defaultPosition = { x: 0, y: 0 };
 const noteAutoHideTimeout = 2000;
@@ -34,6 +40,7 @@ export function Notes({ gridCallbacksRef, api, zoom = 1 }: Props) {
   const [initialNote, setInitialNote] = useState('');
   const [note, setNote] = useState('');
   const [openedExplicitly, setOpenedExplicitly] = useState(false);
+  const [restrictOpening, setRestrictOpening] = useState(false);
   const mouseOver = useRef(false);
   const clickRef = useRef<HTMLDivElement>(null);
   const noteRef = useRef<HTMLTextAreaElement>(null);
@@ -46,14 +53,13 @@ export function Notes({ gridCallbacksRef, api, zoom = 1 }: Props) {
         !onEscape &&
         gridCallbacksRef.current &&
         cell?.table?.tableName &&
-        cell?.field?.fieldName &&
         note !== initialNote
       ) {
-        gridCallbacksRef.current.onUpdateNote?.(
-          cell.table.tableName,
-          cell.field.fieldName,
-          note
-        );
+        gridCallbacksRef.current.onUpdateNote?.({
+          tableName: cell.table.tableName,
+          fieldName: cell.field?.fieldName,
+          note,
+        });
       }
 
       setNoteOpened(false);
@@ -76,7 +82,13 @@ export function Notes({ gridCallbacksRef, api, zoom = 1 }: Props) {
 
   const showNote = useCallback(
     (cell: GridCell, x: number, y: number) => {
-      const note = commentToNote(cell.field?.note || '');
+      const noteData =
+        (cell.isTableHeader
+          ? cell.table?.note
+          : cell.isFieldHeader
+          ? cell.field?.note
+          : '') ?? '';
+      const note = commentToNote(noteData);
 
       setInitialNote(note);
       setNote(note);
@@ -93,7 +105,7 @@ export function Notes({ gridCallbacksRef, api, zoom = 1 }: Props) {
 
   const showNoteExplicitly = useCallback(
     (col: number, row: number) => {
-      if (!api) return;
+      if (!api || restrictOpening) return;
 
       const cell = api.getCell(col, row);
 
@@ -110,7 +122,7 @@ export function Notes({ gridCallbacksRef, api, zoom = 1 }: Props) {
         noteRef.current?.focus();
       }, 0);
     },
-    [api, showNote]
+    [api, showNote, restrictOpening]
   );
 
   const onKeydown = useCallback(
@@ -162,9 +174,27 @@ export function Notes({ gridCallbacksRef, api, zoom = 1 }: Props) {
         showNoteExplicitly(col, row);
       });
 
+    const startMoveModeSubscription = api.events$
+      .pipe(
+        filterByTypeAndCast<EventTypeStartMoveMode>(GridEvent.startMoveMode)
+      )
+      .subscribe(() => {
+        setRestrictOpening(true);
+      });
+
+    const stopMoveModeSubscription = api.events$
+      .pipe(filterByTypeAndCast<EventTypeStopMoveMode>(GridEvent.stopMoveMode))
+      .subscribe(() => {
+        setRestrictOpening(false);
+      });
+
     return () => {
       gridViewportUnsubscribe();
-      openNoteSubscription.unsubscribe();
+      [
+        openNoteSubscription,
+        startMoveModeSubscription,
+        stopMoveModeSubscription,
+      ].forEach((s) => s.unsubscribe());
     };
   }, [api, onScroll, showNoteExplicitly]);
 
@@ -185,7 +215,7 @@ export function Notes({ gridCallbacksRef, api, zoom = 1 }: Props) {
       >
         <textarea
           className="bg-yellow-50 border border-gray-900 p-2 min-w-[100px] min-h-[150px] h-[150px] pointer-events-auto transition-opacity resize"
-          id="noteTextArea"
+          id={noteTextAreaId}
           ref={noteRef}
           style={{
             display: noteOpened ? 'block' : 'none',

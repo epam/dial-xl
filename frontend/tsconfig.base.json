@@ -18,8 +18,7 @@
       "@frontend/canvas-spreadsheet": ["libs/canvasSpreadsheet/src/index.ts"],
       "@frontend/code-editor": ["libs/code-editor/src/index.ts"],
       "@frontend/common": ["libs/common/src/index.ts"],
-      "@frontend/parser": ["libs/parser/src/index.ts"],
-      "@frontend/spreadsheet": ["libs/spreadsheet/src/index.ts"]
+      "@frontend/parser": ["libs/parser/src/index.ts"]
     }
   },
   "exclude": ["node_modules", "tmp"]

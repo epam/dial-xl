@@ -15,13 +15,15 @@ export function getThumbWidth(
 
 export function getViewportPosition(
   trackSize: number,
-  fullSize: number,
+  totalScrollableSize: number,
   cursor: number,
-  clickOffset: number
+  exponent: number,
+  offset: number
 ): number {
-  if (cursor >= trackSize) return fullSize;
+  const thumbPositionRatio = (cursor - offset) / trackSize;
+  const viewportOffsetRatio = Math.pow(thumbPositionRatio, exponent);
 
-  return Math.max((cursor - clickOffset) * (fullSize / trackSize), 0);
+  return viewportOffsetRatio * totalScrollableSize;
 }
 
 export function getThumbPosition(
@@ -61,7 +63,7 @@ export function getViewportMovement(
 
 export function calculateExponent(n: number): number {
   const A = 0.7;
-  const B = -0.7;
+  const B = -0.3;
   const MIN_EXPONENT = 0.5;
 
   return Math.max(MIN_EXPONENT, A * Math.log10(n) + B);

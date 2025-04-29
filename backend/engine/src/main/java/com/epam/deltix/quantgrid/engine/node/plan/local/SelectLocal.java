@@ -6,6 +6,7 @@ import com.epam.deltix.quantgrid.engine.node.expression.Expression;
 import com.epam.deltix.quantgrid.engine.node.plan.Plan;
 import com.epam.deltix.quantgrid.engine.node.plan.Plan0;
 import com.epam.deltix.quantgrid.engine.value.Column;
+import com.epam.deltix.quantgrid.engine.value.ErrorColumn;
 import com.epam.deltix.quantgrid.engine.value.Table;
 import com.epam.deltix.quantgrid.engine.value.local.LocalTable;
 import com.epam.deltix.quantgrid.type.ColumnType;
@@ -38,10 +39,15 @@ public class SelectLocal extends Plan0<Table> {
     public Table execute() {
         List<Expression> expressions = expressions(0);
         List<Column> columns = new ArrayList<>(expressions.size());
+        Table layout = (Table) layout().execute();
 
         for (Expression expression : expressions) {
-            Column column = expression.evaluate();
-            columns.add(column);
+            try {
+                Column column = expression.evaluate();
+                columns.add(column);
+            } catch (Exception e) {
+                columns.add(new ErrorColumn(e.getMessage(), layout.size()));
+            }
         }
 
         return new LocalTable(columns);

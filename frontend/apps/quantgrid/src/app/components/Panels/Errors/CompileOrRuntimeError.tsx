@@ -10,6 +10,8 @@ import {
   RuntimeErrorIcon,
 } from '@frontend/common';
 
+import { PanelName } from '../../../common';
+import { LayoutContext } from '../../../context';
 import { useDSLErrors } from '../../../hooks';
 
 interface Props {
@@ -18,6 +20,7 @@ interface Props {
 }
 
 export function CompileOrRuntimeError({ error, errorType }: Props) {
+  const { openedPanels, openPanel } = useContext(LayoutContext);
   const { updateSelectedError } = useContext(CodeEditorContext);
   const { getCodeEditorExpressionPosition } = useDSLErrors();
 
@@ -36,6 +39,10 @@ export function CompileOrRuntimeError({ error, errorType }: Props) {
 
       if (!errorPosition) return;
 
+      if (!openedPanels.editor.isActive) {
+        openPanel(PanelName.CodeEditor);
+      }
+
       updateSelectedError({
         ...errorPosition,
         source: {
@@ -46,14 +53,19 @@ export function CompileOrRuntimeError({ error, errorType }: Props) {
         message,
       });
     },
-    [getCodeEditorExpressionPosition, updateSelectedError]
+    [
+      getCodeEditorExpressionPosition,
+      openPanel,
+      openedPanels.editor.isActive,
+      updateSelectedError,
+    ]
   );
 
   return (
     <div className="mt-1 p-1 bg-bgError rounded-[3px]">
       <div className="flex">
         <Icon
-          className="stroke-textError mx-2"
+          className="mt-[3px] shrink-0 size-[18px] text-textError mx-2"
           component={() =>
             errorType === 'compile' ? (
               <CompileErrorIcon />
@@ -61,6 +73,7 @@ export function CompileOrRuntimeError({ error, errorType }: Props) {
               <RuntimeErrorIcon />
             )
           }
+          title={errorType === 'compile' ? 'Compile error' : 'Runtime error'}
         />
         <div className="pr-2">
           <span

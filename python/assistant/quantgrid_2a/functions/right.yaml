@@ -1,0 +1,5 @@
+name: right
+description: Returns string suffix
+signature: 'string.right(size: number) => string'
+manual: >-
+  Returns suffix of length `size` from string. If string is shorted than required size, whole string is returned.

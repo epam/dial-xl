@@ -11,8 +11,8 @@ public class TableValidators {
     public final ResultValidator<CompiledTable> NESTED =
             ResultValidator.tableValidator(TableValidators::validateNested)
                     .withTypeDisplayName("%s or %s".formatted(
-                            CompileUtil.getTypeDisplayName(CompiledTable.class),
-                            CompileUtil.getTypeDisplayName(CompiledNestedColumn.class)));
+                            CompileUtil.getResultTypeDisplayName(CompiledTable.class),
+                            CompileUtil.getResultTypeDisplayName(CompiledNestedColumn.class)));
     public final ResultValidator<CompiledTable> NESTED_TABLE =
             ResultValidator.tableValidator(TableValidators::validateNestedTable);
     public final ResultValidator<CompiledTable> TABLE =
@@ -20,16 +20,16 @@ public class TableValidators {
 
     private void validateNested(CompiledTable compiledTable) {
         if (!compiledTable.nested()) {
-            throw new CompileError("expected a nested %s".formatted(
-                    CompileUtil.getTypeDisplayName(compiledTable.getClass())));
+            throw new CompileError("expected %s.".formatted(
+                    CompileUtil.getResultTypeDisplayName(compiledTable.getClass())));
         }
     }
 
     private void validateTable(CompiledTable compiledTable) {
         if (compiledTable instanceof CompiledNestedColumn) {
-            throw new CompileError(("expected %s, but got %s").formatted(
-                    CompileUtil.getTypeDisplayName(CompiledTable.class),
-                    CompileUtil.getTypeDisplayName(compiledTable.getClass())));
+            throw new CompileError("expected %s, but got %s.".formatted(
+                    CompileUtil.getResultTypeDisplayName(CompiledTable.class),
+                    CompileUtil.getResultTypeDisplayName(compiledTable)));
         }
     }
 

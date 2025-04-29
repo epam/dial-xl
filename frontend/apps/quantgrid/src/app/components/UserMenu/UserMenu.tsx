@@ -12,7 +12,6 @@ import {
   SettingsIcon,
   UserAvatar,
 } from '@frontend/common';
-import { focusSpreadsheet } from '@frontend/spreadsheet';
 
 import { ProjectContext } from '../../context';
 import { Settings } from '../Modals';
@@ -26,6 +25,7 @@ export function UserMenu({ placement }: Props) {
   const { projectName, closeCurrentProject } = useContext(ProjectContext);
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isUserMenuOpened, setIsUserMenuOpened] = useState(false);
 
   const logoutWithRedirect = useCallback(async () => {
     if (projectName) {
@@ -66,7 +66,7 @@ export function UserMenu({ placement }: Props) {
       label: 'Settings',
       icon: (
         <Icon
-          className="stroke-textSecondary"
+          className="w-[18px] text-textSecondary"
           component={() => <SettingsIcon />}
         />
       ),
@@ -77,7 +77,7 @@ export function UserMenu({ placement }: Props) {
       label: 'Logout',
       icon: (
         <Icon
-          className="stroke-textSecondary"
+          className="text-textSecondary w-[18px]"
           component={() => <LogoutIcon />}
         />
       ),
@@ -88,12 +88,17 @@ export function UserMenu({ placement }: Props) {
   return (
     <>
       <Dropdown
+        align={{
+          offset: [0, 12],
+        }}
         className="h-full min-w-[150px] flex items-center max-xl:min-w-[50px]"
         menu={{ items }}
+        open={isUserMenuOpened}
+        onOpenChange={setIsUserMenuOpened}
       >
-        <a href="/" onClick={(e) => e.preventDefault()}>
+        <a className="group" href="/" onClick={(e) => e.preventDefault()}>
           <Icon
-            className="stroke-textSecondary h-[18px] w-[18px]"
+            className="text-textSecondary h-[18px] w-[18px]"
             component={() => <UserAvatar />}
           />
           <span
@@ -110,13 +115,15 @@ export function UserMenu({ placement }: Props) {
               : 'User'}
           </span>
           <Icon
-            className="text-textPrimary"
+            className={cx(
+              'text-textPrimary w-[18px] transition-all group-hover:text-textAccentPrimary',
+              isUserMenuOpened && 'rotate-180'
+            )}
             component={() => <ChevronDown />}
           />
         </a>
       </Dropdown>
       <Modal
-        afterClose={focusSpreadsheet}
         destroyOnClose={true}
         footer={null}
         open={isSettingsOpen}

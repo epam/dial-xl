@@ -5,14 +5,17 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
+import org.antlr.v4.runtime.ParserRuleContext;
 import org.jetbrains.annotations.TestOnly;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 public class SheetReader extends SheetBaseListener {
-    private String name;
+    private final String name;
     @Getter
     private Formula formula;
     @Getter
@@ -20,15 +23,18 @@ public class SheetReader extends SheetBaseListener {
     @Getter
     private final SheetParser parser;
     @Getter
-    private final ErrorListener errorListener = new ErrorListener();
+    private final ErrorListener errorListener;
+    @Getter
+    private SheetParser.Field_definitionContext lastFieldContext;
 
     private SheetReader(String name, SheetLexer lexer, SheetParser parser) {
         this.name = name;
         this.parser = parser;
         lexer.removeErrorListeners();
         parser.removeErrorListeners();
-        lexer.addErrorListener(errorListener);
-        parser.addErrorListener(errorListener);
+        this.errorListener = new ErrorListener(this);
+        lexer.addErrorListener(this.errorListener);
+        parser.addErrorListener(this.errorListener);
         parser.addParseListener(this);
     }
 
@@ -42,17 +48,30 @@ public class SheetReader extends SheetBaseListener {
     }
 
     @Override
+    public void enterEveryRule(ParserRuleContext ctx) {
+        if (ctx.getRuleIndex() != SheetParser.RULE_lb) {
+            lastFieldContext = null;
+        }
+    }
+
+    @Override
+    public void exitField_definition(SheetParser.Field_definitionContext ctx) {
+        lastFieldContext = ctx;
+    }
+
+    @Override
     public void exitSheet(SheetParser.SheetContext ctx) {
         sheet = buildSheet(ctx);
     }
 
     private ParsedSheet buildSheet(SheetParser.SheetContext ctx) {
-        List<ParsedTable> tables = new ArrayList<>();
+        Map<String, ParsedTable> tables = new LinkedHashMap<>();
         for (SheetParser.Table_definitionContext tableCtx : ctx.table_definition()) {
             ParsedTable parsedTable = ParsedTable.from(tableCtx, errorListener);
 
-            if (parsedTable != null) {
-                tables.add(parsedTable);
+            if (parsedTable != null && tables.putIfAbsent(parsedTable.tableName(), parsedTable) != null) {
+                errorListener.syntaxError(tableCtx.start,
+                        "Duplicate table. Table: " + parsedTable.tableName(), null, null);
             }
         }
 
@@ -70,7 +89,7 @@ public class SheetReader extends SheetBaseListener {
             }
         }
 
-        return new ParsedSheet(name, tables, pythons, errors);
+        return new ParsedSheet(name, new ArrayList<>(tables.values()), pythons, errors);
     }
 
     private static String stripPythonCode(String text) {

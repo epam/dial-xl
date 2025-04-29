@@ -1,12 +1,12 @@
 package com.epam.deltix.quantgrid.engine.compiler;
 
-import com.epam.deltix.quantgrid.engine.compiler.result.CompiledSimpleColumn;
 import com.epam.deltix.quantgrid.engine.compiler.result.CompiledNestedColumn;
 import com.epam.deltix.quantgrid.engine.compiler.result.CompiledPivotTable;
 import com.epam.deltix.quantgrid.engine.compiler.result.CompiledResult;
+import com.epam.deltix.quantgrid.engine.compiler.result.CompiledSimpleColumn;
 import com.epam.deltix.quantgrid.engine.compiler.result.CompiledTable;
 import com.epam.deltix.quantgrid.engine.compiler.result.CompiledUnpivotTable;
-import com.epam.deltix.quantgrid.engine.compiler.result.validator.SimpleOrNestedValidators;
+import com.epam.deltix.quantgrid.engine.compiler.result.validator.NestedColumnValidators;
 import com.epam.deltix.quantgrid.engine.compiler.result.validator.TableValidators;
 import com.epam.deltix.quantgrid.engine.node.expression.Expression;
 import com.epam.deltix.quantgrid.engine.node.expression.Get;
@@ -115,14 +115,13 @@ class CompileUnpivot {
         CompiledNestedColumn column = new CompiledNestedColumn(fields, position);
 
         Compiler compiler = new Compiler(null, null);
-        CompileContext context = new CompileFormulaContext(compiler)
-                .with(column, false)
+        CompileContext context = new CompileContext(compiler)
+                .withPlaceholder(column)
                 .withFunction(function);
 
-        CompiledResult predicate = context.compileArgument(3, SimpleOrNestedValidators.DOUBLE);
-        predicate = context.promote(predicate, List.of());
+        CompiledNestedColumn predicate = context.compileArgument(3, NestedColumnValidators.DOUBLE);
         CompileUtil.verifySameLayout(predicate, fields, "UNPIVOT 'field_condition' misaligned with `table`.");
 
-        return new FilterLocal(fields, context.flattenArgument(predicate).node());
+        return new FilterLocal(fields, predicate.expression());
     }
 }

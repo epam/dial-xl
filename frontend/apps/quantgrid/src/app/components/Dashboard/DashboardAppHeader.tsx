@@ -9,7 +9,7 @@ export function DashboardAppHeader() {
       <div className="flex items-center">
         <Icon className="h-6 w-6" component={() => <QGLogo />} />
         <Icon
-          className="ml-2.5 fill-textPrimary h-4 w-[60px]"
+          className="ml-2.5 text-textPrimary h-4 w-[60px]"
           component={() => <DialTextLogo />}
         />
       </div>

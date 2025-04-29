@@ -19,16 +19,22 @@ import { PanelWrapper } from './PanelWrapper';
 
 const changesText = `*${shortcutApi.getLabel(Shortcut.Save)} to save`;
 
-export function CodeEditorPanel({ panelName, title, position }: PanelProps) {
+export function CodeEditorPanel({
+  panelName,
+  title,
+  position,
+  isActive,
+}: PanelProps) {
   const { hasUnsavedChanges, formatDocument } = useContext(CodeEditorContext);
 
   return (
-    <PanelWrapper>
+    <PanelWrapper isActive={isActive} panelName={panelName}>
       <PanelToolbar
         panelName={panelName}
         position={position}
         secondaryTitle={hasUnsavedChanges ? changesText : undefined}
         title={title}
+        showExpand
       >
         <Tooltip placement="bottom" title="Format document">
           <Icon
@@ -40,7 +46,7 @@ export function CodeEditorPanel({ panelName, title, position }: PanelProps) {
         {hasUnsavedChanges && (
           <Tooltip placement="bottom" title="Save changes">
             <Icon
-              className={cx(iconClasses, 'ml-2')}
+              className={cx(iconClasses, 'ml-2 w-[16px]')}
               component={() => <SaveIcon />}
             />
           </Tooltip>

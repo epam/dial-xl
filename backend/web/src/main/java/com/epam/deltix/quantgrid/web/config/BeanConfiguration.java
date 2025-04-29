@@ -50,8 +50,10 @@ public class BeanConfiguration {
 
     @Bean
     @ConditionalOnDialStorageEnabled
-    public InputProvider dialInputProvider(DialFileApi dialFileApi) {
-        return new DialInputProvider(dialFileApi);
+    public InputProvider dialInputProvider(
+            DialFileApi dialFileApi,
+            @Value("${web.storage.dial.schemaFile:appdata/xl/input_schemas.json}") String schemaFile) {
+        return new DialInputProvider(dialFileApi, schemaFile);
     }
 
     @Bean

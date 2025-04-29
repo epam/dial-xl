@@ -1,0 +1,59 @@
+{
+  "name": "test",
+  "tables": [
+    {
+      "span": {
+        "from": 1,
+        "to": 50
+      },
+      "name": {
+        "span": {
+          "from": 7,
+          "to": 9
+        },
+        "text": "T2"
+      },
+      "fields": [
+        {
+          "span": {
+            "from": 41,
+            "to": 49
+          },
+          "name": {
+            "span": {
+              "from": 41,
+              "to": 44
+            },
+            "text": "y"
+          },
+          "formula": {
+            "span": {
+              "from": 47,
+              "to": 49
+            },
+            "formula": {
+              "number": 42.0,
+              "arguments": []
+            },
+            "errors": []
+          },
+          "decorators": [],
+          "docs": []
+        }
+      ],
+      "decorators": [],
+      "docs": [],
+      "totals": []
+    }
+  ],
+  "pythons": [],
+  "errors": [
+    {
+      "line": 2,
+      "position": 20,
+      "message": "mismatched input 'T1' expecting {',', ')'}",
+      "tableName": "T2",
+      "fieldName": "x"
+    }
+  ]
+}

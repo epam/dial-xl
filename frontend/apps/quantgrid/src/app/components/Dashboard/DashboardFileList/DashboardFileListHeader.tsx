@@ -19,18 +19,15 @@ export function DashboardFileListHeader({
 }: Props) {
   return (
     <div
-      className="flex items-center stroke-textSecondary cursor-pointer"
+      className="flex items-center text-textSecondary cursor-pointer"
       onClick={onClick}
     >
-      <span className="text-textSecondary text-xs font-bold leading-[12px] uppercase select-none">
+      <span className="text-xs font-bold leading-[12px] uppercase select-none">
         {title}
       </span>
       {isSort && (
         <Icon
-          className={classNames(
-            'size-[18px] text-textSecondary',
-            sortAsc ? 'rotate-180' : ''
-          )}
+          className={classNames('size-[18px]', sortAsc ? 'rotate-180' : '')}
           component={() => <ArrowNarrowUp />}
         />
       )}

@@ -1,0 +1,84 @@
+{
+  "name": "test",
+  "tables": [
+    {
+      "span": {
+        "from": 0,
+        "to": 37
+      },
+      "name": {
+        "span": {
+          "from": 6,
+          "to": 8
+        },
+        "text": "t1"
+      },
+      "fields": [
+        {
+          "span": {
+            "from": 11,
+            "to": 19
+          },
+          "name": {
+            "span": {
+              "from": 11,
+              "to": 14
+            },
+            "text": "a"
+          },
+          "formula": {
+            "span": {
+              "from": 17,
+              "to": 19
+            },
+            "formula": {
+              "name": "LIST",
+              "arguments": []
+            },
+            "errors": []
+          },
+          "decorators": [],
+          "docs": []
+        },
+        {
+          "span": {
+            "from": 22,
+            "to": 36
+          },
+          "name": {
+            "span": {
+              "from": 22,
+              "to": 25
+            },
+            "text": "b"
+          },
+          "formula": {
+            "span": {
+              "from": 28,
+              "to": 36
+            },
+            "formula": {
+              "name": "LIST",
+              "arguments": [
+                {
+                  "arguments": []
+                },
+                {
+                  "arguments": []
+                }
+              ]
+            },
+            "errors": []
+          },
+          "decorators": [],
+          "docs": []
+        }
+      ],
+      "decorators": [],
+      "docs": [],
+      "totals": []
+    }
+  ],
+  "pythons": [],
+  "errors": []
+}

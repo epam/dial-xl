@@ -1,0 +1,476 @@
+{
+  "name": "test",
+  "tables": [
+    {
+      "span": {
+        "from": 0,
+        "to": 228
+      },
+      "name": {
+        "span": {
+          "from": 6,
+          "to": 8
+        },
+        "text": "t1"
+      },
+      "fields": [
+        {
+          "span": {
+            "from": 9,
+            "to": 31
+          },
+          "key": {
+            "span": {
+              "from": 9,
+              "to": 12
+            },
+            "text": "key"
+          },
+          "dim": {
+            "span": {
+              "from": 13,
+              "to": 16
+            },
+            "text": "dim"
+          },
+          "name": {
+            "span": {
+              "from": 17,
+              "to": 20
+            },
+            "text": "a"
+          },
+          "formula": {
+            "span": {
+              "from": 23,
+              "to": 31
+            },
+            "formula": {
+              "name": "RANGE",
+              "arguments": [
+                {
+                  "arguments": []
+                }
+              ]
+            },
+            "errors": []
+          },
+          "decorators": [],
+          "docs": []
+        },
+        {
+          "span": {
+            "from": 32,
+            "to": 54
+          },
+          "key": {
+            "span": {
+              "from": 32,
+              "to": 35
+            },
+            "text": "key"
+          },
+          "dim": {
+            "span": {
+              "from": 36,
+              "to": 39
+            },
+            "text": "dim"
+          },
+          "name": {
+            "span": {
+              "from": 40,
+              "to": 43
+            },
+            "text": "x"
+          },
+          "formula": {
+            "span": {
+              "from": 46,
+              "to": 54
+            },
+            "formula": {
+              "name": "RANGE",
+              "arguments": [
+                {
+                  "arguments": []
+                }
+              ]
+            },
+            "errors": []
+          },
+          "decorators": [],
+          "docs": []
+        },
+        {
+          "span": {
+            "from": 63,
+            "to": 71
+          },
+          "name": {
+            "span": {
+              "from": 63,
+              "to": 66
+            },
+            "text": "b"
+          },
+          "formula": {
+            "span": {
+              "from": 69,
+              "to": 71
+            },
+            "formula": {
+              "number": NaN,
+              "arguments": []
+            },
+            "errors": []
+          },
+          "decorators": [],
+          "docs": []
+        },
+        {
+          "span": {
+            "from": 80,
+            "to": 87
+          },
+          "name": {
+            "span": {
+              "from": 80,
+              "to": 83
+            },
+            "text": "c"
+          },
+          "formula": {
+            "span": {
+              "from": 86,
+              "to": 87
+            },
+            "formula": {
+              "number": 5.0,
+              "arguments": []
+            },
+            "errors": []
+          },
+          "decorators": [],
+          "docs": []
+        }
+      ],
+      "decorators": [],
+      "docs": [],
+      "totals": [],
+      "overrides": {
+        "span": {
+          "from": 135,
+          "to": 228
+        },
+        "headers": [
+          {
+            "span": {
+              "from": 148,
+              "to": 151
+            },
+            "text": "a"
+          },
+          {
+            "span": {
+              "from": 153,
+              "to": 156
+            },
+            "text": "b"
+          },
+          {
+            "span": {
+              "from": 162,
+              "to": 165
+            },
+            "text": "x"
+          },
+          {
+            "span": {
+              "from": 167,
+              "to": 170
+            },
+            "text": "c"
+          }
+        ],
+        "values": [
+          [
+            {
+              "span": {
+                "from": 171,
+                "to": 172
+              },
+              "formula": {
+                "number": 0.0,
+                "arguments": []
+              },
+              "errors": []
+            },
+            {
+              "span": {
+                "from": 174,
+                "to": 179
+              },
+              "formula": {
+                "text": "USA",
+                "arguments": []
+              },
+              "errors": []
+            },
+            {
+              "span": {
+                "from": 181,
+                "to": 182
+              },
+              "formula": {
+                "number": 1.0,
+                "arguments": []
+              },
+              "errors": []
+            },
+            {
+              "span": {
+                "from": 183,
+                "to": 183
+              },
+              "errors": []
+            }
+          ],
+          [
+            {
+              "span": {
+                "from": 184,
+                "to": 185
+              },
+              "formula": {
+                "number": 0.0,
+                "arguments": []
+              },
+              "errors": []
+            },
+            {
+              "span": {
+                "from": 186,
+                "to": 186
+              },
+              "errors": []
+            },
+            {
+              "span": {
+                "from": 188,
+                "to": 189
+              },
+              "formula": {
+                "number": 2.0,
+                "arguments": []
+              },
+              "errors": []
+            },
+            {
+              "span": {
+                "from": 191,
+                "to": 194
+              },
+              "formula": {
+                "number": 250.0,
+                "arguments": []
+              },
+              "errors": []
+            }
+          ],
+          [
+            {
+              "span": {
+                "from": 195,
+                "to": 196
+              },
+              "formula": {
+                "number": 2.0,
+                "arguments": []
+              },
+              "errors": []
+            },
+            {
+              "span": {
+                "from": 197,
+                "to": 204
+              },
+              "formula": {
+                "text": "Spain",
+                "arguments": []
+              },
+              "errors": []
+            },
+            {
+              "span": {
+                "from": 206,
+                "to": 207
+              },
+              "formula": {
+                "number": 3.0,
+                "arguments": []
+              },
+              "errors": []
+            },
+            {
+              "span": {
+                "from": 209,
+                "to": 212
+              },
+              "formula": {
+                "number": 300.0,
+                "arguments": []
+              },
+              "errors": []
+            }
+          ],
+          [
+            {
+              "span": {
+                "from": 213,
+                "to": 214
+              },
+              "formula": {
+                "number": 2.0,
+                "arguments": []
+              },
+              "errors": []
+            },
+            {
+              "span": {
+                "from": 215,
+                "to": 223
+              },
+              "formula": {
+                "text": "Poland",
+                "arguments": []
+              },
+              "errors": []
+            },
+            {
+              "span": {
+                "from": 225,
+                "to": 226
+              },
+              "formula": {
+                "number": 4.0,
+                "arguments": []
+              },
+              "errors": []
+            },
+            {
+              "span": {
+                "from": 227,
+                "to": 227
+              },
+              "errors": []
+            }
+          ]
+        ],
+        "rowKey": {
+          "tableName": "t1",
+          "fieldName": "_row_20318401841084276546"
+        },
+        "map": {
+          "t1[x]": [
+            {
+              "arguments": []
+            },
+            {
+              "arguments": []
+            },
+            {
+              "arguments": []
+            },
+            {
+              "arguments": []
+            }
+          ],
+          "t1[a]": [
+            {
+              "arguments": []
+            },
+            {
+              "arguments": []
+            },
+            {
+              "arguments": []
+            },
+            {
+              "arguments": []
+            }
+          ],
+          "t1[c]": [
+            null,
+            {
+              "arguments": []
+            },
+            {
+              "arguments": []
+            },
+            null
+          ],
+          "t1[b]": [
+            {
+              "arguments": []
+            },
+            null,
+            {
+              "arguments": []
+            },
+            {
+              "arguments": []
+            }
+          ]
+        },
+        "size": 4
+      }
+    },
+    {
+      "span": {
+        "from": 228,
+        "to": 249
+      },
+      "name": {
+        "span": {
+          "from": 234,
+          "to": 236
+        },
+        "text": "t2"
+      },
+      "fields": [
+        {
+          "span": {
+            "from": 241,
+            "to": 248
+          },
+          "name": {
+            "span": {
+              "from": 241,
+              "to": 244
+            },
+            "text": "a"
+          },
+          "formula": {
+            "span": {
+              "from": 247,
+              "to": 248
+            },
+            "formula": {
+              "number": 7.0,
+              "arguments": []
+            },
+            "errors": []
+          },
+          "decorators": [],
+          "docs": []
+        }
+      ],
+      "decorators": [],
+      "docs": [],
+      "totals": []
+    }
+  ],
+  "pythons": [],
+  "errors": []
+}

@@ -1,6 +1,6 @@
 /* eslint-disable playwright/no-conditional-in-test */
 /* eslint-disable playwright/expect-expect */
-import { expect, test } from '@playwright/test';
+import { BrowserContext, expect, Page, test } from '@playwright/test';
 
 import { SearchForm, SearchTabs } from '../../components/SearchForm';
 import { Field } from '../../logic-entities/Field';
@@ -20,12 +20,19 @@ const table1Row = 2,
 
 const projectSpreadsheet = new SpreadSheet();
 
+let browserContext: BrowserContext;
+
+let page: Page;
+
+const storagePath = `playwright/${projectName}.json`;
+
 test.beforeAll(async ({ browser }) => {
   const Table1 = new Table(table1Row, table1Column, tableForSearch);
   Table1.addField(new Field(fieldForSearch + '1', '5'));
   Table1.addField(new Field(fieldForSearch + '2', '7'));
   projectSpreadsheet.addTable(Table1);
   await TestFixtures.createProject(
+    storagePath,
     browser,
     projectName,
     table1Row,
@@ -33,18 +40,25 @@ test.beforeAll(async ({ browser }) => {
     tableForSearch,
     projectSpreadsheet.toDsl()
   );
+  browserContext = await browser.newContext({ storageState: storagePath });
 });
 
-test.beforeEach(async ({ page }) => {
+test.beforeEach(async () => {
+  page = await browserContext.newPage();
   await TestFixtures.openProject(page, projectName);
 });
 
+test.afterEach(async () => {
+  await page.close();
+});
+
 test.afterAll(async ({ browser }) => {
+  await browserContext.close();
   await TestFixtures.deleteProject(browser, projectName);
 });
 
 test.describe('search form', () => {
-  test('switch tabs', async ({ page }) => {
+  test('switch tabs', async () => {
     await ProjectPage.createInstance(page);
     await page.keyboard.press('Control+Shift+F');
     const searchForm = new SearchForm(page);
@@ -75,10 +89,11 @@ test.describe('search form', () => {
     await expect(searchForm.getFirstSearchResult()).toHaveText(searchEntry);
   }
 
-  test('switch tabs keyboard', async ({ page }) => {
+  test('switch tabs keyboard', async () => {
     await ProjectPage.createInstance(page);
     await page.keyboard.press('Control+Shift+F');
     const searchForm = new SearchForm(page);
+    await searchForm.expectFormToAppear();
     await testTabSwitch(searchForm, SearchTabs.Projects, projectName);
     await testTabSwitch(searchForm, SearchTabs.Sheets, 'Sheet1');
     await testTabSwitch(
@@ -93,7 +108,7 @@ test.describe('search form', () => {
     );
   });
 
-  test('switch tabs keyboard last to first', async ({ page }) => {
+  test('switch tabs keyboard last to first', async () => {
     await ProjectPage.createInstance(page);
     await page.keyboard.press('Control+Shift+F');
     const searchForm = new SearchForm(page);
@@ -101,10 +116,11 @@ test.describe('search form', () => {
     await testTabSwitch(searchForm, SearchTabs.All, projectName);
   });
 
-  test('switch tabs reserse order', async ({ page }) => {
+  test('switch tabs reserse order', async () => {
     await ProjectPage.createInstance(page);
     await page.keyboard.press('Control+Shift+F');
     const searchForm = new SearchForm(page);
+    await searchForm.expectFormToAppear();
     await testTabSwitchReverse(
       searchForm,
       SearchTabs.Fields,
@@ -119,7 +135,7 @@ test.describe('search form', () => {
     await testTabSwitchReverse(searchForm, SearchTabs.Projects, projectName);
   });
 
-  test('content refresh on tab switch', async ({ page }) => {
+  test('content refresh on tab switch', async () => {
     await ProjectPage.createInstance(page);
     await page.keyboard.press('Control+Shift+F');
     const searchForm = new SearchForm(page);
@@ -129,7 +145,7 @@ test.describe('search form', () => {
     await expect(searchForm.getNoResultsLabel()).toBeVisible();
   });
 
-  test('search results navigation up and down', async ({ page }) => {
+  test('search results navigation up and down', async () => {
     await ProjectPage.createInstance(page);
     await page.keyboard.press('Control+Shift+F');
     const searchForm = new SearchForm(page);
@@ -145,11 +161,11 @@ test.describe('search form', () => {
     expect(await searchForm.getSelectedItemText()).toBe(itemText);
   });
 
-  test('search result selection by click', async ({ page }) => {});
+  test('search result selection by click', async () => {});
 
-  test('search result selection by Enter', async ({ page }) => {});
+  test('search result selection by Enter', async () => {});
 
-  test('close search and open again', async ({ page }) => {
+  test('close search and open again', async () => {
     await ProjectPage.createInstance(page);
     await page.keyboard.press('Control+Shift+F');
     const searchForm = new SearchForm(page);

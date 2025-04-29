@@ -7,6 +7,7 @@ import lombok.Value;
 import lombok.experimental.Accessors;
 
 import java.util.List;
+import java.util.function.UnaryOperator;
 
 @Value
 @Accessors(fluent = true)
@@ -19,7 +20,23 @@ public class CompiledSimpleColumn implements CompiledColumn {
     }
 
     @Override
+    public Expression expression() {
+        return node;
+    }
+
+    @Override
+    public boolean nested() {
+        return false;
+    }
+
+    @Override
     public CompiledResult withDimensions(List<FieldKey> dimensions) {
         return new CompiledSimpleColumn(node, dimensions);
+    }
+
+    @Override
+    public CompiledSimpleColumn transform(UnaryOperator<Expression> transform) {
+        Expression newNode = transform.apply(node);
+        return new CompiledSimpleColumn(newNode, dimensions);
     }
 }

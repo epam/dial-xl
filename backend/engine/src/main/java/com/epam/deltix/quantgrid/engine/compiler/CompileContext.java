@@ -24,10 +24,8 @@ import com.epam.deltix.quantgrid.parser.ast.BinaryOperator;
 import com.epam.deltix.quantgrid.parser.ast.ConstNumber;
 import com.epam.deltix.quantgrid.parser.ast.ConstText;
 import com.epam.deltix.quantgrid.parser.ast.CurrentField;
-import com.epam.deltix.quantgrid.parser.ast.FieldReference;
 import com.epam.deltix.quantgrid.parser.ast.Formula;
 import com.epam.deltix.quantgrid.parser.ast.Function;
-import com.epam.deltix.quantgrid.parser.ast.QueryRow;
 import com.epam.deltix.quantgrid.parser.ast.TableReference;
 import com.epam.deltix.quantgrid.parser.ast.UnaryOperator;
 import lombok.Getter;
@@ -47,39 +45,33 @@ public class CompileContext {
     protected final Compiler compiler;
     protected final CompileKey key;
 
-    /**
-     * Context table is set when compiling nested formulas.
-     */
-    protected final CompiledTable compiledTable;
-    protected final CompiledTable promotedTable;
-
-    /**
-     * Defines how to reference fields from context table. Only used when context table is set.
-
-     */
-    protected final boolean nested;
-
-    /**
-     * Used to override dimensions based layout we build in {@link #aggregationLayout} which is needed to alternate
-     * behaviour for complex cases like {@link CompilePivot}
-     */
+    protected final List<FieldKey> dimensions;
     @Nullable
-    protected final CompiledTable layout;
-
+    protected final Formula placeholder;
+    @Nullable
+    protected final CompiledResult pivot;
+    @Nullable
+    protected final CompiledResult layout;
     @Nullable
     protected final Function function;
 
-    public CompileContext(Compiler compiler, CompileKey key) {
-        this(compiler, key, null, null, false, null, null);
+    public CompileContext(Compiler compiler) {
+        this(compiler, CompileKey.tableKey(Compiler.DIMENSIONAL_SCHEMA_REQUEST_TABLE_NAME));
     }
 
-    public CompileContext(Compiler compiler, CompileKey key, CompiledTable promotedTable, CompiledTable compiledTable, boolean nested,
-                          @Nullable CompiledTable layout, @Nullable Function function) {
+    public CompileContext(Compiler compiler, CompileKey key) {
+        this(compiler, key, List.of(), null, null, null, null);
+    }
+
+    public CompileContext(Compiler compiler, CompileKey key, List<FieldKey> dimensions,
+                          @Nullable Formula placeholder,
+                          @Nullable CompiledResult pivot, @Nullable CompiledResult layout,
+                          @Nullable Function function) {
         this.compiler = compiler;
         this.key = key;
-        this.compiledTable = compiledTable;
-        this.promotedTable = promotedTable;
-        this.nested = nested;
+        this.dimensions = dimensions;
+        this.placeholder = placeholder;
+        this.pivot = pivot;
         this.layout = layout;
         this.function = function;
     }
@@ -98,30 +90,20 @@ public class CompileContext {
     }
 
     public CompiledTable aggregationLayout(CompiledTable source) {
-        if (layout == null || promotedTable == null || !CompileUtil.isContextNode(layout, promotedTable, source)) {
-            return layout(source.dimensions());
+        if (pivot != null && layout != null) { // pivot thing
+            CompiledTable placeholder = this.pivot.cast(CompiledTable.class);
+            CompiledTable layout = this.layout.cast(CompiledTable.class);
+
+            if (CompileUtil.isContextNode(layout, placeholder, source)) {
+                return layout;
+            }
         }
-        return layout;
+
+        return layout(source.dimensions());
     }
 
     public CompiledTable scalarLayout() {
         return compiler.scalar();
-    }
-
-    /**
-     * <pre>
-     * table B
-     *   dim [a] = RANGE(5)
-     *       [b] = [a] + 10              # null
-     *       [c] = A.FILTER($[a] > 1)    # A when compiling condition
-     *       [d] = A.FILTER($[a] > [a])  # B, A when compiling condition
-     * </pre>
-     *
-     * @return context table when compiling a formula inside a formula.
-     */
-    @Nullable
-    public CompiledTable promotedTable() {
-        return promotedTable;
     }
 
     public CompiledTable table(String name) {
@@ -143,8 +125,9 @@ public class CompileContext {
 
     public CompiledResult currentField(String field) {
         if (key.isTotal()) {
-            throw new CompileError("Not allowed to reference current fields in total formula. Try: "
-                    + key.table() + "[" + field + "]?");
+            throw new CompileError("Cannot access current row's [%1$s] outside of column formula. Try %2$s[%1$s]?".formatted(
+                    field,
+                    key.table()));
         }
 
         if (key.isOverride()) {
@@ -170,10 +153,6 @@ public class CompileContext {
         return (CompiledSimpleColumn) compiler.compile(key);
     }
 
-    public CompileContext withCompiledAndPromoted(CompiledTable promotedTable, CompiledTable compiledTable, boolean nested) {
-        return new CompileContext(compiler, key, promotedTable, compiledTable, nested, null, function);
-    }
-
     @Nullable
     public CompiledSimpleColumn override(String table, String field, CompiledRow rowKeys) {
         int position = compiler.findOverridePosition(table, field, rowKeys);
@@ -191,14 +170,6 @@ public class CompileContext {
         return compiler.canMatchOverride(table);
     }
 
-    public CompileContext with(CompiledTable table, boolean nested) {
-        return with(table, nested, null);
-    }
-
-    public CompileContext with(CompiledTable table, boolean nested, CompiledTable layout) {
-        return new CompileContext(compiler, key, table, null, nested, layout, function);
-    }
-
     public CompileContext withFunction(Function function) {
         if (function instanceof UnaryOperator unaryOperator) {
             CompileUtil.verify(function.arguments().size() == 1,
@@ -211,7 +182,23 @@ public class CompileContext {
             doc.verifyArgumentCount(function.arguments().size());
         }
 
-        return new CompileContext(compiler, key, promotedTable, compiledTable, nested, layout, function);
+        return new CompileContext(compiler, key, dimensions, placeholder, pivot, layout, function);
+    }
+
+    public CompileContext withDimensions(List<FieldKey> dimensions) {
+        return new CompileContext(compiler, key, dimensions, placeholder, pivot, layout, function);
+    }
+
+    public CompileContext withPlaceholder(Formula placeholder) {
+        return new CompileContext(compiler, key, dimensions, placeholder, pivot, layout, function);
+    }
+
+    public CompileContext withPlaceholder(CompiledResult placeholder) {
+        return withPlaceholder(new CompiledFormula(placeholder));
+    }
+
+    public CompileContext withPivot(CompiledResult pivot, CompiledResult layout) {
+        return new CompileContext(compiler, key, dimensions, new CompiledFormula(pivot), pivot, layout, function);
     }
 
     public Function function() {
@@ -233,159 +220,60 @@ public class CompileContext {
 
     public String constStringArgument(int index) {
         Formula argument = argument(index);
-        CompileUtil.verify(argument instanceof ConstText, getErrorForArgument(index, "expected const string"));
+        CompileUtil.verify(argument instanceof ConstText, getErrorForArgument(index, "constant text is expected, like \"Example\""));
         return ((ConstText) argument).text();
-    }
-
-
-    public <T extends CompiledResult> CompiledSimpleColumn flattenArgument(T argument) {
-        return flattenArguments(List.of(argument)).get(0);
-    }
-
-    public <T extends CompiledResult> CompiledSimpleColumn flattenArgument(T argument, String operationSymbol) {
-        return flattenArguments(List.of(argument), operationSymbol).get(0);
-    }
-
-    public <T extends CompiledResult> List<CompiledSimpleColumn> flattenArguments(List<T> arguments) {
-        return flattenArguments(arguments, function.operationSymbol());
-    }
-
-    /**
-     * @param arguments to flat out. Assumed to be prepared with {@link CompileFunction#compileExpressions}
-     */
-    public <T extends CompiledResult> List<CompiledSimpleColumn> flattenArguments(List<T> arguments, String operationSymbol) {
-
-        if (arguments.isEmpty()) {
-            return List.of();
-        }
-
-        // if arguments prepared by compileExpressions or promoted together we can assume either all nested or none
-        CompiledResult first = arguments.get(0);
-        if (first instanceof CompiledNestedColumn nestedFirst) {
-            CompileUtil.verify(arguments.stream().allMatch(CompiledNestedColumn.class::isInstance),
-                    "Unexpected mixture nested and non nested arguments");
-
-            arguments.forEach(c -> CompileUtil.verifySameLayout(c, nestedFirst,
-                    "You cannot use %s with lists of different origin", operationSymbol));
-
-            return arguments.stream().map(CompiledNestedColumn.class::cast).map(CompiledNestedColumn::flat).toList();
-        } else {
-            CompileUtil.verify(arguments.stream().allMatch(CompiledSimpleColumn.class::isInstance),
-                    "Unexpected mixture nested and non nested arguments");
-
-            return arguments.stream().map(CompiledSimpleColumn.class::cast).toList();
-        }
-    }
-
-    /**
-     * Method takes flat result of intra-row operation and nest it according to its arguments assuming that level of
-     * nesting should be the same. If all the arguments are flat, result must be flat. If at least one is nested the
-     * result will be nested.
-     * @param arguments to adjust nesting with. Assumed to be prepared with {@link CompileFunction#compileExpressions}
-     */
-    public <T extends CompiledResult> CompiledResult nestResultIfNeeded(Expression result, List<T> arguments,
-                                                                        List<FieldKey> dimensions) {
-        if (arguments.isEmpty()) {
-            return new CompiledSimpleColumn(result, dimensions);
-        }
-        arguments.forEach(c -> CompileUtil.verifySameLayout(c, arguments.get(0)));
-
-        // if arguments prepared by compileExpressions or promoted together we can assume either all nested or none
-        if (arguments.get(0) instanceof CompiledNestedColumn nestedColumn) {
-            if (nestedColumn.hasCurrentReference()) {
-                return new CompiledNestedColumn(
-                        new SelectLocal(nestedColumn.currentReference(), result), nestedColumn.dimensions(), 0, 1);
-            } else {
-                return new CompiledNestedColumn(
-                        new SelectLocal(result), nestedColumn.dimensions(), REF_NA, 0);
-            }
-        } else {
-            return new CompiledSimpleColumn(result, dimensions);
-        }
     }
 
     public <T extends CompiledResult> T compileArgument(int index, ResultValidator<T> validator) {
         Formula argument = argument(index);
         CompiledResult compiled = compileFormula(argument);
 
-        ResultValidator<CompiledSimpleColumn> flatValidator =  validator.getFlatColValidator();
         try {
-            if (flatValidator != null) {
-              if (compiled instanceof CompiledNestedColumn) {
-                  Expression expression = flatValidator.convert(flattenArgument(compiled)).node();
-                  return (T) nestResultIfNeeded(expression, List.of(compiled), compiled.dimensions());
-              } else {
-                  return (T) flatValidator.convert(compiled);
-              }
-            } else {
-                return validator.convert(compiled);
-            }
+            return validator.convert(compiled);
         } catch (Throwable e) {
-            throw new CompileError(getErrorForArgument(index, e.getMessage()));
+            String message = CompiledTable.class.isAssignableFrom(validator.getExpectedType())
+                    && compiled instanceof CompiledSimpleColumn
+                    && argument instanceof CurrentField currentField
+                    ? e.getMessage() + " Did you mean " + key.table() + "[" + currentField.field() + "]?"
+                    : e.getMessage();
+            throw new CompileError(getErrorForArgument(index, message), e);
         }
     }
 
     public CompiledResult compileFormula(Formula formula) {
-        return compiler.compileFormula(this, formula);
+        try {
+            return compiler.compileFormula(this, formula);
+        } catch (Throwable e) {
+            if (placeholder instanceof TableReference tableReference
+                    && formula instanceof CurrentField currentField
+                    && !hasParsedField(key().table(), currentField.field())
+                    && hasParsedField(tableReference.table(), currentField.field())) {
+                String message = e.getMessage() +
+                        " Did you mean " + tableReference.table() + "[" + currentField.field() + "]?";
+                throw new CompileError(message, e);
+            }
+
+            if (!(e instanceof CompileError)) {
+                throw new CompileError(e.getMessage(), e);
+            }
+
+            throw e;
+        }
     }
 
     private String getErrorForArgument(int index, String reason) {
         if (function instanceof UnaryOperator unaryOperator) {
             return "Invalid operand for operator %s: %s"
-                    .formatted(unaryOperator.operation().getSymbol(), reason);
+                    .formatted(unaryOperator.operationSymbol(), reason);
         }
 
         if (function instanceof BinaryOperator binaryOperator) {
             return "Invalid operand for operator %s: %s"
-                    .formatted(binaryOperator.operation().getSymbol(), reason);
+                    .formatted(binaryOperator.operationSymbol(), reason);
         }
 
-        String argumentName = compiler.getFunctionSpec(function.name()).getArgumentName(index);
-        return "Invalid function %s argument \"%s\": %s".formatted(function.name(), argumentName, reason);
-    }
-
-    /**
-     * @return collected dimensions from all reachable formulas for the specified argument.
-     */
-    public List<FieldKey> collectArgument(int index) {
-        return collect(argument(index));
-    }
-
-    public List<FieldKey> collectArguments(int from, int to) {
-        List<FieldKey> dimensions = List.of();
-
-        for (; from < to; from++) {
-            List<FieldKey> dims = collectArgument(from);
-            dimensions = combine(dimensions, dims);
-        }
-
-        return dimensions;
-    }
-
-    private List<FieldKey> collect(Formula formula) {
-        if (key().isOverride()) {
-            return List.of();
-        }
-
-        if (formula instanceof FieldReference reference && reference.table() instanceof QueryRow) {
-            return List.of();
-        }
-
-        if (formula instanceof CurrentField reference) {
-            return currentField(reference.field()).dimensions();
-        }
-
-        if (formula instanceof Function function && function.name().equals("ROW")) {
-            return layout().dimensions();
-        }
-
-        List<FieldKey> dimensions = List.of();
-
-        for (Formula argument : formula.arguments()) {
-            dimensions = combine(dimensions, collect(argument));
-        }
-
-        return dimensions;
+        String argumentName = getFunctionArgName(index);
+        return "Invalid argument \"%s\" for function %s: %s".formatted(argumentName, function.name(), reason);
     }
 
     /**
@@ -403,10 +291,6 @@ public class CompileContext {
             CompileUtil.verify(left.isEmpty() && right.isEmpty());
         }
 
-        if (left.equals(right)) {
-            return left;
-        }
-
         return compiler.combineDimensions(this, left, right);
     }
 
@@ -414,73 +298,10 @@ public class CompileContext {
      * @return promoted result to the specified dimensions.
      */
     public CompiledResult promote(CompiledResult result, List<FieldKey> dimensions) {
-
-        if (promotedTable != null || layout != null) {
-            // Scalars are always simple. If needed alignWithNestedTable will wrap as nested.
-            if (result instanceof CompiledSimpleColumn column && column.scalar() ) {
-                CompiledTable source = (layout == null) ? promotedTable : layout;
-                CompileUtil.verify(source.dimensions().containsAll(dimensions));
-                Expression resultNode = source.scalar() ? ((CompiledSimpleColumn) result).node() : new Expand(source.node(), column.node());
-                return new CompiledSimpleColumn(resultNode, dimensions);
-
-                // Invariant: current fields and derived values are always flat.
-                // Query or 3rd party tables are nested
-            } else if (isContextTablePromoted() && result instanceof CompiledNestedColumn nestedColumn
-                    && result.hasSameLayout(compiledTable)) {
-
-                Expression colExp = nestedColumn.flat().node();
-                Expression projected = new Projection(promotedTable.queryReference(), colExp);
-
-                return new CompiledNestedColumn(
-                        new SelectLocal(promotedTable.currentReference(), projected),
-                        promotedTable.dimensions(), 0, 1);
-            }
-        }
-
         return compiler.promoteResult(this, result, dimensions);
     }
 
-    public CompiledResult projectCurrentField(String fieldName) {
-        CompileUtil.verify(promotedTable != null, "No context table");
-        CompiledTable carry = promotedTable;
-        List<FieldKey> dimensions = carry.dimensions();
-        CompiledResult compiledResult = currentField(fieldName);
-        CompiledResult result = promote(compiledResult, dimensions);
-
-        if (compiledResult.scalar()) {
-            // No need to adjust scalar to table layout it was already done by special case inside promote.
-            return result;
-        }
-
-        if (result instanceof CompiledSimpleColumn column) {
-            if (!carry.hasCurrentReference()) {
-                return column;
-            }
-
-            Get reference = carry.currentReference();
-            column = CompileUtil.projectColumn(reference, column.node(), dimensions);
-
-            if (!nested) {
-                return column;
-            }
-
-            SelectLocal select = new SelectLocal(reference, column.node());
-            return new CompiledNestedColumn(select, dimensions, 0, 1);
-        }
-
-        CompiledTable table = (CompiledTable) result;
-        CompileUtil.verify(!table.nested(), "Dereferencing a %s is not allowed",
-                CompileUtil.getTypeDisplayName(table.getClass()));
-        CompileUtil.verify(!nested, "Dereferencing a %s is not yet supported",
-                CompileUtil.getTypeDisplayName(table.getClass()));
-        CompileUtil.verify(!dimensions.isEmpty(), "Dereferencing a scalar %s is not yet supported",
-                CompileUtil.getTypeDisplayName(table.getClass()));
-
-        Plan projection = CompileUtil.projectFlatTable(table.node(), carry.currentReference());
-        return table.withNode(projection).withDimensions(dimensions);
-    }
-
-    public CompiledResult projectQueryResult(CompiledTable carry, CompiledResult result) {
+    public CompiledResult projectQueryResult(CompiledTable carry, CompiledResult result, String field) {
         List<FieldKey> dimensions = carry.dimensions();
         boolean nested = carry.nested();
 
@@ -514,12 +335,9 @@ public class CompileContext {
             return table.withNode(projection).withDimensions(dimensions).withNested(nested);
         }
 
-        CompileUtil.verify(this.promotedTable == null, "Dereferencing a %s within formula is not allowed",
-                CompileUtil.getTypeDisplayName(table.getClass()));
-        CompileUtil.verify(!nested, "Dereferencing a %s from a nested %s is not allowed",
-                CompileUtil.getTypeDisplayName(table.getClass()),
-                CompileUtil.getTypeDisplayName(carry.getClass()));
-
+        CompileUtil.verify(!nested,
+                "Cannot access array of rows [%s] from another array of rows. Try flattening one of arrays using dim keyword.",
+                field);
 
         if (!table.hasCurrentReference()) {
             SelectLocal select = CompileUtil.selectColumns(
@@ -542,6 +360,10 @@ public class CompileContext {
         return compiler.hasParsedObject(CompileKey.tableKey(table));
     }
 
+    private boolean hasParsedField(String table, String field) {
+        return compiler.hasParsedObject(CompileKey.fieldKey(table, field, false, false));
+    }
+
     public InputProvider inputProvider() {
         return compiler.inputProvider();
     }
@@ -555,20 +377,13 @@ public class CompileContext {
     }
 
     /**
-     * Used to check if we can promote values derived from a compiledTable by projecting them on table queryReference.
-     */
-    public boolean isContextTablePromoted() {
-        return promotedTable != null && compiledTable != null && promotedTable != compiledTable;
-    }
-
-    /**
      * Returns override row table when compiling a single override.
      * It contains a single row with the query reference to the row at which the override is being compiled.
      */
     public CompiledTable overrideRowTable() {
         OverrideKey key = key().overrideKey();
         CompileUtil.verify(compiler.canMatchOverride(key.table()),
-                "Not allowed to use current fields and ROW() in overrides for manual table with keys or apply section");
+                "Not allowed to use current columns or use ROW() in overrides for manual table with keys or apply section");
 
         CompiledRow keys = compiler.findOverrideRowKeys(key.table(), key.position());
         List<Formula> arguments = new ArrayList<>();
@@ -586,5 +401,33 @@ public class CompileContext {
 
         Function rowReference = new Function("RowReference", arguments);
         return compileFormula(rowReference).cast(CompiledTable.class);
+    }
+
+    public CompiledResult align(CompiledTable current, CompiledResult result) {
+        if (result instanceof CompiledSimpleColumn column) {
+            Expression projection = column.scalar()
+                    ? new Expand(current.node().getLayout(), column.node())
+                    : new Projection(current.currentReference(), column.node());
+
+            if (current.hasCurrentReference() && current.nested()) {
+                Plan plan = new SelectLocal(current.currentReference(), projection);
+                return new CompiledNestedColumn(plan, current.dimensions(), 0, 1);
+            } else if (current.hasCurrentReference()) {
+                return new CompiledSimpleColumn(projection, current.dimensions());
+            } else if (current.nested()) {
+                Plan plan = new SelectLocal(projection);
+                return new CompiledNestedColumn(plan, current.dimensions(), REF_NA, 0);
+            } else {
+                return new CompiledSimpleColumn(projection, current.dimensions());
+            }
+        } else if (result instanceof CompiledTable table && !table.nested()) {
+            throw new CompileError("Not supported yet");
+        }
+
+        return result;
+    }
+
+    public String getFunctionArgName(int index) {
+        return compiler.getFunctionSpec(function.name()).getArgumentName(index);
     }
 }

@@ -1,6 +1,6 @@
-export function ArrowUpRightIcon() {
+export const ArrowUpRightIcon = () => {
   return (
-    <svg viewBox="0 0 1024 1024">
+    <svg viewBox="0 0 1024 1024" width="100%">
       <path
         d="M88.001 935.999l848-848M935.999 88.001v763.2M935.999 88.001h-763.2"
         fill="none"
@@ -12,4 +12,4 @@ export function ArrowUpRightIcon() {
       ></path>
     </svg>
   );
-}
+};

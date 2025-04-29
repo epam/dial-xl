@@ -30,8 +30,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 @RestController
 @RequiredArgsConstructor
@@ -122,48 +123,46 @@ public class EmbeddingController {
         }
 
         EmbeddingsSearchResponse response = new EmbeddingsSearchResponse();
-        ProjectContext tempProject = projectManager.create(request.getWorksheets());
+        ResultListener listener = new ResultListener() {
+            @Override
+            public synchronized void onSimilaritySearch(FieldKey key, Table searchResult, @Nullable String error) {
+                if (error != null) {
+                    throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR);
+                }
 
-        Set<SimilarityRequestField> similarityRequestFields = getSimilarityRequestFields(request, tempProject, principal);
-        CountDownLatch latch = new CountDownLatch(similarityRequestFields.size());
+                for (int i = 0; i < searchResult.size(); ++i) {
+                    response.getSearchResults().add(
+                            new ScoreRecord(
+                                    key.tableName(),
+                                    key.fieldName(),
+                                    searchResult.getStringColumn(0).get(i),
+                                    searchResult.getDoubleColumn(1).get(i),
+                                    searchResult.getStringColumn(2).get(i)
+                            )
+                    );
+                }
+            }
+        };
 
-        tempProject.similaritySearch(
-                new SimilarityRequest(
-                        request.getQuery(),
-                        similarityRequestFields,
-                        "bge-small-en-v1.5",
-                        request.use_evaluation
-                ),
-                new ResultListener() {
-                    @Override
-                    public void onSimilaritySearch(FieldKey key, Table searchResult, @Nullable String error) {
-                        if (error != null) {
-                            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR);
-                        }
+        try (ProjectContext context = projectManager.create(principal, listener, request.getWorksheets())) {
+            Set<SimilarityRequestField> similarityRequestFields = getSimilarityRequestFields(
+                    request, context, principal);
 
-                        for (int i = 0; i < searchResult.size(); ++i) {
-                            response.getSearchResults().add(
-                                    new ScoreRecord(
-                                            key.tableName(),
-                                            key.fieldName(),
-                                            searchResult.getStringColumn(0).get(i),
-                                            searchResult.getDoubleColumn(1).get(i),
-                                            searchResult.getStringColumn(2).get(i)
-                                    )
-                            );
-                        }
+            CompletableFuture<Void> future = context.similaritySearch(
+                    new SimilarityRequest(
+                            request.getQuery(),
+                            similarityRequestFields,
+                            "bge-small-en-v1.5",
+                            request.use_evaluation
+                    )
+            );
 
-                        latch.countDown();
-                    }
-                },
-                principal
-        );
-
-        if (latch.await(60, TimeUnit.SECONDS)) {
-            return ResponseEntity.ok(new Gson().toJson(response));
-        } else {
-            tempProject.getEngine().cancel();
-            return ResponseEntity.status(TIMEOUT_STATUS_CODE).build();
+            try {
+                future.get(60, TimeUnit.SECONDS);
+                return ResponseEntity.ok(new Gson().toJson(response));
+            } catch (TimeoutException e) {
+                return ResponseEntity.status(TIMEOUT_STATUS_CODE).build();
+            }
         }
     }
 
@@ -202,7 +201,7 @@ public class EmbeddingController {
                 if (similarityField == null) {
                     throw new ResponseStatusException(
                             HttpStatus.BAD_REQUEST,
-                            "The provided field is not a string key field"
+                            "The provided field is not a text key field"
                     );
                 }
 

@@ -10,6 +10,8 @@ export enum GridEvent {
   expandAIPrompt = 'expandAIPrompt',
   // selection
   selectAll = 'selectAll',
+  startMoveMode = 'startMoveMode',
+  stopMoveMode = 'stopMoveMode',
 }
 
 export type EventTypeColumnResize = {
@@ -53,6 +55,14 @@ export type EventTypeExpandAIPrompt = {
   type: GridEvent.expandAIPrompt;
 };
 
+export type EventTypeStartMoveMode = {
+  type: GridEvent.startMoveMode;
+};
+
+export type EventTypeStopMoveMode = {
+  type: GridEvent.stopMoveMode;
+};
+
 export type EventType =
   | EventTypeColumnResize
   | EventTypeColumnResizeDbClick
@@ -60,4 +70,6 @@ export type EventType =
   | EventTypeOpenNote
   | EventTypeOpenAIPrompt
   | EventTypeExpandAIPrompt
-  | EventTypeSelectAll;
+  | EventTypeSelectAll
+  | EventTypeStartMoveMode
+  | EventTypeStopMoveMode;

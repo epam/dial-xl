@@ -1,0 +1,5 @@
+name: mode
+description: Calculates the most frequent value of the array
+signature: 'array<primitive>.mode() => primitive'
+manual: >-
+  `mode` calculates the most frequent element of array. Elements must be primitives.

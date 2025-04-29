@@ -114,7 +114,7 @@ public class CompileSimilaritySearch {
                         evaluateN,
                         evaluateModel
                 )
-        ).cast(CompiledNestedColumn.class).flat().node();
+        ).cast(CompiledNestedColumn.class).expression();
         Expression retrieverScores = context.compileFormula(
                 new com.epam.deltix.quantgrid.parser.ast.Function(
                         "RETRIEVE_SCORES",
@@ -123,7 +123,7 @@ public class CompileSimilaritySearch {
                         evaluateN,
                         evaluateModel
                 )
-        ).cast(CompiledNestedColumn.class).flat().node();
+        ).cast(CompiledNestedColumn.class).expression();
         Expression retrieverDescriptions = context.compileFormula(
                 new com.epam.deltix.quantgrid.parser.ast.Function(
                         "RETRIEVE_DESCRIPTIONS",
@@ -132,7 +132,7 @@ public class CompileSimilaritySearch {
                         evaluateN,
                         evaluateModel
                 )
-        ).cast(CompiledNestedColumn.class).flat().node();
+        ).cast(CompiledNestedColumn.class).expression();
 
         return new RetrieverResultLocal(key.fieldKey(), new SelectLocal(retriever, retrieverScores, retrieverDescriptions));
     }

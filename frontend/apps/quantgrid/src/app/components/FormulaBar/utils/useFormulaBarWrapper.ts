@@ -1,7 +1,6 @@
 import { useContext, useEffect, useState } from 'react';
 
-import { SelectedCellType } from '@frontend/spreadsheet';
-
+import { SelectedCellType } from '../../../common';
 import { AppContext, ProjectContext } from '../../../context';
 import { useDSLUtils } from '../../../hooks';
 import { useFormulaInput } from './useFormulaInput';

@@ -1,7 +1,8 @@
-import { useCallback } from 'react';
+import { useCallback, useContext } from 'react';
 import { toast } from 'react-toastify';
 
 import {
+  apiMessages,
   appMessages,
   csvFileExtension,
   dialProjectFileExtension,
@@ -9,10 +10,12 @@ import {
   schemaFileExtension,
 } from '@frontend/common';
 
+import { ApiContext } from '../../context';
 import { displayToast } from '../../utils';
 import { useApiRequests } from '..';
 
 export function useCloneResources() {
+  const { userBucket } = useContext(ApiContext);
   const { cloneFile, cloneProject } = useApiRequests();
 
   const handleCloneProject = useCallback(
@@ -23,12 +26,19 @@ export function useCloneResources() {
     ) => {
       const { bucket, name, parentPath } = item;
 
+      if (!userBucket) {
+        displayToast('error', apiMessages.cloneProjectClient);
+
+        return;
+      }
+
       const res = await cloneProject({
         bucket: bucket,
         name: name,
         path: parentPath,
-        targetBucket,
-        targetPath,
+        targetBucket: targetBucket ?? userBucket,
+        targetPath:
+          targetPath ?? bucket === userBucket ? parentPath ?? null : null,
       });
 
       if (!res) return;
@@ -41,7 +51,7 @@ export function useCloneResources() {
         )
       );
     },
-    [cloneProject]
+    [cloneProject, userBucket]
   );
 
   const handleCloneFile = useCallback(
@@ -52,12 +62,21 @@ export function useCloneResources() {
     ) => {
       const isCsvFile = item.name.endsWith(csvFileExtension);
 
+      if (!userBucket) {
+        displayToast('error', apiMessages.cloneProjectClient);
+
+        return;
+      }
+
       const res = await cloneFile({
         bucket: item.bucket,
         name: item.name,
         path: item.parentPath,
-        targetBucket,
-        targetPath,
+        targetBucket: targetBucket ?? userBucket,
+        targetPath:
+          targetPath ?? item.bucket === userBucket
+            ? item.parentPath ?? null
+            : null,
       });
 
       if (!isCsvFile) return;
@@ -66,13 +85,18 @@ export function useCloneResources() {
         bucket: item.bucket,
         name: '.' + item.name.replaceAll(csvFileExtension, schemaFileExtension),
         path: item.parentPath,
+        targetBucket: targetBucket ?? userBucket,
+        targetPath:
+          targetPath ?? item.bucket === userBucket
+            ? item.parentPath ?? null
+            : null,
       });
 
       if (!res) return;
 
       displayToast('success', appMessages.fileCloneSuccess);
     },
-    [cloneFile]
+    [cloneFile, userBucket]
   );
 
   const cloneResources = useCallback(

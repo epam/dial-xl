@@ -12,12 +12,11 @@ export const useInputsDragDrop = (childData: InputChildData) => {
 
   const handleDrop = useCallback(
     (e: DragEvent) => {
-      e.preventDefault();
-
       const dropCell = getDropCell(e);
 
       if (!dropCell || !draggedPath) return;
 
+      e.preventDefault();
       const { col, row } = dropCell;
       const formula = `:INPUT("${draggedPath}")`;
       createDimTableFromDimensionFormula(col, row, formula);
@@ -36,17 +35,16 @@ export const useInputsDragDrop = (childData: InputChildData) => {
 
   const onDragOver = useCallback(
     (e: DragEvent) => {
-      e.preventDefault();
-
       if (!draggedPath) return;
 
+      e.preventDefault();
       handleDragOver(e);
     },
     [draggedPath, handleDragOver]
   );
 
   const onDragStart = useCallback(
-    (node: DataNode) => {
+    (node: DataNode, ev: React.DragEvent) => {
       const key = node.key as string;
       if (!childData[key]) {
         setDraggedPath('');
@@ -54,6 +52,10 @@ export const useInputsDragDrop = (childData: InputChildData) => {
         return;
       }
 
+      const el = document.getElementById(`dragged-image-${node.key}`);
+      if (el) {
+        ev.dataTransfer!.setDragImage(el, 20, 20);
+      }
       const input = childData[key];
       setDraggedPath(input.url);
     },
