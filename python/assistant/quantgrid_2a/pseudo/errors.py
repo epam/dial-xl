@@ -4,6 +4,8 @@ import typing
 
 from dial_xl.project import Project
 
+from quantgrid.utils.project import FieldGroupUtil
+
 
 @dataclasses.dataclass(order=True)
 class ConversionError:
@@ -53,7 +55,7 @@ def _extract_errors(
             if table_name is not None and table.name != table_name:
                 continue
 
-            for field in table.fields:
+            for field in FieldGroupUtil.get_table_fields(table):
                 if field_name is not None and field.name != field_name:
                     continue
 

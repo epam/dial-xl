@@ -10,9 +10,9 @@ import {
   selectedTabClasses,
 } from '@frontend/common';
 
-import { routes } from '../../../AppRoutes';
 import { DashboardTab } from '../../common';
 import { DashboardContext } from '../../context';
+import { routes } from '../../types';
 import { constructPath } from '../../utils';
 
 type Tab = {
@@ -43,11 +43,11 @@ export function DashboardTabs() {
   };
 
   return (
-    <div className="flex flex-wrap gap-3 mt-5 mb-4">
+    <div className="shrink-0 flex gap-2 md:gap-3 overflow-x-auto hidden-scrollbar">
       {tabs.map((tab) => (
         <Link
           className={cx(
-            'h-9 px-5 text-base',
+            'h-[30px] md:h-9 px-3 md:px-5 text-sm md:text-base shrink-0',
             defaultTabClasses,
             currentTab === tab.id ? selectedTabClasses : notSelectedTabClasses
           )}

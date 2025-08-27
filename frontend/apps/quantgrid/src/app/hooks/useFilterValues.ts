@@ -6,6 +6,7 @@ import {
   escapeTableName,
   ParsedField,
   ParsedTable,
+  Sheet,
   unescapeFieldName,
   unescapeTableName,
 } from '@frontend/parser';
@@ -36,6 +37,7 @@ export function useFieldFilterValues() {
     projectName,
     sheetName,
     parsedSheets,
+    parsedSheet,
     projectSheets,
     sheetContent,
     getVirtualProjectViewport,
@@ -64,12 +66,13 @@ export function useFieldFilterValues() {
       searchValue,
       sort,
     }: SendViewportsParams) => {
-      if (!sheetContent) return;
-
       const virtualRequests: Viewport[] = [];
       const virtualTablesDSL: string[] = [];
 
       const tables: ParsedTable[] = getTargetTables();
+      const editableSheet = parsedSheet?.clone().editableSheet;
+
+      if (!editableSheet || !sheetContent) return;
 
       for (const table of tables) {
         const { tableName } = table;
@@ -81,6 +84,7 @@ export function useFieldFilterValues() {
           if (targetFieldName && fieldName !== targetFieldName) continue;
 
           buildVirtualViewport({
+            editableSheet,
             table,
             field,
             unescapedTableName,
@@ -98,6 +102,7 @@ export function useFieldFilterValues() {
       }
 
       function buildVirtualViewport({
+        editableSheet,
         table,
         field,
         unescapedTableName,
@@ -107,6 +112,7 @@ export function useFieldFilterValues() {
         searchValue,
         sort,
       }: {
+        editableSheet: Sheet;
         table: ParsedTable;
         field: ParsedField;
         unescapedTableName: string;
@@ -143,6 +149,7 @@ export function useFieldFilterValues() {
         const baseVirtualRequest = {
           start_row: cachedRowNumber,
           end_row: cachedRowNumber + keysPerPage,
+          is_raw: true,
         };
 
         virtualRequests.push({
@@ -162,9 +169,9 @@ export function useFieldFilterValues() {
         });
 
         const virtualTableDSL = createVirtualTableUniqueFieldValuesDSL({
-          sheetContent,
-          table,
-          field,
+          editableSheet,
+          parsedTable: table,
+          parsedField: field,
           virtualTableName,
           searchValue,
           sort,
@@ -227,7 +234,13 @@ export function useFieldFilterValues() {
         return tables;
       }
     },
-    [getVirtualProjectViewport, parsedSheets, sheetContent, viewGridData]
+    [
+      getVirtualProjectViewport,
+      parsedSheet,
+      parsedSheets,
+      sheetContent,
+      viewGridData,
+    ]
   );
 
   const isCached = useCallback((tableName: string, fieldName: string) => {

@@ -20,10 +20,11 @@ import {
   csvFileExtension,
   dialProjectFileExtension,
   FilesMetadata,
+  MetadataNodeType,
+  MetadataResourceType,
   publicBucket,
 } from '@frontend/common';
 
-import { routeParams } from '../../AppRoutes';
 import {
   DashboardFilter,
   DashboardSortType,
@@ -32,9 +33,14 @@ import {
 } from '../common';
 import { NewDashboardFolder, PreUploadFile } from '../components';
 import { useApiRequests } from '../hooks';
-import { getRecentProjects } from '../services';
+import {
+  deleteRecentProjectFromRecentProjects,
+  getRecentProjects,
+} from '../services';
+import { routeParams } from '../types';
 import { DashboardItem } from '../types/dashboard';
 import {
+  constructPath,
   dashboardFuseOptions,
   filterDashboardItems,
   getDashboardNavigateUrl,
@@ -89,6 +95,7 @@ export function DashboardContextProvider({ children }: Props) {
     createFile,
     getDimensionalSchema,
     createFolder,
+    getResourceMetadata,
   } = useApiRequests();
   const { userBucket } = useContext(ApiContext);
   const { showHiddenFiles } = useContext(AppContext);
@@ -244,23 +251,43 @@ export function DashboardContextProvider({ children }: Props) {
     [folderPath, getFiles, getSharedByMeFiles, navigate, userBucket]
   );
 
-  const searchRecentItems = useCallback(() => {
+  const searchRecentItems = useCallback(async (): Promise<DashboardItem[]> => {
     const recentProjects = getRecentProjects();
 
-    if (!recentProjects) return;
+    if (!recentProjects) return [];
 
     const items: DashboardItem[] = recentProjects.map(
       (recentProject): DashboardItem => ({
         name: recentProject.projectName + dialProjectFileExtension,
-        nodeType: 'ITEM',
+        nodeType: MetadataNodeType.ITEM,
         parentPath: recentProject.projectPath,
         bucket: recentProject.projectBucket,
         updatedAt: recentProject.timestamp,
+        resourceType: MetadataResourceType.FILE,
       })
     );
 
-    return items;
-  }, []);
+    const itemsMetadata = await Promise.all(
+      items.map(async (item) => {
+        const metadata = await getResourceMetadata({
+          path: constructPath([item.bucket, item.parentPath, item.name]),
+          suppressErrors: true,
+        });
+
+        if (!metadata) {
+          deleteRecentProjectFromRecentProjects(
+            item.name.replaceAll(dialProjectFileExtension, ''),
+            item.bucket,
+            item.parentPath
+          );
+        }
+
+        return metadata ? item : null;
+      })
+    );
+
+    return itemsMetadata.filter((item): item is DashboardItem => item !== null);
+  }, [getResourceMetadata]);
 
   const search = useCallback((searchValue: string) => {
     setSearchValue(searchValue);
@@ -289,7 +316,7 @@ export function DashboardContextProvider({ children }: Props) {
           break;
         case 'recent':
           items = withRefetch
-            ? searchRecentItems() || []
+            ? (await searchRecentItems()) || []
             : recentItemsRef.current;
           recentItemsRef.current = items;
           break;
@@ -538,14 +565,14 @@ export function DashboardContextProvider({ children }: Props) {
       return;
     }
 
-    if (tab === 'recent') {
-      sortChange('updatedAt');
-      setSortAsc(false);
-    }
-
-    if (tab !== 'recent' && currentTab === 'recent') {
-      sortChange('name');
-      setSortAsc(true);
+    if (currentTab !== tab) {
+      if (tab === 'recent' || tab === 'home') {
+        sortChange('updatedAt');
+        setSortAsc(false);
+      } else {
+        sortChange('name');
+        setSortAsc(true);
+      }
     }
 
     setCurrentTab(tab);

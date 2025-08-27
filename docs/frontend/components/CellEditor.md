@@ -160,6 +160,8 @@ The Cell Editor operates in different modes depending on the context and the use
 -   **Rename Field (`rename_field`)**: Renaming a field header.
 -   **Edit Field Expression (`edit_field_expression`)**: Editing a field's expression.
 -   **Edit Cell Expression (`edit_cell_expression`)**: Editing a cell's expression.
+-   **Edit Complex Field (`edit_complex_field`)**: Editing field expression only for the complex field type.
+-   **Edit Dynamic Field Header (`edit_dynamic_field_header`)**: Editing dynamic [*] field expression.
 -   **Add Override (`add_override`)**: Adding an override value or expression to a cell.
 -   **Edit Override (`edit_override`)**: Editing an existing override in a cell.
 -   **Add Total (`add_total`)**: Adding a total expression to a total cell.
@@ -392,6 +394,10 @@ When a user edits a cell that is part of an existing table or has a specific edi
 
 -   **Edit Dimension Expression**:
     - Update the expression of the dimension field with the new value, if a dimension field name is provided.
+
+-   **Edit Complex Field**:
+-   **Edit Dynamic Field Header**:
+    - Update the field's expression directly with the new value.
 
 -   **Edit Field or Cell Expression**:
 

@@ -19,6 +19,7 @@ export function useGetChartsData() {
     projectName,
     sheetName,
     parsedSheets,
+    parsedSheet,
     sheetContent,
     getCurrentProjectViewport,
   } = useContext(ProjectContext);
@@ -36,9 +37,15 @@ export function useGetChartsData() {
         !sheetName ||
         !sheetContent ||
         !parsedSheets ||
+        !parsedSheet ||
         (selectedKeys.length === 0 && tablesWithoutSelectors.length === 0)
       )
         return;
+
+      let updatedSheetContent = sheetContent;
+      const editableSheet = parsedSheet.clone().editableSheet;
+
+      if (!editableSheet) return;
 
       const chartViewportRequest = viewGridData.buildChartViewportRequest(
         selectedKeys,
@@ -46,8 +53,6 @@ export function useGetChartsData() {
       );
 
       if (chartViewportRequest.length === 0) return;
-
-      let updatedSheetContent = sheetContent;
 
       for (const tableName of sortChartTablesDesc(selectedKeys, viewGridData)) {
         const tableData = viewGridData.getTableData(escapeTableName(tableName));
@@ -60,6 +65,7 @@ export function useGetChartsData() {
         );
 
         updatedSheetContent = applySelectorFiltersToChartTables(
+          editableSheet,
           updatedSheetContent,
           table,
           tableSelectedKeys,
@@ -84,6 +90,7 @@ export function useGetChartsData() {
       getCurrentProjectViewport,
       projectName,
       parsedSheets,
+      parsedSheet,
       sheetContent,
       sheetName,
       viewGridData,
@@ -109,8 +116,8 @@ export function sortChartTablesDesc(
     const tableA = viewGridData.getTableData(escapeTableName(a)).table;
     const tableB = viewGridData.getTableData(escapeTableName(b)).table;
 
-    if (!tableA?.dslPlacement || !tableB?.dslPlacement) return 0;
+    if (!tableA?.span || !tableB?.span) return 0;
 
-    return tableB.dslPlacement.startOffset - tableA.dslPlacement.startOffset;
+    return tableB.span.from - tableA.span.from;
   });
 }

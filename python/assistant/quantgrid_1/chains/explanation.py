@@ -7,16 +7,19 @@ from openai import RateLimitError
 from quantgrid_1.chains.parameters import ChainParameters
 from quantgrid_1.log_config import qg_logger as logger
 from quantgrid_1.prompts import ANSWER_EXPLANATION
-from quantgrid_1.utils.formatting import format_sheets
+from quantgrid_1.utils.create_exception_stage import create_exception_stage
+from quantgrid_1.utils.formatting import get_project_dsl_with_values
 from quantgrid_1.utils.stages import append_duration
 from quantgrid_1.utils.stream_content import get_token_error, stream_content
 
 
 async def explanation(inputs: dict) -> dict:
     choice = ChainParameters.get_choice(inputs)
-    original_project = ChainParameters.get_original_project(inputs)
+    project = ChainParameters.get_imported_project(inputs)
     start_time = time()
-
+    project_dsl_with_values = get_project_dsl_with_values(
+        project, include_warning=False
+    )
     with choice.create_stage("Explain") as stage:
         for retry in range(3):
 
@@ -26,7 +29,7 @@ async def explanation(inputs: dict) -> dict:
                         (
                             "system",
                             f"{ANSWER_EXPLANATION}\n\nThe current project state: "
-                            f"{format_sheets(original_project)}",
+                            f"{project_dsl_with_values}",
                         ),
                         (
                             "user",
@@ -35,13 +38,21 @@ async def explanation(inputs: dict) -> dict:
                     ]
                 )
 
-                total_content = await stream_content(iterator, choice)
+                total_content, total_output_tokens = await stream_content(
+                    iterator, choice
+                )
+                stage.add_attachment(
+                    title="summary_output_tokens", data=str(total_output_tokens)
+                )
+                inputs[ChainParameters.SUMMARIZATION] = total_content
+
                 ChainParameters.get_state(inputs).actions_history.append(total_content)
                 break
 
             except RateLimitError as error:
                 raise get_token_error(error)
             except Exception as exception:
+                create_exception_stage(choice, exception)
                 logger.exception(exception)
 
             if retry == 2:

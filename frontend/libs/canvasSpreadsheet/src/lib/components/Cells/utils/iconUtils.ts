@@ -99,8 +99,7 @@ export function getCellIcon(
         )
     );
   } else if (
-    (cellData.field?.type === ColumnDataType.TABLE ||
-      cellData.field?.type === ColumnDataType.INPUT) &&
+    cellData.field?.type === ColumnDataType.TABLE_REFERENCE &&
     cellData.field?.referenceTableName
   ) {
     icon.addEventListener(
@@ -180,8 +179,7 @@ export function getIconOptions(
   const isNestedIcon = isCell && cell.field?.isNested;
   const isPeriodSeriesIcon = cell.field?.isPeriodSeries && !isField;
   const isReferenceIcon =
-    (cell.field?.type === ColumnDataType.TABLE ||
-      cell.field?.type === ColumnDataType.INPUT) &&
+    cell.field?.type === ColumnDataType.TABLE_REFERENCE &&
     cell.field?.referenceTableName;
 
   if (isHeader) {
@@ -320,8 +318,7 @@ function isApplyFieldHeaderCell(cell: GridCell): boolean {
 
 function isTableReference(cell: GridCell): boolean {
   return !!(
-    (cell.field?.type === ColumnDataType.TABLE ||
-      cell.field?.type === ColumnDataType.INPUT) &&
+    cell.field?.type === ColumnDataType.TABLE_REFERENCE &&
     cell.field?.referenceTableName
   );
 }

@@ -1,5 +1,7 @@
 package com.epam.deltix.quantgrid.engine.node.plan.local;
 
+import com.epam.deltix.quantgrid.engine.Util;
+import com.epam.deltix.quantgrid.engine.executor.ExecutionError;
 import com.epam.deltix.quantgrid.engine.meta.Meta;
 import com.epam.deltix.quantgrid.engine.meta.Schema;
 import com.epam.deltix.quantgrid.engine.node.expression.Expression;
@@ -22,6 +24,7 @@ public class SelectLocal extends Plan0<Table> {
 
     public SelectLocal(List<Expression> expressions) {
         super(expressions);
+        Util.verify(!expressions.isEmpty());
     }
 
     @Override
@@ -45,7 +48,7 @@ public class SelectLocal extends Plan0<Table> {
             try {
                 Column column = expression.evaluate();
                 columns.add(column);
-            } catch (Exception e) {
+            } catch (ExecutionError e) {
                 columns.add(new ErrorColumn(e.getMessage(), layout.size()));
             }
         }

@@ -1,8 +1,13 @@
+import {
+  forkedProjectMetadataKey,
+  projectMetadataSettingsKey,
+} from '../constants';
+
 interface TableKey {
   table: string;
 }
 
-interface FieldKey {
+export interface FieldKey {
   table: string;
   field: string;
 }
@@ -30,12 +35,16 @@ export interface FieldInfo {
   overrideKey?: OverrideKey;
   type: ColumnDataType;
   isNested: boolean;
+  hash?: string;
   referenceTableName?: string;
 }
 
 interface Source {
-  startLine: number; // starts from 1
-  startColumn: number; // starts from 1
+  startLine?: number; // starts from 1
+  startColumn?: number; // starts from 1
+  sheet?: string;
+  startIndex?: number;
+  stopIndex?: number;
 }
 
 export interface Viewport {
@@ -44,6 +53,7 @@ export interface Viewport {
   start_row: number;
   end_row: number;
   is_content?: boolean;
+  is_raw: boolean;
 }
 
 export enum Status {
@@ -55,13 +65,34 @@ export enum Status {
   Unrecognized = 'UNRECOGNIZED',
 }
 
+export interface ForkedFrom {
+  bucket: string;
+  path: string | null | undefined;
+  projectName: string;
+}
+
+export type ProjectAIResponseId = {
+  responseId: string;
+};
+
+export interface ProjectMetadataSetting {
+  [forkedProjectMetadataKey]?: ForkedFrom;
+  assistantResponseIds?: ProjectAIResponseId[];
+}
+
+export type ProjectSettings = {
+  [projectMetadataSettingsKey]?: ProjectMetadataSetting;
+} & {
+  [key: string]: unknown;
+};
+
 export interface ProjectState {
   projectName: string;
   bucket: string;
   path: string | null | undefined; // Path relative to project bucket
   sheets: WorksheetState[];
   version: string;
-  settings: Record<string, any>; // Specify later, just reservation for future
+  settings: ProjectSettings;
 }
 
 export interface WorksheetState {
@@ -94,15 +125,58 @@ export interface CompilationError {
 
 export enum ColumnDataType {
   UNKNOWN = 'UNKNOWN',
-  STRING = 'STRING',
   DOUBLE = 'DOUBLE',
-  INTEGER = 'INTEGER',
-  BOOLEAN = 'BOOLEAN',
-  DATE = 'DATE',
+  STRING = 'STRING',
   PERIOD_SERIES = 'PERIOD_SERIES',
-  TABLE = 'TABLE',
-  INPUT = 'INPUT',
-  PERIOD_SERIES_POINT = 'PERIOD_SERIES_POINT',
+  TABLE_REFERENCE = 'TABLE_REFERENCE',
+  TABLE_VALUE = 'TABLE_VALUE',
+}
+
+export enum FormatType {
+  FORMAT_TYPE_GENERAL = 'FORMAT_TYPE_GENERAL',
+  FORMAT_TYPE_BOOLEAN = 'FORMAT_TYPE_BOOLEAN',
+  FORMAT_TYPE_CURRENCY = 'FORMAT_TYPE_CURRENCY',
+  FORMAT_TYPE_DATE = 'FORMAT_TYPE_DATE',
+  FORMAT_TYPE_NUMBER = 'FORMAT_TYPE_NUMBER',
+  FORMAT_TYPE_PERCENTAGE = 'FORMAT_TYPE_PERCENTAGE',
+  FORMAT_TYPE_SCIENTIFIC = 'FORMAT_TYPE_SCIENTIFIC',
+}
+
+// eslint-disable-next-line @typescript-eslint/no-empty-interface
+export interface BooleanFormatArgs {}
+
+export interface NumberFormatArgs {
+  format: number;
+  useThousandsSeparator: boolean;
+}
+
+export interface ScientificFormatArgs {
+  format: number;
+}
+
+export interface CurrencyFormatArgs {
+  format: number;
+  useThousandsSeparator: boolean;
+  symbol: string;
+}
+
+export interface DateFormatArgs {
+  pattern: string;
+}
+
+export interface PercentageFormatArgs {
+  format: number;
+}
+
+export interface ColumnFormat {
+  type: FormatType;
+
+  booleanArgs?: BooleanFormatArgs;
+  numberArgs?: NumberFormatArgs;
+  scientificArgs?: ScientificFormatArgs;
+  currencyArgs?: CurrencyFormatArgs;
+  dateArgs?: DateFormatArgs;
+  percentageArgs?: PercentageFormatArgs;
 }
 
 export interface ColumnData {
@@ -121,6 +195,7 @@ export interface ColumnData {
 
   isNested: boolean;
   type: ColumnDataType;
+  format?: ColumnFormat;
   referenceTableName?: string;
   periodSeries: PeriodSeries[];
 }
@@ -200,12 +275,27 @@ export interface NotificationEvent {
   etag?: string;
 }
 
+export interface ProjectCalculateRequest {
+  projectCalculateRequest: {
+    project: string;
+  };
+}
+
+export interface ProjectCancelRequest {
+  projectCancelRequest: {
+    project: string;
+  };
+}
+
 export interface ViewportRequest {
   calculateWorksheetsRequest: {
-    project_name: string;
+    project_name?: string;
     viewports: Viewport[];
     worksheets: Record<string, string>;
-    includeCompilation: boolean;
+    includeCompilation?: boolean;
+    includeProfile?: boolean;
+    includeIndices?: boolean;
+    shared?: boolean;
   };
 }
 
@@ -219,8 +309,39 @@ interface CompileResult {
 }
 
 export interface ViewportResponse {
-  columnData: ColumnData;
+  columnData?: ColumnData;
   compileResult?: CompileResult;
+  fieldInfo: FieldInfo[];
+  profile?: Profile;
+  index?: Index;
+}
+
+export interface Index {
+  key: FieldKey;
+  errorMessage?: string;
+}
+
+export interface Profile {
+  tableKey?: TableKey;
+  fieldKey?: FieldKey;
+  totalKey?: TotalKey;
+  overrideKey?: OverrideKey;
+  source: Source;
+  type: ExecutionType;
+  status: ExecutionStatus;
+  startedAt?: number;
+  stoppedAt?: number;
+  executionTime?: number;
+}
+
+export enum ExecutionStatus {
+  RUNNING = 'RUNNING',
+  COMPLETED = 'COMPLETED',
+}
+
+export enum ExecutionType {
+  COMPUTE = 'COMPUTE',
+  INDEX = 'INDEX',
 }
 
 export interface CompileRequest {

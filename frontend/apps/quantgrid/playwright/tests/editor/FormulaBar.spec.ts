@@ -53,7 +53,9 @@ test.afterAll(async ({ browser }) => {
 });
 
 test.describe('formula bar', () => {
-  test('change cell value in formula', async () => {
+  test(`open project with table&click table cell
+        change value in formula editor
+        cell value is changed`, async () => {
     const projectPage = await ProjectPage.createInstance(page);
     await projectPage.getVisualization().clickOnCell(tableRow + 1, tableColumn);
     const currentText = await projectPage.getFormula().textContent();
@@ -61,7 +63,9 @@ test.describe('formula bar', () => {
     await expect(projectPage.getFormula()).toHaveText(currentText + '234');
   });
 
-  test('change cell value in formula with clear', async () => {
+  test(`open project with table&click table cell
+        clear& set new value in formula editor
+        cell value is changed`, async () => {
     const projectPage = await ProjectPage.createInstance(page);
     await projectPage.getVisualization().clickOnCell(tableRow + 1, tableColumn);
     const currentText = await projectPage.getFormula().textContent();
@@ -69,7 +73,9 @@ test.describe('formula bar', () => {
     await expect(projectPage.getFormula()).toHaveText('234');
   });
 
-  test('cancel changing of formula', async () => {
+  test(`open project with table&click table cell
+        type new value in formula editor&press Esc
+        cell value is unchanged`, async () => {
     const projectPage = await ProjectPage.createInstance(page);
     await projectPage.getVisualization().clickOnCell(tableRow + 1, tableColumn);
     await new Promise((resolve) => setTimeout(resolve, 300));
@@ -78,7 +84,9 @@ test.describe('formula bar', () => {
     await expect(projectPage.getFormula()).toHaveText(oldValue);
   });
 
-  test('type a value in formula and click on other cell', async () => {
+  test(`open project with table&click table cell
+        type new value in formula editor&click emply cell
+        cell value is changed`, async () => {
     const projectPage = await ProjectPage.createInstance(page);
     await projectPage.getVisualization().clickOnCell(tableRow + 1, tableColumn);
     await new Promise((resolve) => setTimeout(resolve, 300));
@@ -91,7 +99,9 @@ test.describe('formula bar', () => {
     await expect(projectPage.getFormula()).toHaveText('=' + newValue);
   });
 
-  test('insert formula from all formulas in formula editor', async () => {
+  test(`open project with table&click table cell
+        type =&insert function from all formulas
+        function inserted in editor`, async () => {
     const projectPage = await ProjectPage.createInstance(page);
     await projectPage.clickOnGridCell(10, 10);
     await projectPage.getFormulaEditor().typeValue('=', true, false);
@@ -106,7 +116,9 @@ test.describe('formula bar', () => {
     await projectPage.getFormulaEditor().cancelSettingValue();
   });
 
-  test('insert formula from all formulas without editing mode', async () => {
+  test(`open project with table&click table cell
+        insert function from all formulas
+        = sign&function inserted in editor`, async () => {
     const projectPage = await ProjectPage.createInstance(page);
     await projectPage.clickOnGridCell(10, 10);
     await projectPage.openFormulasList();
@@ -118,7 +130,9 @@ test.describe('formula bar', () => {
     await projectPage.getFormulaEditor().cancelSettingValue();
   });
 
-  test('insert 2 formulas in a row from all formulas', async () => {
+  test(`open project with table&click table cell
+        type two functions from all formulas
+        functions inserted in editor nested order`, async () => {
     const projectPage = await ProjectPage.createInstance(page);
     await projectPage.clickOnGridCell(10, 10);
     await projectPage.getFormulaEditor().typeValue('=', true, false);
@@ -137,7 +151,9 @@ test.describe('formula bar', () => {
     await projectPage.getFormulaEditor().cancelSettingValue();
   });
 
-  test('add operation to existing formula', async () => {
+  test(`open project with table&click table cell
+        type +<value>&save
+        cell value is changed`, async () => {
     const projectPage = await ProjectPage.createInstance(page);
     let initialValue = await projectPage.getCellText(
       tableRow + 2,
@@ -157,4 +173,34 @@ test.describe('formula bar', () => {
     );
   });
   //edit regular cell, not header
+
+  test(`open project with table&click table cell
+        switch formula/value mode
+        both modes work`, async () => {
+    const projectPage = await ProjectPage.createInstance(page);
+    await projectPage
+      .getVisualization()
+      .clickOnCell(tableRow + 2, tableColumn + 4);
+    await projectPage.switchToFormulaMode();
+    await expect(
+      projectPage.getFormulaEditor().getValueLocator()
+    ).toContainText('Field1');
+    await projectPage.switchToValueMode();
+    await expect(
+      projectPage.getFormulaEditor().getValueLocator()
+    ).not.toContainText('Field1');
+    // expect(
+    //   projectPage.getFormulaEditor().getValueLocator().textContent()
+    // ).toMatch('^\\d+$');
+  });
+
+  test(`open project with table&click table cell
+        switch to value mode&type
+        cell value changed`, async () => {
+    const projectPage = await ProjectPage.createInstance(page);
+    await projectPage
+      .getVisualization()
+      .clickOnCell(tableRow + 2, tableColumn + 4);
+    await projectPage.switchToValueMode();
+  });
 });

@@ -20,8 +20,8 @@ public class ClusterSettings {
     private String nodeEndpoint;
     private long nodeHeartbeatInterval = 30000;
     private long nodeHeartbeatTimeout = 60000;
-    private long nodeProjectTimeout = 600000;
-    private long nodeOperationTimeout = 60000;
+    private long nodeProjectTimeout = 86400000;
+    private long nodeOperationTimeout = 3600000;
     private long nodeRouteTimeout = 10000;
 
     @Value("${server.port:8080}")

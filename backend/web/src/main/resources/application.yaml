@@ -6,17 +6,14 @@ logging:
 web:
   storage:
     local:
-      projectsFolder: ${PROJECTS_FOLDER:tmp/projects}
+      resultsFolder: ${RESULTS_FOLDER:tmp/.cache}
       inputsFolder: ${INPUTS_FOLDER:tmp/inputs}
     dial:
       enabled: ${WEB_STORAGE_DIAL_INPUT_ENABLED:false}
       baseUrl: ${WEB_STORAGE_DIAL_BASE_URL}
+      appKey: ${WEB_STORAGE_DIAL_APP_KEY}
   heartbeatPeriodMillis: 5000
 
 spring:
   security:
     enabled: ${SECURITY_ENABLED:false}
-    oauth2:
-      resourceserver:
-        jwt:
-          jwk-set-uri: ${JWKS_URI}

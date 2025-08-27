@@ -1,4 +1,4 @@
-import { useCallback, useContext } from 'react';
+import { useCallback, useContext, useMemo } from 'react';
 
 import Icon from '@ant-design/icons';
 import {
@@ -6,6 +6,8 @@ import {
   CompilationError,
   CompileErrorIcon,
   getKeyLabelFromError,
+  IndexError,
+  RowsIcon,
   RuntimeError,
   RuntimeErrorIcon,
 } from '@frontend/common';
@@ -15,8 +17,8 @@ import { LayoutContext } from '../../../context';
 import { useDSLErrors } from '../../../hooks';
 
 interface Props {
-  error: CompilationError | RuntimeError;
-  errorType: 'compile' | 'runtime';
+  error: CompilationError | RuntimeError | IndexError;
+  errorType: 'compile' | 'runtime' | 'index';
 }
 
 export function CompileOrRuntimeError({ error, errorType }: Props) {
@@ -61,19 +63,33 @@ export function CompileOrRuntimeError({ error, errorType }: Props) {
     ]
   );
 
+  const errorIcon = useMemo(() => {
+    if (errorType === 'compile') {
+      return <CompileErrorIcon />;
+    } else if (errorType === 'runtime') {
+      return <RuntimeErrorIcon />;
+    }
+
+    return <RowsIcon />;
+  }, [errorType]);
+
+  const iconTitle = useMemo(() => {
+    if (errorType === 'compile') {
+      return 'Compile error';
+    } else if (errorType === 'runtime') {
+      return 'Runtime error';
+    }
+
+    return 'Index error';
+  }, [errorType]);
+
   return (
     <div className="mt-1 p-1 bg-bgError rounded-[3px]">
       <div className="flex">
         <Icon
           className="mt-[3px] shrink-0 size-[18px] text-textError mx-2"
-          component={() =>
-            errorType === 'compile' ? (
-              <CompileErrorIcon />
-            ) : (
-              <RuntimeErrorIcon />
-            )
-          }
-          title={errorType === 'compile' ? 'Compile error' : 'Runtime error'}
+          component={() => errorIcon}
+          title={iconTitle}
         />
         <div className="pr-2">
           <span

@@ -17,6 +17,8 @@ import {
   AppContextProvider,
   AppSpreadsheetInteractionContextProvider,
   CanvasSpreadsheetContextProvider,
+  ChatOverlayContextProvider,
+  CommonProvider,
   InputsContextProvider,
   Loader,
   ProjectContextProvider,
@@ -43,6 +45,8 @@ const extraQueryParams = isAuth0
       },
     }
   : undefined;
+const scope =
+  window.externalEnv.authScope || 'openid profile email offline_access';
 
 // Clear url params from auth params
 const search = new URLSearchParams(window.location.search);
@@ -65,53 +69,57 @@ const oidcConfig: AuthProviderProps = {
   onSigninCallback: () => {
     window.history.replaceState({}, document.title, window.location.pathname);
   },
-  scope: 'openid dial profile email offline_access',
+  scope,
   ...extraQueryParams,
 };
 
 root.render(
   <AuthProvider {...oidcConfig}>
     <BrowserRouter>
-      <div className="flex flex-col h-screen overflow-hidden">
-        <ConfigProvider wave={{ disabled: true }}>
-          <AppContextProvider>
-            <ApiContextProvider>
-              <ViewportContextProvider>
-                <ProjectContextProvider>
-                  <CanvasSpreadsheetContextProvider>
-                    <UndoRedoProvider>
-                      <InputsContextProvider>
-                        <AIHintsContextProvider>
-                          <AppSpreadsheetInteractionContextProvider>
-                            <SearchWindowContextProvider>
-                              <CodeEditorContextProvider
-                                dialBaseUrl={
-                                  window.externalEnv.dialBaseUrl || ''
-                                }
-                              >
-                                <AppRoutes />
+      <div className="flex flex-col h-dvh overflow-hidden">
+        <CommonProvider>
+          <ConfigProvider wave={{ disabled: true }}>
+            <AppContextProvider>
+              <ApiContextProvider>
+                <ViewportContextProvider>
+                  <ProjectContextProvider>
+                    <CanvasSpreadsheetContextProvider>
+                      <UndoRedoProvider>
+                        <InputsContextProvider>
+                          <AIHintsContextProvider>
+                            <AppSpreadsheetInteractionContextProvider>
+                              <ChatOverlayContextProvider>
+                                <SearchWindowContextProvider>
+                                  <CodeEditorContextProvider
+                                    dialBaseUrl={
+                                      window.externalEnv.dialBaseUrl || ''
+                                    }
+                                  >
+                                    <AppRoutes />
 
-                                <ToastContainer
-                                  autoClose={10000}
-                                  hideProgressBar={true}
-                                  limit={5}
-                                  position="bottom-right"
-                                  theme="colored"
-                                  closeOnClick
-                                />
-                                <Loader />
-                              </CodeEditorContextProvider>
-                            </SearchWindowContextProvider>
-                          </AppSpreadsheetInteractionContextProvider>
-                        </AIHintsContextProvider>
-                      </InputsContextProvider>
-                    </UndoRedoProvider>
-                  </CanvasSpreadsheetContextProvider>
-                </ProjectContextProvider>
-              </ViewportContextProvider>
-            </ApiContextProvider>
-          </AppContextProvider>
-        </ConfigProvider>
+                                    <ToastContainer
+                                      autoClose={10000}
+                                      hideProgressBar={true}
+                                      limit={5}
+                                      position="bottom-right"
+                                      theme="colored"
+                                      closeOnClick
+                                    />
+                                    <Loader />
+                                  </CodeEditorContextProvider>
+                                </SearchWindowContextProvider>
+                              </ChatOverlayContextProvider>
+                            </AppSpreadsheetInteractionContextProvider>
+                          </AIHintsContextProvider>
+                        </InputsContextProvider>
+                      </UndoRedoProvider>
+                    </CanvasSpreadsheetContextProvider>
+                  </ProjectContextProvider>
+                </ViewportContextProvider>
+              </ApiContextProvider>
+            </AppContextProvider>
+          </ConfigProvider>
+        </CommonProvider>
       </div>
     </BrowserRouter>
   </AuthProvider>

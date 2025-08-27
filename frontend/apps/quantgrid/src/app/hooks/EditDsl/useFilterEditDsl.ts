@@ -9,8 +9,8 @@ import {
   naValue,
 } from '@frontend/parser';
 
-import { useDSLUtils } from '../ManualEditDSL';
 import { useSafeCallback } from '../useSafeCallback';
+import { useDSLUtils } from './useDSLUtils';
 import { createConditionFilterExpression } from './utils';
 
 export function useFilterEditDsl() {

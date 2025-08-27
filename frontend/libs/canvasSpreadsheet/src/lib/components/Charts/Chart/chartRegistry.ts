@@ -29,9 +29,10 @@ export interface OrganizedData {
   xAxisData?: string[];
   yAxisData?: string[];
   series?: EChartsOption['series'];
-  seriesData?: Array<[number, number, number | null]>;
+  seriesData?: Array<[number, number, number | null, string]>;
   visualMapMax?: number;
   showLegend?: boolean;
+  isHorizontal?: boolean;
 }
 
 type OrganizeDataFn = (
@@ -46,9 +47,10 @@ export type GetOptionProps = {
   xAxisData?: string[];
   yAxisData?: string[];
   series?: EChartsOption['series'];
-  seriesData?: Array<[number, number, number | null]>;
+  seriesData?: Array<[number, number, number | null, string]>;
   visualMapMax?: number;
   showLegend?: boolean;
+  isHorizontal?: boolean;
 };
 
 type GetOptionFn = (options: GetOptionProps) => EChartsOption;

@@ -2,10 +2,10 @@ import { Apply, ApplyFilter, ApplySort } from '../Apply';
 import { createEditableTestSheet } from './utils';
 
 describe('Apply', () => {
-  it('should add apply', async () => {
+  it('should add apply', () => {
     // Arrange
     const dsl = 'table A\n  [a] = 1\n  [b] = 2\n';
-    const sheet = await createEditableTestSheet(dsl);
+    const sheet = createEditableTestSheet(dsl);
 
     const apply = new Apply();
     const sort = new ApplySort();
@@ -29,11 +29,11 @@ describe('Apply', () => {
     );
   });
 
-  it('should edit apply', async () => {
+  it('should edit apply', () => {
     // Arrange
     const dsl =
       'table A\n  [a] = 1\n  [b] = 2\napply\nsort -A[a], A[b]\nfilter A[b] = 2\n';
-    const sheet = await createEditableTestSheet(dsl);
+    const sheet = createEditableTestSheet(dsl);
     const table = sheet.getTable('A');
     const apply = table.apply!;
 
@@ -50,11 +50,27 @@ describe('Apply', () => {
     );
   });
 
-  it('should remove sort from apply', async () => {
+  it('should insert a sort formula at index 0', () => {
+    // Arrange
+    const dsl = 'table A\n  [a] = 1\n  [b] = 2\napply\nsort A[b]\n';
+    const sheet = createEditableTestSheet(dsl);
+
+    // Act
+    const table = sheet.getTable('A');
+    const applyObj = table.apply!;
+    applyObj.sort!.insert(0, 'A[a]');
+
+    // Assert
+    expect(sheet.toDSL()).toEqual(
+      'table A\n  [a] = 1\n  [b] = 2\napply\nsort A[a], A[b]\n'
+    );
+  });
+
+  it('should remove sort from apply', () => {
     // Arrange
     const dsl =
       'table A\n  [a] = 1\n  [b] = 2\napply\nsort -A[a], A[b]\nfilter A[b] = 2\n';
-    const sheet = await createEditableTestSheet(dsl);
+    const sheet = createEditableTestSheet(dsl);
     const table = sheet.getTable('A');
 
     // Act
@@ -66,11 +82,11 @@ describe('Apply', () => {
     );
   });
 
-  it('should remove filter from apply', async () => {
+  it('should remove filter from apply', () => {
     // Arrange
     const dsl =
       'table A\n  [a] = 1\n  [b] = 2\napply\nsort -A[a], A[b]\nfilter A[b] = 2\n';
-    const sheet = await createEditableTestSheet(dsl);
+    const sheet = createEditableTestSheet(dsl);
     const table = sheet.getTable('A');
 
     // Act
@@ -82,19 +98,19 @@ describe('Apply', () => {
     );
   });
 
-  it('should not break total after removing apply', async () => {
+  it('should not break total after removing apply', () => {
     // Arrange
     const dsl =
       'table A\n  [a] = 1\napply\nsort A[a]\ntotal\n  [a] = A[a].SUM()\n';
-    const sheet = await createEditableTestSheet(dsl);
+    const sheet = createEditableTestSheet(dsl);
     const table = sheet.getTable('A');
-    const oldTotal = table.getTotal(1);
+    const oldTotal = table.totals.getItem(0);
 
     // Act
     table.apply = null;
 
     // Assert
-    expect(table.getTotal(1)).toBe(oldTotal);
+    expect(table.totals.getItem(0)).toBe(oldTotal);
     expect(sheet.toDSL()).toEqual(
       'table A\n  [a] = 1\ntotal\n  [a] = A[a].SUM()\n'
     );

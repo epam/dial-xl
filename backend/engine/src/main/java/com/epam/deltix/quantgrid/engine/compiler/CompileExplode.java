@@ -1,5 +1,6 @@
 package com.epam.deltix.quantgrid.engine.compiler;
 
+import com.epam.deltix.quantgrid.engine.compiler.result.CompiledColumn;
 import com.epam.deltix.quantgrid.engine.compiler.result.CompiledSimpleColumn;
 import com.epam.deltix.quantgrid.engine.compiler.result.CompiledPeriodPointTable;
 import com.epam.deltix.quantgrid.engine.compiler.result.CompiledReferenceTable;
@@ -64,7 +65,7 @@ public class CompileExplode {
         CompiledTable mapped;
 
         if (result instanceof CompiledSimpleColumn column) {
-            table = explode(result, column);
+            table = explode(column);
         } else {
             table = result.cast(CompiledTable.class);
             CompileUtil.verify(table.nested(),
@@ -100,7 +101,7 @@ public class CompileExplode {
         if (source.isEmpty()) {
             if (result instanceof CompiledSimpleColumn column) {
                 Expand expand = new Expand(to.node(), column.node());
-                return new CompiledSimpleColumn(expand, target);
+                return new CompiledSimpleColumn(expand, target, column.format());
             }
 
             CompiledTable right = result.cast(CompiledTable.class);
@@ -149,7 +150,7 @@ public class CompileExplode {
         Expression reference = chainReference(fromIndex, toIndex, fromIndependent);
 
         if (result instanceof CompiledSimpleColumn column) {
-            return CompileUtil.projectColumn(reference, column.node(), target);
+            return CompileUtil.projectColumn(reference, column.node(), target, column.format());
         }
 
         CompiledTable table = result.cast(CompiledTable.class);
@@ -212,21 +213,22 @@ public class CompileExplode {
     }
 
     // query ref is not really needed, but other code fails, needs to be refactored
-    private static CompiledTable explode(CompiledResult result, CompiledSimpleColumn column) {
+    public static CompiledPeriodPointTable explode(CompiledColumn column) {
+        CompileUtil.verify(!column.nested());
         CompileUtil.verify(column.type().isPeriodSeries(),
                 "Formula for column with dim keyword must return a table, an array or period series, but got %s.",
                 CompileUtil.getColumnTypeDisplayName(column.type()));
-        Expression series = column.node();
+        Expression series = column.expression();
         RowNumber numbers = new RowNumber(series.getLayout());
 
         if (column.scalar()) {
             SelectLocal select = new SelectLocal(numbers, series);
             Plan explode = new Explode(select, new Get(select, 1));
-            return new CompiledPeriodPointTable(explode, result.dimensions(), CompiledTable.REF_NA, 0, true);
+            return new CompiledPeriodPointTable(explode, column.dimensions(), CompiledTable.REF_NA, 0, true);
         }
 
         SelectLocal select = new SelectLocal(numbers, numbers, series);
         Plan explode = new Explode(select, new Get(select, 2));
-        return new CompiledPeriodPointTable(explode, result.dimensions(), 0, 1, true);
+        return new CompiledPeriodPointTable(explode, column.dimensions(), 0, 1, true);
     }
 }

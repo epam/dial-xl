@@ -3,11 +3,15 @@
   "tables": [
     {
       "span": {
+        "sheet": "test",
+        "text": "table A\n  [a] = 1 +\n    12\n  [b] = (\n    1 + 1\n  )\n  [c] = RANGE(10)\n",
         "from": 0,
         "to": 69
       },
       "name": {
         "span": {
+          "sheet": "test",
+          "text": "A",
           "from": 6,
           "to": 7
         },
@@ -16,117 +20,210 @@
       "fields": [
         {
           "span": {
+            "sheet": "test",
+            "text": "[a] = 1 +\n    12",
             "from": 10,
             "to": 26
           },
-          "name": {
-            "span": {
-              "from": 10,
-              "to": 13
-            },
-            "text": "a"
-          },
+          "fields": [
+            {
+              "span": {
+                "sheet": "test",
+                "text": "[a]",
+                "from": 10,
+                "to": 13
+              },
+              "name": {
+                "span": {
+                  "sheet": "test",
+                  "text": "[a]",
+                  "from": 10,
+                  "to": 13
+                },
+                "text": "a"
+              },
+              "decorators": [],
+              "docs": []
+            }
+          ],
           "formula": {
+            "left": {
+              "number": 1.0,
+              "span": {
+                "sheet": "test",
+                "text": "1",
+                "from": 16,
+                "to": 17
+              },
+              "arguments": []
+            },
+            "right": {
+              "number": 12.0,
+              "span": {
+                "sheet": "test",
+                "text": "\n    12",
+                "from": 19,
+                "to": 26
+              },
+              "arguments": []
+            },
+            "operation": "ADD",
+            "name": "BinaryOperator",
             "span": {
+              "sheet": "test",
+              "text": "1 +\n    12",
               "from": 16,
               "to": 26
             },
-            "formula": {
-              "left": {
-                "number": 1.0,
-                "arguments": []
-              },
-              "right": {
-                "number": 12.0,
-                "arguments": []
-              },
-              "operation": "ADD",
-              "name": "BinaryOperator",
-              "arguments": [
-                {
-                  "arguments": []
+            "arguments": [
+              {
+                "span": {
+                  "sheet": "test",
+                  "text": "1",
+                  "from": 16,
+                  "to": 17
                 },
-                {
-                  "arguments": []
-                }
-              ]
-            },
-            "errors": []
-          },
-          "decorators": [],
-          "docs": []
+                "arguments": []
+              },
+              {
+                "span": {
+                  "sheet": "test",
+                  "text": "\n    12",
+                  "from": 19,
+                  "to": 26
+                },
+                "arguments": []
+              }
+            ]
+          }
         },
         {
           "span": {
+            "sheet": "test",
+            "text": "[b] = (\n    1 + 1\n  )",
             "from": 29,
             "to": 50
           },
-          "name": {
-            "span": {
-              "from": 29,
-              "to": 32
-            },
-            "text": "b"
-          },
-          "formula": {
-            "span": {
-              "from": 35,
-              "to": 50
-            },
-            "formula": {
-              "left": {
-                "number": 1.0,
-                "arguments": []
+          "fields": [
+            {
+              "span": {
+                "sheet": "test",
+                "text": "[b]",
+                "from": 29,
+                "to": 32
               },
-              "right": {
-                "number": 1.0,
-                "arguments": []
-              },
-              "operation": "ADD",
-              "name": "BinaryOperator",
-              "arguments": [
-                {
-                  "arguments": []
+              "name": {
+                "span": {
+                  "sheet": "test",
+                  "text": "[b]",
+                  "from": 29,
+                  "to": 32
                 },
-                {
-                  "arguments": []
-                }
-              ]
+                "text": "b"
+              },
+              "decorators": [],
+              "docs": []
+            }
+          ],
+          "formula": {
+            "left": {
+              "number": 1.0,
+              "span": {
+                "sheet": "test",
+                "text": "\n    1",
+                "from": 36,
+                "to": 42
+              },
+              "arguments": []
             },
-            "errors": []
-          },
-          "decorators": [],
-          "docs": []
+            "right": {
+              "number": 1.0,
+              "span": {
+                "sheet": "test",
+                "text": "1",
+                "from": 45,
+                "to": 46
+              },
+              "arguments": []
+            },
+            "operation": "ADD",
+            "name": "BinaryOperator",
+            "span": {
+              "sheet": "test",
+              "text": "\n    1 + 1",
+              "from": 36,
+              "to": 46
+            },
+            "arguments": [
+              {
+                "span": {
+                  "sheet": "test",
+                  "text": "\n    1",
+                  "from": 36,
+                  "to": 42
+                },
+                "arguments": []
+              },
+              {
+                "span": {
+                  "sheet": "test",
+                  "text": "1",
+                  "from": 45,
+                  "to": 46
+                },
+                "arguments": []
+              }
+            ]
+          }
         },
         {
           "span": {
+            "sheet": "test",
+            "text": "[c] = RANGE(10)",
             "from": 53,
             "to": 68
           },
-          "name": {
-            "span": {
-              "from": 53,
-              "to": 56
-            },
-            "text": "c"
-          },
+          "fields": [
+            {
+              "span": {
+                "sheet": "test",
+                "text": "[c]",
+                "from": 53,
+                "to": 56
+              },
+              "name": {
+                "span": {
+                  "sheet": "test",
+                  "text": "[c]",
+                  "from": 53,
+                  "to": 56
+                },
+                "text": "c"
+              },
+              "decorators": [],
+              "docs": []
+            }
+          ],
           "formula": {
+            "name": "RANGE",
             "span": {
+              "sheet": "test",
+              "text": "RANGE(10)",
               "from": 59,
               "to": 68
             },
-            "formula": {
-              "name": "RANGE",
-              "arguments": [
-                {
-                  "arguments": []
-                }
-              ]
-            },
-            "errors": []
-          },
-          "decorators": [],
-          "docs": []
+            "arguments": [
+              {
+                "span": {
+                  "sheet": "test",
+                  "text": "10",
+                  "from": 65,
+                  "to": 67
+                },
+                "arguments": []
+              }
+            ]
+          }
         }
       ],
       "decorators": [],

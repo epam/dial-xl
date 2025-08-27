@@ -1,6 +1,6 @@
 import json
-import os
 import re
+import statistics
 import textwrap
 import typing
 import uuid
@@ -8,8 +8,10 @@ import uuid
 from timeit import default_timer as timer
 from typing import Any, Optional
 
+from aidial_rag_eval.generation.inference import calculate_inference
 from dial_xl.client import Client
 from dial_xl.project import Project, Viewport
+from jinja2 import Environment, PackageLoader
 from langchain_core.messages import BaseMessage
 from langchain_openai import AzureChatOpenAI
 from openai import AsyncAzureOpenAI
@@ -18,10 +20,11 @@ from pydantic import BaseModel
 from parsing import fix_sheet
 from quantgrid.configuration import LOGGER, Env
 from quantgrid.utils.dial import DIALApi
-from quantgrid.utils.project import ProjectUtil
+from quantgrid.utils.project import FieldGroupUtil, ProjectUtil
+from quantgrid_1.models.config_parameters import ConfigParametersDTO
+from quantgrid_1.models.stage import Attachment
 from testing.framework.answer import Answer
 from testing.framework.exceptions.compile_error import CompileError
-from testing.framework.exceptions.score_error import ScoreError
 from testing.framework.models import Output, TextAction
 from testing.framework.project_utils import (
     change_project_sheet,
@@ -31,8 +34,7 @@ from testing.framework.project_utils import (
     get_table,
 )
 from testing.framework.protocol import parse_actions, parse_stages
-from testing.framework.scoring_utils import score_answer
-from testing.models import QueryInfo, Verdict
+from testing.models import AssistantScore, QueryInfo, Verdict
 
 
 # TODO: This pydantic model is duplicated in quantgrid folder. Eliminate.
@@ -50,6 +52,13 @@ class Hint(BaseModel):
 
 
 class FrameProject:
+    _TEMPLATE_ENVIRONMENT = Environment(
+        auto_reload=False,
+        extensions=["jinja2.ext.do"],
+        loader=PackageLoader("testing", "resources"),
+        trim_blocks=True,
+    )
+
     def __init__(
         self,
         client: Client,
@@ -74,10 +83,15 @@ class FrameProject:
         self._queries: list[QueryInfo] = []
         self._ai_hints: list[str] = []
 
+        self._bucket: str | None = None
+
     async def query(
         self,
         query: str,
         expectation: str | None = None,
+        *,
+        parameters: ConfigParametersDTO | None = None,
+        buttons: dict[str, str] | None = None,
     ) -> Answer:
         query = textwrap.dedent(query.strip())
         self._queries.append(query_info := QueryInfo(query=query))
@@ -87,10 +101,10 @@ class FrameProject:
         # region Send Assistant API Call
 
         system_message = self._create_system_message()
-        user_message = self._create_human_message(query)
+        user_message = self._create_human_message(query, buttons)
 
         response = await self._get_bot_response(
-            system_message, user_message, query_info
+            system_message, user_message, parameters, query_info
         )
 
         # endregion
@@ -105,13 +119,19 @@ class FrameProject:
 
         # region Update Project State Using "Changed Sheets"
 
-        next_project = await self._apply_changed_sheets(query_info.changed_sheets or {})
+        next_project = await self._apply_changed_sheets(query_info.changed_sheets)
         query_info.sheets = next_project.to_dsl()
 
         # endregion
         # region Compile Error Assertion
+        content = response.get("content")
+        summary_text = (
+            content.split("**Summarizing**")[-1].strip()
+            if content is not None and len(content)
+            else ""
+        )
 
-        output: list[Output] = [TextAction(text=response["content"])]
+        output: list[Output] = [TextAction(text=summary_text)]
         viewports: list[Viewport] = []
         for action in actions:
             viewports.extend(extract_viewports(next_project, action, 512))
@@ -125,17 +145,36 @@ class FrameProject:
         # region LLM Scoring
 
         if expectation is not None:
-            query_info.llm_score = await score_answer(
-                self._model, query, expectation, next_project, self._project_util
+            redundancy_metric, redundancy_json = self._get_metric(
+                query, expectation, summary_text
             )
+            if redundancy_metric is not None:
+                query_info.redundancy_score = AssistantScore(
+                    score=redundancy_metric,
+                    verdict=Verdict.PASSED,
+                    explanation=redundancy_json,
+                )
 
-            if query_info.llm_score.verdict != Verdict.PASSED:
-                raise ScoreError()
+            llm_score_metric, llm_score_json = self._get_metric(
+                query, summary_text, expectation
+            )
+            if llm_score_metric is not None:
+                query_info.llm_score = AssistantScore(
+                    score=llm_score_metric,
+                    verdict=Verdict.PASSED,
+                    explanation=llm_score_json,
+                )
 
         # endregion
 
         self._update_message_history(user_message, response)
-        return Answer(next_project, output, query_info.query_type or "")
+
+        return Answer(
+            next_project,
+            query_info.focus,
+            output,
+            query_info.query_type or "",
+        )
 
     def apply(self, answer: Answer):
         self._project = answer.get_project_state()
@@ -146,19 +185,27 @@ class FrameProject:
     def get_ai_hints(self) -> list[str]:
         return self._ai_hints
 
+    def get_input_folder(self) -> str:
+        return self._input_folder
+
+    def get_project(self) -> Project:
+        return self._project
+
     async def create_sheet(self, name: str, code: str):
         if get_sheet(self._project, name) is not None:
             raise ValueError(f"Sheet {name} already exists")
 
         self._project.add_sheet(await self._client.parse_sheet(name, code))
 
-    async def load_sheet(self, path: str, name: str):
-        if not os.path.exists(path):
-            raise FileNotFoundError(
-                f"Failed to locate sheet file {path} by test runner."
-            )
+    async def load_sheet(self, path: str, name: str, **values):
+        if self._bucket is None:
+            self._bucket = await self._dial_api_client.bucket()
 
-        code = open(path).read()
+        code = self._TEMPLATE_ENVIRONMENT.get_template(path).render(
+            bucket=self._bucket,
+            **values,
+        )
+
         await self.create_sheet(name, code)
 
     async def create_table(
@@ -187,15 +234,6 @@ class FrameProject:
             self._client, self._project, sheet.name, fix_sheet(sheet_code)
         )
 
-    async def load_table(self, path: str, sheet_name: Optional[str] = None):
-        if not os.path.exists(path):
-            raise FileNotFoundError(
-                f"Failed to locate table file {path} by test runner."
-            )
-
-        code = open(path).read()
-        await self.create_table(sheet_name, code=code)
-
     @staticmethod
     async def assert_project_errors(project: Project, query_info: QueryInfo):
         has_errors = False
@@ -216,7 +254,8 @@ class FrameProject:
                 has_errors = True
 
             for table in sheet.tables:
-                for field in table.fields:
+                table_fields = FieldGroupUtil.get_table_fields(table)
+                for field in table_fields:
                     if isinstance(field.field_type, str):
                         errors.append(f"       {field.field_type}")
                         report_errors.append(
@@ -252,8 +291,19 @@ class FrameProject:
         self._history.append(system_answer)
 
     @staticmethod
-    def _create_human_message(text: str) -> dict[str, str]:
-        return {"role": "user", "content": text}
+    def _create_human_message(
+        text: str, buttons: dict[str, str] | None
+    ) -> dict[str, str]:
+        message: dict[str, Any] = {
+            "role": "user",
+            "content": text,
+        }
+
+        if buttons is not None:
+            custom_content = message["custom_content"] = {}
+            custom_content["form_value"] = buttons
+
+        return message
 
     def _create_system_message(self) -> dict[str, str]:
         result = {"role": "system", "content": self._create_project_state()}
@@ -262,25 +312,28 @@ class FrameProject:
 
     def _create_project_state(self) -> str:
         sheets = {sheet.name: sheet.to_dsl() for sheet in self._project.sheets}
+        current_sheet = self._get_first_sheet_name(self._project) if sheets else None
 
         project_state = {
             "sheets": sheets,
             "inputFolder": self._input_folder,
             "currentProjectName": self._project.name,
             "selection": None,
-            "currentSheet": self._get_current_sheet_name() if sheets else None,
+            "currentSheet": current_sheet,
             "inputs": {},
         }
 
-        return json.dumps(project_state)
+        return json.dumps({"projectState": project_state})
 
-    def _get_current_sheet_name(self) -> str:
-        return next(iter(self._project.sheets)).name
+    @staticmethod
+    def _get_first_sheet_name(project: Project) -> str:
+        return next(iter(project.sheets)).name
 
     async def _get_bot_response(
         self,
         system_message: dict[str, str],
         user_question: dict[str, str],
+        parameters: ConfigParametersDTO | None,
         query_info: QueryInfo,
     ) -> typing.Dict[str, typing.Any]:
         start_time = timer()
@@ -290,6 +343,15 @@ class FrameProject:
                 messages=[system_message, *self._history, user_question],  # type: ignore
                 model=Env.DEPLOYMENT_NAME,
                 timeout=300,
+                extra_body={
+                    "custom_fields": {
+                        "configuration": (
+                            None
+                            if parameters is None
+                            else parameters.model_dump(by_alias=True)
+                        )
+                    }
+                },
             )
             response: dict[str, Any] = response_object.model_dump()
             response = response["choices"][0]["message"]
@@ -306,7 +368,7 @@ class FrameProject:
             query_info.time = timer() - start_time
             print(f"get_bot_response request took {query_info.time:.2f} seconds")
 
-    async def _apply_changed_sheets(self, changed_sheets: dict[str, str]) -> Project:
+    async def _apply_changed_sheets(self, changed_sheets: list[Attachment]) -> Project:
         next_project = await copy_project(self._client, self._project)
         if not len(changed_sheets):
             return next_project
@@ -315,35 +377,47 @@ class FrameProject:
         # where whole sheet code must be replaced
         replace_sheet_regex = r"DSL \((.*?)\)"
         replaced_sheets = {
-            match.group(1): fix_sheet(content.strip("`\n"))
-            for name, content in changed_sheets.items()
-            if (match := re.match(replace_sheet_regex, name)) is not None
+            match.group(1): fix_sheet(attachment.data.strip("`\n"))
+            for attachment in changed_sheets
+            if (match := re.match(replace_sheet_regex, attachment.title)) is not None
         }
+
+        for sheet_name in [_ for _ in next_project.sheet_names]:
+            next_project.remove_sheet(sheet_name)
 
         for sheet_name, sheet_code in replaced_sheets.items():
             await change_project_sheet(
                 self._client, next_project, sheet_name, sheet_code
             )
 
-        # If attachment name does not conform to regex,
-        # then just append code into active sheet
-        for name, content in changed_sheets.items():
-            if re.match(replace_sheet_regex, name) is not None:
-                continue
-
-            current_sheet = self._get_current_sheet_name()
-            current_code = get_sheet(next_project, current_sheet).to_dsl()
-
-            # TODO: Eliminate hardcoded expected formatting
-            added_code = content.strip("`\r\n")
-            await change_project_sheet(
-                self._client,
-                next_project,
-                current_sheet,
-                f"{current_code}\n{added_code}",
-            )
-
         return next_project
+
+    def _get_metric(
+        self, query: str, premise: str, hypothesis: str
+    ) -> tuple[float, str]:
+        for i in range(3):
+            try:
+                result_metric = calculate_inference(
+                    premise=premise,
+                    hypothesis=hypothesis,
+                    llm=self._model,
+                    question=query,
+                )
+                result_metric_json = json.loads(result_metric.json)
+                inference_avg = statistics.mean(
+                    [
+                        metric["inference"]
+                        for metric in result_metric_json
+                        if metric["explanation"]
+                    ]
+                )
+                return inference_avg, result_metric.json
+            except Exception as e:
+                LOGGER.error(
+                    f"Inference LLM-based score was not calculated on try #{i + 1}: {e}"
+                )
+        LOGGER.error("Failed to inference LLM-based score.")
+        return -1, ""
 
     async def create_data_file(self, name: str, content: str) -> str:
         file_path = f"{self._report_folder}/{name}"

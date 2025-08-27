@@ -1,11 +1,6 @@
 /* eslint-disable playwright/expect-expect */
 import { BrowserContext, expect, Page, test } from '@playwright/test';
 
-import { Canvas } from '../../components/Canvas';
-import {
-  expectCellTextNotToBe,
-  expectCellTextToBe,
-} from '../../helpers/canvasExpects';
 import { Field } from '../../logic-entities/Field';
 import { SpreadSheet } from '../../logic-entities/SpreadSheet';
 import { Table } from '../../logic-entities/Table';
@@ -59,7 +54,9 @@ test.afterAll(async ({ browser }) => {
 });
 
 test.describe('cell typing', () => {
-  test('create a table with custom name and with 1 field', async () => {
+  test(`Open project
+        type <name>=<number> line
+        table with name <name>, 1 default named column and single value <number> is created`, async () => {
     const projectPage = await ProjectPage.createInstance(page);
     await projectPage.clickOnGridCell(3, 3);
     await projectPage.getVisualization().setCellValue('x=5');
@@ -68,14 +65,18 @@ test.describe('cell typing', () => {
     await projectPage.getVisualization().expectCellTextChange(4, 3, '5');
   });
 
-  test('create a manual table with 1 field', async () => {
+  test(`Open project
+        type single digit <number> into empty cell
+        new manual table is created, headers hidden, cell value equals to <number>`, async () => {
     const projectPage = await ProjectPage.createInstance(page);
     await projectPage.clickOnGridCell(3, 5);
     await projectPage.getVisualization().setCellValue('5');
     await projectPage.getVisualization().expectCellTextChange(3, 5, '5');
   });
 
-  test('create table starting with =', async () => {
+  test(`open project with existing table
+        type =<Table[Column]> into empty cell
+        table is created with default names, column is not dim`, async () => {
     const projectPage = await ProjectPage.createInstance(page);
     await projectPage.clickOnGridCell(8, 8);
     const table = spreadsheet.getTable(0);
@@ -92,7 +93,9 @@ test.describe('cell typing', () => {
     await projectPage.getVisualization().expectCellToNotBeDim(10, 8);
   });
 
-  test('create table starting with :', async () => {
+  test(`open project
+        type :<Table[Column]> into empty cell
+        table is created with default names, column is not dim`, async () => {
     const projectPage = await ProjectPage.createInstance(page);
     await projectPage.clickOnGridCell(8, 6);
     const table = spreadsheet.getTable(0);
@@ -110,7 +113,9 @@ test.describe('cell typing', () => {
     await projectPage.getVisualization().expectCellToNotBeDim(10, 6);
   });
 
-  test('create table using range formula and starting with : creates dim', async () => {
+  test(`open project
+        type :RANGE() into empty cell
+        table is created with default names, column is dim`, async () => {
     const projectPage = await ProjectPage.createInstance(page);
     await projectPage.clickOnGridCell(8, 10);
     await projectPage
@@ -124,7 +129,9 @@ test.describe('cell typing', () => {
     await projectPage.getVisualization().expectTableToAppear(12, 10);
   });
 
-  test('create table using range formula and starting with = creates dim', async () => {
+  test(`open project
+        type =RANGE() into empty cell
+        table is created with default names, column is dim`, async () => {
     const projectPage = await ProjectPage.createInstance(page);
     await projectPage.clickOnGridCell(12, 5);
     await projectPage
@@ -138,7 +145,9 @@ test.describe('cell typing', () => {
     //await projectPage.getVisualization().expectTableToAppear(12, 12);
   });
 
-  test('add field to table', async () => {
+  test(`open project with table&click next to right column
+        type field=<value>
+        field added to table`, async () => {
     const projectPage = await ProjectPage.createInstance(page);
     const row = spreadsheet.getTable(0).getTop() + 1;
     const column =
@@ -156,7 +165,9 @@ test.describe('cell typing', () => {
       .expectCellTextChange(row + 1, column, '5');
   });
 
-  test('add override', async () => {
+  test(`open project with table&click table cell
+        type some symbols&save
+        override is added`, async () => {
     /*  const projectPage = await ProjectPage.createInstance(page);
     const table = spreadsheet.getTable(0);
     const row = table.getTop() + 2;
@@ -178,7 +189,9 @@ test.describe('cell typing', () => {
     table.addOverrideValue(table.getField(1).getName(), 1, overrideValue);*/
   });
 
-  test('rename table', async () => {
+  test(`open project with table&click table header
+        type some symbols&save
+        table name changed`, async () => {
     const projectPage = await ProjectPage.createInstance(page);
     const table = spreadsheet.getTable(0);
     await projectPage.clickOnGridCell(table.getTop(), table.getLeft());
@@ -190,7 +203,9 @@ test.describe('cell typing', () => {
     table.updateName(newTableName);
   });
 
-  test('add operation to existing formula', async () => {
+  test(`open project with table with formula&click table cell
+        add override
+        cell value changed`, async () => {
     /*  const projectPage = await ProjectPage.createInstance(page);
     const table = spreadsheet.getTable(0);
     const initialValue = await projectPage
@@ -234,7 +249,9 @@ test.describe('cell typing', () => {
       .expectCellTextChange(x, y, valueTocheck);
   }
 
-  test('create a complex table by typing', async () => {
+  test(`open project
+        create table 2x3 using arrows
+        table created and displayed`, async () => {
     const projectPage = await ProjectPage.createInstance(page);
     await projectPage.clickOnGridCell(8, 2);
     await move(page, projectPage, 'ArrowRight', 'income', 8, 2);
@@ -272,7 +289,9 @@ test.describe('cell typing', () => {
     await projectPage.getVisualization().expectCellTextChange(7, 3, 'value');
   });
 
-  test('brackets highlighting', async () => {});
+  test(`open project&click cell with formula
+        formula editor cursor at bracket
+        opposite bracket highlighted`, async () => {});
 
   [
     { arrow: 'ArrowUp' },

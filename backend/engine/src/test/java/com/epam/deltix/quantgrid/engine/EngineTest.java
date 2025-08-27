@@ -1,111 +1,129 @@
 package com.epam.deltix.quantgrid.engine;
 
+import com.epam.deltix.quantgrid.engine.cache.LocalCache;
 import com.epam.deltix.quantgrid.engine.graph.Graph;
 import com.epam.deltix.quantgrid.engine.node.plan.ControllablePlan;
 import com.epam.deltix.quantgrid.engine.node.plan.Executed;
+import com.epam.deltix.quantgrid.engine.node.plan.local.CartesianLocal;
 import com.epam.deltix.quantgrid.engine.node.plan.local.FilterLocal;
 import com.epam.deltix.quantgrid.engine.node.plan.local.JoinAllLocal;
-import com.epam.deltix.quantgrid.engine.node.plan.local.PivotLocal;
+import com.epam.deltix.quantgrid.engine.node.plan.local.LoadLocal;
+import com.epam.deltix.quantgrid.engine.node.plan.local.RangeLocal;
 import com.epam.deltix.quantgrid.engine.rule.ExecutionController;
 import com.epam.deltix.quantgrid.engine.rule.ProjectionVerifier;
 import com.epam.deltix.quantgrid.engine.test.PostOptimizationCallback;
 import com.epam.deltix.quantgrid.engine.test.ResultCollector;
 import com.epam.deltix.quantgrid.engine.test.TestExecutor;
+import com.epam.deltix.quantgrid.engine.value.Table;
 import com.epam.deltix.quantgrid.parser.FieldKey;
+import com.epam.deltix.quantgrid.parser.ParsedKey;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import lombok.SneakyThrows;
 import org.apache.commons.lang3.mutable.MutableInt;
+import org.jetbrains.annotations.Nullable;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
+import java.util.concurrent.locks.LockSupport;
+import java.util.function.Consumer;
+import java.util.stream.IntStream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class EngineTest {
 
     @Test
-    void testSingleThreadEngine() throws ExecutionException, InterruptedException, TimeoutException {
+    void testSingleThreadEngine() {
         Engine engine = TestExecutor.singleThreadEngine();
+        ResultCollector data = new ResultCollector();
 
         String dslV1 = """
                   table A
                     dim [a] = RANGE(5)
                         [b] = [a] + 10
-                        
+                
                   table B
                     dim [r] = A.FILTER(1).FILTER($[a]).FILTER($[b])
                 """;
 
-        CompletableFuture<Void> v1 = engine.compute(dslV1, null);
+        Computation v1 = engine.compute(data, dslV1, null);
+        v1.await(10, TimeUnit.SECONDS);
 
         String dslV2 = """
                   table A
                     dim [a] = RANGE(5)
                         [b] = [a] + 10
-                        
+                
                   table B
                     dim [r] = A.FILTER(1).FILTER($[a]).FILTER($[b])
                         [a] = [r][a]
                         [b] = [r][b]
                 """;
 
-        CompletableFuture<Void> v2 = engine.compute(dslV2, null);
+        Computation v2 = engine.compute(data, dslV2, null);
+        v2.await(10, TimeUnit.SECONDS);
 
-        v1.get(10, TimeUnit.SECONDS);
-        v2.get(10, TimeUnit.SECONDS);
-
-        ResultCollector data = (ResultCollector) engine.getListener();
         data.verify("A", "a", 1, 2, 3, 4, 5);
         data.verify("A", "b", 11, 12, 13, 14, 15);
 
         data.verify("B", "a", 1, 2, 3, 4, 5);
         data.verify("B", "b", 11, 12, 13, 14, 15);
         data.verify("B", "r", 1, 2, 3, 4, 5);
+
+        data.verifyTraces();
     }
 
     @Test
-    void testCarryOnTableWithZeroColumns() throws ExecutionException, InterruptedException, TimeoutException {
+    void testCarryOnTableWithZeroColumns() {
         Engine engine = TestExecutor.singleThreadEngine();
+        ResultCollector data = new ResultCollector();
 
         String dsl = """
                 table A
                   dim [a] = RANGE(10)
                 apply  # Triggers carry rule by adding a projection node
                 sort [a]
-
+                
                 table B
                   [avg] = AVERAGE(A[a])
                 apply  # Applies sort on a scalar table with 0 columns
                 sort [avg]
                 """;
 
-        CompletableFuture<Void> v1 = engine.compute(dsl, null);
+        Computation v1 = engine.compute(data, dsl, null);
 
-        v1.get(10, TimeUnit.SECONDS);
+        v1.await(10, TimeUnit.SECONDS);
 
-        CompletableFuture<Void> v2 = engine.compute(dsl, null);
+        Computation v2 = engine.compute(data, dsl, null);
 
-        v2.get(10, TimeUnit.SECONDS);
+        v2.await(10, TimeUnit.SECONDS);
 
-        ResultCollector data = (ResultCollector) engine.getListener();
         data.verify("B", "avg", 5.5);
+
+        data.verifyTraces();
     }
 
     @Test
-    void testMultiThreadEngine() throws ExecutionException, InterruptedException, TimeoutException {
+    void testMultiThreadEngine() {
         Engine engine = TestExecutor.multiThreadEngine();
+        ResultCollector data = new ResultCollector();
 
         String dslV1 = """
                   table A
                     dim [a] = RANGE(5)
                         [b] = [a] + 10
-                        
+                
                   table B
                     dim [r] = A.FILTER(1).FILTER($[a]).FILTER($[b])
                 """;
@@ -114,74 +132,39 @@ class EngineTest {
                   table A
                     dim [a] = RANGE(5)
                         [b] = [a] + 10
-                        
+                
                   table B
                     dim [r] = A.FILTER(1).FILTER($[a]).FILTER($[b])
                         [a] = [r][a]
                         [b] = [r][b]
                 """;
 
-        engine.compute(dslV1, null).get(10, TimeUnit.SECONDS);
-        engine.compute(dslV2, null).get(10, TimeUnit.SECONDS);
+        engine.compute(data, dslV1, null).await(10, TimeUnit.SECONDS);
+        engine.compute(data, dslV2, null).await(10, TimeUnit.SECONDS);
 
-        ResultCollector data = (ResultCollector) engine.getListener();
         data.verify("A", "a", 1, 2, 3, 4, 5);
         data.verify("A", "b", 11, 12, 13, 14, 15);
 
         data.verify("B", "a", 1, 2, 3, 4, 5);
         data.verify("B", "b", 11, 12, 13, 14, 15);
         data.verify("B", "r", 1, 2, 3, 4, 5);
+
+        data.verifyTraces();
     }
 
     @Test
-    void testSimplePivot() throws Exception {
-        VerifyNodeCount pivots = new VerifyNodeCount(PivotLocal.class);
-        Engine engine = TestExecutor.multiThreadEngine(pivots);
-
-        String dslV1 = """
-                  !manual()
-                  table A
-                    [a] = NA
-                    [b] = NA
-                    override
-                    [a], [b]
-                    1, "Spain"
-                    2, "UK"
-                    3, "USA"
-                    4, "Spain"
-                    5, "USA"
-                        
-                  table B
-                        [*] = A.PIVOT($[b], SUM($[a]))
-                        [spain] = [Spain]
-                        [uk] = [UK]
-                        [usa] = [USA]
-                """;
-
-        engine.compute(dslV1, null).get(10, TimeUnit.SECONDS);
-        assertEquals(1, pivots.count.intValue());
-
-        engine.compute(dslV1, null).get(10, TimeUnit.SECONDS);
-        assertEquals(1, pivots.count.intValue());
-
-        ResultCollector collector = (ResultCollector) engine.getListener();
-        collector.verify("B", "spain", 5);
-        collector.verify("B", "uk", 2);
-        collector.verify("B", "usa", 8);
-    }
-
-    @Test
-    void testJoinCount() throws Exception {
+    void testJoinCount() {
         ExecutionController controller = new ExecutionController(JoinAllLocal.class);
         ProjectionVerifier verifier = new ProjectionVerifier();
         PostOptimizationCallback callback = new PostOptimizationCallback(controller, verifier);
         Engine engine = TestExecutor.multiThreadEngine(callback);
+        ResultCollector data = new ResultCollector();
 
         String dslV1 = """
                   table A
                     dim [a] = RANGE(5)
                         [b] = [a] + 10
-                        
+                
                   table B
                     dim [c] = RANGE(6)
                         [d] = A.FILTER($[a] > 1 AND [c] > 2 AND $[b] = [c] AND $[a] <> [c]).COUNT()
@@ -191,77 +174,78 @@ class EngineTest {
                   table A
                     dim [a] = RANGE(5)
                         [b] = [a] + 10
-                        
+                
                   table B
                     dim [c] = RANGE(6)
                         [d] = A.FILTER($[a] > 1 AND [c] > 2 AND $[b] = [c] AND $[a] <> [c]).COUNT()
                         [e] = [d] + 5
                 """;
 
-        CompletableFuture<Void> v1 = engine.compute(dslV1, null);
+        Computation v1 = engine.compute(data, dslV1, null);
         controller.await();
 
-        CompletableFuture<Void> v2 = engine.compute(dslV2, null);
+        Computation v2 = engine.compute(data, dslV2, null);
         controller.release();
 
-        Assertions.assertTrue(v1.isCancelled());
-        Assertions.assertThrows(CancellationException.class, () -> v1.getNow(null));
-        v2.get(10, TimeUnit.SECONDS);
+        v1.await(10, TimeUnit.SECONDS);
+        v2.await(10, TimeUnit.SECONDS);
 
-        CompletableFuture<Void> v3 = engine.compute(dslV2, null);
-        v3.get(10, TimeUnit.SECONDS);
+        data.verifyTraces();
     }
 
     @Test
-    void testJoinDim() throws Exception {
+    void testJoinDim() {
         ExecutionController controller = new ExecutionController(JoinAllLocal.class);
         ProjectionVerifier verifier = new ProjectionVerifier();
         PostOptimizationCallback callback = new PostOptimizationCallback(controller, verifier);
         Engine engine = TestExecutor.multiThreadEngine(callback);
+        ResultCollector data = new ResultCollector();
 
         String dslV1 = """
                   table A
                     dim [a] = RANGE(5)
                         [b] = [a] + 10
-                        
+                
                   table B
                     dim [c] = RANGE(6)
-                     dim [d] = A.FILTER($[a] > 1 AND [c] > 2 AND $[b] = [c] AND $[a] <> [c]).FILTER($[b])
+                    dim [d] = A.FILTER($[a] > 1 AND [c] > 2 AND $[b] = [c] AND $[a] <> [c]).FILTER($[b])
                 """;
 
         String dslV2 = """
                   table A
                     dim [a] = RANGE(5)
                         [b] = [a] + 10
-                        
+                
                   table B
                     dim [c] = RANGE(6)
                     dim [d] = A.FILTER($[a] > 1 AND [c] > 2 AND $[b] = [c] AND $[a] <> [c]).FILTER($[b])
                         [e] = [d][b]
                 """;
 
-        CompletableFuture<Void> v1 = engine.compute(dslV1, null);
+        Computation v1 = engine.compute(data, dslV1, null);
         controller.await();
 
-        CompletableFuture<Void> v2 = engine.compute(dslV2, null);
+        Computation v2 = engine.compute(data, dslV2, null);
         controller.release();
 
-        Assertions.assertTrue(v1.isCancelled());
-        Assertions.assertThrows(CancellationException.class, () -> v1.getNow(null));
-        v2.get(10, TimeUnit.SECONDS);
+        v1.await(10, TimeUnit.SECONDS);
+        v2.await(10, TimeUnit.SECONDS);
+
+        data.verifyTraces();
     }
 
     @Test
-    void testReuseProjection() throws Exception {
+    void testReuseProjection() {
         ProjectionVerifier verifier = new ProjectionVerifier();
         PostOptimizationCallback callback = new PostOptimizationCallback(verifier);
         Engine engine = TestExecutor.multiThreadEngine(callback);
+        ResultCollector data = new ResultCollector();
 
         String dslV1 = """
                   table A
                     dim [a] = RANGE(5)
                         [b] = [a] + 10
-                        
+                
                   table B
                     dim [c] = A.FILTER($[a])
                 """;
@@ -270,22 +254,26 @@ class EngineTest {
                   table A
                     dim [a] = RANGE(5)
                         [b] = [a] + 10
-                        
+                
                   table B
                     dim [c] = A.FILTER($[a])
                         [d] = [c][b]
                 """;
 
-        engine.compute(dslV1, null).get(10, TimeUnit.SECONDS);
+        engine.compute(data, dslV1, null).await(10, TimeUnit.SECONDS);
         verifier.disable();
-        engine.compute(dslV2, null).get(10, TimeUnit.SECONDS);
-        engine.compute(dslV2, null).get(10, TimeUnit.SECONDS); // should be optimized later
+        engine.compute(data, dslV2, null).await(10, TimeUnit.SECONDS);
+        engine.compute(data, dslV2, null).await(10, TimeUnit.SECONDS); // should be optimized later
+
+        data.verifyTraces();
     }
 
     @Test
-    void testEmptyGraphExecution() throws Exception {
+    void testEmptyGraphExecution() {
         Engine engine = TestExecutor.multiThreadEngine();
-        engine.compute("", null).get(1, TimeUnit.SECONDS);
+        ResultCollector data = new ResultCollector();
+        engine.compute(data, "", null).await(1, TimeUnit.SECONDS);
+        data.verifyTraces();
     }
 
     @Test
@@ -294,104 +282,110 @@ class EngineTest {
                   table A
                     dim [a] = RANGE("text")
                         [b] = [a] + 10
-                        
+                
                   table B
                     dim [a] = RANGE(3)
                         [b] = [a] + 3
                 """;
 
         ResultCollector data = TestExecutor.executeWithErrors(dsl);
-        assertEquals("Invalid argument \"count\" for function RANGE: expected an integer number.", data.getError("A", "a"));
-        assertEquals("Invalid argument \"count\" for function RANGE: expected an integer number.", data.getError("A", "b"));
+        assertEquals("Invalid argument \"count\" for function RANGE: expected an integer number.",
+                data.getError("A", "a"));
+        assertEquals("Invalid argument \"count\" for function RANGE: expected an integer number.",
+                data.getError("A", "b"));
         data.verify("B", "a", 1, 2, 3);
         data.verify("B", "b", 4, 5, 6);
+
+        data.verifyTraces();
     }
 
     @Test
-    void testRunningNodeReuse() throws Exception {
+    void testRunningNodeReuse() {
         ExecutionController controller = new ExecutionController(FilterLocal.class);
         ProjectionVerifier verifier = new ProjectionVerifier();
         PostOptimizationCallback callback = new PostOptimizationCallback(controller, verifier);
         Engine engine = TestExecutor.multiThreadEngine(callback);
+        ResultCollector data = new ResultCollector();
 
         String dsl = """
                 table t1
                     dim [a] = RANGE(5)
                         [b] = [a] + 3
-                        
+                
                 table t2
                     dim [x] = t1.FILTER($[a] > 4)
                         [b] = [x][b]
                 """;
 
-        CompletableFuture<Void> v1 = engine.compute(dsl, null);
+        Computation v1 = engine.compute(data, dsl, null);
 
         Set<ControllablePlan> controllablePlans = controller.getControllablePlans();
         Assertions.assertEquals(1, controllablePlans.size());
         controller.await();
 
-        CompletableFuture<Void> v2 = engine.compute(dsl, null);
+        Computation v2 = engine.compute(data, dsl, null);
         controller.release();
 
-        Assertions.assertTrue(v1.isCancelled());
-        Assertions.assertThrows(CancellationException.class, () -> v1.getNow(null));
-        v2.get(10, TimeUnit.SECONDS);
+        v1.await(10, TimeUnit.SECONDS);
+        v2.await(10, TimeUnit.SECONDS);
 
-        ResultCollector data = (ResultCollector) engine.getListener();
         data.verify("t1", "a", 1, 2, 3, 4, 5);
         data.verify("t1", "b", 4, 5, 6, 7, 8);
 
         data.verify("t2", "x", 5);
         data.verify("t2", "b", 8);
+
+        data.verifyTraces();
     }
 
     @Test
-    void testExecutedNodeReuse() throws ExecutionException, InterruptedException, TimeoutException {
+    void testExecutedNodeReuse() {
         VerifyNodeCount nodesCountVerification = new VerifyNodeCount(Executed.class);
         Engine engine = TestExecutor.singleThreadEngine(nodesCountVerification);
+        ResultCollector data = new ResultCollector();
 
         String dsl = """
                 table t1
                     dim [a] = RANGE(3)
                     dim [b] = RANGE(2)
                         [c] = [a] + [b]
-                        
+                
                 table t2
                     dim [x] = RANGE(1)
                         [f] = t1.FILTER([x] < $[c]).COUNT()
                 """;
 
-        CompletableFuture<Void> v1 = engine.compute(dsl, null);
+        Computation v1 = engine.compute(data, dsl, null);
+        v1.await(10, TimeUnit.SECONDS);
         assertEquals(0, nodesCountVerification.count.intValue());
 
-        CompletableFuture<Void> v2 = engine.compute(dsl, null);
-
+        Computation v2 = engine.compute(data, dsl, null);
+        v2.await(10, TimeUnit.SECONDS);
         // verify that optimized graph contains 3 executed nodes: cartesian, nestedCount, range
         assertEquals(3, nodesCountVerification.count.intValue());
 
-        v1.get(10, TimeUnit.SECONDS);
-        v2.get(10, TimeUnit.SECONDS);
-
-        ResultCollector data = (ResultCollector) engine.getListener();
         data.verify("t1", "a", 1, 1, 2, 2, 3, 3);
         data.verify("t1", "b", 1, 2, 1, 2, 1, 2);
         data.verify("t1", "c", 2, 3, 3, 4, 4, 5);
 
         data.verify("t2", "x", 1);
         data.verify("t2", "f", 6);
+
+        data.verifyTraces();
     }
 
     @Test
-    void testCachedNodesReusedWithCorrectMapping() throws ExecutionException, InterruptedException, TimeoutException {
+    void testCachedNodesReusedWithCorrectMapping() {
         VerifyNodeCount executed = new VerifyNodeCount(Executed.class);
         Engine engine = TestExecutor.singleThreadEngine(executed);
+        ResultCollector data = new ResultCollector();
 
         String dsl1 = """
                   table A
                     dim [a] = RANGE(3)
                     dim [b] = RANGE(2)
                         [c] = [a] + 5
-                        
+                
                   table B
                     dim [r] = A.FILTER(1)
                         [a] = [r][a]
@@ -399,15 +393,14 @@ class EngineTest {
                         [c] = [r][c]
                 """;
 
-        CompletableFuture<Void> v1 = engine.compute(dsl1, null);
-        v1.get(5, TimeUnit.SECONDS);
+        Computation v1 = engine.compute(data, dsl1, null);
+        v1.await(5, TimeUnit.SECONDS);
 
         // filter and cartesian
         assertEquals(10, engine.getCache().size());
         // no Executed nodes in a graph
         assertEquals(0, executed.count.intValue());
 
-        ResultCollector data = (ResultCollector) engine.getListener();
         data.verify("A", "a", 1, 1, 2, 2, 3, 3);
         data.verify("A", "b", 1, 2, 1, 2, 1, 2);
         data.verify("A", "c", 6, 6, 7, 7, 8, 8);
@@ -422,15 +415,15 @@ class EngineTest {
                   table A
                     dim [a] = RANGE(3)
                     dim [b] = RANGE(2)
-                        
+                
                   table B
                     dim [r] = A.FILTER(1)
                         [a] = [r][a]
                         [b] = [r][b]
                 """;
 
-        CompletableFuture<Void> v2 = engine.compute(dsl2, null);
-        v2.get(5, TimeUnit.SECONDS);
+        Computation v2 = engine.compute(data, dsl2, null);
+        v2.await(5, TimeUnit.SECONDS);
 
         assertEquals(8, engine.getCache().size());
         assertEquals(2, executed.count.intValue());
@@ -442,15 +435,18 @@ class EngineTest {
         data.verify("B", "a", 1, 1, 2, 2, 3, 3);
         data.verify("B", "b", 1, 2, 1, 2, 1, 2);
 
-        CompletableFuture<Void> v3 = engine.compute(dsl1, null);
-        v3.get(5, TimeUnit.SECONDS);
+        Computation v3 = engine.compute(data, dsl1, null);
+        v3.await(5, TimeUnit.SECONDS);
         assertEquals(8, engine.getCache().size());
         assertEquals(5, executed.count.intValue());
+
+        data.verifyTraces();
     }
 
     @Test
-    void testCacheCleanUp() throws ExecutionException, InterruptedException, TimeoutException {
+    void testCacheCleanUp() {
         Engine engine = TestExecutor.singleThreadEngine();
+        ResultCollector data = new ResultCollector();
 
         String dsl = """
                   table A
@@ -458,7 +454,7 @@ class EngineTest {
                     dim [a] = RANGE(5)
                     # RangeLocal + scalar
                         [b] = [a] + 10
-                        
+                
                   table B
                     # Filter1
                     dim [r] = A.FILTER($[a] > 1)
@@ -470,13 +466,12 @@ class EngineTest {
                         [b] = [r][b]
                 """;
 
-        CompletableFuture<Void> v1 = engine.compute(dsl, null);
-        v1.get(5, TimeUnit.SECONDS);
+        Computation v1 = engine.compute(data, dsl, null);
+        v1.await(5, TimeUnit.SECONDS);
 
         // assert that cache contains exactly 4 plans
         assertEquals(5, engine.getCache().size());
 
-        ResultCollector data = (ResultCollector) engine.getListener();
         data.verify("A", "a", 1, 2, 3, 4, 5);
         data.verify("A", "b", 11, 12, 13, 14, 15);
 
@@ -485,40 +480,346 @@ class EngineTest {
         data.verify("B", "a", 2, 3, 4, 5);
         data.verify("B", "b", 12, 13, 14, 15);
 
-        CompletableFuture<Void> v2 = engine.compute("", null);
-        v2.get(5, TimeUnit.SECONDS);
+        String dsl2 = """
+                  table A
+                    dim [a] = RANGE(5)
+                """;
+
+        Computation v2 = engine.compute(data, dsl2, null);
+        v2.await(5, TimeUnit.SECONDS);
 
         // assert cache clean up
-        assertEquals(0, engine.getCache().size());
+        assertEquals(1, engine.getCache().size());
+        data.verifyTraces();
     }
 
     @Test
-    void testViewportCleanUp() throws Exception {
+    void testViewportCleanUp() {
         Engine engine = TestExecutor.singleThreadEngine();
+        ResultCollector data = new ResultCollector();
 
         String dsl = """
                   table A
                     dim [a] = RANGE(10)
                         [b] = [a] + 10
-                        
+                
                   table B
                     dim [c] = A.FILTER($[a] > 5)
                         [d] = [c][a]
                         [e] = [c][b]
                 """;
 
-        engine.compute(dsl, null, new FieldKey("B", "c"), new FieldKey("B", "d"),
-                new FieldKey("B", "e")).get(10, TimeUnit.SECONDS);
+        engine.compute(data, dsl, null, new FieldKey("B", "c"),
+                new FieldKey("B", "d"), new FieldKey("B", "e")).await(10, TimeUnit.SECONDS);
         assertEquals(4, engine.getCache().size());
 
-        engine.compute(dsl, null, new FieldKey("A", "a"),
-                new FieldKey("A", "b")).get(10, TimeUnit.SECONDS);
+        engine.compute(data, dsl, null,
+                new FieldKey("A", "a"), new FieldKey("A", "b")).await(10, TimeUnit.SECONDS);
         assertEquals(4, engine.getCache().size());
 
-        engine.compute(dsl, null, new FieldKey("A", "a"), new FieldKey("A", "b"),
-                new FieldKey("B", "c"), new FieldKey("B", "d"),
-                new FieldKey("B", "e")).get(10, TimeUnit.SECONDS);
+        engine.compute(data, dsl, null, new FieldKey("A", "a"),
+                new FieldKey("A", "b"), new FieldKey("B", "c"),
+                new FieldKey("B", "d"), new FieldKey("B", "e")).await(10, TimeUnit.SECONDS);
         assertEquals(4, engine.getCache().size());
+
+        data.verifyTraces();
+    }
+
+    @Test
+    void testFirstComputationCanceled() {
+        ExecutionController controller = new ExecutionController(CartesianLocal.class);
+        ProjectionVerifier verifier = new ProjectionVerifier();
+        PostOptimizationCallback callback = new PostOptimizationCallback(controller, verifier);
+        Engine engine = TestExecutor.multiThreadEngine(callback);
+
+        String dslV1 = """
+                  table A
+                    dim [a] = RANGE(3)
+                        [b] = A.FILTER([a] > A[a]).COUNT()
+                """;
+
+        String dslV2 = """
+                  table A
+                    dim [a] = RANGE(3)
+                """;
+
+        ResultCollector data1 = new ResultCollector();
+        Computation v1 = engine.compute(data1, dslV1, null);
+        controller.await();
+
+        ResultCollector data2 = new ResultCollector();
+        Computation v2 = engine.compute(data2, dslV2, null);
+
+        v1.cancel();
+        controller.release();
+
+        Assertions.assertThrows(CancellationException.class, () -> v1.await(10, TimeUnit.SECONDS));
+        v2.await(10, TimeUnit.SECONDS);
+
+        data2.verify("A", "a", "1", "2", "3");
+        data2.verifyTraces();
+    }
+
+    @Test
+    void testReuseAcrossSameComputations() {
+        ExecutionController controller = new ExecutionController(CartesianLocal.class);
+        ProjectionVerifier verifier = new ProjectionVerifier();
+        PostOptimizationCallback callback = new PostOptimizationCallback(controller, verifier);
+        Engine engine = TestExecutor.multiThreadEngine(callback);
+
+        String dsl = """
+                  table A
+                    dim [a] = RANGE(3)
+                        [b] = A.FILTER([a] > A[a]).COUNT()
+                """;
+
+        ResultCollector data1 = new ResultCollector();
+        Computation v1 = engine.compute(data1, dsl, null);
+        controller.await();
+
+        ResultCollector data2 = new ResultCollector();
+        Computation v2 = engine.compute(data2, dsl, null);
+
+        ResultCollector data3 = new ResultCollector();
+        Computation v3 = engine.compute(data3, dsl, null);
+
+        controller.release();
+        v1.await(10, TimeUnit.SECONDS);
+        v2.await(10, TimeUnit.SECONDS);
+        v3.await(10, TimeUnit.SECONDS);
+
+        data1.verify("A", "a", "1", "2", "3");
+        data1.verify("A", "b", "0", "1", "2");
+        data1.verifyTraces();
+
+        data2.verify("A", "a", "1", "2", "3");
+        data2.verify("A", "b", "0", "1", "2");
+        data2.verifyTraces();
+
+        data3.verify("A", "a", "1", "2", "3");
+        data3.verify("A", "b", "0", "1", "2");
+        data3.verifyTraces();
+    }
+
+    @Test
+    void testConcurrentComputationsWithSameDsl() throws Exception {
+        ProjectionVerifier verifier = new ProjectionVerifier();
+        PostOptimizationCallback callback = new PostOptimizationCallback(verifier);
+        Engine engine = TestExecutor.multiThreadEngine(callback);
+        LocalCache cache = (LocalCache) engine.getCache();
+
+        String dsl = """
+                  table A
+                     dim [a] = RANGE(100)
+                         [b] = A.FILTER([a] > A[a]).COUNT()
+                         [c] = A.FILTER([a] = A[a]).COUNT()
+                """;
+
+        ExecutorService executor = Executors.newFixedThreadPool(8);
+
+        List<Future<?>> futures = new ArrayList<>();
+        ResultCollector[] results = new ResultCollector[32];
+        Computation[] computations = new Computation[results.length];
+
+        String[] a = IntStream.rangeClosed(1, 100).mapToObj(Integer::toString).toArray(String[]::new);
+        String[] b = IntStream.rangeClosed(1, 100).map(i -> i - 1).mapToObj(Integer::toString).toArray(String[]::new);
+        String[] c = IntStream.rangeClosed(1, 100).map(i -> 1).mapToObj(Integer::toString).toArray(String[]::new);
+
+        for (int j = 0; j < results.length; j++) {
+            int i = j;
+            Future<?> future = executor.submit(() -> {
+                results[i] = new ResultCollector();
+                computations[i] = engine.compute(results[i], dsl, null);
+
+                ThreadLocalRandom random = ThreadLocalRandom.current();
+                switch (random.nextInt(0, 4)) {
+                    case 0:
+                        // nothing
+                        break;
+                    case 1:
+                        Thread.yield();
+                        break;
+                    case 2:
+                        LockSupport.parkNanos(random.nextInt(0, 4_000_000));
+                        break;
+                    case 3:
+                        cache.clear();
+                        break;
+                }
+            });
+            futures.add(future);
+        }
+
+        for (int i = 0; i < results.length; i++) {
+            futures.get(i).get(15, TimeUnit.SECONDS);
+            computations[i].await(15, TimeUnit.SECONDS);
+            results[i].verify("A", "a", a);
+            results[i].verify("A", "b", b);
+            results[i].verify("A", "c", c);
+            results[i].verifyTraces();
+        }
+    }
+
+    @Test
+    void testRecursiveCancellation()  {
+        ExecutionController controller = new ExecutionController(CartesianLocal.class);
+        ProjectionVerifier verifier = new ProjectionVerifier();
+        Engine engine = TestExecutor.multiThreadEngine(new PostOptimizationCallback(controller, verifier));
+
+        String dsl = """
+                table A
+                  dim [a] = RANGE(5)
+                      [b] = SUM(A[a] + [a])
+                """;
+
+        CompletableFuture<Computation> future = new CompletableFuture<>();
+        ResultListener callback = new ResultListener() {
+            @Override
+            @SneakyThrows
+            public void onUpdate(ParsedKey key, long start, long end, boolean content, boolean raw,
+                                 @Nullable Table value, @Nullable String error, @Nullable ResultType resultType) {
+                Computation computation = future.get(5, TimeUnit.SECONDS);
+                computation.cancel();
+                controller.release();
+            }
+        };
+        Computation computation = engine.compute(callback, dsl, null);
+        future.complete(computation);
+        Assertions.assertThrows(CancellationException.class, () -> computation.await(5, TimeUnit.SECONDS));
+    }
+
+    @Test
+    void testPartialCancellation()  {
+        ExecutionController controller = new ExecutionController(RangeLocal.class);
+        ProjectionVerifier verifier = new ProjectionVerifier();
+        PostOptimizationCallback callback = new PostOptimizationCallback(controller, verifier);
+        Engine engine = TestExecutor.multiThreadEngine(callback);
+
+        String dsl = """
+                table A
+                      [a] = 5
+                  dim [b] = RANGE([a])
+                      [c] = SUM(A[a])
+                      [d] = COUNT(A[a])
+                """;
+
+        ResultCollector data = new ResultCollector();
+
+        Computation computation = engine.compute(data, dsl, null);
+        controller.await();
+        computation.cancel(Set.of(new FieldKey("A", "b"), new FieldKey("A", "d")));
+        controller.release();
+        computation.await(5, TimeUnit.SECONDS);
+
+        data.verifyTraces();
+        data.verify("""
+                Table: A
+                +---+----+
+                | a |  c |
+                +---+----+
+                | 5 | 25 |
+                | 5 | 25 |
+                | 5 | 25 |
+                | 5 | 25 |
+                | 5 | 25 |
+                +---+----+
+                """);
+    }
+
+    @Test
+    void testResultsLoaded() {
+        VerifyNodeCount persisted = new VerifyNodeCount(LoadLocal.class);
+        Engine engine = TestExecutor.singleThreadEngine(persisted, plan -> true);
+        ResultCollector data = new ResultCollector();
+        String dsl = """
+                table A
+                  dim [a] = RANGE(10)
+                      [b] = [a] + 10
+                
+                table B
+                  dim [c] = A.FILTER($[a] > 5)
+                      [d] = [c][a]
+                      [e] = [c][b]
+                """;
+        Consumer<ResultCollector> resultVerifier = resultCollector -> {
+            resultCollector.verify("A", "a", 1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
+            resultCollector.verify("A", "b", 11, 12, 13, 14, 15, 16, 17, 18, 19, 20);
+
+            resultCollector.verify("B", "c", 6, 7, 8, 9, 10);
+            resultCollector.verify("B", "d", 6, 7, 8, 9, 10);
+            resultCollector.verify("B", "e", 16, 17, 18, 19, 20);
+        };
+
+        Computation v1 = engine.compute(data, dsl, null);
+        v1.await(5, TimeUnit.SECONDS);
+
+        assertEquals(0, persisted.count.intValue());
+
+        resultVerifier.accept(data);
+
+        ((LocalCache) engine.getCache()).clear();
+        Computation v2 = engine.compute(data, dsl, null);
+        v2.await(5, TimeUnit.SECONDS);
+
+        assertEquals(2, persisted.count.intValue());
+
+        resultVerifier.accept(data);
+        data.verifyTraces();
+    }
+
+    @Test
+    void testSharedMode() {
+        ExecutionController controller = new ExecutionController(RangeLocal.class);
+        ProjectionVerifier verifier = new ProjectionVerifier();
+        Engine engine = TestExecutor.multiThreadEngine(new PostOptimizationCallback(controller, verifier));
+
+        ResultCollector data1 = new ResultCollector();
+        ResultCollector data2 = new ResultCollector();
+
+        String dsl = """
+                table A
+                  dim [a] = RANGE(5)
+                      [b] = SUM(A[a] + [a])
+                      [c] = 1
+                """;
+
+
+        Computation computation1 = engine.compute(data1, dsl, null, true);
+        controller.await();
+
+        Computation computation2 = engine.compute(data2, dsl, null, true, new FieldKey("A", "c"));
+        controller.release();
+
+        computation1.await(5, TimeUnit.SECONDS);
+        computation2.await(5, TimeUnit.SECONDS);
+
+        data1.verifyTraces();
+        data1.verify("""
+                Table: A
+                +---+----+---+
+                | a |  b | c |
+                +---+----+---+
+                | 1 | 20 | 1 |
+                | 2 | 25 | 1 |
+                | 3 | 30 | 1 |
+                | 4 | 35 | 1 |
+                | 5 | 40 | 1 |
+                +---+----+---+
+                """);
+
+        data2.verifyTraces();
+        data2.verify("""
+                Table: A
+                +---+----+---+
+                | a |  b | c |
+                +---+----+---+
+                | 1 | 20 | 1 |
+                | 2 | 25 | 1 |
+                | 3 | 30 | 1 |
+                | 4 | 35 | 1 |
+                | 5 | 40 | 1 |
+                +---+----+---+
+                """);
     }
 
     @RequiredArgsConstructor

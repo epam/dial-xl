@@ -42,8 +42,14 @@ type AppContextActions = {
 
   viewportInteractionMode: ViewportInteractionMode;
   setViewportInteractionMode: (mode: ViewportInteractionMode) => void;
+
+  changePivotTableWizardMode: (
+    mode: PivotTableWizardMode,
+    tableName?: string
+  ) => void;
 };
 
+type PivotTableWizardMode = 'create' | 'edit' | null;
 type ChatPlacement = 'panel' | 'floating';
 type AppContextValues = {
   isChatOpen: boolean;
@@ -65,6 +71,9 @@ type AppContextValues = {
     | 'CellEditor'
     | undefined;
   showHiddenFiles: boolean;
+
+  pivotTableWizardMode: PivotTableWizardMode;
+  pivotTableName: string | null;
 };
 
 export const AppContext = createContext<AppContextActions & AppContextValues>(
@@ -102,6 +111,9 @@ export function AppContextProvider({ children }: Props) {
   >();
   const [viewportInteractionMode, setViewportInteractionMode] =
     useState<ViewportInteractionMode>('select');
+  const [pivotTableWizardMode, setCreatePivotTableActive] =
+    useState<PivotTableWizardMode>(null);
+  const [pivotTableName, setPivotTableName] = useState<string | null>(null);
 
   const setFormulasMenu = useCallback(
     (
@@ -174,6 +186,14 @@ export function AppContextProvider({ children }: Props) {
     setShowHiddenFiles(showHiddenFiles);
     localStorage.setItem('show-hidden-files', String(showHiddenFiles));
   }, []);
+
+  const changePivotTableWizardMode = useCallback(
+    (enable: PivotTableWizardMode, tableName?: string) => {
+      setCreatePivotTableActive(enable);
+      setPivotTableName(tableName || null);
+    },
+    []
+  );
 
   useEffect(() => {
     if (isPointClickMode && editMode) {
@@ -258,6 +278,10 @@ export function AppContextProvider({ children }: Props) {
 
         viewportInteractionMode,
         setViewportInteractionMode,
+
+        changePivotTableWizardMode,
+        pivotTableWizardMode,
+        pivotTableName,
       }}
     >
       {children}

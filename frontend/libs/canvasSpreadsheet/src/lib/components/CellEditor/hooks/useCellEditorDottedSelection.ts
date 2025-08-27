@@ -3,7 +3,10 @@ import { MutableRefObject, RefObject, useCallback } from 'react';
 import { GridCell } from '@frontend/common';
 
 import { GridApi } from '../../../types';
-import { showFieldDottedSelection } from '../../../utils';
+import {
+  showFieldDottedSelection,
+  showFieldGroupDottedSelection,
+} from '../../../utils';
 import { GridCellEditorMode } from '../types';
 import { isCellEditorValueFormula } from '../utils';
 
@@ -32,9 +35,11 @@ export function useCellEditorDottedSelection({
         codeValue,
         isEmptyCellEditMode
       );
+
       const isEditingFieldOrCellExpression =
         editMode === 'edit_field_expression' ||
-        editMode === 'edit_cell_expression';
+        editMode === 'edit_cell_expression' ||
+        editMode === 'edit_complex_field';
 
       const shouldShowDottedSelectionForAdjacentCell = (
         adjacentCell: GridCell | undefined,
@@ -80,9 +85,18 @@ export function useCellEditorDottedSelection({
         return;
       }
 
+      // Correct edit mode for existing table cell
       if (isEditingFieldOrCellExpression && cell?.table) {
-        showFieldDottedSelection(cell, cell.table, cell.endCol, api);
+        showFieldGroupDottedSelection(cell, cell.table, api);
         isDottedSelection.current = true;
+
+        return;
+      }
+
+      // Hide selection for existing table cell and incorrect edit mode
+      if (!isEmptyCellEditMode && editMode) {
+        api.hideDottedSelection();
+        isDottedSelection.current = false;
 
         return;
       }

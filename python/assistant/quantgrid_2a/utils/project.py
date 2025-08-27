@@ -5,6 +5,8 @@ from dial_xl.project import Project
 from dial_xl.sheet import Sheet
 from dial_xl.table import Table
 
+from quantgrid.utils.project import FieldGroupUtil
+
 
 async def copy_project(client: Client, project: Project) -> Project:
     new_project = client.create_project(project.name)
@@ -38,20 +40,27 @@ def find_table(project: Project, table_name: str) -> Table | None:
 
 def _table_difference(prev_table: Table, diff_table: Table):
     names_to_remove: typing.List[str] = []
-    for diff_field in diff_table.fields:
-        if diff_field.name not in prev_table.field_names:
+    prev_table_field_names = [
+        field.name for field in FieldGroupUtil.get_table_fields(prev_table)
+    ]
+    for diff_field_with_formula in FieldGroupUtil.get_fields_with_formulas(diff_table):
+        if diff_field_with_formula.field.name not in prev_table_field_names:
             continue
 
-        prev_field = prev_table.get_field(diff_field.name)
+        prev_field_w_formula = FieldGroupUtil.get_field_with_formula_by_name(
+            prev_table, diff_field_with_formula.field.name
+        )
         if (
-            prev_field.key == diff_field.key
-            and prev_field.dim == diff_field.dim
-            and prev_field.formula == diff_field.formula
+            prev_field_w_formula
+            and prev_field_w_formula.field.key == diff_field_with_formula.field.key
+            and prev_field_w_formula.field.dim == diff_field_with_formula.field.dim
+            and prev_field_w_formula.formula == diff_field_with_formula.formula
         ):
-            names_to_remove.append(diff_field.name)
+            names_to_remove.append(diff_field_with_formula.field.name)
 
     for name in names_to_remove:
-        diff_table.remove_field(name)
+        for field_group in diff_table.field_groups:
+            field_group.remove_field(name)
 
 
 def _sheet_difference(prev_sheet: Sheet, diff_sheet: Sheet):
@@ -61,7 +70,7 @@ def _sheet_difference(prev_sheet: Sheet, diff_sheet: Sheet):
             continue
 
         _table_difference(prev_sheet.get_table(diff_table.name), diff_table)
-        if len([*diff_table.field_names]) == 0:
+        if len([*diff_table.field_groups]) == 0:
             names_to_remove.append(diff_table.name)
 
     for name in names_to_remove:

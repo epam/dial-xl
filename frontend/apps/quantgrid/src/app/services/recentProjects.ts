@@ -55,6 +55,17 @@ export const deleteRecentProjectFromRecentProjects = (
     delete recentProjects[fullItemPrePath + projectName];
   }
 
+  for (const key in recentProjects) {
+    const item = recentProjects[key];
+    if (
+      item?.projectName === projectName &&
+      item?.projectBucket === projectBucket &&
+      (item?.projectPath ?? null) === (projectPath ?? null)
+    ) {
+      delete recentProjects[key];
+    }
+  }
+
   saveRecentProjects(recentProjects);
 };
 

@@ -1,35 +1,39 @@
 import { useCallback, useContext } from 'react';
 
-import { GPTSuggestion } from '@frontend/common';
+import {
+  DslSheetChange,
+  GPTFocusColumn,
+  GPTSuggestion,
+  useIsMobile,
+  WorksheetState,
+} from '@frontend/common';
 import {
   createEditableSheet,
   Decorator,
+  escapeFieldName,
+  escapeTableName,
   fieldColSizeDecoratorName,
-  newLine,
   SheetReader,
   unescapeTableName,
 } from '@frontend/parser';
 
 import {
   AppSpreadsheetInteractionContext,
+  CommonContext,
   ProjectContext,
   UndoRedoContext,
   ViewportContext,
 } from '../../context';
 import { useGridApi } from '../../hooks';
 import { autoSizeTableHeader } from '../../hooks/EditDsl/utils';
-import {
-  autoRenameTables,
-  autoTablePlacement,
-  findLastChangedTable,
-} from '../../services';
-import { DslSheetChange } from '../../types/dslSheetChange';
+import { autoTablePlacement, findLastChangedTable } from '../../services';
 import { getExpandedTextSize } from '../../utils';
 
 const maxMessageLength = 5000;
 
 export function useApplySuggestions() {
   const grid = useGridApi();
+  const { viewGridData } = useContext(ViewportContext);
   const {
     projectName,
     sheetName,
@@ -37,10 +41,12 @@ export function useApplySuggestions() {
     projectSheets,
     sheetContent,
     parsedSheets,
+    responseIds,
   } = useContext(ProjectContext);
-  const { viewGridData } = useContext(ViewportContext);
   const { appendTo } = useContext(UndoRedoContext);
-  const { openTable } = useContext(AppSpreadsheetInteractionContext);
+  const { sharedRef } = useContext(CommonContext);
+  const { openTable, openField } = useContext(AppSpreadsheetInteractionContext);
+  const isMobile = useIsMobile();
 
   const getDslWithExpandedSizes = useCallback(
     (sheetChange: string, existingTableNames: string[]) => {
@@ -59,24 +65,28 @@ export function useApplySuggestions() {
             unescapeTableName(parsedTable.tableName) === table.name
         );
         const col = parsedTable?.getLayoutDecorator()?.params[0][1];
+        let offset = 0;
 
-        table.fields.reduce((acc, field) => {
-          const fieldSizeDecorator = parsedTable?.fields
-            .find((parsedField) => field.name === parsedField.key.fieldName)
-            ?.decorators?.find(
-              (decorator) =>
-                decorator.decoratorName === fieldColSizeDecoratorName
-            );
+        parsedTable?.fields.forEach((parsedField) => {
+          const fieldName = parsedField.key.fieldName;
+          const field = table.getField(fieldName);
+
+          if (!field) return;
+
+          const fieldSizeDecorator = parsedField.decorators?.find(
+            (decor) => decor.decoratorName === fieldColSizeDecoratorName
+          );
+
           if (fieldSizeDecorator) {
-            const fieldSize = fieldSizeDecorator.params[0][0];
-            acc += fieldSize ?? 1;
+            const fieldSize = fieldSizeDecorator.params?.[0]?.[0] ?? 1;
+            offset += fieldSize;
 
-            return acc;
+            return;
           }
 
           const fieldSize = getExpandedTextSize({
             text: field.name,
-            col: col + acc,
+            col: col + offset,
             grid,
             projectName,
             sheetName,
@@ -87,10 +97,9 @@ export function useApplySuggestions() {
               new Decorator(fieldColSizeDecoratorName, `(${fieldSize})`)
             );
           }
-          acc += fieldSize ?? 1;
 
-          return acc;
-        }, 0);
+          offset += fieldSize ?? 1;
+        });
 
         autoSizeTableHeader(table, col, grid, projectName, sheetName);
       });
@@ -104,71 +113,23 @@ export function useApplySuggestions() {
     (
       GPTSuggestions: GPTSuggestion[] | null,
       sheetName: string,
-      sheetContent: string
+      currentSheets: WorksheetState[],
+      ignoreViewportWhenPlacing: boolean
     ): DslSheetChange[] => {
       if (!GPTSuggestions) return [];
 
-      const currentSheetSuggestions = GPTSuggestions.filter(
-        (suggestion) => suggestion.sheetName === sheetName
-      );
-      const otherSheetsSuggestions = GPTSuggestions.filter(
-        (suggestion) =>
-          !!suggestion.sheetName && suggestion.sheetName !== sheetName
-      );
-      const withoutSheetSuggestions = GPTSuggestions.filter(
-        (suggestion) => !suggestion.sheetName
-      );
+      const tableStructures = viewGridData.getGridTableStructure();
 
       const existingTableNames = Object.values(parsedSheets)
         .map((sheet) => sheet.tables.map((table) => table.tableName))
         .flat();
 
-      const tableStructures = viewGridData.getGridTableStructure();
-
-      const currentSheetDSLChanges: DslSheetChange | undefined =
-        currentSheetSuggestions.map(
-          ({ sheetName: suggestionSheetName, dsl }) => ({
-            sheetName: suggestionSheetName!,
-            content: autoTablePlacement(
-              dsl,
-              tableStructures,
-              grid,
-              projectName,
-              sheetName
-            ),
-          })
-        )[0];
-
-      // We need to append dsl to current sheet if suggestionSheetName not presented
-      const appendDslChanges = withoutSheetSuggestions.length
-        ? withoutSheetSuggestions.reduce(
-            (acc, curr) => ({
-              sheetName: sheetName,
-              content: autoRenameTables(
-                autoTablePlacement(
-                  `${acc.content}${newLine}${newLine}${curr.dsl}`,
-                  tableStructures,
-                  grid,
-                  projectName,
-                  sheetName
-                ),
-                sheetName,
-                projectSheets ?? []
-              ),
-            }),
-            {
-              sheetName,
-              content: currentSheetDSLChanges?.content ?? sheetContent ?? '',
-            }
-          )
-        : undefined;
-
-      const existingSheetsChanges = otherSheetsSuggestions.map(
+      const existingSheetsChanges = GPTSuggestions.map(
         ({ sheetName: suggestionSheetName, dsl }) => ({
-          sheetName: suggestionSheetName!,
+          sheetName: suggestionSheetName,
           content: autoTablePlacement(
             dsl,
-            tableStructures,
+            ignoreViewportWhenPlacing ? [] : tableStructures,
             grid,
             projectName,
             sheetName
@@ -176,11 +137,23 @@ export function useApplySuggestions() {
         })
       );
 
-      const dslChanges = [
-        ...existingSheetsChanges,
-        appendDslChanges ?? currentSheetDSLChanges ?? undefined,
-      ]
-        .filter((change) => change)
+      const newSheetNames = existingSheetsChanges.map(
+        (sheet) => sheet.sheetName
+      );
+      const oldSheetNames = currentSheets.map((sheet) => sheet.sheetName);
+      const resultedChanges = Array.from(
+        new Set([...newSheetNames, ...oldSheetNames])
+      )
+        .map((sheetName) => {
+          const sheetChange = existingSheetsChanges.find(
+            (sheet) => sheet.sheetName === sheetName
+          )?.content;
+
+          return {
+            sheetName,
+            content: sheetChange,
+          };
+        })
         .map((change) => {
           return {
             sheetName: change.sheetName,
@@ -190,29 +163,37 @@ export function useApplySuggestions() {
           };
         });
 
-      return dslChanges;
+      return resultedChanges;
     },
-    [
-      parsedSheets,
-      viewGridData,
-      grid,
-      projectName,
-      projectSheets,
-      getDslWithExpandedSizes,
-    ]
+    [viewGridData, parsedSheets, grid, projectName, getDslWithExpandedSizes]
+  );
+
+  const onFocusColumns = useCallback(
+    (focusColumns: GPTFocusColumn[]) => {
+      const focusedColumn = focusColumns[focusColumns.length - 1];
+
+      if (!focusedColumn) return;
+
+      openField(
+        focusedColumn.sheetName,
+        escapeTableName(focusedColumn.tableName),
+        escapeFieldName(focusedColumn.columnName)
+      );
+
+      if (isMobile) {
+        sharedRef.current.layoutContext?.closeAllPanels?.();
+      }
+    },
+    [isMobile, openField, sharedRef]
   );
 
   const openLastChangedTable = useCallback(
-    (GPTSuggestions: GPTSuggestion[]) => {
+    (GPTSuggestions: GPTSuggestion[], dslChanges: DslSheetChange[]) => {
       const lastSuggestion = GPTSuggestions[GPTSuggestions.length - 1];
-      let lastSuggestionSheet;
-
-      if (lastSuggestion.sheetName) {
-        lastSuggestionSheet = projectSheets?.find(
-          (s) => s.sheetName === lastSuggestion.sheetName
-        );
-      }
-      if (!lastSuggestion.sheetName) return;
+      const lastSuggestionSheet = dslChanges?.find(
+        (s) => s.sheetName === (lastSuggestion.sheetName ?? sheetName)
+      );
+      if (!lastSuggestionSheet?.sheetName) return;
 
       const lastChangedTable = findLastChangedTable(
         lastSuggestionSheet?.content || '',
@@ -221,47 +202,91 @@ export function useApplySuggestions() {
 
       if (!lastChangedTable) return;
 
-      openTable(lastSuggestion.sheetName, lastChangedTable.tableName);
+      openTable(lastSuggestionSheet.sheetName, lastChangedTable.tableName);
+      if (isMobile) {
+        sharedRef.current.layoutContext?.closeAllPanels?.();
+      }
     },
-    [openTable, projectSheets]
+    [isMobile, openTable, sharedRef, sheetName]
   );
 
   const applySuggestion = useCallback(
-    async (GPTSuggestions: GPTSuggestion[] | null) => {
+    async (
+      GPTSuggestions: GPTSuggestion[] | null,
+      focusColumns: GPTFocusColumn[] | null,
+      {
+        withPut = true,
+        withHistoryItem = true,
+        responseId,
+        ignoreViewportWhenPlacing = false,
+      }: {
+        withPut?: boolean;
+        withHistoryItem?: boolean;
+        responseId?: string;
+        ignoreViewportWhenPlacing?: boolean;
+      } = {
+        withPut: true,
+        withHistoryItem: true,
+        ignoreViewportWhenPlacing: false,
+      }
+    ) => {
       if (
         !sheetName ||
         !GPTSuggestions ||
         !GPTSuggestions.length ||
-        sheetContent === null
+        sheetContent === null ||
+        !projectSheets
       )
         return;
 
-      const dslChanges = getDSLChanges(GPTSuggestions, sheetName, sheetContent);
+      const dslChanges = getDSLChanges(
+        GPTSuggestions,
+        sheetName,
+        projectSheets,
+        ignoreViewportWhenPlacing
+      );
 
       const sheetsNamesToChange = dslChanges.map((change) => change.sheetName);
       const userMessage = GPTSuggestions[0].userMessage;
 
-      const historyTitle = userMessage
-        ? `AI action: ${userMessage.slice(0, maxMessageLength)}`
-        : `AI action: change worksheets "${sheetsNamesToChange.join(', ')}"`;
+      if (withHistoryItem) {
+        const actionPrefix = 'AI action:';
+        const historyTitle = userMessage
+          ? `${actionPrefix} ${userMessage.slice(0, maxMessageLength)}`
+          : `${actionPrefix} change worksheets "${sheetsNamesToChange.join(
+              ', '
+            )}"`;
+        appendTo(historyTitle, dslChanges);
+      }
+      const updatedResponseIds = responseId
+        ? [...responseIds, { responseId }]
+        : undefined;
+      await updateSheetContent(dslChanges, {
+        sendPutWorksheet: withPut,
+        responseIds: updatedResponseIds,
+      });
 
-      await updateSheetContent(dslChanges);
-
-      appendTo(historyTitle, dslChanges);
-
-      openLastChangedTable(GPTSuggestions);
+      if (focusColumns?.length) {
+        onFocusColumns(focusColumns);
+      } else {
+        openLastChangedTable(GPTSuggestions, dslChanges);
+      }
     },
     [
       sheetName,
       sheetContent,
+      projectSheets,
       getDSLChanges,
+      responseIds,
       updateSheetContent,
       appendTo,
+      onFocusColumns,
       openLastChangedTable,
     ]
   );
 
   return {
     applySuggestion,
+    onFocusColumns,
   };
 }

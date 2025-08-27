@@ -10,7 +10,6 @@ import {
   isComplexType,
   isFeatureFlagEnabled,
   isNumericType,
-  isOtherCellsInFieldDataHasOverrides,
   isTextType,
   Shortcut,
   shortcutApi,
@@ -69,11 +68,13 @@ export const getTableFieldMenuItems = (
     totalFieldTypes,
     isIndex,
     isDescription,
+    hasOverrides: fieldHasOverrides,
   } = field;
 
   const isNumeric = isNumericType(type);
   const isText = isTextType(type);
-  const isComplex = isComplexType(field) || isNested || isDynamic;
+  const isComplex = isComplexType(field) || isNested;
+  const isComplexOrDynamic = isComplex || isDynamic;
   const filterType = isNumeric ? 'numeric' : isText ? 'text' : null;
   const showCollapseNestedField = !isManual && isDim;
   const showExpandNestedField =
@@ -82,8 +83,7 @@ export const getTableFieldMenuItems = (
   const isShowAIPrompt = isFeatureFlagEnabled('askAI');
 
   const isFieldHasOverrides = cell
-    ? cell.isOverride ||
-      isOtherCellsInFieldDataHasOverrides(cell, gridApi?.getCell)
+    ? cell.isOverride || fieldHasOverrides
     : false;
 
   return [
@@ -105,12 +105,12 @@ export const getTableFieldMenuItems = (
       ),
     }),
     getDropdownDivider(),
-    !isComplex ? sortItem(col, row, isNumeric) : null,
-    filterType && !isComplex
+    !isComplexOrDynamic ? sortItem(col, row, isNumeric) : null,
+    filterType && !isComplexOrDynamic
       ? filterItem(col, row, cell, gridCallbacks, filterList)
       : null,
     totalItem(col, row, totalFieldTypes, isComplex),
-    !isComplex ? getDropdownDivider() : null,
+    !isComplexOrDynamic ? getDropdownDivider() : null,
     getDropdownItem({
       label: 'Edit formula',
       key: getDropdownMenuKey<ContextMenuKeyData>(menuKey.editFormula, {

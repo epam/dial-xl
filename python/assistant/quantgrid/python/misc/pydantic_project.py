@@ -14,6 +14,7 @@ from quantgrid.python.misc.resolve_type import resolve_pivot_type, resolve_type
 from quantgrid.python.runtime.tables import Dimension, Field
 from quantgrid.python.runtime.types import Array, Pivot
 from quantgrid.python.xl import XLFormulaConverter
+from quantgrid.utils.project import FieldGroupUtil
 
 
 class PydanticProject(NamedTuple):
@@ -59,12 +60,12 @@ def build_pydantic_project(
         for table in sheet.tables:
             fields: list[XLFieldInfo] = []
 
-            for field in table.fields:
-                if field.name == "*":
+            for field_with_formula in FieldGroupUtil.get_fields_with_formulas(table):
+                if field_with_formula.field.name == "*":
                     fields.append(
                         _build_pivot_field(
                             table,
-                            field,
+                            field_with_formula.field,
                             table_name_mapping,
                             field_name_mapping,
                             parse_formulas=parse_formulas,
@@ -73,37 +74,47 @@ def build_pydantic_project(
                     )
                     continue
 
-                annotation: str = Dimension.__name__ if field.dim else Field.__name__
-                field_type = resolve_type(field.field_type, table_name_mapping)
+                annotation: str = (
+                    Dimension.__name__
+                    if field_with_formula.field.dim
+                    else Field.__name__
+                )
+                field_type = resolve_type(
+                    field_with_formula.field.field_type, table_name_mapping
+                )
                 field_function: str | None = None
 
                 try:
-                    if parse_formulas and field.formula is not None:
+                    if parse_formulas and field_with_formula.formula is not None:
                         field_function = XLFormulaConverter.convert_field(
                             table_name_mapping=table_name_mapping,
                             field_name_mapping=field_name_mapping,
                             table_ui_name=table.name,
                             table_var_name=table_name_mapping[table.name],
-                            field_var_name=field_name_mapping[table.name][field.name],
+                            field_var_name=field_name_mapping[table.name][
+                                field_with_formula.field.name
+                            ],
                             return_annotation=(
                                 field_type
-                                if not field.dim
+                                if not field_with_formula.field.dim
                                 else f"{Array.__name__}[{field_type}]"
                             ),
-                            xl_formula=field.formula,
+                            xl_formula=field_with_formula.formula,
                         )
                 except Exception as exception:
-                    conversion_errors.setdefault(table.name, {})[field.name] = str(
-                        exception
-                    )
+                    conversion_errors.setdefault(table.name, {})[
+                        field_with_formula.field.name
+                    ] = str(exception)
 
                 fields.append(
                     XLFieldInfo(
                         annotation=annotation,
                         field_type=field_type,
-                        var_name=field_name_mapping[table.name][field.name],
-                        ui_name=field.name,
-                        note=field.doc_string,
+                        var_name=field_name_mapping[table.name][
+                            field_with_formula.field.name
+                        ],
+                        ui_name=field_with_formula.field.name,
+                        note=field_with_formula.field.doc_string,
                         function=field_function,
                     )
                 )
@@ -135,9 +146,10 @@ def _build_pivot_field(
     pivot_type = resolve_pivot_type(table, table_name_mapping)
     field_type = f"{Pivot.__name__}[{pivot_type}]"
     field_function: str | None = None
+    field_w_formula = FieldGroupUtil.get_field_with_formula_by_name(table, field.name)
 
     try:
-        if parse_formulas and field.formula is not None:
+        if parse_formulas and field_w_formula.formula is not None:
             field_function = XLFormulaConverter.convert_field(
                 table_name_mapping=table_name_mapping,
                 field_name_mapping=field_name_mapping,
@@ -145,7 +157,7 @@ def _build_pivot_field(
                 table_var_name=table_name_mapping[table.name],
                 field_var_name=field_name_mapping[table.name][field.name],
                 return_annotation=field_type,
-                xl_formula=field.formula,
+                xl_formula=field_w_formula.formula,
             )
     except Exception as exception:
         conversion_errors.setdefault(table.name, {})[field.name] = str(exception)

@@ -1,12 +1,8 @@
 package com.epam.deltix.quantgrid.engine.executor;
 
-import com.epam.deltix.quantgrid.engine.ResultListener;
 import com.epam.deltix.quantgrid.engine.Util;
-import com.epam.deltix.quantgrid.engine.cache.Cache;
 import com.epam.deltix.quantgrid.engine.graph.Graph;
 import com.epam.deltix.quantgrid.engine.graph.GraphPrinter;
-import com.epam.deltix.quantgrid.engine.meta.Meta;
-import com.epam.deltix.quantgrid.engine.node.Identity;
 import com.epam.deltix.quantgrid.engine.node.Node;
 import com.epam.deltix.quantgrid.engine.node.NotSemantic;
 import com.epam.deltix.quantgrid.engine.node.expression.Expression;
@@ -14,79 +10,109 @@ import com.epam.deltix.quantgrid.engine.node.plan.Executed;
 import com.epam.deltix.quantgrid.engine.node.plan.Failed;
 import com.epam.deltix.quantgrid.engine.node.plan.Plan;
 import com.epam.deltix.quantgrid.engine.node.plan.Running;
-import com.epam.deltix.quantgrid.engine.node.plan.local.RetrieverResultLocal;
-import com.epam.deltix.quantgrid.engine.node.plan.local.SimilaritySearchLocal;
-import com.epam.deltix.quantgrid.engine.node.plan.local.StoreLocal;
-import com.epam.deltix.quantgrid.engine.node.plan.local.ViewportLocal;
-import com.epam.deltix.quantgrid.engine.value.Table;
+import com.epam.deltix.quantgrid.engine.node.plan.local.EmbeddingIndexLocal;
 import com.epam.deltix.quantgrid.engine.value.Value;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.event.Level;
 
+import java.util.Collection;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.PriorityQueue;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantLock;
 
 @Slf4j
+@RequiredArgsConstructor
 public class Executor {
 
-    private final CompletableFuture<Void> completion = new CompletableFuture<>();
-    private final Set<Executable> active = new HashSet<>();
-    private final ReentrantLock lock = new ReentrantLock();
+    private final Set<Running> active = new HashSet<>();
+    private final Stats stats = new Stats();
 
+    private final ReentrantLock lock;
     private final ExecutorService service;
-    private final ResultListener listener;
-    private final Cache cache;
+    private final ExecutorService indexService;
+    private final ExecutionHandler handler;
 
+    private AtomicBoolean paused = new AtomicBoolean(true);
     private Graph graph = new Graph();
-    private Graph execution;
-    private boolean executed;
+    private Graph execution = new Graph();
 
-    public Executor(ExecutorService service, ResultListener listener, Cache cache) {
-        this.service = service;
-        this.listener = listener;
-        this.cache = cache;
+    public void resume(Graph newGraph) {
+        assert lock.isHeldByCurrentThread();
+        assert paused.get();
+
+        graph = newGraph;
+        cancel();
+        begin();
     }
 
-    public CompletableFuture<Void> execute(Graph graph) {
-        lock.lock();
-        try {
-            this.graph = graph;
-            this.execution = buildExecution();
+    public Graph pause() {
+        assert lock.isHeldByCurrentThread();
+        assert execution.isEmpty() == graph.isEmpty();
 
-            GraphPrinter.print("Execution", execution);
-            begin();
-
-            return completion;
-        } finally {
-            lock.unlock();
+        if (!paused.get()) {
+            paused.set(true);
+            graph.getNodes().forEach(node -> {
+                if (node instanceof Running running) {
+                    active.add(running);
+                }
+            });
+            stats.onPause(graph, execution);
         }
+
+        return graph;
     }
 
-    public Graph cancel() {
-        lock.lock();
-        try {
-            finish(true);
-        } finally {
-            lock.unlock();
+    private void cancel() {
+        assert lock.isHeldByCurrentThread();
+
+        Set<Plan> live = new HashSet<>();
+        for (Node node : graph.getNodes()) {
+            if (node instanceof Running running) {
+                live.add(running.getOriginal());
+            }
         }
 
-        return buildExecuted();
+        Set<Running> dead = new HashSet<>();
+        for (Running running : active) {
+            if (!live.contains(running.getOriginal())) {
+                dead.add(running);
+            }
+        }
+
+        for (Running running : dead) {
+            running.getTask().cancel(true);
+            handler.onCancel(running);
+        }
+
+        active.clear();
+        stats.onCancel(dead);
     }
 
     private void begin() {
-        if (execution.isEmpty()) {
-            finish(false);
+        assert lock.isHeldByCurrentThread();
+        assert paused.get();
+
+        if (graph.isEmpty()) {
+            execution = new Graph();
             return;
         }
+
+        execution = buildExecution();
+        paused = new AtomicBoolean(false);
+
+        stats.onResume(graph, execution);
         graph.visitOut(Node::invalidate);
 
         List<Executable> sources = execution.getNodes().stream()
@@ -99,46 +125,61 @@ public class Executor {
         }
     }
 
-    private void finish(boolean cancelled) {
-        if (!executed) {
-            executed = true;
-
-            if (cancelled) {
-                completion.cancel(true);
-            } else {
-                completion.complete(null);
-                Util.verify(graph.isEmpty());
-            }
-        }
-    }
-
     private void schedule(Executable executable) {
-        CompletableFuture<Value> task = (executable.plan instanceof Running running)
-                ? running.getTask()
-                : submit(executable);
+        assert lock.isHeldByCurrentThread();
+        assert !paused.get();
 
-        executable.task = task;
-        executable.executed = false;
+        Plan plan = executable.plan;
+        Plan result;
+        CompletableFuture<Value> task;
 
-        active.add(executable);
+        if (plan instanceof Executed executed) {
+            result = executed;
+            task = CompletableFuture.completedFuture(executed.getResult());
+        } else if (plan instanceof Failed failed) {
+            result = failed;
+            task = CompletableFuture.failedFuture(failed.getError());
+        } else if (plan instanceof Running running) {
+            result = running;
+            task = running.getTask();
+        } else {
+            // copy inputs to make sure subsequent computations and optimizations won't affect running nodes
+            List<Node> planIns = copyInputs(plan);
+            List<Plan> runningIns = executable.getInputs().stream()
+                    .map(node -> (Executable) node).map(Executable::getResult)
+                    .toList();
 
-        task.whenComplete((result, error) -> {
-            broadcast(executable, result, error);
-            update(executable, result, error);
-        });
+            Running running = new Running(runningIns, plan);
+            graph.replace(plan, running);
+
+            plan.getInputs().clear();
+            plan.getInputs().addAll(planIns);
+            plan.getIdentities().addAll(running.getIdentities());
+
+            result = running;
+            task = submit(running);
+            running.setTask(task);
+        }
+
+        executable.result = result;
+        AtomicBoolean flag = paused; // capture current object which reference is changed across computation
+        handler.onSchedule(plan, result);
+        task.whenComplete((table, error) -> update(flag, executable, table, error));
     }
 
-    private CompletableFuture<Value> submit(Executable executable) {
+    private CompletableFuture<Value> submit(Running plan) {
         Task task = new Task();
-        task.task = service.submit(() -> execute(executable, task));
+        task.task = plan.getOriginal() instanceof EmbeddingIndexLocal
+                ? indexService.submit(() -> execute(plan, task))
+                : service.submit(() -> execute(plan, task));
         return task;
     }
 
-    private void execute(Executable executable, CompletableFuture<Value> future) {
-        Plan plan = executable.plan;
+    private void execute(Running plan, CompletableFuture<Value> future) {
+        plan.setStartedAt(System.currentTimeMillis());
 
         try {
-            Value value = plan.execute();
+            Value value = plan.getOriginal().execute();
             future.complete(value);
         } catch (Throwable e) {
             log.warn("Plan {} with id {} failed: ", plan.getClass(), plan.getId(), e);
@@ -146,46 +187,35 @@ public class Executor {
         }
     }
 
-    private void update(Executable executable, Value value, Throwable error) {
+    private void update(AtomicBoolean paused, Executable executable, Value value, Throwable error) {
+        if (paused.get()) {
+            return;
+        }
+
         lock.lock();
         try {
-            if (executed) {
+            if (paused.get()) {
                 return;
             }
 
-            active.remove(executable);
+            Plan plan = executable.result;
+            Plan result = plan;
 
-            Plan plan = executable.plan;
-            Plan result;
-
-            if (error == null) {
-                result = new Executed(
-                        plan.isLayout() ? null : plan.getLayout(),
-                        new Meta(plan.getMeta().getSchema().asOriginal()),
-                        value);
-            } else {
-                result = new Failed(
-                        plan.isLayout() ? null : plan.getLayout(),
-                        new Meta(plan.getMeta().getSchema().asOriginal()),
-                        error);
+            if (plan instanceof Running running) {
+                result = (error == null) ? new Executed(running, value) : new Failed(running, error);
+                graph.replace(running, result);
+                stats.onComplete(result);
+                running.getOriginal().getIdentities().addAll(result.getIdentities());
             }
 
             executable.executed = true;
             executable.result = result;
 
-            if (plan instanceof StoreLocal && value instanceof Table table) {
-                for (Identity id : plan.getIdentities()) {
-                    int[] columns = id.columns();
-                    Table selected = table.select(columns);
-                    cache.save(id, selected);
-                }
-            }
-
-            graph.replace(plan, result);
+            handler.onComplete(plan, result);
 
             Set<Executable> dead = new HashSet<>();
             if (executable.getOutputs().isEmpty()) {
-                graph.remove(executable.result);
+                graph.remove(result);
                 dead.add(executable);
             }
 
@@ -206,38 +236,10 @@ public class Executor {
             ready.forEach(this::schedule);
 
             if (execution.isEmpty()) {
-                finish(false);
+                pause();
             }
         } catch (Throwable e) {
             log.error("Update threw exception: ", e);
-        } finally {
-            lock.unlock();
-        }
-    }
-
-    private void broadcast(Executable executable, Value result, Throwable error) {
-        lock.lock();
-        try {
-            if (executed) {
-                return;
-            }
-
-            Plan plan = executable.plan;
-            if (plan instanceof RetrieverResultLocal retrieverResultLocal) {
-                listener.onSimilaritySearch(retrieverResultLocal.getKey(), (Table) result, extractError(error));
-            } else if (plan instanceof SimilaritySearchLocal similaritySearch) {
-                listener.onSimilaritySearch(similaritySearch.getKey(), (Table) result, extractError(error));
-            } else if (plan instanceof ViewportLocal viewPort) {
-                listener.onUpdate(
-                        viewPort.getKey(),
-                        viewPort.getStart(),
-                        viewPort.getEnd(),
-                        viewPort.isContent(),
-                        (Table) result,
-                        extractError(error), viewPort.getResultType());
-            }
-        } catch (Throwable e) {
-            log.error("Failed to broadcast result: ", e);
         } finally {
             lock.unlock();
         }
@@ -285,39 +287,22 @@ public class Executor {
         return execution;
     }
 
-    private Graph buildExecuted() {
-        Map<Node, Node> map = new HashMap<>();
-        Graph copy = new Graph();
-
-        graph.visitOut(node -> {
-            List<Node> inputs = node.getInputs().stream().map(map::get).toList();
-            Node replacement = node.copy(inputs);
-            map.put(node, replacement);
-            copy.add(replacement);
-        });
-
-        for (Executable executable : active) {
-            CompletableFuture<Value> task = executable.task;
-            Plan plan = (Plan) map.get(executable.plan);
-            List<Plan> inputs = executable.getInputs().stream()
-                    .map(node -> (Executable) node).map(Executable::getResult)
-                    .map(map::get).map(node -> (Plan) node)
-                    .toList();
-
-            Running running = new Running(plan, task, inputs, plan.isLayout() ? -1 : 0);
-            copy.replace(plan, running);
-        }
-
-        return copy;
+    private List<Node> copyInputs(Plan plan) {
+        Map<Node, Node> copies = new HashMap<>();
+        return plan.getInputs().stream().map(in -> copy(in, copies)).toList();
     }
 
-    private static String extractError(Throwable error) {
-        if (error == null) {
-            return null;
+    private static Node copy(Node node, Map<Node, Node> copies) {
+        Util.verify(node instanceof Expression || node instanceof Executed || node instanceof Failed);
+        Node copy = copies.get(node);
+        if (copy != null) {
+            return copy;
         }
 
-        String message = error.getMessage();
-        return (message == null) ? "Failed to execute" : message;
+        List<Node> ins = node.getInputs().stream().map(input -> copy(input, copies)).toList();
+        copy = node.copy(ins);
+        copies.put(node, copy);
+        return copy;
     }
 
     @Getter
@@ -326,7 +311,6 @@ public class Executor {
     private static class Executable extends Node {
 
         private final Plan plan;
-        private CompletableFuture<Value> task;
         private Plan result;
         private boolean executed;
 
@@ -349,6 +333,129 @@ public class Executor {
         public boolean cancel(boolean mayInterruptIfRunning) {
             task.cancel(mayInterruptIfRunning);
             return super.cancel(mayInterruptIfRunning);
+        }
+    }
+
+    private static class Stats {
+
+        private final PriorityQueue<Record> completed = new PriorityQueue<>(11,
+                Comparator.comparingLong(Record::total));
+
+        private long startedAt;
+        private long stoppedAt;
+        private int ready;
+        private int total;
+
+        void onResume(Graph graph, Graph execution) {
+            completed.clear();
+            startedAt = System.currentTimeMillis();
+            stoppedAt = 0;
+            ready = 0;
+            total = 0;
+
+            int running = 0;
+            for (Node node : execution.getNodes()) {
+                Executable executable = (Executable) node;
+                Plan plan = executable.getPlan();
+
+                if (plan instanceof Executed || plan instanceof Failed) {
+                    continue;
+                }
+
+                if (plan instanceof Running) {
+                    running++;
+                }
+
+                total++;
+            }
+
+            log.info("Execution resumed. Running/Completed/Total: {}/{}/{}", running, ready, total);
+            GraphPrinter.print(Level.INFO, "Resumed graph", graph);
+            GraphPrinter.print(Level.DEBUG, "Execution graph", graph);
+        }
+
+        void onPause(Graph graph, Graph execution) {
+            stoppedAt = System.currentTimeMillis();
+            int running = (int) execution.getNodes().stream().filter(node -> node instanceof Running).count();
+            log.info("Execution paused. Running/Completed/Total: {}/{}/{}. Time: {} ms{}",
+                    running, ready, total, stoppedAt - startedAt, top(completed, "completed"));
+            GraphPrinter.print(Level.INFO, "Paused graph", graph);
+        }
+
+        void onCancel(Set<Running> active) {
+            if (active.isEmpty()) {
+                return;
+            }
+
+            PriorityQueue<Record> top = new PriorityQueue<>(11,
+                    Comparator.comparingLong(Record::total));
+
+            for (Running plan : active) {
+                top.add(Record.of(plan, stoppedAt));
+
+                if (top.size() > 10) {
+                    top.poll();
+                }
+            }
+
+            log.info("Execution cancelled. Canceled: {}{}", active.size(), top(top, "canceled"));
+        }
+
+        void onComplete(Plan plan) {
+            ready++;
+
+            Record record = Record.of(plan, stoppedAt);
+            completed.add(record);
+
+            if (completed.size() > 10) {
+                completed.poll();
+            }
+        }
+
+        private static String top(Collection<Record> records, String type) {
+            int pendingSize = Long.toString(records.stream().map(Record::pending).reduce(0L, Long::max)).length();
+            int executionSize = Long.toString(records.stream().map(Record::execution).reduce(0L, Long::max)).length();
+            String template = "\n\t\t%" + executionSize + "s/%-" + pendingSize + "s ms: %s";
+
+            StringBuilder builder = new StringBuilder();
+            builder.append("\n\tTop ").append(records.size()).append(" ").append(type).append(" (execution/pending):");
+
+            records.stream().sorted(Comparator.comparingLong(Record::execution).reversed()).forEach(record -> {
+                String text = record.plan.toString().replace("\n", "");
+                String row = template.formatted(record.execution, record.pending, text);
+                builder.append(row);
+            });
+
+            return builder.toString();
+        }
+
+        private record Record(Plan plan, long pending, long execution, long total) {
+
+            public Record(Plan plan, long pending, long execution) {
+                this(plan, pending, execution, pending + execution);
+            }
+
+            public static Record of(Plan plan, long stopped) {
+                if (plan instanceof Running running) {
+                    long scheduled = running.getScheduledAt();
+                    long started = running.getStartedAt();
+                    return new Record(running.getOriginal(), started - scheduled, stopped - started);
+                }
+
+                if (plan instanceof Executed executed) {
+                    return new Record(executed.getOriginal(),
+                            executed.getStartedAt() - executed.getScheduledAt(),
+                            executed.getStoppedAt() - executed.getStartedAt());
+                }
+
+                if (plan instanceof Failed failed) {
+                    return new Record(failed.getOriginal(),
+                            failed.getStartedAt() - failed.getScheduledAt(),
+                            failed.getStoppedAt() - failed.getStartedAt());
+                }
+
+                throw new IllegalArgumentException();
+            }
         }
     }
 }

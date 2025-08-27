@@ -51,14 +51,6 @@ body {
   overflow: hidden;
 }
 
-.grid-root {
-  font-size: 14px;
-  font-weight: 400;
-  color: black;
-  font-family: 'Inconsolata', monospace;
-  font-style: normal;
-}
-
 .ant-input::placeholder {
   color: var(--text-secondary);
   font-family: vars.$font;
@@ -66,11 +58,7 @@ body {
 }
 
 .ant-input-md.ant-input::placeholder {
-  font-size: 16px;
-}
-
-.ant-input-md.ant-input::placeholder {
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .ant-form.ant-form-vertical .ant-form-item {
@@ -208,6 +196,7 @@ body {
   }
 
   .ant-tree-switcher {
+    margin-left: 4px;
     width: 8px;
     z-index: 100;
 
@@ -294,18 +283,41 @@ body {
     }
   }
 
-  .ant-menu-title-content {
-    color: var(--text-primary);
-  }
-
   .ant-menu-item-icon {
-    color: var(--text-secondary);
     vertical-align: -4px;
   }
 
   .ant-menu-submenu-open::after,
   .ant-menu-submenu:hover::after {
     border-bottom-color: var(--stroke-accent-primary);
+  }
+}
+
+.ant-menu-light.ant-menu-horizontal.default {
+  .ant-menu-title-content {
+    color: var(--text-primary);
+  }
+
+  .ant-menu-item-icon {
+    color: var(--text-secondary);
+  }
+}
+
+.ant-menu-light.ant-menu-horizontal.read,
+.ant-menu-light.ant-menu-horizontal.review {
+  .ant-menu-title-content {
+    color: var(--text-inverted);
+  }
+
+  .ant-menu-item-icon {
+    color: var(--text-inverted);
+  }
+}
+
+// Hide main menu labels for medium screens, show on mobile and large screens
+@media (max-width: 1200px) and (min-width: 769px) {
+  #mainProjectMenu .ant-menu-title-content {
+    display: none;
   }
 }
 
@@ -461,12 +473,8 @@ body {
   @apply p-0 bg-bgLayer0 rounded text-textPrimary border border-strokePrimary;
 }
 
-#mainProjectMenu {
-  @media (max-width: 1280px) {
-    .ant-menu-title-content {
-      display: none;
-    }
-  }
+.ant-drawer .ant-drawer-body {
+  padding: 0;
 }
 
 @layer components {
@@ -636,4 +644,25 @@ body {
     line-height: 16px;
     min-height: 16px;
   }
+}
+
+// Radio
+.ant-radio-wrapper {
+  .ant-radio-checked .ant-radio-inner {
+    background-color: var(--stroke-accent-primary);
+    border-color: var(--stroke-accent-primary);
+  }
+
+  &:hover {
+    .ant-radio-inner {
+      border-color: var(--stroke-accent-primary);
+    }
+  }
+}
+
+/* Project tree styles */
+#projectTree .ant-tree-node-content-wrapper.ant-tree-node-selected,
+#projectTree .ant-tree-treenode-selected > .ant-tree-node-content-wrapper,
+#projectTree .tree-parent-selected {
+  color: var(--text-accent-primary);
 }

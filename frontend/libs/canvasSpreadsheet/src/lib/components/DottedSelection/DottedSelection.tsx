@@ -85,7 +85,7 @@ export function DottedSelection() {
 
     if (!selectionCoords || !viewportLimitedDottedSelection) return null;
 
-    const { color, alpha, alignment } = theme.dottedSelection;
+    const { color, alpha, alignment, rectangleAlpha } = theme.dottedSelection;
     const { width, dash } = gridSizes.dottedSelection;
     const styles = {
       width,
@@ -94,12 +94,20 @@ export function DottedSelection() {
       alpha,
     };
 
-    drawDashedRect(
-      graphics,
-      getDashedRectPolygons(viewportLimitedDottedSelection, 0),
-      styles,
-      dash
-    );
+    const polygons = getDashedRectPolygons(viewportLimitedDottedSelection, 2);
+
+    drawDashedRect(graphics, polygons, styles, dash);
+
+    const x = polygons[0].x;
+    const y = polygons[0].y;
+    const rectWidth = polygons[2].x - x;
+    const rectHeight = polygons[2].y - y;
+
+    graphics
+      .lineStyle(0)
+      .beginFill(color, rectangleAlpha)
+      .drawRect(x, y, rectWidth, rectHeight)
+      .endFill();
   }, [
     viewportLimitedDottedSelection,
     getDashedRectPolygons,

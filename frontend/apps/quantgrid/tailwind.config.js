@@ -31,6 +31,7 @@ module.exports = {
         bgLayer3: 'var(--bg-layer-3)',
         bgLayer4: 'var(--bg-layer-4)',
         bgLayer5: 'var(--bg-layer-5)',
+        bgLayer4Inverted: 'var(--bg-layer-4-inverted)',
         bgScrollbarHover: 'var(--bg-scrollbar-hover)',
         controlsBgAccent: 'var(--controls-bg-accent)',
         controlsBgAccentHover: 'var(--controls-bg-accent-hover)',
@@ -51,6 +52,7 @@ module.exports = {
         strokePrimary: 'var(--stroke-primary)',
         strokeSecondary: 'var(--stroke-secondary)',
         strokeTertiary: 'var(--stroke-tertiary)',
+        strokeTertiaryInverted: 'var(--stroke-tertiary-inverted)',
         textAccentPrimary: 'var(--text-accent-primary)',
         textAccentSecondary: 'var(--text-accent-secondary)',
         textAccentTertiary: 'var(--text-accent-tertiary)',
@@ -60,6 +62,7 @@ module.exports = {
         textPrimary: 'var(--text-primary)',
         textSecondary: 'var(--text-secondary)',
         textWarning: 'var(--text-warning)',
+        warningInverted: 'var(--warning-inverted)',
       },
       keyframes: {
         'fast-pulse': {
@@ -73,9 +76,14 @@ module.exports = {
             opacity: '20%',
           },
         },
+        'radial-progress': {
+          '0%': { strokeDashOffset: '565px' },
+          '100%': { strokeDashOffset: '0px' },
+        },
       },
       animation: {
         'fast-pulse': 'fast-pulse 1.5s infinite',
+        'radial-progress': 'radial-progress linear forwards',
       },
       typography: {
         DEFAULT: {

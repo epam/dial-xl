@@ -20,7 +20,6 @@ import {
 } from './parser';
 import { Span } from './Span';
 
-// TODO: need a cleanup after implement DSL edit
 export class ParsedField {
   @Expose()
   public span: Span | undefined;
@@ -34,7 +33,6 @@ export class ParsedField {
   @Expose()
   public dim: ParsedText | undefined;
 
-  @Expose()
   public formula: ParsedText | undefined;
 
   @Expose()
@@ -48,6 +46,7 @@ export class ParsedField {
     public isDynamic: boolean,
     public expression: Expression | undefined = undefined,
     public expressionMetadata: ExpressionMetadata | undefined = undefined,
+    public fieldGroupIndex: number,
     span: Span | undefined = undefined,
     name: ParsedText | undefined = undefined,
     keyKeyword: ParsedText | undefined = undefined,
@@ -55,9 +54,9 @@ export class ParsedField {
     formula: ParsedText | undefined = undefined,
     docs: ParsedText[] = [],
     public dslPlacement?: ShortDSLPlacement | undefined,
-    public dslFieldNamePlacement?: ShortDSLPlacement | undefined,
     decorators?: ParsedDecorator[] | undefined,
-    public note?: DSLNote | undefined
+    public note?: DSLNote | undefined,
+    public groupDim = false
   ) {
     this.span = span;
     this.name = name;
@@ -73,7 +72,7 @@ export class ParsedField {
   }
 
   public get isDim(): boolean {
-    return this.dim !== undefined;
+    return this.groupDim;
   }
 
   public getSize(): number {

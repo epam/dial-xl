@@ -18,28 +18,40 @@ import {
   appMessages,
   CompilationError,
   dialProjectFileExtension,
-  DiffData,
+  disabledTooltips,
+  DslSheetChange,
+  FieldInfo,
   FilesMetadata,
   FunctionInfo,
+  IndexError,
   KeyboardCode,
   modalFooterButtonClasses,
   NotificationEvent,
   parseSSEResponse,
   ParsingError,
   primaryButtonClasses,
+  ProjectAIResponseId,
   ProjectState,
   ResourcePermission,
   RuntimeError,
+  TableHighlightDataMap,
+  useStateWithRef,
   Viewport,
   ViewportResponse,
   WorksheetState,
 } from '@frontend/common';
-import { ParsedSheet, ParsedSheets, SheetReader } from '@frontend/parser';
+import {
+  ParsedSheet,
+  ParsedSheets,
+  SheetReader,
+  unescapeTableName,
+} from '@frontend/parser';
 
-import { routes } from '../../AppRoutes';
 import {
   DeleteModalRefFunction,
   DeleteProjectModalRefFunction,
+  ForkedProjectSettings,
+  LongCalcStatus,
   ModalRefFunction,
   NewProjectModalRefFunction,
   RenameModalRefFunction,
@@ -58,6 +70,8 @@ import {
 import {
   addChartFiltersToDefaultViewportRequest,
   useApiRequests,
+  useLongCalculations,
+  useProjectReadonlyByUser,
   useRenameFile,
 } from '../hooks';
 import useEventBus from '../hooks/useEventBus';
@@ -72,16 +86,18 @@ import {
   deleteRecentProjectFromRecentProjects,
   EventBusMessages,
   sortSheetTables,
+  uniqueId,
 } from '../services';
-import { DslSheetChange } from '../types/dslSheetChange';
+import { routes } from '../types';
 import {
   constructPath,
   displayToast,
   encodeApiUrl,
   getProjectNavigateUrl,
+  updateAIResponseIds,
+  updateProjectSheets,
   updateSheetInProject,
 } from '../utils';
-import { getTableDiff } from '../utils/diff';
 import { ApiContext, AppContext, ViewportContext } from '.';
 
 export const defaultSheetName = 'Sheet1';
@@ -94,7 +110,15 @@ type ProjectContextValues = {
   projectBucket: string | null;
   projectPath: string | null;
   projectPermissions: ResourcePermission[];
-  isProjectEditable: boolean;
+
+  isProjectShareable: boolean;
+
+  isProjectReadonlyByUser: boolean; // User can set project to readonly mode, keep between reloads
+  isProjectEditingDisabled: boolean; // We can set during chat generating for example
+  isProjectEditable: boolean; // Combination of permissions and other flags for editing project
+  hasEditPermissions: boolean; // User has edit permissions for project
+
+  isProjectChangedOnServerByUser: boolean;
 
   projects: FilesMetadata[];
 
@@ -103,6 +127,7 @@ type ProjectContextValues = {
   sheetErrors: ParsingError[] | null;
   compilationErrors: CompilationError[] | null;
   runtimeErrors: RuntimeError[] | null;
+  indexErrors: IndexError[] | null;
 
   parsedSheet: ParsedSheet | null;
   parsedSheets: ParsedSheets;
@@ -111,11 +136,17 @@ type ProjectContextValues = {
 
   functions: FunctionInfo[];
 
-  isAIPendingChanges: boolean;
-  isAIPendingBanner: boolean;
-  tablesDiffData: Record<string, DiffData>;
+  beforeTemporaryState: ProjectState | null;
 
-  isOverrideProjectBanner: boolean;
+  diffData: TableHighlightDataMap | null; // TODO: just rename as highlight data
+
+  isConflictResolving: boolean;
+
+  forkedProject: ForkedProjectSettings | null;
+  fieldInfos: FieldInfo[];
+
+  responseIds: ProjectAIResponseId[];
+  longCalcStatus: LongCalcStatus;
 };
 
 type ProjectContextActions = {
@@ -144,7 +175,10 @@ type ProjectContextActions = {
   }) => void;
   deleteCurrentProject: (args?: { silent?: boolean }) => void;
   renameCurrentProject: (args?: { newName?: string; silent?: boolean }) => void;
-  cloneCurrentProject: () => void;
+  cloneCurrentProject: (sheetsOverride?: WorksheetState[]) => Promise<void>;
+
+  setIsProjectReadonlyByUser: (value: boolean) => void;
+  setIsProjectEditingDisabled: (value: boolean) => void;
 
   shareResources: (
     files: Omit<FilesMetadata, 'resourceType' | 'url'>[]
@@ -168,7 +202,7 @@ type ProjectContextActions = {
 
   updateSheetContent: (
     changeItems: DslSheetChange[],
-    sendPutWorksheet?: boolean
+    args?: { sendPutWorksheet?: boolean; responseIds?: ProjectAIResponseId[] }
   ) => Promise<boolean | undefined>;
   manuallyUpdateSheetContent: (
     changeItems: DslSheetChange[],
@@ -189,12 +223,18 @@ type ProjectContextActions = {
   ) => void;
   getProjects: () => void;
 
-  updateIsAIPendingChanges: (isPending: boolean) => void;
-  updateIsAIPendingBanner: (isVisible: boolean) => void;
+  startTemporaryState: () => void;
+  setIsTemporaryStateEditable: (value: boolean) => void;
+  resolveTemporaryState: (args: {
+    useServer?: boolean;
+    useTemporary?: boolean;
+  }) => void;
+  setDiffData: (value: TableHighlightDataMap | null) => void;
 
-  setIsOverrideProjectBanner: (isVisible: boolean) => void;
+  initConflictResolving: () => void;
   resolveConflictUsingServerChanges: () => void;
   resolveConflictUsingLocalChanges: () => void;
+  setLongCalcStatus: (status: LongCalcStatus) => void;
 };
 
 export const ProjectContext = createContext<
@@ -218,9 +258,15 @@ export function ProjectContextProvider({
     acceptShare: acceptShareRequest,
     getResourceMetadata: getResourceMetadataRequest,
     cloneProject: cloneProjectRequest,
+    checkProjectExists: checkProjectExistsRequest,
   } = useApiRequests();
-  const { clearTablesData, viewGridData, onColumnDataResponse } =
-    useContext(ViewportContext);
+  const {
+    clearTablesData,
+    viewGridData,
+    onColumnDataResponse,
+    onProfileResponse,
+    onIndexResponse,
+  } = useContext(ViewportContext);
   const navigate = useNavigate();
   const eventBus = useEventBus<EventBusMessages>();
   const { renameFile } = useRenameFile();
@@ -228,6 +274,15 @@ export function ProjectContextProvider({
   const [currentSheetName, setCurrentSheetName] = useState<string | null>(null);
 
   const projectSubscriptionControllerRef = useRef<AbortController | null>(null);
+  const {
+    longCalcStatus,
+    setLongCalcStatus,
+    manageRequestLifecycle,
+    cancelAllViewportRequests,
+  } = useLongCalculations();
+
+  const [forkedProject, setForkedProject] =
+    useState<ForkedProjectSettings | null>(null);
 
   // Use this inside project context
   const _projectState = useRef<ProjectState | null>(null);
@@ -288,11 +343,27 @@ export function ProjectContextProvider({
   const [projectPermissions, setProjectPermissions] = useState<
     ResourcePermission[]
   >([]);
-  const isProjectEditable = useMemo(() => {
+
+  // User able to make project readonly
+  const {
+    isReadonly: isProjectReadonlyByUser,
+    setIsReadonly: setIsProjectReadonlyByUser,
+  } = useProjectReadonlyByUser({ projectBucket, projectName, projectPath });
+
+  // We should have an ability to make project readonly during different operations
+  // For example during chat answering
+  const [isProjectEditingDisabled, setIsProjectEditingDisabled] =
+    useState(false);
+  const hasEditPermissions = useMemo(() => {
     return (['READ', 'WRITE'] as ResourcePermission[]).every((permission) =>
       projectPermissions.includes(permission)
     );
   }, [projectPermissions]);
+
+  const isProjectShareable = useMemo(() => {
+    return projectPermissions.includes('SHARE');
+  }, [projectPermissions]);
+
   const [currentSheetCompilationErrors, setCurrentSheetCompilationErrors] =
     useState<CompilationError[]>([]);
   const [currentSheetParsingErrors, setCurrentSheetParsingErrors] = useState<
@@ -301,14 +372,13 @@ export function ProjectContextProvider({
   const [runtimeErrors, setRuntimeErrors] = useState<RuntimeError[] | null>(
     null
   );
+  const [indexErrors, setIndexErrors] = useState<IndexError[] | null>(null);
 
   const [projects, setProjects] = useState<FilesMetadata[]>([]);
 
   const [selectedCell, setSelectedCell] = useState<SelectedCell | null>(null);
   const [parsedSheet, setParsedSheet] = useState<ParsedSheet | null>(null);
   const [parsedSheets, setParsedSheets] = useState<ParsedSheets>({});
-  const [previousParsedSheets, setPreviousParsedSheets] =
-    useState<ParsedSheets>({});
 
   const [functions, setFunctions] = useState<FunctionInfo[]>([]);
 
@@ -321,9 +391,37 @@ export function ProjectContextProvider({
   const deleteSheetModal = useRef<DeleteModalRefFunction | null>(null);
   const [statusModalOpen, setStatusModalOpen] = useState(false);
   const [statusModalText, setStatusModalText] = useState('');
-  const [isAIPendingChanges, setIsAIPendingChanges] = useState(false);
-  const [isAIPendingBanner, setIsAIPendingBanner] = useState(false);
-  const [isOverrideProjectBanner, setIsOverrideProjectBanner] = useState(false);
+  const [isConflictResolving, setIsConflictResolving] = useState(false);
+
+  const [isTemporaryState, setIsTemporaryState, isTemporaryStateRef] =
+    useStateWithRef(false);
+  const [
+    isTemporaryStateEditable,
+    setIsTemporaryStateEditable,
+    isTemporaryStateEditableRef,
+  ] = useStateWithRef(false);
+  const isProjectEditable = useMemo(
+    () =>
+      !isProjectEditingDisabled &&
+      ((!isTemporaryState && !isProjectReadonlyByUser && hasEditPermissions) ||
+        isTemporaryStateEditable),
+    [
+      isProjectReadonlyByUser,
+      hasEditPermissions,
+      isProjectEditingDisabled,
+      isTemporaryState,
+      isTemporaryStateEditable,
+    ]
+  );
+
+  const [diffData, setDiffData, diffDataRef] =
+    useStateWithRef<TableHighlightDataMap | null>(null);
+  const [fieldInfos, setFieldInfos] = useState<FieldInfo[]>([]);
+
+  const responseIds: ProjectAIResponseId[] = useMemo(
+    () => projectState?.settings.projectMetadata?.assistantResponseIds ?? [],
+    [projectState]
+  );
 
   /// New sync variables
   const remoteEtag = useRef<string | null>(null);
@@ -332,31 +430,36 @@ export function ProjectContextProvider({
   const inflightDsl = useRef<WorksheetState[] | null>(null);
   ///
 
-  const tablesDiffData = useMemo(() => {
-    if (!isAIPendingChanges) return {};
+  const [isProjectChangedOnServerByUser, setIsProjectChangedOnServerByUser] =
+    useState(false);
 
-    const oldTables = Object.values(previousParsedSheets)
-      .map((sheet) => sheet.tables)
-      .flat();
-    const newTables = Object.values(parsedSheets)
-      .map((sheet) => sheet.tables)
-      .flat();
+  const [beforeTemporaryState, setBeforeTemporaryState] =
+    useState<ProjectState | null>(null);
+  const startTemporaryState = useCallback(() => {
+    if (!isTemporaryState) {
+      setBeforeTemporaryState(_projectState.current);
+    }
+    setIsTemporaryState(true);
+  }, [isTemporaryState, setIsTemporaryState]);
 
-    const tablesDiff = newTables.reduce((acc, curr) => {
-      const oldTable = oldTables.find(
-        (table) => table.tableName === curr.tableName
-      );
-      acc[curr.tableName] = getTableDiff(curr, oldTable);
+  // Make editableSheet unable to use in read-only mode
+  useEffect(() => {
+    const isReadOnly = !isProjectEditable;
 
-      return acc;
-    }, {} as Record<string, DiffData>);
-
-    return tablesDiff;
-  }, [isAIPendingChanges, parsedSheets, previousParsedSheets]);
+    parsedSheet?.setReadOnly(isReadOnly);
+    Object.values(parsedSheets).forEach((s) => s.setReadOnly(isReadOnly));
+  }, [
+    isProjectEditable,
+    isTemporaryState,
+    isTemporaryStateEditable,
+    parsedSheet,
+    parsedSheets,
+  ]);
 
   const setProjectState = useCallback(
     (newProjectState: ProjectState | null) => {
       _projectState.current = newProjectState;
+      setIsProjectChangedOnServerByUser(false);
 
       _setProjectState(newProjectState);
     },
@@ -369,15 +472,8 @@ export function ProjectContextProvider({
     setCurrentSheetCompilationErrors([]);
     setCurrentSheetParsingErrors([]);
     setRuntimeErrors([]);
+    setIndexErrors([]);
   }, []);
-
-  const resetProjectState = useCallback(() => {
-    setProjectState(null);
-    setFunctions([]);
-    setProjects([]);
-
-    resetSheetState();
-  }, [resetSheetState, setProjectState]);
 
   const unsubscribeFromCurrentProject = useCallback(() => {
     if (
@@ -388,14 +484,6 @@ export function ProjectContextProvider({
     }
   }, []);
 
-  const updateIsAIPendingChanges = useCallback((isPending: boolean) => {
-    setIsAIPendingChanges(isPending);
-  }, []);
-
-  const updateIsAIPendingBanner = useCallback((isVisible: boolean) => {
-    setIsAIPendingBanner(isVisible);
-  }, []);
-
   const closeCurrentProject = useCallback(
     (skipNavigate?: boolean) => {
       setParsedSheet(null);
@@ -404,7 +492,11 @@ export function ProjectContextProvider({
       setProjectState(null);
       setProjectPermissions([]);
       unsubscribeFromCurrentProject();
-      setIsAIPendingChanges(false);
+      cancelAllViewportRequests();
+      setBeforeTemporaryState(null);
+      setIsTemporaryState(false);
+      setIsTemporaryStateEditable(false);
+      setLongCalcStatus(LongCalcStatus.None);
 
       remoteEtag.current = null;
       inflightRequest.current = null;
@@ -415,7 +507,44 @@ export function ProjectContextProvider({
         navigate(routes.home);
       }
     },
-    [navigate, setProjectState, unsubscribeFromCurrentProject]
+    [
+      navigate,
+      setIsTemporaryState,
+      setIsTemporaryStateEditable,
+      setProjectState,
+      unsubscribeFromCurrentProject,
+      cancelAllViewportRequests,
+      setLongCalcStatus,
+    ]
+  );
+
+  const updateForkedProjectInfo = useCallback(
+    async (project: ProjectState) => {
+      if (project.settings.projectMetadata?.forkedFrom) {
+        const { forkedFrom } = project.settings.projectMetadata;
+        if (forkedFrom?.projectName && forkedFrom?.bucket) {
+          const { path, projectName, bucket } = forkedFrom;
+
+          const isExists = await checkProjectExistsRequest({
+            path,
+            name: projectName,
+            bucket,
+          });
+
+          setForkedProject({
+            path,
+            bucket,
+            projectName,
+            isExists: !!isExists,
+          });
+        } else {
+          setForkedProject(null);
+        }
+      } else {
+        setForkedProject(null);
+      }
+    },
+    [checkProjectExistsRequest]
   );
 
   const getProjectFromServer = useCallback(
@@ -447,7 +576,9 @@ export function ProjectContextProvider({
       setLoading(false);
       if (!project) {
         setLoading(false);
-        navigate(routes.home);
+        // eslint-disable-next-line no-console
+        console.warn('Redirect to home because of error while getting project');
+        closeCurrentProject();
         displayToast(
           'error',
           `Project "${projectName}" cannot be fetched because it doesn't exist or has been removed.`
@@ -455,6 +586,8 @@ export function ProjectContextProvider({
 
         return;
       }
+
+      await updateForkedProjectInfo(project);
 
       // Initial get or no changes from user -> update project state
       if (
@@ -484,7 +617,8 @@ export function ProjectContextProvider({
           });
 
           // resolve conflict
-          setIsOverrideProjectBanner(true);
+          setIsConflictResolving(true);
+          setIsTemporaryState(true);
         }
 
         inflightRequest.current = null;
@@ -502,11 +636,13 @@ export function ProjectContextProvider({
       });
     },
     [
+      closeCurrentProject,
       getProjectRequest,
       getResourceMetadataRequest,
-      navigate,
+      setIsTemporaryState,
       setLoading,
       setProjectState,
+      updateForkedProjectInfo,
     ]
   );
 
@@ -515,9 +651,13 @@ export function ProjectContextProvider({
       switch (data.action) {
         case 'DELETE':
           displayToast('info', appMessages.currentProjectRemoved);
+          // eslint-disable-next-line no-console
+          console.warn('Redirect to home because of project have been removed');
           closeCurrentProject();
           break;
         case 'UPDATE': {
+          if (isTemporaryStateRef.current) return;
+
           if (inflightRequest.current !== null) {
             remoteEtag.current = data.etag ?? null;
           } else if (
@@ -536,7 +676,7 @@ export function ProjectContextProvider({
           break;
       }
     },
-    [closeCurrentProject, getProjectFromServer]
+    [closeCurrentProject, getProjectFromServer, isTemporaryStateRef]
   );
 
   const subscribeToProject = useCallback(
@@ -572,7 +712,7 @@ export function ProjectContextProvider({
             return;
           }
 
-          if (retries > 0) {
+          if (retries > 0 && !isTemporaryStateRef.current) {
             await getProjectFromServer({
               projectName,
               bucket,
@@ -621,6 +761,63 @@ export function ProjectContextProvider({
       getFileNotificationsRequest,
       getProjectFromServer,
       handleProjectNotifications,
+      isTemporaryStateRef,
+    ]
+  );
+
+  const openSheet = useCallback(
+    ({ sheetName }: { sheetName: string }) => {
+      if (sheetName === currentSheetName || !sheetName) return;
+
+      cancelAllViewportRequests();
+
+      clearTablesData();
+
+      const projectState = _projectState.current;
+      if (!projectState) {
+        return;
+      }
+
+      let resultedSheetContent = projectState.sheets.find(
+        (sheet) => sheet.sheetName === sheetName
+      )?.content;
+      let resultedSheetName = sheetName;
+
+      if (resultedSheetContent == null) {
+        resultedSheetContent = projectState.sheets[0].content;
+        resultedSheetName = projectState.sheets[0].sheetName;
+
+        if (!resultedSheetContent) {
+          // eslint-disable-next-line no-console
+          console.warn(
+            'Redirect to home because sheet content not exists when opening sheet'
+          );
+          closeCurrentProject();
+
+          return;
+        }
+      }
+
+      setCurrentSheetName(resultedSheetName);
+      setParsedSheet(null);
+      navigate(
+        getProjectNavigateUrl({
+          projectName: projectState.projectName,
+          projectBucket: projectState.bucket,
+          projectPath: projectState.path,
+          projectSheetName: resultedSheetName,
+        }),
+        { replace: true }
+      );
+
+      return { resultedSheetContent, resultedSheetName };
+    },
+    [
+      cancelAllViewportRequests,
+      clearTablesData,
+      closeCurrentProject,
+      currentSheetName,
+      navigate,
     ]
   );
 
@@ -634,12 +831,17 @@ export function ProjectContextProvider({
     ) => {
       if (!_projectState.current) return;
 
+      cancelAllViewportRequests();
+
       // We are doing optimistic update
       setProjectState({
         ...updatedStateRequest,
         // We need to have latest version in project state
         version: _projectState.current!.version!,
       });
+
+      // We don't need to update server if is ai pending changes
+      if (isTemporaryStateRef.current) return;
 
       if (inflightRequest.current !== null) return;
 
@@ -656,6 +858,8 @@ export function ProjectContextProvider({
           ..._projectState.current,
           version: newProjectState.version,
         });
+        setIsProjectChangedOnServerByUser(true);
+
         options.onSuccess?.();
 
         // During put request some event appeared - we need to get project again to be sure that project is actual
@@ -693,29 +897,91 @@ export function ProjectContextProvider({
         });
       }
     },
-    [getProjectFromServer, putProjectRequest, setProjectState]
+    [
+      cancelAllViewportRequests,
+      getProjectFromServer,
+      isTemporaryStateRef,
+      putProjectRequest,
+      setProjectState,
+    ]
   );
+
+  const discardTemporaryChanges = useCallback(
+    async (projectStateToReset: ProjectState | null) => {
+      if (!_projectState.current) return;
+
+      localDsl.current = projectStateToReset?.sheets ?? [];
+      _projectState.current.sheets = projectStateToReset?.sheets ?? [];
+
+      const proj = await getProjectFromServer({
+        path: _projectState.current.path,
+        bucket: _projectState.current.bucket,
+        projectName: _projectState.current.projectName,
+      });
+
+      if (
+        !proj?.sheets.find((sheet) => sheet.sheetName === currentSheetName) &&
+        proj?.sheets[0].sheetName
+      ) {
+        openSheet({ sheetName: proj?.sheets[0].sheetName });
+      }
+    },
+    [currentSheetName, getProjectFromServer, openSheet]
+  );
+
+  const resolveTemporaryState = useCallback(
+    ({
+      useServer,
+      useTemporary,
+    }: {
+      useServer?: boolean;
+      useTemporary?: boolean;
+    }) => {
+      if (!_projectState.current || !isTemporaryStateRef.current) return;
+
+      setBeforeTemporaryState(null);
+      setIsTemporaryState(false);
+
+      // We need to reset project state to server changes
+      if (useServer) {
+        discardTemporaryChanges(beforeTemporaryState);
+      }
+
+      // We need to just try to put temporary state top server
+      if (useTemporary) {
+        updateProjectOnServer(_projectState.current, {});
+      }
+    },
+    [
+      beforeTemporaryState,
+      discardTemporaryChanges,
+      isTemporaryStateRef,
+      setIsTemporaryState,
+      updateProjectOnServer,
+    ]
+  );
+
+  const initConflictResolving = useCallback(() => {
+    setIsConflictResolving(true);
+    startTemporaryState();
+  }, [startTemporaryState]);
 
   const resolveConflictUsingServerChanges = useCallback(() => {
     if (!_projectState.current || !localDsl.current) return;
 
-    setIsOverrideProjectBanner(false);
+    setIsConflictResolving(false);
 
     // Just set dsl from server as local
-    setProjectState({
-      ..._projectState.current,
-      sheets: localDsl.current,
-    });
-  }, [setProjectState]);
+    resolveTemporaryState({ useServer: true });
+  }, [resolveTemporaryState]);
 
   const resolveConflictUsingLocalChanges = useCallback(() => {
     if (!_projectState.current) return;
 
-    setIsOverrideProjectBanner(false);
+    setIsConflictResolving(false);
 
-    // Send put request with local state
-    updateProjectOnServer(_projectState.current, {});
-  }, [updateProjectOnServer]);
+    resolveTemporaryState({ useTemporary: true });
+  }, [resolveTemporaryState]);
 
   const createProject = useCallback(
     async ({
@@ -817,10 +1083,11 @@ export function ProjectContextProvider({
         deleteRecentProjectFromRecentProjects(projectName, bucket, path);
 
         if (projectName === _projectState.current?.projectName) {
-          navigate(routes.home);
-          resetProjectState();
-
-          setCurrentSheetName(currentSheetName);
+          // eslint-disable-next-line no-console
+          console.warn(
+            'Redirect to home because project which removed is opened in that moment'
+          );
+          closeCurrentProject();
         }
       }
 
@@ -828,13 +1095,7 @@ export function ProjectContextProvider({
 
       return {};
     },
-    [
-      currentSheetName,
-      deleteProjectRequest,
-      navigate,
-      resetProjectState,
-      setLoading,
-    ]
+    [closeCurrentProject, deleteProjectRequest, setLoading]
   );
 
   const deleteCurrentProject = useCallback(
@@ -887,7 +1148,11 @@ export function ProjectContextProvider({
 
       if (!renameRes) {
         displayToast('error', `Renaming of project to "${newName}" failed`);
-        navigate(routes.home);
+        // eslint-disable-next-line no-console
+        console.warn(
+          'Redirect to home because renaming of current project failed'
+        );
+        closeCurrentProject();
 
         return;
       }
@@ -928,6 +1193,8 @@ export function ProjectContextProvider({
       path: path,
       targetBucket: userBucket,
       targetPath: null,
+      sheetsOverride: projectSheets,
+      isReadOnly: !isProjectEditable,
     });
 
     toast.dismiss('loading');
@@ -954,7 +1221,13 @@ export function ProjectContextProvider({
       }),
       '_blank'
     );
-  }, [cloneProjectRequest, currentSheetName, userBucket]);
+  }, [
+    cloneProjectRequest,
+    currentSheetName,
+    isProjectEditable,
+    projectSheets,
+    userBucket,
+  ]);
 
   const renameSheet = useCallback(
     async ({
@@ -1048,15 +1321,11 @@ export function ProjectContextProvider({
   );
 
   const parseSheet = useCallback(
-    (content?: string): void => {
+    (content: string | undefined, isDSLChange: boolean): void => {
       try {
         const sheet = SheetReader.parseSheet(content);
 
         const currentTableNames: string[] = [];
-
-        const prevParsedSheet = currentSheetName
-          ? previousParsedSheets[currentSheetName]
-          : undefined;
 
         sheet.tables.forEach((table) => {
           if (table.hasDynamicFields()) {
@@ -1070,15 +1339,16 @@ export function ProjectContextProvider({
             }
           }
 
-          const prevValue = prevParsedSheet?.tables.find(
-            ({ tableName }) => tableName === table.tableName
-          );
-          const prevTablesDiff = getTableDiff(table, prevValue);
-
-          viewGridData.updateTableMeta(
-            table,
-            isAIPendingChanges ? prevTablesDiff : undefined
-          );
+          viewGridData.updateTableMeta(table, {
+            highlightData: diffDataRef.current
+              ? diffDataRef.current.data?.[
+                  unescapeTableName(table.tableName)
+                ] ?? {
+                  tableHighlight: diffDataRef.current.defaultHighlight,
+                }
+              : undefined,
+            isDSLChange,
+          });
 
           currentTableNames.push(table.tableName);
         });
@@ -1093,45 +1363,30 @@ export function ProjectContextProvider({
         displayToast('error', appMessages.parseSheetError);
       }
     },
-    [currentSheetName, isAIPendingChanges, previousParsedSheets, viewGridData]
+    [diffDataRef, viewGridData]
   );
 
   const updateSheetContent = useCallback(
     async (
       changedSheets: DslSheetChange[],
-      sendPutWorksheet = true
-    ): Promise<undefined> => {
+      {
+        sendPutWorksheet = true,
+        responseIds,
+      }: {
+        sendPutWorksheet?: boolean;
+        responseIds?: ProjectAIResponseId[];
+      } = {}
+    ): Promise<boolean | undefined> => {
       const projectStateRef = _projectState.current;
       if (!projectStateRef || !projectName) {
         return;
       }
 
-      const changedSheetsCopy = changedSheets.slice();
-      const sheets = projectStateRef.sheets
-        .map((sheet) => {
-          const changedSheetIndex = changedSheetsCopy.findIndex(
-            (changedSheet) => sheet.sheetName === changedSheet.sheetName
-          );
-
-          if (changedSheetIndex !== -1) {
-            const data = changedSheetsCopy[changedSheetIndex];
-            changedSheetsCopy.splice(changedSheetIndex, 1);
-
-            return { ...sheet, ...data };
-          }
-
-          return sheet;
-        })
-        .filter((sheet) => sheet.content != null)
-        .concat(
-          changedSheetsCopy
-            .filter((sheet) => sheet.content != null)
-            .map((sheet) => ({
-              ...sheet,
-              content: sheet.content,
-              projectName: projectName!,
-            }))
-        ) as WorksheetState[];
+      const sheets = updateProjectSheets(
+        changedSheets,
+        projectStateRef.sheets,
+        projectName
+      );
 
       const currentSheet = sheets.find(
         (sheet) => sheet.sheetName === currentSheetName
@@ -1140,16 +1395,24 @@ export function ProjectContextProvider({
         setCurrentSheetName(sheets[0]?.sheetName);
       }
 
-      const newProjectStateRequest = { ...projectStateRef, sheets };
+      const settings = updateAIResponseIds(projectStateRef, responseIds);
+      const newProjectStateRequest = { ...projectStateRef, sheets, settings };
 
       if (!sendPutWorksheet) {
         setProjectState(newProjectStateRequest);
 
-        return;
+        return true;
       }
 
       if (sendPutWorksheet) {
-        await updateProjectOnServer(newProjectStateRequest, {});
+        const promise = new Promise<boolean | undefined>((resolve) => {
+          updateProjectOnServer(newProjectStateRequest, {
+            onSuccess: () => resolve(true),
+            onFail: () => resolve(undefined),
+          });
+        });
+
+        return promise;
       }
     },
     [currentSheetName, projectName, setProjectState, updateProjectOnServer]
@@ -1163,73 +1426,66 @@ export function ProjectContextProvider({
       const projectState = _projectState.current;
       if (!projectState) return;
 
-      if (isAIPendingChanges) {
+      if (isTemporaryStateRef.current && !isTemporaryStateEditableRef.current) {
         toast.info(
-          'Cannot update sheet due to you have pending AI changes. Please accept or discard them'
+          'Cannot update project due to you have pending AI changes or you are in Preview changes mode'
         );
 
         return;
       }
 
-      return updateSheetContent(changeItems, sendPutWorksheet);
+      if (!isProjectEditable) {
+        toast.info(disabledTooltips.readonlyProject);
+
+        return;
+      }
+
+      return updateSheetContent(changeItems, { sendPutWorksheet });
     },
-    [isAIPendingChanges, updateSheetContent]
+    [
+      isProjectEditable,
+      isTemporaryStateEditableRef,
+      isTemporaryStateRef,
+      updateSheetContent,
+    ]
   );
 
-  const openSheet = useCallback(
+  const initialOpenSheet = useCallback(
     async ({ sheetName }: { sheetName: string }) => {
-      if (sheetName === currentSheetName || !sheetName) return;
+      const results = openSheet({ sheetName });
 
-      clearTablesData();
+      if (!results) return;
+      if (!_projectState.current) return;
 
-      const projectState = _projectState.current;
-      if (!projectState) {
-        return;
-      }
-
-      const sheetContent = projectState.sheets.find(
-        (sheet) => sheet.sheetName === sheetName
-      )?.content;
-
-      if (sheetContent === undefined || sheetContent === null) {
-        navigate(routes.home);
-
-        return;
-      }
-
-      setCurrentSheetName(sheetName);
-      setParsedSheet(null);
+      const { resultedSheetContent, resultedSheetName } = results;
       addRecentProject(
-        sheetName,
-        projectState.projectName,
-        projectState.bucket,
-        projectState.path
+        resultedSheetName,
+        _projectState.current.projectName,
+        _projectState.current.bucket,
+        _projectState.current.path
       );
-      updateSheetContent([{ sheetName, content: sheetContent }], false);
-
-      navigate(
-        getProjectNavigateUrl({
-          projectName: projectState.projectName,
-          projectBucket: projectState.bucket,
-          projectPath: projectState.path,
-          projectSheetName: sheetName,
-        }),
-        { replace: true }
+      updateSheetContent(
+        [{ sheetName: resultedSheetName, content: resultedSheetContent }],
+        {
+          sendPutWorksheet: false,
+        }
       );
 
-      if (!projectState.sheets) return;
+      if (!_projectState.current.sheets || !isProjectEditable) return;
       let updatedSheetContent = autoRenameTables(
-        sheetContent,
-        sheetName,
-        projectState.sheets
+        resultedSheetContent,
+        resultedSheetName,
+        _projectState.current.sheets
       );
 
-      if (sheetContent === updatedSheetContent) return;
+      if (resultedSheetContent === updatedSheetContent) return;
 
       updatedSheetContent = autoRenameFields(updatedSheetContent);
-      updateSheetContent([{ sheetName, content: updatedSheetContent }]);
+      updateSheetContent([
+        { sheetName: resultedSheetName, content: updatedSheetContent },
+      ]);
     },
-    [clearTablesData, currentSheetName, navigate, updateSheetContent]
+    [isProjectEditable, openSheet, updateSheetContent]
   );
 
   const createSheet = useCallback(
@@ -1326,8 +1582,6 @@ export function ProjectContextProvider({
             const newSheet = newProjectStateRequest.sheets[0]?.sheetName;
             if (!newSheet) {
               createSheet({ silent: true });
-            } else {
-              openSheet({ sheetName: newSheet });
             }
           }
 
@@ -1349,7 +1603,6 @@ export function ProjectContextProvider({
       createSheet,
       currentSheetName,
       eventBus,
-      openSheet,
       resetSheetState,
       updateProjectOnServer,
     ]
@@ -1390,7 +1643,7 @@ export function ProjectContextProvider({
       if (!project) return;
 
       if (project.sheets) {
-        openSheet({
+        initialOpenSheet({
           sheetName: projectSheetName ?? project.sheets[0].sheetName,
         });
       }
@@ -1402,7 +1655,13 @@ export function ProjectContextProvider({
         remoteEtag.current = project.version;
       }
     },
-    [getProjectFromServer, navigate, openSheet, setLoading, subscribeToProject]
+    [
+      getProjectFromServer,
+      initialOpenSheet,
+      navigate,
+      setLoading,
+      subscribeToProject,
+    ]
   );
 
   const shareResources = useCallback(
@@ -1431,7 +1690,9 @@ export function ProjectContextProvider({
       const acceptShare = await acceptShareRequest({ invitationId });
 
       if (!acceptShare) {
-        navigate(routes.home);
+        // eslint-disable-next-line no-console
+        console.warn('Redirect to home because of error while accepting share');
+        closeCurrentProject();
 
         return;
       }
@@ -1445,7 +1706,7 @@ export function ProjectContextProvider({
       );
       displayToast('info', appMessages.acceptProjectShareRequest);
     },
-    [acceptShareRequest, navigate]
+    [acceptShareRequest, closeCurrentProject, navigate]
   );
 
   const acceptShareFiles = useCallback(
@@ -1456,9 +1717,10 @@ export function ProjectContextProvider({
         displayToast('info', appMessages.acceptFilesShareRequest);
       }
 
+      closeCurrentProject(true);
       navigate(routes.sharedWithMe);
     },
-    [acceptShareRequest, navigate]
+    [acceptShareRequest, closeCurrentProject, navigate]
   );
 
   const getFunctions = useCallback(async () => {
@@ -1532,6 +1794,7 @@ export function ProjectContextProvider({
     async (viewports: Viewport[], virtualTablesDSL: string[]) => {
       if (!_projectState.current) return;
 
+      const requestId = uniqueId();
       const worksheets = _projectState.current.sheets.reduce((acc, curr) => {
         if (curr.sheetName === currentSheetName) {
           acc[curr.sheetName] =
@@ -1542,6 +1805,9 @@ export function ProjectContextProvider({
 
         return acc;
       }, {} as Record<string, string>);
+
+      const controller = new AbortController();
+      manageRequestLifecycle('start', controller);
 
       const res = await getViewportRequest({
         projectPath: encodeApiUrl(
@@ -1554,23 +1820,54 @@ export function ProjectContextProvider({
         ),
         viewports,
         worksheets,
+        hasEditPermissions,
+        controller,
       });
 
-      if (!res) return;
+      if (!res) {
+        manageRequestLifecycle('end', controller);
+
+        return;
+      }
 
       try {
-        await parseSSEResponse(res, {
-          onData: (parsedData: Partial<ViewportResponse>) => {
-            if (parsedData.columnData) {
-              onColumnDataResponse(parsedData.columnData);
-            }
+        await parseSSEResponse(
+          res,
+          {
+            onData: (parsedData: Partial<ViewportResponse>) => {
+              if (parsedData.columnData) {
+                onColumnDataResponse(parsedData.columnData);
+              }
+
+              if (parsedData.profile) {
+                onProfileResponse(requestId, parsedData.profile);
+              }
+
+              if (parsedData.index) {
+                onIndexResponse(parsedData.index);
+              }
+            },
           },
-        });
-      } catch {
-        displayToast('error', appMessages.calculateError);
+          controller
+        );
+      } catch (error) {
+        // Ignore abort errors
+        if (!(error instanceof DOMException && error.name === 'AbortError')) {
+          displayToast('error', appMessages.calculateError);
+        }
+      } finally {
+        manageRequestLifecycle('end', controller);
       }
     },
-    [currentSheetName, getViewportRequest, onColumnDataResponse]
+    [
+      currentSheetName,
+      getViewportRequest,
+      onColumnDataResponse,
+      onProfileResponse,
+      onIndexResponse,
+      hasEditPermissions,
+      manageRequestLifecycle,
+    ]
   );
 
   const getCurrentProjectViewport = useCallback(
@@ -1587,9 +1884,11 @@ export function ProjectContextProvider({
           acc[curr.sheetName] = overrideCurrentSheetContent;
         } else if (
           curr.sheetName === currentSheetName &&
+          parsedSheet?.editableSheet &&
           !overrideCurrentSheetContent
         ) {
           acc[curr.sheetName] = addChartFiltersToDefaultViewportRequest(
+            parsedSheet.clone().editableSheet,
             viewports,
             viewGridData,
             acc[curr.sheetName]
@@ -1598,6 +1897,12 @@ export function ProjectContextProvider({
 
         return acc;
       }, {} as Record<string, string>);
+
+      const requestId = uniqueId();
+      viewGridData.startRequest(requestId);
+
+      const controller = new AbortController();
+      manageRequestLifecycle('start', controller);
 
       const res = await getViewportRequest({
         projectPath: encodeApiUrl(
@@ -1610,43 +1915,82 @@ export function ProjectContextProvider({
         ),
         viewports,
         worksheets,
+        hasEditPermissions,
+        controller,
       });
 
-      if (!res) return;
+      if (!res) {
+        manageRequestLifecycle('end', controller);
+        viewGridData.finishRequest(requestId);
+
+        return;
+      }
 
       try {
-        await parseSSEResponse(res, {
-          onData: (parsedData: Partial<ViewportResponse>) => {
-            if (parsedData.columnData) {
-              onColumnDataResponse(parsedData.columnData);
-            }
-
-            if (parsedData.compileResult) {
-              if (parsedData.compileResult.compilationErrors) {
-                viewGridData.setCompilationErrors(
-                  parsedData.compileResult.compilationErrors
-                );
-                setCurrentSheetCompilationErrors(
-                  parsedData.compileResult.compilationErrors
-                );
+        await parseSSEResponse(
+          res,
+          {
+            onData: (parsedData: Partial<ViewportResponse>) => {
+              if (parsedData.columnData) {
+                onColumnDataResponse(parsedData.columnData);
               }
 
-              parsedData.compileResult.sheets?.forEach((sheet) => {
-                if (sheet.name === currentSheetName) {
-                  viewGridData.setParsingErrors(sheet.parsingErrors);
-                  setCurrentSheetParsingErrors(sheet.parsingErrors);
+              if (parsedData.profile) {
+                onProfileResponse(requestId, parsedData.profile);
+              }
 
-                  return;
+              if (parsedData.index) {
+                onIndexResponse(parsedData.index);
+                setIndexErrors(viewGridData.getIndexErrors());
+              }
+
+              if (parsedData.compileResult) {
+                if (parsedData.compileResult.compilationErrors) {
+                  viewGridData.setCompilationErrors(
+                    parsedData.compileResult.compilationErrors
+                  );
+                  setCurrentSheetCompilationErrors(
+                    parsedData.compileResult.compilationErrors
+                  );
                 }
-              });
-            }
+
+                setFieldInfos(parsedData.compileResult.fieldInfo ?? []);
+
+                parsedData.compileResult.sheets?.forEach((sheet) => {
+                  if (sheet.name === currentSheetName) {
+                    viewGridData.setParsingErrors(sheet.parsingErrors);
+                    setCurrentSheetParsingErrors(sheet.parsingErrors);
+
+                    return;
+                  }
+                });
+              }
+            },
           },
-        });
-      } catch {
-        displayToast('error', appMessages.calculateError);
+          controller
+        );
+        viewGridData.finishRequest(requestId);
+      } catch (error) {
+        // Ignore abort errors
+        if (!(error instanceof DOMException && error.name === 'AbortError')) {
+          displayToast('error', appMessages.calculateError);
+        }
+        viewGridData.finishRequest(requestId);
+      } finally {
+        manageRequestLifecycle('end', controller);
       }
     },
-    [currentSheetName, getViewportRequest, onColumnDataResponse, viewGridData]
+    [
+      hasEditPermissions,
+      currentSheetName,
+      getViewportRequest,
+      onColumnDataResponse,
+      onProfileResponse,
+      onIndexResponse,
+      viewGridData,
+      parsedSheet,
+      manageRequestLifecycle,
+    ]
   );
 
   useEffect(() => {
@@ -1743,15 +2087,14 @@ export function ProjectContextProvider({
   }, [projectName]);
 
   useEffect(() => {
-    parseSheet(currentSheetContent ?? undefined);
+    parseSheet(currentSheetContent ?? undefined, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentSheetContent, isAIPendingChanges]);
+  }, [currentSheetContent]);
 
   useEffect(() => {
-    if (!isAIPendingChanges) {
-      setPreviousParsedSheets(parsedSheets);
-    }
-  }, [isAIPendingChanges, parsedSheets]);
+    parseSheet(currentSheetContent ?? undefined, false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isTemporaryState, isTemporaryStateEditable]);
 
   const value = useMemo(
     () => ({
@@ -1762,6 +2105,7 @@ export function ProjectContextProvider({
       projectPath,
       projectPermissions,
       isProjectEditable,
+      isProjectShareable,
 
       projects,
 
@@ -1770,6 +2114,7 @@ export function ProjectContextProvider({
       sheetErrors: currentSheetParsingErrors,
       compilationErrors: currentSheetCompilationErrors,
       runtimeErrors,
+      indexErrors,
 
       parsedSheet,
       parsedSheets,
@@ -1778,11 +2123,23 @@ export function ProjectContextProvider({
 
       functions,
 
-      isAIPendingChanges,
-      updateIsAIPendingChanges,
-      isAIPendingBanner,
-      updateIsAIPendingBanner,
-      tablesDiffData,
+      fieldInfos,
+
+      isProjectChangedOnServerByUser,
+
+      isProjectReadonlyByUser,
+      setIsProjectReadonlyByUser,
+
+      isProjectEditingDisabled,
+      setIsProjectEditingDisabled,
+
+      diffData,
+      setDiffData,
+
+      beforeTemporaryState,
+      startTemporaryState,
+      resolveTemporaryState,
+      setIsTemporaryStateEditable,
 
       openProject,
       closeCurrentProject,
@@ -1813,10 +2170,16 @@ export function ProjectContextProvider({
       getVirtualProjectViewport,
       getProjects,
 
-      isOverrideProjectBanner,
-      setIsOverrideProjectBanner,
+      isConflictResolving,
+      setIsConflictResolving,
+      initConflictResolving,
       resolveConflictUsingServerChanges,
       resolveConflictUsingLocalChanges,
+      forkedProject,
+      responseIds,
+      hasEditPermissions,
+      longCalcStatus,
+      setLongCalcStatus,
     }),
     [
       projectName,
@@ -1826,21 +2189,29 @@ export function ProjectContextProvider({
       projectPath,
       projectPermissions,
       isProjectEditable,
+      isProjectShareable,
       projects,
       currentSheetName,
       currentSheetContent,
       currentSheetParsingErrors,
       currentSheetCompilationErrors,
       runtimeErrors,
+      indexErrors,
       parsedSheet,
       parsedSheets,
       selectedCell,
       functions,
-      isAIPendingChanges,
-      updateIsAIPendingChanges,
-      isAIPendingBanner,
-      updateIsAIPendingBanner,
-      tablesDiffData,
+      fieldInfos,
+      isProjectChangedOnServerByUser,
+      isProjectReadonlyByUser,
+      setIsProjectReadonlyByUser,
+      isProjectEditingDisabled,
+      diffData,
+      setDiffData,
+      beforeTemporaryState,
+      startTemporaryState,
+      resolveTemporaryState,
+      setIsTemporaryStateEditable,
       openProject,
       closeCurrentProject,
       createProject,
@@ -1863,9 +2234,15 @@ export function ProjectContextProvider({
       getCurrentProjectViewport,
       getVirtualProjectViewport,
       getProjects,
-      isOverrideProjectBanner,
+      isConflictResolving,
+      initConflictResolving,
       resolveConflictUsingServerChanges,
       resolveConflictUsingLocalChanges,
+      forkedProject,
+      responseIds,
+      hasEditPermissions,
+      longCalcStatus,
+      setLongCalcStatus,
     ]
   );
 

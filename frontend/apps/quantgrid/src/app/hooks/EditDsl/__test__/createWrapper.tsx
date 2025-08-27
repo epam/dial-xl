@@ -39,9 +39,20 @@ export function createWrapper({
 }: TestWrapperProps) {
   return ({ children }: PropsWithChildren<unknown>) => {
     const [dsl, setDsl] = useState('');
-    const updatedProjectSheets: WorksheetState[] = projectSheets;
+    const updatedProjectSheets: WorksheetState[] = [...projectSheets];
 
-    if (sheetName && projectName) {
+    if (projectSheets.length > 0) {
+      for (let i = 0; i < projectSheets.length; i++) {
+        const sheet = projectSheets[i];
+        parsedSheets[sheet.sheetName] = SheetReader.parseSheet(sheet.content);
+
+        if (
+          !updatedProjectSheets.find((ws) => ws.sheetName === sheet.sheetName)
+        ) {
+          updatedProjectSheets.push(sheet);
+        }
+      }
+    } else if (sheetName && projectName) {
       parsedSheets[sheetName] = SheetReader.parseSheet(dsl);
       parsedSheet = parsedSheets[sheetName];
       const worksheetState: WorksheetState = {
@@ -71,6 +82,8 @@ export function createWrapper({
               viewGridData,
               clearTablesData: () => {},
               onColumnDataResponse: () => {},
+              onProfileResponse: () => {},
+              onIndexResponse: () => {},
             }}
           >
             <ProjectContext.Provider
@@ -82,6 +95,10 @@ export function createWrapper({
                 projectPath: '',
                 projectPermissions: [],
                 isProjectEditable: true,
+                isProjectShareable: true,
+                hasEditPermissions: true,
+
+                isProjectChangedOnServerByUser: false,
 
                 projects: [],
 
@@ -90,6 +107,7 @@ export function createWrapper({
                 sheetErrors: [],
                 compilationErrors: [],
                 runtimeErrors: [],
+                indexErrors: [],
 
                 parsedSheet,
                 parsedSheets,
@@ -98,16 +116,26 @@ export function createWrapper({
 
                 functions: [],
 
-                isAIPendingChanges: false,
-                updateIsAIPendingChanges: () => {},
-                isAIPendingBanner: false,
-                updateIsAIPendingBanner: () => {},
-                tablesDiffData: {},
+                forkedProject: null,
 
-                isOverrideProjectBanner: false,
-                setIsOverrideProjectBanner: () => {},
+                beforeTemporaryState: null,
+                startTemporaryState: () => {},
+                isProjectReadonlyByUser: false,
+                setIsProjectReadonlyByUser: () => {},
+                resolveTemporaryState: () => {},
+                setIsTemporaryStateEditable: () => {},
+                diffData: null,
+                setDiffData: () => {},
+                isProjectEditingDisabled: false,
+                setIsProjectEditingDisabled: () => {},
+
+                isConflictResolving: false,
+                initConflictResolving: () => {},
                 resolveConflictUsingLocalChanges: () => {},
                 resolveConflictUsingServerChanges: () => {},
+
+                fieldInfos: [],
+                responseIds: [],
 
                 openProject: () => {},
                 closeCurrentProject: () => {},
@@ -115,7 +143,7 @@ export function createWrapper({
                 deleteProject: () => {},
                 deleteCurrentProject: () => {},
                 renameCurrentProject: () => {},
-                cloneCurrentProject: () => {},
+                cloneCurrentProject: () => ({} as Promise<void>),
 
                 acceptShareProject: () => {},
                 acceptShareFiles: () => {},
@@ -137,6 +165,8 @@ export function createWrapper({
                 getCurrentProjectViewport: () => {},
                 getVirtualProjectViewport: () => {},
                 getProjects: () => {},
+                longCalcStatus: null,
+                setLongCalcStatus: () => {},
               }}
             >
               <UndoRedoContext.Provider

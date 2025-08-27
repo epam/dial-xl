@@ -10,7 +10,6 @@ import {
   isComplexType,
   isFeatureFlagEnabled,
   isNumericType,
-  isOtherCellsInFieldDataHasOverrides,
   isTextType,
   OverrideIcon,
   Shortcut,
@@ -72,12 +71,14 @@ export const getTableCellMenuItems = (
     totalFieldTypes,
     isIndex,
     isDescription,
+    hasOverrides: fieldHasOverrides,
   } = field;
 
   const isNumeric = isNumericType(type);
   const isText = isTextType(type);
   const filterType = isNumeric ? 'numeric' : isText ? 'text' : null;
-  const isComplex = isComplexType(field) || isNested || isDynamic;
+  const isComplex = isComplexType(field) || isNested;
+  const isComplexOrDynamic = isComplex || isDynamic;
   const showCollapseNestedField = !isManual && isDim;
   const showExpandNestedField =
     !isManual && !isDim && (isNested || isPeriodSeries);
@@ -90,13 +91,12 @@ export const getTableCellMenuItems = (
   const isShowAIPrompt = isFeatureFlagEnabled('askAI');
 
   const isFieldHasOverrides = cell
-    ? cell.isOverride ||
-      isOtherCellsInFieldDataHasOverrides(cell, gridApi?.getCell)
+    ? cell.isOverride || fieldHasOverrides
     : false;
 
   const filterSortItems = [
-    !isComplex ? sortItem(col, row, isNumeric) : null,
-    filterType && !isComplex
+    !isComplexOrDynamic ? sortItem(col, row, isNumeric) : null,
+    filterType && !isComplexOrDynamic
       ? filterItem(col, row, cell, gridCallbacks, filterList)
       : null,
     totalItem(col, row, totalFieldTypes, isComplex),

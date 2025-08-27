@@ -179,6 +179,12 @@ export class ParsedOverride {
     return this.overrideRows.map((row) => row[fieldName]);
   }
 
+  public hasColumnOverrides(fieldName: string): boolean {
+    const columnValues = this.getColumnValues(fieldName);
+
+    return columnValues.some((v) => v !== null && v !== undefined && v !== '');
+  }
+
   public findByKey(key: string, keyValue: number): number {
     if (!this.overrideRows || !this.hasKey(key)) return -1;
 

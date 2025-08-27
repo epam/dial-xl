@@ -35,7 +35,7 @@ public class Explode extends Plan1<Table, Table> {
     @Override
     protected Meta meta() {
         Schema left = Schema.inputs(this, 0);
-        Schema right = Schema.of(ColumnType.STRING, ColumnType.DATE, ColumnType.DOUBLE);
+        Schema right = Schema.of(ColumnType.STRING, ColumnType.DOUBLE, ColumnType.DOUBLE);
         Schema schema = Schema.of(left, right);
         return new Meta(schema);
     }

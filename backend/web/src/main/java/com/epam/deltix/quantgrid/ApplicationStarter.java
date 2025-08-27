@@ -1,5 +1,6 @@
 package com.epam.deltix.quantgrid;
 
+import com.epam.deltix.gflog.jul.JulBridge;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration;
@@ -12,6 +13,10 @@ import org.springframework.boot.autoconfigure.web.servlet.MultipartAutoConfigura
 public class ApplicationStarter {
 
     public static void main(String[] args) {
+
+        // disables Spring Logging System, so we solely rely on GF Log
+       // System.setProperty("org.springframework.boot.logging.LoggingSystem", "none");
+        JulBridge.install();
         SpringApplication.run(ApplicationStarter.class, args);
     }
 }

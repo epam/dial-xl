@@ -13,15 +13,16 @@ class _DocLine:
 
     @property
     def text(self) -> str:
+        """Get the text of the doc line."""
         return self.__text
 
     @text.setter
     def text(self, value: str):
+        """Set the text of the doc line."""
         self.__text = value
 
     def to_dsl(self) -> str:
-        """Converts the doc line to DSL format."""
-
+        """Convert the doc line to DSL format."""
         return f"{self.__prefix}{self.__text}{self.__after}"
 
     @classmethod
@@ -45,15 +46,16 @@ class _FieldDocLine:
 
     @property
     def text(self) -> str:
+        """Get the text of the field doc line."""
         return self.__doc_line.text
 
     @text.setter
     def text(self, value: str):
+        """Set the text of the field doc line."""
         self.__doc_line.text = value
 
     def to_dsl(self) -> str:
-        """Converts the field doc line to DSL format."""
-
+        """Convert the field doc line to DSL format."""
         return f"{self.__doc_line.to_dsl()}{self.__after}"
 
     @classmethod
@@ -80,12 +82,14 @@ class _DocString:
 
     @property
     def text(self) -> str | None:
+        """Get the text of the doc string."""
         if not self.__lines:
             return None
         return "\n".join(line.text for line in self.__lines)
 
     @text.setter
     def text(self, value: str | None):
+        """Set the text of the doc string."""
         self.__lines = (
             []
             if value is None
@@ -93,6 +97,5 @@ class _DocString:
         )
 
     def to_dsl(self) -> str:
-        """Converts the doc string to DSL format."""
-
+        """Convert the doc string to DSL format."""
         return "".join(line.to_dsl() for line in self.__lines)

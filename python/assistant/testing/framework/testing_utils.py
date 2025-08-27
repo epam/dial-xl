@@ -6,20 +6,25 @@ from dial_xl.field import Field
 from dial_xl.table import Table
 from multiset import Multiset
 
+from quantgrid.utils.project import FieldGroupUtil
 from testing.framework.exceptions import MatchingError
-from testing.framework.project_utils import get_field_or_fail
+from testing.framework.project_utils import get_field_formula_or_fail
 
 
 def field(table: Table, name: str) -> Field:
-    if name not in table.field_names:
+    if name not in FieldGroupUtil.get_table_field_names(table):
         raise MatchingError(f'Field "{name}" is not in table {table.name}')
 
-    return [item for item in table.fields if item.name == name][0]
+    return [
+        item for item in FieldGroupUtil.get_table_fields(table) if item.name == name
+    ][0]
 
 
 def field_regex(table: Table, regex: str) -> Field:
     matches = [
-        item for item in table.fields if re.fullmatch(regex, item.name, re.DOTALL)
+        item
+        for item in FieldGroupUtil.get_table_fields(table)
+        if re.fullmatch(regex, item.name, re.DOTALL)
     ]
     if len(matches) != 1:
         raise MatchingError(
@@ -30,7 +35,11 @@ def field_regex(table: Table, regex: str) -> Field:
 
 
 def field_substr(table: Table, substring: str) -> Field:
-    matches = [item for item in table.fields if substring in item.name]
+    matches = [
+        item
+        for item in FieldGroupUtil.get_table_fields(table)
+        if substring in item.name
+    ]
     if len(matches) != 1:
         raise MatchingError(
             f'Table {table.name} should contain one field with substring "{substring}"'
@@ -45,18 +54,22 @@ def code_substr(table: Table, substring: str) -> bool:
 
 def code_regex(table: Table, regex: str, field_name: str | None = None) -> bool:
     if field_name:
-        str_formula = get_field_or_fail(table, field_name).formula
+        str_formula = get_field_formula_or_fail(table, field_name)
     else:
         str_formula = table.to_dsl()
     return re.fullmatch(regex, str_formula, re.DOTALL) is not None
 
 
-def field_code_regex(field: Field, regex: str) -> bool:
-    return re.fullmatch(regex, field.to_dsl(), re.DOTALL) is not None
+def field_code_regex(table: Table, field: Field, regex: str) -> bool:
+    field_group = FieldGroupUtil.get_field_group_by_name(table, field.name)
+    return re.fullmatch(regex, field_group.to_dsl(), re.DOTALL) is not None
 
 
 def fields(table: Table) -> typing.Dict[str, Field]:
-    return {_field.name: _field for _field in table.fields}
+    table_fields = [
+        field for field_group in table.field_groups for field in field_group.fields
+    ]
+    return {_field.name: _field for _field in table_fields}
 
 
 def values(field: Field) -> typing.List[str]:

@@ -1,8 +1,6 @@
 package com.epam.deltix.quantgrid.engine.node.plan.local;
 
-import ai.djl.inference.Predictor;
-import ai.djl.repository.zoo.ZooModel;
-import ai.djl.translate.TranslateException;
+import com.epam.deltix.quantgrid.engine.embeddings.EmbeddingModel;
 import com.epam.deltix.quantgrid.engine.embeddings.EmbeddingModels;
 import com.epam.deltix.quantgrid.engine.embeddings.EmbeddingType;
 import com.epam.deltix.quantgrid.engine.meta.Meta;
@@ -21,13 +19,10 @@ import com.epam.deltix.quantgrid.type.ColumnType;
 import com.epam.deltix.quantgrid.util.Strings;
 import lombok.Getter;
 
-import java.util.ArrayList;
 import java.util.List;
 
 @Getter
 public class EmbeddingIndexLocal extends Plan2<Table, Table, Table> {
-    public static final int NUMBER_OF_DIMENSIONS = 384;
-
     private final EmbeddingType embeddingType;
 
     public EmbeddingIndexLocal(Plan data, Plan model, EmbeddingType embeddingType, Expression dataColumn, Expression modelColumn) {
@@ -83,52 +78,44 @@ public class EmbeddingIndexLocal extends Plan2<Table, Table, Table> {
         StringColumn modelColumn = (StringColumn) columns[columns.length - 1];
         if (modelColumn.size() == 0) {
             if (hasDescription()) {
-                return List.of(new StringDirectColumn(), new DoubleDirectColumn(), new StringDirectColumn()).toArray(new Column[3]);
+                return new Column[] { new StringDirectColumn(), new DoubleDirectColumn(), new StringDirectColumn()};
             } else {
-                return List.of(new StringDirectColumn(), new DoubleDirectColumn()).toArray(new Column[2]);
+                return new Column[] {new StringDirectColumn(), new DoubleDirectColumn()};
             }
         }
-        final ZooModel<String, float[]> model = getModel(modelColumn);
-        String modelName = model.getName();
-        final Predictor<String, float[]> predictor = model.newPredictor();
+        EmbeddingModel model = getModel(modelColumn);
 
-        String prefix = EmbeddingModels.getPrefix(modelName, this.embeddingType);
+        String prefix = EmbeddingModels.getPrefix(model.getName(), this.embeddingType);
 
         StringColumn targetColumn = (StringColumn) columns[0];
         StringColumn descriptionColumn = hasDescription() ? (StringColumn) columns[1] : null;
+        String[] input = new String[(int) targetColumn.size()];
 
-        List<String> embeddingBatch = new ArrayList<>((int) targetColumn.size());
-        for (int i = 0; i < targetColumn.size(); ++i) {
-            String data = targetColumn.get(i) + (descriptionColumn == null ? "" : " " + descriptionColumn.get(i));
+        for (int i = 0; i < targetColumn.size(); i++) {
+            checkCancel(i);
 
-            embeddingBatch.add(prefix + data);
-        }
+            String data = Strings.toString(targetColumn.get(i));
+            String description = descriptionColumn == null ? null : descriptionColumn.get(i);
+            String text = prefix + data;
 
-        List<float[]> vectors = new ArrayList<>(embeddingBatch.size());
-        try {
-            for (int i = 0; i < embeddingBatch.size(); ++i) {
-                vectors.add(predictor.predict(embeddingBatch.get(i)));
+            if (!Strings.isError(description)) {
+                text += " " + description;
             }
-        } catch (TranslateException e) {
-            throw new IllegalArgumentException("Unsupported data to calculate embedding");
+
+            input[i] = text;
         }
 
-        double[] vectorData = new double[NUMBER_OF_DIMENSIONS * (int) targetColumn.size()];
-        for (int i = 0; i < targetColumn.size(); ++i) {
-            for (int j = 0; j < vectors.get(i).length; ++j) {
-                vectorData[i * NUMBER_OF_DIMENSIONS + j] = vectors.get(i)[j];
-            }
-        }
+        double[] vectorData = model.predict(input, this::checkCancel);
 
         Column[] result = new Column[descriptionColumn != null ? 3 : 2];
         result[0] = new StringLambdaColumn(
-                (index) -> targetColumn.get((int) index / NUMBER_OF_DIMENSIONS),
+                (index) -> targetColumn.get((int) index / EmbeddingModel.NUMBER_OF_DIMENSIONS),
                 vectorData.length
         );
 
         if (descriptionColumn != null) {
             result[2] = new StringLambdaColumn(
-                    (index) -> descriptionColumn.get((int) index / NUMBER_OF_DIMENSIONS),
+                    (index) -> descriptionColumn.get((int) index / EmbeddingModel.NUMBER_OF_DIMENSIONS),
                     vectorData.length
             );
         }
@@ -137,7 +124,7 @@ public class EmbeddingIndexLocal extends Plan2<Table, Table, Table> {
         return result;
     }
 
-    private static ZooModel<String, float[]> getModel(StringColumn column) {
+    private EmbeddingModel getModel(StringColumn column) {
         for (int j = 0; j < column.size(); ++j) {
             if (Strings.isError(column.get(j))) {
                 throw new IllegalArgumentException("The model should be specified");
@@ -149,7 +136,7 @@ public class EmbeddingIndexLocal extends Plan2<Table, Table, Table> {
         }
 
         String modelName = column.get(0);
-        ZooModel<String, float[]> model = EmbeddingModels.getModel(modelName);
+        EmbeddingModel model = EmbeddingModels.getModels().get(modelName);
 
         if (model == null) {
             throw new IllegalArgumentException("%s is unsupported model".formatted(modelName));

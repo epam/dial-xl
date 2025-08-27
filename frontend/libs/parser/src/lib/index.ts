@@ -3,6 +3,7 @@ export * from './ParsedTable';
 export * from './FieldKey';
 export * from './ParsedApply';
 export * from './ParsedField';
+export * from './ParsedFields';
 export * from './ParsedFilter';
 export * from './ParsedOverride';
 export * from './ParsedSheet';

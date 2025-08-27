@@ -27,15 +27,23 @@ export const isCodeEditorMonacoInputFocused = (): boolean => {
   if (!activeElement) return false;
 
   const codeEditorInputContainer = document.getElementById(codeEditorId);
+  if (!codeEditorInputContainer) return false;
 
+  // Regular Monaco text-area focus
   const { classList } = activeElement;
   const isMonacoEditorFocused =
     classList.contains('inputarea') &&
-    classList.contains('monaco-mouse-cursor-text');
+    classList.contains('monaco-mouse-cursor-text') &&
+    codeEditorInputContainer.contains(activeElement);
 
-  return (
-    isMonacoEditorFocused && !!codeEditorInputContainer?.contains(activeElement)
-  );
+  // Focus inside the “find & replace” widget that is rendered inside Monaco
+  const findWidget = (activeElement as HTMLElement).closest(
+    '.find-widget.replaceToggled'
+  ) as HTMLElement | null;
+  const isFindWidgetFocused =
+    !!findWidget && codeEditorInputContainer.contains(findWidget);
+
+  return isMonacoEditorFocused || isFindWidgetFocused;
 };
 
 export const isFormulaBarMonacoInputFocused = (): boolean => {

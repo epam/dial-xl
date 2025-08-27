@@ -10,11 +10,11 @@ import {
   ChartType,
   ColumnDataType,
   defaultFieldName,
+  disabledTooltips,
   getCheckboxDropdownSubmenuItem,
   getDropdownDivider,
   getDropdownItem,
   getDropdownMenuKey,
-  isOtherCellsInFieldDataHasOverrides,
   isTextType,
   makeKeyFieldWithOverridesMessage,
   MenuItem,
@@ -22,7 +22,6 @@ import {
 } from '@frontend/common';
 
 import {
-  ApiContext,
   AppContext,
   AppSpreadsheetInteractionContext,
   OpenFieldSideEffect,
@@ -38,18 +37,15 @@ import {
   useDSLUtils,
   useFieldEditDsl,
   useGridApi,
-  useManualEditDSL,
   useOpenInEditor,
   usePointClickSelectValue,
   useProjectActions,
+  useProjectMode,
   useTableEditDsl,
 } from '../../../hooks';
 import { useAddTableRow } from '../../../hooks/EditDsl/useAddTableRow';
 
 const contextMenuActionKeys = {
-  renameProject: 'renameProject',
-  deleteProject: 'deleteProject',
-
   selectWorksheet: 'selectWorksheet',
 
   putSheet: 'putSheet',
@@ -139,12 +135,10 @@ export const useProjectTreeContextMenu = (
   >
 ) => {
   const { isPointClickMode } = useContext(AppContext);
-  const { userBucket } = useContext(ApiContext);
   const projectAction = useProjectActions();
-  const { projectName, openSheet, projectBucket } = useContext(ProjectContext);
+  const { projectName, openSheet } = useContext(ProjectContext);
   const { viewGridData } = useContext(ViewportContext);
   const { openField, openTable } = useContext(AppSpreadsheetInteractionContext);
-  const { onCloneTable } = useManualEditDSL();
   const { deleteField } = useDeleteEntityDsl();
   const { downloadTable } = useDownloadTable();
   const {
@@ -160,58 +154,23 @@ export const useProjectTreeContextMenu = (
   } = useFieldEditDsl();
   const {
     arrangeTable,
-    convertToChart,
     convertToTable,
+    cloneTable,
     deleteTable,
     flipTable,
     swapFieldsByDirection,
     toggleTableTitleOrHeaderVisibility,
   } = useTableEditDsl();
-  const { addChart } = useChartEditDsl();
+  const { addChart, setChartType } = useChartEditDsl();
   const { createDerivedTable } = useCreateTableDsl();
   const { addTableRowToEnd } = useAddTableRow();
   const { findContext } = useDSLUtils();
   const { handlePointClickSelectValue } = usePointClickSelectValue();
   const { openInEditor } = useOpenInEditor();
   const gridApi = useGridApi();
+  const { isDefaultMode } = useProjectMode();
 
   const [items, setItems] = useState<MenuItem[]>([]);
-
-  const isYourProject = userBucket === projectBucket;
-
-  const getProjectActions = useCallback((): MenuItem[] => {
-    return [
-      getDropdownItem({
-        key: getDropdownMenuKey<ProjectTreeData>(
-          contextMenuActionKeys.putSheet,
-          {}
-        ),
-        label: 'Create Worksheet',
-      }),
-      getDropdownItem({
-        key: getDropdownMenuKey<ProjectTreeData>(
-          contextMenuActionKeys.renameProject,
-          {}
-        ),
-        label: 'Rename Project',
-        disabled: !isYourProject,
-        tooltip: !isYourProject
-          ? 'You are not allowed to rename projects which are not yours'
-          : undefined,
-      }),
-      getDropdownItem({
-        key: getDropdownMenuKey<ProjectTreeData>(
-          contextMenuActionKeys.deleteProject,
-          {}
-        ),
-        label: 'Delete Project',
-        disabled: !isYourProject,
-        tooltip: !isYourProject
-          ? 'You are not allowed to delete projects which are not yours'
-          : undefined,
-      }),
-    ];
-  }, [isYourProject]);
 
   const getSheetActions = useCallback(
     (childData: ProjectTreeData): MenuItem[] => {
@@ -229,6 +188,8 @@ export const useProjectTreeContextMenu = (
             childData
           ),
           label: 'Rename Worksheet',
+          disabled: !isDefaultMode,
+          tooltip: disabledTooltips.notAllowedChanges,
         }),
         getDropdownItem({
           key: getDropdownMenuKey<ProjectTreeData>(
@@ -236,10 +197,12 @@ export const useProjectTreeContextMenu = (
             childData
           ),
           label: 'Delete Worksheet',
+          disabled: !isDefaultMode,
+          tooltip: disabledTooltips.notAllowedChanges,
         }),
       ];
     },
-    []
+    [isDefaultMode]
   );
 
   const getTableActions = useCallback(
@@ -560,8 +523,7 @@ export const useProjectTreeContextMenu = (
               )
             : undefined;
           isFieldHasOverrides = fieldCell
-            ? fieldCell.isOverride ||
-              isOtherCellsInFieldDataHasOverrides(fieldCell, gridApi?.getCell)
+            ? fieldCell.isOverride || !!fieldCell.field?.hasOverrides
             : false;
         }
 
@@ -611,7 +573,7 @@ export const useProjectTreeContextMenu = (
         getDropdownDivider(),
         getDropdownItem({
           key: 'Indices',
-          label: 'Add/remove indices',
+          label: 'Index',
           children: [
             getDropdownItem({
               label: isKey ? 'Unmark as key column' : 'Mark as a key column',
@@ -882,11 +844,6 @@ export const useProjectTreeContextMenu = (
       const key = info.node.key as string;
       let menuItems: MenuItem[] = [];
 
-      // Project actions, deep = 2
-      if (key.toString().split('-').length === 2) {
-        menuItems = menuItems.concat(getProjectActions());
-      }
-
       // Sheet actions, deep = 3
       if (key.toString().split('-').length === 3) {
         menuItems = menuItems.concat(getSheetActions(childData[key]));
@@ -904,7 +861,7 @@ export const useProjectTreeContextMenu = (
 
       setItems(menuItems);
     },
-    [getFieldActions, getProjectActions, getSheetActions, getTableActions]
+    [getFieldActions, getSheetActions, getTableActions]
   );
 
   const moveToNode = useCallback(
@@ -965,12 +922,6 @@ export const useProjectTreeContextMenu = (
       const { action, data } = parseContextMenuKey(info.key);
 
       switch (action) {
-        case contextMenuActionKeys.deleteProject:
-          projectAction.deleteProjectAction();
-          break;
-        case contextMenuActionKeys.renameProject:
-          projectAction.renameProjectAction();
-          break;
         case contextMenuActionKeys.putSheet:
           projectAction.createWorksheetAction();
           break;
@@ -1026,12 +977,12 @@ export const useProjectTreeContextMenu = (
           break;
         case contextMenuActionKeys.cloneTable:
           if (data.tableName) {
-            onCloneTable(data.tableName);
+            cloneTable(data.tableName);
           }
           break;
         case contextMenuActionKeys.convertToChart:
           if (data.tableName && data.chartType) {
-            convertToChart(data.tableName, data.chartType);
+            setChartType(data.tableName, data.chartType);
           }
           break;
         case contextMenuActionKeys.convertToTable:
@@ -1191,8 +1142,8 @@ export const useProjectTreeContextMenu = (
       toggleTableTitleOrHeaderVisibility,
       flipTable,
       createDerivedTable,
-      onCloneTable,
-      convertToChart,
+      cloneTable,
+      setChartType,
       convertToTable,
       addChart,
       swapFieldsByDirection,

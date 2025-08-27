@@ -9,6 +9,7 @@ from dial_xl.sheet import Sheet
 from dial_xl.table import Table
 
 from quantgrid.models import Action
+from quantgrid.utils.project import FieldGroupUtil
 from testing.framework.exceptions import MatchingError
 
 
@@ -81,19 +82,29 @@ def get_field(
 def get_field(
     table: Table, field_name: str, *, raise_non_exist: bool = False
 ) -> Field | None:
-    if field_name not in table.field_names:
+    table_field_names = FieldGroupUtil.get_table_field_names(table)
+    if field_name not in table_field_names:
         if not raise_non_exist:
             return None
 
         raise MatchingError(f"Field {field_name} does not exist in table {table.name}.")
 
-    return table.get_field(field_name)
+    return FieldGroupUtil.get_field_by_name(table, field_name)
 
 
-def get_field_or_fail(table: Table, field_name: str) -> Field:
-    if field_name not in table.field_names:
+def get_field_formula_or_fail(table: Table, field_name: str) -> str:
+    table_field_names = FieldGroupUtil.get_table_field_names(table)
+    found_field_formula = FieldGroupUtil.get_field_with_formula_by_name(
+        table, field_name
+    )
+    if (
+        field_name not in table_field_names
+        or not found_field_formula
+        or not found_field_formula.formula
+    ):
         raise MatchingError(f"Field '{field_name}' not found")
-    return table.get_field(field_name)
+    else:
+        return found_field_formula.formula
 
 
 async def change_project_sheet(
@@ -117,21 +128,23 @@ async def copy_project(client: Client, project: Project) -> Project:
 def extract_viewports(
     project: Project, action: Action, max_rows: int
 ) -> list[Viewport]:
-    if action.sheet_name not in project.sheet_names:
+    action_table: Table | None = None
+    for sheet in project.sheets:
+        for table in sheet.tables:
+            if table.name == action.table_name:
+                action_table = table
+                break
+
+    if action_table is None:
         return []
 
-    sheet = project.get_sheet(action.sheet_name)
-
-    if action.table_name not in sheet.table_names:
-        return []
-
-    table = sheet.get_table(action.table_name)
-
+    all_field_names = FieldGroupUtil.get_table_field_names(action_table)
     return [
         Viewport(
-            key=FieldKey(table=table.name, field=field.name),
+            key=FieldKey(table=action_table.name, field=field_name),
             start_row=0,
             end_row=max_rows,
+            is_raw=True,
         )
-        for field in table.fields
+        for field_name in all_field_names
     ]

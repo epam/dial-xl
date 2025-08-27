@@ -24,9 +24,9 @@ export function findNearestOverlappingTable(
       otherGridTable.startCol > targetGridTable.endCol
     );
 
-    if (overlap && targetParsedTable.dslPlacement && table.dslPlacement) {
-      const targetStartOffset = targetParsedTable.dslPlacement.startOffset;
-      const otherStartOffset = table.dslPlacement.startOffset;
+    if (overlap && targetParsedTable.span && table.span) {
+      const targetStartOffset = targetParsedTable.span.from;
+      const otherStartOffset = table.span.from;
 
       return isForward
         ? otherStartOffset > targetStartOffset
@@ -40,11 +40,10 @@ export function findNearestOverlappingTable(
   let minOffsetDifference = Infinity;
 
   for (const table of overlappingTables) {
-    if (!table.dslPlacement || !targetParsedTable.dslPlacement) continue;
+    if (!table.span || !targetParsedTable.span) continue;
 
     const offsetDifference = Math.abs(
-      table.dslPlacement.startOffset -
-        targetParsedTable.dslPlacement.startOffset
+      table.span.from - targetParsedTable.span.from
     );
 
     if (offsetDifference < minOffsetDifference) {

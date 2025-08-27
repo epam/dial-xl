@@ -1,7 +1,7 @@
 import pytest
 
 from dial_xl.overrides import Override, Overrides
-from tests.common import create_sheet
+from tests.common import create_sheet, create_project, SHEET_NAME
 
 
 @pytest.mark.asyncio
@@ -71,6 +71,19 @@ async def test_add_override_line_to_existing():
     assert (
         sheet.to_dsl() == "table A\n  [a] = NA\n  [b] = NA\noverride\n[a],[b]\n1,\n,2\n"
     )
+
+
+@pytest.mark.asyncio
+async def test_insert_override_line():
+    sheet = await create_sheet("table A\n  [a] = NA\noverride\n[a]\n3\n")
+
+    table = sheet.get_table("A")
+    overrides = table.overrides
+    overrides.insert(0, Override({"a": "1"}))
+    overrides.insert(1, Override({"a": "2"}))
+
+    assert len(overrides) == 3
+    assert sheet.to_dsl() == "table A\n  [a] = NA\noverride\n[a]\n1\n2\n3\n"
 
 
 @pytest.mark.asyncio
@@ -162,3 +175,46 @@ async def test_remove_override_line():
     del overrides[1]
 
     assert sheet.to_dsl() == "table A\n  [a] = NA\noverride\n[a]\n1\n"
+
+@pytest.mark.asyncio
+async def test_override_errors():
+    project = await create_project(
+        "table A\n"
+        "  [a] = RANGE(10)\n"
+        "  [b] = [a] > 5\n"
+        "override\n"
+        "row,[b]\n"
+        "8,Second\n"
+        "3,First\n"
+    )
+
+    await project.compile()
+
+    sheet = project.get_sheet(SHEET_NAME)
+    table = sheet.get_table("A")
+
+    assert "Second" in table.overrides[0].error("b")
+    assert "First" in table.overrides[1].error("b")
+
+@pytest.mark.asyncio
+async def test_manual_override_errors():
+    project = await create_project(
+        "!manual()"
+        "table A\n"
+        "  [a]\n"
+        "override\n"
+        "[a]\n"
+        "1\n"
+        "First\n"
+        "2\n"
+        "Second\n"
+        "3\n"
+    )
+
+    await project.compile()
+
+    sheet = project.get_sheet(SHEET_NAME)
+    table = sheet.get_table("A")
+
+    assert "First" in table.overrides[1].error("a")
+    assert "Second" in table.overrides[3].error("a")

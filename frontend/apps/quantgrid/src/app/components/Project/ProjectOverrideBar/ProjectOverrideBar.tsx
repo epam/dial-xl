@@ -14,7 +14,7 @@ import { removeLastProjectHistoryElement } from '../../../services';
 
 export const ProjectOverrideBar = () => {
   const {
-    isOverrideProjectBanner,
+    isConflictResolving,
     resolveConflictUsingServerChanges,
     resolveConflictUsingLocalChanges,
     projectName,
@@ -22,7 +22,7 @@ export const ProjectOverrideBar = () => {
     projectPath,
   } = useContext(ProjectContext);
 
-  useUnsavedChanges(isOverrideProjectBanner);
+  useUnsavedChanges(isConflictResolving);
 
   const handleDropChanges = useCallback(() => {
     if (!projectName || !projectBucket) return;
@@ -37,7 +37,7 @@ export const ProjectOverrideBar = () => {
     resolveConflictUsingServerChanges,
   ]);
 
-  if (!isOverrideProjectBanner) return null;
+  if (!isConflictResolving) return null;
 
   return (
     <div className="flex gap-3 bg-bgError px-4 py-1 text-textError text-xs items-center justify-between">

@@ -47,6 +47,17 @@ async def test_edit_apply():
 
 
 @pytest.mark.asyncio
+async def test_insert_sort_formula():
+    sheet = await create_sheet("table A\n  [a] = 1\n  [b] = 2\napply\nsort A[b]\n")
+
+    table = sheet.get_table("A")
+    apply = table.apply
+    apply.sort.insert(0, "A[a]")
+
+    assert sheet.to_dsl() == "table A\n  [a] = 1\n  [b] = 2\napply\nsort A[a], A[b]\n"
+
+
+@pytest.mark.asyncio
 async def test_remove_sort():
     sheet = await create_sheet(
         "table A\n  [a] = 1\n  [b] = 2\napply\nsort -A[a], A[b]\nfilter A[b] = 2\n"
@@ -77,8 +88,8 @@ async def test_apply_removal_doesnt_break_total():
     )
 
     table = sheet.get_table("A")
-    total = table.get_total(1)
+    total = table.totals[0]
     table.apply = None
 
-    assert table.get_total(1) == total
+    assert table.totals[0] == total
     assert sheet.to_dsl() == "table A\n  [a] = 1\ntotal\n  [a] = A[a].SUM()\n"

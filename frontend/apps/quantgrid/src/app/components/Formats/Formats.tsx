@@ -1,26 +1,31 @@
 import { Dropdown, Tooltip } from 'antd';
 import classNames from 'classnames';
 import { MenuInfo } from 'rc-menu/lib/interface';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
 import Icon from '@ant-design/icons';
 import {
   ChevronDown,
+  ColumnFormat,
   CommaIcon,
   DecimalLeftIcon,
   DecimalRightIcon,
+  FormatKeys,
+  FormatKeysMap,
+  FormatLabel,
+  isComplexType,
   MenuItem,
   PercentageIcon,
 } from '@frontend/common';
 import { formatDecoratorName } from '@frontend/parser';
 
+import { ProjectContext } from '../../context';
 import { useDSLUtils, useGridApi } from '../../hooks';
 import {
   CurrencyKeyData,
   FormatKeyData,
   NumberKeyData,
 } from '../../types/format';
-import { FormatKeys, FormatLabel } from '../../utils';
 import { getFormatsItems } from './FormatsItems';
 import { useOnFormatClick } from './useOnFormatClick';
 
@@ -28,14 +33,40 @@ export const Formats = () => {
   const api = useGridApi();
   const { findTable } = useDSLUtils();
 
+  const { selectedCell } = useContext(ProjectContext);
   const [selectedFormat, setSelectedFormat] = useState(FormatKeys.General);
   const [selectedFormatParams, setSelectedFormatParams] =
     useState<FormatKeyData>();
+  const [selectedFormatExplicit, setSelectedFormatExplicit] = useState(false);
   const [isDisabled, setIsDisabled] = useState(false);
 
-  const items: MenuItem[] = useMemo(() => {
-    return getFormatsItems();
-  }, []);
+  const selectedCellValue = useMemo(() => {
+    if (!selectedCell) return undefined;
+
+    const cell = api?.getCell(selectedCell.col, selectedCell.row);
+
+    if (!cell) return undefined;
+
+    return (
+      (cell.value &&
+        cell.field?.fieldName &&
+        cell.table?.tableName &&
+        !cell.isFieldHeader &&
+        cell.value) ||
+      undefined
+    );
+  }, [api, selectedCell]);
+
+  const items: MenuItem[] = useMemo(
+    () => getFormatsItems(selectedCellValue ?? '', selectedFormatExplicit),
+    [selectedCellValue, selectedFormatExplicit]
+  );
+
+  const isCommaSelected = useMemo(
+    () => (selectedFormatParams as NumberKeyData)?.thousandComma ?? false,
+    [selectedFormatParams]
+  );
+  const isPercentageSelected = selectedFormat === FormatKeys.Percentage;
 
   const { onFormatClick } = useOnFormatClick();
 
@@ -53,36 +84,38 @@ export const Formats = () => {
   );
 
   const handlePercentageSelect = useCallback(() => {
-    if (selectedFormat === FormatKeys.Percentage) return;
+    if (selectedFormat === FormatKeys.Percentage) {
+      onFormatClick(FormatKeys.General, {});
+
+      return;
+    }
 
     onFormatClick(FormatKeys.Percentage, { decimalAmount: 1 } as NumberKeyData);
   }, [onFormatClick, selectedFormat]);
 
   const handleCommaSelect = useCallback(() => {
+    const typedSelectedFormat = selectedFormatParams as
+      | NumberKeyData
+      | CurrencyKeyData
+      | undefined;
+    const newCommaValue = !isCommaSelected;
+
     if (
-      ![FormatKeys.Integer, FormatKeys.Number, FormatKeys.Currency].includes(
-        selectedFormat
-      ) ||
+      ![FormatKeys.Number, FormatKeys.Currency].includes(selectedFormat) ||
       !selectedFormatParams
     ) {
-      onFormatClick(FormatKeys.Integer, {
-        thousandComma: true,
+      onFormatClick(FormatKeys.Number, {
+        decimalAmount: typedSelectedFormat?.decimalAmount ?? 1,
+        thousandComma: newCommaValue,
       } as NumberKeyData);
 
       return;
     }
 
-    if (selectedFormat === FormatKeys.Integer) {
-      onFormatClick(FormatKeys.Integer, {
-        thousandComma: true,
-      } as NumberKeyData);
-
-      return;
-    }
     if (selectedFormat === FormatKeys.Number) {
       onFormatClick(FormatKeys.Number, {
         decimalAmount: (selectedFormatParams as NumberKeyData).decimalAmount,
-        thousandComma: true,
+        thousandComma: newCommaValue,
       } as NumberKeyData);
 
       return;
@@ -90,13 +123,14 @@ export const Formats = () => {
     if (selectedFormat === FormatKeys.Currency) {
       onFormatClick(FormatKeys.Currency, {
         decimalAmount: (selectedFormatParams as NumberKeyData).decimalAmount,
-        currencyCode: (selectedFormatParams as CurrencyKeyData).currencySymbol,
-        thousandComma: true,
-      } as NumberKeyData);
+        currencySymbol: (selectedFormatParams as CurrencyKeyData)
+          .currencySymbol,
+        thousandComma: newCommaValue,
+      } as CurrencyKeyData);
 
       return;
     }
-  }, [onFormatClick, selectedFormat, selectedFormatParams]);
+  }, [isCommaSelected, onFormatClick, selectedFormat, selectedFormatParams]);
 
   const handleDecimalChange = useCallback(
     (change: number) => {
@@ -139,10 +173,10 @@ export const Formats = () => {
       if (selectedFormat === FormatKeys.Currency) {
         onFormatClick(FormatKeys.Currency, {
           decimalAmount: newDecimalAmount,
-          currencyCode: (selectedFormatParams as CurrencyKeyData)
+          currencySymbol: (selectedFormatParams as CurrencyKeyData)
             .currencySymbol,
           thousandComma: true,
-        } as NumberKeyData);
+        } as CurrencyKeyData);
 
         return;
       }
@@ -158,7 +192,11 @@ export const Formats = () => {
   );
 
   const updateFormatInfo = useCallback(
-    (tableName: string, fieldName: string) => {
+    (
+      inheritedFormat: ColumnFormat | undefined,
+      tableName: string,
+      fieldName: string
+    ) => {
       const targetTable = findTable(tableName);
 
       if (!targetTable) {
@@ -170,8 +208,7 @@ export const Formats = () => {
       const targetField = targetTable.fields.find(
         (field) => field.key.fieldName === fieldName
       );
-
-      if (!targetField?.dslFieldNamePlacement) {
+      if (!targetField?.span) {
         setSelectedFormat(FormatKeys.General);
 
         return;
@@ -180,32 +217,51 @@ export const Formats = () => {
       const existingFormatDecorator = targetField.decorators?.find(
         (dec) => dec.decoratorName === formatDecoratorName
       );
-
       const params = existingFormatDecorator?.params ?? [];
+      let dslFormat: string | undefined;
+      let dslArgs: string[] | undefined;
 
-      if (!params.length) {
+      if (params.length > 0) {
+        const [dslParamsFormat, ...dslParamsArgs] = params[0];
+        dslFormat = dslParamsFormat;
+        dslArgs = dslParamsArgs;
+      } else if (!inheritedFormat) {
         setSelectedFormat(FormatKeys.General);
 
         return;
       }
 
-      const [format, ...args] = params[0];
+      if (!dslFormat && !inheritedFormat) {
+        setSelectedFormat(FormatKeys.General);
 
-      setSelectedFormat(format);
+        return;
+      }
 
-      switch (format) {
+      const formatName = dslFormat ?? FormatKeysMap[inheritedFormat!.type];
+      const args =
+        dslArgs ??
+        ([
+          inheritedFormat?.currencyArgs?.format,
+          inheritedFormat?.currencyArgs?.useThousandsSeparator,
+          inheritedFormat?.currencyArgs?.symbol,
+          inheritedFormat?.dateArgs?.pattern,
+          inheritedFormat?.numberArgs?.format,
+          inheritedFormat?.numberArgs?.useThousandsSeparator,
+          inheritedFormat?.percentageArgs?.format,
+          inheritedFormat?.scientificArgs?.format,
+        ].filter(Boolean) as any[]);
+      setSelectedFormatExplicit(!!dslFormat);
+      setSelectedFormat(formatName);
+
+      switch (formatName) {
         case FormatKeys.General:
         case FormatKeys.Text:
-          break;
-        case FormatKeys.Integer:
-          setSelectedFormatParams({
-            thousandComma: args[0],
-          });
+          setSelectedFormatParams(undefined);
           break;
         case FormatKeys.Number:
           setSelectedFormatParams({
             decimalAmount: args[0],
-            thousandComma: args[1],
+            thousandComma: !!args[1],
           });
           break;
         case FormatKeys.Scientific:
@@ -216,16 +272,11 @@ export const Formats = () => {
         case FormatKeys.Currency:
           setSelectedFormatParams({
             decimalAmount: args[0],
-            thousandComma: args[1],
+            thousandComma: !!args[1],
             currencySymbol: args[2],
           });
           break;
         case FormatKeys.Date:
-          setSelectedFormatParams({
-            patternDate: args[0],
-          });
-          break;
-        case FormatKeys.Time:
           setSelectedFormatParams({
             patternDate: args[0],
           });
@@ -251,7 +302,7 @@ export const Formats = () => {
 
       const cell = api.getCell(newSelection.startCol, newSelection.startRow);
 
-      if (!cell?.table || !cell.field) {
+      if (!cell?.table || !cell.field || isComplexType(cell.field)) {
         setIsDisabled(true);
         setSelectedFormat(FormatKeys.General);
 
@@ -259,7 +310,11 @@ export const Formats = () => {
       }
 
       setIsDisabled(false);
-      updateFormatInfo(cell.table.tableName, cell.field.fieldName);
+      updateFormatInfo(
+        cell.field.format,
+        cell.table.tableName,
+        cell.field.fieldName
+      );
     });
 
     return () => subscription?.unsubscribe();
@@ -267,7 +322,7 @@ export const Formats = () => {
 
   return (
     <div className="flex h-full">
-      <div className="border-x border-strokeTertiary w-36">
+      <div className="border-x border-strokeTertiary w-28 md:w-36">
         <Tooltip
           className={classNames(isDisabled && 'cursor-not-allowed')}
           title={
@@ -280,7 +335,7 @@ export const Formats = () => {
             <Dropdown
               autoAdjustOverflow={true}
               autoFocus={true}
-              className={classNames(isDisabled && 'text-textSecondary')}
+              className={classNames(isDisabled && 'text-controlsTextDisable')}
               destroyPopupOnHide={true}
               disabled={isDisabled}
               forceRender={true}
@@ -306,7 +361,7 @@ export const Formats = () => {
         </Tooltip>
       </div>
 
-      <div className="flex gap-2 px-3 py-1">
+      <div className="hidden md:flex gap-2 px-3 py-1">
         <Tooltip
           title={
             isDisabled
@@ -315,7 +370,12 @@ export const Formats = () => {
           }
         >
           <button
-            className="h-[18px] flex items-center text-textSecondary enabled:hover:text-textAccentPrimary disabled:cursor-not-allowed"
+            className={classNames(
+              'h-[18px] flex items-center enabled:hover:text-textAccentPrimary disabled:text-controlsTextDisable disabled:cursor-not-allowed',
+              isPercentageSelected
+                ? 'text-textAccentPrimary'
+                : 'text-textSecondary'
+            )}
             disabled={isDisabled}
             onClick={handlePercentageSelect}
           >
@@ -333,7 +393,10 @@ export const Formats = () => {
           }
         >
           <button
-            className="h-[18px] flex items-center text-textSecondary enabled:hover:text-textAccentPrimary disabled:cursor-not-allowed"
+            className={classNames(
+              'h-[18px] flex items-center enabled:hover:text-textAccentPrimary disabled:text-controlsTextDisable disabled:cursor-not-allowed',
+              isCommaSelected ? 'text-textAccentPrimary' : 'text-textSecondary'
+            )}
             disabled={isDisabled}
             onClick={handleCommaSelect}
           >
@@ -351,7 +414,7 @@ export const Formats = () => {
           }
         >
           <button
-            className="h-[18px] flex items-center text-textSecondary enabled:hover:text-textAccentPrimary disabled:cursor-not-allowed"
+            className="h-[18px] flex items-center text-textSecondary enabled:hover:text-textAccentPrimary disabled:text-controlsTextDisable disabled:cursor-not-allowed"
             disabled={isDisabled}
             onClick={() => handleDecimalChange(-1)}
           >
@@ -369,7 +432,7 @@ export const Formats = () => {
           }
         >
           <button
-            className="h-[18px] flex items-center text-textSecondary enabled:hover:text-textAccentPrimary disabled:cursor-not-allowed"
+            className="h-[18px] flex items-center text-textSecondary enabled:hover:text-textAccentPrimary disabled:text-controlsTextDisable disabled:cursor-not-allowed"
             disabled={isDisabled}
             onClick={() => handleDecimalChange(1)}
           >

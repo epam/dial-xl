@@ -44,4 +44,5 @@ class Client:
         )
 
     async def get_bucket(self):
+        """Get the bucket from the server."""
         return await _get_bucket(self.__dial_base_url, self.__credential_provider)

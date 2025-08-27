@@ -50,6 +50,6 @@ public class InLocal extends ExpressionN<Column, Column> {
 
     @Override
     public ColumnType getType() {
-        return ColumnType.BOOLEAN;
+        return ColumnType.DOUBLE;
     }
 }

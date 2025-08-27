@@ -6,6 +6,7 @@ import com.epam.deltix.quantgrid.engine.compiler.result.CompiledNestedColumn;
 import com.epam.deltix.quantgrid.engine.compiler.result.CompiledResult;
 import com.epam.deltix.quantgrid.engine.compiler.result.CompiledTable;
 import com.epam.deltix.quantgrid.engine.compiler.result.CompiledColumn;
+import com.epam.deltix.quantgrid.engine.compiler.result.format.GeneralFormat;
 import com.epam.deltix.quantgrid.engine.compiler.result.validator.SimpleOrNestedValidators;
 import com.epam.deltix.quantgrid.engine.compiler.result.validator.SimpleColumnValidators;
 import com.epam.deltix.quantgrid.engine.compiler.result.validator.NestedColumnValidators;
@@ -98,8 +99,8 @@ public class CompilePython {
 
         int column = plan.getMeta().getSchema().size() - 1;
         return resultType.isNested()
-                ? new CompiledNestedColumn(plan, dimensions, layout.currentRef(), column)
-                : new CompiledSimpleColumn(new Get(plan, column), dimensions);
+                ? new CompiledNestedColumn(plan, dimensions, layout.currentRef(), column, GeneralFormat.INSTANCE)
+                : new CompiledSimpleColumn(new Get(plan, column), dimensions, GeneralFormat.INSTANCE);
     }
 
     private CompiledResult compilePythonExpression(CompileContext context, String code, String name,
@@ -115,21 +116,21 @@ public class CompilePython {
             List<FieldKey> dimensions =  List.of();
             Plan layout = context.layout(dimensions).node();
             PythonExpression expression = new PythonExpression(layout, expressions, code, name, type);
-            return new CompiledSimpleColumn(expression, dimensions);
+            return new CompiledSimpleColumn(expression, dimensions, GeneralFormat.INSTANCE);
         }
 
         CompiledColumn first = arguments.get(0);
         Plan layout = first.node().getLayout();
         PythonExpression expression = new PythonExpression(layout, expressions, code, name, type);
-        return first.transform(ignore -> expression);
+        return first.transform(ignore -> expression, GeneralFormat.INSTANCE);
     }
 
     private ResultType type(String type) {
         return switch (type) {
-            case "str" -> new ResultType(null, null, ColumnType.STRING, false);
-            case "float" -> new ResultType(null, null, ColumnType.DOUBLE, false);
-            case "list[str]" -> new ResultType(null, null, ColumnType.STRING, true);
-            case "list[float]" -> new ResultType(null, null, ColumnType.DOUBLE, true);
+            case "str" -> new ResultType(null, null, ColumnType.STRING, GeneralFormat.INSTANCE, false);
+            case "float" -> new ResultType(null, null, ColumnType.DOUBLE, GeneralFormat.INSTANCE, false);
+            case "list[str]" -> new ResultType(null, null, ColumnType.STRING, GeneralFormat.INSTANCE, true);
+            case "list[float]" -> new ResultType(null, null, ColumnType.DOUBLE, GeneralFormat.INSTANCE, true);
             default -> throw new IllegalArgumentException("Unsupported type: " + type
                     + ". Supported types: str, float, list[str], list[float]");
         };

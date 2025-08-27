@@ -1,5 +1,6 @@
 package com.epam.deltix.quantgrid.engine.compiler.result;
 
+import com.epam.deltix.quantgrid.engine.compiler.result.format.ColumnFormat;
 import com.epam.deltix.quantgrid.engine.node.expression.Expression;
 import com.epam.deltix.quantgrid.parser.FieldKey;
 import com.epam.deltix.quantgrid.type.ColumnType;
@@ -14,6 +15,7 @@ import java.util.function.UnaryOperator;
 public class CompiledSimpleColumn implements CompiledColumn {
     Expression node;
     List<FieldKey> dimensions;
+    ColumnFormat format;
 
     public ColumnType type() {
         return node.getType();
@@ -31,12 +33,12 @@ public class CompiledSimpleColumn implements CompiledColumn {
 
     @Override
     public CompiledResult withDimensions(List<FieldKey> dimensions) {
-        return new CompiledSimpleColumn(node, dimensions);
+        return new CompiledSimpleColumn(node, dimensions, format);
     }
 
     @Override
-    public CompiledSimpleColumn transform(UnaryOperator<Expression> transform) {
+    public CompiledSimpleColumn transform(UnaryOperator<Expression> transform, ColumnFormat format) {
         Expression newNode = transform.apply(node);
-        return new CompiledSimpleColumn(newNode, dimensions);
+        return new CompiledSimpleColumn(newNode, dimensions, format);
     }
 }

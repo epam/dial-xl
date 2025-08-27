@@ -3,6 +3,8 @@ from dial_xl.project import Project
 from dial_xl.sheet import Sheet
 from dial_xl.table import Table
 
+from quantgrid.utils.project.field_group import FieldGroupUtil
+
 
 class ProjectCollector:
     @staticmethod
@@ -32,10 +34,22 @@ class ProjectCollector:
         prev_sheets_dict = {sheet.name: sheet for sheet in prev_project.sheets}
         next_sheets_dict = {sheet.name: sheet for sheet in next_project.sheets}
 
-        return [
+        staying_sheets = [
             (prev_sheets_dict[name], next_sheets_dict[name])
             for name in set(prev_sheets_dict) & set(next_sheets_dict)
         ]
+
+        deleted_sheets = [
+            (prev_sheets_dict[name], Sheet(name=name, parsing_errors=[]))
+            for name in set(prev_sheets_dict).difference(set(next_sheets_dict))
+        ]
+
+        created_sheets = [
+            (Sheet(name=name, parsing_errors=[]), next_sheets_dict[name])
+            for name in set(next_sheets_dict).difference(set(prev_sheets_dict))
+        ]
+
+        return staying_sheets + deleted_sheets + created_sheets
 
     # TODO[Backlog][Functionality]: In current state bot does not know anything about "Sheets",
     #  so we just collect all tables across all sheets.
@@ -70,36 +84,58 @@ class ProjectCollector:
 
     @staticmethod
     def collect_created_fields(prev_table: Table, next_table: Table) -> list[Field]:
+        prev_table_field_names = FieldGroupUtil.get_table_field_names(prev_table)
+        next_table_fields = FieldGroupUtil.get_table_fields(next_table)
         return [
             field
-            for field in next_table.fields
-            if field.name not in prev_table.field_names
+            for field in next_table_fields
+            if field.name not in prev_table_field_names
         ]
 
     @staticmethod
     def collect_deleted_fields(prev_table: Table, next_table: Table) -> list[Field]:
+        prev_table_fields = FieldGroupUtil.get_table_fields(prev_table)
+        next_table_field_names = FieldGroupUtil.get_table_field_names(next_table)
         return [
             field
-            for field in prev_table.fields
-            if field.name not in next_table.field_names
+            for field in prev_table_fields
+            if field.name not in next_table_field_names
         ]
 
     @staticmethod
     def collect_edited_fields(
         prev_table: Table, next_table: Table
     ) -> list[tuple[Field, Field]]:
+        prev_table_field_names = FieldGroupUtil.get_table_field_names(prev_table)
+        next_table_field_names = FieldGroupUtil.get_table_field_names(next_table)
         staying_names = [
-            name for name in prev_table.field_names if name in next_table.field_names
+            name for name in prev_table_field_names if name in next_table_field_names
         ]
 
-        prev_fields = (prev_table.get_field(name) for name in staying_names)
-        next_fields = (next_table.get_field(name) for name in staying_names)
+        prev_fields = (
+            field_with_formula
+            for field_with_formula in FieldGroupUtil.get_fields_with_formulas(
+                prev_table
+            )
+            if field_with_formula.field.name in staying_names
+        )
+        next_fields = (
+            field_with_formula
+            for field_with_formula in FieldGroupUtil.get_fields_with_formulas(
+                next_table
+            )
+            if field_with_formula.field.name in staying_names
+        )
 
         edited_fields: list[tuple[Field, Field]] = []
-        for prev_field, next_field in zip(prev_fields, next_fields):
+        for prev_field_w_formula, next_field_w_formula in zip(prev_fields, next_fields):
+            prev_field_formula = prev_field_w_formula.formula
+            prev_field = prev_field_w_formula.field
+            next_field_formula = next_field_w_formula.formula
+            next_field = next_field_w_formula.field
             if (
                 prev_field.doc_string != next_field.doc_string
-                or prev_field.formula != next_field.formula
+                or prev_field_formula != next_field_formula
                 or prev_field.dim != next_field.dim
                 or prev_field.key != next_field.key
                 or ProjectCollector.is_decorators_changed(prev_field, next_field)

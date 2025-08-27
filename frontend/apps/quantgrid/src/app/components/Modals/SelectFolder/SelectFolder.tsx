@@ -21,6 +21,7 @@ import {
   getDropdownItem,
   HomeIcon,
   inputClasses,
+  MetadataNodeType,
   modalFooterButtonClasses,
   primaryButtonClasses,
   publicBucket,
@@ -120,7 +121,7 @@ export function SelectFolder({
 
     let folders: Folder[] = [];
     folders = folders.concat(
-      files.filter((file) => file.nodeType === 'FOLDER')
+      files.filter((file) => file.nodeType === MetadataNodeType.FOLDER)
     );
 
     setStorageFolders(folders);

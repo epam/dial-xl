@@ -153,6 +153,53 @@ export const getCurrencies = () => {
   return sortedCurrencies;
 };
 
+export const getGroupedCurrencies = () => {
+  const currencies = getCurrencies();
+  const mainCurrencies = [
+    'USD',
+    'EUR',
+    'CHF',
+    'GBP',
+    'AUD',
+    'JPY',
+    'CAD',
+    'CNY',
+    'BTC',
+    'ETH',
+    'XRP',
+  ];
+
+  const currenciesMapped = currencies
+    .filter((currency) =>
+      mainCurrencies.some((mainCurrency) => mainCurrency === currency.code)
+    )
+    .reduce(
+      (acc, curr) => {
+        acc[curr.code] = curr;
+
+        return acc;
+      },
+      {} as Record<
+        string,
+        {
+          currency: string;
+          code: string;
+          symbol: string;
+        }
+      >
+    );
+  const resultedMainCurrencies = mainCurrencies
+    .map((currency) => currenciesMapped[currency])
+    .filter(Boolean);
+
+  return {
+    mainCurrencies: resultedMainCurrencies,
+    otherCurrencies: currencies.filter((currency) =>
+      mainCurrencies.every((mainCurrency) => mainCurrency !== currency.code)
+    ),
+  };
+};
+
 export const getCurrencySymbols = () => {
   return getCurrencies().map((item) => item.symbol);
 };

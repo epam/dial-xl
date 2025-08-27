@@ -12,7 +12,7 @@ import { ProjectPage } from '../../pages/ProjectPage';
 import { ProjectSelection } from '../../pages/ProjectSelection';
 import { TestFixtures } from '../TestFixtures';
 
-const projectName = TestFixtures.addGuid('autotest_filemenu');
+let projectName = TestFixtures.addGuid('autotest_filemenu');
 
 const additionalProj = TestFixtures.addGuid('autotest_switch');
 
@@ -80,6 +80,22 @@ test.describe('file menu', () => {
     await TestFixtures.deleteProjectFromPage(secondProjectPage);
     await newPage.close();
   });
+
+  //Rename project
+  test('rename project', async () => {
+    const projectPage = await ProjectPage.createInstance(page);
+    await projectPage.showProjectPanel();
+    await projectPage.performMenuCommand(
+      MenuItems.File,
+      FileMenuItems.RenameProject
+    );
+    const projectRenameForm = new ProjectCreationForm(page);
+    const newProjName = TestFixtures.addGuid('autotest_editmenu_renamed');
+    await projectRenameForm.fillForm(newProjName);
+    //await projectPage.projectShouldBeInProjectsTree(newProjName);
+    projectName = newProjName;
+  });
+
   //create sheet
   test('create new worksheet', async () => {
     const projectPage = await ProjectPage.createInstance(page);

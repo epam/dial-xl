@@ -11,7 +11,7 @@ async def test_manual_creation(basic_project: FrameProject):
     )
 
     answer.assertion(
-        AddTable(table_regex="Manual", A=["1.0", "2.0", "3.0"], B=["X", "Y", "Z"])
+        AddTable(table_regex="Manual", A=["1", "2", "3"], B=["X", "Y", "Z"])
     )
 
 
@@ -40,7 +40,5 @@ async def test_field_referencing(basic_project: FrameProject):
     )
 
     answer.assertion(
-        AddTable(
-            table_regex="Reference", RefA=["1.0", "2.0", "3.0"], RefB=["X", "Y", "Z"]
-        )
+        AddTable(table_regex="Reference", RefA=["1", "2", "3"], RefB=["X", "Y", "Z"])
     )

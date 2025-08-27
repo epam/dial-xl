@@ -6,6 +6,7 @@ import Icon from '@ant-design/icons';
 import {
   CopyIcon,
   DownloadIcon,
+  MetadataNodeType,
   MoveToIcon,
   SelectAllIcon,
   ShareIcon,
@@ -104,7 +105,9 @@ export function DashboardFileListSelectionToolbar() {
 
   const onSelectAll = useCallback(() => {
     setSelectedItems(
-      displayedDashboardItems.filter((i) => i.nodeType !== 'FOLDER')
+      displayedDashboardItems.filter(
+        (i) => i.nodeType !== MetadataNodeType.FOLDER
+      )
     );
   }, [displayedDashboardItems, setSelectedItems]);
 

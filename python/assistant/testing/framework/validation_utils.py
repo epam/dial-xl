@@ -1,5 +1,9 @@
 import re
 
+from dial_xl.field import Field
+from dial_xl.table import Table
+
+from quantgrid_1.models.focus import Focus
 from testing.framework.exceptions import MatchingError
 
 
@@ -33,6 +37,22 @@ def assert_regex_match(string: str, regex: str | None = None):
 def assert_regexes_matches(strings: list[str], regex: list[str | None]):
     for string, regex_item in zip(strings, regex):
         assert_regex_match(string, regex_item)
+
+
+def is_table_focused(focus: Focus, table: Table) -> bool:
+    for column in focus.columns:
+        if column.table_name == table.name:
+            return True
+
+    return False
+
+
+def is_field_focused(focus: Focus, table: Table, field: Field) -> bool:
+    for column in focus.columns:
+        if column.table_name == table.name and column.column_name == field.name:
+            return True
+
+    return False
 
 
 def normalize_number(

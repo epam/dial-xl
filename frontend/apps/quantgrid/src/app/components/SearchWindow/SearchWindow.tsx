@@ -247,7 +247,7 @@ export function SearchWindow() {
         className={cx('ant-input-sm h-[38px] text-[13px]', inputClasses)}
         placeholder="Search..."
         prefix={
-          <div className="pr-2 text-textSecondary w-[18px]">
+          <div className="text-textSecondary size-[18px] shrink-0">
             <SearchIcon />
           </div>
         }
@@ -256,7 +256,7 @@ export function SearchWindow() {
         onChange={(e) => setSearchQuery(e.target.value)}
         onKeyDown={onKeydown}
       />
-      <div className="flex items-center mt-5 mb-4">
+      <div className="flex items-center mt-5 mb-4 overflow-x-auto hidden-scrollbar">
         <SearchFilter
           filterName="All"
           selected={filter === null}
@@ -282,7 +282,7 @@ export function SearchWindow() {
           selected={filter === 'fields'}
           onClick={() => setFilter('fields')}
         />
-        <span className="text-[10px] text-textSecondary">
+        <span className="hidden md:block text-[10px] text-textSecondary">
           Tab or Shift+Tab to switch
         </span>
       </div>

@@ -481,7 +481,9 @@ public class DoubleFunctions {
             value = 0.0;
         }
 
-        return Doubles.normalizeNaN(Math.round(value));
+        return Math.abs(value) < Long.MAX_VALUE
+                ? Math.round(value)
+                : value;
     }
 
     public double log(double value, double base) {

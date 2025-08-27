@@ -57,7 +57,7 @@ async def test_contains(basic_project: FrameProject):
 
     answer.assertion(
         AddFieldOrTable(
-            values=["TRUE", "FALSE", "TRUE"],
+            values=["1", "0", "1"],
             validator=check,
         )
     )

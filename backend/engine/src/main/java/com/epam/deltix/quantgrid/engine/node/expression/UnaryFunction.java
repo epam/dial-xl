@@ -10,8 +10,8 @@ import com.epam.deltix.quantgrid.engine.value.StringColumn;
 import com.epam.deltix.quantgrid.engine.value.local.DoubleLambdaColumn;
 import com.epam.deltix.quantgrid.engine.value.local.StringLambdaColumn;
 import com.epam.deltix.quantgrid.type.ColumnType;
-import com.epam.deltix.quantgrid.util.Doubles;
 import com.epam.deltix.quantgrid.util.Dates;
+import com.epam.deltix.quantgrid.util.Doubles;
 import com.epam.deltix.quantgrid.util.Strings;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -62,7 +62,7 @@ public class UnaryFunction extends Expression1<Column, Column> {
             case SQRT -> applyDoubleUnaryFunction(source, DoubleFunctions::sqrt);
             case TAN -> applyDoubleUnaryFunction(source, DoubleFunctions::tan);
             case TRIM -> applyStringUnaryFunction(source, StringUtils::trim);
-            case VALUE -> applyString2DoubleFunction(source, StringFunctions::parseDouble);
+            case VALUE -> applyString2DoubleFunction(source, Doubles::parseDouble);
             case UNICHAR -> applyDouble2StringFunction(source, StringFunctions::fromCharCode);
             case UPPER -> applyStringUnaryFunction(source, StringUtils::upperCase);
             case YEAR -> applyDoubleUnaryFunction(source, Dates::getYear);
@@ -117,29 +117,29 @@ public class UnaryFunction extends Expression1<Column, Column> {
         ACOS(ColumnType.DOUBLE, ColumnType.DOUBLE),
         ASIN(ColumnType.DOUBLE, ColumnType.DOUBLE),
         ATAN(ColumnType.DOUBLE, ColumnType.DOUBLE),
-        CEIL(ColumnType.DOUBLE, ColumnType.INTEGER),
+        CEIL(ColumnType.DOUBLE, ColumnType.DOUBLE),
         COS(ColumnType.DOUBLE, ColumnType.DOUBLE),
-        DAY(ColumnType.DATE, ColumnType.INTEGER),
+        DAY(ColumnType.DOUBLE, ColumnType.DOUBLE),
         EXP(ColumnType.DOUBLE, ColumnType.DOUBLE),
-        FLOOR(ColumnType.DOUBLE, ColumnType.INTEGER),
-        HOUR(ColumnType.DATE, ColumnType.INTEGER),
-        ISNA(null, ColumnType.BOOLEAN),
-        LEN(ColumnType.STRING, ColumnType.INTEGER),
+        FLOOR(ColumnType.DOUBLE, ColumnType.DOUBLE),
+        HOUR(ColumnType.DOUBLE, ColumnType.DOUBLE),
+        ISNA(null, ColumnType.DOUBLE),
+        LEN(ColumnType.STRING, ColumnType.DOUBLE),
         LN(ColumnType.DOUBLE, ColumnType.DOUBLE),
         LOG10(ColumnType.DOUBLE, ColumnType.DOUBLE),
         LOWER(ColumnType.STRING, ColumnType.STRING),
-        MINUTE(ColumnType.DATE, ColumnType.INTEGER),
-        MONTH(ColumnType.DATE, ColumnType.INTEGER),
-        ROUND(ColumnType.DOUBLE, ColumnType.INTEGER),
-        SECOND(ColumnType.DATE, ColumnType.INTEGER),
+        MINUTE(ColumnType.DOUBLE, ColumnType.DOUBLE),
+        MONTH(ColumnType.DOUBLE, ColumnType.DOUBLE),
+        ROUND(ColumnType.DOUBLE, ColumnType.DOUBLE),
+        SECOND(ColumnType.DOUBLE, ColumnType.DOUBLE),
         SIN(ColumnType.DOUBLE, ColumnType.DOUBLE),
         SQRT(ColumnType.DOUBLE, ColumnType.DOUBLE),
         TAN(ColumnType.DOUBLE, ColumnType.DOUBLE),
         TRIM(ColumnType.STRING, ColumnType.STRING),
         VALUE(ColumnType.STRING, ColumnType.DOUBLE),
-        UNICHAR(ColumnType.INTEGER, ColumnType.STRING),
+        UNICHAR(ColumnType.DOUBLE, ColumnType.STRING),
         UPPER(ColumnType.STRING, ColumnType.STRING),
-        YEAR(ColumnType.DATE, ColumnType.INTEGER);
+        YEAR(ColumnType.DOUBLE, ColumnType.DOUBLE);
 
         @Nullable
         private final ColumnType argumentType;

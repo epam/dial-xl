@@ -1,19 +1,29 @@
 package com.epam.deltix.quantgrid.engine.rule;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.IntStream;
+
 import com.epam.deltix.quantgrid.engine.Util;
 import com.epam.deltix.quantgrid.engine.graph.Graph;
 import com.epam.deltix.quantgrid.engine.graph.GraphPrinter;
 import com.epam.deltix.quantgrid.engine.meta.Schema;
-import com.epam.deltix.quantgrid.engine.node.expression.*;
+import com.epam.deltix.quantgrid.engine.node.expression.Constant;
+import com.epam.deltix.quantgrid.engine.node.expression.Expand;
+import com.epam.deltix.quantgrid.engine.node.expression.Expression;
+import com.epam.deltix.quantgrid.engine.node.expression.Get;
+import com.epam.deltix.quantgrid.engine.node.expression.If;
+import com.epam.deltix.quantgrid.engine.node.expression.UnaryFunction;
 import com.epam.deltix.quantgrid.engine.node.plan.Plan;
 import com.epam.deltix.quantgrid.engine.node.plan.Scalar;
-import com.epam.deltix.quantgrid.engine.node.plan.local.*;
+import com.epam.deltix.quantgrid.engine.node.plan.local.AggregateByLocal;
+import com.epam.deltix.quantgrid.engine.node.plan.local.AggregateLocal;
+import com.epam.deltix.quantgrid.engine.node.plan.local.JoinAllLocal;
+import com.epam.deltix.quantgrid.engine.node.plan.local.JoinSingleLocal;
+import com.epam.deltix.quantgrid.engine.node.plan.local.SelectLocal;
+import com.epam.deltix.quantgrid.engine.node.plan.local.aggregate.AggregateType;
 import it.unimi.dsi.fastutil.ints.Int2IntFunction;
 import lombok.extern.slf4j.Slf4j;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.stream.IntStream;
 
 @Slf4j
 public class OptimizeAggregate implements Rule {
@@ -66,8 +76,8 @@ public class OptimizeAggregate implements Rule {
             aggregateByValues.add(reconnected);
         }
 
-       AggregateByLocal aggregateBy = new AggregateByLocal(aggregate.getType(), aggregateBySource,
-                aggregateByKeys, aggregateByValues);
+        AggregateByLocal aggregateBy = new AggregateByLocal(aggregateBySource, aggregateByKeys,
+                List.of(new AggregateByLocal.Aggregation(aggregate.getType(), aggregateByValues)));
 
         List<Expression> aggregatedKeys = IntStream.range(0, aggregateByKeys.size())
                 .mapToObj(i -> (Expression) new Get(aggregateBy, i)).toList();
@@ -76,7 +86,7 @@ public class OptimizeAggregate implements Rule {
                 join.getLeftKeys(), aggregatedKeys);
 
         Expression joinedValue = new Get(joinBy, joinBy.getMeta().getSchema().size() - 1);
-        joinedValue = fillMissing(scalar, aggregateBy, joinBy, joinedValue);
+        joinedValue = fillMissing(scalar, aggregate.getType(), joinBy, joinedValue);
 
         return new SelectLocal(joinedValue);
     }
@@ -97,9 +107,9 @@ public class OptimizeAggregate implements Rule {
         return null;
     }
 
-    private static Expression fillMissing(Scalar scalar, AggregateByLocal aggregate,
+    private static Expression fillMissing(Scalar scalar, AggregateType type,
                                           JoinSingleLocal join, Expression value) {
-        return switch (aggregate.getType()) {
+        return switch (type) {
             case COUNT, COUNT_ALL, SUM: // fill the result with zero
                 Get key = new Get(join, join.getMeta().getSchema().size() - 2); // last key to check for NA
                 UnaryFunction missing = new UnaryFunction(key, UnaryFunction.Type.ISNA);

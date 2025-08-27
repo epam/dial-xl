@@ -1,7 +1,4 @@
-import {
-  GridCell,
-  isOtherCellsInFieldDataHasOverrides,
-} from '@frontend/common';
+import { GridCell, isComplexType } from '@frontend/common';
 import {
   extractExpression,
   getTokens,
@@ -73,11 +70,19 @@ const accumulateEditOverrideValue = (
   overrideValue: string | number,
   initialValue: string | undefined
 ) => {
-  return overrideValue &&
-    !initialValue &&
-    isFormulaValue(overrideValue.toString())
+  if (initialValue) {
+    return initialValue;
+  }
+
+  if (!overrideValue) {
+    return cellValue;
+  }
+
+  return isFormulaValue(overrideValue.toString())
     ? `=${overrideValue}`
-    : initialValue || cellValue;
+    : !isNaN(Number(overrideValue))
+    ? overrideValue?.toString()
+    : cellValue;
 };
 
 const determineFormula = (
@@ -163,7 +168,10 @@ export const getCellEditorParams = (
 
   // Table Field Header
   if (isTableField) {
-    if (isRenameShortcut) {
+    if (cell?.field?.isDynamic) {
+      editMode = 'edit_dynamic_field_header';
+      value = initialValue || fieldExpression;
+    } else if (isRenameShortcut) {
       editMode = 'rename_field';
       value = unescapeFieldName(cellValue);
     } else if (isEditExpressionShortcut || explicitOpen) {
@@ -172,6 +180,13 @@ export const getCellEditorParams = (
     } else if (onKeyDown) {
       editMode = value === '=' ? 'edit_field_expression' : 'rename_field';
     }
+  }
+
+  // Complex field type table cell
+  if (isTableCell && isComplexType(cell?.field)) {
+    editMode = 'edit_complex_field';
+
+    return { editMode, value: initialValue || fieldExpression };
   }
 
   // Add/Edit Overrides
@@ -240,9 +255,7 @@ export function getCellContextParams(
   api: GridApi,
   cell?: GridCell
 ): GridCellParams {
-  const hasOtherOverrides = cell
-    ? isOtherCellsInFieldDataHasOverrides(cell, api.getCell)
-    : false;
+  const hasOtherOverrides = !!cell?.field?.hasOverrides;
   const hasOtherCellsInField =
     cell && api ? isOtherCellsInField(cell, api) : false;
   const isTableHeader = !!cell?.isTableHeader;

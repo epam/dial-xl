@@ -1,9 +1,9 @@
 import { useContext, useEffect, useMemo } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
-import { routeParams, routes } from '../../AppRoutes';
 import { Project } from '../components';
 import { LayoutContextProvider, ProjectContext } from '../context';
+import { routeParams, routes } from '../types';
 
 export function AppPage() {
   const navigate = useNavigate();

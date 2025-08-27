@@ -14,6 +14,7 @@ import {
 } from '@frontend/common';
 
 import { useApiRequests } from '../../../hooks';
+import { createUniqueFileName } from '../../../services';
 import { isEntityNameInvalid, notAllowedSymbols } from '../../../utils';
 import { SelectFolderInput } from '../../SelectFolderInput';
 
@@ -96,9 +97,31 @@ export function PreUploadFile({
 
       const processedFiles = processFiles(files);
 
+      const existingFileNames = [
+        ...storagePathFileNames,
+        ...selectedFiles.map((file) => file.name + file.extension),
+      ].filter(Boolean);
+
+      for (const processedFile of processedFiles) {
+        const fullFileName = processedFile.name + processedFile.extension;
+        if (existingFileNames.includes(fullFileName)) {
+          processedFile.name = createUniqueFileName(
+            processedFile.name,
+            existingFileNames.map((name) =>
+              name.endsWith(processedFile.extension)
+                ? name.slice(0, -processedFile.extension.length)
+                : name
+            )
+          );
+          existingFileNames.push(processedFile.name + processedFile.extension);
+        } else {
+          existingFileNames.push(fullFileName);
+        }
+      }
+
       setSelectedFiles(resultedFiles.concat(processedFiles));
     },
-    [processFiles, selectedFiles]
+    [processFiles, selectedFiles, storagePathFileNames]
   );
 
   const handleSelectFolder = useCallback(
@@ -229,6 +252,11 @@ export function PreUploadFile({
   }, [getFiles, path, bucket]);
 
   useEffect(() => {
+    const errors = validateSelectedFiles();
+    setErrorMessages(errors);
+  }, [validateSelectedFiles]);
+
+  useEffect(() => {
     if (!hideFilesSelectionOnOpen) {
       selectFilesInputRef.current?.click();
     }
@@ -295,7 +323,7 @@ export function PreUploadFile({
             {selectedFiles.map((file, index) => (
               <div className="flex gap-2 items-center relative" key={file.name}>
                 <Input
-                  className={classNames('h-10', inputClasses)}
+                  className={classNames('h-10 pr-12', inputClasses)}
                   placeholder="File name"
                   value={file.name}
                   autoFocus

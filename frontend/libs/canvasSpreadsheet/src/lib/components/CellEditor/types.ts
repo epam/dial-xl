@@ -81,6 +81,16 @@ export const CellEditorModes = {
     subTitle: null,
     subShortcut: null,
   },
+  edit_complex_field: {
+    title: 'Edit column',
+    subTitle: null,
+    subShortcut: null,
+  },
+  edit_dynamic_field_header: {
+    title: 'Edit column',
+    subTitle: null,
+    subShortcut: null,
+  },
   edit_field_expression: {
     title: 'Edit column (ALT+F2).',
     subTitle: 'Rename column (F2).',
@@ -145,8 +155,6 @@ export type CellEditorExplicitOpenOptions = {
 export enum GridCellEditorEventType {
   Rename = 'Rename',
   Edit = 'Edit',
-  EditOverride = 'EditOverride',
-  AddOverride = 'AddOverride',
   Hide = 'Hide',
   OpenExplicitly = 'OpenExplicitly',
   SetValue = 'SetValue',
@@ -166,20 +174,6 @@ export type GridCellEditorEventRename = {
 
 export type GridCellEditorEventEdit = {
   type: GridCellEditorEventType.Edit;
-
-  col: number;
-  row: number;
-};
-
-export type GridCellEditorEventAddOverride = {
-  type: GridCellEditorEventType.AddOverride;
-
-  col: number;
-  row: number;
-};
-
-export type GridCellEditorEventEditOverride = {
-  type: GridCellEditorEventType.EditOverride;
 
   col: number;
   row: number;
@@ -237,8 +231,6 @@ export type GridCellEditorEventAddTotal = {
 export type GridCellEditorEvent =
   | GridCellEditorEventRename
   | GridCellEditorEventEdit
-  | GridCellEditorEventAddOverride
-  | GridCellEditorEventEditOverride
   | GridCellEditorEventHide
   | GridCellEditorEventOpenExplicitly
   | GridCellEditorEventSetValue

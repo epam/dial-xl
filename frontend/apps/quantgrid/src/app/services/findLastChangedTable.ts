@@ -20,15 +20,11 @@ export function findLastChangedTable(
     }
 
     const lastChangedTable = changedTables.reduce((acc, table) => {
-      if (
-        !acc ||
-        table.dslPlacement === undefined ||
-        acc.dslPlacement === undefined
-      ) {
+      if (!acc) {
         return table;
       }
 
-      if (table.dslPlacement.startOffset > acc.dslPlacement.startOffset) {
+      if (table.span.from > acc.span.from) {
         return table;
       }
 

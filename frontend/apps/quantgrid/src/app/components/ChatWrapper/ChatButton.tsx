@@ -4,7 +4,7 @@ import { DraggableData, DraggableEvent } from 'react-draggable';
 import { Rnd } from 'react-rnd';
 
 import Icon from '@ant-design/icons';
-import { DialChatLogoIcon, DragIcon } from '@frontend/common';
+import { DialChatLogoIconColored, DragIcon } from '@frontend/common';
 
 import { AppContext } from '../../context';
 
@@ -113,7 +113,7 @@ export function ChatButton() {
         </div>
         <Icon
           className="w-[50px] absolute top-[30px] left-2"
-          component={() => <DialChatLogoIcon />}
+          component={() => <DialChatLogoIconColored />}
           id={chatButtonId}
           onClick={toggleChat}
         />

@@ -20,7 +20,10 @@ export function useCloneResources() {
 
   const handleCloneProject = useCallback(
     async (
-      item: Pick<FilesMetadata, 'bucket' | 'name' | 'parentPath'>,
+      item: Pick<
+        FilesMetadata,
+        'bucket' | 'name' | 'parentPath' | 'permissions'
+      >,
       targetBucket?: string,
       targetPath?: string | null
     ) => {
@@ -39,6 +42,10 @@ export function useCloneResources() {
         targetBucket: targetBucket ?? userBucket,
         targetPath:
           targetPath ?? bucket === userBucket ? parentPath ?? null : null,
+        isReadOnly: !!(
+          item?.permissions?.includes('READ') &&
+          !item.permissions.includes('WRITE')
+        ),
       });
 
       if (!res) return;
@@ -90,6 +97,7 @@ export function useCloneResources() {
           targetPath ?? item.bucket === userBucket
             ? item.parentPath ?? null
             : null,
+        suppressErrors: true,
       });
 
       if (!res) return;

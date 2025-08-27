@@ -1,7 +1,6 @@
 package com.epam.deltix.quantgrid.engine.compiler.result;
 
 import com.epam.deltix.quantgrid.engine.compiler.CompileContext;
-import com.epam.deltix.quantgrid.engine.compiler.CompilePivot;
 import com.epam.deltix.quantgrid.engine.compiler.CompileUtil;
 import com.epam.deltix.quantgrid.engine.node.plan.Plan;
 import com.epam.deltix.quantgrid.parser.FieldKey;
@@ -25,6 +24,16 @@ public class CompiledReferenceTable extends CompiledAbstractTable {
     }
 
     @Override
+    public boolean reference() {
+        return true;
+    }
+
+    @Override
+    public boolean assignable() {
+        return true;
+    }
+
+    @Override
     public String name() {
         return name;
     }
@@ -32,6 +41,7 @@ public class CompiledReferenceTable extends CompiledAbstractTable {
     @Override
     public List<String> fields(CompileContext context) {
         return context.parsedTable(name).fields().stream()
+                .flatMap(fields -> fields.fields().stream())
                 .map(ParsedField::fieldName)
                 .toList();
     }
@@ -39,18 +49,15 @@ public class CompiledReferenceTable extends CompiledAbstractTable {
     @Override
     public List<String> keys(CompileContext context) {
         return context.parsedTable(name).fields().stream()
+                .flatMap(fields -> fields.fields().stream())
                 .filter(ParsedField::isKey)
                 .map(ParsedField::fieldName)
-                .filter(name -> !CompilePivot.PIVOT_NAME.equals(name))
+                .filter(name -> !CompiledPivotColumn.PIVOT_NAME.equals(name))
                 .toList();
     }
 
     @Override
     public CompiledResult field(CompileContext context, String field) {
-        if (CompilePivot.PIVOT_NAME.equals(field)) {
-            return context.field(name, field, true);
-        }
-
         CompiledResult result = context.field(name, field, true);
         return context.projectQueryResult(this, result, field);
     }

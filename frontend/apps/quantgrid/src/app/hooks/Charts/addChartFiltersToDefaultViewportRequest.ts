@@ -1,5 +1,5 @@
 import { SelectedChartKey, Viewport } from '@frontend/common';
-import { escapeTableName } from '@frontend/parser';
+import { escapeTableName, Sheet } from '@frontend/parser';
 
 import { ViewGridData } from '../../context';
 import { applySelectorFiltersToChartTables } from '../../utils';
@@ -11,11 +11,14 @@ import { sortChartTablesDesc } from './useGetChartsData';
  * This is primarily needed to ensure correct row numbers (columnData.totalRows) for pie/bar charts.
  */
 export function addChartFiltersToDefaultViewportRequest(
+  editableSheet: Sheet | null,
   viewportRequest: Viewport[],
   viewGridData: ViewGridData,
   sheetContent: string
 ) {
   let updatedSheetContent = sheetContent;
+
+  if (!editableSheet) return updatedSheetContent;
 
   const uniqueTableNames = new Set(
     viewportRequest
@@ -67,6 +70,7 @@ export function addChartFiltersToDefaultViewportRequest(
     );
 
     updatedSheetContent = applySelectorFiltersToChartTables(
+      editableSheet,
       updatedSheetContent,
       table,
       tableSelectedKeys,

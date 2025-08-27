@@ -129,9 +129,7 @@ async def _exit(state: GeneralState):
     stage_actions(state.config.choice, actions)
     changed_sheets(
         state.config.choice,
-        actions,
         state.snapshot(),
-        active_sheet_name=state.config.sheet.name,
         is_success=True,
     )
     suggested_changes(state.config.choice, actions)

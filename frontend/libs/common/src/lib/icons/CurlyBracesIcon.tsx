@@ -1,7 +1,7 @@
 export function CurlyBracesIcon() {
   return (
     <svg fill="none" viewBox="0 0 24 24" width="100%">
-      <g strokeWidth="0"></g>
+      <g strokeWidth="0" vectorEffect="non-scaling-stroke"></g>
       <g strokeLinecap="round" strokeLinejoin="round"></g>
       <g>
         <path
@@ -9,7 +9,8 @@ export function CurlyBracesIcon() {
           stroke="currentColor"
           strokeLinecap="round"
           strokeLinejoin="round"
-          strokeWidth="2"
+          strokeWidth="1.5"
+          vectorEffect="non-scaling-stroke"
         ></path>
       </g>
     </svg>

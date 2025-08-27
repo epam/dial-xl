@@ -160,7 +160,7 @@ export class Apply extends ObservableObserver {
       result._prefix = reader.next(operationEntities[0].span.from);
     } else {
       // Otherwise read up to the final
-      result._prefix = reader.next((d) => d.span.to);
+      result._prefix = reader.tillLinebreak();
     }
 
     // Parse each operation in order
@@ -182,7 +182,7 @@ export class Apply extends ObservableObserver {
       }
     }
 
-    result._after = reader.beforeNext();
+    result._after = reader.next((d) => d.span.to);
 
     return result;
   }

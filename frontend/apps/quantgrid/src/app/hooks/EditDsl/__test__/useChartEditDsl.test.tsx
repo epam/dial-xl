@@ -140,8 +140,8 @@ describe('useChartEditDsl', () => {
     it('should update chart sections according changes', () => {
       // Arrange
       const dsl =
-        'table t1\n  [a]=1\n  [b]=2\n  !separator()\n  [c]=3\n  [d]=4';
-      const expectedDsl = `table t1\n  [c]=3\n  [a]=1\n  [b]=2\n  !separator()\n  [d]=4\r\n`;
+        'table t1\n  [a] = 1\n  [b] = 2\n  !separator()\n  [c] = 3\n  [d] = 4';
+      const expectedDsl = `table t1\n  [c] = 3\n  [a] = 1\n  [b] = 2\n  !separator()\n  [d] = 4\r\n`;
       const updatedSections = {
         group1: ['c', 'a', 'b'],
         group2: ['d'],
@@ -164,8 +164,8 @@ describe('useChartEditDsl', () => {
     it('should update chart sections when move field to the start of the section', () => {
       // Arrange
       const dsl =
-        'table t1\n  [c]=3\n  [a]=1\n  [b]=2\n  !separator()\n  [d]=4';
-      const expectedDsl = `table t1\n  [a]=1\n  [b]=2\n  !separator()\n  [c]=3\n  [d]=4\r\n`;
+        'table t1\n  [c] = 3\n  [a] = 1\n  [b] = 2\n  !separator()\n  [d] = 4';
+      const expectedDsl = `table t1\n  [a] = 1\n  [b] = 2\n  !separator()\n  [c] = 3\n  [d] = 4\r\n`;
       const updatedSections = {
         group1: ['a', 'b'],
         group2: ['c', 'd'],
@@ -203,6 +203,51 @@ describe('useChartEditDsl', () => {
         `Select table "t1" for chart "t2"`,
         [{ sheetName: props.sheetName, content: expectedDsl }]
       );
+      expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
+        { sheetName: props.sheetName, content: expectedDsl },
+      ]);
+    });
+  });
+
+  describe('setChartType', () => {
+    it('should convert chart table to chart', () => {
+      // Arrange
+      const dsl = '!layout(1, 2, "title", "headers")\ntable t1 [f1]=1';
+      const expectedDsl =
+        '!layout(1, 2, "title", "headers")\n!visualization("line-chart")\ntable t1 [f1]=1\r\n';
+      rerender({ dsl });
+
+      // Act
+      act(() => hook.current.setChartType('t1', ChartType.LINE));
+
+      // Assert
+      expect(props.appendToFn).toHaveBeenCalledWith(
+        `Convert table t1 to chart`,
+        [{ sheetName: props.sheetName, content: expectedDsl }]
+      );
+
+      expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
+        { sheetName: props.sheetName, content: expectedDsl },
+      ]);
+    });
+
+    it('should change chart type', () => {
+      // Arrange
+      const dsl =
+        '!layout(1, 2, "title", "headers")\n!visualization("line-chart")\ntable t1 [f1]=1';
+      const expectedDsl =
+        '!layout(1, 2, "title", "headers")\n!visualization("scatter-plot")\ntable t1 [f1]=1\r\n';
+      rerender({ dsl });
+
+      // Act
+      act(() => hook.current.setChartType('t1', ChartType.SCATTER_PLOT));
+
+      // Assert
+      expect(props.appendToFn).toHaveBeenCalledWith(
+        `Change chart t1 type to scatter-plot`,
+        [{ sheetName: props.sheetName, content: expectedDsl }]
+      );
+
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
       ]);

@@ -223,7 +223,16 @@ export function CodeEditor({
               forceMoveMarkers: true,
             },
           ];
-          codeEditor.executeEdits('external-edit', edits);
+
+          // External edit not allow to change the value
+          const isReadOnly = options.readOnly;
+          if (isReadOnly) {
+            codeEditor.updateOptions({ readOnly: false });
+            codeEditor.executeEdits('external-edit', edits);
+            codeEditor.updateOptions({ readOnly: true });
+          } else {
+            codeEditor.executeEdits('external-edit', edits);
+          }
         } else {
           codeEditor.setValue(value);
         }
@@ -231,7 +240,7 @@ export function CodeEditor({
         checkEnablePointAndClick(value);
       }
     },
-    [codeEditor, checkEnablePointAndClick]
+    [codeEditor, checkEnablePointAndClick, options.readOnly]
   );
 
   const setEditorFocus = useCallback(
@@ -355,7 +364,7 @@ export function CodeEditor({
   useEffect(() => {
     if (codeEditor && selectedError && codeEditorPlace === 'codeEditor') {
       const position: IPosition = {
-        lineNumber: selectedError.source.startLine,
+        lineNumber: selectedError.source.startLine || 1,
         column: selectedError.source.startColumn || 1,
       };
 

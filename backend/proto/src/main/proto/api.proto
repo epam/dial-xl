@@ -9,8 +9,12 @@ message Request {
         FunctionRequest function_request = 3;
         CalculateWorksheetsRequest calculate_worksheets_request = 4;
         CompileWorksheetsRequest compile_worksheets_request = 5;
-        DownloadRequest download_request = 6;
-        SimilaritySearchRequest similarity_search_request = 7;
+        SimilaritySearchRequest similarity_search_request = 6;
+        DownloadRequest download_request = 7;
+        ExportRequest export_request = 8;
+        CancelRequest cancel_request = 9;
+        ProjectCalculateRequest project_calculate_request = 10;
+        ProjectCancelRequest project_cancel_request = 11;
     }
 }
 
@@ -22,14 +26,17 @@ message Viewport {
     sint64 start_row = 3;
     sint64 end_row = 4;
     bool is_content = 5;
+    optional bool is_raw = 6;
 }
 
 message DimensionalSchemaRequest {
     // Project name should only be specified for the WebSocket interface.
     optional string project_name = 1;
-    string formula = 2;
+    // Table in the context of which to compile this formula.
+    optional string table = 2;
+    string formula = 3;
     // The sheets are supported by the HTTP endpoint only.
-    map<string, string> worksheets = 3;
+    map<string, string> worksheets = 4;
 }
 
 message FunctionRequest {
@@ -52,6 +59,8 @@ message Response {
         FunctionResponse function_response = 6;
         CompileResult compile_result = 7;
         SimilaritySearchResponse similarity_search_response = 8;
+        Profile profile = 9;
+        Index index = 10;
     }
 }
 
@@ -120,8 +129,11 @@ message OverrideKey {
 }
 
 message Source {
-    uint32 start_line = 1;   // starts from 1
-    uint32 start_column = 2; // starts from 1
+    optional uint32 start_line = 1;   // starts from 1, deprecated
+    optional uint32 start_column = 2; // starts from 1, deprecated
+    optional string sheet = 3;
+    optional uint32 start_index = 4;
+    optional uint32 stop_index = 5;
 }
 
 message ParsingError {
@@ -166,6 +178,13 @@ message ColumnData {
     // name of the table in case ColumnDataType.TABLE
     optional string reference_table_name = 10;
     repeated PeriodSeries period_series = 11;
+    optional ColumnFormat format = 12;
+    optional bool is_raw = 13;
+}
+
+message Index {
+    FieldKey key = 1;
+    optional string error_message = 2;
 }
 
 message PeriodSeries {
@@ -176,13 +195,9 @@ enum ColumnDataType {
     UNKNOWN = 0;
     STRING = 1;
     DOUBLE = 2;
-    INTEGER = 3;
-    BOOLEAN = 4;
-    DATE = 5;
     PERIOD_SERIES = 6;
-    TABLE = 7;
-    INPUT = 8;
-    PERIOD_SERIES_POINT = 9;
+    TABLE_REFERENCE = 7;
+    TABLE_VALUE = 8;
 }
 
 enum FunctionType {
@@ -235,6 +250,9 @@ message CalculateWorksheetsRequest {
     map<string, string> worksheets = 2;
     repeated Viewport viewports = 3;
     optional bool includeCompilation = 4;
+    optional bool includeProfile = 5;
+    optional bool includeIndices = 6;
+    optional bool shared = 7;
 }
 
 message CompileWorksheetsRequest {
@@ -252,6 +270,7 @@ message FieldInfo {
     bool is_nested = 5;
     // name of the table in case ColumnDataType.TABLE
     optional string reference_table_name = 6;
+    optional string hash = 7;
 }
 
 message ParsedSheet {
@@ -263,6 +282,7 @@ message CompileResult {
     repeated ParsedSheet sheets = 1;
     repeated CompilationError compilation_errors = 2;
     repeated FieldInfo field_info = 3;
+    repeated FieldKey indices = 4;
 }
 
 message DownloadRequest {
@@ -270,6 +290,14 @@ message DownloadRequest {
     map<string, string> sheets = 2;
     string table = 3;
     repeated string columns = 4;
+}
+
+message ExportRequest {
+    string project = 1;
+    map<string, string> sheets = 2;
+    string table = 3;
+    repeated string columns = 4;
+    string path = 5;
 }
 
 message SimilaritySearchRequest {
@@ -296,6 +324,105 @@ message SimilaritySearchScore {
     string table = 1;
     string column = 2;
     string value = 3;
-    string description = 4;
+    optional string description = 4;
     double score = 5;
+}
+
+enum FormatType {
+    FORMAT_TYPE_GENERAL = 0;
+    FORMAT_TYPE_BOOLEAN = 1;
+    FORMAT_TYPE_CURRENCY = 2;
+    FORMAT_TYPE_DATE = 3;
+    FORMAT_TYPE_NUMBER = 4;
+    FORMAT_TYPE_PERCENTAGE = 5;
+    FORMAT_TYPE_SCIENTIFIC = 6;
+}
+
+message GeneralFormatArgs {
+}
+
+message BooleanFormatArgs {
+}
+
+message NumberFormatArgs {
+    string format = 1;
+    bool useThousandsSeparator = 2;
+}
+
+message ScientificFormatArgs {
+    int32 format = 1;
+}
+
+message CurrencyFormatArgs {
+    string format = 1;
+    bool useThousandsSeparator = 2;
+    string symbol = 3;
+}
+
+message DateFormatArgs {
+    string pattern = 1;
+}
+
+message PercentageFormatArgs {
+    string format = 1;
+    bool useThousandsSeparator = 2;
+}
+
+message ColumnFormat {
+    FormatType type = 1;
+    oneof args {
+        GeneralFormatArgs general_args = 2;
+        BooleanFormatArgs boolean_args = 3;
+        NumberFormatArgs number_args = 4;
+        ScientificFormatArgs scientific_args = 5;
+        CurrencyFormatArgs currency_args = 6;
+        DateFormatArgs date_args = 7;
+        PercentageFormatArgs percentage_args = 8;
+    };
+}
+
+enum ExecutionStatus {
+    RUNNING = 0;
+    COMPLETED = 1;
+}
+
+enum ExecutionType {
+    COMPUTE = 0;
+    INDEX = 1;
+}
+
+message Profile {
+    oneof key {
+        TableKey tableKey = 1;
+        FieldKey fieldKey = 2;
+        TotalKey totalKey = 3;
+        OverrideKey overrideKey = 4;
+    }
+
+    Source source = 5;
+    ExecutionType type = 6;
+    ExecutionStatus status = 7;
+    optional int64 startedAt = 8;
+    optional int64 stoppedAt = 9;
+    optional int64 executionTime = 10;
+}
+
+message CancelRequest {
+    string calculationId = 1;
+    repeated CancelKey cancellationKeys = 2;
+}
+
+message CancelKey {
+    oneof key {
+        FieldKey fieldKey = 1;
+        TotalKey totalKey = 2;
+    }
+}
+
+message ProjectCalculateRequest {
+    string project = 1;
+}
+
+message ProjectCancelRequest {
+    string project = 1;
 }

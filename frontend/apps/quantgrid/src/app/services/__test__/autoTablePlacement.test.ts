@@ -21,7 +21,7 @@ describe('autoTablePlacement', () => {
     const dsl =
       '!layout(1,1) table t1 [f1]=2\n[f2]=3\n[f1]=4\ntable t2 [f1]=2\n[f2]=3\n[f1]=4';
     const expectedDsl =
-      '!layout(1,1) table t1 [f1]=2\n[f2]=3\n[f1]=4\n\n!layout(3, 1, "title", "headers")\ntable t2 [f1]=2\n[f2]=3\n[f1]=4';
+      '!layout(1,1) table t1 [f1]=2\n[f2]=3\n[f1]=4\n!layout(3, 1, "title", "headers")\ntable t2 [f1]=2\n[f2]=3\n[f1]=4\r\n';
     const tableStructures: GridTable[] = [
       {
         tableName: 't1',
@@ -44,7 +44,7 @@ describe('autoTablePlacement', () => {
     const dsl =
       '!layout(1,1) table t1 dim [f1]=RANGE(5)\n\ntable t2 [f1]=2\n[f2]=3\n[f1]=4';
     const expectedDsl =
-      '!layout(1,1) table t1 dim [f1]=RANGE(5)\n\n!layout(1, 3, "title", "headers")\ntable t2 [f1]=2\n[f2]=3\n[f1]=4';
+      '!layout(1,1) table t1 dim [f1]=RANGE(5)\n\n!layout(1, 3, "title", "headers")\ntable t2 [f1]=2\n[f2]=3\n[f1]=4\r\n';
     const tableStructures: GridTable[] = [
       {
         tableName: 't1',
@@ -67,11 +67,11 @@ describe('autoTablePlacement', () => {
     const dsl =
       '!layout(1,1)\ntable t1\n[f1]=2\n[f2]=3\n[f3]=4\ntable t2\n[very_very_very_long_name_field_1]=2\n[very_very_very_long_name_field_2]=3\n[f3]=4\ntable t3\n[f1]=2\n[f2]=3\n[f1]=4';
     const expectedDsl =
-      '!layout(1,1)\ntable t1\n[f1]=2\n[f2]=3\n[f3]=4\n\n!layout(3, 1, "title", "headers")\ntable t2\n[very_very_very_long_name_field_1]=2\n[very_very_very_long_name_field_2]=3\n[f3]=4\n\n!layout(7, 1, "title", "headers")\ntable t3\n[f1]=2\n[f2]=3\n[f1]=4';
+      '!layout(1,1)\ntable t1\n[f1]=2\n[f2]=3\n[f3]=4\n!layout(3, 1, "title", "headers")\ntable t2\n[very_very_very_long_name_field_1]=2\n[very_very_very_long_name_field_2]=3\n[f3]=4\n!layout(7, 1, "title", "headers")\ntable t3\n[f1]=2\n[f2]=3\n[f1]=4\r\n';
 
     const grid = {
       getCanvasSymbolWidth: () => 6,
-      getGridSizes: () => ({
+      gridSizes: {
         colNumber: {
           width: 65,
         },
@@ -82,7 +82,7 @@ describe('autoTablePlacement', () => {
           col: 1000,
           row: 1000,
         },
-      }),
+      },
     };
     const tableStructures: GridTable[] = [
       {
@@ -111,7 +111,7 @@ describe('autoTablePlacement', () => {
     const dsl =
       '!layout(1,1) table t1 [f1]=2\n[f2]=3\n[f1]=4\n##note\ntable t2 [f1]=2\n[f2]=3\n[f1]=4';
     const expectedDsl =
-      '!layout(1,1) table t1 [f1]=2\n[f2]=3\n[f1]=4\n##note\n\n!layout(3, 1, "title", "headers")\ntable t2 [f1]=2\n[f2]=3\n[f1]=4';
+      '!layout(1,1) table t1 [f1]=2\n[f2]=3\n[f1]=4\n##note\n!layout(3, 1, "title", "headers")\ntable t2 [f1]=2\n[f2]=3\n[f1]=4\r\n';
     const tableStructures: GridTable[] = [
       {
         tableName: 't1',
@@ -133,7 +133,7 @@ describe('autoTablePlacement', () => {
     const dsl =
       '!layout(1,4) table t1 [f1]=2\n!layout(1,7) table t2 [f1]=2\n[f2]=3\ntable t3 [f1]=2\n[f2]=3\n[f3]=4\ntable t4 [f1]=1';
     const expectedDsl =
-      '!layout(1,4) table t1 [f1]=2\n!layout(1,7) table t2 [f1]=2\n[f2]=3\n\n!layout(5, 1, "title", "headers")\ntable t3 [f1]=2\n[f2]=3\n[f3]=4\n\n!layout(1, 1, "title", "headers")\ntable t4 [f1]=1';
+      '!layout(1,4) table t1 [f1]=2\n!layout(1,7) table t2 [f1]=2\n[f2]=3\n!layout(5, 1, "title", "headers")\ntable t3 [f1]=2\n[f2]=3\n[f3]=4\n!layout(1, 1, "title", "headers")\ntable t4 [f1]=1\r\n';
 
     // Act
     const result = autoTablePlacement(dsl, [], null, null, null);
@@ -145,7 +145,7 @@ describe('autoTablePlacement', () => {
   it('should fix table position to be inside spreadsheet edges', () => {
     // Arrange
     const dsl = '!layout(0, 0)\ntable t1 [f1]=2\n[f2]=3\n[f1]=4';
-    const expectedDsl = '!layout(1, 1)\ntable t1 [f1]=2\n[f2]=3\n[f1]=4';
+    const expectedDsl = '!layout(1, 1)\ntable t1 [f1]=2\n[f2]=3\n[f1]=4\r\n';
 
     // Act
     const result = autoTablePlacement(dsl, [], null, null, null);
@@ -159,7 +159,7 @@ describe('autoTablePlacement', () => {
     const dsl =
       '!layout(0, 0)\ntable t1 [f1]=2\n!layout(0, 11)\ntable t2 [f1]=2';
     const expectedDsl =
-      '!layout(1, 1)\ntable t1 [f1]=2\n!layout(1, 11)\ntable t2 [f1]=2';
+      '!layout(1, 1)\ntable t1 [f1]=2\n!layout(1, 11)\ntable t2 [f1]=2\r\n';
 
     // Act
     const result = autoTablePlacement(dsl, [], null, null, null);

@@ -1,4 +1,5 @@
-import { ChartType } from '@frontend/common';
+import { WorksheetState } from '@frontend/common';
+import { SheetReader } from '@frontend/parser';
 import { act, RenderHookResult } from '@testing-library/react';
 
 import { useTableEditDsl } from '../useTableEditDsl';
@@ -357,29 +358,6 @@ describe('useTableEditDsl', () => {
     });
   });
 
-  describe('convertToChart', () => {
-    it('should convert chart table to table', () => {
-      // Arrange
-      const dsl = '!layout(1, 2, "title", "headers")\ntable t1 [f1]=1';
-      const expectedDsl =
-        '!layout(1, 2, "title", "headers")\n!visualization("line-chart")\ntable t1 [f1]=1\r\n';
-      rerender({ dsl });
-
-      // Act
-      act(() => result.current.convertToChart('t1', ChartType.LINE));
-
-      // Assert
-      expect(props.appendToFn).toHaveBeenCalledWith(
-        `Convert table "t1" to chart`,
-        [{ sheetName: props.sheetName, content: expectedDsl }]
-      );
-
-      expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
-        { sheetName: props.sheetName, content: expectedDsl },
-      ]);
-    });
-  });
-
   describe('updateTableDecoratorValue', () => {
     it('should update table decorator', () => {
       // Arrange
@@ -509,6 +487,65 @@ describe('useTableEditDsl', () => {
         { sheetName: props.sheetName, content: expectedDsl },
       ]);
     });
+
+    it('should swap correct field groups to the left', () => {
+      // Arrange
+      const dsl = 'table t1 [f1]=1\ndim [a], [b], [c] = t[[a],[b],[c]]';
+      const expectedDsl =
+        'table t1 dim [a], [b], [c] = t[[a],[b],[c]]\r\n[f1]=1\r\n';
+      rerender({ dsl });
+
+      // Act
+      act(() => result.current.swapFieldsByDirection('t1', 'a', 'left'));
+
+      // Assert
+      expect(props.appendToFn).toHaveBeenCalledWith(
+        `Swap fields [a] and [f1] in table "t1"`,
+        [{ sheetName: props.sheetName, content: expectedDsl }]
+      );
+      expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
+        { sheetName: props.sheetName, content: expectedDsl },
+      ]);
+    });
+
+    it('should swap correct field groups to the right', () => {
+      // Arrange
+      const dsl = 'table t1 dim [a], [b], [c] = t[[a],[b],[c]]\n[f1]=1';
+      const expectedDsl =
+        'table t1 [f1]=1\r\ndim [a], [b], [c] = t[[a],[b],[c]]\r\n';
+      rerender({ dsl });
+
+      // Act
+      act(() => result.current.swapFieldsByDirection('t1', 'c', 'right'));
+
+      // Assert
+      expect(props.appendToFn).toHaveBeenCalledWith(
+        `Swap fields [f1] and [c] in table "t1"`,
+        [{ sheetName: props.sheetName, content: expectedDsl }]
+      );
+      expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
+        { sheetName: props.sheetName, content: expectedDsl },
+      ]);
+    });
+
+    it('should swap fields inside field group, dim keyword and multi accessors list', () => {
+      // Arrange
+      const dsl = 'table t1\ndim [a], [b], [c] = t[[a],[b],[c]]\r\n';
+      const expectedDsl = 'table t1\ndim [b], [a], [c] = t[[b],[a],[c]]\r\n';
+      rerender({ dsl });
+
+      // Act
+      act(() => result.current.swapFieldsByDirection('t1', 'a', 'right'));
+
+      // Assert
+      expect(props.appendToFn).toHaveBeenCalledWith(
+        `Swap fields [b] and [a] in table "t1"`,
+        [{ sheetName: props.sheetName, content: expectedDsl }]
+      );
+      expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
+        { sheetName: props.sheetName, content: expectedDsl },
+      ]);
+    });
   });
 
   describe('deleteTable', () => {
@@ -607,6 +644,223 @@ describe('useTableEditDsl', () => {
       ]);
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
+      ]);
+    });
+  });
+
+  describe('cloneTable', () => {
+    it('should clone table with some default placement', () => {
+      // Arrange
+      const dsl = '!layout(1, 1)\ntable t1\n[a]=1\n[b]=2\n[c]=3';
+      const expectedDsl = `!layout(1, 1)\ntable t1\n[a]=1\n[b]=2\n[c]=3\r\n!layout(2, 2)\ntable 't1 clone'\n[a]=1\n[b]=2\n[c]=3\r\n`;
+      rerender({ dsl });
+
+      // Act
+      act(() => result.current.cloneTable('t1'));
+
+      // Assert
+      expect(props.appendToFn).toHaveBeenCalledWith(
+        `Cloned table "t1" with new name "'t1 clone'"`,
+        [{ sheetName: props.sheetName, content: expectedDsl }]
+      );
+      expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
+        { sheetName: props.sheetName, content: expectedDsl },
+      ]);
+    });
+
+    it('should clone table with escaped name and create unique name', () => {
+      // Arrange
+      const dsl = `!layout(7,4,"title")\ntable '''Table1 clone'' clone'\n[Field1] = 123\n!layout(8, 5, "title")\ntable '''Table1 clone'' clone clone'\n[Field1] = 123`;
+      const expectedDsl = `!layout(7,4,"title")\ntable '''Table1 clone'' clone'\n[Field1] = 123\n!layout(8, 5, "title")\ntable '''Table1 clone'' clone clone'\n[Field1] = 123\r\n!layout(8, 5, "title")\ntable '''Table1 clone'' clone clone1'\n[Field1] = 123\r\n`;
+      rerender({ dsl });
+
+      // Act
+      act(() => result.current.cloneTable(`'''Table1 clone'' clone'`));
+
+      // Assert
+      expect(props.appendToFn).toHaveBeenCalledWith(
+        `Cloned table "'''Table1 clone'' clone'" with new name "'''Table1 clone'' clone clone1'"`,
+        [{ sheetName: props.sheetName, content: expectedDsl }]
+      );
+      expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
+        { sheetName: props.sheetName, content: expectedDsl },
+      ]);
+    });
+  });
+
+  describe('moveTableToSheet', () => {
+    it('should move table from one sheet to another without other tables', () => {
+      // Arrange
+      const projectName = 'Project';
+
+      const sourceSheetName = 'Sheet1';
+      const dslSourceSheet = `table t1 [Field1] = 123`;
+      const expectedDslSourceSheet = `\r\n`;
+
+      const destinationSheetName = 'Sheet2';
+      const dslDestinationSheet = ``;
+      const expectedDslDestinationSheet = `table t1 [Field1] = 123\r\n`;
+
+      props.projectSheets = [
+        {
+          sheetName: sourceSheetName,
+          projectName,
+          content: dslSourceSheet,
+        },
+        {
+          sheetName: destinationSheetName,
+          projectName,
+          content: dslDestinationSheet,
+        },
+      ] as WorksheetState[];
+      props.sheetName = sourceSheetName;
+      const hookRender = hookTestSetup(useTableEditDsl, props);
+      result = hookRender.result;
+
+      // Act
+      act(() =>
+        result.current.moveTableToSheet(
+          't1',
+          sourceSheetName,
+          destinationSheetName
+        )
+      );
+
+      // Assert
+      expect(props.appendToFn).toHaveBeenCalledWith(
+        `Move table "t1" from sheet "Sheet1" to sheet "Sheet2"`,
+        [
+          { sheetName: sourceSheetName, content: expectedDslSourceSheet },
+          {
+            sheetName: destinationSheetName,
+            content: expectedDslDestinationSheet,
+          },
+        ]
+      );
+      expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
+        { sheetName: sourceSheetName, content: expectedDslSourceSheet },
+        {
+          sheetName: destinationSheetName,
+          content: expectedDslDestinationSheet,
+        },
+      ]);
+    });
+
+    it('should move table from one sheet to another when other other tables presented', () => {
+      // Arrange
+      const projectName = 'Project';
+
+      const sourceSheetName = 'Sheet1';
+      const dslSourceSheet = `table t0 [Field1] = 123\r\ntable t1 [Field1] = 123\r\ntable t2 [Field1] = 123`;
+      const expectedDslSourceSheet = `table t0 [Field1] = 123\r\ntable t2 [Field1] = 123\r\n`;
+
+      const destinationSheetName = 'Sheet2';
+      const dslDestinationSheet = `table p0 [Field1] = 123\r\ntable p2 [Field1] = 123`;
+      const expectedDslDestinationSheet = `table p0 [Field1] = 123\r\ntable p2 [Field1] = 123\r\ntable t1 [Field1] = 123\r\n`;
+
+      props.projectSheets = [
+        {
+          sheetName: sourceSheetName,
+          projectName,
+          content: dslSourceSheet,
+        },
+        {
+          sheetName: destinationSheetName,
+          projectName,
+          content: dslDestinationSheet,
+        },
+      ] as WorksheetState[];
+      props.sheetName = sourceSheetName;
+      const hookRender = hookTestSetup(useTableEditDsl, props);
+      result = hookRender.result;
+
+      // Act
+      act(() =>
+        result.current.moveTableToSheet(
+          't1',
+          sourceSheetName,
+          destinationSheetName
+        )
+      );
+
+      // Assert
+      expect(props.appendToFn).toHaveBeenCalledWith(
+        `Move table "t1" from sheet "Sheet1" to sheet "Sheet2"`,
+        [
+          { sheetName: sourceSheetName, content: expectedDslSourceSheet },
+          {
+            sheetName: destinationSheetName,
+            content: expectedDslDestinationSheet,
+          },
+        ]
+      );
+      expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
+        { sheetName: sourceSheetName, content: expectedDslSourceSheet },
+        {
+          sheetName: destinationSheetName,
+          content: expectedDslDestinationSheet,
+        },
+      ]);
+    });
+
+    it('should move table from not current sheet to current sheet', () => {
+      // Arrange
+      const projectName = 'Project';
+
+      const sourceSheetName = 'Sheet1';
+      const dslSourceSheet = `table t1 [Field1] = 123`;
+      const expectedDslSourceSheet = `\r\n`;
+
+      const destinationSheetName = 'Sheet2';
+      const dslDestinationSheet = ``;
+      const expectedDslDestinationSheet = `table t1 [Field1] = 123\r\n`;
+
+      props.projectSheets = [
+        {
+          sheetName: sourceSheetName,
+          projectName,
+          content: dslSourceSheet,
+        },
+        {
+          sheetName: destinationSheetName,
+          projectName,
+          content: dslDestinationSheet,
+        },
+      ] as WorksheetState[];
+      props.parsedSheets = {
+        [sourceSheetName]: SheetReader.parseSheet(dslSourceSheet),
+        [destinationSheetName]: SheetReader.parseSheet(dslDestinationSheet),
+      };
+      props.sheetName = destinationSheetName;
+      const hookRender = hookTestSetup(useTableEditDsl, props);
+      result = hookRender.result;
+
+      // Act
+      act(() =>
+        result.current.moveTableToSheet(
+          't1',
+          sourceSheetName,
+          destinationSheetName
+        )
+      );
+
+      // Assert
+      expect(props.appendToFn).toHaveBeenCalledWith(
+        `Move table "t1" from sheet "Sheet1" to sheet "Sheet2"`,
+        [
+          { sheetName: sourceSheetName, content: expectedDslSourceSheet },
+          {
+            sheetName: destinationSheetName,
+            content: expectedDslDestinationSheet,
+          },
+        ]
+      );
+      expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
+        { sheetName: sourceSheetName, content: expectedDslSourceSheet },
+        {
+          sheetName: destinationSheetName,
+          content: expectedDslDestinationSheet,
+        },
       ]);
     });
   });

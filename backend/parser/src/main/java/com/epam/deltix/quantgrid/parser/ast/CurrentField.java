@@ -1,14 +1,25 @@
 package com.epam.deltix.quantgrid.parser.ast;
 
-import lombok.EqualsAndHashCode;
-import lombok.ToString;
-import lombok.Value;
+import com.epam.deltix.quantgrid.parser.Span;
+import lombok.Getter;
 import lombok.experimental.Accessors;
 
-@Value
+@Getter
 @Accessors(fluent = true)
-@EqualsAndHashCode(callSuper = false)
-@ToString
 public class CurrentField extends Formula {
-    String field;
+    private final String field;
+
+    public CurrentField(String field) {
+        this(null, field);
+    }
+
+    public CurrentField(Span span, String field) {
+        super(span);
+        this.field = field;
+    }
+
+    @Override
+    public String toString() {
+        return "CurrentField(span=" + span() + ", field=" + field + ")";
+    }
 }

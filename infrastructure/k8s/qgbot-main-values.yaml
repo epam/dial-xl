@@ -26,10 +26,10 @@ env:
   QG_URL: "https://quantgrid-dev.staging.deltixhub.io"
 
   BOT_VERSION: "1"
-  CORE_MODEL: "us.anthropic.claude-3-7-sonnet-20250219-v1"
+  CORE_MODEL: "anthropic.claude-v3-5-sonnet-v2"
   CLASSIFICATION_MODEL: "anthropic.claude-v3-5-sonnet-v2"
-  LLM_NAME: "us.anthropic.claude-3-7-sonnet-20250219-v1"
-  MAX_FIX_ATTEMPTS: "3"
+  LLM_NAME: "anthropic.claude-v3-5-sonnet-v2"
+  MAX_FIX_ATTEMPTS: "5"
   LLM_MAX_CONTEXT_TOKENS: "150000"
 
   LOG_LEVEL: "DEBUG"

@@ -1,26 +1,29 @@
 import { Dropdown, MenuProps, Modal } from 'antd';
 import cx from 'classnames';
-import { useCallback, useContext, useEffect, useState } from 'react';
+import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useAuth } from 'react-oidc-context';
 import { toast } from 'react-toastify';
 
 import Icon from '@ant-design/icons';
 import {
   ChevronDown,
+  getDropdownDivider,
   getDropdownItem,
   LogoutIcon,
   SettingsIcon,
   UserAvatar,
 } from '@frontend/common';
 
+import { ColorSchema } from '../../common';
 import { ProjectContext } from '../../context';
 import { Settings } from '../Modals';
 
 type Props = {
   placement: 'dashboard' | 'project';
+  colorSchema?: ColorSchema;
 };
 
-export function UserMenu({ placement }: Props) {
+export function UserMenu({ placement, colorSchema = 'default' }: Props) {
   const auth = useAuth();
   const { projectName, closeCurrentProject } = useContext(ProjectContext);
 
@@ -52,6 +55,12 @@ export function UserMenu({ placement }: Props) {
     }
   }, [auth, closeCurrentProject, projectName]);
 
+  const userName = useMemo(() => {
+    return auth?.user
+      ? auth?.user.profile.name || auth.user.profile.email || 'User'
+      : 'User';
+  }, [auth.user]);
+
   useEffect(() => {
     if (!auth.error) return;
 
@@ -60,7 +69,22 @@ export function UserMenu({ placement }: Props) {
     });
   }, [auth]);
 
+  const projectItems: MenuProps['items'] = [
+    getDropdownItem({
+      key: 'profile',
+      label: userName,
+      icon: (
+        <Icon
+          className="w-[18px] text-textSecondary"
+          component={() => <UserAvatar />}
+        />
+      ),
+    }),
+    getDropdownDivider(),
+  ];
+
   const items: MenuProps['items'] = [
+    ...(placement === 'project' ? projectItems : []),
     getDropdownItem({
       key: 'settings',
       label: 'Settings',
@@ -91,33 +115,36 @@ export function UserMenu({ placement }: Props) {
         align={{
           offset: [0, 12],
         }}
-        className="h-full min-w-[150px] flex items-center max-xl:min-w-[50px]"
+        className={cx('h-full flex items-center', {
+          'xl:min-w-[150px] md:min-w-[50px]': placement === 'dashboard',
+          'md:min-w-[36px]': placement === 'project',
+        })}
         menu={{ items }}
         open={isUserMenuOpened}
         onOpenChange={setIsUserMenuOpened}
       >
         <a className="group" href="/" onClick={(e) => e.preventDefault()}>
           <Icon
-            className="text-textSecondary h-[18px] w-[18px]"
+            className={cx(
+              'h-[18px] w-[18px]',
+              colorSchema === 'read' && 'text-textSecondary',
+              colorSchema === 'review' && 'text-textInverted',
+              colorSchema === 'default' && 'text-textSecondary'
+            )}
             component={() => <UserAvatar />}
           />
-          <span
-            className={cx(
-              ' whitespace-nowrap overflow-hidden text-textPrimary text-ellipsis mx-2 select-none max-xl:hidden',
-              {
-                'text-sm': placement === 'dashboard',
-                'text-[13px]': placement === 'project',
-              }
-            )}
-          >
-            {auth?.user
-              ? auth?.user.profile.name || auth.user.profile.email || 'User'
-              : 'User'}
-          </span>
+          {placement === 'dashboard' && (
+            <span className="hidden md:inline-block whitespace-nowrap overflow-hidden text-textPrimary text-sm text-ellipsis mx-2 select-none max-xl:hidden">
+              {userName}
+            </span>
+          )}
           <Icon
             className={cx(
-              'text-textPrimary w-[18px] transition-all group-hover:text-textAccentPrimary',
-              isUserMenuOpened && 'rotate-180'
+              'hidden md:inline-block w-[18px] transition-all group-hover:text-textAccentPrimary',
+              isUserMenuOpened && 'rotate-180',
+              colorSchema === 'read' && 'text-textInverted',
+              colorSchema === 'review' && 'text-textInverted',
+              colorSchema === 'default' && 'text-textPrimary'
             )}
             component={() => <ChevronDown />}
           />

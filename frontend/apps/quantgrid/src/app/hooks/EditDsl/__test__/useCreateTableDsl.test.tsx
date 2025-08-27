@@ -1,4 +1,4 @@
-import { ChartType, GridTable } from '@frontend/common';
+import { ChartType, ColumnDataType, GridTable } from '@frontend/common';
 import { act, RenderHookResult } from '@testing-library/react';
 
 import { ViewGridData } from '../../../context';
@@ -433,25 +433,26 @@ describe('useCreateTableDsl', () => {
     });
   });
 
-  describe('createDimensionalTableFromFormula', () => {
+  describe('createExpandedTable', () => {
     it('should create dimension table from formula', () => {
       // Arrange
       const dsl = 'table t1 [a]=1\n[b]=2\n[c]=3';
-      const expectedDsl = `table t1 [a]=1\n[b]=2\n[c]=3\r\n\n!layout(5, 4, "title", "headers")\ntable t2\n  dim [source] = t1\n  [a] = [source][a]\n  [b] = [source][b]\n  [c] = [source][c]\r\n`;
+      const expectedDsl = `table t1 [a]=1\n[b]=2\n[c]=3\r\n\n!layout(5, 4, "title", "headers")\ntable t2\n  dim [a], [b], [c] = t1[[a],[b],[c]]\r\n`;
       rerender({ dsl });
 
       // Act
       act(() =>
-        hook.current.createDimensionalTableFromFormula(
-          4,
-          5,
-          't2',
-          '',
-          't1',
-          ['a', 'b', 'c'],
-          [],
-          true
-        )
+        hook.current.createExpandedTable({
+          col: 4,
+          row: 5,
+          tableName: 't2',
+          formula: 't1',
+          schema: ['a', 'b', 'c'],
+          keys: [],
+          type: ColumnDataType.TABLE_REFERENCE,
+          isSourceDimField: true,
+          variant: 'dimFormula',
+        })
       );
 
       // Assert
@@ -467,21 +468,22 @@ describe('useCreateTableDsl', () => {
     it('should create dimension table and escape field names', () => {
       // Arrange
       const dsl = 'table t1 [a]=1\n[b]=2\n[c]=3';
-      const expectedDsl = `table t1 [a]=1\n[b]=2\n[c]=3\r\n\n!layout(5, 4, "title", "headers")\ntable t2\n  dim [source] = t1\n  [a '[2000']] = [source][a '[2000']]\n  [b '[2001']] = [source][b '[2001']]\n  [c '[2002']] = [source][c '[2002']]\r\n`;
+      const expectedDsl = `table t1 [a]=1\n[b]=2\n[c]=3\r\n\n!layout(5, 4, "title", "headers")\ntable t2\n  dim [a '[2000']], [b '[2001']], [c '[2002']] = t1[[a '[2000']],[b '[2001']],[c '[2002']]]\r\n`;
       rerender({ dsl });
 
       // Act
       act(() =>
-        hook.current.createDimensionalTableFromFormula(
-          4,
-          5,
-          't2',
-          '',
-          't1',
-          ['a [2000]', 'b [2001]', 'c [2002]'],
-          [],
-          true
-        )
+        hook.current.createExpandedTable({
+          col: 4,
+          row: 5,
+          tableName: 't2',
+          formula: 't1',
+          schema: ['a [2000]', 'b [2001]', 'c [2002]'],
+          keys: [],
+          type: ColumnDataType.TABLE_REFERENCE,
+          isSourceDimField: true,
+          variant: 'dimFormula',
+        })
       );
 
       // Assert
@@ -497,21 +499,22 @@ describe('useCreateTableDsl', () => {
     it('should create dimension table and propagate keys', () => {
       // Arrange
       const dsl = 'table t1 [a]=1\n[b]=2\n[c]=3';
-      const expectedDsl = `table t1 [a]=1\n[b]=2\n[c]=3\r\n\n!layout(5, 4, "title", "headers")\ntable t2\n  dim [source] = t1\n  key [a] = [source][a]\n  [b] = [source][b]\n  [c] = [source][c]\r\n`;
+      const expectedDsl = `table t1 [a]=1\n[b]=2\n[c]=3\r\n\n!layout(5, 4, "title", "headers")\ntable t2\n  dim key [a], [b], [c] = t1[[a],[b],[c]]\r\n`;
       rerender({ dsl });
 
       // Act
       act(() =>
-        hook.current.createDimensionalTableFromFormula(
-          4,
-          5,
-          't2',
-          '',
-          't1',
-          ['a', 'b', 'c'],
-          ['a'],
-          true
-        )
+        hook.current.createExpandedTable({
+          col: 4,
+          row: 5,
+          tableName: 't2',
+          formula: 't1',
+          schema: ['a', 'b', 'c'],
+          keys: ['a'],
+          type: ColumnDataType.TABLE_REFERENCE,
+          isSourceDimField: true,
+          variant: 'dimFormula',
+        })
       );
 
       // Assert
@@ -532,16 +535,17 @@ describe('useCreateTableDsl', () => {
 
       // Act
       act(() =>
-        hook.current.createDimensionalTableFromFormula(
-          4,
-          5,
-          't1',
-          '',
-          'RANGE(10)',
-          [],
-          [],
-          true
-        )
+        hook.current.createExpandedTable({
+          col: 4,
+          row: 5,
+          tableName: 't1',
+          formula: 'RANGE(10)',
+          schema: [],
+          keys: [],
+          type: ColumnDataType.DOUBLE,
+          isSourceDimField: true,
+          variant: 'dimFormula',
+        })
       );
 
       // Assert
@@ -557,21 +561,22 @@ describe('useCreateTableDsl', () => {
     it('should create table without dim source field from formula', () => {
       // Arrange
       const dsl = 'table t1 [a]=1\n[b]=2\n[c]=3';
-      const expectedDsl = `table t1 [a]=1\n[b]=2\n[c]=3\r\n\n!layout(5, 4, "title", "headers")\ntable t2\n  [source] = t1\n  [a] = [source][a]\n  [b] = [source][b]\n  [c] = [source][c]\r\n`;
+      const expectedDsl = `table t1 [a]=1\n[b]=2\n[c]=3\r\n\n!layout(5, 4, "title", "headers")\ntable t2\n  [a], [b], [c] = t1[[a],[b],[c]]\r\n`;
       rerender({ dsl });
 
       // Act
       act(() =>
-        hook.current.createDimensionalTableFromFormula(
-          4,
-          5,
-          't2',
-          '',
-          't1',
-          ['a', 'b', 'c'],
-          [],
-          false
-        )
+        hook.current.createExpandedTable({
+          col: 4,
+          row: 5,
+          tableName: 't2',
+          formula: 't1',
+          schema: ['a', 'b', 'c'],
+          keys: [],
+          type: ColumnDataType.TABLE_REFERENCE,
+          isSourceDimField: false,
+          variant: 'dimFormula',
+        })
       );
 
       // Assert
@@ -588,21 +593,22 @@ describe('useCreateTableDsl', () => {
       // Arrange
       const dsl =
         'table t1\n  dim [source] = t1\n  [a] = [source][a]\n  [b] = [source][b]\n  [c] = [source][c]\r\n';
-      const expectedDsl = `table t1\n  dim [source] = t1\n  [a] = [source][a]\n  [b] = [source][b]\n  [c] = [source][c]\r\n\r\n!layout(5, 4, "title", "headers")\ntable t2\n  dim [source] = t1\n  [source1] = [source][source]\n  [a] = [source][a]\n  [b] = [source][b]\n  [c] = [source][c]\r\n`;
+      const expectedDsl = `table t1\n  dim [source] = t1\n  [a] = [source][a]\n  [b] = [source][b]\n  [c] = [source][c]\r\n\r\n!layout(5, 4, "title", "headers")\ntable t2\n  dim [source], [a], [b], [c] = t1[[source],[a],[b],[c]]\r\n`;
       rerender({ dsl });
 
       // Act
       act(() =>
-        hook.current.createDimensionalTableFromFormula(
-          4,
-          5,
-          't2',
-          '',
-          't1',
-          ['source', 'a', 'b', 'c'],
-          [],
-          true
-        )
+        hook.current.createExpandedTable({
+          col: 4,
+          row: 5,
+          tableName: 't2',
+          formula: 't1',
+          schema: ['source', 'a', 'b', 'c'],
+          keys: [],
+          type: ColumnDataType.TABLE_REFERENCE,
+          isSourceDimField: true,
+          variant: 'dimFormula',
+        })
       );
 
       // Assert
@@ -614,27 +620,121 @@ describe('useCreateTableDsl', () => {
         { sheetName: props.sheetName, content: expectedDsl },
       ]);
     });
-  });
 
-  describe('createDimensionalTableFromSchema', () => {
-    it('should create dimension table from schema', () => {
+    it('should create table with a multi field group', () => {
       // Arrange
-      const dsl = 'table t1 [a]=1\n[b]=2\n[c]=3';
-      const expectedDsl = `table t1 [a]=1\n[b]=2\n[c]=3\r\n\n!layout(10, 5, "title", "headers")\ntable 't1_(1,2,3)[b]'\n  dim [source] = t1.FIND(1,2,3)[b]\n  [a] = [source][a]\n  [b] = [source][b]\n  [c] = [source][c]\r\n`;
+      const dsl = '';
+      const expectedDsl = `!layout(5, 4, "title", "headers")\ntable t1\n  dim [a], [b], [c] = INPUT("input_url")[[a],[b],[c]]\r\n`;
       rerender({ dsl });
 
       // Act
       act(() =>
-        hook.current.createDimensionalTableFromSchema(
-          5,
-          10,
-          't1',
-          'b',
-          '1,2,3',
-          't1.FIND(1,2,3)[b]',
-          ['a', 'b', 'c'],
-          []
-        )
+        hook.current.createExpandedTable({
+          col: 4,
+          row: 5,
+          tableName: 't1',
+          formula: 'INPUT("input_url")',
+          schema: ['a', 'b', 'c'],
+          keys: [],
+          type: ColumnDataType.TABLE_VALUE,
+          isSourceDimField: true,
+          variant: 'dimFormula',
+        })
+      );
+
+      // Assert
+      expect(props.appendToFn).toHaveBeenCalledWith(
+        `Add dimension table "t1"`,
+        [{ sheetName: props.sheetName, content: expectedDsl }]
+      );
+      expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
+        { sheetName: props.sheetName, content: expectedDsl },
+      ]);
+    });
+
+    it('should create table with row multi-access', () => {
+      // Arrange
+      const dsl = '';
+      const expectedDsl = `!layout(5, 4, "title", "headers")\ntable t1\n  [a], [b] = T1(1)[[a],[b]]\r\n`;
+      rerender({ dsl });
+
+      // Act
+      act(() =>
+        hook.current.createExpandedTable({
+          col: 4,
+          row: 5,
+          tableName: 't1',
+          formula: 'T1(1)',
+          schema: ['a', 'b'],
+          keys: [],
+          type: ColumnDataType.TABLE_VALUE,
+          isSourceDimField: false,
+          variant: 'dimFormula',
+        })
+      );
+
+      // Assert
+      expect(props.appendToFn).toHaveBeenCalledWith(
+        `Add dimension table "t1"`,
+        [{ sheetName: props.sheetName, content: expectedDsl }]
+      );
+      expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
+        { sheetName: props.sheetName, content: expectedDsl },
+      ]);
+    });
+
+    it('should create table with one normalized field reference', () => {
+      // Arrange
+      const dsl = '';
+      const expectedDsl = `!layout(5, 4, "title", "headers")\ntable t1\n  [a] = T1(1)[a]\r\n`;
+      rerender({ dsl });
+
+      // Act
+      act(() =>
+        hook.current.createExpandedTable({
+          col: 4,
+          row: 5,
+          tableName: 't1',
+          formula: 'T1(1)',
+          schema: ['a'],
+          keys: [],
+          type: ColumnDataType.TABLE_VALUE,
+          isSourceDimField: false,
+          variant: 'dimFormula',
+        })
+      );
+
+      // Assert
+      expect(props.appendToFn).toHaveBeenCalledWith(
+        `Add dimension table "t1"`,
+        [{ sheetName: props.sheetName, content: expectedDsl }]
+      );
+      expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
+        { sheetName: props.sheetName, content: expectedDsl },
+      ]);
+    });
+
+    it('should create dimension table from schema', () => {
+      // Arrange
+      const dsl = 'table t1 [a]=1\n[b]=2\n[c]=3';
+      const expectedDsl = `table t1 [a]=1\n[b]=2\n[c]=3\r\n\n!layout(10, 5, "title", "headers")\ntable 't1_(1,2,3)[b]'\n  dim [a], [b], [c] = t1.FIND(1,2,3)[b][[a],[b],[c]]\r\n`;
+      rerender({ dsl });
+
+      // Act
+      act(() =>
+        hook.current.createExpandedTable({
+          col: 5,
+          row: 10,
+          tableName: 't1',
+          fieldName: 'b',
+          formula: 't1.FIND(1,2,3)[b]',
+          schema: ['a', 'b', 'c'],
+          keyValues: '1,2,3',
+          keys: [],
+          type: ColumnDataType.TABLE_REFERENCE,
+          isSourceDimField: true,
+          variant: 'expand',
+        })
       );
 
       // Assert
@@ -650,21 +750,24 @@ describe('useCreateTableDsl', () => {
     it('should create dimension table and escape field names', () => {
       // Arrange
       const dsl = 'table t1 [a]=1\n[b]=2\n[c]=3';
-      const expectedDsl = `table t1 [a]=1\n[b]=2\n[c]=3\r\n\n!layout(10, 5, "title", "headers")\ntable 't1_(1,2,3)[b]'\n  dim [source] = t1.FIND(1,2,3)[b]\n  [a '[2000']] = [source][a '[2000']]\n  [b '[2001']] = [source][b '[2001']]\n  [c '[2002']] = [source][c '[2002']]\r\n`;
+      const expectedDsl = `table t1 [a]=1\n[b]=2\n[c]=3\r\n\n!layout(10, 5, "title", "headers")\ntable 't1_(1,2,3)[b]'\n  dim [a '[2000']], [b '[2001']], [c '[2002']] = t1.FIND(1,2,3)[b][[a '[2000']],[b '[2001']],[c '[2002']]]\r\n`;
       rerender({ dsl });
 
       // Act
       act(() =>
-        hook.current.createDimensionalTableFromSchema(
-          5,
-          10,
-          't1',
-          'b',
-          '1,2,3',
-          't1.FIND(1,2,3)[b]',
-          ['a [2000]', 'b [2001]', 'c [2002]'],
-          []
-        )
+        hook.current.createExpandedTable({
+          col: 5,
+          row: 10,
+          tableName: 't1',
+          fieldName: 'b',
+          formula: 't1.FIND(1,2,3)[b]',
+          schema: ['a [2000]', 'b [2001]', 'c [2002]'],
+          keyValues: '1,2,3',
+          keys: [],
+          type: ColumnDataType.TABLE_REFERENCE,
+          isSourceDimField: true,
+          variant: 'expand',
+        })
       );
 
       // Assert
@@ -680,21 +783,24 @@ describe('useCreateTableDsl', () => {
     it('should create dimension table and propagate keys', () => {
       // Arrange
       const dsl = 'table t1 [a]=1\n[b]=2\n[c]=3';
-      const expectedDsl = `table t1 [a]=1\n[b]=2\n[c]=3\r\n\n!layout(10, 5, "title", "headers")\ntable 't1_(1,2,3)[b]'\n  dim [source] = t1.FIND(1,2,3)[b]\n  key [a] = [source][a]\n  [b] = [source][b]\n  [c] = [source][c]\r\n`;
+      const expectedDsl = `table t1 [a]=1\n[b]=2\n[c]=3\r\n\n!layout(10, 5, "title", "headers")\ntable 't1_(1,2,3)[b]'\n  dim key [a], [b], [c] = t1.FIND(1,2,3)[b][[a],[b],[c]]\r\n`;
       rerender({ dsl });
 
       // Act
       act(() =>
-        hook.current.createDimensionalTableFromSchema(
-          5,
-          10,
-          't1',
-          'b',
-          '1,2,3',
-          't1.FIND(1,2,3)[b]',
-          ['a', 'b', 'c'],
-          ['a']
-        )
+        hook.current.createExpandedTable({
+          col: 5,
+          row: 10,
+          tableName: 't1',
+          fieldName: 'b',
+          formula: 't1.FIND(1,2,3)[b]',
+          schema: ['a', 'b', 'c'],
+          keyValues: '1,2,3',
+          keys: ['a'],
+          type: ColumnDataType.TABLE_REFERENCE,
+          isSourceDimField: true,
+          variant: 'expand',
+        })
       );
 
       // Assert
@@ -706,27 +812,28 @@ describe('useCreateTableDsl', () => {
         { sheetName: props.sheetName, content: expectedDsl },
       ]);
     });
-  });
 
-  describe('createRowReferenceTableFromSchema', () => {
     it('should create row reference table from schema', () => {
       // Arrange
       const dsl = 'table t1 [a]=1\n[b]=2\n[c]=3';
-      const expectedDsl = `table t1 [a]=1\n[b]=2\n[c]=3\r\n\n!layout(10, 5, "title", "headers")\ntable 't1_(1,2,3)[b]'\n  [source] = t1(1,2,3)[b]\n  [a] = [source][a]\n  [b] = [source][b]\n  [c] = [source][c]\r\n`;
+      const expectedDsl = `table t1 [a]=1\n[b]=2\n[c]=3\r\n\n!layout(10, 5, "horizontal", "title", "headers")\ntable 't1_(1,2,3)[b]'\n  [a], [b], [c] = t1(1,2,3)[b][[a],[b],[c]]\r\n`;
       rerender({ dsl });
 
       // Act
       act(() =>
-        hook.current.createRowReferenceTableFromSchema(
-          5,
-          10,
-          't1',
-          'b',
-          '1,2,3',
-          't1(1,2,3)[b]',
-          ['a', 'b', 'c'],
-          []
-        )
+        hook.current.createExpandedTable({
+          col: 5,
+          row: 10,
+          tableName: 't1',
+          fieldName: 'b',
+          formula: 't1(1,2,3)[b]',
+          schema: ['a', 'b', 'c'],
+          keys: [],
+          keyValues: '1,2,3',
+          type: ColumnDataType.TABLE_REFERENCE,
+          isSourceDimField: false,
+          variant: 'rowReference',
+        })
       );
 
       // Assert
@@ -742,26 +849,91 @@ describe('useCreateTableDsl', () => {
     it('should create row reference table and propagate keys', () => {
       // Arrange
       const dsl = 'table t1 [a]=1\n[b]=2\n[c]=3';
-      const expectedDsl = `table t1 [a]=1\n[b]=2\n[c]=3\r\n\n!layout(10, 5, "title", "headers")\ntable 't1_(1,2,3)[b]'\n  [source] = t1(1,2,3)[b]\n  key [a] = [source][a]\n  [b] = [source][b]\n  [c] = [source][c]\r\n`;
+      const expectedDsl = `table t1 [a]=1\n[b]=2\n[c]=3\r\n\n!layout(10, 5, "horizontal", "title", "headers")\ntable 't1_(1,2,3)[b]'\n  key [a], [b], [c] = t1(1,2,3)[b][[a],[b],[c]]\r\n`;
       rerender({ dsl });
 
       // Act
       act(() =>
-        hook.current.createRowReferenceTableFromSchema(
-          5,
-          10,
-          't1',
-          'b',
-          '1,2,3',
-          't1(1,2,3)[b]',
-          ['a', 'b', 'c'],
-          ['a']
-        )
+        hook.current.createExpandedTable({
+          col: 5,
+          row: 10,
+          tableName: 't1',
+          fieldName: 'b',
+          formula: 't1(1,2,3)[b]',
+          schema: ['a', 'b', 'c'],
+          keys: ['a'],
+          keyValues: '1,2,3',
+          type: ColumnDataType.TABLE_REFERENCE,
+          isSourceDimField: false,
+          variant: 'rowReference',
+        })
       );
 
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Add row reference table "t1_(1,2,3)[b]"`,
+        [{ sheetName: props.sheetName, content: expectedDsl }]
+      );
+      expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
+        { sheetName: props.sheetName, content: expectedDsl },
+      ]);
+    });
+
+    it('should create dimension table from period series formula without accessors list', () => {
+      // Arrange
+      const dsl = 'table t1 [a]=1\n[b]=2\n[c]=3';
+      const expectedDsl = `table t1 [a]=1\n[b]=2\n[c]=3\r\n\n!layout(5, 4, "title", "headers")\ntable t2\n  dim [date], [value] = PERIODSERIES(A[b], A[c], "DAY")[[date],[value]]\r\n`;
+      rerender({ dsl });
+
+      // Act
+      act(() =>
+        hook.current.createExpandedTable({
+          col: 4,
+          row: 5,
+          tableName: 't2',
+          formula: 'PERIODSERIES(A[b], A[c], "DAY")',
+          schema: [],
+          keys: [],
+          type: ColumnDataType.PERIOD_SERIES,
+          isSourceDimField: false,
+          variant: 'dimFormula',
+        })
+      );
+
+      // Assert
+      expect(props.appendToFn).toHaveBeenCalledWith(
+        `Add dimension table "t2"`,
+        [{ sheetName: props.sheetName, content: expectedDsl }]
+      );
+      expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
+        { sheetName: props.sheetName, content: expectedDsl },
+      ]);
+    });
+
+    it('should create dimension table from period series formula with accessors list', () => {
+      // Arrange
+      const dsl = 'table t1 [a]=1\n[b]=2\n[c]=3';
+      const expectedDsl = `table t1 [a]=1\n[b]=2\n[c]=3\r\n\n!layout(5, 4, "title", "headers")\ntable t2\n  dim [date], [value] = PERIODSERIES(A[b], A[c], "DAY")[[date],[value]]\r\n`;
+      rerender({ dsl });
+
+      // Act
+      act(() =>
+        hook.current.createExpandedTable({
+          col: 4,
+          row: 5,
+          tableName: 't2',
+          formula: 'PERIODSERIES(A[b], A[c], "DAY")[[date],[value]]',
+          schema: ['date', 'value'],
+          keys: [],
+          type: ColumnDataType.TABLE_VALUE,
+          isSourceDimField: true,
+          variant: 'dimFormula',
+        })
+      );
+
+      // Assert
+      expect(props.appendToFn).toHaveBeenCalledWith(
+        `Add dimension table "t2"`,
         [{ sheetName: props.sheetName, content: expectedDsl }]
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
@@ -813,7 +985,7 @@ describe('useCreateTableDsl', () => {
         getTableData: (tableName: string) => {
           return {
             types: {
-              f1: 'INTEGER',
+              f1: 'DOUBLE',
               f2: 'STRING',
             },
             nestedColumnNames: new Set(),
@@ -850,7 +1022,7 @@ describe('useCreateTableDsl', () => {
         getTableData: (tableName: string) => {
           return {
             types: {
-              f1: 'TABLE',
+              f1: 'TABLE_REFERENCE',
             },
             nestedColumnNames: new Set(),
           } as any;

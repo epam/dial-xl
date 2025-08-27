@@ -19,11 +19,11 @@ public class Index implements AggregateFunction {
             double value = values.get(i);
 
             if (ref == Util.NA_REF) {
-                ref = (long) value;
+                ref = (long) value - 1;
                 index = value;
             }
 
-            if (Doubles.isError(value) || Doubles.isEmpty(value) || value < 0 || value >= rows || index != value) {
+            if (Doubles.isError(value) || Doubles.isEmpty(value) || value < 1 || value > rows || index != value) {
                 ref = Util.NA_REF;
                 break;
             }
@@ -53,12 +53,12 @@ public class Index implements AggregateFunction {
                 values[row] = index;
             }
 
-            if (Doubles.isEmpty(index) || Doubles.isError(index) || index < 0 || index != values[row]) {
+            if (Doubles.isEmpty(index) || Doubles.isError(index) || index < 1 || index != values[row]) {
                 refs[row] = Util.NA_ERROR;
                 continue;
             }
 
-            if (counts[row]++ == index) {
+            if (++counts[row] == index) {
                 refs[row] = i;
             }
         }

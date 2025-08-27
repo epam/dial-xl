@@ -1,9 +1,12 @@
 package com.epam.deltix.quantgrid.engine.node.plan.local;
 
+import com.epam.deltix.quantgrid.engine.ComputationType;
+import com.epam.deltix.quantgrid.engine.embeddings.EmbeddingModel;
 import com.epam.deltix.quantgrid.engine.meta.Meta;
 import com.epam.deltix.quantgrid.engine.meta.Schema;
 import com.epam.deltix.quantgrid.engine.node.plan.Plan;
 import com.epam.deltix.quantgrid.engine.node.plan.Plan2;
+import com.epam.deltix.quantgrid.engine.node.plan.ResultPlan;
 import com.epam.deltix.quantgrid.engine.value.Column;
 import com.epam.deltix.quantgrid.engine.value.StringColumn;
 import com.epam.deltix.quantgrid.engine.value.Table;
@@ -16,22 +19,27 @@ import com.epam.deltix.quantgrid.engine.vector.model.VectorData;
 import com.epam.deltix.quantgrid.parser.FieldKey;
 import com.epam.deltix.quantgrid.type.ColumnType;
 import lombok.Getter;
-import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 
 @Getter
-public class SimilaritySearchLocal extends Plan2<Table, Table, Table> {
+public class SimilaritySearchLocal extends Plan2<Table, Table, Table> implements ResultPlan {
     private final FieldKey key;
-    private final FieldKey descriptionKey;
     private final int n;
+    private final long computationId;
 
-    public SimilaritySearchLocal(FieldKey key, @Nullable FieldKey descriptionKey, int n, Plan a, Plan b) {
+    public SimilaritySearchLocal(Plan a, Plan b,
+                                 FieldKey key,
+                                 int n, long computationId) {
         super(a, b);
-
         this.key = key;
-        this.descriptionKey = descriptionKey;
         this.n = n;
+        this.computationId = computationId;
+    }
+
+    @Override
+    public ComputationType getComputationType() {
+        return ComputationType.REQUIRED;
     }
 
     @Override
@@ -46,7 +54,7 @@ public class SimilaritySearchLocal extends Plan2<Table, Table, Table> {
 
     @Override
     protected Table execute(Table documentsTable, Table queryTable) {
-        int embeddingDimensions = EmbeddingIndexLocal.NUMBER_OF_DIMENSIONS;
+        int embeddingDimensions = EmbeddingModel.NUMBER_OF_DIMENSIONS;
 
         VectorData[] documents = new VectorData[(int) documentsTable.size() / embeddingDimensions];
         StringColumn documentsData = documentsTable.getStringColumn(0);
@@ -90,7 +98,6 @@ public class SimilaritySearchLocal extends Plan2<Table, Table, Table> {
 
     @Override
     public String toString() {
-        return "SimilaritySearch(%s[%s], %s, %s)".formatted(key.tableName(), key.fieldName(),
-                descriptionKey == null ? "NA" : descriptionKey.fieldName(), n);
+        return "SimilaritySearch(%s[%s], %s)(#%s)".formatted(key.tableName(), key.fieldName(), n, computationId);
     }
 }

@@ -1,61 +1,53 @@
-from itertools import chain
 from time import time
-from typing import Iterable
 
-from dial_xl.calculate import FieldData
-from dial_xl.compile import PrimitiveFieldType
-from dial_xl.dynamic_field import DynamicField
-from dial_xl.field import Field
 from dial_xl.project import FieldKey, Viewport
 from langchain_core.runnables import Runnable, RunnableLambda
 
-from quantgrid.utils.project import ProjectCalculator
-from quantgrid.utils.string import markdown_table
 from quantgrid_1.chains.parameters import ChainParameters
+from quantgrid_1.models.stage_generation_type import StageGenerationMethod
+from quantgrid_1.utils.formatting import get_markdown_table_values
+from quantgrid_1.utils.stages import replicate_stages
+
+STAGE_NAME = "Data Fetching"
 
 
 async def head_fetcher(inputs: dict) -> dict:
-    project = ChainParameters.get_original_project(inputs)
+    choice = ChainParameters.get_choice(inputs)
+    project = ChainParameters.get_imported_project(inputs)
+    parameters = ChainParameters.get_request_parameters(inputs).generation_parameters
 
-    with ChainParameters.get_choice(inputs).create_stage("Data Fetching") as stage:
+    actions_generation_method = parameters.actions_generation_method
+
+    if actions_generation_method == StageGenerationMethod.SKIP:
+        inputs[ChainParameters.TABLE_DATA] = None
+        return inputs
+
+    if actions_generation_method == StageGenerationMethod.REPLICATE:
+        replicate_stages(choice, parameters.saved_stages, STAGE_NAME)
+        inputs[ChainParameters.TABLE_DATA] = None
+        return inputs
+
+    with ChainParameters.get_choice(inputs).create_stage(STAGE_NAME) as stage:
         start_time = time()
 
         viewports: list[Viewport] = [
             Viewport(
                 start_row=0,
                 end_row=10,
-                key=FieldKey(table=table.name, field=field.name),
+                key=FieldKey(table=table.name, field=field_name),
             )
             for sheet in project.sheets
             for table in sheet.tables
-            for field in table.fields
+            for field_group in table.field_groups
+            for field_name in field_group.field_names
         ]
         await project.calculate(viewports)
 
         printed_tables: dict[str, str] = {}
         for sheet in project.sheets:
             for table in sheet.tables:
-                table_data: dict[str, list[str]] = {}
-                total_rows = 0
-                field_list: Iterable[Field | DynamicField] = table.fields
-                dynamic_field_list: Iterable[Field | DynamicField] = (
-                    table.dynamic_fields
-                )
-
-                for field in chain(field_list, dynamic_field_list):
-                    if (
-                        isinstance(field.field_data, FieldData)
-                        and isinstance(field.field_type, PrimitiveFieldType)
-                        and not field.field_type.is_nested
-                    ):
-                        table_data[field.name] = [
-                            ProjectCalculator._format_entry(e)
-                            for e in field.field_data.values
-                        ]
-                        total_rows = max(total_rows, field.field_data.total_rows)
-
-                printed_tables[table.name] = markdown_table(
-                    table.name, table_data, total_rows
+                printed_tables[table.name] = get_markdown_table_values(
+                    table, include_warning=False
                 )
 
         printed_project = "\n\n".join(printed_tables.values())

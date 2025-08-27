@@ -1,12 +1,17 @@
-import { GridCell, RuntimeError } from '../types';
+import { GridCell, IndexError, RuntimeError } from '../types';
 import { ColumnDataType, CompilationError, ParsingError } from './serverApi';
 
 const complexTypes = [
-  ColumnDataType.INPUT,
   ColumnDataType.PERIOD_SERIES,
-  ColumnDataType.PERIOD_SERIES_POINT,
-  ColumnDataType.TABLE,
+  ColumnDataType.TABLE_REFERENCE,
+  ColumnDataType.TABLE_VALUE,
 ];
+
+const tableTypes = [ColumnDataType.TABLE_REFERENCE, ColumnDataType.TABLE_VALUE];
+
+export function isTableType(type: ColumnDataType): boolean {
+  return tableTypes.includes(type);
+}
 
 export function isComplexType(field?: {
   type: ColumnDataType;
@@ -27,7 +32,7 @@ export function compareTableNames(a: string, b: string) {
 }
 
 export function isNumericType(type: ColumnDataType) {
-  return type === ColumnDataType.INTEGER || type === ColumnDataType.DOUBLE;
+  return type === ColumnDataType.DOUBLE;
 }
 
 export function isTextType(type: ColumnDataType) {
@@ -40,7 +45,7 @@ export function isValidUrl(value: string) {
 }
 
 export function getKeyLabelFromError(
-  error: CompilationError | RuntimeError | ParsingError
+  error: CompilationError | RuntimeError | ParsingError | IndexError
 ): string {
   const keys = ['fieldKey', 'totalKey', 'applyKey', 'overrideKey', 'tableKey'];
 

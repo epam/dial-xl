@@ -33,7 +33,7 @@ public class RangeLocal extends Plan1<Table, Table> {
     @Override
     protected Meta meta() {
         Schema source = Schema.inputs(this, 0);
-        Schema number = Schema.of(ColumnType.INTEGER);
+        Schema number = Schema.of(ColumnType.DOUBLE);
         return new Meta(Schema.of(source, number));
     }
 

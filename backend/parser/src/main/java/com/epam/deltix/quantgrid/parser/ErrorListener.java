@@ -35,7 +35,7 @@ public class ErrorListener extends BaseErrorListener {
             boolean isIncompleteFormula = fieldName != null && e == null
                     && offendingSymbol instanceof Token token
                     && token.getType() == SheetLexer.LINE_BREAK;
-            SheetParser.Field_definitionContext lastFieldContext = sheetReader.getLastFieldContext();
+            SheetParser.Fields_definitionContext lastFieldContext = sheetReader.getLastFieldsContext();
             boolean isUnparsedAfterFormula = lastFieldContext != null
                     && lastFieldContext.expression() != null;
             if (isIncompleteFormula || isUnparsedAfterFormula) {
@@ -78,9 +78,13 @@ public class ErrorListener extends BaseErrorListener {
             return null;
         }
 
-        if (context instanceof SheetParser.Field_definitionContext fieldDefinitionContext) {
-            ParsedText fieldName = ParsedText.fromFieldName(fieldDefinitionContext.field_name());
-            return fieldName == null ? null : fieldName.text();
+        if (context instanceof SheetParser.Fields_definitionContext ctx) {
+            for (SheetParser.Field_declarationContext declaration : ctx.field_declaration()) {
+                ParsedText name = ParsedText.fromFieldName(declaration.field_name());
+                if (name != null) {
+                    return name.text();
+                }
+            }
         }
 
         return findFieldName(context.getParent());

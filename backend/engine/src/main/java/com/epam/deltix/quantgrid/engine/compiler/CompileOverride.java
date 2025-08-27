@@ -5,6 +5,8 @@ import com.epam.deltix.quantgrid.engine.compiler.result.CompiledResult;
 import com.epam.deltix.quantgrid.engine.compiler.result.CompiledRow;
 import com.epam.deltix.quantgrid.engine.compiler.result.CompiledSimpleColumn;
 import com.epam.deltix.quantgrid.engine.compiler.result.CompiledTable;
+import com.epam.deltix.quantgrid.engine.compiler.result.format.ColumnFormat;
+import com.epam.deltix.quantgrid.engine.compiler.result.format.GeneralFormat;
 import com.epam.deltix.quantgrid.engine.compiler.result.validator.ResultValidator;
 import com.epam.deltix.quantgrid.engine.compiler.result.validator.SimpleColumnValidators;
 import com.epam.deltix.quantgrid.engine.node.expression.Constant;
@@ -73,6 +75,7 @@ class CompileOverride {
         this.manual = CompileManual.isManual(table);
         this.keys = table.fields()
                 .stream()
+                .flatMap(fields -> fields.fields().stream())
                 .filter(ParsedField::isKey)
                 .map(field -> new FieldKey(table.tableName(), field.fieldName()))
                 .toList();
@@ -141,20 +144,19 @@ class CompileOverride {
             return result;
         }
 
-        ColumnType type = result.cast(CompiledColumn.class, (expected, actual) ->
-                "%s overrides are not supported".formatted(actual)).type();
+        CompiledColumn compiledColumn = result.cast(CompiledColumn.class, (expected, actual) ->
+                "%s overrides are not supported".formatted(actual));
 
         init();
 
         OverrideKeys overrideKeys = buildOverrideRowKeys(indices);
-        OverrideValues overrideValues = compileOverrideValues(context, field, type, indices);
+        OverrideValues overrideValues = compileOverrideValues(context, field, compiledColumn, indices);
 
-        Expression value = SimpleColumnValidators.forType(overrideValues.type)
-                .convert(context.promote(result, dimensions))
-                .node();
+        CompiledSimpleColumn column = SimpleColumnValidators.forType(overrideValues.type)
+                .convert(context.promote(result, dimensions));
 
-        Overrides overridden = new Overrides(expressions, value, overrideKeys.keys, overrideValues.expressions);
-        return new CompiledSimpleColumn(overridden, dimensions);
+        Overrides overridden = new Overrides(expressions, column.node(), overrideKeys.keys, overrideValues.expressions);
+        return new CompiledSimpleColumn(overridden, dimensions, overrideValues.format);
     }
 
     @SneakyThrows
@@ -209,7 +211,7 @@ class CompileOverride {
 
         for (int row = 0; row < overrides.size(); row++) {
             Formula formula = formulas.get(row);
-            CompiledRow key = new CompiledRow(parseOverrideKey(ColumnType.INTEGER, formula));
+            CompiledRow key = new CompiledRow(parseOverrideKey(ColumnType.DOUBLE, formula));
             int prev = keysMap.put(key, row);
             keysList.add(key);
             CompileUtil.verify(prev < 0, "Duplicate key in overrides. Row: %s", row + 1);
@@ -354,19 +356,7 @@ class CompileOverride {
             }
 
             if (formula instanceof ConstNumber constant) {
-                double number = constant.number();
-
-                if (Doubles.isError(number)) {
-                    return Doubles.toStringError(number);
-                }
-
-                if (Doubles.isEmpty(number)) {
-                    return Strings.EMPTY;
-                }
-
-                return (ColumnType.closest(number) == ColumnType.INTEGER)
-                        ? Long.toString((long) number)
-                        : Double.toString(number);
+                return Doubles.toString(constant.number(), GeneralFormat.INSTANCE.createFormatter());
             }
 
             if (formula instanceof ConstBool constant) {
@@ -402,10 +392,11 @@ class CompileOverride {
         throw new CompileError("Override key must be text or number");
     }
 
-    private OverrideValues compileOverrideValues(CompileContext context, FieldKey field, ColumnType type,
-                                                 int[] indices) {
+    private OverrideValues compileOverrideValues(
+            CompileContext context, FieldKey field, CompiledColumn column, int[] indices) {
         List<CompiledColumn> values = new ArrayList<>();
 
+        ColumnType type = column.type();
         for (int index : indices) {
             CompiledRow key = keysList.get(index);
             CompiledSimpleColumn value;
@@ -413,7 +404,7 @@ class CompileOverride {
             try {
                 value = context.override(field.tableName(), field.fieldName(), key);
             } catch (CompileError e) {
-                value = new CompiledSimpleColumn(new Constant(Doubles.ERROR_NA), List.of());
+                value = new CompiledSimpleColumn(new Constant(Doubles.ERROR_NA), List.of(), GeneralFormat.INSTANCE);
             }
 
             if (value.type().isString()) {
@@ -424,15 +415,19 @@ class CompileOverride {
         }
 
         ResultValidator<CompiledSimpleColumn> converter = SimpleColumnValidators.forType(type);
-        List<Expression> expressions = values.stream().map(converter::convert)
-                .map(CompiledSimpleColumn::node).toList();
+        List<CompiledSimpleColumn> compiledColumns = values.stream()
+                .map(converter::convert)
+                .toList();
+        List<Expression> expressions = CompileUtil.toExpressionList(compiledColumns);
+        List<ColumnFormat> formats = CompileUtil.toFormatList(compiledColumns, column);
+        ColumnFormat resultFormat = FormatResolver.resolveListFormat(type, formats);
 
-        return new OverrideValues(type, expressions);
+        return new OverrideValues(type, resultFormat, expressions);
     }
 
     private record OverrideKeys(List<Object> keys) {
     }
 
-    private record OverrideValues(ColumnType type, List<Expression> expressions) {
+    private record OverrideValues(ColumnType type, ColumnFormat format, List<Expression> expressions) {
     }
 }

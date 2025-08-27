@@ -12,7 +12,6 @@ from pydantic import BaseModel
 class Action(BaseModel):
     table_name: str
     sheet_name: str
-    value: str | None = None
 
 
 class AddTableAction(Action):  # Table was added

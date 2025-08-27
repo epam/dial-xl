@@ -2,7 +2,11 @@ import { useCallback, useRef, useState } from 'react';
 import { useAuth } from 'react-oidc-context';
 
 import { Message, Role } from '@epam/ai-dial-overlay';
-import { mergeMessages, parseSSEResponse } from '@frontend/common';
+import {
+  CompletionBodyRequest,
+  mergeMessages,
+  parseSSEResponse,
+} from '@frontend/common';
 
 const qgBotDeploymentName =
   (window as any)?.externalEnv?.qgBotDeploymentName ?? 'qg';
@@ -107,7 +111,13 @@ export const useAIPromptRequests = ({
             qgBotDeploymentName
           )}/chat/completions?api-version=2024-02-15-preview`,
           {
-            body: JSON.stringify({ stream: true, messages }),
+            body: JSON.stringify({
+              stream: true,
+              messages,
+              custom_fields: {
+                configuration: { generationParameters: { summarize: false } },
+              },
+            } as CompletionBodyRequest),
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',

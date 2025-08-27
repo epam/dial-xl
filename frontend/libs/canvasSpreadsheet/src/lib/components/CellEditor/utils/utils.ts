@@ -30,6 +30,8 @@ export const shouldSendUpdateEvent = (
     'edit_field_expression',
     'edit_cell_expression',
     'edit_dim_expression',
+    'edit_complex_field',
+    'edit_dynamic_field_header',
     'add_override',
     'edit_override',
     'empty_cell',

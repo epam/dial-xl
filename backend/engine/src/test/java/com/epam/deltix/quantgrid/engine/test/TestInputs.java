@@ -3,7 +3,7 @@ package com.epam.deltix.quantgrid.engine.test;
 import com.epam.deltix.quantgrid.engine.node.plan.local.InputLocal;
 import com.epam.deltix.quantgrid.engine.service.input.InputMetadata;
 import com.epam.deltix.quantgrid.engine.service.input.storage.InputProvider;
-import com.epam.deltix.quantgrid.engine.service.input.storage.LocalInputProvider;
+import com.epam.deltix.quantgrid.engine.service.input.storage.local.LocalInputProvider;
 import lombok.experimental.UtilityClass;
 
 import java.nio.file.Path;
@@ -11,6 +11,7 @@ import java.nio.file.Path;
 @UtilityClass
 public class TestInputs {
     public static final Path INPUTS_PATH = Path.of("build/resources/test/inputs");
+    public static final Path RESULTS_PATH = Path.of("build/tmp/test/.cache/");
 
     public static final String CPI_CSV = "CPI.csv";
     public static final String ALL_TYPES_CSV = "all-types-with-null.csv";

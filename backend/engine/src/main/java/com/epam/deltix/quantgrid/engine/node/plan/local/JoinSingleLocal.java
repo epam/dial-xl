@@ -20,6 +20,14 @@ public class JoinSingleLocal extends Plan2<Table, Table, Table> {
         super(sourceOf(left, leftKeys), sourceOf(right, rightKeys));
     }
 
+    public List<Expression> getLeftKeys() {
+        return expressions(0);
+    }
+
+    public List<Expression> getRightKeys() {
+        return expressions(1);
+    }
+
     @Override
     protected Plan layout() {
         return getLeft().getLayout();
@@ -32,8 +40,8 @@ public class JoinSingleLocal extends Plan2<Table, Table, Table> {
 
     @Override
     protected Table execute(Table leftTable, Table rightTable) {
-        List<Expression> leftKeys = expressions(0);
-        List<Expression> rightKeys = expressions(1);
+        List<Expression> leftKeys = getLeftKeys();
+        List<Expression> rightKeys = getRightKeys();
 
         TableHashStrategy rightStrategy = new TableHashStrategy(rightKeys);
         TableHashStrategy leftStrategy = new TableHashStrategy(leftKeys, rightStrategy);

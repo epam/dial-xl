@@ -9,16 +9,23 @@ import { GridStateContext, GridViewportContext } from '../../context';
 import { useCellUtils, useDraw } from '../../hooks';
 import { Edges } from '../../types';
 
+const debounceDelay = 50;
+
 export function Overrides() {
   const { theme, gridSizes, getCell } = useContext(GridStateContext);
-  const { viewportEdges, viewportRowCount, viewportColCount } =
-    useContext(GridViewportContext);
+  const {
+    viewportEdges,
+    viewportRowCount,
+    viewportColCount,
+    gridViewportSubscriber,
+  } = useContext(GridViewportContext);
   const { calculateCellDimensions } = useCellUtils();
 
   const graphicsRef = useRef<PIXI.Graphics>(null);
   const [overrideCells, setOverrideCells] = useState<Edges[]>([]);
+  const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => {
+  const updateOverrideCells = useCallback(() => {
     if (!viewportEdges.current || !viewportRowCount || !viewportColCount)
       return;
 
@@ -57,6 +64,26 @@ export function Overrides() {
 
     setOverrideCells(updatedOverrideCells);
   }, [getCell, viewportEdges, viewportRowCount, viewportColCount]);
+
+  const onViewportChange = useCallback(() => {
+    if (debounceTimer.current) clearTimeout(debounceTimer.current);
+
+    debounceTimer.current = setTimeout(() => {
+      updateOverrideCells();
+    }, debounceDelay);
+  }, [updateOverrideCells]);
+
+  useEffect(() => {
+    updateOverrideCells();
+
+    const unsubscribe =
+      gridViewportSubscriber.current.subscribe(onViewportChange);
+
+    return () => {
+      unsubscribe();
+      if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    };
+  }, [gridViewportSubscriber, onViewportChange, updateOverrideCells]);
 
   const draw = useCallback(() => {
     if (!graphicsRef.current) return;

@@ -2,9 +2,7 @@ import { TotalType } from '@frontend/parser';
 
 export const spreadsheetMenuKeys = {
   askAI: 'askAI',
-  addOverride: 'AddOverride',
   removeOverride: 'RemoveOverride',
-  editOverride: 'EditOverride',
   createDerivedTable: 'CreateDerivedTable',
   deleteField: 'DeleteField',
   deleteTable: 'DeleteTable',

@@ -5,42 +5,45 @@ import com.epam.deltix.quantgrid.engine.node.NotSemantic;
 import com.epam.deltix.quantgrid.engine.value.Table;
 import com.epam.deltix.quantgrid.engine.value.Value;
 import lombok.Getter;
+import lombok.Setter;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
+@Getter
+@Setter
+@NotSemantic
 public class Running extends PlanN<Table, Table> {
 
-    @NotSemantic
-    private final Meta meta;
-    @NotSemantic
-    @Getter
-    private final CompletableFuture<Value> task;
-    @Getter
-    private final long originalId;
-    @NotSemantic
-    private final int layoutIndex;
+    private final Plan original;
+    private CompletableFuture<Value> task;
+    private final long scheduledAt;
+    private long startedAt;
 
-    public Running(Plan original, CompletableFuture<Value> task, List<Plan> inputs, int layoutIndex) {
+    public Running(List<Plan> inputs, Plan original) {
         super(inputs.stream().map(Plan::sourceOf).toList());
-        this.meta = new Meta(original.getMeta().getSchema().asOriginal());
-        this.task = task;
-        this.originalId = original.getId();
-        this.layoutIndex = layoutIndex;
+        this.original = original;
+        this.scheduledAt = System.currentTimeMillis();
+        this.startedAt = scheduledAt;
     }
 
     @Override
     protected Plan layout() {
-        return (layoutIndex < 0) ? this : plan(layoutIndex);
+        return original.isLayout() ? this : plan(0).getLayout();
     }
 
     @Override
     protected Meta meta() {
-        return meta;
+        return new Meta(original.getMeta().getSchema().asOriginal());
     }
 
     @Override
     public Table execute(List<Table> args) {
         throw new IllegalStateException("Can't execute running node");
+    }
+
+    @Override
+    public String toString() {
+        return "Running(" + original + "#" + original.getId() + ")";
     }
 }

@@ -5,7 +5,8 @@ export const UnshareIcon = () => {
       stroke="currentColor"
       strokeLinecap="round"
       strokeLinejoin="round"
-      strokeWidth="2"
+      strokeWidth="1.5"
+      vectorEffect="non-scaling-stroke"
       viewBox="0 0 24 24"
       width="100%"
     >

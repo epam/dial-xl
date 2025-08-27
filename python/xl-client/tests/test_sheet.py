@@ -55,6 +55,6 @@ async def test_parsing_errors():
         ParsingError(
             line=4,
             position=2,
-            message="extraneous input '123' expecting {<EOF>, '!', 'table', PYTHON_BLOCK, LINE_BREAK, DOC_COMMENT}",
+            message='Column formula is expected to fit on a single line. Use backslash "\\" to continue the formula on the next line.',
         )
     ]

@@ -7,6 +7,7 @@ import {
   csvFileExtension,
   dialProjectFileExtension,
   FilesMetadata,
+  MetadataNodeType,
   modalFooterButtonClasses,
   primaryButtonClasses,
   schemaFileExtension,
@@ -78,6 +79,7 @@ export function useDeleteResources() {
         fileName:
           '.' + item.name.replaceAll(csvFileExtension, schemaFileExtension),
         path: item.parentPath,
+        suppressErrors: true,
       });
     },
     [deleteFile]
@@ -98,7 +100,7 @@ export function useDeleteResources() {
       const fileName = isProject
         ? item.name.replace(dialProjectFileExtension, '')
         : item.name;
-      const isFolder = item.nodeType === 'FOLDER';
+      const isFolder = item.nodeType === MetadataNodeType.FOLDER;
       const resourceName = isProject ? 'project' : isFolder ? 'folder' : 'file';
 
       return `Do you want to delete ${resourceName} "${fileName}"?`;
@@ -127,7 +129,7 @@ export function useDeleteResources() {
         onOk: async () => {
           for (const item of items) {
             const isProject = item.name.endsWith(dialProjectFileExtension);
-            const isFolder = item.nodeType === 'FOLDER';
+            const isFolder = item.nodeType === MetadataNodeType.FOLDER;
 
             if (isProject) {
               await handleDeleteProject(item);

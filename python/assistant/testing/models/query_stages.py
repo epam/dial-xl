@@ -1,42 +1,38 @@
 from typing import Literal
 
-from aidial_sdk.chat_completion import Status
-from pydantic import BaseModel
+from quantgrid_1.models.stage import Stage
 
 
-class BaseStage(BaseModel):
-    name: str = ""
-    content: str = ""
-    attachments: dict[str, str] = {}
-    status: Status = Status.COMPLETED
-
-
-class GenericStage(BaseStage):
+class GenericStage(Stage):
     type: Literal["generic"] = "generic"
 
 
-class HintStage(BaseStage):
+class HintStage(Stage):
     type: Literal["hint"] = "hint"
 
 
-class DataStage(BaseStage):
+class DataStage(Stage):
     type: Literal["data"] = "data"
 
 
-class IndexStage(BaseStage):
+class IndexStage(Stage):
     type: Literal["index"] = "index"
 
 
-class RouteStage(BaseStage):
+class RouteStage(Stage):
     type: Literal["route"] = "route"
 
 
-class ActionsStage(BaseStage):
+class ActionsStage(Stage):
     type: Literal["actions"] = "actions"
 
 
-class SheetsStage(BaseStage):
+class SheetsStage(Stage):
     type: Literal["sheets"] = "sheets"
+
+
+class FocusStage(Stage):
+    type: Literal["focus"] = "focus"
 
 
 type AnyStage = (
@@ -47,4 +43,5 @@ type AnyStage = (
     | RouteStage
     | ActionsStage
     | SheetsStage
+    | FocusStage
 )

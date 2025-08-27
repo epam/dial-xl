@@ -10,11 +10,15 @@ public interface ComputeService {
 
     long timeout();
 
-    ComputeTask compute(Api.Request request, ComputeCallback callback, Principal principal) throws ComputeException;
+    ComputeTask compute(Api.Request request, ComputeCallback callback, Principal principal);
 
-    Api.Response search(Api.Request request, Principal principal) throws ComputeException;
+    void cancel(Api.Request request, Principal principal);
 
-    void download(Api.Request request, Supplier<OutputStream> output, Principal principal) throws ComputeException;
+    Api.Response search(Api.Request request, Principal principal);
+
+    void download(Api.Request request, Supplier<OutputStream> output, Principal principal);
+
+    void export(Api.Request request, Principal principal);
 
     interface ComputeTask {
 

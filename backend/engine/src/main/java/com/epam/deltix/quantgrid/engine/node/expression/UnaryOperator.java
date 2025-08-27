@@ -19,17 +19,7 @@ public class UnaryOperator extends Expression1<DoubleColumn, DoubleColumn> {
 
     @Override
     public ColumnType getType() {
-        if (operation == UnaryOperation.NOT) {
-            return ColumnType.BOOLEAN;
-        }
-
-        ColumnType operandType = getOperand().getType();
-        if (operation == UnaryOperation.NEG && operandType == ColumnType.BOOLEAN) {
-            return ColumnType.INTEGER;
-        }
-
-        // In Excel, dates remain as dates after negation, though they become non-displayable.
-        return operandType;
+        return ColumnType.DOUBLE;
     }
 
     public Expression getOperand() {

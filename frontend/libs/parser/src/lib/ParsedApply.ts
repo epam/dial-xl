@@ -2,7 +2,7 @@ import { Expose } from 'class-transformer';
 
 import { ParsedConditionFilter, ParsedFilter } from './ParsedFilter';
 import { ParsedSort } from './ParsedSort';
-import { FieldSortOrder, FullDSLPlacement } from './parser';
+import { FieldSortOrder } from './parser';
 import { Span } from './Span';
 
 export class ParsedApply {
@@ -18,8 +18,7 @@ export class ParsedApply {
   constructor(
     span: Span | undefined,
     sort: ParsedSort | undefined,
-    filter: ParsedFilter | undefined,
-    public dslPlacement: FullDSLPlacement | undefined
+    filter: ParsedFilter | undefined
   ) {
     this.span = span;
     this.sort = sort;

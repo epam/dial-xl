@@ -1,9 +1,10 @@
 package com.epam.deltix.quantgrid.engine.compiler;
 
+import com.epam.deltix.quantgrid.engine.SuggestionHelper;
 import com.epam.deltix.quantgrid.engine.compiler.result.CompiledColumn;
 import com.epam.deltix.quantgrid.engine.compiler.result.CompiledInputTable;
 import com.epam.deltix.quantgrid.engine.compiler.result.CompiledNestedColumn;
-import com.epam.deltix.quantgrid.engine.compiler.result.CompiledPivotTable;
+import com.epam.deltix.quantgrid.engine.compiler.result.CompiledPivotColumn;
 import com.epam.deltix.quantgrid.engine.compiler.result.CompiledReferenceTable;
 import com.epam.deltix.quantgrid.engine.compiler.result.CompiledResult;
 import com.epam.deltix.quantgrid.engine.compiler.result.CompiledRow;
@@ -11,33 +12,35 @@ import com.epam.deltix.quantgrid.engine.compiler.result.CompiledRowTable;
 import com.epam.deltix.quantgrid.engine.compiler.result.CompiledSimpleColumn;
 import com.epam.deltix.quantgrid.engine.compiler.result.CompiledTable;
 import com.epam.deltix.quantgrid.engine.compiler.result.CompiledTotalTable;
+import com.epam.deltix.quantgrid.engine.compiler.result.format.BooleanFormat;
+import com.epam.deltix.quantgrid.engine.compiler.result.format.ColumnFormat;
+import com.epam.deltix.quantgrid.engine.compiler.result.format.DateFormat;
+import com.epam.deltix.quantgrid.engine.compiler.result.format.GeneralFormat;
 import com.epam.deltix.quantgrid.engine.compiler.result.validator.NestedColumnValidators;
 import com.epam.deltix.quantgrid.engine.compiler.result.validator.ResultValidator;
 import com.epam.deltix.quantgrid.engine.compiler.result.validator.SimpleColumnValidators;
 import com.epam.deltix.quantgrid.engine.compiler.result.validator.SimpleOrNestedValidators;
 import com.epam.deltix.quantgrid.engine.compiler.result.validator.TableValidators;
+import com.epam.deltix.quantgrid.engine.embeddings.EmbeddingModel;
 import com.epam.deltix.quantgrid.engine.embeddings.EmbeddingModels;
 import com.epam.deltix.quantgrid.engine.embeddings.EmbeddingType;
 import com.epam.deltix.quantgrid.engine.node.expression.BinaryFunction;
 import com.epam.deltix.quantgrid.engine.node.expression.BinaryOperator;
 import com.epam.deltix.quantgrid.engine.node.expression.Concatenate;
 import com.epam.deltix.quantgrid.engine.node.expression.Constant;
-import com.epam.deltix.quantgrid.engine.node.expression.Expand;
 import com.epam.deltix.quantgrid.engine.node.expression.Expression;
 import com.epam.deltix.quantgrid.engine.node.expression.Get;
 import com.epam.deltix.quantgrid.engine.node.expression.If;
 import com.epam.deltix.quantgrid.engine.node.expression.RowNumber;
 import com.epam.deltix.quantgrid.engine.node.expression.TernaryFunction;
-import com.epam.deltix.quantgrid.engine.node.expression.Text;
 import com.epam.deltix.quantgrid.engine.node.expression.UnaryFunction;
 import com.epam.deltix.quantgrid.engine.node.expression.UnaryOperator;
 import com.epam.deltix.quantgrid.engine.node.expression.ps.Extrapolate;
 import com.epam.deltix.quantgrid.engine.node.expression.ps.PercentChange;
 import com.epam.deltix.quantgrid.engine.node.plan.Plan;
-import com.epam.deltix.quantgrid.engine.node.plan.local.aggregate.AggregateType;
+import com.epam.deltix.quantgrid.engine.node.plan.local.AggregateLocal;
 import com.epam.deltix.quantgrid.engine.node.plan.local.DateRangeLocal;
 import com.epam.deltix.quantgrid.engine.node.plan.local.DistinctByLocal;
-import com.epam.deltix.quantgrid.engine.node.plan.local.EmbeddingIndexLocal;
 import com.epam.deltix.quantgrid.engine.node.plan.local.EvaluateModelLocal;
 import com.epam.deltix.quantgrid.engine.node.plan.local.EvaluateNLocal;
 import com.epam.deltix.quantgrid.engine.node.plan.local.Fields;
@@ -47,7 +50,6 @@ import com.epam.deltix.quantgrid.engine.node.plan.local.InputLocal;
 import com.epam.deltix.quantgrid.engine.node.plan.local.JoinSingleLocal;
 import com.epam.deltix.quantgrid.engine.node.plan.local.ListLocal;
 import com.epam.deltix.quantgrid.engine.node.plan.local.MRRLocal;
-import com.epam.deltix.quantgrid.engine.node.plan.local.AggregateLocal;
 import com.epam.deltix.quantgrid.engine.node.plan.local.OrderByLocal;
 import com.epam.deltix.quantgrid.engine.node.plan.local.RangeLocal;
 import com.epam.deltix.quantgrid.engine.node.plan.local.RecallLocal;
@@ -57,6 +59,7 @@ import com.epam.deltix.quantgrid.engine.node.plan.local.SetOperation;
 import com.epam.deltix.quantgrid.engine.node.plan.local.SetOperationLocal;
 import com.epam.deltix.quantgrid.engine.node.plan.local.SplitLocal;
 import com.epam.deltix.quantgrid.engine.node.plan.local.TokensCountLocal;
+import com.epam.deltix.quantgrid.engine.node.plan.local.aggregate.AggregateType;
 import com.epam.deltix.quantgrid.engine.service.input.InputMetadata;
 import com.epam.deltix.quantgrid.engine.service.input.storage.InputProvider;
 import com.epam.deltix.quantgrid.parser.FieldKey;
@@ -137,6 +140,8 @@ public class CompileFunction {
             case "COUNT" -> compileCount(context);
             case "SUM", "AVERAGE", "MAX", "MIN", "STDEVS", "STDEVP", "GEOMEAN", "MEDIAN", "CORREL" ->
                     compileDoubleAggregation(name, context);
+            case "PERCENTILE", "PERCENTILE_EXC", "QUARTILE", "QUARTILE_EXC" ->
+                    compileQuantileAggregation(name, context);
             case "MINBY", "MAXBY" -> compileRowAggregationByDouble(name, context);
             case "FIRST", "LAST", "SINGLE" -> (context.argumentCount() == 1)
                     ? compileFirstLastSingle(name, context)
@@ -185,13 +190,15 @@ public class CompileFunction {
                             : new SelectLocal(table.queryReference());
                     column = new CompiledNestedColumn(plan, table.dimensions(),
                             table.hasCurrentReference() ? 0 : CompiledTable.REF_NA,
-                            table.hasCurrentReference() ? 1 : 0);
+                            table.hasCurrentReference() ? 1 : 0,
+                            GeneralFormat.INSTANCE);
                 } else {
-                    column = new CompiledSimpleColumn(table.queryReference(), table.dimensions());
+                    column = new CompiledSimpleColumn(
+                            table.queryReference(), table.dimensions(), GeneralFormat.INSTANCE);
                 }
             }
 
-            return column.transform(in -> new UnaryFunction(in, function));
+            return column.transform(in -> new UnaryFunction(in, function), BooleanFormat.INSTANCE);
         }
 
         CompiledColumn arg = context.compileArgument(
@@ -199,7 +206,7 @@ public class CompileFunction {
                         ? SimpleOrNestedValidators.ANY
                         : SimpleOrNestedValidators.forType(function.getArgumentType()));
 
-        return arg.transform(expression -> new UnaryFunction(expression, function));
+        return arg.transform(expression -> new UnaryFunction(expression, function), GeneralFormat.INSTANCE);
     }
 
     private CompiledResult compileBinaryFunction(String name, CompileContext context) {
@@ -208,7 +215,9 @@ public class CompileFunction {
                 SimpleOrNestedValidators.forType(function.getArgument1Type()),
                 SimpleOrNestedValidators.forType(function.getArgument2Type())));
 
-        return CompiledColumn.transform(args.get(0), args.get(1), (arg1, arg2) -> new BinaryFunction(arg1, arg2, function));
+        return CompiledColumn.transform(args.get(0), args.get(1),
+                (arg1, arg2) -> new BinaryFunction(arg1, arg2, function),
+                function.getResultFormat());
     }
 
     private CompiledResult compileTernaryFunction(String name, CompileContext context) {
@@ -219,12 +228,14 @@ public class CompileFunction {
                 SimpleOrNestedValidators.forType(function.getArgument3Type())));
 
         return CompiledColumn.transform(args.get(0), args.get(1), args.get(2),
-                (arg1, arg2, arg3) -> new TernaryFunction(arg1, arg2, arg3, function));
+                (arg1, arg2, arg3) -> new TernaryFunction(arg1, arg2, arg3, function),
+                function.getResultFormat());
     }
 
     private CompiledResult compileUnaryOperator(CompileContext context, UnaryOperation operation) {
         CompiledColumn arg = context.compileArgument(0, SimpleOrNestedValidators.DOUBLE);
-        return arg.transform(in -> new UnaryOperator(in, operation));
+        ColumnFormat format = FormatResolver.resolveFormat(operation, arg.format());
+        return arg.transform(in -> new UnaryOperator(in, operation), format);
     }
 
     private CompiledResult compileBinaryOperator(CompileContext context, BinaryOperation operation) {
@@ -247,7 +258,8 @@ public class CompileFunction {
             right = SimpleOrNestedValidators.STRING.convert(right);
         }
 
-        return CompiledColumn.transform(left, right, (arg1, arg2) -> new BinaryOperator(arg1, arg2, operation));
+        ColumnFormat format = FormatResolver.resolveFormat(operation, left.format(), right.format());
+        return CompiledColumn.transform(left, right, (arg1, arg2) -> new BinaryOperator(arg1, arg2, operation), format);
     }
 
     private CompiledColumn compileRow(CompileContext context) {
@@ -256,25 +268,25 @@ public class CompileFunction {
             CompiledTable table = context.overrideRowTable();
             Get get = table.queryReference();
             Expression row = CompileUtil.plus(get, 1);
-            return new CompiledSimpleColumn(row, table.dimensions());
+            return new CompiledSimpleColumn(row, table.dimensions(), GeneralFormat.INSTANCE);
         }
 
         CompiledTable layout = context.layout();
         RowNumber number = new RowNumber(layout.node());
         Expression row = CompileUtil.plus(number, 1);
-        return new CompiledSimpleColumn(row, layout.dimensions());
+        return new CompiledSimpleColumn(row, layout.dimensions(), GeneralFormat.INSTANCE);
     }
 
     private CompiledResult compileRange(CompileContext context) {
-        CompiledSimpleColumn count = compileArgs(context, SimpleColumnValidators.INTEGER).get(0);
+        CompiledSimpleColumn count = compileArgs(context, SimpleColumnValidators.DOUBLE).get(0);
         CompiledTable table = context.currentTable(count.dimensions());
         RangeLocal range = new RangeLocal(table.node(), count.node());
         int column = table.node().getMeta().getSchema().size();
-        return new CompiledNestedColumn(range, table.dimensions(), table.currentRef(), column);
+        return new CompiledNestedColumn(range, table.dimensions(), table.currentRef(), column, GeneralFormat.INSTANCE);
     }
 
     private CompiledResult compileFilter(CompileContext context) {
-        TableArgs args = compileTableArgs(context, SimpleOrNestedValidators.BOOLEAN);
+        TableArgs args = compileTableArgs(context, SimpleOrNestedValidators.DOUBLE);
         CompiledTable table = args.table();
         CompiledSimpleColumn condition = args.columns.get(0);
         FilterLocal filter = new FilterLocal(table.node(), condition.node());
@@ -293,7 +305,7 @@ public class CompileFunction {
         List<ColumnType> types = new ArrayList<>();
 
         if (keys.isEmpty()) {
-            types.add(ColumnType.INTEGER);
+            types.add(ColumnType.DOUBLE);
         } else {
             CompiledTable flat = table.flat().cast(CompiledTable.class);
             for (String key : keys) {
@@ -428,14 +440,14 @@ public class CompileFunction {
         CompileUtil.verify(arg.nested());
         AggregateType type = all ? AggregateType.COUNT_ALL : AggregateType.COUNT;
 
-        Plan layout = context.aggregationLayout(arg).node().getLayout();
+        Plan layout = context.layout(arg.dimensions()).node().getLayout();
         Expression value = (arg instanceof CompiledNestedColumn column) ? column.expression() : arg.queryReference();
 
         Expression key = arg.hasCurrentReference() ? arg.currentReference() : null;
         Plan aggregate = new AggregateLocal(type, layout, arg.node(), key, value);
 
         Get column = new Get(aggregate, 0);
-        return new CompiledSimpleColumn(column, arg.dimensions());
+        return new CompiledSimpleColumn(column, arg.dimensions(), GeneralFormat.INSTANCE);
     }
 
     private CompiledResult compileDoubleAggregation(String name, CompileContext context) {
@@ -443,14 +455,34 @@ public class CompileFunction {
         List<CompiledNestedColumn> args = compileArgs(context, NestedColumnValidators.DOUBLE);
 
         CompiledNestedColumn table = args.get(0);
-        Plan layout = context.aggregationLayout(table).node().getLayout();
+        Plan layout = context.layout(table.dimensions()).node().getLayout();
 
         Expression key = table.hasCurrentReference() ? table.currentReference() : null;
         List<Expression> values = args.stream().map(CompiledNestedColumn::expression).toList();
         Plan aggregate = new AggregateLocal(type, layout, table.node(), key, values);
 
         Get column = new Get(aggregate, 0);
-        return new CompiledSimpleColumn(column, table.dimensions());
+        return new CompiledSimpleColumn(column, table.dimensions(),
+                FormatResolver.resolveDoubleAggregationFormat(type, table.format()));
+    }
+
+    private CompiledResult compileQuantileAggregation(String name, CompileContext context) {
+        AggregateType type = AggregateType.valueOf(name);
+        List<ResultValidator<CompiledColumn>> validators = new ArrayList<>();
+        validators.add((ResultValidator) NestedColumnValidators.DOUBLE);
+        validators.add(SimpleOrNestedValidators.DOUBLE);
+        List<CompiledColumn> args = compileArgs(context, validators);
+
+        CompiledNestedColumn array = (CompiledNestedColumn) args.get(0);
+        CompiledColumn quantile = args.get(1);
+
+        Plan layout = context.layout(array.dimensions()).node().getLayout();
+        Expression key = array.hasCurrentReference() ? array.currentReference() : null;
+        List<Expression> values = List.of(array.expression(), quantile.expression());
+        Plan aggregate = new AggregateLocal(type, layout, array.node(), key, values);
+
+        Get column = new Get(aggregate, 0);
+        return new CompiledSimpleColumn(column, array.dimensions(), array.format());
     }
 
     private CompiledResult compileFirstLastSingle(String name, CompileContext context) {
@@ -461,11 +493,7 @@ public class CompileFunction {
 
     private CompiledResult compileIndex(CompileContext context) {
         TableArgs args = compileTableArgs(context, SimpleOrNestedValidators.DOUBLE);
-        CompiledSimpleColumn index = args.columns().get(0)
-                .transform(arg -> CompileUtil.plus(arg, -1));
-
-        return compileRowAggregation(AggregateType.INDEX, context,
-                new TableArgs(args.table(), List.of(index)));
+        return compileRowAggregation(AggregateType.INDEX, context, args);
     }
 
     private CompiledResult compileRowAggregationByDouble(String name, CompileContext context) {
@@ -476,7 +504,7 @@ public class CompileFunction {
 
     private CompiledResult compileRowAggregation(AggregateType type, CompileContext context, TableArgs args) {
         CompiledTable table = args.table();
-        Plan layout = context.aggregationLayout(table).node().getLayout();
+        Plan layout = context.layout(table.dimensions()).node().getLayout();
 
         Expression key = table.hasCurrentReference() ? table.currentReference() : null;
         List<Expression> values = args.columns.stream().map(CompiledSimpleColumn::node).toList();
@@ -496,7 +524,7 @@ public class CompileFunction {
         CompiledTable table = args.table();
         CompiledSimpleColumn limit = args.columns.get(0);
 
-        Plan layout = context.aggregationLayout(table).node().getLayout();
+        Plan layout = context.layout(table.dimensions()).node().getLayout();
         Expression key = table.hasCurrentReference() ? table.currentReference() : null;
 
         Plan aggregate = new AggregateLocal(type, layout, table.node(), key, limit.node());
@@ -513,18 +541,18 @@ public class CompileFunction {
         CompiledNestedColumn value = args.get(1);
         CompiledNestedColumn period = args.get(2);
 
-        Plan layout = context.aggregationLayout(table).node().getLayout();
+        Plan layout = context.layout(table.dimensions()).node().getLayout();
         Expression key = table.hasCurrentReference() ? table.currentReference() : null;
-        Plan aggregate = new AggregateLocal(AggregateType.PERIOD_SERIES, layout, table.node(), key,
+        Plan aggregate = new AggregateLocal(AggregateType.PERIODSERIES, layout, table.node(), key,
                 timestamp.expression(), value.expression(), period.expression());
 
         Get result = new Get(aggregate, 0);
-        return new CompiledSimpleColumn(result, table.dimensions());
+        return new CompiledSimpleColumn(result, table.dimensions(), GeneralFormat.INSTANCE);
     }
 
     private CompiledResult compileDateRange(CompileContext context) {
         List<ResultValidator<CompiledSimpleColumn>> validators = List.of(SimpleColumnValidators.DOUBLE,
-                        SimpleColumnValidators.DOUBLE, SimpleColumnValidators.INTEGER, SimpleColumnValidators.INTEGER)
+                        SimpleColumnValidators.DOUBLE, SimpleColumnValidators.DOUBLE, SimpleColumnValidators.DOUBLE)
                 .subList(0, context.argumentCount());
 
         List<CompiledSimpleColumn> args = compileArgs(context, validators);
@@ -539,7 +567,7 @@ public class CompileFunction {
                 date1.node(), date2.node(), increment.node(), dateType.node());
 
         int column = table.node().getMeta().getSchema().size();
-        return new CompiledNestedColumn(plan, table.dimensions(), table.currentRef(), column);
+        return new CompiledNestedColumn(plan, table.dimensions(), table.currentRef(), column, DateFormat.DEFAULT_DATE_TIME_FORMAT);
     }
 
     private CompiledNestedColumn compileList(CompileContext context) {
@@ -547,80 +575,85 @@ public class CompileFunction {
                 .map(column -> {
                     CompileUtil.verify(column.scalar(), "LIST function accepts texts or numbers only.");
                     return column.type();
-                }).reduce((left, right) -> {
-                    ColumnType result = ColumnType.closest(left, right);
-                    return (result == null) ? ColumnType.STRING : result;
-                }).orElse(ColumnType.DOUBLE);
+                })
+                .reduce((left, right) -> left == right ? left : ColumnType.STRING)
+                .orElse(ColumnType.DOUBLE);
 
-        List<Expression> values = compileArgs(context, SimpleColumnValidators.forType(type)).stream()
-                .map(CompiledSimpleColumn::node).toList();
+        List<CompiledSimpleColumn> values = compileArgs(context, SimpleColumnValidators.forType(type));
+        List<Expression> expressions = CompileUtil.toExpressionList(values);
+        List<ColumnFormat> formats = CompileUtil.toFormatList(values);
+        ColumnFormat resultFormat = FormatResolver.resolveListFormat(type, formats);
 
-        ListLocal plan = new ListLocal(context.scalarLayout().node(), values);
-        return new CompiledNestedColumn(plan, 0);
+        ListLocal plan = new ListLocal(context.scalarLayout().node(), expressions);
+        return new CompiledNestedColumn(plan, 0, resultFormat);
     }
 
     private CompiledColumn compileExtrapolate(CompileContext context) {
         CompiledColumn argument = context.compileArgument(0, SimpleOrNestedValidators.PERIOD_SERIES);
-        return argument.transform(Extrapolate::new);
+        return argument.transform(Extrapolate::new, argument.format());
     }
 
     private CompiledColumn compilePercentChange(CompileContext context) {
         CompiledColumn argument = context.compileArgument(0, SimpleOrNestedValidators.PERIOD_SERIES);
-        return argument.transform(PercentChange::new);
+        return argument.transform(PercentChange::new, GeneralFormat.INSTANCE);
     }
 
     private CompiledResult compileInput(CompileContext context) {
         String path = context.constStringArgument(0);
-
         InputProvider provider = context.inputProvider();
-        InputMetadata metadata = provider.readMetadata(path, context.principal());
+
+        InputMetadata metadata;
+        try {
+           metadata = provider.readMetadata(path, context.principal());
+        } catch (Exception e) {
+            throw new CompileError(e);
+        }
 
         InputLocal plan = new InputLocal(metadata, provider, context.principal());
         List<String> columnNames = plan.getReadColumns();
-        List<ColumnType> columnTypes = columnNames.stream()
+        List<ColumnFormat> columnFormats = columnNames.stream()
                 .map(metadata.columnTypes()::get)
+                .map(type -> switch (type) {
+                    case BOOLEAN -> BooleanFormat.INSTANCE;
+                    case DATE -> DateFormat.DEFAULT_DATE_FORMAT;
+                    default -> GeneralFormat.INSTANCE;
+                })
                 .toList();
 
         SelectLocal select = new SelectLocal(new RowNumber(plan));
-        return new CompiledInputTable(plan, columnNames, columnTypes, select);
+        return new CompiledInputTable(plan, columnNames, columnFormats, select);
     }
 
     private CompiledResult compileConcatenate(CompileContext context) {
-        List<CompiledColumn> args = compileArgs(context, SimpleOrNestedValidators.STRING_OR_DOUBLE);
+        List<CompiledColumn> args = compileArgs(context, SimpleOrNestedValidators.STRING);
+        CompiledColumn first = args.get(0);
 
-        List<Expression> expressions = new ArrayList<>(args.size());
-        for (CompiledColumn arg : args) {
-            ColumnType type = arg.type();
-
-            if (type.isString()) {
-                expressions.add(arg.expression());
-            } else {
-                // excel CONCAT handles dates differently compare to TEXT function
-                Text text = new Text(arg.expression(), (type == ColumnType.DATE) ? ColumnType.DOUBLE : type, null);
-                expressions.add(text);
-            }
+        if (args.size() == 1) {
+            return first;
         }
-        return args.get(0).transform(expr -> (args.size()) == 1 ? expressions.get(0) : new Concatenate(expressions));
+
+        List<Expression> expressions = args.stream().map(CompiledColumn::expression).toList();
+        Concatenate concatenate = new Concatenate(expressions);
+        return first.transform(expr -> concatenate, GeneralFormat.INSTANCE);
     }
 
     private CompiledResult compileText(CompileContext context) {
         CompiledColumn arg = context.compileArgument(0, SimpleOrNestedValidators.DOUBLE);
-        String formatting = context.argumentCount() == 2 ? context.constStringArgument(1) : null;
-        return arg.transform(e -> new Text(e, arg.type(), formatting));
+        return CompileUtil.toStringColumn(arg);
     }
 
     private CompiledResult compileIf(CompileContext context) {
         List<CompiledColumn> args = compileArgs(context, List.of(
-                SimpleOrNestedValidators.BOOLEAN, SimpleOrNestedValidators.ANY, SimpleOrNestedValidators.ANY));
+                SimpleOrNestedValidators.DOUBLE, SimpleOrNestedValidators.ANY, SimpleOrNestedValidators.ANY));
 
         CompiledColumn condition = args.get(0);
         CompiledColumn left = args.get(1);
         CompiledColumn right = args.get(2);
 
-        CompileUtil.verify(ColumnType.isClose(left.type(), right.type()),
+        CompileUtil.verify(left.type() == right.type(),
                 "IF function requires left and right arguments to have same type");
 
-        return CompiledColumn.transform(condition, left, right, If::new);
+        return CompiledColumn.transform(condition, left, right, If::new, left.format());
     }
 
     private CompiledResult compileIfNa(CompileContext context) {
@@ -630,19 +663,19 @@ public class CompileFunction {
         CompiledColumn source = args.get(0);
         CompiledColumn fallback = args.get(1);
 
-        CompileUtil.verify(ColumnType.isClose(source.type(), fallback.type()),
+        CompileUtil.verify(source.type() == fallback.type(),
                 "IFNA function requires source and fallback arguments to have same type");
 
         return CompiledColumn.transform(source, fallback, (arg1, arg2) -> {
             UnaryFunction condition = new UnaryFunction(arg1, UnaryFunction.Type.ISNA);
             return new If(condition, arg2, arg1);
-        });
+        }, source.format());
     }
 
     private CompiledResult compileMode(CompileContext context) {
         CompiledNestedColumn arg = context.compileArgument(0, NestedColumnValidators.STRING_OR_DOUBLE);
 
-        Plan layout = context.aggregationLayout(arg).node().getLayout();
+        Plan layout = context.layout(arg.dimensions()).node().getLayout();
         Plan plan = arg.node();
 
         Get key = arg.hasCurrentReference() ? arg.currentReference() : null;
@@ -651,12 +684,12 @@ public class CompileFunction {
         Plan aggregate = new AggregateLocal(AggregateType.MODE, layout, plan, key, value);
         Get column = new Get(aggregate, 0);
 
-        return new CompiledSimpleColumn(column, arg.dimensions());
+        return new CompiledSimpleColumn(column, arg.dimensions(), arg.format());
     }
 
     private CompiledResult compileFields(CompileContext context) {
         CompiledTable table = context.compileArgument(0, TableValidators.TABLE);
-        return compileFields(context, table, true);
+        return compileFields(context, table);
     }
 
     private CompiledTotalTable compileTotal(CompileContext context) {
@@ -681,22 +714,22 @@ public class CompileFunction {
         return new CompiledTotalTable(table, dummyNode, number);
     }
 
-    CompiledNestedColumn compileFields(CompileContext context, CompiledTable table, boolean withPivot) {
+    CompiledNestedColumn compileFields(CompileContext context, CompiledTable table) {
         List<String> allFields = table.fields(context);
 
         String[] fields = allFields.stream()
-                .filter(field -> !field.equals(CompilePivot.PIVOT_NAME))
+                .filter(field -> !field.equals(CompiledPivotColumn.PIVOT_NAME))
                 .toArray(String[]::new);
 
-        CompiledPivotTable pivot = (withPivot && allFields.contains(CompilePivot.PIVOT_NAME))
-                ? table.field(context, CompilePivot.PIVOT_NAME).cast(CompiledPivotTable.class)
+        CompiledPivotColumn pivot = allFields.contains(CompiledPivotColumn.PIVOT_NAME)
+                ? table.field(context, CompiledPivotColumn.PIVOT_NAME).cast(CompiledPivotColumn.class)
                 : null;
 
         Fields plan = (pivot == null)
                 ? new Fields(fields)
-                : new Fields(pivot.pivotNames(), pivot.pivotNamesKey(), fields);
+                : new Fields(pivot.names(), pivot.nameColumn(), fields);
 
-        return new CompiledNestedColumn(plan, 0);
+        return new CompiledNestedColumn(plan, 0, GeneralFormat.INSTANCE);
     }
 
     <T extends CompiledResult> List<T> compileArgs(CompileContext context, ResultValidator<T> nValidator) {
@@ -741,9 +774,7 @@ public class CompileFunction {
 
         for (int i = 0; i < args.size(); i++) { // promote to the same dims
             T arg = args.get(i);
-            if (arg.nested() || !arg.scalar()) { // pivot-related condition, will be removed, no promotion for scalars
-                arg = context.promote(arg, dimensions).cast(validators.get(i).getExpectedType());
-            }
+            arg = context.promote(arg, dimensions).cast(validators.get(i).getExpectedType());
             args.set(i, arg);
         }
 
@@ -759,23 +790,6 @@ public class CompileFunction {
                 arg = (T) context.align(nested, arg);
                 args.set(i, arg);
             }
-        } else { // pivot-related branch, to support math after aggregation, will be removed, promotion for scalars
-            CompiledResult layout = args.stream()
-                    .filter(arg -> !arg.scalar())
-                    .findFirst().orElse(null);
-
-            if (layout != null) {
-                for (int i = 0; i < args.size(); i++) {
-                    T arg = args.get(i);
-                    if (arg instanceof CompiledSimpleColumn column && column.scalar()) {
-                        Expand expand = new Expand(layout.node().getLayout(), column.node());
-                        arg = (T) new CompiledSimpleColumn(expand, layout.dimensions());
-                        args.set(i, arg);
-                    } else if (!arg.nested() && arg.scalar()) {
-                        throw new CompileError("Not yet supported");
-                    }
-                }
-            }
         }
 
         for (int i = 1; i < args.size(); ++i) {
@@ -788,11 +802,12 @@ public class CompileFunction {
                 }
 
                 throw new CompileError(
-                        "The arguments '%s' and '%s' of the %s function are from different origins and may have different sizes."
+                        "The arguments '%s' and '%s' of the %s function are from different origins and may have different sizes.%s"
                                 .formatted(
                                         context.getFunctionArgName(0),
                                         context.getFunctionArgName(i),
-                                        context.function().operationSymbol()));
+                                        context.function().operationSymbol(),
+                                        SuggestionHelper.getSuggestion(context, i)));
             }
         }
 
@@ -800,7 +815,7 @@ public class CompileFunction {
     }
 
     private CompiledSimpleColumn compilePi() {
-        return new CompiledSimpleColumn(new Constant(Math.PI), List.of());
+        return new CompiledSimpleColumn(new Constant(Math.PI), List.of(), GeneralFormat.INSTANCE);
     }
 
     private CompiledResult compileEvaluateN(CompileContext context) {
@@ -848,21 +863,21 @@ public class CompileFunction {
                     questionColumn,
                     null,
                     modelTable,
-                    new CompiledSimpleColumn(new Get(modelTable, 0), List.of()),
+                    new CompiledSimpleColumn(new Get(modelTable, 0), List.of(), GeneralFormat.INSTANCE),
                     EmbeddingType.QUERY);
 
             Plan fieldEmbeddings = CompileEmbeddingIndex.compileEmbeddingIndex(
                         distinctFields,
-                        new CompiledSimpleColumn(new Get(distinctFields, 0), List.of()),
-                        descriptionField != null ? new CompiledSimpleColumn(new Get(distinctFields, 1), List.of()) : null,
+                        new CompiledSimpleColumn(new Get(distinctFields, 0), List.of(), GeneralFormat.INSTANCE),
+                        descriptionField != null ? new CompiledSimpleColumn(new Get(distinctFields, 1), List.of(), GeneralFormat.INSTANCE) : null,
                         modelTable,
-                        new CompiledSimpleColumn(new Get(modelTable, 0), List.of()),
+                        new CompiledSimpleColumn(new Get(modelTable, 0), List.of(), GeneralFormat.INSTANCE),
                         EmbeddingType.DOCUMENT);
 
             Plan retrieve = new RetrieveLocal(
                     fieldEmbeddings,
                     queryEmbeddings,
-                    EmbeddingIndexLocal.NUMBER_OF_DIMENSIONS,
+                    EmbeddingModel.NUMBER_OF_DIMENSIONS,
                     source.node(),
                     questionColumn.node(),
                     nColumn.node());
@@ -896,7 +911,7 @@ public class CompileFunction {
         }
 
         Plan evaluateN = new EvaluateNLocal(retrievers, tokens, groundTruths, context.scalarLayout().node());
-        return new CompiledSimpleColumn(new Get(evaluateN, targetId), List.of());
+        return new CompiledSimpleColumn(new Get(evaluateN, targetId), List.of(), GeneralFormat.INSTANCE);
     }
 
     private Plan distinctFieldWithDescription(CompileContext context,
@@ -985,15 +1000,15 @@ public class CompileFunction {
             Plan fieldEmbeddings = CompileEmbeddingIndex.compileEmbeddingIndex(
                     context,
                     distinctedFields,
-                    new CompiledSimpleColumn(new Get(distinctedFields, 0), List.of()),
-                    hasDescription ? new CompiledSimpleColumn(new Get(distinctedFields, 1), List.of()) : null,
+                    new CompiledSimpleColumn(new Get(distinctedFields, 0), List.of(), GeneralFormat.INSTANCE),
+                    hasDescription ? new CompiledSimpleColumn(new Get(distinctedFields, 1), List.of(), GeneralFormat.INSTANCE) : null,
                     modelName,
                     EmbeddingType.DOCUMENT);
 
             Plan retrieve = new RetrieveLocal(
                     fieldEmbeddings,
                     queryEmbeddings,
-                    EmbeddingIndexLocal.NUMBER_OF_DIMENSIONS,
+                    EmbeddingModel.NUMBER_OF_DIMENSIONS,
                     source.node(),
                     questionColumn.node(),
                     nColumn.node()
@@ -1027,7 +1042,7 @@ public class CompileFunction {
 
         Plan evaluateModel = new EvaluateModelLocal(mrrByModel, EmbeddingModels.MODEL_NAMES);
 
-        return new CompiledSimpleColumn(new Get(evaluateModel, 0), List.of());
+        return new CompiledSimpleColumn(new Get(evaluateModel, 0), List.of(), GeneralFormat.INSTANCE);
     }
 
     private CompiledTable compileCommonRetrieve(CompileContext context) {
@@ -1041,7 +1056,7 @@ public class CompileFunction {
 
         List<CompiledSimpleColumn> args = compileArgs(
                 context,
-                List.of(SimpleColumnValidators.STRING, SimpleColumnValidators.INTEGER, SimpleColumnValidators.STRING),
+                List.of(SimpleColumnValidators.STRING, SimpleColumnValidators.DOUBLE, SimpleColumnValidators.STRING),
                 1, 2, 3
         );
 
@@ -1069,17 +1084,17 @@ public class CompileFunction {
 
         Plan fieldEmbeddings = CompileEmbeddingIndex.compileEmbeddingIndex(
                 distinctedFields,
-                new CompiledSimpleColumn(new Get(distinctedFields, 0), List.of()),
-                hasDescription ? new CompiledSimpleColumn(new Get(distinctedFields, 1), List.of()) : null,
+                new CompiledSimpleColumn(new Get(distinctedFields, 0), List.of(), GeneralFormat.INSTANCE),
+                hasDescription ? new CompiledSimpleColumn(new Get(distinctedFields, 1), List.of(), GeneralFormat.INSTANCE) : null,
                 modelTable,
-                new CompiledSimpleColumn(new Get(modelTable, 0), List.of()),
+                new CompiledSimpleColumn(new Get(modelTable, 0), List.of(), GeneralFormat.INSTANCE),
                 EmbeddingType.DOCUMENT
         );
 
         return currentTable.withNode(new RetrieveLocal(
                 fieldEmbeddings,
                 queryEmbeddings,
-                EmbeddingIndexLocal.NUMBER_OF_DIMENSIONS,
+                EmbeddingModel.NUMBER_OF_DIMENSIONS,
                 currentTable.node(),
                 args.get(0).cast(CompiledSimpleColumn.class).node(),
                 args.get(1).cast(CompiledSimpleColumn.class).node()
@@ -1090,7 +1105,7 @@ public class CompileFunction {
         CompiledTable retrieve = compileCommonRetrieve(context);
 
         if (!retrieve.hasCurrentReference()) {
-            return new CompiledNestedColumn(new SelectLocal(new Get(retrieve.node(), 0)), 0);
+            return new CompiledNestedColumn(new SelectLocal(new Get(retrieve.node(), 0)), 0, GeneralFormat.INSTANCE);
         } else {
             int column = retrieve.node().getMeta().getSchema().size();
 
@@ -1098,7 +1113,8 @@ public class CompileFunction {
                     new Get(retrieve.node(), retrieve.currentRef()), new Get(retrieve.node(), column - 3)),
                     retrieve.dimensions(),
                     0,
-                    1
+                    1,
+                    GeneralFormat.INSTANCE
             );
         }
     }
@@ -1107,7 +1123,7 @@ public class CompileFunction {
         CompiledTable retrieve = compileCommonRetrieve(context);
 
         if (!retrieve.hasCurrentReference()) {
-            return new CompiledNestedColumn(new SelectLocal(new Get(retrieve.node(), 0)), 1);
+            return new CompiledNestedColumn(new SelectLocal(new Get(retrieve.node(), 0)), 1, GeneralFormat.INSTANCE);
         } else {
             int column = retrieve.node().getMeta().getSchema().size();
 
@@ -1115,7 +1131,8 @@ public class CompileFunction {
                     new Get(retrieve.node(), retrieve.currentRef()), new Get(retrieve.node(), column - 2)),
                     retrieve.dimensions(),
                     0,
-                    1
+                    1,
+                    GeneralFormat.INSTANCE
             );
         }
     }
@@ -1124,7 +1141,7 @@ public class CompileFunction {
         CompiledTable retrieve = compileCommonRetrieve(context);
 
         if (!retrieve.hasCurrentReference()) {
-            return new CompiledNestedColumn(new SelectLocal(new Get(retrieve.node(), 0)), 2);
+            return new CompiledNestedColumn(new SelectLocal(new Get(retrieve.node(), 0)), 2, GeneralFormat.INSTANCE);
         } else {
             int column = retrieve.node().getMeta().getSchema().size();
 
@@ -1132,7 +1149,8 @@ public class CompileFunction {
                     new Get(retrieve.node(), retrieve.currentRef()), new Get(retrieve.node(), column - 1)),
                     retrieve.dimensions(),
                     0,
-                    1
+                    1,
+                    GeneralFormat.INSTANCE
             );
         }
     }
@@ -1143,7 +1161,7 @@ public class CompileFunction {
         CompiledTable source = tableFunction.table();
         CompiledSimpleColumn groundTruth = tableFunction.columns().get(0);
 
-        Plan layout = context.aggregationLayout(source).node().getLayout();
+        Plan layout = context.layout(source.dimensions()).node().getLayout();
 
         Plan recall;
         if (source.hasCurrentReference()) {
@@ -1163,7 +1181,7 @@ public class CompileFunction {
             );
         }
 
-        return new CompiledSimpleColumn(new Get(recall, 0), source.dimensions());
+        return new CompiledSimpleColumn(new Get(recall, 0), source.dimensions(), GeneralFormat.INSTANCE);
     }
 
     private CompiledResult compileSplit(CompileContext context) {
@@ -1177,14 +1195,17 @@ public class CompileFunction {
 
         SplitLocal split = new SplitLocal(currentTable.node(), text.node(), delimiter.node());
         int column = currentTable.node().getMeta().getSchema().size();
-        return new CompiledNestedColumn(split, dimensions, currentTable.currentRef(), column);
+        return new CompiledNestedColumn(split, dimensions, currentTable.currentRef(), column, GeneralFormat.INSTANCE);
     }
 
     private CompiledResult compileBetween(CompileContext context) {
         List<CompiledColumn> args = compileArgs(context, List.of(SimpleOrNestedValidators.STRING_OR_DOUBLE,
                 SimpleOrNestedValidators.STRING_OR_DOUBLE, SimpleOrNestedValidators.STRING_OR_DOUBLE));
 
-        ColumnType type = args.stream().map(CompiledColumn::type).reduce(ColumnType.DOUBLE, ColumnType::closest);
+        ColumnType type = args.stream()
+                .map(CompiledColumn::type)
+                .reduce((left, right) -> left == right ? left : ColumnType.STRING)
+                .orElse(ColumnType.DOUBLE);;
         ResultValidator<CompiledColumn> converter = SimpleOrNestedValidators.forType(type);
         args = args.stream().map(converter::convert).toList();
 
@@ -1192,7 +1213,7 @@ public class CompileFunction {
             Expression left = new BinaryOperator(value, start, BinaryOperation.GTE);
             Expression right = new BinaryOperator(value, end, BinaryOperation.LTE);
             return new BinaryOperator(left, right, BinaryOperation.AND);
-        });
+        }, BooleanFormat.INSTANCE);
     }
 
     private CompiledTable compileSetOperation(String name, CompileContext context) {
@@ -1200,7 +1221,7 @@ public class CompileFunction {
         CompiledNestedColumn leftColumn = context.compileArgument(0, NestedColumnValidators.STRING_OR_DOUBLE);
         CompiledNestedColumn rightColumn = context.compileArgument(1, NestedColumnValidators.STRING_OR_DOUBLE);
 
-        if (!ColumnType.isClose(leftColumn.type(), rightColumn.type())) {
+        if (leftColumn.type() != rightColumn.type()) {
             leftColumn = NestedColumnValidators.STRING.convert(leftColumn).cast(CompiledNestedColumn.class);
             rightColumn = NestedColumnValidators.STRING.convert(rightColumn).cast(CompiledNestedColumn.class);
         }
@@ -1214,7 +1235,7 @@ public class CompileFunction {
                     rightColumn.node(),
                     rightColumn.expression(),
                     operation);
-            return new CompiledNestedColumn(union, 0);
+            return new CompiledNestedColumn(union, 0, leftColumn.format());
         }
 
         leftColumn = context.promote(leftColumn, dimensions).cast(CompiledNestedColumn.class);
@@ -1227,21 +1248,23 @@ public class CompileFunction {
                 rightColumn.currentReference(),
                 rightColumn.expression(),
                 operation);
-        return new CompiledNestedColumn(union, dimensions, 0, 1);
+        return new CompiledNestedColumn(union, dimensions, 0, 1, leftColumn.format());
     }
 
     private CompiledColumn compileIn(CompileContext context) {
         CompiledColumn valueColumn = context.compileArgument(0, SimpleOrNestedValidators.STRING_OR_DOUBLE);
         CompiledNestedColumn sourceColumn = context.compileArgument(1, NestedColumnValidators.STRING_OR_DOUBLE);
 
-        if (!ColumnType.isClose(valueColumn.type(), sourceColumn.type())) {
+        if (valueColumn.type() != sourceColumn.type()) {
             valueColumn = SimpleOrNestedValidators.STRING.convert(valueColumn);
             sourceColumn = NestedColumnValidators.STRING.convert(sourceColumn);
         }
 
         if (sourceColumn.dimensions().isEmpty()) {
             Expression sourceNode = sourceColumn.expression();
-            return valueColumn.transform(original -> new InLocal(List.of(original), List.of(sourceNode)));
+            return valueColumn.transform(
+                    original -> new InLocal(List.of(original), List.of(sourceNode)),
+                    BooleanFormat.INSTANCE);
         }
 
         List<FieldKey> dimensions = context.combine(sourceColumn.dimensions(), valueColumn.dimensions());
@@ -1255,7 +1278,7 @@ public class CompileFunction {
         List<Expression> sourceKeys = List.of(sourceColumn.currentReference(), sourceColumn.expression());
 
         Expression result = new InLocal(valueKeys, sourceKeys);
-        return valueColumn.transform(original -> result);
+        return valueColumn.transform(original -> result, BooleanFormat.INSTANCE);
     }
 
     private TableArgs compileTableArgs(CompileContext context,
@@ -1269,9 +1292,7 @@ public class CompileFunction {
     private TableArgs compileTableArgs(CompileContext context,
                                        List<ResultValidator<? extends CompiledColumn>> columnValidators) {
 
-        if (context.pivot == null) { // pivot-related thing to prevent recursion, will be removed
-            context = context.withPlaceholder(context.argument(0));
-        }
+        context = context.withPlaceholder(context.argument(0)); // will be removed
 
         List<ResultValidator<CompiledResult>> validators = new ArrayList<>();
         validators.add((ResultValidator) TableValidators.NESTED);

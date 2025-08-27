@@ -365,12 +365,12 @@ export function useSelection() {
   useEffect(() => {
     if (!app) return;
 
-    app.view.addEventListener?.('mousedown', onCanvasMouseDown);
+    app.view.addEventListener?.('pointerdown', onCanvasMouseDown);
     app.view.addEventListener?.('mousemove', onCanvasMouseMove);
     app.view.addEventListener?.('click', onCanvasMouseClick);
 
     return () => {
-      app?.view?.removeEventListener?.('mousedown', onCanvasMouseDown);
+      app?.view?.removeEventListener?.('pointerdown', onCanvasMouseDown);
       app?.view?.removeEventListener?.('mousemove', onCanvasMouseMove);
       app?.view?.removeEventListener?.('click', onCanvasMouseClick);
     };

@@ -1,9 +1,9 @@
-from typing import Iterable
+from typing import Iterator
 
 import aiohttp
 
-from dial_xl.calculate import FieldData
-from dial_xl.compile import FieldType, ParsingError
+from dial_xl.calculate import TableDataResult
+from dial_xl.compile import ParsingError, TableTypeResult, OVERRIDE_TABLE_ERRORS
 from dial_xl.credentials import CredentialProvider
 from dial_xl.dynamic_field import DynamicField
 from dial_xl.events import Event, ObservableObserver, notify_observer
@@ -27,13 +27,13 @@ class Sheet(ObservableObserver):
 
     @property
     def name(self) -> str:
+        """Get the name of the sheet."""
         return self.__name
 
     @name.setter
     @notify_observer
     def name(self, value: str):
-        """Set the name of the sheet and invalidates compilation/computation results and sheet parsing errors"""
-
+        """Set the name of the sheet."""
         self.__name = value
 
     def has_table(self, name: str) -> bool:
@@ -41,6 +41,7 @@ class Sheet(ObservableObserver):
         return self._find_table(name) != -1
 
     def get_table(self, name: str) -> Table:
+        """Get a table by name."""
         index = self._find_table(name)
         if index == -1:
             raise ValueError(f"Table '{name}' not found")
@@ -49,15 +50,14 @@ class Sheet(ObservableObserver):
 
     @notify_observer
     def add_table(self, table: Table):
-        """Add a table to the sheet and invalidates compilation/computation results and sheet parsing errors"""
-
+        """Add a table to the sheet, which invalidates all compilation and computation results, as well as any sheet parsing errors."""
         table._attach(self)
         self.__table_indices[table.name] = len(self.__tables)
         self.__tables.append(table)
 
     @notify_observer
     def remove_table(self, name: str) -> Table:
-        """Remove a table from the sheet and invalidates compilation/computation results and sheet parsing errors"""
+        """Remove a table from the sheet, which invalidates all compilation and computation results, as well as any sheet parsing errors."""
         index = self._find_table(name)
         if index == -1:
             raise ValueError(f"Table '{name}' not found")
@@ -72,13 +72,13 @@ class Sheet(ObservableObserver):
         return self.__table_indices.get(name, -1)
 
     @property
-    def table_names(self) -> Iterable[str]:
-        """Enumerates table names"""
+    def table_names(self) -> Iterator[str]:
+        """Enumerates table names."""
         return (table.name for table in self.tables)
 
     @property
-    def tables(self) -> Iterable[Table]:
-        """Enumerates tables"""
+    def tables(self) -> Iterator[Table]:
+        """Enumerates tables."""
         return (table for table in self.__tables if isinstance(table, Table))
 
     def _notify_before(self, event: Event):
@@ -87,11 +87,11 @@ class Sheet(ObservableObserver):
 
         sender = event.sender
         if isinstance(sender, Table) and event.method_name == "name":
-            self._on_table_rename(sender.name, event.kwargs["value"])
+            self.__on_table_rename(sender.name, event.kwargs["value"])
 
         self._set_parsing_errors([])
 
-    def _on_table_rename(self, old_name: str, new_name: str):
+    def __on_table_rename(self, old_name: str, new_name: str):
         index = self._find_table(old_name)
         if index == -1:
             raise ValueError(f"Table '{old_name}' not found")
@@ -103,6 +103,7 @@ class Sheet(ObservableObserver):
 
     @property
     def parsing_errors(self):
+        """Get the parsing errors of the sheet."""
         return self.__parsing_errors
 
     def to_dsl(self) -> str:
@@ -142,35 +143,62 @@ class Sheet(ObservableObserver):
             if isinstance(table, Table)
         }
 
-    def _update_field_types(self, field_types: dict[str, dict[str, FieldType]]):
+    def _update_field_types(self, types: dict[str, TableTypeResult]):
         for table_name in self.table_names:
             table = self.get_table(table_name)
-            for field_name in table.field_names:
-                field = table.get_field(field_name)
-                field._set_field_type(field_types.get(table_name, {}).get(field_name))
+            table_types = types.get(table_name, TableTypeResult(fields={}, totals={}))
+            for group in table.field_groups:
+                for field in group.fields:
+                    field._set_field_type(table_types.fields.get(field.name))
+
+            for index, total in enumerate(table.totals):
+                for group in total.field_groups:
+                    for field in group.fields:
+                        total_types = table_types.totals.get(index, {})
+                        field._set_field_type(total_types.get(field.name))
+
+    def _update_override_errors(self, errors: dict[str, OVERRIDE_TABLE_ERRORS]):
+        for table_name in self.table_names:
+            table = self.get_table(table_name)
+            table_errors = errors.get(table_name, {})
+
+            for index, override in enumerate(table.overrides or []):
+                errors = table_errors.get(index + 1, {})
+                override._set_errors(errors)
 
     def _update_field_data(
         self,
-        field_data: dict[str, dict[str, FieldData]],
-        field_types: dict[str, dict[str, FieldType]],
+        types: dict[str, TableTypeResult],
+        data: dict[str, TableDataResult],
     ):
         for table_name in self.table_names:
             table = self.get_table(table_name)
-            table_data = field_data.get(table_name, {})
+            table_types = types.get(table_name, TableTypeResult(fields={}, totals={}))
+            table_data = data.get(table_name, TableDataResult(fields={}, totals={}))
             dynamic_fields: list[DynamicField] = []
-            for field_name in set(table_data.keys()).union(table.field_names):
-                if table._find_field(field_name) == -1:
+            table_fields = {
+                field.name: index
+                for index, group in enumerate(table.field_groups)
+                for field in group.fields
+            }
+            for field_name in table_data.fields.keys() | table_fields.keys():
+                if field_name not in table_fields and field_name in table_types.fields:
                     field = DynamicField(
                         field_name,
-                        field_types.get(table_name, {}).get(field_name),
-                        field_data.get(table_name, {}).get(field_name),
+                        table_types.fields[field_name],
+                        table_data.fields.get(field_name),
                     )
                     dynamic_fields.append(field)
                 else:
-                    field = table.get_field(field_name)
-                    field._set_field_data(
-                        field_data.get(table_name, {}).get(field_name)
-                    )
+                    group_index = table_fields[field_name]
+                    field = table.field_groups[group_index].get_field(field_name)
+                    field._set_field_data(table_data.fields.get(field_name))
+
+            for index, total in enumerate(table.totals):
+                for group in total.field_groups:
+                    for field in group.fields:
+                        total_data = table_data.totals.get(index, {})
+                        field._set_field_data(total_data.get(field.name))
 
             table._set_dynamic_fields(dynamic_fields)
 

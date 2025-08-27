@@ -7,6 +7,7 @@ export function ValueIcon({ className }: { className?: string }) {
         strokeLinecap="round"
         strokeLinejoin="round"
         strokeWidth="1.5"
+        vectorEffect="non-scaling-stroke"
       />
     </svg>
   );

@@ -2,6 +2,7 @@ import { expect, Page } from '@playwright/test';
 
 import { WorkArea } from '../components/abstractions/WorkArea';
 import { Chat } from '../components/Chat';
+import { ChatPanel } from '../components/ChatPanel';
 import { Editor } from '../components/Editor';
 import { EditorPanel } from '../components/EditorPanel';
 import { ErrorsPanel } from '../components/ErrorsPanel';
@@ -12,6 +13,8 @@ import { ProjectTree } from '../components/ProjectTree';
 import { TopMenu } from '../components/TopMenu';
 import { Panels } from '../enums/Panels';
 import { TestFixtures } from '../tests/TestFixtures';
+
+const authType = process.env['AUTH_TYPE'];
 
 export class ProjectPage {
   // private dslEditors = 'div[data-mode-id="quant-dsl"]>div';
@@ -40,6 +43,17 @@ export class ProjectPage {
   private formulaEditorLocator =
     '[data-mode-id="formula-bar"]>div.monaco-editor';
 
+  private formatSelector = 'div.ant-dropdown-trigger:has(span.text-sm)';
+
+  private formatLabel = (formatLabel: string) =>
+    `button[data-label='${formatLabel}']`;
+
+  private formulaEditorMode = 'div#formula+div>div>span[role="img"]';
+
+  private formulaMode = '[data-label="Formula mode"]';
+
+  private valueMode = '[data-label="Value mode"]';
+
   private innerPage: Page;
 
   //  private dslEditor: Editor;
@@ -59,6 +73,8 @@ export class ProjectPage {
   private history: HistoryPanel;
 
   private errors: ErrorsPanel;
+
+  private chatPanel: ChatPanel;
 
   private chat: Chat;
 
@@ -96,6 +112,7 @@ export class ProjectPage {
     projectPage.history = new HistoryPanel(page);
     projectPage.editor = new EditorPanel(page);
     projectPage.chat = new Chat(page);
+    projectPage.chatPanel = new ChatPanel(page);
     // await projectPage.chat.waitForChat();
     await projectPage.openEditor();
     await projectPage.getEditor().focus();
@@ -116,15 +133,37 @@ export class ProjectPage {
     projectPage.errors = new ErrorsPanel(page);
     projectPage.history = new HistoryPanel(page);
     projectPage.editor = new EditorPanel(page);
+    projectPage.chat = new Chat(page);
+    projectPage.chatPanel = new ChatPanel(page);
     await projectPage.grid.waitForComponentLoaded();
 
     return projectPage;
   }
 
-  public async openEditor() {
+  public async selectFormat(formatName: string) {
+    await this.innerPage.locator(this.formatSelector).click();
+    await this.innerPage.locator(this.formatLabel(formatName)).click();
+  }
+
+  public async selectFormatWithSubItem(formatName: string, itemName: string) {
+    await this.innerPage.locator(this.formatSelector).click();
     await expect(
-      this.innerPage.getByText(this.editorText, { exact: true }).first()
+      this.innerPage.locator(this.formatLabel(formatName))
     ).toBeVisible();
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    await this.innerPage.locator(this.formatLabel(formatName)).hover();
+    await expect(
+      this.innerPage.locator(this.formatLabel(itemName))
+    ).toBeVisible();
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    await this.innerPage.locator(this.formatLabel(itemName)).click();
+  }
+
+  public async openEditor() {
+    /*  await expect(
+      this.innerPage.getByText(this.editorText, { exact: true })
+    ).toBeVisible();*/
+    await expect(this.innerPage.locator(this.openEditorPanel)).toBeVisible();
     if (!(await this.editor.isVisible())) {
       await this.innerPage.locator(this.openEditorPanel).click();
     }
@@ -207,6 +246,7 @@ export class ProjectPage {
     await this.editor.closePanel();
     await this.history.closePanel();
     await this.errors.closePanel();
+    await this.chatPanel.closePanel();
   }
 
   public async showProjectPanel() {
@@ -225,6 +265,8 @@ export class ProjectPage {
         return this.history;
       case Panels.InputsPanel:
         return this.inputs;
+      case Panels.ChatPanel:
+        return this.chatPanel;
       default:
         return null;
     }
@@ -253,6 +295,20 @@ export class ProjectPage {
   }
 
   public async openChat() {
-    await this.innerPage.locator(this.chatButton).click();
+    await this.hideAllPanels();
+    await this.innerPage.keyboard.press('Alt+5');
+    if (authType === 'auth0') {
+      await this.chat.asyncLoginAuth0();
+    }
+  }
+
+  public async switchToFormulaMode() {
+    await this.innerPage.locator(this.formulaEditorMode).click();
+    await this.innerPage.locator(this.formulaMode).click();
+  }
+
+  public async switchToValueMode() {
+    await this.innerPage.locator(this.formulaEditorMode).click();
+    await this.innerPage.locator(this.valueMode).click();
   }
 }

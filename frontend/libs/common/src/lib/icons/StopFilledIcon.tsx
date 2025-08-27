@@ -12,12 +12,14 @@ export function StopFilledIcon() {
         strokeLinecap="round"
         strokeLinejoin="round"
         strokeWidth="1.5"
+        vectorEffect="non-scaling-stroke"
       />
       <path
         d="M6 6.75C6 6.55109 6.07902 6.36032 6.21967 6.21967C6.36032 6.07902 6.55109 6 6.75 6H11.25C11.4489 6 11.6397 6.07902 11.7803 6.21967C11.921 6.36032 12 6.55109 12 6.75V11.25C12 11.4489 11.921 11.6397 11.7803 11.7803C11.6397 11.921 11.4489 12 11.25 12H6.75C6.55109 12 6.36032 11.921 6.21967 11.7803C6.07902 11.6397 6 11.4489 6 11.25V6.75Z"
         strokeLinecap="round"
         strokeLinejoin="round"
         strokeWidth="1.5"
+        vectorEffect="non-scaling-stroke"
       />
     </svg>
   );

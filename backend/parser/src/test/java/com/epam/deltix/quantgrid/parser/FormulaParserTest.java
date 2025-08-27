@@ -16,16 +16,21 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 class FormulaParserTest {
+    private static final String SHEET_NAME = "<unknown>";
     @Test
     void parseNumber() {
         ParsedFormula parsedFormula = SheetReader.parseFormula("1.42");
         Assertions.assertTrue(parsedFormula.errors().isEmpty(),
                 "Unexpected errors " + parsedFormula.errors());
 
-        Assertions.assertEquals(
-                new ConstNumber(1.42),
-                parsedFormula.formula());
+        assertThat(parsedFormula.formula())
+                .usingRecursiveComparison()
+                .isEqualTo(new ConstNumber(
+                        new Span(SHEET_NAME, "1.42", 0, 4),
+                        1.42));
     }
 
     @Test
@@ -34,9 +39,11 @@ class FormulaParserTest {
         Assertions.assertTrue(parsedFormula.errors().isEmpty(),
                 "Unexpected errors " + parsedFormula.errors());
 
-        Assertions.assertEquals(
-                new ConstText("test string"),
-                parsedFormula.formula());
+        assertThat(parsedFormula.formula())
+                .usingRecursiveComparison()
+                .isEqualTo(new ConstText(
+                        new Span(SHEET_NAME, "\"test string\"", 0, 13),
+                        "test string"));
     }
 
     @Test
@@ -45,9 +52,11 @@ class FormulaParserTest {
         Assertions.assertTrue(parsedFormula.errors().isEmpty(),
                 "Unexpected errors " + parsedFormula.errors());
 
-        Assertions.assertEquals(
-                new TableReference("Table1"),
-                parsedFormula.formula());
+        assertThat(parsedFormula.formula())
+                .usingRecursiveComparison()
+                .isEqualTo(new TableReference(
+                        new Span(SHEET_NAME, "Table1", 0, 6),
+                        "Table1"));
     }
 
     @Test
@@ -56,7 +65,11 @@ class FormulaParserTest {
         Assertions.assertTrue(parsedFormula.errors().isEmpty(),
                 "Unexpected errors " + parsedFormula.errors());
 
-        Assertions.assertEquals(new CurrentField("Field1"), parsedFormula.formula());
+        assertThat(parsedFormula.formula())
+                .usingRecursiveComparison()
+                .isEqualTo(new CurrentField(
+                        new Span(SHEET_NAME, "[Field1]", 0, 8),
+                        "Field1"));
     }
 
     @Test
@@ -65,9 +78,12 @@ class FormulaParserTest {
         Assertions.assertTrue(parsedFormula.errors().isEmpty(),
                 "Unexpected errors " + parsedFormula.errors());
 
-        Assertions.assertEquals(
-                new FieldReference(new TableReference("Table1"), "Field1"),
-                parsedFormula.formula());
+        assertThat(parsedFormula.formula())
+                .usingRecursiveComparison()
+                .isEqualTo(new FieldReference(
+                        new Span(SHEET_NAME, "Table1[Field1]", 0, 14),
+                        new TableReference(new Span(SHEET_NAME, "Table1", 0, 6), "Table1"),
+                        "Field1"));
     }
 
     @Test
@@ -76,12 +92,13 @@ class FormulaParserTest {
         Assertions.assertTrue(parsedFormula.errors().isEmpty(),
                 "Unexpected errors " + parsedFormula.errors());
 
-        Assertions.assertEquals(
-                new BinaryOperator(
-                        new CurrentField("a"),
-                        new CurrentField("b"),
-                        BinaryOperation.ADD),
-                parsedFormula.formula());
+        assertThat(parsedFormula.formula())
+                .usingRecursiveComparison()
+                .isEqualTo(new BinaryOperator(
+                        new Span(SHEET_NAME, "[a] + [b]", 0, 9),
+                        new CurrentField(new Span(SHEET_NAME, "[a]", 0, 3), "a"),
+                        new CurrentField(new Span(SHEET_NAME, "[b]", 6, 9), "b"),
+                        BinaryOperation.ADD));
     }
 
     @Test
@@ -90,11 +107,12 @@ class FormulaParserTest {
         Assertions.assertTrue(parsedFormula.errors().isEmpty(),
                 "Unexpected errors " + parsedFormula.errors());
 
-        Assertions.assertEquals(
-                new UnaryOperator(
-                        new CurrentField("a"),
-                        UnaryOperation.NOT),
-                parsedFormula.formula());
+        assertThat(parsedFormula.formula())
+                .usingRecursiveComparison()
+                .isEqualTo(new UnaryOperator(
+                        new Span(SHEET_NAME, "NOT [a]", 0, 7),
+                        new CurrentField(new Span(SHEET_NAME, "[a]", 4, 7), "a"),
+                        UnaryOperation.NOT));
     }
 
 
@@ -104,15 +122,17 @@ class FormulaParserTest {
         Assertions.assertTrue(parsedFormula.errors().isEmpty(),
                 "Unexpected errors " + parsedFormula.errors());
 
-        Assertions.assertEquals(
-                new BinaryOperator(
-                        new CurrentField("a"),
+        assertThat(parsedFormula.formula())
+                .usingRecursiveComparison()
+                .isEqualTo(new BinaryOperator(
+                        new Span(SHEET_NAME, "[a] * ([b] + [c])", 0, 17),
+                        new CurrentField(new Span(SHEET_NAME, "[a]", 0, 3), "a"),
                         new BinaryOperator(
-                                new CurrentField("b"),
-                                new CurrentField("c"),
+                                new Span(SHEET_NAME, "[b] + [c]", 7, 16),
+                                new CurrentField(new Span(SHEET_NAME, "[b]", 7, 10), "b"),
+                                new CurrentField(new Span(SHEET_NAME, "[c]", 13, 16), "c"),
                                 BinaryOperation.ADD),
-                        BinaryOperation.MUL),
-                parsedFormula.formula());
+                        BinaryOperation.MUL));
     }
 
     @Test
@@ -121,16 +141,21 @@ class FormulaParserTest {
         Assertions.assertTrue(parsedFormula.errors().isEmpty(),
                 "Unexpected errors " + parsedFormula.errors());
 
-        Assertions.assertEquals(
-                new BinaryOperator(
+        assertThat(parsedFormula.formula())
+                .usingRecursiveComparison()
+                .isEqualTo(new BinaryOperator(
+                        new Span(SHEET_NAME, "[a] * [b] + [c] / [d]", 0, 21),
                         new BinaryOperator(
-                                new CurrentField("a"), new CurrentField("b"),
+                                new Span(SHEET_NAME, "[a] * [b]", 0, 9),
+                                new CurrentField(new Span(SHEET_NAME, "[a]", 0, 3), "a"),
+                                new CurrentField(new Span(SHEET_NAME, "[b]", 6, 9), "b"),
                                 BinaryOperation.MUL),
                         new BinaryOperator(
-                                new CurrentField("c"), new CurrentField("d"),
+                                new Span(SHEET_NAME, "[c] / [d]", 12, 21),
+                                new CurrentField(new Span(SHEET_NAME, "[c]", 12, 15), "c"),
+                                new CurrentField(new Span(SHEET_NAME, "[d]", 18, 21), "d"),
                                 BinaryOperation.DIV),
-                        BinaryOperation.ADD),
-                parsedFormula.formula());
+                        BinaryOperation.ADD));
     }
 
     @Test
@@ -139,16 +164,21 @@ class FormulaParserTest {
         Assertions.assertTrue(parsedFormula.errors().isEmpty(),
                 "Unexpected errors " + parsedFormula.errors());
 
-        Assertions.assertEquals(
-                new BinaryOperator(
+        assertThat(parsedFormula.formula())
+                .usingRecursiveComparison()
+                .isEqualTo(new BinaryOperator(
+                        new Span(SHEET_NAME, "[a] = [b] AND [c] <> [d]", 0, 24),
                         new BinaryOperator(
-                                new CurrentField("a"), new CurrentField("b"),
+                                new Span(SHEET_NAME, "[a] = [b]", 0, 9),
+                                new CurrentField(new Span(SHEET_NAME, "[a]", 0, 3), "a"),
+                                new CurrentField(new Span(SHEET_NAME, "[b]", 6, 9), "b"),
                                 BinaryOperation.EQ),
                         new BinaryOperator(
-                                new CurrentField("c"), new CurrentField("d"),
+                                new Span(SHEET_NAME, "[c] <> [d]", 14, 24),
+                                new CurrentField(new Span(SHEET_NAME, "[c]", 14, 17), "c"),
+                                new CurrentField(new Span(SHEET_NAME, "[d]", 21, 24), "d"),
                                 BinaryOperation.NEQ),
-                        BinaryOperation.AND),
-                parsedFormula.formula());
+                        BinaryOperation.AND));
     }
 
     @Test
@@ -157,11 +187,12 @@ class FormulaParserTest {
         Assertions.assertTrue(parsedFormula.errors().isEmpty(),
                 "Unexpected errors " + parsedFormula.errors());
 
-        Assertions.assertEquals(
-                new Function(
+        assertThat(parsedFormula.formula())
+                .usingRecursiveComparison()
+                .isEqualTo(new Function(
+                        new Span(SHEET_NAME, "Table1.LAST()", 0, 13),
                         "LAST",
-                        new TableReference("Table1")),
-                parsedFormula.formula());
+                        new TableReference(new Span(SHEET_NAME, "Table1", 0, 6), "Table1")));
     }
 
     @Test
@@ -170,11 +201,12 @@ class FormulaParserTest {
         Assertions.assertTrue(parsedFormula.errors().isEmpty(),
                 "Unexpected errors " + parsedFormula.errors());
 
-        Assertions.assertEquals(
-                new Function(
+        assertThat(parsedFormula.formula())
+                .usingRecursiveComparison()
+                .isEqualTo(new Function(
+                        new Span(SHEET_NAME, "FIRST(Table1)", 0, 13),
                         "FIRST",
-                        new TableReference("Table1")),
-                parsedFormula.formula());
+                        new TableReference(new Span(SHEET_NAME, "Table1", 6, 12), "Table1")));
     }
 
     @Test
@@ -183,9 +215,9 @@ class FormulaParserTest {
         Assertions.assertTrue(parsedFormula.errors().isEmpty(),
                 "Unexpected errors " + parsedFormula.errors());
 
-        Assertions.assertEquals(
-                new QueryRow(),
-                parsedFormula.formula());
+        assertThat(parsedFormula.formula())
+                .usingRecursiveComparison()
+                .isEqualTo(new QueryRow(new Span(SHEET_NAME, "$", 0, 1)));
     }
 
     @Test
@@ -194,14 +226,17 @@ class FormulaParserTest {
         Assertions.assertTrue(parsedFormula.errors().isEmpty(),
                 "Unexpected errors " + parsedFormula.errors());
 
-        Assertions.assertEquals(
-                new Function("FILTER",
-                        new TableReference("Table1"),
+        assertThat(parsedFormula.formula())
+                .usingRecursiveComparison()
+                .isEqualTo(new Function(
+                        new Span(SHEET_NAME, "Table1.FILTER($ < 10)", 0, 21),
+                        "FILTER",
+                        new TableReference(new Span(SHEET_NAME, "Table1", 0, 6), "Table1"),
                         new BinaryOperator(
-                                new QueryRow(),
-                                new ConstNumber(10),
-                                BinaryOperation.LT)),
-                parsedFormula.formula());
+                                new Span(SHEET_NAME, "$ < 10", 14, 20),
+                                new QueryRow(new Span(SHEET_NAME, "$", 14, 15)),
+                                new ConstNumber(new Span(SHEET_NAME, "10", 18, 20), 10),
+                                BinaryOperation.LT)));
     }
 
     @Test
@@ -238,6 +273,10 @@ class FormulaParserTest {
         Assertions.assertTrue(parsedFormula.errors().isEmpty(),
                 "Unexpected errors " + parsedFormula.errors());
 
-        Assertions.assertEquals(new CurrentField("test [ ] ' test"), parsedFormula.formula());
+        assertThat(parsedFormula.formula())
+                .usingRecursiveComparison()
+                .isEqualTo(new CurrentField(
+                        new Span(SHEET_NAME, "[test '[ '] '' test]", 0, 20),
+                        "test [ ] ' test"));
     }
 }

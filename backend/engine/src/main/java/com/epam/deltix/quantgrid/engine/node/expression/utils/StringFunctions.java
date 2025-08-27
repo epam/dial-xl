@@ -83,22 +83,6 @@ public class StringFunctions {
         return Strings.isError(value) ? Strings.toDoubleError(value) : value.length();
     }
 
-    public double parseDouble(String text) {
-        if (Strings.isError(text)) {
-            return Strings.toDoubleError(text);
-        }
-
-        if (Strings.isEmpty(text)) {
-            return Doubles.EMPTY;
-        }
-
-        try {
-            return Double.parseDouble(text);
-        } catch (NumberFormatException e) {
-            return Doubles.ERROR_NA;
-        }
-    }
-
     public double contains(String value, String substring) {
         if (Strings.isError(value)) {
             return Strings.toDoubleError(value);

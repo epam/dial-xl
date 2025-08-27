@@ -4,7 +4,7 @@ import { editor, MarkerSeverity } from '@frontend/code-editor';
 import { CompilationError, RuntimeError } from '@frontend/common';
 
 import { ProjectContext } from '../context';
-import { useDSLUtils } from './ManualEditDSL';
+import { useDSLUtils } from './EditDsl';
 
 export function useDSLErrors() {
   const { sheetContent, sheetErrors, compilationErrors, runtimeErrors } =
@@ -47,10 +47,10 @@ export function useDSLErrors() {
       errors.push({
         severity: MarkerSeverity.Error,
         message: error.message,
-        startLineNumber: error.source.startLine,
-        endLineNumber: error.source.startLine,
-        startColumn: error.source.startColumn,
-        endColumn: error.source.startColumn,
+        startLineNumber: error.source.startLine || 1,
+        endLineNumber: error.source.startLine || 1,
+        startColumn: error.source.startColumn || 1,
+        endColumn: error.source.startColumn || 1,
       });
     });
 

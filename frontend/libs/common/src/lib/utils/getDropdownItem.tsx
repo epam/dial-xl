@@ -32,7 +32,7 @@ export function getDropdownItem(props: MenuItemProps): MenuItem {
   if (shortcut) {
     buildLabel = (
       <button
-        className="flex justify-between items-center py-1 px-3 group w-full"
+        className="group flex justify-between items-center py-1 px-3 w-full"
         data-label={label}
         disabled={disabled}
         onClick={(e) => {
@@ -49,7 +49,7 @@ export function getDropdownItem(props: MenuItemProps): MenuItem {
           {icon && <span className="size-[18px] leading-none">{icon}</span>}
           <span className="!ml-0">{label}</span>
         </div>
-        <span className="ml-5 text-xs text-gray-400 leading-none">
+        <span className="hidden md:inline ml-5 text-xs text-gray-400 leading-none">
           {shortcut}
         </span>
       </button>

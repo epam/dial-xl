@@ -23,4 +23,16 @@ describe('checkAndWrapExpression', () => {
     // Assert
     expect(result).toBe(dsl);
   });
+
+  it('should return sanitized expression', () => {
+    // Arrange
+    const dsl = `'text`;
+    const expectedDsl = `"text"`;
+
+    // Act
+    const result = checkAndWrapExpression(dsl);
+
+    // Assert
+    expect(result).toBe(expectedDsl);
+  });
 });

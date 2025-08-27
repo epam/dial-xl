@@ -6,6 +6,7 @@ import com.epam.deltix.quantgrid.engine.node.expression.Expand;
 import com.epam.deltix.quantgrid.engine.node.plan.Plan;
 import com.epam.deltix.quantgrid.parser.FieldKey;
 import com.epam.deltix.quantgrid.parser.ParsedField;
+import com.epam.deltix.quantgrid.parser.ParsedFields;
 import com.epam.deltix.quantgrid.parser.ParsedTable;
 import com.epam.deltix.quantgrid.parser.ParsedTotal;
 
@@ -35,6 +36,16 @@ public class CompiledTotalTable extends CompiledAbstractTable {
     }
 
     @Override
+    public boolean reference() {
+        return false;
+    }
+
+    @Override
+    public boolean assignable() {
+        return false;
+    }
+
+    @Override
     public String name() {
         return "Total(" + table.name() + ", " + number + ")";
     }
@@ -44,9 +55,9 @@ public class CompiledTotalTable extends CompiledAbstractTable {
         List<String> fields = new ArrayList<>();
 
         ParsedTotal total = table.totals().get(number - 1);
-        for (ParsedField field : total.fields()) {
+        for (ParsedFields field : total.fields()) {
             if (field.formula() != null) {
-                fields.add(field.fieldName());
+                fields.add(field.fields().get(0).fieldName());
             }
         }
 
@@ -59,7 +70,7 @@ public class CompiledTotalTable extends CompiledAbstractTable {
 
         if (!scalar()) {
             Expand expand = new Expand(node, total.node());
-            total = new CompiledSimpleColumn(expand, dimensions);
+            total = new CompiledSimpleColumn(expand, dimensions, total.format());
         }
 
         return total;

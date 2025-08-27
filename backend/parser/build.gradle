@@ -8,7 +8,7 @@ dependencies {
     implementation 'it.unimi.dsi:fastutil-core:8.5.12'
     antlr 'org.antlr:antlr4:4.9.2'
     implementation 'org.antlr:antlr4-runtime:4.9.2'
-    implementation 'org.slf4j:slf4j-api:1.7.32'
+    implementation 'org.slf4j:slf4j-api:2.0.17'
     implementation 'org.jetbrains:annotations:20.1.0'
     implementation 'com.google.code.gson:gson:2.8.9'
 }

@@ -1,146 +1,280 @@
 package com.epam.deltix.quantgrid.engine.compiler;
 
+import com.epam.deltix.quantgrid.engine.Util;
+import com.epam.deltix.quantgrid.engine.compiler.result.CompiledColumn;
 import com.epam.deltix.quantgrid.engine.compiler.result.CompiledNestedColumn;
 import com.epam.deltix.quantgrid.engine.compiler.result.CompiledPivotTable;
-import com.epam.deltix.quantgrid.engine.compiler.result.CompiledSimpleColumn;
+import com.epam.deltix.quantgrid.engine.compiler.result.CompiledResult;
 import com.epam.deltix.quantgrid.engine.compiler.result.CompiledTable;
+import com.epam.deltix.quantgrid.engine.compiler.result.format.ColumnFormat;
 import com.epam.deltix.quantgrid.engine.compiler.result.validator.NestedColumnValidators;
-import com.epam.deltix.quantgrid.engine.compiler.result.validator.SimpleColumnValidators;
+import com.epam.deltix.quantgrid.engine.compiler.result.validator.ResultValidator;
 import com.epam.deltix.quantgrid.engine.compiler.result.validator.TableValidators;
+import com.epam.deltix.quantgrid.engine.node.expression.Concatenate;
+import com.epam.deltix.quantgrid.engine.node.expression.Constant;
+import com.epam.deltix.quantgrid.engine.node.expression.Expand;
 import com.epam.deltix.quantgrid.engine.node.expression.Expression;
 import com.epam.deltix.quantgrid.engine.node.expression.Get;
-import com.epam.deltix.quantgrid.engine.node.expression.RowNumber;
 import com.epam.deltix.quantgrid.engine.node.plan.Plan;
+import com.epam.deltix.quantgrid.engine.node.plan.local.AggregateByLocal;
 import com.epam.deltix.quantgrid.engine.node.plan.local.DistinctByLocal;
-import com.epam.deltix.quantgrid.engine.node.plan.local.JoinAllLocal;
-import com.epam.deltix.quantgrid.engine.node.plan.local.PivotNamesLocal;
+import com.epam.deltix.quantgrid.engine.node.plan.local.OrderByLocal;
+import com.epam.deltix.quantgrid.engine.node.plan.local.PivotByLocal;
 import com.epam.deltix.quantgrid.engine.node.plan.local.SelectLocal;
+import com.epam.deltix.quantgrid.engine.node.plan.local.aggregate.AggregateType;
 import com.epam.deltix.quantgrid.parser.FieldKey;
 import com.epam.deltix.quantgrid.parser.ParsedField;
-import com.epam.deltix.quantgrid.parser.ParsedFormula;
-import com.epam.deltix.quantgrid.parser.Span;
+import com.epam.deltix.quantgrid.parser.ParsedFields;
+import com.epam.deltix.quantgrid.parser.ParsedText;
 import com.epam.deltix.quantgrid.parser.ast.CurrentField;
 import com.epam.deltix.quantgrid.parser.ast.FieldReference;
+import com.epam.deltix.quantgrid.parser.ast.FieldsReference;
 import com.epam.deltix.quantgrid.parser.ast.Formula;
+import com.epam.deltix.quantgrid.type.ColumnType;
 import lombok.experimental.UtilityClass;
 
 import java.util.ArrayList;
+import java.util.EnumSet;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+import static com.epam.deltix.quantgrid.engine.compiler.result.CompiledPivotColumn.PIVOT_NAME;
+import static com.epam.deltix.quantgrid.engine.node.plan.local.aggregate.AggregateType.AVERAGE;
+import static com.epam.deltix.quantgrid.engine.node.plan.local.aggregate.AggregateType.CORREL;
+import static com.epam.deltix.quantgrid.engine.node.plan.local.aggregate.AggregateType.COUNT;
+import static com.epam.deltix.quantgrid.engine.node.plan.local.aggregate.AggregateType.FIRST;
+import static com.epam.deltix.quantgrid.engine.node.plan.local.aggregate.AggregateType.GEOMEAN;
+import static com.epam.deltix.quantgrid.engine.node.plan.local.aggregate.AggregateType.INDEX;
+import static com.epam.deltix.quantgrid.engine.node.plan.local.aggregate.AggregateType.LAST;
+import static com.epam.deltix.quantgrid.engine.node.plan.local.aggregate.AggregateType.MAX;
+import static com.epam.deltix.quantgrid.engine.node.plan.local.aggregate.AggregateType.MAXBY;
+import static com.epam.deltix.quantgrid.engine.node.plan.local.aggregate.AggregateType.MEDIAN;
+import static com.epam.deltix.quantgrid.engine.node.plan.local.aggregate.AggregateType.MIN;
+import static com.epam.deltix.quantgrid.engine.node.plan.local.aggregate.AggregateType.MINBY;
+import static com.epam.deltix.quantgrid.engine.node.plan.local.aggregate.AggregateType.MODE;
+import static com.epam.deltix.quantgrid.engine.node.plan.local.aggregate.AggregateType.PERCENTILE;
+import static com.epam.deltix.quantgrid.engine.node.plan.local.aggregate.AggregateType.PERCENTILE_EXC;
+import static com.epam.deltix.quantgrid.engine.node.plan.local.aggregate.AggregateType.PERIODSERIES;
+import static com.epam.deltix.quantgrid.engine.node.plan.local.aggregate.AggregateType.QUARTILE;
+import static com.epam.deltix.quantgrid.engine.node.plan.local.aggregate.AggregateType.QUARTILE_EXC;
+import static com.epam.deltix.quantgrid.engine.node.plan.local.aggregate.AggregateType.SINGLE;
+import static com.epam.deltix.quantgrid.engine.node.plan.local.aggregate.AggregateType.STDEVP;
+import static com.epam.deltix.quantgrid.engine.node.plan.local.aggregate.AggregateType.STDEVS;
+import static com.epam.deltix.quantgrid.engine.node.plan.local.aggregate.AggregateType.SUM;
 
 @UtilityClass
 public class CompilePivot {
 
-    public final String PIVOT_NAME = "*";
-    public final Formula PIVOT_REF = new CurrentField(PIVOT_NAME);
+    private final EnumSet<AggregateType> AGGREGATIONS = EnumSet.of(
+            COUNT, FIRST, LAST, SINGLE, SUM, AVERAGE, MIN, MAX, STDEVP, STDEVS, GEOMEAN, MEDIAN,
+            CORREL, MODE, INDEX, MINBY, MAXBY, PERIODSERIES, PERCENTILE, PERCENTILE_EXC, QUARTILE, QUARTILE_EXC
+    );
 
     public FieldKey pivotKey(String table) {
         return new FieldKey(table, PIVOT_NAME);
     }
 
-    public ParsedFormula pivotFieldFormula(String field) {
-        return new ParsedFormula(new Span(0, 0), new FieldReference(PIVOT_REF, field), List.of());
-    }
-
-    public ParsedField pivotParsedField(FieldKey key) {
-        return ParsedField.builder()
-                .formula(pivotFieldFormula(key.fieldName()))
+    public ParsedFields pivotParsedField(FieldKey key) {
+        ParsedField field = ParsedField.builder()
+                .name(new ParsedText(null, key.fieldName()))
                 .decorators(List.of())
                 .build();
+
+        FieldReference formula = new FieldReference(new CurrentField(PIVOT_NAME), key.fieldName());
+        return new ParsedFields(null, List.of(field), formula);
     }
 
     public CompiledPivotTable compile(CompileContext context) {
-        CompiledTable source = context.compileArgument(0, TableValidators.NESTED);
+        AggregateType aggregation = getAggregation(context);
+        List<CompiledTable> args = CompileFunction.compileArgs(context,
+                List.of(TableValidators.NESTED, TableValidators.NESTED, TableValidators.NESTED));
 
-        return source.hasCurrentReference()
-                ? compileNestedPivot(context, source)
-                : compileSimplePivot(context, source);
+        List<CompiledColumn> rows = getColumns("rows", context, args.get(0), NestedColumnValidators.STRING_OR_DOUBLE);
+        List<CompiledColumn> cols = getColumns("columns", context, args.get(1), NestedColumnValidators.STRING);
+        List<CompiledColumn> vals = getColumns("values", context, args.get(2), valueValidators(aggregation));
+
+        return compilePivot(context, rows, cols, vals, aggregation);
     }
 
-    private CompiledPivotTable compileSimplePivot(CompileContext context, CompiledTable source) {
-        Expression sourceName = compileNames(context, source).node();
-        CompiledTable distinct = source.withNode(new DistinctByLocal(source.node(), List.of(sourceName)));
-
-        Expression distinctName = compileNames(context, distinct).node();
-        SelectLocal distinctSelect = new SelectLocal(new RowNumber(distinct.node()));
-
-        JoinAllLocal join = new JoinAllLocal(distinctSelect, source.node(),
-                List.of(CompileUtil.projectColumn(new Get(distinctSelect, 0), distinctName)),
-                List.of(sourceName));
-
-        SelectLocal group = CompileUtil.selectColumns(join);
-        CompiledTable grouped = source.withCurrent(group, source.dimensions());
-        CompiledSimpleColumn value = compileValue(context, distinct, grouped);
-        SelectLocal result = new SelectLocal(distinctName, value.node());
-
-        SelectLocal namesSelect = new SelectLocal(sourceName);
-        DistinctByLocal namesDistinct = new DistinctByLocal(namesSelect, List.of(new Get(namesSelect, 0)));
-        PivotNamesLocal names = new PivotNamesLocal(namesDistinct);
-
-        return new CompiledPivotTable(names, 0, result, CompiledTable.REF_NA, 0, 1, source.dimensions());
+    private AggregateType getAggregation(CompileContext context) {
+        try {
+            String function = context.constStringArgument(3);
+            AggregateType aggregation = AggregateType.valueOf(function);
+            CompileUtil.verify(AGGREGATIONS.contains(aggregation));
+            return aggregation;
+        } catch (Throwable e) {
+            throw new CompileError("Expected aggregation function. One of: " + AGGREGATIONS.stream()
+                    .map(type -> "\"" + type.name() + "\"").collect(Collectors.joining(", ")));
+        }
     }
 
-    private CompiledPivotTable compileNestedPivot(CompileContext context, CompiledTable source) {
-        CompileUtil.verify(source.currentReference().getColumn() == 0);
+    private CompiledPivotTable compilePivot(CompileContext context,
+                                            List<CompiledColumn> rows, List<CompiledColumn> cols,
+                                            List<CompiledColumn> vals, AggregateType aggregation) {
+        Expression col = concat(cols);
+        Plan names = compileNames(col);
 
-        Expression sourceName = compileNames(context, source).node();
-        Get sourceRef = source.currentReference();
+        List<Expression> all = new ArrayList<>();
+        all.addAll(rows.stream().map(CompiledColumn::expression).toList());
+        all.add(col);
+        all.addAll(vals.stream().map(CompiledColumn::expression).toList());
 
-        CompiledTable distinct = source.withNode(new DistinctByLocal(source.node(), List.of(sourceRef, sourceName)));
-        Expression distinctRef = distinct.currentReference();
+        SelectLocal source = new SelectLocal(all);
+        int keys = rows.size();
 
-        Expression distinctName = compileNames(context, distinct).node();
-        SelectLocal distinctSelect = new SelectLocal(new RowNumber(distinct.node()));
+        List<Expression> aggKeys = columns(source, 0, keys + 1);       // rows + col
+        List<Expression> aggVals = columns(source, keys + 1, all.size()); // vals
 
-        JoinAllLocal join = new JoinAllLocal(distinctSelect, source.node(), List.of(
-                CompileUtil.projectColumn(new Get(distinctSelect, 0), distinctRef),
-                CompileUtil.projectColumn(new Get(distinctSelect, 0), distinctName)
-        ), List.of(sourceRef, sourceName));
+        AggregateByLocal agg = new AggregateByLocal(source, aggKeys,
+                List.of(new AggregateByLocal.Aggregation(aggregation, aggVals)));
 
-        SelectLocal group = selectWithoutOne(join, 1);
-        CompiledTable grouped = source.withNode(group);
-        CompiledSimpleColumn value = compileValue(context, distinct, grouped);
-        SelectLocal result = new SelectLocal(distinctRef, distinctName, value.node());
+        ColumnType type = agg.getMeta().getSchema().getType(keys + 1);
+        ColumnFormat format = FormatResolver.resolveAggregationFormat(aggregation,
+                vals.stream().map(CompiledColumn::format).toList());
 
-        SelectLocal namesSelect = new SelectLocal(sourceName);
-        DistinctByLocal namesDistinct = new DistinctByLocal(namesSelect, List.of(new Get(namesSelect, 0)));
-        PivotNamesLocal names = new PivotNamesLocal(namesDistinct);
+        PivotByLocal pivot = new PivotByLocal(agg,
+                columns(agg, 0, keys),            // rows
+                columns(agg, keys, keys + 2),       // col + res
+                names,
+                column(names, 0),
+                type);
 
-        return new CompiledPivotTable(names, 0, result, 0, 1, 2, source.dimensions());
+        OrderByLocal sorted = new OrderByLocal(pivot, columns(pivot, 0, keys), Util.boolArray(keys, true));
+        return new CompiledPivotTable(names, sorted, keys(context, rows), format, type);
     }
 
-    private static CompiledSimpleColumn compileNames(CompileContext context, CompiledTable source) {
-        CompileContext nested = context.withPlaceholder(source);
-        CompiledNestedColumn result = nested.compileArgument(1, NestedColumnValidators.STRING);
-        CompileUtil.verifySameLayout(source, result, "PIVOT 'field' argument misaligned with 'table'");
-        return result.flat();
+    private Plan compileNames(Expression column) {
+        SelectLocal source = new SelectLocal(column);
+        DistinctByLocal unique = new DistinctByLocal(source, List.of(column(source, 0)));
+        return new OrderByLocal(unique, List.of(column(unique, 0)), Util.boolArray(1, true));
     }
 
-    private static CompiledSimpleColumn compileValue(CompileContext context, CompiledTable layout, CompiledTable table) {
-        checkValueFormula(context.argument(2));
-        CompileContext valueContext = context.withPivot(table, layout);
-        CompiledSimpleColumn result = valueContext.compileArgument(2, SimpleColumnValidators.ANY);
-        CompileUtil.verifySameLayout(layout, result, "PIVOT 'aggregation' argument misaligned with 'table'");
-        return result;
+    private List<CompiledColumn> getColumns(String name, CompileContext context, CompiledTable table,
+                                            ResultValidator<CompiledNestedColumn> validator) {
+        verify(name, table);
+
+        if (table instanceof CompiledNestedColumn column) {
+            return List.of(validator.convert(column));
+        }
+
+        return table.fields(context).stream()
+                .map(field -> table.field(context, field))
+                .map(validator::convert)
+                .map(column -> (CompiledColumn) column)
+                .toList();
     }
 
-    private static SelectLocal selectWithoutOne(Plan plan, int position) {
-        List<Expression> columns = new ArrayList<>();
+    private void verify(String name, CompiledTable table) {
+        CompileUtil.verify(!table.reference(),
+                "Argument: %s is invalid. Expected table or array. Example: Table[Column] or Table[[Column1], [Column2]]",
+                name);
+        CompileUtil.verify(table.dimensions().isEmpty(), "Argument: %s has dependency on columns: %s",
+                name, table.dimensions());
+    }
 
-        for (int i = 0; i < plan.getMeta().getSchema().size(); i++) {
-            if (i != position) {
-                columns.add(new Get(plan, i));
+    private List<CompiledColumn> getColumns(String name, CompileContext context, CompiledTable table,
+                                            List<ResultValidator<CompiledNestedColumn>> validators) {
+        verify(name, table);
+        List<CompiledResult> results = new ArrayList<>();
+
+        if (table instanceof CompiledNestedColumn column) {
+            results.add(column);
+        } else {
+            table.fields(context).stream()
+                    .map(field -> table.field(context, field))
+                    .forEach(results::add);
+        }
+
+        CompileUtil.verify(results.size() == validators.size(), "Size does not match");
+        List<CompiledColumn> columns = new ArrayList<>();
+
+        for (int i = 0; i < results.size(); i++) {
+            CompiledResult result = results.get(i);
+            ResultValidator<CompiledNestedColumn> validator = validators.get(i);
+            CompiledNestedColumn column = validator.convert(result);
+            columns.add(column);
+        }
+
+        return columns;
+    }
+
+    private List<ResultValidator<CompiledNestedColumn>> valueValidators(AggregateType type) {
+        return switch (type) {
+            case COUNT, FIRST, LAST, SINGLE -> List.of(NestedColumnValidators.ANY);
+            case SUM, AVERAGE, MIN, MAX, STDEVP, STDEVS, GEOMEAN, MEDIAN -> List.of(NestedColumnValidators.DOUBLE);
+            case CORREL, PERCENTILE, PERCENTILE_EXC, QUARTILE, QUARTILE_EXC ->
+                    List.of(NestedColumnValidators.DOUBLE, NestedColumnValidators.DOUBLE);
+            case MODE -> List.of(NestedColumnValidators.STRING_OR_DOUBLE, NestedColumnValidators.STRING_OR_DOUBLE);
+            case INDEX, MINBY, MAXBY -> List.of(NestedColumnValidators.ANY, NestedColumnValidators.DOUBLE);
+            case PERIODSERIES -> List.of(NestedColumnValidators.DOUBLE, NestedColumnValidators.DOUBLE,
+                    NestedColumnValidators.STRING);
+            case COUNT_ALL, FIRSTS, LASTS ->
+                    throw new IllegalArgumentException("Unsupported aggregation type: " + type);
+        };
+    }
+
+    private Expression concat(List<CompiledColumn> columns) {
+        if (columns.size() == 1) {
+            return columns.get(0).expression();
+        }
+
+        List<Expression> expressions = new ArrayList<>();
+
+        for (int i = 0; i < columns.size(); i++) {
+            CompiledColumn column = columns.get(i);
+            Expression expression = column.expression();
+
+            if (i > 0) {
+                expressions.add(new Expand(expression.getLayout(), new Constant(" & ")));
             }
+
+            expressions.add(expression);
         }
 
-        return new SelectLocal(columns);
+        return new Concatenate(expressions);
     }
 
-    private void checkValueFormula(Formula valueFormula) {
-        List<CurrentField> currentFields = CompileUtil.collectCurrentFields(valueFormula);
-        if (!currentFields.isEmpty()) {
-            throw new CompileError(
-                    "Value formula should not contain references to the current columns: %s.".formatted(currentFields)
-                            + " Did you forget to put $ sign before a field: $[field]?");
+    private List<Expression> columns(Plan plan, int from, int to) {
+        List<Expression> columns = new ArrayList<>(to - from);
+
+        for (int i = from; i < to; i++) {
+            Get column = column(plan, i);
+            columns.add(column);
         }
+
+        return columns;
+    }
+
+    private Get column(Plan plan, int column) {
+        return new Get(plan, column);
+    }
+
+    private List<CompiledPivotTable.Key> keys(CompileContext context, List<CompiledColumn> rows) {
+        Formula formula = context.argument(0);
+        List<CompiledPivotTable.Key> keys = new ArrayList<>();
+        Set<String> names = new HashSet<>();
+
+        for (int i = 0; i < rows.size(); i++) {
+            String name;
+            if (formula instanceof FieldReference field) {
+                name = field.field();
+            } else if (formula instanceof FieldsReference fields) {
+                name = fields.fields().get(i);
+            } else {
+                name = (rows.size() == 1) ? "key" : ("key" + (i + 1));
+            }
+
+            String base = name;
+            for (int j = 1; !names.add(name); j++) {
+                name = base + j;
+            }
+
+            ColumnFormat format = rows.get(i).format();
+            keys.add(new CompiledPivotTable.Key(name, format));
+        }
+
+        return keys;
     }
 }

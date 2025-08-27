@@ -125,6 +125,7 @@ function drawShadows(
 
 export function applyCellStyle(
   graphics: PIXI.Graphics,
+  text: PIXI.BitmapText,
   style: CellStyle,
   x: number,
   y: number,
@@ -135,11 +136,15 @@ export function applyCellStyle(
     graphics.beginFill(style.bgColor).drawRect(x, y, width, height).endFill();
   }
 
-  if (style.diffColor) {
+  if (style.highlight) {
     graphics
-      .beginFill(style.diffColor, 0.1)
+      .beginFill(style.highlight.color, style.highlight.alpha)
       .drawRect(x, y, width, height)
       .endFill();
+
+    text.alpha = style.highlight.textAlpha;
+  } else {
+    text.alpha = 1;
   }
 
   if (style.border) {
@@ -174,6 +179,7 @@ export function applyCellStyle(
 
 export function applyCellGraphics(
   graphics: PIXI.Graphics,
+  text: PIXI.BitmapText,
   cell: GridCell,
   bottomCell: GridCell | undefined,
   x: number,
@@ -185,33 +191,48 @@ export function applyCellGraphics(
 ): void {
   const { borderWidth, shadowStepWidth: shadowLineWidth } = gridSizes.cell;
   let bgColor = theme.cell.bgColor;
+
+  let highlight;
+  if (cell.table?.highlightType || cell.field?.highlightType) {
+    const highlightType =
+      cell.field?.highlightType ?? cell.table?.highlightType;
+
+    highlight =
+      highlightType === 'DIMMED'
+        ? theme.highlight.dimmed
+        : highlightType === 'HIGHLIGHTED'
+        ? theme.highlight.highlighted
+        : undefined;
+  }
+
   const cellBorder: PIXI.ILineStyleOptions = {
     width: borderWidth,
     color: theme.cell.borderColor,
+    alpha: highlight?.negativeAlpha,
   };
 
   const bottomRightShadow: PIXI.ILineStyleOptions[] = [
     {
       width: shadowLineWidth,
       color: theme.tableShadow.color,
-      alpha: 0.5,
+      alpha: 0.5 * (highlight?.negativeAlpha ?? 1),
     },
     {
       width: shadowLineWidth,
       color: theme.tableShadow.color,
-      alpha: 0.35,
+      alpha: 0.35 * (highlight?.negativeAlpha ?? 1),
     },
   ];
   const topLeftShadow: PIXI.ILineStyleOptions[] = [
     {
       width: shadowLineWidth,
       color: theme.tableShadow.color,
-      alpha: 0.425,
+      alpha: 0.425 * (highlight?.negativeAlpha ?? 1),
     },
     {
       width: shadowLineWidth,
       color: theme.tableShadow.color,
-      alpha: 0.25,
+      alpha: 0.25 * (highlight?.negativeAlpha ?? 1),
     },
   ];
 
@@ -237,18 +258,13 @@ export function applyCellGraphics(
     bgColor = theme.cell.bgEvenColor;
   }
 
-  let diffColor;
-  if (
-    cell.table?.isChanged ||
-    cell.field?.isChanged ||
-    cell.isOverrideChanged
-  ) {
-    diffColor = theme.diff.bgColor;
-  }
-
   const cellStyle: CellStyle = {
     bgColor,
-    diffColor,
+    highlight: highlight && {
+      color: highlight.bgColor,
+      alpha: highlight.alpha,
+      textAlpha: highlight.textAlpha,
+    },
     border: {
       borderTop: cellBorder,
       borderLeft: cellBorder,
@@ -266,7 +282,7 @@ export function applyCellGraphics(
     },
   };
 
-  applyCellStyle(graphics, cellStyle, x, y, width, height);
+  applyCellStyle(graphics, text, cellStyle, x, y, width, height);
 }
 
 export function cropText(
@@ -294,13 +310,39 @@ export function cropText(
   return croppedText;
 }
 
+export function hashText(
+  text: string,
+  width: number,
+  symbolWidth: number
+): string {
+  let currentTextWidth = 0;
+  let croppedText = '';
+
+  const singleLineText = text.replaceAll('\r', '').replaceAll('\n', ' ');
+
+  for (let i = 0; i < singleLineText.length; i++) {
+    if (currentTextWidth + symbolWidth > width) {
+      return '#'.repeat(i);
+    }
+
+    currentTextWidth += symbolWidth;
+    croppedText += singleLineText[i];
+  }
+
+  return croppedText;
+}
+
 export function getSymbolWidth(fontSize: number, fontName: string): number {
-  const text = new PIXI.BitmapText('0', { fontName, fontSize });
+  const symbolsAmount = 20;
+  const text = new PIXI.BitmapText('0'.repeat(symbolsAmount), {
+    fontName,
+    fontSize,
+  });
   const symbolWidth = text.width;
 
   text.destroy();
 
-  return symbolWidth;
+  return symbolWidth / symbolsAmount;
 }
 
 /**
@@ -322,72 +364,49 @@ export function getCellContext(
   return isLeftCell ? leftCell : isTopCell ? topCell : undefined;
 }
 
-// Source: https://github.com/pixijs/pixijs/issues/1333
+function dashedSegment(
+  g: PIXI.Graphics,
+  ax: number,
+  ay: number,
+  bx: number,
+  by: number,
+  dash = 6,
+  gap = 3
+) {
+  const pattern = dash + gap;
+
+  const dx = bx - ax;
+  const dy = by - ay;
+  const len = Math.hypot(dx, dy);
+  const nx = dx / len;
+  const ny = dy / len;
+  let dist = 0;
+
+  while (dist < len) {
+    const from = Math.max(dist, 0);
+    const to = Math.min(dist + dash, len);
+
+    if (to > 0) {
+      g.moveTo(ax + nx * from, ay + ny * from);
+      g.lineTo(ax + nx * to, ay + ny * to);
+    }
+
+    dist += pattern;
+  }
+}
+
 export function drawDashedRect(
-  container: PIXI.Graphics,
-  polygons: Coordinates[],
+  g: PIXI.Graphics,
+  polygon: Coordinates[],
   innerBorder: PIXI.ILineStyleOptions,
   dash = 6,
   gap = 3
 ) {
-  const x = 0;
-  const y = 0;
-  let dashLeft = 10;
-  let gapLeft = 0;
+  g.lineStyle(innerBorder);
 
-  container.lineStyle(innerBorder);
-
-  for (let i = 0; i < polygons.length; i++) {
-    const p1 = polygons[i];
-    let p2;
-
-    if (i === polygons.length - 1) {
-      p2 = polygons[0];
-    } else {
-      p2 = polygons[i + 1];
-    }
-    const dx = p2.x - p1.x;
-    const dy = p2.y - p1.y;
-    const len = Math.sqrt(dx * dx + dy * dy);
-    const normal = { x: dx / len, y: dy / len };
-    let progressOnLine = 0;
-
-    container.moveTo(
-      x + p1.x + gapLeft * normal.x,
-      y + p1.y + gapLeft * normal.y
-    );
-
-    while (progressOnLine <= len) {
-      progressOnLine += gapLeft;
-
-      if (dashLeft > 0) {
-        progressOnLine += dashLeft;
-      } else {
-        progressOnLine += dash;
-      }
-
-      if (progressOnLine > len) {
-        dashLeft = progressOnLine - len;
-        progressOnLine = len;
-      } else {
-        dashLeft = 0;
-      }
-
-      container.lineTo(
-        x + p1.x + progressOnLine * normal.x,
-        y + p1.y + progressOnLine * normal.y
-      );
-      progressOnLine += gap;
-
-      if (progressOnLine > len && dashLeft === 0) {
-        gapLeft = progressOnLine - len;
-      } else {
-        gapLeft = 0;
-        container.moveTo(
-          x + p1.x + progressOnLine * normal.x,
-          y + p1.y + progressOnLine * normal.y
-        );
-      }
-    }
+  for (let i = 0; i < polygon.length; i++) {
+    const p1 = polygon[i];
+    const p2 = polygon[(i + 1) % polygon.length];
+    dashedSegment(g, p1.x, p1.y, p2.x, p2.y, dash, gap);
   }
 }

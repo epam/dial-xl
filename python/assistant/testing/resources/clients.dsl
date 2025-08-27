@@ -3,6 +3,7 @@ table Clients
     [name]
     [revenue]
     [type]
+    [empty] = ""
 override
 [name],[revenue],[type]
 "ClientA",12,"B"

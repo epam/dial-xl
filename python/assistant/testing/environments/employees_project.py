@@ -6,11 +6,7 @@ from testing.framework import FrameProject
 def _build_employees_table_dsl(data_url: str) -> str:
     return f"""
             table Employees
-              dim [source] = INPUT("{data_url}")
-              [first_name] = [source][first_name]
-              [last_name] = [source][last_name]
-              [seniority_level] = [source][seniority_level]
-              [years_on_job] = [source][years_on_job]
+              dim [first_name], [last_name], [seniority_level], [years_on_job] = INPUT("{data_url}")[[first_name], [last_name], [seniority_level], [years_on_job]]
               [ID] = ROW()
             """
 
@@ -18,19 +14,14 @@ def _build_employees_table_dsl(data_url: str) -> str:
 def _build_projects_table_dsl(data_url: str) -> str:
     return f"""
             table Projects
-              dim [source] = INPUT("{data_url}")
-              [project_id] = [source][project_id]
-              [project_name] = [source][project_name]
-              [approximate_cost] = [source][approximate_cost]
+              dim [project_id], [project_name], [approximate_cost] = INPUT("{data_url}")[[project_id], [project_name], [approximate_cost]]
             """
 
 
 def _build_assignments_table_dsl(data_url: str) -> str:
     return f"""
             table Assignments
-              dim [source] = INPUT("{data_url}")
-              [employee_id] = [source][employee_id]
-              [project_id] = [source][project_id]
+              dim [employee_id], [project_id] = INPUT("{data_url}")[[employee_id], [project_id]]
             """
 
 

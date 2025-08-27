@@ -35,7 +35,12 @@ export function useFormulaBarWrapper() {
       }
 
       const fields: string[] = table.fields
-        .filter((f) => f.isDim)
+        .filter(
+          (f, idx, arr) =>
+            f.isDim &&
+            arr.findIndex((e) => e.fieldGroupIndex === f.fieldGroupIndex) ===
+              idx
+        )
         .map((f) => f.key.fieldName);
 
       setFields(fields);

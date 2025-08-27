@@ -25,24 +25,6 @@ public class BinaryOperator extends Expression2<Column, Column, DoubleColumn> {
 
     @Override
     public ColumnType getType() {
-        if (operation.isLogical()) {
-            return ColumnType.BOOLEAN;
-        }
-
-        ColumnType leftType = getLeft().getType();
-        ColumnType rightType = getRight().getType();
-        if (leftType == ColumnType.DATE || rightType == ColumnType.DATE) {
-            return ColumnType.DATE;
-        }
-
-        if ((leftType == ColumnType.INTEGER || leftType == ColumnType.BOOLEAN)
-                && (rightType == ColumnType.INTEGER || rightType == ColumnType.BOOLEAN)) {
-            return switch (operation) {
-                case ADD, SUB, MUL, MOD -> ColumnType.INTEGER;
-                default -> ColumnType.DOUBLE;
-            };
-        }
-
         return ColumnType.DOUBLE;
     }
 
@@ -86,7 +68,7 @@ public class BinaryOperator extends Expression2<Column, Column, DoubleColumn> {
         org.apache.spark.sql.Column right = getRight().toSpark();
 
         return switch (getLeft().getType()) {
-            case DOUBLE, INTEGER, BOOLEAN, DATE -> SparkOperators.doubleBinary(operation, left, right);
+            case DOUBLE -> SparkOperators.doubleBinary(operation, left, right);
             case STRING -> SparkOperators.stringBinary(operation, left, right);
             default -> throw new IllegalArgumentException("Unsupported type: " + getLeft().getType());
         };

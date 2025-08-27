@@ -13,14 +13,13 @@ import { ReflexHandle } from 'react-reflex';
 
 import Icon from '@ant-design/icons';
 import {
-  ArrowAltIcon,
-  ArrowNarrowUp,
   CloseIcon,
   iconClasses,
   SettingsIcon,
+  useIsMobile,
 } from '@frontend/common';
 
-import { PanelPosition, PanelProps } from '../../../common';
+import { PanelPosition, PanelProps, PanelTitle } from '../../../common';
 import { HandleContext, LayoutContext } from '../../../context';
 import { usePanelSettings } from '../../../hooks';
 
@@ -29,15 +28,9 @@ export function PanelToolbar({
   title,
   secondaryTitle,
   panelName,
-  position,
-  showExpand,
-}: PropsWithChildren<
-  Omit<PanelProps, 'dimensions' | 'isActive'> & { showExpand?: boolean }
->) {
-  const { togglePanel, toggleExpandPanel, expandedPanelSide } =
-    useContext(LayoutContext);
-  const expanded = expandedPanelSide === position;
-  const [isExpandTooltipOpen, setIsExpandTooltipOpen] = useState(false);
+  position = PanelPosition.Left,
+}: PropsWithChildren<Omit<PanelProps, 'dimensions' | 'isActive'>>) {
+  const { togglePanel } = useContext(LayoutContext);
   const [isCollapseTooltipOpen, setIsCollapseTooltipOpen] = useState(false);
 
   const { getPanelSettingsItems } = usePanelSettings();
@@ -53,52 +46,39 @@ export function PanelToolbar({
   );
 
   return (
-    <div className="flex items-center h-5 w-full bg-bgLayer2 border-b border-b-strokeTertiary">
+    <div className="flex items-center h-8 md:h-7 w-full bg-bgLayer2 border-b border-b-strokeTertiary">
       <WrapHandle>
-        <div className="flex flex-1 items-center h-5 min-w-0 ml-2 text-textSecondary select-none">
-          <span className="text-[10px] leading-none text-textSecondary tracking-[0.6px] font-bold uppercase">
+        <div className="flex flex-1 items-center h-7 min-w-0 mx-2 text-textSecondary select-none">
+          <span className="truncate text-xs md:text-[10px] leading-none text-textSecondary tracking-[0.6px] font-bold uppercase">
             {title}
           </span>
           {secondaryTitle && (
-            <span className="h-full mx-2 text-[13px] text-textSecondary text-ellipsis inline-block overflow-hidden whitespace-nowrap">
+            <span className="mx-2 text-[13px] text-textSecondary text-ellipsis inline-block overflow-hidden whitespace-nowrap">
               {secondaryTitle}
             </span>
           )}
         </div>
-        <div className="h-full flex items-center mr-3">
+
+        <div className="flex md:hidden h-full mr-3">{children}</div>
+
+        <div className="hidden h-full md:flex items-center mr-3">
           {children}
-          {children && <div className="w-px h-full bg-strokeTertiary mx-2" />}
+          {children && <div className="w-px h-5 bg-strokeTertiary mx-2" />}
           <Dropdown
             className="cursor-pointer"
-            menu={{ items: getPanelSettingsItems(panelName, position) }}
+            menu={{
+              items: getPanelSettingsItems(
+                panelName,
+                PanelTitle[panelName],
+                position
+              ),
+            }}
           >
             <Icon
-              className={classNames(iconClasses, 'w-[16px]')}
+              className={classNames(iconClasses, 'w-4')}
               component={() => <SettingsIcon />}
             />
           </Dropdown>
-          {showExpand && (
-            <Tooltip
-              open={isExpandTooltipOpen}
-              placement="top"
-              title={expanded ? `Restore ${title}` : `Expand ${title}`}
-              onOpenChange={setIsExpandTooltipOpen}
-            >
-              <Icon
-                className={cx('w-[16px] text-textSecondary ml-2', {
-                  'transform rotate-[225deg]': expanded,
-                  'transform rotate-45': !expanded,
-                })}
-                component={() =>
-                  expanded ? <ArrowNarrowUp /> : <ArrowAltIcon />
-                }
-                onClick={() => {
-                  setIsExpandTooltipOpen(false);
-                  toggleExpandPanel(panelName);
-                }}
-              />
-            </Tooltip>
-          )}
           <Tooltip
             open={isCollapseTooltipOpen}
             placement="bottom"
@@ -106,7 +86,7 @@ export function PanelToolbar({
             onOpenChange={setIsCollapseTooltipOpen}
           >
             <Icon
-              className={cx('w-[16px] ml-2', iconClasses, rotateIcon)}
+              className={cx('w-4 ml-2', iconClasses, rotateIcon)}
               component={() => <CloseIcon />}
               onClick={() => {
                 setIsCollapseTooltipOpen(false);
@@ -121,13 +101,14 @@ export function PanelToolbar({
 }
 
 function WrapHandle({ children }: { children: ReactNode }) {
-  const { hasSplitter, events, index } = useContext(HandleContext);
+  const isMobile = useIsMobile();
+  const values = useContext(HandleContext);
 
-  return hasSplitter && events && index ? (
+  return values?.hasSplitter && values?.events && values?.index && !isMobile ? (
     <ReflexHandle
-      className="flex flex-1 h-5 items-center"
-      events={events}
-      index={index}
+      className="flex flex-1 h-7 items-center"
+      events={values.events}
+      index={values.index}
     >
       {children}
     </ReflexHandle>

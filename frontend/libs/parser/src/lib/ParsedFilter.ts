@@ -7,7 +7,7 @@ import {
   UniOpExpression,
 } from './ast';
 import { ParsedText } from './ParsedText';
-import { ModifyFilterProps, ShortDSLPlacement } from './parser';
+import { ModifyFilterProps } from './parser';
 import {
   findFieldBinOpExpressions,
   findFieldExpressionsWithParent,
@@ -39,8 +39,6 @@ export class ParsedFilter {
   constructor(
     span: Span | undefined,
     formula: ParsedText | undefined,
-    public dslPlacement: ShortDSLPlacement | undefined,
-    public filterExpressionDSLPlacement: ShortDSLPlacement | undefined,
     public parsedExpression: Expression | undefined,
     public text: string
   ) {

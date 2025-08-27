@@ -248,11 +248,14 @@ export class Sheet extends ObservableObserver {
    */
   private onTableRename(oldName: string, newName: string): void {
     const index = this.findTableIndex(oldName);
-    if (index === -1) {
-      throw new Error(`Table '${oldName}' not found`);
-    }
-    if (this._tableIndices[newName] !== undefined) {
-      throw new Error(`Table '${newName}' already exists`);
+    if (
+      index === -1 ||
+      this._tableIndices[newName] !== undefined ||
+      Object.keys(this._tableIndices).length !== this._tables.length
+    ) {
+      this.updateTableIndices();
+
+      return;
     }
     this._tableIndices[newName] = this._tableIndices[oldName];
     delete this._tableIndices[oldName];

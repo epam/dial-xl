@@ -5,10 +5,12 @@ from typing import Any
 from dial_xl.client import Client
 from dial_xl.decorator import Decorator
 from dial_xl.field import Field
+from dial_xl.field_groups import FieldGroup
 from dial_xl.overrides import Override, Overrides
 from dial_xl.project import Project
 from dial_xl.table import Table
 
+from quantgrid.utils.project import FieldGroupUtil
 from quantgrid_1.log_config import qg_logger
 from quantgrid_1.log_config import qg_logger as logger
 from quantgrid_1.models.action import (
@@ -20,7 +22,9 @@ from quantgrid_1.models.action import (
     EditTableAction,
     RemoveTableAction,
 )
-from quantgrid_1.utils.formatting import normilize_field_dsl
+from quantgrid_1.models.project_state import Selection
+from quantgrid_1.utils.formatting import normalize_field_dsl
+from quantgrid_1.utils.project_utils import find_table
 
 
 def parse_action(action: Any) -> Action:
@@ -69,21 +73,33 @@ def _parse_last_json(content: str) -> dict:
     if latest_start != -1:
         return decoder.decode(content[latest_start:latest_end])
 
-    qg_logger.debug(
-        f"No JSON found in: {content}",
-    )
-    raise ValueError("No correct JSON was found in LLM generated text")
+    qg_logger.debug(f"No JSON found in: {content}")
+    return {}
 
 
-async def parse_actions(client: Client, content: str) -> list[Action]:
+async def parse_actions(
+    client: Client, content: str, current_sheet: str | None
+) -> list[Action]:
     content_json = _parse_last_json(content)
+    if not len(content_json):
+        return []
 
     if "actions" in content_json:
         actions = [parse_action(action) for action in content_json["actions"]]
     else:
         actions = [parse_action(content_json)]
 
-    return await _split_actions(client, actions)
+    actions = await _split_actions(client, actions)
+    if current_sheet is not None:
+        _move_new_tables_to_active_sheet(actions, current_sheet)
+
+    return actions
+
+
+def _move_new_tables_to_active_sheet(actions: list[Action], current_sheet: str) -> None:
+    for action in actions:
+        if isinstance(action, (AddTableAction, AddManualTableAction)):
+            action.sheet_name = current_sheet
 
 
 async def _split_actions(client: Client, actions: list[Action]) -> list[Action]:
@@ -94,7 +110,12 @@ async def _split_actions(client: Client, actions: list[Action]) -> list[Action]:
             continue
 
         sheet = await client.parse_sheet("", _add_new_line(action.table_dsl))
-        for table in sheet.tables:
+        tables = [table for table in sheet.tables]
+        if not len(tables):
+            split_actions.append(action)
+            continue
+
+        for table in tables:
             split_action = action.model_copy()
             split_action.table_name = table.name
             split_action.table_dsl = table.to_dsl()
@@ -126,8 +147,8 @@ async def _manual_table(table_name: str, fields: dict[str, list[Any]]) -> Table:
 
     lines: list[dict[str, str]] = []
     for field_name, values in fields.items():
-        field = Field(field_name, "NA")
-        table.add_field(field)
+        field_group = FieldGroup.from_field(Field(field_name), None)
+        table.field_groups.append(field_group)
 
         for i in range(len(values)):
             if len(lines) <= i:
@@ -145,7 +166,7 @@ async def _manual_table(table_name: str, fields: dict[str, list[Any]]) -> Table:
 
 
 async def process_actions(
-    selection: dict[str, int] | None,
+    selection: Selection | None,
     actions: list[Action],
     project: Project,
     client: Client,
@@ -171,7 +192,7 @@ async def process_actions(
                 table.add_decorator(
                     Decorator(
                         "layout",
-                        f'({selection["startRow"]}, {selection["startCol"]}, "title", "headers")',
+                        f'({selection.start_row}, {selection.start_col}, "title", "headers")',
                     )
                 )
 
@@ -181,12 +202,12 @@ async def process_action(action: Action, project: Project, client: Client):
     table_name = action.table_name
 
     if isinstance(action, RemoveTableAction):
-        if sheet_name is not None and table_name is not None:
-            sheet = project.get_sheet(sheet_name)
+        sheet, table = find_table(project, action.table_name)
+        if sheet is None:
+            logger.error(f"No table named {table_name} found for RemoveTableAction")
+            return
 
-            if sheet is not None:
-                sheet.remove_table(table_name)
-
+        sheet.remove_table(table_name)
         return
 
     if isinstance(action, AddManualTableAction):
@@ -198,37 +219,50 @@ async def process_action(action: Action, project: Project, client: Client):
             sheet = await client.parse_sheet(sheet_name, "\n")
             project.add_sheet(sheet)
 
+        prev_sheet, prev_table = find_table(project, table_name)
+        if prev_sheet is not None:
+            prev_sheet.remove_table(table_name)
+
         sheet.add_table(table)
 
     if isinstance(action, AddNoteAction):
         field_name = action.column_name
         comment = action.note
 
-        sheet = project.get_sheet(sheet_name)
-        table = sheet.get_table(table_name)
-        if field_name not in table.field_names:
+        sheet, table = find_table(project, table_name)
+        if table is None:
+            logger.error(f"No table named {table_name} found for AddNoteAction")
+            return
+
+        field = FieldGroupUtil.get_field_by_name(table, field_name)
+        if not field:
             logger.error(
                 "Field wasn't found for comment action"
             )  # TODO: return such errors and process
             return
-        field = table.get_field(field_name)
-
         field.doc_string = f" {comment}"
-
         return
 
     if isinstance(action, AddColumnAction):
         field_name = action.column_name
-        field_dsl = normilize_field_dsl(field_name, action.column_dsl)
+        field_dsl = normalize_field_dsl(field_name, action.column_dsl)
 
-        sheet = project.get_sheet(sheet_name)
-        table = sheet.get_table(table_name)
+        sheet, table = find_table(project, table_name)
+        if table is None:
+            logger.error(f"No table named {table_name} found for AddColumnAction")
+            return
 
         # Sonnet-3.5 often edit column DSL formula using AddColumnAction
-        if field_name in table.field_names:
-            table.remove_field(field_name)
+        for i, field_group in enumerate(table.field_groups):
+            if field_name in field_group.field_names:
+                field_group.remove_field(field_name)
+                if len([*field_group.fields]) == 0:
+                    del table.field_groups[i]
 
-        table.add_field(Field(field_name, field_dsl))
+        new_field_dsl = field_dsl if len(field_dsl) > 0 else None
+        table.field_groups.append(
+            FieldGroup.from_field(Field(field_name), new_field_dsl)
+        )
         return
 
     if isinstance(action, AddTableAction) or isinstance(action, EditTableAction):
@@ -246,37 +280,84 @@ async def process_action(action: Action, project: Project, client: Client):
         table = temp_sheet.get_table(table_name)
         temp_sheet.remove_table(table_name)
 
-        if table_name in sheet.table_names:
-            sheet.remove_table(table_name)
+        prev_sheet, prev_table = find_table(project, table_name)
+        if prev_sheet is not None:
+            prev_sheet.remove_table(table_name)
 
         sheet.add_table(table)
 
 
-def remove_layouts(
-    project: Project, prev_project: Project, actions: list[Action]
+def remove_decorators(
+    project: Project,
+    prev_project: Project,
+    actions: list[Action],
+    *,
+    decorator: str,
+    table_decorators: bool,
+    field_decorators: bool,
 ) -> None:
     for action in actions:
         if isinstance(action, (AddTableAction, AddManualTableAction)):
-            _remove_layout(project, prev_project, action.table_name)
+            _remove_decorator(
+                project,
+                prev_project,
+                action.table_name,
+                decorator=decorator,
+                table_decorators=table_decorators,
+                field_decorators=field_decorators,
+            )
 
 
-def _remove_layout(
-    next_project: Project, prev_project: Project, table_name: str
+def _remove_decorator(
+    next_project: Project,
+    prev_project: Project,
+    table_name: str,
+    *,
+    decorator: str,
+    table_decorators: bool,
+    field_decorators: bool,
 ) -> None:
-    prev_table = _find_table(prev_project, table_name)
-    next_table = _find_table(next_project, table_name)
+    _, prev_table = find_table(prev_project, table_name)
+    _, next_table = find_table(next_project, table_name)
 
-    if next_table is None or "layout" not in next_table.decorator_names:
+    if next_table is None:
         return
 
-    if prev_table is None or "layout" not in prev_table.decorator_names:
-        next_table.remove_decorator("layout")
+    if table_decorators:
+        _remove_table_decorator(next_table, prev_table, decorator)
+
+    if field_decorators:
+        _remove_field_decorator(next_table, prev_table, decorator)
 
 
-def _find_table(project: Project, table_name: str) -> Table | None:
-    for sheet in project.sheets:
-        for table in sheet.tables:
-            if table.name == table_name:
-                return table
+def _remove_table_decorator(
+    next_table: Table, prev_table: Table | None, decorator: str
+) -> None:
+    if decorator not in next_table.decorator_names:
+        return
 
-    return None
+    if prev_table is None or decorator not in prev_table.decorator_names:
+        next_table.remove_decorator(decorator)
+
+
+def _remove_field_decorator(
+    next_table: Table, prev_table: Table | None, decorator: str
+) -> None:
+    prev_table_field_names = None
+    if prev_table:
+        prev_table_field_names = FieldGroupUtil.get_table_field_names(prev_table)
+    next_table_fields = FieldGroupUtil.get_table_fields(next_table)
+    for next_field in next_table_fields:
+        if decorator not in next_field.decorator_names:
+            continue
+
+        prev_field: Field | None = None
+        if (
+            prev_table is not None
+            and prev_table_field_names
+            and next_field.name in prev_table_field_names
+        ):
+            prev_field = FieldGroupUtil.get_field_by_name(prev_table, next_field.name)
+
+        if prev_field is None or decorator not in prev_field.decorator_names:
+            next_field.remove_decorator(decorator)

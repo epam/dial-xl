@@ -14,6 +14,7 @@ import Icon from '@ant-design/icons';
 import { Message, Role } from '@epam/ai-dial-overlay';
 import {
   ExclamationCircleIcon,
+  getFocusColumns,
   getSuggestions,
   Markdown,
   MinimizeIcon,
@@ -88,12 +89,7 @@ export function AIPrompt({
   const [selectionEdges, setSelectionEdges] = useState<Edges | null>(null);
 
   const systemPrompt = useMemo(() => {
-    return systemMessageContent
-      ? JSON.stringify({
-          ...systemMessageContent,
-          summarize: false,
-        } as SystemMessageParsedContent)
-      : '';
+    return systemMessageContent ? JSON.stringify(systemMessageContent) : '';
   }, [systemMessageContent]);
 
   const handleUpdatePrompt = useCallback(
@@ -154,8 +150,9 @@ export function AIPrompt({
     if (isCollapsed) return;
 
     setIsCollapsed(true);
-    gridCallbacksRef.current.onAIPendingBanner?.(true);
-  }, [gridCallbacksRef, isCollapsed]);
+    // TODO: return this as ai prompt will be needed again
+    // gridCallbacksRef.current.onAIPendingChanges?.(true, {});
+  }, [isCollapsed]);
 
   const onClickOutside = useCallback(
     (e: MouseEvent) => {
@@ -201,19 +198,19 @@ export function AIPrompt({
 
   const handleKeep = useCallback(() => {
     sendLike(responseId);
-    gridCallbacksRef.current.onAIPendingChanges?.(false);
-    gridCallbacksRef.current.onAIPendingBanner?.(false);
+    // TODO: return this as ai prompt will be needed again
+    // gridCallbacksRef.current.onAIPendingChanges?.(false, {});
 
     hide();
-  }, [gridCallbacksRef, hide, responseId, sendLike]);
+  }, [hide, responseId, sendLike]);
 
   const handleDiscard = useCallback(() => {
     if (!isSuggestionReview) return;
 
     sendDislike(responseId);
     gridCallbacksRef.current.onUndo?.();
-    gridCallbacksRef.current.onAIPendingChanges?.(false);
-    gridCallbacksRef.current.onAIPendingBanner?.(false);
+    // TODO: return this as ai prompt will be needed again
+    // gridCallbacksRef.current.onAIPendingChanges?.(false, {});
     hide();
   }, [gridCallbacksRef, hide, isSuggestionReview, responseId, sendDislike]);
 
@@ -227,8 +224,8 @@ export function AIPrompt({
       setIsSuggestionReview(false);
       sendDislike(responseId);
       gridCallbacksRef.current.onUndo?.();
-      gridCallbacksRef.current.onAIPendingChanges?.(false);
-      gridCallbacksRef.current.onAIPendingBanner?.(false);
+      // TODO: return this as ai prompt will be needed again
+      // gridCallbacksRef.current.onAIPendingChanges?.(false, {});
     }
 
     setTimeout(() => {
@@ -252,21 +249,15 @@ export function AIPrompt({
     setAssistantTextAnswer('');
     resetRequestResults();
     setPrompt('');
-    gridCallbacksRef.current.onAIPendingChanges?.(false);
-    gridCallbacksRef.current.onAIPendingBanner?.(false);
+    // TODO: return this as ai prompt will be needed again
+    // gridCallbacksRef.current.onAIPendingChanges?.(false, {});
 
     setTimeout(() => {
       promptAreaRef.current?.focus({
         cursor: 'end',
       } as any);
     }, 0);
-  }, [
-    assistantTextAnswer,
-    gridCallbacksRef,
-    isError,
-    isSuggestionReview,
-    resetRequestResults,
-  ]);
+  }, [assistantTextAnswer, isError, isSuggestionReview, resetRequestResults]);
 
   const show = useCallback(
     (x: number, y: number, width: number, height: number) => {
@@ -355,13 +346,15 @@ export function AIPrompt({
 
     if (!resultMessage) return;
 
-    const { suggestions } = getSuggestions([userMessage, resultMessage]);
+    const suggestions = getSuggestions([userMessage, resultMessage]);
+    const focusColumns = getFocusColumns([userMessage, resultMessage]);
 
     if (suggestions?.length) {
       setIsSuggestionReview(true);
       setSheetSuggestionsName(currentSheetName ?? '');
-      gridCallbacksRef.current.onAIPendingChanges?.(true);
-      gridCallbacksRef.current.onApplySuggestion?.(suggestions);
+      // TODO: return this as ai prompt will be needed again
+      // gridCallbacksRef.current.onAIPendingChanges?.(true, {});
+      gridCallbacksRef.current.onApplySuggestion?.(suggestions, focusColumns);
 
       setResponseId(resultMessage.responseId);
     } else {
@@ -400,8 +393,8 @@ export function AIPrompt({
       fieldName: cell.field?.fieldName,
       note: assistantTextAnswer,
     });
-    gridCallbacksRef.current.onAIPendingChanges?.(false);
-    gridCallbacksRef.current.onAIPendingBanner?.(false);
+    // TODO: return this as ai prompt will be needed again
+    // gridCallbacksRef.current.onAIPendingChanges?.(false, {});
 
     hide();
   }, [api, assistantTextAnswer, gridCallbacksRef, hide, selection]);
@@ -519,9 +512,10 @@ export function AIPrompt({
         sheetName: sheetSuggestionsName,
       });
     }
-    gridCallbacksRef.current.onAIPendingBanner?.(false);
+    // TODO: return this as ai prompt will be needed again
+    // gridCallbacksRef.current.onAIPendingChanges?.(false, {});
 
-    const gridSizes = api.getGridSizes();
+    const { gridSizes } = api;
     const cellX = api.getCellX(selection.startCol);
     const cellY = api.getCellY(selection.startRow);
 

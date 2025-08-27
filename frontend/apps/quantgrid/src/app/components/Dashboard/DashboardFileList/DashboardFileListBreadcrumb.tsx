@@ -1,9 +1,14 @@
 import { useCallback, useContext, useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
-import { routeParams } from '../../../../AppRoutes';
+import {
+  projectFolderAppdata,
+  projectFoldersRootPrefix,
+} from '@frontend/common';
+
 import { DashboardTab } from '../../../common';
 import { ApiContext, DashboardContext } from '../../../context';
+import { routeParams } from '../../../types';
 import { Breadcrumb } from '../../../types/breadcrumbs';
 import { getDashboardNavigateUrl } from '../../../utils';
 import { Breadcrumbs } from '../../Breadcrumbs/Breadcrumbs';
@@ -47,8 +52,7 @@ export function DashboardFileListBreadcrumb() {
     const breadcrumbUrlParts = folderPath?.split('/').filter(Boolean) ?? [];
     const mainBreadcrumbLabel = breadcrumbLabels[currentTab] || 'Home';
     const folderBucket = searchParams.get(routeParams.folderBucket) ?? '';
-
-    setBreadcrumbs([
+    let updatedBreadcrumbs: Breadcrumb[] = [
       {
         name: mainBreadcrumbLabel,
         path: '',
@@ -58,7 +62,22 @@ export function DashboardFileListBreadcrumb() {
         path: breadcrumbUrlParts.slice(0, index + 1).join('/'),
         bucket: folderBucket,
       })),
-    ]);
+    ];
+
+    // Do not show appdata > xl breadcrumbs in shared tabs
+    if (
+      [breadcrumbLabels.sharedByMe, breadcrumbLabels.sharedWithMe].includes(
+        mainBreadcrumbLabel
+      )
+    ) {
+      updatedBreadcrumbs = updatedBreadcrumbs.filter((b) => {
+        return (
+          b.path !== projectFolderAppdata && b.path !== projectFoldersRootPrefix
+        );
+      });
+    }
+
+    setBreadcrumbs(updatedBreadcrumbs);
   }, [currentTab, folderPath, searchParams, userBucket]);
 
   return (

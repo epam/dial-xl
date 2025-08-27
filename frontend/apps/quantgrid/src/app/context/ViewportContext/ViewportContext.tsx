@@ -6,7 +6,7 @@ import {
   useState,
 } from 'react';
 
-import { ColumnData } from '@frontend/common';
+import { ColumnData, Index, Profile } from '@frontend/common';
 
 import { ViewGridData } from './ViewGridData';
 
@@ -16,6 +16,8 @@ type ViewportContextValues = {
 
 type ViewportContextActions = {
   onColumnDataResponse: (columnData: ColumnData) => void;
+  onProfileResponse: (requestId: string, profile: Profile) => void;
+  onIndexResponse: (index: Index) => void;
   clearTablesData: () => void;
 };
 
@@ -43,13 +45,35 @@ export function ViewportContextProvider({ children }: PropsWithChildren) {
     [viewGridData]
   );
 
+  const onProfileResponse = useCallback(
+    (requestId: string, profile: Profile) => {
+      viewGridData.saveProfileData(requestId, profile);
+    },
+    [viewGridData]
+  );
+
+  const onIndexResponse = useCallback(
+    (index: Index) => {
+      viewGridData.saveIndexData(index);
+    },
+    [viewGridData]
+  );
+
   const value = useMemo(
     () => ({
       viewGridData,
       onColumnDataResponse,
       clearTablesData,
+      onProfileResponse,
+      onIndexResponse,
     }),
-    [viewGridData, onColumnDataResponse, clearTablesData]
+    [
+      viewGridData,
+      onColumnDataResponse,
+      clearTablesData,
+      onProfileResponse,
+      onIndexResponse,
+    ]
   );
 
   return (

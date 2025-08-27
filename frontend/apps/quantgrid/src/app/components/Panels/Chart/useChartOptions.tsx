@@ -3,10 +3,11 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import Icon from '@ant-design/icons';
 import { PlusIcon } from '@frontend/common';
-import { ParsedTable } from '@frontend/parser';
+import { ChartType, ParsedTable } from '@frontend/parser';
 
 import {
   ChartDataSection,
+  ChartOrientationSection,
   ChartPlacementSection,
   ChartSelectorsSection,
   ChartSeriesSection,
@@ -16,6 +17,7 @@ import {
   InfoHeader,
 } from './Components';
 import {
+  chartsWithOrientation,
   chartsWithoutLegend,
   chartsWithoutXAxis,
   chartsWithSeparators,
@@ -34,27 +36,73 @@ export function useChartOptions({ parsedTable }: { parsedTable: ParsedTable }) {
     setIsAddingSelector(false);
   }, [parsedTable]);
 
-  const showLegendSection = useMemo(() => {
-    const chartType = parsedTable?.getChartType();
-
-    return chartType ? !chartsWithoutLegend.includes(chartType) : false;
+  const chartType = useMemo(() => {
+    return parsedTable?.getChartType();
   }, [parsedTable]);
+
+  const showLegendSection = useMemo(() => {
+    return chartType ? !chartsWithoutLegend.includes(chartType) : false;
+  }, [chartType]);
 
   const showXAxisSection = useMemo(() => {
-    const chartType = parsedTable?.getChartType();
-
     return chartType ? !chartsWithoutXAxis.includes(chartType) : false;
-  }, [parsedTable]);
+  }, [chartType]);
+
+  const showOrientationSection = useMemo(() => {
+    return chartType ? chartsWithOrientation.includes(chartType) : false;
+  }, [chartType]);
 
   const showSeparatorsSection = useMemo(() => {
-    const chartType = parsedTable?.getChartType();
-
     return chartType ? chartsWithSeparators.includes(chartType) : false;
-  }, [parsedTable]);
+  }, [chartType]);
 
   const onFirstCollapseSectionChange = useCallback((activeKeys: string[]) => {
     setFirstCollapseSectionActiveKeys(activeKeys as CollapseSection[]);
   }, []);
+
+  const showSeriesColumnAttributesSection = useMemo((): boolean => {
+    if (chartType === ChartType.SCATTER_PLOT) return true;
+
+    const isHorizontal = parsedTable.getChartOrientation() === 'horizontal';
+    const horizontalChartsWithDotColor = [
+      ChartType.BAR,
+      ChartType.PIE,
+      ChartType.FLAT_BAR,
+      ChartType.STACKED_BAR,
+    ];
+
+    return !!(
+      chartType &&
+      isHorizontal &&
+      horizontalChartsWithDotColor.includes(chartType)
+    );
+  }, [parsedTable, chartType]);
+
+  const showSeriesSection = useMemo((): boolean => {
+    const chartsWithSeriesColor = [
+      ChartType.LINE,
+      ChartType.PERIOD_SERIES,
+      ChartType.HISTOGRAM,
+      ChartType.SCATTER_PLOT,
+    ];
+
+    if (chartType && chartsWithSeriesColor.includes(chartType)) return true;
+
+    const isVertical = parsedTable.getChartOrientation() === 'vertical';
+
+    const verticalChartsWithDotColor = [
+      ChartType.BAR,
+      ChartType.PIE,
+      ChartType.FLAT_BAR,
+      ChartType.STACKED_BAR,
+    ];
+
+    return !!(
+      chartType &&
+      isVertical &&
+      verticalChartsWithDotColor.includes(chartType)
+    );
+  }, [chartType, parsedTable]);
 
   useEffect(() => {
     if (isAddingSelector) {
@@ -109,13 +157,23 @@ export function useChartOptions({ parsedTable }: { parsedTable: ParsedTable }) {
   }, [isAddingSelector, parsedTable]);
 
   const getSecondCollapseSection = useCallback((): CollapseProps['items'] => {
-    const items: CollapseProps['items'] = [
-      {
+    const items: CollapseProps['items'] = [];
+
+    if (showSeriesColumnAttributesSection || showSeriesSection) {
+      items.push({
         key: CollapseSection.Series,
         label: 'Series',
-        children: <ChartSeriesSection parsedTable={parsedTable} />,
-      },
-    ];
+        children: (
+          <ChartSeriesSection
+            parsedTable={parsedTable}
+            showSeriesColumnAttributesSection={
+              showSeriesColumnAttributesSection
+            }
+            showSeriesSection={showSeriesSection}
+          />
+        ),
+      });
+    }
 
     if (showSeparatorsSection) {
       items.push({
@@ -138,8 +196,23 @@ export function useChartOptions({ parsedTable }: { parsedTable: ParsedTable }) {
       });
     }
 
+    if (showOrientationSection) {
+      items.push({
+        key: CollapseSection.Orientation,
+        label: 'Data Fields split by',
+        children: <ChartOrientationSection parsedTable={parsedTable} />,
+      });
+    }
+
     return items;
-  }, [parsedTable, showSeparatorsSection, showXAxisSection]);
+  }, [
+    parsedTable,
+    showSeriesColumnAttributesSection,
+    showOrientationSection,
+    showSeparatorsSection,
+    showSeriesSection,
+    showXAxisSection,
+  ]);
 
   return {
     getFirstCollapseSection,

@@ -28,7 +28,7 @@ export function DashboardFileList() {
   return (
     <div className="h-full bg-bgLayer3 border border-strokeTertiary overflow-y-hidden">
       <div className="h-full flex flex-col overflow-y-hidden">
-        <div className="h-12 flex justify-between items-center py-4 px-4 border-b border-b-strokeTertiary">
+        <div className="h-12 flex justify-between items-center py-3 md:py-4 px-3 md:px-4 border-b border-b-strokeTertiary">
           {selectedItems.length === 0 ? (
             <>
               <DashboardFileListBreadcrumb />
@@ -38,16 +38,16 @@ export function DashboardFileList() {
             <DashboardFileListSelectionToolbar />
           )}
         </div>
-        <div className="thin-scrollbar overflow-y-auto grow flex flex-col">
+        <div className="thin-scrollbar overflow-y-auto overflow-x-auto md:overflow-x-hidden grow flex flex-col">
           {loadingDashboard ? (
             <div className="size-full flex items-center justify-center">
               <Spin className="z-50" size="large"></Spin>
             </div>
           ) : (
             <>
-              <div className="sticky z-10 bg-bgLayer2 top-0 border-b border-b-strokeTertiary">
-                <div className="flex mr-6 h-[30px]">
-                  <div className="min-w-[60%] pl-4 flex items-center">
+              <div className="sticky z-10 bg-bgLayer2 top-0 border-b border-b-strokeTertiary flex md:w-full min-w-[400px] md:min-w-full">
+                <div className="flex mr-6 h-[30px] grow">
+                  <div className="min-w-[200px] shrink-0 md:shrink-1 md:min-w-[60%] pl-4 flex items-center">
                     <DashboardFileListHeader
                       isSort={sortType === 'name'}
                       sortAsc={sortAsc}
@@ -56,7 +56,7 @@ export function DashboardFileList() {
                     />
                   </div>
                   {(isSimplifiedColumns || isSearchColumns) && (
-                    <div className="min-w-[20%] pr-2 flex items-center">
+                    <div className="min-w-[100px] shrink-0 md:shrink-1 md:min-w-[20%] pr-2 flex items-center">
                       <DashboardFileListHeader
                         isSort={sortType === 'parentPath'}
                         sortAsc={sortAsc}
@@ -65,7 +65,7 @@ export function DashboardFileList() {
                       />
                     </div>
                   )}
-                  <div className="min-w-[20%] pr-2 flex items-center">
+                  <div className="min-w-[100px] shrink-0 md:shrink-1 md:min-w-[20%] pr-2 flex items-center">
                     <DashboardFileListHeader
                       isSort={sortType === 'updatedAt'}
                       sortAsc={sortAsc}
@@ -76,7 +76,7 @@ export function DashboardFileList() {
                     />
                   </div>
                   {!isSimplifiedColumns && !isSearchColumns && (
-                    <div className="min-w-[20%] pr-2 flex items-center">
+                    <div className="min-w-[100px] shrink-0 md:shrink-1 md:min-w-[20%] pr-2 flex items-center">
                       <DashboardFileListHeader
                         isSort={sortType === 'contentLength'}
                         sortAsc={sortAsc}

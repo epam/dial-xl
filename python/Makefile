@@ -13,3 +13,4 @@ build_client_package:
 
 build_assistant_image: build_client_package
 	docker build --platform linux/amd64 -t ai-dial-qg:dev ./assistant --build-context assistant=./assistant --build-context client=./xl-client
+

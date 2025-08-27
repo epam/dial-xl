@@ -4,7 +4,7 @@ import { CodeEditorContext } from '@frontend/common';
 
 import { PanelName } from '../common';
 import { LayoutContext } from '../context';
-import { useDSLUtils } from './ManualEditDSL';
+import { useDSLUtils } from './EditDsl';
 
 export function useOpenInEditor() {
   const { openPanel } = useContext(LayoutContext);
@@ -29,20 +29,20 @@ export function useOpenInEditor() {
 
       const { table, field } = context;
 
-      if (isOpenTable && table.dslTableNamePlacement?.start) {
-        goToEditor(table.dslTableNamePlacement.start);
+      if (isOpenTable && table.span) {
+        goToEditor(table.span.from);
 
         return;
       }
 
-      if (isOpenField && field?.dslFieldNamePlacement?.start) {
-        goToEditor(field.dslFieldNamePlacement.start);
+      if (isOpenField && field?.span) {
+        goToEditor(field.span.from);
 
         return;
       }
 
-      if (openOverride && table.dslOverridePlacement?.startOffset) {
-        goToEditor(table.dslOverridePlacement.startOffset);
+      if (openOverride && table.overrides?.span) {
+        goToEditor(table.overrides.span.from);
 
         return;
       }

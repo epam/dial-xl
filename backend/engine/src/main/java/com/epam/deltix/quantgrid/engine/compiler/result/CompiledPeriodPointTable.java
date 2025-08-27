@@ -2,6 +2,8 @@ package com.epam.deltix.quantgrid.engine.compiler.result;
 
 import com.epam.deltix.quantgrid.engine.compiler.CompileContext;
 import com.epam.deltix.quantgrid.engine.compiler.CompileError;
+import com.epam.deltix.quantgrid.engine.compiler.result.format.DateFormat;
+import com.epam.deltix.quantgrid.engine.compiler.result.format.GeneralFormat;
 import com.epam.deltix.quantgrid.engine.node.expression.Get;
 import com.epam.deltix.quantgrid.engine.node.plan.Plan;
 import com.epam.deltix.quantgrid.engine.node.plan.local.SelectLocal;
@@ -14,13 +16,13 @@ import java.util.List;
 public final class CompiledPeriodPointTable extends CompiledAbstractTable {
 
     private static final String PERIOD_NAME = "period";
-    private static final String TIMESTAMP_NAME = "timestamp";
+    private static final String DATE_NAME = "date";
     private static final String VALUE_NAME = "value";
 
     // it is carried through explode node to be accessed if needed
     // ORIGINAL_PERIOD_SERIES_OFFSET = 1
     private static final int PERIOD_OFFSET = 2;
-    private static final int TIMESTAMP_OFFSET = 3;
+    private static final int DATE_OFFSET = 3;
     private static final int VALUE_OFFSET = 4;
 
     public CompiledPeriodPointTable(Plan node, List<FieldKey> dimensions,
@@ -28,12 +30,22 @@ public final class CompiledPeriodPointTable extends CompiledAbstractTable {
         super(node, dimensions, currentRef, queryRef, nested);
     }
 
+    @Override
+    public boolean reference() {
+        return false;
+    }
+
+    @Override
+    public boolean assignable() {
+        return false;
+    }
+
     public Get period() {
         return new Get(node, queryRef + PERIOD_OFFSET);
     }
 
-    public Get timestamp() {
-        return new Get(node, queryRef + TIMESTAMP_OFFSET);
+    public Get date() {
+        return new Get(node, queryRef + DATE_OFFSET);
     }
 
     public Get value() {
@@ -47,7 +59,7 @@ public final class CompiledPeriodPointTable extends CompiledAbstractTable {
 
     @Override
     public List<String> fields(CompileContext context) {
-        return List.of(PERIOD_NAME, TIMESTAMP_NAME, VALUE_NAME);
+        return List.of(PERIOD_NAME, DATE_NAME, VALUE_NAME);
     }
 
     @Override
@@ -56,17 +68,17 @@ public final class CompiledPeriodPointTable extends CompiledAbstractTable {
 
         if (field.equals(PERIOD_NAME)) {
             Get expression = new Get(node, queryRef + PERIOD_OFFSET);
-            column = new CompiledSimpleColumn(expression, dimensions());
+            column = new CompiledSimpleColumn(expression, dimensions(), GeneralFormat.INSTANCE);
         }
 
-        if (field.equals(TIMESTAMP_NAME)) {
-            Get expression = new Get(node, queryRef + TIMESTAMP_OFFSET);
-            column = new CompiledSimpleColumn(expression, dimensions());
+        if (field.equals(DATE_NAME)) {
+            Get expression = new Get(node, queryRef + DATE_OFFSET);
+            column = new CompiledSimpleColumn(expression, dimensions(), DateFormat.DEFAULT_DATE_FORMAT);
         }
 
         if (field.equals(VALUE_NAME)) {
             Get expression = new Get(node, queryRef + VALUE_OFFSET);
-            column = new CompiledSimpleColumn(expression, dimensions());
+            column = new CompiledSimpleColumn(expression, dimensions(), GeneralFormat.INSTANCE);
         }
 
         if (column == null) {
@@ -79,11 +91,11 @@ public final class CompiledPeriodPointTable extends CompiledAbstractTable {
 
         if (!hasCurrentReference()) {
             SelectLocal select = new SelectLocal(column.node());
-            return new CompiledNestedColumn(select, 0);
+            return new CompiledNestedColumn(select, 0, GeneralFormat.INSTANCE);
         }
 
         SelectLocal select = new SelectLocal(currentReference(), column.node());
-        return new CompiledNestedColumn(select, dimensions(), 0, 1);
+        return new CompiledNestedColumn(select, dimensions(), 0, 1, GeneralFormat.INSTANCE);
     }
 
     @Override

@@ -8,6 +8,6 @@ package com.epam.deltix.quantgrid.parser;
 public record OverrideKey(String table, String field, int position) implements ParsedKey {
     @Override
     public String toString() {
-        return "Override(" + table + "[" + field + "], " + position + ")";
+        return table + "[" + field + "](" + position + ")";
     }
 }

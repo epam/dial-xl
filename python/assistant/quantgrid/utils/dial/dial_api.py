@@ -37,12 +37,28 @@ class DIALApi:
                 ) as response:
                     response.raise_for_status()
 
+    async def list_folder(self, path: str) -> list[str]:
+        if not path.endswith("/"):
+            path += "/"
+
+        async with aiohttp.ClientSession() as session:
+            headers = await self._auth_header()
+            async with session.get(
+                f"{self._dial_url}/v1/metadata/{path}",
+                headers=headers,
+                params={"limit": 1000},
+            ) as response:
+                response.raise_for_status()
+
+                json_response = await response.json()
+                return [item["url"] for item in json_response["items"]]
+
     async def create_file(
         self,
         path: str,
         name: str,
         content: str = "\n",
-    ):
+    ) -> bool:
         headers = await self._auth_header()
         # Means create only if non-existent: https://datatracker.ietf.org/doc/html/rfc9110#name-if-none-match
         headers["If-None-Match"] = "*"

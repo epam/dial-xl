@@ -233,10 +233,7 @@ export const updateSheetContent = (
       )
         continue;
 
-      const fieldName = sheetContent.substring(
-        field.dslFieldNamePlacement.start,
-        field.dslFieldNamePlacement.end
-      );
+      const { fieldName } = field.key;
 
       const expressionText = field.expressionMetadata.text;
 
@@ -271,18 +268,12 @@ export const updateSheetContent = (
         }
       } catch (e) {
         console.error(
-          `Error during field parsing ${sheetContent.substring(
-            field.dslFieldNamePlacement.start,
-            field.dslFieldNamePlacement.end
-          )} of sheet ${additionalContext.sheetName} of file ${
-            additionalContext.fileName
-          }\n${e.message}`
+          `Error during field parsing ${fieldName} of sheet ${additionalContext.sheetName} of file ${additionalContext.fileName}\n${e.message}`
         );
       }
     }
 
     const override = table.overrides;
-    const overridePlacement = table.dslOverridePlacement;
 
     if (override) {
       const resultedRows = [];
@@ -330,12 +321,13 @@ export const updateSheetContent = (
       if (!isOverrideRequiredToReplaced) continue;
 
       override.overrideRows = resultedRows;
+      const overridePlacement = override.span;
 
       const resultedOverrideDsl = override.convertToDsl();
       const resultedReplacement = {
         newValue: overrideKeyword + newLine + resultedOverrideDsl,
-        start: overridePlacement.startOffset,
-        end: overridePlacement.stopOffset,
+        start: overridePlacement.from,
+        end: overridePlacement.to - 1,
       };
 
       results.push(resultedReplacement);

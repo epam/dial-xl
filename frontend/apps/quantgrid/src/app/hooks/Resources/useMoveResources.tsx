@@ -8,6 +8,7 @@ import {
   csvFileExtension,
   dialProjectFileExtension,
   FilesMetadata,
+  MetadataNodeType,
   modalFooterButtonClasses,
   primaryButtonClasses,
   schemaFileExtension,
@@ -68,6 +69,7 @@ export function useMoveResources() {
         path: item.parentPath,
         targetPath,
         targetBucket,
+        suppressErrors: true,
       });
 
       if (!res) return;
@@ -84,7 +86,7 @@ export function useMoveResources() {
       targetBucket: string
     ) => {
       const isProject = item.name.endsWith(dialProjectFileExtension);
-      const isFolder = item.nodeType === 'FOLDER';
+      const isFolder = item.nodeType === MetadataNodeType.FOLDER;
 
       if (isProject) {
         await handleMoveProject(item, targetPath, targetBucket);

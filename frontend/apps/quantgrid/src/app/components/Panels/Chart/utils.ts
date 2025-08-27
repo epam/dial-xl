@@ -6,8 +6,6 @@ export const chartsWithoutLegend: ChartType[] = [
 ];
 
 export const chartsWithoutXAxis: ChartType[] = [
-  ChartType.PIE,
-  ChartType.BAR,
   ChartType.HISTOGRAM,
   ChartType.PERIOD_SERIES,
 ];
@@ -25,4 +23,15 @@ export enum CollapseSection {
   Series = 'series',
   Data = 'data',
   XAxis = 'xAxis',
+  Orientation = 'orientation',
 }
+
+export const chartsWithOrientation: ChartType[] = [
+  ChartType.HEATMAP,
+  ChartType.PIE,
+  ChartType.BAR,
+  ChartType.STACKED_BAR,
+  ChartType.FLAT_BAR,
+];
+
+export const chartsWithRowNumber: ChartType[] = [ChartType.PIE, ChartType.BAR];

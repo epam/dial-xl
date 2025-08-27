@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import isEqual from 'react-fast-compare';
 
 import { FunctionInfo } from '@frontend/common';
-import { ParsedSheets } from '@frontend/parser';
+import { isParsedSheetsEqual, ParsedSheets } from '@frontend/parser';
 import { Monaco } from '@monaco-editor/react';
 
 import { Language } from '../codeEditorConfig';
@@ -47,7 +47,10 @@ export function useEditorRegisterProviders({
   const registeredCurrentFieldName = useRef<string | undefined>(undefined);
 
   useEffect(() => {
-    const isSheetsEqual = isEqual(parsedSheets, registeredParsedSheets.current);
+    const isSheetsEqual = isParsedSheetsEqual(
+      parsedSheets,
+      registeredParsedSheets.current
+    );
     const isFunctionsEqual = isEqual(functions, registeredFunctions.current);
     const sameContext =
       registeredCurrentTableName.current === currentTableName &&

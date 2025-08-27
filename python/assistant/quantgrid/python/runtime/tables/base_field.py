@@ -13,11 +13,12 @@ class BaseField:
         *,
         ui_name: str | None = None,
         ui_note: str | None = None,
+        formula: str | None = None,
         dim: bool = False,
         key: bool = False,
     ):
-        self._xl_field = XLField(ui_name or "", "")
-        self.reset_formula()
+        self._xl_field = XLField(ui_name or "")
+        self._xl_field_formula = formula or "NA"
 
         self._xl_field.doc_string = ui_note
         self._xl_field.dim = dim
@@ -33,14 +34,14 @@ class BaseField:
 
     @property
     def formula(self) -> str:
-        return cast(str, self._xl_field.formula)
+        return cast(str, self._xl_field_formula)
 
     @formula.setter
     def formula(self, value: str) -> None:
-        self._xl_field.formula = value
+        self._xl_field_formula = value
 
     def reset_formula(self) -> None:
-        self._xl_field.formula = "{}" if self.dim else "NA"
+        self._xl_field_formula = "{}" if self.dim else "NA"
 
     @property
     def ui_note(self) -> str | None:

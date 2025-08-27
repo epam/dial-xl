@@ -9,7 +9,7 @@ import {
   parseSSEResponse,
   ViewportResponse,
 } from '@frontend/common';
-import { dynamicFieldName } from '@frontend/parser';
+import { dynamicFieldName, unescapeTableName } from '@frontend/parser';
 
 import { ProjectContext } from '../context';
 import { constructPath, triggerDownload } from '../utils';
@@ -32,6 +32,7 @@ export const useDownloadTable = () => {
           fieldKey: fieldInfo.fieldKey,
           start_row: 0,
           end_row: 1000000,
+          is_raw: true,
         })),
         worksheets,
       });
@@ -84,7 +85,10 @@ export const useDownloadTable = () => {
       const fields = responseData.compileResult.fieldInfo?.filter(
         (fieldInfo) =>
           fieldInfo.fieldKey?.table === tableName &&
-          ![ColumnDataType.INPUT, ColumnDataType.TABLE].includes(fieldInfo.type)
+          ![
+            ColumnDataType.TABLE_VALUE,
+            ColumnDataType.TABLE_REFERENCE,
+          ].includes(fieldInfo.type)
       );
       const dynamicFields = fields?.filter(
         (fieldInfo) => fieldInfo.fieldKey?.field === dynamicFieldName
@@ -161,10 +165,11 @@ export const useDownloadTable = () => {
 
   const downloadTable = useCallback(
     async (tableName: string) => {
+      const unescapedTableName = unescapeTableName(tableName);
       const toastId = toast.loading('Preparing table data for download...');
 
-      const fileName = `${tableName}${csvFileExtension}`;
-      const resultedLink = await getDownloadLink(tableName, fileName);
+      const fileName = `${unescapedTableName}${csvFileExtension}`;
+      const resultedLink = await getDownloadLink(unescapedTableName, fileName);
 
       toast.dismiss(toastId);
 
@@ -176,7 +181,7 @@ export const useDownloadTable = () => {
         return;
       }
 
-      triggerDownload(resultedLink, `${tableName}${csvFileExtension}`);
+      triggerDownload(resultedLink, `${unescapedTableName}${csvFileExtension}`);
     },
     [getDownloadLink]
   );

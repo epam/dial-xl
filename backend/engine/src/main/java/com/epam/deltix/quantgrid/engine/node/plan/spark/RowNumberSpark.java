@@ -18,7 +18,7 @@ public class RowNumberSpark extends ExpressionWithPlan<SparkTable, DoubleColumn>
 
     @Override
     public ColumnType getType() {
-        return ColumnType.INTEGER;
+        return ColumnType.DOUBLE;
     }
 
     @Override

@@ -4,6 +4,7 @@ import inquirer from 'inquirer';
 import { executeMigration } from './migration-executor';
 import {
   fromDollarSignToFunctionName,
+  fromInputReferenceToMultiFieldGroup,
   fromPlacementToLayoutDecorator,
 } from './migrations';
 
@@ -12,6 +13,8 @@ export const program = new Command();
 const migrations = {
   'from-placement-to-layout': fromPlacementToLayoutDecorator,
   'from-dollar-sign-to-function-name': fromDollarSignToFunctionName,
+  'from-input-reference-to-multi-field-group':
+    fromInputReferenceToMultiFieldGroup,
 };
 
 program

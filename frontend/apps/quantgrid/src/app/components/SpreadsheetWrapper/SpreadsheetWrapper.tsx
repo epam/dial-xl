@@ -32,19 +32,17 @@ import {
   useDownloadTable,
   useFieldEditDsl,
   useFilterEditDsl,
-  useManualEditDSL,
   useNoteEditDsl,
   useOpenInEditor,
   useOverridesEditDsl,
   usePasteCells,
   usePointClickSelectValue,
-  usePromoteRowManualEditDSL,
+  usePromoteRow,
   useRequestDimTable,
   useSelectedCell,
   useSelectionSystemMessage,
   useSortEditDsl,
   useSubmitCellEditor,
-  useSwapFields,
   useTableEditDsl,
   useTotalEditDsl,
 } from '../../hooks';
@@ -54,12 +52,13 @@ import { useFieldFilterValues } from '../../hooks/useFilterValues';
 import { EventBusMessages } from '../../services';
 import { BottomSheetBar } from '../BottomSheetBar';
 import { useApplySuggestions } from '../ChatWrapper/useApplySuggestion';
+import { SpreadsheetHighlight } from '../Project/SpreadsheetHighlight';
 
 export function SpreadsheetWrapper() {
   const { viewGridData } = useContext(ViewportContext);
   const { inputList } = useContext(InputsContext);
   const { undo } = useContext(UndoRedoContext);
-  const { togglePanel } = useContext(LayoutContext);
+  const { openPanel } = useContext(LayoutContext);
 
   const {
     zoom,
@@ -69,6 +68,7 @@ export function SpreadsheetWrapper() {
     isPointClickMode,
     switchPointClickMode,
     viewportInteractionMode,
+    changePivotTableWizardMode,
   } = useContext(AppContext);
 
   const {
@@ -81,9 +81,8 @@ export function SpreadsheetWrapper() {
     sheetContent,
     projectSheets,
     getCurrentProjectViewport,
-    updateIsAIPendingChanges,
-    updateIsAIPendingBanner,
     openSheet,
+    isProjectEditable,
   } = useContext(ProjectContext);
 
   const gridApiRef = useContext(CanvasSpreadsheetContext);
@@ -106,11 +105,10 @@ export function SpreadsheetWrapper() {
   const { submitCellEditor } = useSubmitCellEditor();
   const { columnSizes } = useColumnSizes(viewportRef.current);
   const { handlePointClickSelectValue } = usePointClickSelectValue();
-  const { promoteRow } = usePromoteRowManualEditDSL();
+  const { promoteRow } = usePromoteRow();
   const { changeFieldSort } = useSortEditDsl();
   const { applySuggestion } = useApplySuggestions();
   const { applyListFilter, applyConditionFilter } = useFilterEditDsl();
-  const { onCloneTable, moveTableToSheet } = useManualEditDSL();
   const { deleteField, deleteSelectedFieldOrTable } = useDeleteEntityDsl();
   const {
     createAllTableTotals,
@@ -127,7 +125,6 @@ export function SpreadsheetWrapper() {
     chartData,
     charts,
   } = useCharts();
-  const { handleSwapFields } = useSwapFields();
   const { openInEditor } = useOpenInEditor();
   const { onCreateTableAction } = useCreateTableAction();
   const { getSelectedCell } = useSelectedCell();
@@ -147,19 +144,21 @@ export function SpreadsheetWrapper() {
   } = useFieldEditDsl();
   const {
     arrangeTable,
-    convertToChart,
+    cloneTable,
     convertToTable,
     deleteTable,
     flipTable,
     moveTable,
     moveTableTo,
+    swapFieldsByDirection,
     toggleTableTitleOrHeaderVisibility,
   } = useTableEditDsl();
   const { removeOverride, removeTableOrOverrideRow } = useOverridesEditDsl();
   const { removeNote, updateNote } = useNoteEditDsl();
   const { addAllFieldTotals, removeTotalByIndex, toggleTotalByType } =
     useTotalEditDsl();
-  const { addChart, chartResize, selectTableForChart } = useChartEditDsl();
+  const { addChart, chartResize, selectTableForChart, setChartType } =
+    useChartEditDsl();
   const { downloadTable } = useDownloadTable();
   const isCalculateRequested = useRef(false);
 
@@ -208,6 +207,11 @@ export function SpreadsheetWrapper() {
     },
     [handlePointClickSelectValue]
   );
+
+  const handleChartDblClick = useCallback(() => {
+    changePivotTableWizardMode(null);
+    openPanel(PanelName.Details);
+  }, [openPanel, changePivotTableWizardMode]);
 
   const onUndo = useCallback(() => {
     undo();
@@ -424,7 +428,8 @@ export function SpreadsheetWrapper() {
   }, [onScroll, projectName, setData, triggerOnScroll, viewGridData]);
 
   return (
-    <div className="flex flex-col size-full">
+    <div className="flex flex-col size-full relative">
+      <SpreadsheetHighlight />
       <div className="grow overflow-hidden">
         <CanvasSpreadsheet
           chartData={chartData}
@@ -438,6 +443,7 @@ export function SpreadsheetWrapper() {
           gridApiRef={gridApiRef}
           inputFiles={inputList}
           isPointClickMode={isPointClickMode}
+          isReadOnly={!isProjectEditable}
           parsedSheets={parsedSheets}
           sheetContent={sheetContent || ''}
           systemMessageContent={systemMessageContent}
@@ -451,8 +457,6 @@ export function SpreadsheetWrapper() {
           onAddField={addField}
           onAddTableRow={addTableRow}
           onAddTableRowToEnd={addTableRowToEnd}
-          onAIPendingBanner={updateIsAIPendingBanner}
-          onAIPendingChanges={updateIsAIPendingChanges}
           onApplyConditionFilter={applyConditionFilter}
           onApplyListFilter={applyListFilter}
           onApplySuggestion={applySuggestion}
@@ -466,10 +470,10 @@ export function SpreadsheetWrapper() {
           onChangeFieldDimension={changeFieldDimension}
           onChangeFieldIndex={changeFieldIndex}
           onChangeFieldKey={changeFieldKey}
-          onChartDblClick={() => togglePanel(PanelName.Details)}
+          onChartDblClick={handleChartDblClick}
           onChartResize={chartResize}
-          onCloneTable={onCloneTable}
-          onConvertToChart={convertToChart}
+          onCloneTable={cloneTable}
+          onConvertToChart={setChartType}
           onConvertToTable={convertToTable}
           onCreateDerivedTable={createDerivedTable}
           onCreateManualTable={createManualTable}
@@ -487,7 +491,6 @@ export function SpreadsheetWrapper() {
           onInsertChart={createEmptyChartTable}
           onMessage={onMessage}
           onMoveTable={moveTable}
-          onMoveTableToSheet={moveTableToSheet}
           onOpenInEditor={openInEditor}
           onOpenSheet={openSheet}
           onPaste={pasteCells}
@@ -506,7 +509,7 @@ export function SpreadsheetWrapper() {
           onSortChange={changeFieldSort}
           onStartPointClick={onStartPointClick}
           onStopPointClick={onStopPointClick}
-          onSwapFields={handleSwapFields}
+          onSwapFields={swapFieldsByDirection}
           onToggleTableTitleOrHeaderVisibility={
             toggleTableTitleOrHeaderVisibility
           }

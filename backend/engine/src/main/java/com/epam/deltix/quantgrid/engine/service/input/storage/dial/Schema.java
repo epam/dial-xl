@@ -1,6 +1,6 @@
 package com.epam.deltix.quantgrid.engine.service.input.storage.dial;
 
-import com.epam.deltix.quantgrid.type.ColumnType;
+import com.epam.deltix.quantgrid.type.InputColumnType;
 import com.fasterxml.jackson.annotation.JsonAnyGetter;
 import com.fasterxml.jackson.annotation.JsonAnySetter;
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -20,12 +20,12 @@ public class Schema {
     private int version;
     private long timestamp;
     @Nullable
-    private LinkedHashMap<String, ColumnType> columns;
+    private LinkedHashMap<String, InputColumnType> columns;
     private String etag;
     @Nullable
     private String error;
 
-    public Schema(LinkedHashMap<String, ColumnType> columns, String etag) {
+    public Schema(LinkedHashMap<String, InputColumnType> columns, String etag) {
         this.version = SCHEMA_VERSION;
         this.timestamp = System.currentTimeMillis();
         this.columns = columns;

@@ -11,9 +11,9 @@ import lombok.experimental.Accessors;
 @Accessors(fluent = true)
 @RequiredArgsConstructor
 public enum AggregateType {
-    COUNT(new Count(), SchemaFunction.INTEGER, 1, false),
-    COUNT_ALL(new CountAll(), SchemaFunction.INTEGER, 1, false),
-    SUM(new Sum(), SchemaFunction.DOUBLE_OR_INTEGER, 1, false),
+    COUNT(new Count(), SchemaFunction.DOUBLE, 1, false),
+    COUNT_ALL(new CountAll(), SchemaFunction.DOUBLE, 1, false),
+    SUM(new Sum(), SchemaFunction.DOUBLE, 1, false),
     AVERAGE(new Average(), SchemaFunction.DOUBLE, 1, false),
     MIN(new Min(), SchemaFunction.INFERRED, 1, false),
     MAX(new Max(), SchemaFunction.INFERRED, 1, false),
@@ -31,7 +31,11 @@ public enum AggregateType {
     MAXBY(new MaxBy(), SchemaFunction.INPUT, 1, false),
     FIRSTS(new Firsts(), SchemaFunction.INPUT, 1, true),
     LASTS(new Lasts(), SchemaFunction.INPUT, 1, true),
-    PERIOD_SERIES(new PerSeries(), SchemaFunction.PERIOD_SERIES, 3, false);
+    PERIODSERIES(new PerSeries(), SchemaFunction.PERIOD_SERIES, 3, false),
+    PERCENTILE(new Quantile(Quantile.Type.PERCENTILE_INC), SchemaFunction.DOUBLE, 2, false),
+    PERCENTILE_EXC(new Quantile(Quantile.Type.PERCENTILE_EXC), SchemaFunction.DOUBLE, 2, false),
+    QUARTILE(new Quantile(Quantile.Type.QUARTILE_INC), SchemaFunction.DOUBLE, 2, false),
+    QUARTILE_EXC(new Quantile(Quantile.Type.QUARTILE_EXC), SchemaFunction.DOUBLE, 2, false);
 
     private final AggregateFunction aggregateFunction;
     private final SchemaFunction schemaFunction;
@@ -45,15 +49,9 @@ public enum AggregateType {
     @FunctionalInterface
     public interface SchemaFunction {
         SchemaFunction DOUBLE = (plan, source, argument) -> Schema.of(ColumnType.DOUBLE);
-        SchemaFunction DOUBLE_OR_INTEGER = (plan, source, argument) -> {
-            return switch (plan.expression(source, argument).getType()) {
-                case INTEGER, BOOLEAN -> Schema.of(ColumnType.INTEGER);
-                default -> Schema.of(ColumnType.DOUBLE);
-            };
-        };
-        SchemaFunction INFERRED = (plan, source, offset) -> Schema.of(plan.expression(source, offset).getType());
+        SchemaFunction INFERRED = (plan, source, offset) ->
+                Schema.of(plan.expression(source, offset).getType());
         SchemaFunction INPUT = (plan, source, argument) -> Schema.inputs(plan, source);
-        SchemaFunction INTEGER = (plan, source, argument) -> Schema.of(ColumnType.INTEGER);
         SchemaFunction PERIOD_SERIES = (plan, source, argument) -> Schema.of(ColumnType.PERIOD_SERIES);
 
         Schema apply(Plan plan, int sourceIndex, int argumentOffset);

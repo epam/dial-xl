@@ -1,5 +1,6 @@
 export * from './DeleteProject';
 export * from './DeleteSheet';
+export * from './EditAIHint';
 export * from './NewDashboardFolder';
 export * from './NewProject';
 export * from './NewSheet';
@@ -8,7 +9,7 @@ export * from './RenameFileModal';
 export * from './RenameProject';
 export * from './RenameSheet';
 export * from './SelectFolder';
+export * from './SelectFile';
 export * from './Settings';
 export * from './ShareFiles';
 export * from './ShortcutsHelp';
-export * from './EditAIHint';

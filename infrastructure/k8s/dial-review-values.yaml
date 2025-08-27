@@ -55,7 +55,67 @@ core:
     aidial.storage.bucket: "deltix-staging-quantgrid-review-core"
     aidial.storage.prefix: "{{ .Release.Name }}"
     aidail.access.admin.rules: '[{"source": "dial_roles", "function": "EQUAL", "targets": ["admin"]}]'
+
+  # add prompt loggin into release directory
+
+  logger:
+    enabled: true
+
+    image:
+      tag: 0.45.0-alpine
+
+    # Original vector image allows only root user to write to /var/lib/vector directory.
+    # Create a different directory to run vector without root privileges.
+    command:
+      - /bin/sh
+    args:
+      - "-c"
+      - "mkdir -p /var/tmp/vector && exec vector --config /etc/vector/vector.yaml"
+
+    containerSecurityContext:
+      enabled: true
+      runAsUser: 1001
+      runAsGroup: 1001
+      runAsNonRoot: true
+
+    # env:
+    #   VECTOR_LOG: debug
     
+    config: |
+      data_dir: "/var/tmp/vector"
+
+      sources:
+        aidial_logs:
+          type: "file"
+          max_line_bytes: 100000000
+          oldest_first: true
+          include:
+            - /app/log/*.log
+
+      sinks:
+        console:
+          inputs:
+            - aidial_logs
+          type: console
+          target: "stdout"
+          encoding:
+            codec: "text"
+        s3:
+          inputs:
+            - aidial_logs
+          type: aws_s3
+          bucket: deltix-staging-quantgrid-review-core
+          compression: gzip
+          content_encoding: gzip
+          content_type: application/gzip
+          key_prefix: {{ .Release.Name }}/logs/
+          filename_time_format: "%s"
+          batch:
+            max_bytes: 200000000
+            timeout_secs: 600
+          encoding:
+            codec: "text"
+
   secrets:
     aidial.config.json: |
       {
@@ -83,7 +143,11 @@ core:
             "descriptionKeywords": ["SDLC"],
             "displayName": "qg",
             "forwardAuthToken": true,
-            "iconUrl": "QuantGrid.svg"
+            "iconUrl": "QuantGrid.svg",
+            "inputAttachmentTypes": ["text/csv", "application/csv"],
+            "features": {
+                "configurationEndpoint": "http://qgbot-{{ .Values.global.mergeid }}-dial-extension/openai/deployments/qg/configuration" 
+            }
           }
         },
         "models": {
@@ -288,7 +352,6 @@ core:
             "inputAttachmentTypes": [
                 "*/*"
             ],
-            "forwardAuthToken": true,
             "limits": {
                 "maxTotalTokens": 999000,
                 "maxCompletionTokens": 2048
@@ -311,7 +374,6 @@ core:
             "inputAttachmentTypes": [
                 "*/*"
             ],
-            "forwardAuthToken": true,
             "limits": {
                 "maxTotalTokens": 999000,
                 "maxCompletionTokens": 2048
@@ -331,7 +393,6 @@ core:
             "description": "Gemini 1.5 Flash is a fast and versatile multimodal model designed for scaling across diverse tasks.\n\nIt was purpose-built as the fastest, most cost-efficient model yet for high volume tasks, at scale, to address developers feedback asking for lower latency and cost. It has a higher rate limit of 1000 requests per minute (RPM) and there is no limit on the number of requests per day",
             "descriptionKeywords": ["Text Generation", "Image Recognition", "Continue Supported"],
             "inputAttachmentTypes": ["*/*"],
-            "forwardAuthToken": true,
             "limits": {
               "maxTotalTokens": 999000,
               "maxCompletionTokens": 2048
@@ -354,7 +415,6 @@ core:
             "inputAttachmentTypes": [
                 "*/*"
             ],
-            "forwardAuthToken": true,
             "limits": {
                 "maxTotalTokens": 999000,
                 "maxCompletionTokens": 2048
@@ -364,6 +424,35 @@ core:
                 "prompt": "0.00000025",
                 "completion": "0.00000075"
             }
+          },
+          "gemini-2.0-flash-lite-001": {
+            "type": "chat",
+            "displayName": "Gemini 2.0 Flash Lite",
+            "displayVersion": "001",
+            "iconUrl": "Gemini-Pro-Vision.svg",
+            "endpoint": "http://{{ .Values.global.name }}-vertexai/openai/deployments/gemini-2.0-flash-lite-001/chat/completions",
+            "description": "Gemini 2.0 Flash-Lite is fastest and most cost efficient Flash model. It's an upgrade path for 1.5 Flash users who want better quality for the same price and speed.",
+            "descriptionKeywords": ["Text Generation", "Image Recognition", "Continue Supported"],
+
+            "inputAttachmentTypes": [
+                "*/*"
+            ],
+            "limits": {
+                "maxTotalTokens": 1048576,
+                "maxCompletionTokens": 8192
+            },
+            "pricing": {
+                "unit": "char_without_whitespace",
+                "prompt": "0.000000075",
+                "completion": "0.0000003"
+            },
+            "upstreams": [
+                {
+                    "extraData": {
+                        "region": "global"
+                    }
+                }
+            ]
           },
           "anthropic.claude-v3-sonnet": {
             "type": "chat",
@@ -473,6 +562,75 @@ core:
                     }
                 }
             ]
+          },
+          "anthropic.claude-sonnet-4-20250514-v1": {
+            "type": "chat",
+            "displayName": "Anthropic Claude 4 Sonnet",
+            "displayVersion": "V1",
+            "iconUrl": "anthropic.svg",
+            "description": "Claude Sonnet 4 balances impressive performance for coding with the right speed and cost for high-volume use cases: Coding: Handle everyday development tasks with enhanced performance-power code reviews, bug fixes, API integrations, and feature development with immediate feedback loops",
+            "endpoint": "http://{{ .Values.global.name }}-bedrock/openai/deployments/us.anthropic.claude-sonnet-4-20250514-v1:0/chat/completions",
+            "defaults": {
+                "max_tokens": 4000
+            },
+            "inputAttachmentTypes": [
+                "image/*"
+            ],
+            "features": {
+                "toolsSupported": true,
+                "configurationEndpoint": "http://{{ .Values.global.name }}-bedrock/openai/deployments/us.anthropic.claude-sonnet-4-20250514-v1:0/configuration"
+            },
+            "limits": {
+                "maxPromptTokens": 128000
+            },
+            "pricing": {
+                "unit": "token",
+                "prompt": "0.000003",
+                "completion": "0.000015"
+            },
+            "upstreams": [
+                {
+                    "extraData": {
+                        "region": "us-east-1"
+                    }
+                }
+            ]
+          },
+          "claude-3-5-sonnet-v2@20241022": {
+            "type": "chat",
+            "displayName": "Claude 3.5 Sonnet (VertexAI)",
+            "displayVersion": "V2",
+            "iconUrl": "anthropic.svg",
+            "endpoint": "http://{{ .Values.global.name }}-vertexai/openai/deployments/claude-3-5-sonnet-v2@20241022/chat/completions",
+            "description": "Anthropic's Claude 3.5 Sonnet is a significant advancement in the field of generative AI and large language models (LLMs).\n\nIt is known for its unprecedented intelligence, enhanced speed, and advanced capabilities across various domains. The model sets a new standard for what AI can achieve, with sophisticated reasoning and coding abilities, a commitment to safety, and a focus on user-driven development",
+            "descriptionKeywords": [
+                "Text Generation",
+                "Image Recognition",
+                "Continue Supported"
+            ],
+            "inputAttachmentTypes": [
+                "image/*"
+            ],
+            "limits": {
+                "maxPromptTokens": 200000
+            },
+            "pricing": {
+                "unit": "token",
+                "prompt": "0.00000300",
+                "completion": "0.00001500"
+            },
+            "upstreams": [
+                {
+                    "extraData": {
+                        "region": "us-east5"
+                    }
+                },
+                {
+                    "extraData": {
+                        "region": "europe-west1"
+                    }
+                }
+            ]
           }
         },
         "roles": {
@@ -519,6 +677,10 @@ core:
                 "minute": "640000000",
                 "day": "10000000000"
               },
+              "gemini-2.0-flash-lite-001": {
+                "minute": "640000000",
+                "day": "10000000000"
+              },
               "anthropic.claude-v3-sonnet": {
                   "minute": "640000000",
                   "day": "10000000000"
@@ -528,6 +690,18 @@ core:
                   "day": "10000000000"
               },
               "anthropic.claude-v3-5-sonnet-v2": {
+                  "minute": "64000000000",
+                  "day": "1000000000000"
+              },
+              "us.anthropic.claude-3-7-sonnet-20250219-v1": {
+                  "minute": "64000000000",
+                  "day": "1000000000000"
+              },
+              "anthropic.claude-sonnet-4-20250514-v1": {
+                  "minute": "64000000000",
+                  "day": "1000000000000"
+              },
+              "claude-3-5-sonnet-v2@20241022": {
                   "minute": "64000000000",
                   "day": "1000000000000"
               }
@@ -560,9 +734,6 @@ core:
       eks.amazonaws.com/role-arn: "arn:aws:iam::725751206603:role/deltix-staging-quantgrid-review-core-s3-bucket"
 
   redis:
-    enabled: false
-    
-  logger:
     enabled: false
 
   ingress:

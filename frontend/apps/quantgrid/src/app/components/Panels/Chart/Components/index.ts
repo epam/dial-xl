@@ -1,5 +1,6 @@
 export * from './ChartDataSection';
 export * from './ChartLegendSection';
+export * from './ChartOrientationSection';
 export * from './ChartPlacementSection';
 export * from './ChartSelectorsSection';
 export * from './ChartSeriesSection';

@@ -4,4 +4,5 @@ export enum FileMenuItems {
   CreateWorkSheet = 'Create worksheet',
   DeleteProject = 'Delete project',
   CloseProject = 'Back to projects',
+  RenameProject = 'Rename project',
 }

@@ -4,8 +4,6 @@ import {
   AdjustmentsIcon,
   ChatIcon,
   ExclamationCircleIcon,
-  FileIcon,
-  HintStarIcon,
   HistoryIcon,
   ListTreeIcon,
   TagIcon,
@@ -16,15 +14,14 @@ import {
   PanelPosition,
   PanelRecord,
   PanelSettings,
+  PanelTitle,
 } from '../common';
 import {
-  AIHintsPanel,
-  ChartPanel,
   ChatPanel,
   CodeEditorPanel,
+  DetailsPanel,
   ErrorPanel,
-  InputsPanel,
-  ProjectTreePanel,
+  ProjectPanel,
   UndoRedoPanel,
 } from '../components';
 import { AppContext } from '../context';
@@ -39,11 +36,7 @@ export function useLayoutPanels() {
         isActive: true,
         position: PanelPosition.Left,
       },
-      [PanelName.ProjectTree]: {
-        isActive: false,
-        position: PanelPosition.Right,
-      },
-      [PanelName.Inputs]: {
+      [PanelName.Project]: {
         isActive: false,
         position: PanelPosition.Right,
       },
@@ -56,10 +49,6 @@ export function useLayoutPanels() {
         position: PanelPosition.Right,
       },
       [PanelName.UndoRedo]: {
-        isActive: false,
-        position: PanelPosition.Left,
-      },
-      [PanelName.AIHints]: {
         isActive: false,
         position: PanelPosition.Left,
       },
@@ -88,50 +77,38 @@ export function useLayoutPanels() {
     () => ({
       [PanelName.Chat]: {
         component: ChatPanel,
-        title: 'Chat',
+        title: PanelTitle[PanelName.Chat],
         initialPosition: PanelPosition.Left,
         icon: <ChatIcon />,
         inactive: chatWindowPlacement === 'floating',
       },
-      [PanelName.ProjectTree]: {
-        component: ProjectTreePanel,
-        title: 'Project',
+      [PanelName.Project]: {
+        component: ProjectPanel,
+        title: PanelTitle[PanelName.Project],
         initialPosition: PanelPosition.Right,
         icon: <ListTreeIcon />,
       },
       [PanelName.Errors]: {
         component: ErrorPanel,
-        title: 'Errors',
+        title: PanelTitle[PanelName.Errors],
         initialPosition: PanelPosition.Right,
         icon: <ExclamationCircleIcon />,
       },
-      [PanelName.Inputs]: {
-        component: InputsPanel,
-        title: 'Inputs',
-        initialPosition: PanelPosition.Right,
-        icon: <FileIcon />,
-      },
       [PanelName.CodeEditor]: {
         component: CodeEditorPanel,
-        title: 'Editor',
+        title: PanelTitle[PanelName.CodeEditor],
         initialPosition: PanelPosition.Right,
         icon: <TagIcon />,
       },
       [PanelName.UndoRedo]: {
         component: UndoRedoPanel,
-        title: 'History',
+        title: PanelTitle[PanelName.UndoRedo],
         initialPosition: PanelPosition.Left,
         icon: <HistoryIcon />,
       },
-      [PanelName.AIHints]: {
-        component: AIHintsPanel,
-        title: 'AI Hints',
-        initialPosition: PanelPosition.Left,
-        icon: <HintStarIcon />,
-      },
       [PanelName.Details]: {
-        component: ChartPanel,
-        title: 'Details',
+        component: DetailsPanel,
+        title: PanelTitle[PanelName.Details],
         initialPosition: PanelPosition.Right,
         icon: <AdjustmentsIcon />,
       },

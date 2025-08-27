@@ -106,6 +106,7 @@ export class ViewportBuilder {
               end_row:
                 isRegularChartTable && field !== dynamicFieldName ? 0 : rowEnd,
               fieldKey: { field, table: tableName },
+              is_raw: true,
             })
           )
         );
@@ -129,6 +130,7 @@ export class ViewportBuilder {
                 table: tableName,
                 number: parseInt(index),
               },
+              is_raw: true,
             }))
           );
         }

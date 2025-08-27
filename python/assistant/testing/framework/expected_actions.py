@@ -19,16 +19,20 @@ from quantgrid.models.actions import (
     RemoveFieldAction,
     RemoveTableAction,
 )
+from quantgrid.utils.project import FieldGroupUtil
+from quantgrid_1.models.focus import Focus
 from testing.framework.exception_utils import fetch_most_relevant_exceptions_from_list
 from testing.framework.exceptions import MatchingError
 from testing.framework.models import Output, TextAction
-from testing.framework.project_utils import get_field, get_sheet, get_table
+from testing.framework.project_utils import get_field, get_sheet
 from testing.framework.validation_utils import (
     assert_contain_substring,
     assert_contain_substrings,
     assert_regex_match,
     assert_regexes_matches,
+    is_field_focused,
     is_number_in_text,
+    is_table_focused,
 )
 
 
@@ -37,7 +41,7 @@ class ExpectedAction(abc.ABC):
         yield self
 
     @abc.abstractmethod
-    def match(self, project: Project, action: Output):
+    def match(self, project: Project, focus: Focus, action: Output):
         raise NotImplementedError
 
     def selections(self) -> Generator[List["ExpectedAction"], None, None]:
@@ -51,6 +55,17 @@ class ExpectedAction(abc.ABC):
 
     def __str__(self) -> str:
         return self.__class__.__name__
+
+    @staticmethod
+    def _find_table_and_sheet(
+        project: Project, table_name: str
+    ) -> tuple[Sheet, Table] | None:
+        for sheet in project.sheets:
+            for table in sheet.tables:
+                if table.name == table_name:
+                    return sheet, table
+
+        return None
 
 
 class Text(ExpectedAction):
@@ -77,7 +92,7 @@ class Text(ExpectedAction):
 
         super().__init__()
 
-    def match(self, project: Project, action: Output):
+    def match(self, project: Project, focus: Focus, action: Output):
         if not isinstance(action, TextAction):
             raise MatchingError(f"{type(action)} is not a TextAction")
 
@@ -113,6 +128,7 @@ class AddComment(ExpectedAction):
     def __init__(
         self,
         *,
+        is_focused: bool | None = None,
         sheet_regex: Optional[str] = None,
         table_regex: Optional[str] = None,
         field_regex: Optional[str] = None,
@@ -124,6 +140,8 @@ class AddComment(ExpectedAction):
         validator: Optional[Callable[[Project, Sheet, Table, Field], None]] = None,
     ):
         super().__init__()
+
+        self._is_focused = is_focused
 
         self._sheet_regex = sheet_regex
         self._table_regex = table_regex
@@ -140,7 +158,7 @@ class AddComment(ExpectedAction):
     def comment_regex(self):
         return self._comment_regex
 
-    def match(self, project: Project, action: Output):
+    def match(self, project: Project, focus: Focus, action: Output):
         if not isinstance(action, AddCommentAction):
             raise MatchingError(f"{type(action)} is not a AddCommentAction")
 
@@ -164,11 +182,21 @@ class AddComment(ExpectedAction):
             ],
         )
 
-        if self._validator is not None:
-            sheet = get_sheet(project, action.sheet_name)
-            table = get_table(sheet, action.table_name)
-            field = get_field(table, action.field_name)
+        search_result = self._find_table_and_sheet(project, action.table_name)
+        if search_result is None:
+            raise MatchingError(f"Table {action.table_name} is not found")
 
+        sheet, table = search_result
+
+        field = get_field(table, action.field_name)
+        if field is None:
+            raise MatchingError(f"Field {action.field_name} is not found")
+
+        if self._is_focused is not None:
+            if not is_field_focused(focus, table, field):
+                raise MatchingError(f"Field {field.name} was expected to be focused.")
+
+        if self._validator is not None:
             try:
                 self._validator(project, sheet, table, field)
             except AssertionError as exception:
@@ -194,25 +222,23 @@ New comment:
 
 
 class AddCommentOrFieldOrTable(AddComment):
-    def match(self, project: Project, action: Output):
+    def match(self, project: Project, focus: Focus, action: Output):
         if isinstance(action, AddCommentAction):
-            super(AddCommentOrFieldOrTable, self).match(project, action)
+            super(AddCommentOrFieldOrTable, self).match(project, focus, action)
         elif isinstance(action, AddTableAction):
-            sheet = get_sheet(project, action.sheet_name)
-            if sheet is None:
-                raise MatchingError(f"Sheet {action.sheet_name} is not found")
-
-            table = get_table(sheet, action.table_name)
-            if table is None:
+            search_result = self._find_table_and_sheet(project, action.table_name)
+            if search_result is None:
                 raise MatchingError(f"Table {action.table_name} is not found")
 
+            sheet, table = search_result
             exceptions: list[Exception | None] = []
 
-            for field in table.fields:
+            for field in FieldGroupUtil.get_table_fields(table):
                 if field.doc_string:
                     try:
                         super(AddCommentOrFieldOrTable, self).match(
                             project,
+                            focus,
                             AddCommentAction(
                                 sheet_name=action.sheet_name,
                                 table_name=action.table_name,
@@ -236,14 +262,11 @@ class AddCommentOrFieldOrTable(AddComment):
                 )
 
         elif isinstance(action, AddFieldAction):
-            sheet = get_sheet(project, action.sheet_name)
-            if sheet is None:
-                raise MatchingError(f"Sheet {action.sheet_name} is not found")
-
-            table = get_table(sheet, action.table_name)
-            if table is None:
+            search_result = self._find_table_and_sheet(project, action.table_name)
+            if search_result is None:
                 raise MatchingError(f"Table {action.table_name} is not found")
 
+            sheet, table = search_result
             field = get_field(table, action.field_name)
             if field is None:
                 raise MatchingError(f"Field {action.field_name} is not found")
@@ -251,6 +274,7 @@ class AddCommentOrFieldOrTable(AddComment):
             if field.doc_string:
                 super(AddCommentOrFieldOrTable, self).match(
                     project,
+                    focus,
                     AddCommentAction(
                         sheet_name=action.sheet_name,
                         table_name=action.table_name,
@@ -289,7 +313,7 @@ class RemoveTable(ExpectedAction):
 
         self._validator = validator
 
-    def match(self, project: Project, action: Output):
+    def match(self, project: Project, focus: Focus, action: Output):
         if not isinstance(action, RemoveTableAction):
             raise MatchingError(f"{type(action)} is not a RemoveTableAction")
 
@@ -332,6 +356,7 @@ class AddTable(ExpectedAction):
     def __init__(
         self,
         *,
+        is_focused: bool | None = None,
         sheet_regex: Optional[str] = None,
         table_regex: Optional[str] = None,
         sheet_substrings: Optional[str | List[str]] = None,
@@ -340,6 +365,8 @@ class AddTable(ExpectedAction):
         **fields: List[str] | None,
     ):
         super().__init__()
+
+        self._is_focused = is_focused
 
         self._sheet_regex = sheet_regex
         self._table_regex = table_regex
@@ -351,27 +378,28 @@ class AddTable(ExpectedAction):
 
         self._fields = fields
 
-    def match(self, project: Project, action: Output):
+    def match(self, project: Project, focus: Focus, action: Output):
         if not isinstance(action, AddTableAction):
             raise MatchingError(f"{type(action)} is not a AddTableAction")
 
+        search_result = self._find_table_and_sheet(project, action.table_name)
+        if search_result is None:
+            raise MatchingError(f"Table {action.table_name} is not found")
+
+        sheet, table = search_result
         assert_regexes_matches(
-            [action.sheet_name, action.table_name],
-            [self._sheet_regex, self._table_regex],
+            [table.name, sheet.name],
+            [self._table_regex, self._sheet_regex],
         )
 
         assert_contain_substrings(
-            [action.sheet_name, action.table_name],
-            [self._sheet_substrings, self._table_substrings],
+            [table.name, sheet.name],
+            [self._table_substrings, self._sheet_substrings],
         )
 
-        sheet = get_sheet(project, action.sheet_name)
-        if sheet is None:
-            raise MatchingError(f"Sheet {action.sheet_name} is not found")
-
-        table = get_table(sheet, action.table_name)
-        if table is None:
-            raise MatchingError(f"Table {action.table_name} is not found")
+        if self._is_focused is not None:
+            if not is_table_focused(focus, table):
+                raise MatchingError(f"Table {table.name} was expected to be focused.")
 
         for field_name, field_values in self._fields.items():
             if (field := get_field(table, field_name)) is None:
@@ -416,6 +444,7 @@ class AddField(ExpectedAction):
     def __init__(
         self,
         *,
+        is_focused: bool | None = None,
         values: List[str] | None = None,
         sheet_regex: Optional[str] = None,
         table_regex: Optional[str] = None,
@@ -426,6 +455,8 @@ class AddField(ExpectedAction):
         validator: Optional[Callable[[Project, Sheet, Table, Field], None]] = None,
     ):
         super().__init__()
+
+        self._is_focused = is_focused
 
         self._values = values
 
@@ -439,7 +470,7 @@ class AddField(ExpectedAction):
 
         self._validator = validator
 
-    def match(self, project: Project, action: Output):
+    def match(self, project: Project, focus: Focus, action: Output):
         if not isinstance(action, AddFieldAction):
             raise MatchingError(f"{type(action)} is not a AddFieldAction")
 
@@ -453,17 +484,19 @@ class AddField(ExpectedAction):
             [self._sheet_substrings, self._table_substrings, self._field_substrings],
         )
 
-        sheet = get_sheet(project, action.sheet_name)
-        if sheet is None:
-            raise MatchingError(f"Sheet {action.sheet_name} is not found")
-
-        table = get_table(sheet, action.table_name)
-        if table is None:
+        search_result = self._find_table_and_sheet(project, action.table_name)
+        if search_result is None:
             raise MatchingError(f"Table {action.table_name} is not found")
+
+        sheet, table = search_result
 
         field = get_field(table, action.field_name)
         if field is None:
             raise MatchingError(f"Field {action.field_name} is not found")
+
+        if self._is_focused is not None:
+            if not is_field_focused(focus, table, field):
+                raise MatchingError(f"Field {field.name} was expected to be focused.")
 
         if self._values is not None and (
             not isinstance(field.field_data, FieldData)
@@ -502,6 +535,7 @@ class Override(ExpectedAction):
     def __init__(
         self,
         *,
+        is_focused: bool | None = None,
         sheet_regex: Optional[str] = None,
         table_regex: Optional[str] = None,
         sheet_substrings: Optional[str | List[str]] = None,
@@ -510,6 +544,8 @@ class Override(ExpectedAction):
         **fields: List[str] | None,
     ):
         super().__init__()
+
+        self._is_focused = is_focused
 
         self._sheet_regex = sheet_regex
         self._table_regex = table_regex
@@ -520,7 +556,7 @@ class Override(ExpectedAction):
         self._validator = validator
         self._fields = fields
 
-    def match(self, project: Project, action: Output):
+    def match(self, project: Project, focus: Focus, action: Output):
         if not isinstance(action, OverrideAction):
             raise MatchingError(f"{type(action)} is not a OverrideAction")
 
@@ -534,13 +570,15 @@ class Override(ExpectedAction):
             [self._sheet_substrings, self._table_substrings],
         )
 
-        sheet = get_sheet(project, action.sheet_name)
-        if sheet is None:
-            raise MatchingError(f"Sheet {action.sheet_name} is not found")
-
-        table = get_table(sheet, action.table_name)
-        if table is None:
+        search_result = self._find_table_and_sheet(project, action.table_name)
+        if search_result is None:
             raise MatchingError(f"Table {action.table_name} is not found")
+
+        sheet, table = search_result
+
+        if self._is_focused is not None:
+            if not is_table_focused(focus, table):
+                raise MatchingError(f"Table {table.name} was expected to be focused.")
 
         for field_name, field_values in self._fields.items():
             if (field := get_field(table, field_name)) is None:
@@ -583,6 +621,7 @@ class ChangeTableProperties(ExpectedAction):
     def __init__(
         self,
         *,
+        is_focused: bool | None = None,
         sheet_regex: Optional[str] = None,
         table_regex: Optional[str] = None,
         note_regex: Optional[str] = None,
@@ -593,6 +632,8 @@ class ChangeTableProperties(ExpectedAction):
         validator: Optional[Callable[[Project, Sheet, Table], None]] = None,
     ):
         super().__init__()
+
+        self._is_focused = is_focused
 
         self._sheet_regex = sheet_regex
         self._table_regex = table_regex
@@ -605,7 +646,7 @@ class ChangeTableProperties(ExpectedAction):
         self._decorators = decorators
         self._validator = validator
 
-    def match(self, project: Project, action: Output):
+    def match(self, project: Project, focus: Focus, action: Output):
         if not isinstance(action, ChangeTablePropertiesAction):
             raise MatchingError(f"{type(action)} is not a ChangeTablePropertiesAction")
 
@@ -619,13 +660,15 @@ class ChangeTableProperties(ExpectedAction):
             [self._sheet_substrings, self._table_substrings],
         )
 
-        sheet = get_sheet(project, action.sheet_name)
-        if sheet is None:
-            raise MatchingError(f"Sheet {action.sheet_name} is not found")
-
-        table = get_table(sheet, action.table_name)
-        if table is None:
+        search_result = self._find_table_and_sheet(project, action.table_name)
+        if search_result is None:
             raise MatchingError(f"Table {action.table_name} is not found")
+
+        sheet, table = search_result
+
+        if self._is_focused is not None:
+            if not is_table_focused(focus, table):
+                raise MatchingError(f"Table {table.name} was expected to be focused.")
 
         if table.doc_string:
             assert_regexes_matches([table.doc_string], [self._note_regex])
@@ -664,33 +707,32 @@ class ChangeTableProperties(ExpectedAction):
 
 
 class AddFieldOrTable(AddField):
-    def match(self, project: Project, action: Output):
+    def match(self, project: Project, focus: Focus, action: Output):
         if isinstance(action, AddFieldAction):
-            super(AddFieldOrTable, self).match(project, action)
+            super(AddFieldOrTable, self).match(project, focus, action)
         elif isinstance(action, AddTableAction):
-            sheet = get_sheet(project, action.sheet_name)
-            if sheet is None:
-                raise MatchingError(f"Sheet {action.sheet_name} is not found")
-
-            table = get_table(sheet, action.table_name)
-            if table is None:
+            search_result = self._find_table_and_sheet(project, action.table_name)
+            if search_result is None:
                 raise MatchingError(f"Table {action.table_name} is not found")
 
+            sheet, table = search_result
             exceptions: list[Exception | None] = []
-            for f in table.fields:
-                try:
-                    super(AddFieldOrTable, self).match(
-                        project,
-                        AddFieldAction(
-                            sheet_name=action.sheet_name,
-                            table_name=action.table_name,
-                            field_name=f.name,
-                            field_dsl=f.to_dsl(),
-                        ),
-                    )
-                    return
-                except MatchingError as error:
-                    exceptions.append(error)
+            for field_group in table.field_groups:
+                for field in field_group.fields:
+                    try:
+                        super(AddFieldOrTable, self).match(
+                            project,
+                            focus,
+                            AddFieldAction(
+                                sheet_name=action.sheet_name,
+                                table_name=action.table_name,
+                                field_name=field.name,
+                                field_dsl=field_group.to_dsl(),
+                            ),
+                        )
+                        return
+                    except MatchingError as error:
+                        exceptions.append(error)
 
             exception = fetch_most_relevant_exceptions_from_list(exceptions)
 
@@ -730,7 +772,7 @@ class RemoveField(ExpectedAction):
         self._table_substrings = table_substrings
         self._field_substrings = field_substrings
 
-    def match(self, project: Project, action: Output):
+    def match(self, project: Project, focus, action: Output):
         if not isinstance(action, RemoveFieldAction):
             raise MatchingError(f"{type(action)} is not a AddFieldAction")
 
@@ -744,12 +786,7 @@ class RemoveField(ExpectedAction):
             [self._sheet_substrings, self._table_substrings, self._field_substrings],
         )
 
-        sheet = get_sheet(project, action.sheet_name)
-        if sheet is None:
-            raise MatchingError(f"Sheet {action.sheet_name} is not found")
-
-        table = get_table(sheet, action.table_name)
-        if table is None:
+        if self._find_table_and_sheet(project, action.table_name) is None:
             raise MatchingError(f"Table {action.table_name} is not found")
 
     def __str__(self) -> str:
@@ -771,6 +808,7 @@ class EditField(ExpectedAction):
     def __init__(
         self,
         *,
+        is_focused: bool | None = None,
         values: List[str] | None = None,
         sheet_regex: Optional[str] = None,
         table_regex: Optional[str] = None,
@@ -781,6 +819,8 @@ class EditField(ExpectedAction):
         validator: Optional[Callable[[Project, Sheet, Table, Field], None]] = None,
     ):
         super().__init__()
+
+        self._is_focused = is_focused
 
         self._values = values
 
@@ -794,7 +834,7 @@ class EditField(ExpectedAction):
 
         self._validator = validator
 
-    def match(self, project: Project, action: Output):
+    def match(self, project: Project, focus, action: Output):
         if not isinstance(action, EditFieldAction):
             raise MatchingError(f"{type(action)} is not a EditFieldAction")
 
@@ -808,17 +848,19 @@ class EditField(ExpectedAction):
             [self._sheet_substrings, self._table_substrings, self._field_substrings],
         )
 
-        sheet = get_sheet(project, action.sheet_name)
-        if sheet is None:
-            raise MatchingError(f"Sheet {action.sheet_name} is not found")
-
-        table = get_table(sheet, action.table_name)
-        if table is None:
+        search_result = self._find_table_and_sheet(project, action.table_name)
+        if search_result is None:
             raise MatchingError(f"Table {action.table_name} is not found")
+
+        sheet, table = search_result
 
         field = get_field(table, action.field_name)
         if field is None:
             raise MatchingError(f"Field {action.field_name} is not found")
+
+        if self._is_focused is not None:
+            if not is_field_focused(focus, table, field):
+                raise MatchingError(f"Field {field.name} was expected to be focused.")
 
         if self._values is not None and (
             not isinstance(field.field_data, FieldData)
@@ -871,7 +913,7 @@ class And(ExpectedAction):
         for action in self._actions:
             yield from action.actions()
 
-    def match(self, project: Project, action: Output) -> bool:
+    def match(self, project: Project, focus: Focus, action: Output) -> bool:
         raise NotImplementedError
 
     def selections(self) -> Generator[List[ExpectedAction], None, None]:
@@ -923,7 +965,7 @@ class Or(ExpectedAction):
         for action in self._actions:
             yield from action.actions()
 
-    def match(self, project: Project, action: Output) -> bool:
+    def match(self, project: Project, focus: Focus, action: Output) -> bool:
         raise NotImplementedError
 
     def selections(self) -> Generator[List[ExpectedAction], None, None]:

@@ -31,7 +31,7 @@ lint: install
 	poetry run nox -s lint
 
 mypy: install
-	poetry run mypy --config-file pyproject.toml -p parsing -p quantgrid -p testing
+	poetry run mypy --config-file pyproject.toml -p parsing -p quantgrid -p testing -p quantgrid_1
 
 format: install
 	poetry run nox -s format

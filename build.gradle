@@ -53,5 +53,6 @@ configure(projects) {
     test {
         useJUnitPlatform()
         jvmArgs openModules
+        systemProperty "gflog.sync", "true" // sync logging to not mix up messages from different tests
     }
 }

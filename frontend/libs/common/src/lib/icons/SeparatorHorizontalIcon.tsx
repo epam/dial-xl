@@ -17,6 +17,7 @@ export function SeparatorHorizontalIcon({
         fill="#FCFCFC"
         r="8.5"
         stroke={getColorVar(primaryColorClass)}
+        vectorEffect="non-scaling-stroke"
       />
       <path
         d="m 3.654705,9.003757 h 10.66671 m -8.00004,-2.66666 2.66667,-2.66667 2.66667,2.66667 m 0,5.33336 -2.66667,2.6666 -2.66667,-2.6666"
@@ -24,6 +25,7 @@ export function SeparatorHorizontalIcon({
         strokeLinecap="round"
         strokeLinejoin="round"
         strokeWidth="1.5"
+        vectorEffect="non-scaling-stroke"
       />
     </svg>
   );

@@ -1,3 +1,4 @@
+import { lineBreak } from '../../parser';
 import { notifyObserver, ObservableObserver, Reader } from '../utils';
 import { SortFormula } from './SortFormula';
 
@@ -22,7 +23,7 @@ export class ApplySort extends ObservableObserver {
 
   /**
    * The array of parsed sort formulas (e.g., `fieldA ASC`, `fieldB DESC`),
-   * each managed by a {@link SortFormula}.
+   * each managed by a SortFormula.
    */
   private _formulas: SortFormula[] = [];
 
@@ -62,6 +63,8 @@ export class ApplySort extends ObservableObserver {
    * @returns The formula string.
    */
   public getItem(index: number): string {
+    this.validateFormulaIndex(index);
+
     return this._formulas[index].formula;
   }
 
@@ -73,6 +76,8 @@ export class ApplySort extends ObservableObserver {
    */
   @notifyObserver()
   public setItem(index: number, value: string): void {
+    this.validateFormulaIndex(index);
+
     this._formulas[index].formula = value;
   }
 
@@ -84,10 +89,13 @@ export class ApplySort extends ObservableObserver {
    */
   @notifyObserver()
   public deleteItem(index: number): void {
+    this.validateFormulaIndex(index);
     const formula = this._formulas.splice(index, 1)[0];
     // If the removed formula was the last, carry over its `after`
     if (index === this._formulas.length && this._formulas.length > 0) {
       this._formulas[this._formulas.length - 1].after = formula.after;
+    } else {
+      formula.after = lineBreak;
     }
   }
 
@@ -106,7 +114,40 @@ export class ApplySort extends ObservableObserver {
   }
 
   /**
-   * Provides an iterable of all formula strings.
+   * Inserts a new sort formula at the specified index.
+   *
+   * @param index - The zero-based index at which the new formula should be inserted.
+   * @param value - The formula string to insert.
+   * @throws {Error} If the index is out of range.
+   */
+  @notifyObserver()
+  public insert(index: number, value: string): void {
+    this.validateFormulaIndex(index);
+
+    const formula = new SortFormula(value);
+    formula.after = ', ';
+    this._formulas.splice(index, 0, formula);
+  }
+
+  /**
+   * Ensures that the given index is within the valid range for `_formulas`.
+   *
+   * @param index - The index to validate.
+   * @throws {Error} If the index is less than 0 or greater than the current length of `_formulas`.
+   */
+  private validateFormulaIndex(index: number): void {
+    if (index < 0 || index > this._formulas.length) {
+      throw new Error(
+        `Sort formula index ${index} is out of bounds: valid indices start from 0, ` +
+          `the current range is [0, ${this._formulas.length}].`
+      );
+    }
+  }
+
+  /**
+   * Returns an iterable of all formula strings from the internal `_formulas`.
+   *
+   * @returns An iterable of formula texts.
    */
   public formulas(): Iterable<string> {
     return this._formulas.map((f) => f.formula);
@@ -129,7 +170,7 @@ export class ApplySort extends ObservableObserver {
       result._prefix = reader.next(formulaEntities[0].span.from);
     } else {
       // Otherwise read up to the final
-      result._prefix = reader.next((d) => d.span.to);
+      result._prefix = reader.tillLinebreak();
     }
 
     // Parse each formula
@@ -141,7 +182,7 @@ export class ApplySort extends ObservableObserver {
     }
 
     // leftover text
-    result._after = reader.beforeNext();
+    result._after = reader.next((d) => d.span.to);
 
     return result;
   }

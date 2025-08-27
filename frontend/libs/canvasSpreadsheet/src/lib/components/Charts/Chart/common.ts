@@ -73,3 +73,7 @@ export function sortNumericOrText<T extends string>(array: T[]): T[] {
 export function addLineBreaks<T extends string>(array: T[]): string[] {
   return array.map((label) => label?.toString().split(' ').join('\n'));
 }
+
+export function isHtmlColor(color: string): boolean {
+  return /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/i.test(color.trim());
+}

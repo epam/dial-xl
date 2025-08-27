@@ -52,10 +52,20 @@ export function useShortcuts(gridApi: RefObject<GridApi>) {
   const handleSwapFields = useCallback(
     (e: KeyboardEvent, direction: HorizontalDirection) => {
       if (!gridApi?.current || !gridCallbacks || !isCanvasEvent(e)) return;
+      const selection = selection$.getValue();
+      if (!selection) return;
 
-      gridCallbacks.onSwapFields?.(direction);
+      const { startCol, startRow } = selection;
+      const cell = gridApi.current.getCell(startCol, startRow);
+      if (!cell || !cell.table || !cell.field) return;
+
+      gridCallbacks.onSwapFields?.(
+        cell.table.tableName,
+        cell.field.fieldName,
+        direction
+      );
     },
-    [gridApi, gridCallbacks]
+    [gridApi, gridCallbacks, selection$]
   );
 
   const handleCopy = useCallback(

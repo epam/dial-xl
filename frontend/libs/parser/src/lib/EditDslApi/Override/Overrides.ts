@@ -1,6 +1,12 @@
 import { defaultRowKey, lineBreak } from '../../parser';
 import { escapeFieldName, unescapeFieldName } from '../../services';
-import { Event, notifyObserver, ObservableObserver, Reader } from '../utils';
+import {
+  Event,
+  notifyObserver,
+  ObservableObserver,
+  Reader,
+  validateIndex,
+} from '../utils';
 import { _Override, Override } from './Override';
 import { OverrideHeader } from './OverrideHeader';
 import { OverrideLine } from './OverrideLine';
@@ -158,20 +164,14 @@ export class Overrides extends ObservableObserver {
    * Retrieves the override at a given row index.
    *
    * @param index - The index of the override line to retrieve.
-   * @throws {Error} If the index is out of range.
    * @returns The matching Override object.
    */
   public getItem(index: number): Override {
-    if (index < 0 || index >= this._lines.length) {
-      throw new Error('Override line index out of range');
-    }
-
     return this._lines[index];
   }
 
   /**
-   * Replaces the override at a given row index with a new one, detaching the old one
-   * and attaching the new. Reflects the change in `_overrides`.
+   * Sets (replaces) an override line at a given index.
    *
    * @param index - The index of the override line to replace.
    * @param value - The new Override object to use.
@@ -179,47 +179,53 @@ export class Overrides extends ObservableObserver {
    */
   @notifyObserver()
   public setItem(index: number, value: Override): void {
-    if (index < 0 || index >= this._lines.length) {
-      throw new Error('Override line index out of range');
-    }
-
+    this.validateOverrideIndex(index);
     const oldOverride = this._lines[index];
-    oldOverride.detach();
-    // Attach the new override
-    // Update low-level `_overrides`
+
     this._overrides.lines[index] = this.attachOverrideLine(value);
-    // Update our local array
     this._lines[index] = value;
+
+    oldOverride.detach();
   }
 
   /**
-   * Deletes an override row at the given index, detaching it from observer notifications
-   * and removing its line from `_overrides`.
+   * Deletes (removes) an override line by index.
    *
    * @param index - The index of the override line to delete.
    * @throws {Error} If the index is out of range.
    */
   @notifyObserver()
   public deleteItem(index: number): void {
-    if (index < 0 || index >= this._lines.length) {
-      throw new Error('Override line index out of range');
-    }
+    this.validateOverrideIndex(index);
+
     this._overrides.lines.splice(index, 1);
-    const removedOverride = this._lines.splice(index, 1)[0];
-    removedOverride.detach();
+    const override = this._lines.splice(index, 1)[0];
+    override.detach();
   }
 
   /**
-   * Appends a new override row at the end of the list, attaching it and creating
-   * a corresponding line in `_overrides`.
+   * Appends a new override line at the end.
    *
    * @param value - The Override object to add.
    */
   @notifyObserver()
   public append(value: Override): void {
-    const overrideLine = this.attachOverrideLine(value);
-    this._overrides.lines.push(overrideLine);
+    this._overrides.lines.push(this.attachOverrideLine(value));
     this._lines.push(value);
+  }
+
+  /**
+   * Inserts a new override line at the specified index.
+   * @param index - The position at which to insert.
+   * @param value - The new Override to insert.
+   * @throws {Error} If the index is out of range.
+   */
+  @notifyObserver()
+  public insert(index: number, value: Override): void {
+    this.validateOverrideIndex(index);
+
+    this._overrides.lines.splice(index, 0, this.attachOverrideLine(value));
+    this._lines.splice(index, 0, value);
   }
 
   /**
@@ -246,20 +252,31 @@ export class Overrides extends ObservableObserver {
   }
 
   /**
-   * Internal helper that attaches an Override object to this observer,
-   * ensuring all field names exist, and creates a corresponding OverrideLine
-   * in `_overrides` with the appropriate `_Override` cells.
+   * Validates that the given index is within the range of override lines.
+   *
+   * @param index - The index to validate.
+   * @throws {Error} If the index is out of range.
+   */
+  private validateOverrideIndex(index: number): void {
+    validateIndex(index, this._lines.length, 'Override line');
+  }
+
+  /**
+   *  Builds and returns an _OverrideLine from the given Override object,
+   *  attaching that override to this container. Also ensures the row
+   *  or any needed columns are present in `_fieldNames` so the
+   *  new line aligns with existing columns in `this._overrides`.
    *
    * @param value - The new override row object.
    * @returns An `OverrideLine` with matching columns for each field name.
    */
   private attachOverrideLine(value: Override): OverrideLine {
-    // If rowNumber is set, ensure "row" field is present
+    value.attach(this);
+
     if (value.rowNumber !== null) {
       this.addEmptyIfMissing(defaultRowKey);
     }
 
-    // Ensure all fields in this override exist in `_fieldNames`
     for (const name of value.names) {
       this.addEmptyIfMissing(escapeFieldName(name, true, true));
     }
@@ -287,9 +304,6 @@ export class Overrides extends ObservableObserver {
       }
     }
 
-    // Attach the override to observe its changes
-    value.attach(this);
-
     return new OverrideLine(values);
   }
 
@@ -316,8 +330,7 @@ export class Overrides extends ObservableObserver {
       }
 
       // Create a new header
-      const newHeader = new OverrideHeader(name);
-      this._overrides.headers.push(newHeader);
+      this._overrides.headers.push(new OverrideHeader(name));
 
       // For each line, append a new cell
       for (const line of this._overrides.lines) {
@@ -352,23 +365,21 @@ export class Overrides extends ObservableObserver {
 
     const sender = event.sender;
     if (sender instanceof Override) {
-      const overrideIndex = this._lines.indexOf(sender);
-      if (overrideIndex === -1) return;
-
+      const index = this._lines.indexOf(sender);
       if (event.methodName === 'setItem') {
         const [rawKey, rawValue] = event.kwargs['args'];
         const escapedName = escapeFieldName(rawKey, true, true);
-        this.onOverrideUpdate(overrideIndex, escapedName, rawValue);
+        this.onOverrideUpdate(index, escapedName, rawValue);
       } else if (event.methodName === 'deleteItem') {
         const [rawKey] = event.kwargs['args'];
         const escapedName = escapeFieldName(rawKey, true, true);
-        this.onOverrideRemove(overrideIndex, escapedName);
+        this.onOverrideRemove(index, escapedName);
       } else if (event.methodName === 'rowNumber') {
         const [newRowNumber] = event.kwargs['args'];
         if (newRowNumber == null) {
-          this.onOverrideRemove(overrideIndex, defaultRowKey);
+          this.onOverrideRemove(index, defaultRowKey);
         } else {
-          this.onOverrideUpdate(overrideIndex, defaultRowKey, newRowNumber);
+          this.onOverrideUpdate(index, defaultRowKey, newRowNumber);
         }
       }
     }

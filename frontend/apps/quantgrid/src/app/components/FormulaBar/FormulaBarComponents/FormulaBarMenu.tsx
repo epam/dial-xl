@@ -50,7 +50,7 @@ export function FormulaBarMenu() {
           onClick,
         }}
         rootClassName={formulaBarMenuClass}
-        trigger={['click']}
+        trigger={['click', 'contextMenu']}
       >
         <Icon
           className="w-[18px] text-textPrimary hover:text-textAccentPrimary"

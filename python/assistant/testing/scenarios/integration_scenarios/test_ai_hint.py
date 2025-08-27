@@ -2,6 +2,7 @@ from dial_xl.calculate import FieldData
 from dial_xl.field import Field
 from dial_xl.table import Table
 
+from quantgrid.utils.project import FieldGroupUtil
 from testing.framework import AddFieldOrTable, AddTable, FrameProject, find_unsorted
 from testing.framework.frame_project import Hint, Trigger
 from testing.framework.testing_utils import code_regex, field, field_code_regex
@@ -28,12 +29,13 @@ async def test_hint_natural_language(clients_project: FrameProject):
 
     def validate(_, __, table: Table, field: Field):
         assert field
-        assert field.to_dsl()
+        field_group = FieldGroupUtil.get_field_group_by_name(table, field.name)
+        assert field_group.to_dsl()
         assert isinstance(field.field_data, FieldData)
         assert len(field.field_data.values) == 2
-        assert field_code_regex(field, ".*100.*")
-        assert field_code_regex(field, ".*B.*")
-        assert field_code_regex(field, ".*FILTER.*")
+        assert field_code_regex(table, field, ".*100.*")
+        assert field_code_regex(table, field, ".*B.*")
+        assert field_code_regex(table, field, ".*FILTER.*")
 
         assert find_unsorted(table, ["ClientD", "ClientF"])
 
@@ -81,8 +83,9 @@ async def test_hint_unknown_function(clients_project: FrameProject):
 
     def validate_formula(_, __, table: Table, field: Field):
         assert field
-        assert field.to_dsl()
-        assert field_code_regex(field, ".*XSPECIAL.*")
+        field_group = FieldGroupUtil.get_field_group_by_name(table, field.name)
+        assert field_group.to_dsl()
+        assert field_code_regex(table, field, ".*XSPECIAL.*")
 
     def validate_data(_, __, table: Table, field: Field):
         assert field
@@ -110,7 +113,7 @@ async def test_hint_pivot(clients_project: FrameProject):
 
                     ```xl
                     table ClientsByType
-                      [*] = PIVOT(Clients, $[type], COUNT($))
+                      dim [_], [*] = PIVOT(Clients[empty], Clients[type], Clients[name], "COUNT")
                     ```
 
                     "*" field is special field specifically for PIVOT function.
@@ -130,7 +133,10 @@ async def test_hint_pivot(clients_project: FrameProject):
     def validate(_, __, table: Table):
         assert code_regex(table, ".*PIVOT.*")
         pivot_field = field(table, "*")
-        assert pivot_field.to_dsl()
+        pivot_field_group = FieldGroupUtil.get_field_group_by_name(
+            table, pivot_field.name
+        )
+        assert pivot_field_group.to_dsl()
         assert isinstance(pivot_field.field_data, FieldData)
         assert len(pivot_field.field_data.values) == 3
         assert all(item in pivot_field.field_data.values for item in {"A", "B", "C"})
@@ -189,7 +195,7 @@ async def test_hint_chart(basic_project: FrameProject):
         )
         assert any(
             any(d.name == "x" and "()" in d.arguments for d in field.decorators)
-            for field in table.fields
+            for field in FieldGroupUtil.get_table_fields(table)
         )
 
     answer.assertion(AddTable(validator=validate))

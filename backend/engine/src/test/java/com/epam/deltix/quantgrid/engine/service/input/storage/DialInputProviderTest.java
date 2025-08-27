@@ -2,11 +2,12 @@ package com.epam.deltix.quantgrid.engine.service.input.storage;
 
 import com.epam.deltix.quantgrid.engine.service.input.InputMetadata;
 import com.epam.deltix.quantgrid.engine.service.input.InputType;
+import com.epam.deltix.quantgrid.engine.service.input.storage.dial.DialInputProvider;
 import com.epam.deltix.quantgrid.engine.value.local.DoubleDirectColumn;
 import com.epam.deltix.quantgrid.engine.value.local.LocalTable;
 import com.epam.deltix.quantgrid.engine.value.local.StringDirectColumn;
-import com.epam.deltix.quantgrid.security.ApiKeyAuthenticationToken;
-import com.epam.deltix.quantgrid.type.ColumnType;
+import com.epam.deltix.quantgrid.security.DialAuth;
+import com.epam.deltix.quantgrid.type.InputColumnType;
 import com.epam.deltix.quantgrid.util.DialFileApi;
 import com.epam.deltix.quantgrid.util.Doubles;
 import okhttp3.mockwebserver.MockResponse;
@@ -51,12 +52,27 @@ class DialInputProviderTest {
     private static final String TEST_INPUT_ETAG = "test-etag";
     private static final InputMetadata TEST_INPUT_METADATA = new InputMetadata(
             TEST_INPUT, TEST_INPUT, TEST_INPUT_ETAG, InputType.CSV, new LinkedHashMap<>() {{
-                put("country", ColumnType.STRING);
-                put("date", ColumnType.DATE);
-                put("GDP", ColumnType.DOUBLE);
-                put("IR", ColumnType.DOUBLE);
+                put("country", InputColumnType.STRING);
+                put("date", InputColumnType.DATE);
+                put("GDP", InputColumnType.DOUBLE);
+                put("IR", InputColumnType.DOUBLE);
             }});
-    private static final ApiKeyAuthenticationToken TEST_PRINCIPAL = new ApiKeyAuthenticationToken("test-api-key");
+    private static final DialAuth TEST_PRINCIPAL = new DialAuth() {
+        @Override
+        public String getKey() {
+            return "api-key";
+        }
+
+        @Override
+        public String getValue() {
+            return "test-api-key";
+        }
+
+        @Override
+        public String getName() {
+            return "dial-auth";
+        }
+    };
 
     @Test
     void testReadInput() throws Exception {
@@ -82,7 +98,7 @@ class DialInputProviderTest {
             RecordedRequest request = server.takeRequest();
             assertEquals(TEST_INPUT_URL, request.getPath());
             assertEquals("GET", request.getMethod());
-            assertEquals(TEST_PRINCIPAL.getApiKey(), request.getHeader("api-key"));
+            assertEquals(TEST_PRINCIPAL.getValue(), request.getHeader("api-key"));
         }
     }
 
@@ -114,27 +130,27 @@ class DialInputProviderTest {
             RecordedRequest getAttributesRequest = server.takeRequest();
             assertEquals(TEST_INPUT_META_URL, getAttributesRequest.getPath());
             assertEquals("GET", getAttributesRequest.getMethod());
-            assertEquals(TEST_PRINCIPAL.getApiKey(), getAttributesRequest.getHeader("api-key"));
+            assertEquals(TEST_PRINCIPAL.getValue(), getAttributesRequest.getHeader("api-key"));
 
             RecordedRequest getSchemaRequest = server.takeRequest();
             assertEquals(TEST_SCHEMA_URL, getSchemaRequest.getPath());
             assertEquals("GET", getSchemaRequest.getMethod());
-            assertEquals(TEST_PRINCIPAL.getApiKey(), getSchemaRequest.getHeader("api-key"));
+            assertEquals(TEST_PRINCIPAL.getValue(), getSchemaRequest.getHeader("api-key"));
 
             RecordedRequest getBucketRequest = server.takeRequest();
             assertEquals(BUCKET_URL, getBucketRequest.getPath());
             assertEquals("GET", getBucketRequest.getMethod());
-            assertEquals(TEST_PRINCIPAL.getApiKey(), getBucketRequest.getHeader("api-key"));
+            assertEquals(TEST_PRINCIPAL.getValue(), getBucketRequest.getHeader("api-key"));
 
             RecordedRequest getInputRequest = server.takeRequest();
             assertEquals(TEST_INPUT_URL, getInputRequest.getPath());
             assertEquals("GET", getInputRequest.getMethod());
-            assertEquals(TEST_PRINCIPAL.getApiKey(), getInputRequest.getHeader("api-key"));
+            assertEquals(TEST_PRINCIPAL.getValue(), getInputRequest.getHeader("api-key"));
 
             RecordedRequest putSchemaRequest = server.takeRequest();
             assertEquals(TEST_SCHEMA_URL, putSchemaRequest.getPath());
             assertEquals("PUT", putSchemaRequest.getMethod());
-            assertEquals(TEST_PRINCIPAL.getApiKey(), putSchemaRequest.getHeader("api-key"));
+            assertEquals(TEST_PRINCIPAL.getValue(), putSchemaRequest.getHeader("api-key"));
             assertTrue(putSchemaRequest.getBody().readString(StandardCharsets.UTF_8).contains(
                     TEST_SCHEMA_CONTENT.substring(TEST_SCHEMA_CONTENT.indexOf("\"columns\":"))));
             assertTrue(putSchemaRequest.getHeader("content-type").contains("multipart/form-data"));
@@ -162,12 +178,12 @@ class DialInputProviderTest {
             RecordedRequest getAttributesRequest = server.takeRequest();
             assertEquals(TEST_INPUT_META_URL, getAttributesRequest.getPath());
             assertEquals("GET", getAttributesRequest.getMethod());
-            assertEquals(TEST_PRINCIPAL.getApiKey(), getAttributesRequest.getHeader("api-key"));
+            assertEquals(TEST_PRINCIPAL.getValue(), getAttributesRequest.getHeader("api-key"));
 
             RecordedRequest getSchemaRequest = server.takeRequest();
             assertEquals(TEST_SCHEMA_URL, getSchemaRequest.getPath());
             assertEquals("GET", getSchemaRequest.getMethod());
-            assertEquals(TEST_PRINCIPAL.getApiKey(), getSchemaRequest.getHeader("api-key"));
+            assertEquals(TEST_PRINCIPAL.getValue(), getSchemaRequest.getHeader("api-key"));
         }
     }
 
@@ -195,22 +211,22 @@ class DialInputProviderTest {
             RecordedRequest getPermissionsRequest = server.takeRequest();
             assertEquals(TEST_INPUT_META_URL, getPermissionsRequest.getPath());
             assertEquals("GET", getPermissionsRequest.getMethod());
-            assertEquals(TEST_PRINCIPAL.getApiKey(), getPermissionsRequest.getHeader("api-key"));
+            assertEquals(TEST_PRINCIPAL.getValue(), getPermissionsRequest.getHeader("api-key"));
 
             RecordedRequest getSchemaRequest = server.takeRequest();
             assertEquals(TEST_SCHEMA_URL, getSchemaRequest.getPath());
             assertEquals("GET", getSchemaRequest.getMethod());
-            assertEquals(TEST_PRINCIPAL.getApiKey(), getSchemaRequest.getHeader("api-key"));
+            assertEquals(TEST_PRINCIPAL.getValue(), getSchemaRequest.getHeader("api-key"));
 
             RecordedRequest getInputRequest = server.takeRequest();
             assertEquals(TEST_INPUT_URL, getInputRequest.getPath());
             assertEquals("GET", getInputRequest.getMethod());
-            assertEquals(TEST_PRINCIPAL.getApiKey(), getInputRequest.getHeader("api-key"));
+            assertEquals(TEST_PRINCIPAL.getValue(), getInputRequest.getHeader("api-key"));
 
             RecordedRequest putSchemaRequest = server.takeRequest();
             assertEquals(TEST_SCHEMA_URL, putSchemaRequest.getPath());
             assertEquals("PUT", putSchemaRequest.getMethod());
-            assertEquals(TEST_PRINCIPAL.getApiKey(), putSchemaRequest.getHeader("api-key"));
+            assertEquals(TEST_PRINCIPAL.getValue(), putSchemaRequest.getHeader("api-key"));
             assertTrue(putSchemaRequest.getBody().readString(StandardCharsets.UTF_8).contains(
                     TEST_SCHEMA_CONTENT.substring(TEST_SCHEMA_CONTENT.indexOf("\"columns\":"))));
             assertTrue(putSchemaRequest.getHeader("content-type").contains("multipart/form-data"));
@@ -237,7 +253,7 @@ class DialInputProviderTest {
             RecordedRequest getAttributesRequest = server.takeRequest();
             assertEquals(TEST_INPUT_META_URL, getAttributesRequest.getPath());
             assertEquals("GET", getAttributesRequest.getMethod());
-            assertEquals(TEST_PRINCIPAL.getApiKey(), getAttributesRequest.getHeader("api-key"));
+            assertEquals(TEST_PRINCIPAL.getValue(), getAttributesRequest.getHeader("api-key"));
         }
     }
 

@@ -13,6 +13,10 @@ describe('formatNumberGeneral', () => {
     expect(formatNumberGeneral('1500000', 40, 8)).toBe('1.5M');
   });
 
+  it('compacts to “M” when the column is narrow and negative', () => {
+    expect(formatNumberGeneral('-200000000', 40, 8)).toBe('-200M');
+  });
+
   it('uses integer mantissa when 1‑fraction form is still too wide', () => {
     expect(formatNumberGeneral('123456789012', 32, 8)).toBe('124B');
   });

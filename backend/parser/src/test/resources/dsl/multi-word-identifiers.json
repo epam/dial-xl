@@ -3,11 +3,15 @@
   "tables": [
     {
       "span": {
+        "sheet": "test",
+        "text": "table 'table t 1'\n  [some field name] = 1\n  [a_2] = \"This is data for T1[a]\"\n",
         "from": 0,
         "to": 77
       },
       "name": {
         "span": {
+          "sheet": "test",
+          "text": "'table t 1'",
           "from": 6,
           "to": 17
         },
@@ -16,55 +20,81 @@
       "fields": [
         {
           "span": {
+            "sheet": "test",
+            "text": "[some field name] = 1",
             "from": 20,
             "to": 41
           },
-          "name": {
-            "span": {
-              "from": 20,
-              "to": 37
-            },
-            "text": "some field name"
-          },
+          "fields": [
+            {
+              "span": {
+                "sheet": "test",
+                "text": "[some field name]",
+                "from": 20,
+                "to": 37
+              },
+              "name": {
+                "span": {
+                  "sheet": "test",
+                  "text": "[some field name]",
+                  "from": 20,
+                  "to": 37
+                },
+                "text": "some field name"
+              },
+              "decorators": [],
+              "docs": []
+            }
+          ],
           "formula": {
+            "number": 1.0,
             "span": {
+              "sheet": "test",
+              "text": "1",
               "from": 40,
               "to": 41
             },
-            "formula": {
-              "number": 1.0,
-              "arguments": []
-            },
-            "errors": []
-          },
-          "decorators": [],
-          "docs": []
+            "arguments": []
+          }
         },
         {
           "span": {
+            "sheet": "test",
+            "text": "[a_2] = \"This is data for T1[a]\"",
             "from": 44,
             "to": 76
           },
-          "name": {
-            "span": {
-              "from": 44,
-              "to": 49
-            },
-            "text": "a_2"
-          },
+          "fields": [
+            {
+              "span": {
+                "sheet": "test",
+                "text": "[a_2]",
+                "from": 44,
+                "to": 49
+              },
+              "name": {
+                "span": {
+                  "sheet": "test",
+                  "text": "[a_2]",
+                  "from": 44,
+                  "to": 49
+                },
+                "text": "a_2"
+              },
+              "decorators": [],
+              "docs": []
+            }
+          ],
           "formula": {
+            "text": "This is data for T1[a]",
             "span": {
+              "sheet": "test",
+              "text": "\"This is data for T1[a]\"",
               "from": 52,
               "to": 76
             },
-            "formula": {
-              "text": "This is data for T1[a]",
-              "arguments": []
-            },
-            "errors": []
-          },
-          "decorators": [],
-          "docs": []
+            "arguments": []
+          }
         }
       ],
       "decorators": [],

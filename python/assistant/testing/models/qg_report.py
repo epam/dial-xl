@@ -8,6 +8,7 @@ from testing.models.verdict import Verdict
 
 class QGReport(pydantic.BaseModel):
     name: str
+    index: int
 
     status: Verdict | Literal["skipped"]
 

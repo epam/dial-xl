@@ -1,12 +1,21 @@
 package com.epam.deltix.quantgrid.parser.ast;
 
-import lombok.EqualsAndHashCode;
-import lombok.Value;
+import com.epam.deltix.quantgrid.parser.Span;
+import lombok.Getter;
 import lombok.experimental.Accessors;
 
-@Value
+@Getter
 @Accessors(fluent = true)
-@EqualsAndHashCode(callSuper = false)
 public class ConstBool extends Formula {
-    boolean value;
+    private final boolean value;
+
+    public ConstBool(Span span, boolean value) {
+        super(span);
+        this.value = value;
+    }
+
+    @Override
+    public String toString() {
+        return "ConstBool(span=" + span() + ", value=" + value + ")";
+    }
 }

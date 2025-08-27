@@ -18,6 +18,7 @@ import com.epam.deltix.quantgrid.engine.node.plan.local.SelectLocal;
 import com.epam.deltix.quantgrid.engine.service.input.storage.InputProvider;
 import com.epam.deltix.quantgrid.parser.FieldKey;
 import com.epam.deltix.quantgrid.parser.OverrideKey;
+import com.epam.deltix.quantgrid.parser.ParsedFields;
 import com.epam.deltix.quantgrid.parser.ParsedPython;
 import com.epam.deltix.quantgrid.parser.ParsedTable;
 import com.epam.deltix.quantgrid.parser.ast.BinaryOperator;
@@ -49,10 +50,6 @@ public class CompileContext {
     @Nullable
     protected final Formula placeholder;
     @Nullable
-    protected final CompiledResult pivot;
-    @Nullable
-    protected final CompiledResult layout;
-    @Nullable
     protected final Function function;
 
     public CompileContext(Compiler compiler) {
@@ -60,20 +57,20 @@ public class CompileContext {
     }
 
     public CompileContext(Compiler compiler, CompileKey key) {
-        this(compiler, key, List.of(), null, null, null, null);
+        this(compiler, key, List.of(), null, null);
     }
 
     public CompileContext(Compiler compiler, CompileKey key, List<FieldKey> dimensions,
-                          @Nullable Formula placeholder,
-                          @Nullable CompiledResult pivot, @Nullable CompiledResult layout,
-                          @Nullable Function function) {
+                          @Nullable Formula placeholder, @Nullable Function function) {
         this.compiler = compiler;
         this.key = key;
         this.dimensions = dimensions;
         this.placeholder = placeholder;
-        this.pivot = pivot;
-        this.layout = layout;
         this.function = function;
+    }
+
+    public long computationId() {
+        return compiler.computationId();
     }
 
     public CompiledTable layout() {
@@ -87,19 +84,6 @@ public class CompileContext {
 
     public CompiledTable layout(String table, List<FieldKey> dimensions) {
         return compiler.layoutTable(table, dimensions);
-    }
-
-    public CompiledTable aggregationLayout(CompiledTable source) {
-        if (pivot != null && layout != null) { // pivot thing
-            CompiledTable placeholder = this.pivot.cast(CompiledTable.class);
-            CompiledTable layout = this.layout.cast(CompiledTable.class);
-
-            if (CompileUtil.isContextNode(layout, placeholder, source)) {
-                return layout;
-            }
-        }
-
-        return layout(source.dimensions());
     }
 
     public CompiledTable scalarLayout() {
@@ -166,6 +150,10 @@ public class CompileContext {
         return null;
     }
 
+    public CompiledResult format(CompiledResult result, FieldKey fieldKey) {
+        return compiler.format(result, fieldKey);
+    }
+
     public boolean canMatchOverride(String table) {
         return compiler.canMatchOverride(table);
     }
@@ -182,23 +170,15 @@ public class CompileContext {
             doc.verifyArgumentCount(function.arguments().size());
         }
 
-        return new CompileContext(compiler, key, dimensions, placeholder, pivot, layout, function);
+        return new CompileContext(compiler, key, dimensions, placeholder, function);
     }
 
     public CompileContext withDimensions(List<FieldKey> dimensions) {
-        return new CompileContext(compiler, key, dimensions, placeholder, pivot, layout, function);
+        return new CompileContext(compiler, key, dimensions, placeholder, function);
     }
 
     public CompileContext withPlaceholder(Formula placeholder) {
-        return new CompileContext(compiler, key, dimensions, placeholder, pivot, layout, function);
-    }
-
-    public CompileContext withPlaceholder(CompiledResult placeholder) {
-        return withPlaceholder(new CompiledFormula(placeholder));
-    }
-
-    public CompileContext withPivot(CompiledResult pivot, CompiledResult layout) {
-        return new CompileContext(compiler, key, dimensions, new CompiledFormula(pivot), pivot, layout, function);
+        return new CompileContext(compiler, key, dimensions, placeholder, function);
     }
 
     public Function function() {
@@ -222,6 +202,29 @@ public class CompileContext {
         Formula argument = argument(index);
         CompileUtil.verify(argument instanceof ConstText, getErrorForArgument(index, "constant text is expected, like \"Example\""));
         return ((ConstText) argument).text();
+    }
+
+    public List<String> constStringListArgument(int index) {
+        Formula argument = argument(index);
+
+        if (argument instanceof Function func && func.name().equals("LIST")) {
+            List<String> list = new ArrayList<>();
+            for (Formula arg : func.arguments()) {
+                if (arg instanceof ConstText text) {
+                    list.add(text.text());
+                    continue;
+                }
+
+                throw new CompileError("text list is expected, like: {\"One\", \"Two\"}");
+            }
+            return list;
+        }
+
+        throw new CompileError("text list is expected, like: {\"One\", \"Two\"}");
+    }
+
+    public CompiledResult lookupResult(Formula formula) {
+        return compiler.lookupResult(formula);
     }
 
     public <T extends CompiledResult> T compileArgument(int index, ResultValidator<T> validator) {
@@ -306,7 +309,7 @@ public class CompileContext {
         boolean nested = carry.nested();
 
         if (result instanceof CompiledSimpleColumn column) {
-            column = CompileUtil.projectColumn(carry.queryReference(), column.node(), dimensions);
+            column = CompileUtil.projectColumn(carry.queryReference(), column.node(), dimensions, column.format());
 
             if (!nested) {
                 return column;
@@ -314,11 +317,11 @@ public class CompileContext {
 
             if (!carry.hasCurrentReference()) {
                 SelectLocal select = new SelectLocal(column.node());
-                return new CompiledNestedColumn(select, 0);
+                return new CompiledNestedColumn(select, 0, column.format());
             }
 
             SelectLocal select = new SelectLocal(carry.currentReference(), column.node());
-            return new CompiledNestedColumn(select, dimensions, 0, 1);
+            return new CompiledNestedColumn(select, dimensions, 0, 1, column.format());
         }
 
         CompiledTable table = (CompiledTable) result;
@@ -358,6 +361,10 @@ public class CompileContext {
 
     public boolean hasParsedTable(String table) {
         return compiler.hasParsedObject(CompileKey.tableKey(table));
+    }
+
+    public ParsedFields parsedField(String table, String field) {
+        return compiler.parsedObject(CompileKey.fieldKey(table, field, false, false));
     }
 
     private boolean hasParsedField(String table, String field) {
@@ -411,14 +418,14 @@ public class CompileContext {
 
             if (current.hasCurrentReference() && current.nested()) {
                 Plan plan = new SelectLocal(current.currentReference(), projection);
-                return new CompiledNestedColumn(plan, current.dimensions(), 0, 1);
+                return new CompiledNestedColumn(plan, current.dimensions(), 0, 1, column.format());
             } else if (current.hasCurrentReference()) {
-                return new CompiledSimpleColumn(projection, current.dimensions());
+                return new CompiledSimpleColumn(projection, current.dimensions(), column.format());
             } else if (current.nested()) {
                 Plan plan = new SelectLocal(projection);
-                return new CompiledNestedColumn(plan, current.dimensions(), REF_NA, 0);
+                return new CompiledNestedColumn(plan, current.dimensions(), REF_NA, 0, column.format());
             } else {
-                return new CompiledSimpleColumn(projection, current.dimensions());
+                return new CompiledSimpleColumn(projection, current.dimensions(), column.format());
             }
         } else if (result instanceof CompiledTable table && !table.nested()) {
             throw new CompileError("Not supported yet");

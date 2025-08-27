@@ -19,6 +19,7 @@ export function TableHeaderIcon({
         strokeLinecap="round"
         strokeLinejoin="round"
         strokeWidth="1.5"
+        vectorEffect="non-scaling-stroke"
       />
       <path
         d="M19.25 6.25L6.75 18.75L19.25 6.25Z"
@@ -76,6 +77,7 @@ export function TableHeaderIcon({
         strokeLinecap="round"
         strokeLinejoin="round"
         strokeWidth="1.5"
+        vectorEffect="non-scaling-stroke"
       />
     </svg>
   );

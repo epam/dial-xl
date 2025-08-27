@@ -12,6 +12,7 @@ import {
   FilesMetadata,
   getDropdownDivider,
   getDropdownItem,
+  MetadataNodeType,
   MoveToIcon,
   publicBucket,
   ShareIcon,
@@ -63,9 +64,9 @@ export const useInputsContextMenu = ({
 }) => {
   const { userBucket, isAdmin } = useContext(ApiContext);
   const { getInputs } = useContext(InputsContext);
-  const { shareResources } = useContext(ProjectContext);
+  const { shareResources, hasEditPermissions } = useContext(ProjectContext);
 
-  const { createDimTableFromDimensionFormula } = useRequestDimTable();
+  const { requestDimSchemaForDimFormula } = useRequestDimTable();
   const { downloadFiles } = useApiRequests();
   const { deleteResources } = useDeleteResources();
   const { cloneResources } = useCloneResources();
@@ -81,10 +82,12 @@ export const useInputsContextMenu = ({
     ) => {
       const key = info.node.key as string;
       const file = childData[key];
-      const isFolder = file.nodeType === 'FOLDER';
+      const isFolder = file?.nodeType === MetadataNodeType.FOLDER;
       const isAbleToEdit =
-        file.bucket === userBucket || (file.bucket === publicBucket && isAdmin);
-      const isAbleToShare = file.bucket === userBucket;
+        file?.bucket === userBucket ||
+        (file?.bucket === publicBucket && isAdmin);
+      const isAbleToShare = file?.bucket === userBucket;
+      const isAbleToDelete = isAbleToEdit || hasEditPermissions;
 
       if (!file) {
         setItems([]);
@@ -158,7 +161,7 @@ export const useInputsContextMenu = ({
               ),
             })
           : undefined,
-        isAbleToEdit
+        isAbleToDelete
           ? getDropdownItem({
               key: getContextMenuKey(contextMenuActionKeys.delete, file),
               label: 'Delete',
@@ -174,7 +177,7 @@ export const useInputsContextMenu = ({
 
       setItems(items);
     },
-    [isAdmin, userBucket]
+    [hasEditPermissions, isAdmin, userBucket]
   );
 
   const onContextMenuClick = useCallback(
@@ -186,7 +189,7 @@ export const useInputsContextMenu = ({
       switch (action) {
         case contextMenuActionKeys.createTable: {
           const formula = `:INPUT("${file.url}")`;
-          createDimTableFromDimensionFormula(0, 0, formula);
+          requestDimSchemaForDimFormula(0, 0, formula);
 
           break;
         }
@@ -241,7 +244,7 @@ export const useInputsContextMenu = ({
     },
     [
       cloneResources,
-      createDimTableFromDimensionFormula,
+      requestDimSchemaForDimFormula,
       deleteResources,
       downloadFiles,
       getInputs,

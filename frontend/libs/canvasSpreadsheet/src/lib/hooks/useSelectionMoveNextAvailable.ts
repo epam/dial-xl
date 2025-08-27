@@ -71,24 +71,36 @@ export function useSelectionMoveNextAvailable() {
         });
 
       const { edges } = gridSizes;
-      const target = findAvailableTableToMove(
+      let target = findAvailableTableToMove(
         tableStructure,
         direction,
         startCol,
         startRow,
-        edges.col,
-        edges.row
+        edges.maxCol,
+        edges.maxRow
       );
 
       if (target && !tablesWhichSelectionInside.length) {
-        selectEntireCell({
-          startCol: target.col,
-          endCol: target.col,
-          startRow: target.row,
-          endRow: target.row,
-        });
+        // Fallback from empty cell to spreadsheet edge
+        target = findAvailableTableToMove(
+          tableStructure,
+          direction,
+          startCol,
+          startRow,
+          edges.col,
+          edges.row
+        );
 
-        return;
+        if (target) {
+          selectEntireCell({
+            startCol: target.col,
+            endCol: target.col,
+            startRow: target.row,
+            endRow: target.row,
+          });
+
+          return;
+        }
       }
 
       if (!tablesWhichSelectionInside.length) {
@@ -134,9 +146,9 @@ export function useSelectionMoveNextAvailable() {
         ) {
           selectEntireCell({
             startCol: target.col,
-            startRow: target.row,
+            startRow: edges.row,
             endCol: target.col,
-            endRow: target.row,
+            endRow: edges.row,
           });
         } else if (tableWhichSelectionInside) {
           selectEntireCell({
@@ -187,9 +199,9 @@ export function useSelectionMoveNextAvailable() {
             target.col <= tableWhichSelectionInside.endCol)
         ) {
           selectEntireCell({
-            startCol: target.col,
+            startCol: edges.col,
             startRow: target.row,
-            endCol: target.col,
+            endCol: edges.col,
             endRow: target.row,
           });
         } else if (tableWhichSelectionInside) {

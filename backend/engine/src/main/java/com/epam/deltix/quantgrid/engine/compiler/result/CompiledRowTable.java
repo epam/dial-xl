@@ -20,6 +20,16 @@ public class CompiledRowTable extends CompiledAbstractTable {
     }
 
     @Override
+    public boolean reference() {
+        return true;
+    }
+
+    @Override
+    public boolean assignable() {
+        return true;
+    }
+
+    @Override
     public String name() {
         return source.name();
     }
@@ -43,8 +53,10 @@ public class CompiledRowTable extends CompiledAbstractTable {
         if (override != null) {
             CompiledTable layout = context.table(table);
             Expression expression = layout.scalar() ? override.node() : new Expand(layout.node(), override.node());
-            result = new CompiledSimpleColumn(expression, List.of());
+            result = new CompiledSimpleColumn(expression, List.of(), override.format());
         }
+
+        result = context.format(result, new FieldKey(table, field));
 
         return context.projectQueryResult(this, result, field);
     }

@@ -11,6 +11,7 @@ import Select, {
 import Icon from '@ant-design/icons';
 import {
   chartRowNumberSelector,
+  ChartType,
   ChevronDown,
   histogramChartSeriesSelector,
   SelectClasses,
@@ -37,6 +38,18 @@ export function ToolBarSelect({
   const [selectedValue, setSelectedValue] =
     useState<SingleValue<DefaultOptionType>>(notSelectedItem);
   const [filterValue, setFilterValue] = useState<string>('');
+
+  const isRowLabelMapping = useMemo(() => {
+    const { chartType, chartOrientation, chartSections } =
+      chartConfig.gridChart;
+
+    return (
+      (chartType === ChartType.PIE || chartType === ChartType.BAR) &&
+      chartOrientation === 'vertical' &&
+      keyName === chartRowNumberSelector &&
+      !!chartSections?.[0]?.xAxisFieldName
+    );
+  }, [chartConfig.gridChart, keyName]);
 
   const getKeyValues = useCallback(() => {
     const { availableKeys, keysWithNoDataPoint } = chartConfig.gridChart;
@@ -71,9 +84,13 @@ export function ToolBarSelect({
 
     return [
       notSelectedItem,
-      ...sortedKeys.map((key) => ({ value: key, label: key })),
+      ...sortedKeys.map((key, idx) =>
+        isRowLabelMapping
+          ? { value: (idx + 1).toString(), label: key }
+          : { value: key, label: key }
+      ),
     ];
-  }, [chartConfig.gridChart, keyName]);
+  }, [chartConfig.gridChart, keyName, isRowLabelMapping]);
 
   const onMenuScrollToBottom = useCallback(() => {
     if (
@@ -114,18 +131,30 @@ export function ToolBarSelect({
     if (typeof selectedKey !== 'string' && selectedKey !== undefined) return;
 
     if (selectedKey && selectedKey !== selectedValue?.value) {
-      setSelectedValue({ value: selectedKey, label: selectedKey });
+      if (isRowLabelMapping) {
+        const option = getKeyValues().find((o) => o.value === selectedKey);
+        setSelectedValue(option ?? notSelectedItem);
+      } else {
+        setSelectedValue({ value: selectedKey, label: selectedKey });
+      }
     } else if (!selectedKey && selectedValue?.value !== notSelectedItem.value) {
       setSelectedValue(notSelectedItem);
     }
-  }, [chartConfig, keyName, selectedValue]);
+  }, [chartConfig, keyName, selectedValue, isRowLabelMapping, getKeyValues]);
 
   const keyNameLabel = useMemo(() => {
+    const { gridChart } = chartConfig;
+    const { chartType, chartOrientation } = gridChart;
+    const isHorizontalPieOrBar =
+      (chartType === ChartType.BAR || chartType === ChartType.PIE) &&
+      chartOrientation === 'horizontal';
+    if (keyName === chartRowNumberSelector && isHorizontalPieOrBar)
+      return 'value column';
     if (keyName === chartRowNumberSelector) return 'row';
     if (keyName === histogramChartSeriesSelector) return 'series';
 
     return keyName;
-  }, [keyName]);
+  }, [chartConfig, keyName]);
 
   const dropdownIndicator = (
     props: DropdownIndicatorProps<

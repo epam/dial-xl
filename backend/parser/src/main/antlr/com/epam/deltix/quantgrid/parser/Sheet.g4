@@ -21,27 +21,29 @@ primitive: number | string;
 function_name: IDENTIFIER;
 table_name: IDENTIFIER | MULTI_WORD_TABLE_IDENTIFIER;
 field_name: FIELD_NAME;
+fields_reference: '[' field_name (',' field_name)+ ']';
 decorator_name: IDENTIFIER;
 lb: LINE_BREAK+;
 doc_comment: DOC_COMMENT lb;
 list_expression: '{' (expression (',' expression)*)? '}';
 row_ref: MULTI_WORD_TABLE_IDENTIFIER '(' (expression (',' expression)*)? ')';
 decorator_definition: lb? '!' lb? decorator_name lb? '(' lb? (primitive (lb? ',' lb? primitive lb?)*)? lb? ')' lb?;
-field_definition: doc_comment* decorator_definition*  (KEY_KEYWORD? DIMENSION_KEYWORD? | DIMENSION_KEYWORD? KEY_KEYWORD?) field_name ('=' expression)?;
+field_declaration: doc_comment* decorator_definition* (KEY_KEYWORD DIMENSION_KEYWORD? | DIMENSION_KEYWORD KEY_KEYWORD?)? field_name;
+fields_definition: field_declaration (lb? ',' lb? field_declaration)* ('=' expression)?;
 override_field: (KEY_KEYWORD? field_name) | ROW_KEYWORD;
 override_fields: override_field (',' override_field)* LINE_BREAK;
 override_value: expression?;
 override_row: override_value (',' override_value)*;
 override_definition: OVERRIDE_KEYWORD lb override_fields (override_row LINE_BREAK)*?;
 table_definition: doc_comment* decorator_definition* TABLE_KEYWORD lb? table_name lb?
-                  (field_definition lb)* ((apply_definition | total_definition) lb?)* override_definition?;
+                  (fields_definition lb)* (apply_definition | total_definition)* override_definition?;
 python_definition: PYTHON_BLOCK;
 
 apply_definition: 'apply' lb (apply_filter? apply_sort? | apply_sort? apply_filter?);
 apply_filter: 'filter' expression lb;
 apply_sort: 'sort' expression (',' expression)* lb;
 
-total_definition: 'total' lb (field_definition lb)*;
+total_definition: 'total' lb (fields_definition lb)*;
 
 expression: number
          | string
@@ -53,6 +55,7 @@ expression: number
          | table_name
          | field_name
          | expression field_name
+         | expression fields_reference
          | row_ref
          | '(' expression ')'
          | uni_op expression
@@ -73,7 +76,7 @@ ROW_KEYWORD: 'row';
 TABLE_KEYWORD: 'table';
 DIMENSION_KEYWORD: 'dim';
 KEY_KEYWORD: 'key';
-FLOAT: DIGIT+ ('.' DIGIT+)?;
+FLOAT: DIGIT+ ('.' DIGIT+)? ([eE] [+-]? DIGIT+)?;
 IDENTIFIER: [a-zA-Z0-9_]+;
 STRING_LITERAL: '"' (('\'\'' | '\'"') | ~('\n' | '\r' | '"' | '\''))*? '"';
 FIELD_NAME: '[' (('\'\'' | '\'[' | '\']') | ~('\n' | '\r' | '[' | ']' | '\''))* ']';

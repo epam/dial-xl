@@ -11,8 +11,8 @@ import {
 import { PanelName } from '../common';
 import {
   AppContext,
+  ChatOverlayContext,
   LayoutContext,
-  ProjectContext,
   SearchWindowContext,
   UndoRedoContext,
 } from '../context';
@@ -35,7 +35,7 @@ export function useShortcuts() {
     setViewportInteractionMode,
     viewportInteractionMode,
   } = useContext(AppContext);
-  const { isAIPendingChanges } = useContext(ProjectContext);
+  const { isAIPendingChanges } = useContext(ChatOverlayContext);
   const gridApi = useGridApi();
   const { openSearchWindow } = useContext(SearchWindowContext);
 
@@ -52,13 +52,11 @@ export function useShortcuts() {
   const shortcutGlobalHandlersMap: Partial<ShortcutHandlersMap> = useMemo(
     () => ({
       [Shortcut.NewProject]: () => createProjectAction(),
-      [Shortcut.ToggleProjects]: () => togglePanel(PanelName.ProjectTree),
+      [Shortcut.ToggleProjects]: () => togglePanel(PanelName.Project),
       [Shortcut.ToggleCodeEditor]: () => togglePanel(PanelName.CodeEditor),
-      [Shortcut.ToggleInputs]: () => togglePanel(PanelName.Inputs),
       [Shortcut.ToggleErrors]: () => togglePanel(PanelName.Errors),
       [Shortcut.ToggleHistory]: () => togglePanel(PanelName.UndoRedo),
       [Shortcut.ToggleChat]: () => handleToggleChat(),
-      [Shortcut.ToggleAIHints]: () => togglePanel(PanelName.AIHints),
       [Shortcut.ToggleChart]: () => togglePanel(PanelName.Details),
       [Shortcut.RedoAction]: () => redo(),
       [Shortcut.UndoAction]: () => undo(),

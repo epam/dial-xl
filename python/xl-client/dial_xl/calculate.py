@@ -2,10 +2,13 @@ import aiohttp
 from google.protobuf.json_format import MessageToDict, Parse
 
 from dial_xl.compile import (
-    FieldType,
     ParsingError,
     PrimitiveFieldType,
     compile_project,
+    TableTypeResult,
+    EMPTY_FIELD_KEY,
+    EMPTY_TOTAL_KEY,
+    OVERRIDE_TABLE_ERRORS,
 )
 from dial_xl.credentials import CredentialProvider
 from dial_xl.model.api_pb2 import (
@@ -26,14 +29,32 @@ class FieldData(ImmutableModel):
     total_rows: int
 
 
+FIELD_DATA_RESULTS = dict[str, FieldData | str]  # Field -> FieldData or error
+
+
+class TableDataResult(ImmutableModel):
+    fields: FIELD_DATA_RESULTS
+    totals: dict[int, FIELD_DATA_RESULTS]
+
+
 class CalculateResult(ImmutableModel):
     parsing_errors: dict[str, list[ParsingError]]  # Parsing errors per sheet
-    field_types: dict[
-        str, dict[str, FieldType | str]
-    ]  # Table -> Field -> FieldType or error
-    field_data: dict[
-        str, dict[str, FieldData | str]
-    ]  # Table -> Field -> FieldData or error
+    override_errors: dict[str, OVERRIDE_TABLE_ERRORS]
+    types: dict[str, TableTypeResult]
+    data: dict[str, TableDataResult]
+
+
+def to_field_data_or_error(column_data):
+    return (
+        column_data.error_message
+        if column_data.error_message
+        else FieldData(
+            values=column_data.data,
+            start_row=column_data.start_row,
+            end_row=column_data.end_row,
+            total_rows=column_data.total_rows,
+        )
+    )
 
 
 async def calculate_project(
@@ -44,37 +65,41 @@ async def calculate_project(
     credentials: CredentialProvider,
 ) -> CalculateResult:
     compile_result = await compile_project(rest_base_url, sheets, credentials)
-    data: dict[str, dict[str, FieldData]] = {}
+    fields: dict[str, FIELD_DATA_RESULTS] = {}
+    totals: dict[str, dict[int, FIELD_DATA_RESULTS]] = {}
     for column_data in await _calculate_project(
         rest_base_url, project_name, sheets, viewports, credentials
     ):
-        if column_data.fieldKey is None:
-            continue
+        if column_data.fieldKey != EMPTY_FIELD_KEY:
+            field_key = column_data.fieldKey
+            table = fields.setdefault(field_key.table, {})
+            table[field_key.field] = to_field_data_or_error(column_data)
+            types = compile_result.types.get(field_key.table, {})
+            if field_key.field not in types.fields:
+                # A hack to support pivot table columns
+                types.fields[field_key.field] = PrimitiveFieldType(
+                    hash="",
+                    name=ColumnDataType.Name(column_data.type),
+                    is_nested=column_data.isNested,
+                )
+        elif column_data.totalKey != EMPTY_TOTAL_KEY:
+            total_key = column_data.totalKey
+            table = totals.setdefault(total_key.table, {})
+            total = table.setdefault(total_key.number - 1, {})
+            total[total_key.field] = to_field_data_or_error(column_data)
 
-        table_data = data.setdefault(column_data.fieldKey.table, {})
-        field_data: FieldData | str = (
-            column_data.error_message
-            if column_data.error_message
-            else FieldData(
-                values=column_data.data,
-                start_row=column_data.start_row,
-                end_row=column_data.end_row,
-                total_rows=column_data.total_rows,
-            )
+    data = {
+        table_name: TableDataResult(
+            fields=fields.get(table_name, {}), totals=totals.get(table_name, {})
         )
-        table_data[column_data.fieldKey.field] = field_data
-        table_types = compile_result.field_types.get(column_data.fieldKey.table, {})
-        if column_data.fieldKey.field not in table_types:
-            # A hack to support pivot table columns
-            table_types[column_data.fieldKey.field] = PrimitiveFieldType(
-                name=ColumnDataType.Name(column_data.type),
-                is_nested=column_data.isNested,
-            )
+        for table_name in fields.keys() | totals.keys()
+    }
 
     return CalculateResult(
         parsing_errors=compile_result.parsing_errors,
-        field_types=compile_result.field_types,
-        field_data=data,
+        override_errors=compile_result.override_errors,
+        types=compile_result.types,
+        data=data,
     )
 
 

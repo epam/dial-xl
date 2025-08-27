@@ -12,6 +12,7 @@ import {
 import Icon from '@ant-design/icons';
 import {
   ChevronDown,
+  disabledTooltips,
   getDropdownItem,
   MenuItem,
   PlusIcon,
@@ -19,8 +20,10 @@ import {
 } from '@frontend/common';
 
 import { ProjectContext } from '../../context';
-import { useGridApi, useProjectActions } from '../../hooks';
+import { useGridApi, useProjectActions, useProjectMode } from '../../hooks';
+import { LongCalculation } from './LongCalculation';
 import { MoveMode } from './MoveMode';
+import { Profile } from './Profile';
 import { Zoom } from './Zoom';
 
 const defaultScrollDelta = 25;
@@ -34,6 +37,7 @@ export const BottomSheetBar = () => {
     deleteWorksheetAction,
   } = useProjectActions();
   const api = useGridApi();
+  const { isDefaultMode } = useProjectMode();
   const [isSheetsFullVisible, setIsSheetsFullVisible] = useState(true);
   const [isLeftSheetsScrollable, setIsLeftSheetsScrollable] = useState(true);
   const [isRightSheetsScrollable, setIsRightSheetsScrollable] = useState(true);
@@ -50,16 +54,20 @@ export const BottomSheetBar = () => {
         getDropdownItem({
           key: 'renameSheet',
           label: 'Rename Worksheet',
+          disabled: !isDefaultMode,
+          tooltip: disabledTooltips.notAllowedChanges,
           onClick: () => renameWorksheetAction(sheet.sheetName),
         }),
         getDropdownItem({
           key: 'deleteSheet',
           label: 'Delete Worksheet',
+          disabled: !isDefaultMode,
+          tooltip: disabledTooltips.notAllowedChanges,
           onClick: () => deleteWorksheetAction(sheet.sheetName),
         }),
       ];
     },
-    [deleteWorksheetAction, openSheet, renameWorksheetAction]
+    [deleteWorksheetAction, openSheet, renameWorksheetAction, isDefaultMode]
   );
 
   const checkSheetWrapper = useCallback(() => {
@@ -196,7 +204,7 @@ export const BottomSheetBar = () => {
   return (
     <div className="flex justify-between gap-10 items-center border-t border-strokePrimary px-1 text-sm text-textSecondary overflow-x-hidden bg-bgLayer1">
       <div className="flex gap-0.5 items-center overflow-x-hidden">
-        <div className="flex gap-1 items-center">
+        <div className="hidden md:flex gap-1 items-center">
           <button
             className="size-[18px] rotate-90 hover:text-textAccentPrimary disabled:text-controlsTextDisable"
             disabled={!isLeftSheetsScrollable}
@@ -212,10 +220,11 @@ export const BottomSheetBar = () => {
             <Icon component={() => <ChevronDown />} />
           </button>
         </div>
-        <div className="flex gap-0.5 items-center overflow-x-hidden relative">
+        <div className="flex gap-0.5 items-center overflow-x-hidden relative max-w-full">
           <div
             className="flex items-center overflow-x-auto hidden-scrollbar"
             ref={sheetsItemsRef}
+            onScroll={() => checkSheetWrapper()}
             onWheel={handleWheel}
           >
             {projectSheets?.map((sheet) => (
@@ -251,26 +260,30 @@ export const BottomSheetBar = () => {
             </>
           )}
         </div>
-        <Tooltip placement="bottom" title="Create worksheet">
-          <button
-            className={classNames(
-              'flex items-center justify-center p-2 h-full shrink-0 text-sm text-textSecondary hover:bg-bgAccentPrimaryAlpha'
-            )}
-            onClick={() => createWorksheetAction()}
-          >
-            <Icon
-              className="stroke-textSecondary w-[14px]"
-              component={() => <PlusIcon />}
-            />
-          </button>
-        </Tooltip>
+        {isDefaultMode && (
+          <Tooltip placement="bottom" title="Create worksheet">
+            <button
+              className={classNames(
+                'flex items-center justify-center p-2 h-full shrink-0 text-sm text-textSecondary hover:bg-bgAccentPrimaryAlpha'
+              )}
+              onClick={() => createWorksheetAction()}
+            >
+              <Icon
+                className="stroke-textSecondary w-[14px]"
+                component={() => <PlusIcon />}
+              />
+            </button>
+          </Tooltip>
+        )}
       </div>
 
-      <div className="flex items-center text-textPrimary gap-3 shrink-0">
+      <div className="hidden md:flex items-center text-textPrimary gap-3 shrink-0">
         {fieldSize !== null && (
-          <span title={`${fieldSize}`}>Column size: {fieldSize}</span>
+          <span title={`${fieldSize}`}>Rows: {fieldSize}</span>
         )}
 
+        <LongCalculation />
+        <Profile />
         <MoveMode />
         <Zoom />
       </div>

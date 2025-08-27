@@ -6,6 +6,7 @@ from testing.models import (
     ActionsStage,
     AnyStage,
     DataStage,
+    FocusStage,
     GenericStage,
     HintStage,
     IndexStage,
@@ -21,6 +22,7 @@ STAGE_MAPPING: dict[str, type[AnyStage]] = {
     "Index": IndexStage,
     "Actions": ActionsStage,
     "Changed Sheets": SheetsStage,
+    "Focus": FocusStage,
     "": GenericStage,
 }
 
@@ -31,13 +33,11 @@ def parse_stages(response: dict[str, Any]) -> list[AnyStage]:
 
     parsed_stages: list[AnyStage] = []
     for stage in response["custom_content"].get("stages", []):
-        attachments: dict[str, str] = {
-            attachment["title"]: attachment["data"]
-            for attachment in stage.get("attachments", [])
-        }
-
         parsed_stage = _parse_stage(
-            stage["name"], stage.get("content", ""), attachments, stage["status"]
+            stage["name"],
+            stage.get("content", ""),
+            stage.get("attachments", []),
+            stage["status"],
         )
 
         if parsed_stage is not None:
@@ -49,7 +49,7 @@ def parse_stages(response: dict[str, Any]) -> list[AnyStage]:
 def _parse_stage(
     name: str,
     content: str,
-    attachments: dict[str, str],
+    attachments: list[dict[str, Any]],
     status: Status,
 ) -> AnyStage | None:
     for stage_name, stage_model in STAGE_MAPPING.items():

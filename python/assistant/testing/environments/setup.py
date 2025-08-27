@@ -1,5 +1,4 @@
 import re
-import uuid
 
 from typing import Any, Mapping
 
@@ -49,12 +48,15 @@ def setup_environment(request: pytest.FixtureRequest):
     )
 
 
-def strip_test_indexing(node_id: str) -> str:
-    result = re.sub(r"\[\d+-\d+]", "", node_id)
-    result = "".join(char if char.isalnum() else "_" for char in result).replace(
-        "_+", "_"
-    )
-    return result
+def strip_test_indexing(node_id: str) -> tuple[str, int]:
+    match = re.fullmatch(r"(.*)\[(\d+)-\d+]", node_id)
+    if match is None:
+        return node_id, 0
+
+    name = "".join(char if char.isalnum() else "_" for char in match.group(1))
+    name = re.sub(r"_+", "_", name)
+
+    return name, int(match.group(2))
 
 
 @pytest.fixture(scope="function", name="project")
@@ -63,21 +65,24 @@ async def setup_project(
 ) -> FrameProject:
     qg_client, dial_api_client, report_folder, endpoint, model = setup_environment
 
-    project_id = strip_test_indexing(request.node.nodeid)
-    project_name = f"{project_id}-{uuid.uuid4().hex}"
-    LOGGER.info(f"Project {project_name} for test {project_id} created.")
+    test_name, test_index = strip_test_indexing(request.node.nodeid)
+    project_id = f"{test_name}[{test_index}]"
 
     project = FrameProject(
         qg_client,
         dial_api_client,
         report_folder,
-        f"{report_folder}/hints/{project_id}",
-        qg_client.create_project(project_name),
+        f"{report_folder}/{project_id}",
+        qg_client.create_project(project_id),
         endpoint,
         model,
     )
+
+    LOGGER.info(f"Project {project_id} created.")
+
     setattr(request.node, "queries", project.get_queries())
     setattr(request.node, "ai_hint", project.get_ai_hints())
-    setattr(request.node, "project_id", project_id)
+    setattr(request.node, "test_name", test_name)
+    setattr(request.node, "test_index", test_index)
 
     return project

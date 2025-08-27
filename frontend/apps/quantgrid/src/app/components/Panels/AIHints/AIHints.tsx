@@ -3,13 +3,7 @@ import classNames from 'classnames';
 import { useContext } from 'react';
 
 import Icon from '@ant-design/icons';
-import {
-  EyeIcon,
-  EyeOffIcon,
-  HintStarIcon,
-  PlusIcon,
-  TrashIcon,
-} from '@frontend/common';
+import { EyeIcon, EyeOffIcon, HintStarIcon, TrashIcon } from '@frontend/common';
 
 import { AIHintsContext, ProjectContext } from '../../../context';
 import { PanelEmptyMessage } from '../PanelEmptyMessage';
@@ -19,7 +13,6 @@ export const AIHints = () => {
     hints,
     hintsValidationResult,
     isHintsLoading,
-    newHintsModal,
     editHintModal,
     deleteHintModal,
     selectedHintsIndexes,
@@ -30,29 +23,15 @@ export const AIHints = () => {
 
   return (
     <div className="flex flex-col w-full h-full bg-bgLayer3 text-textPrimary overflow-hidden">
-      <div className="w-full p-1 border-b border-b-strokeTertiary flex flex-col">
-        <button
-          className="group flex items-center rounded-[3px] text-textPrimary py-1 px-2 hover:bg-bgAccentPrimaryAlpha disabled:hover:bg-inherit disabled:text-controlsTextDisable disabled:cursor-not-allowed"
-          disabled={!isProjectEditable}
-          onClick={() => newHintsModal()}
-        >
-          <Icon
-            className="w-[12px] text-textSecondary mr-2 group-disabled:stroke-controlsTextDisable"
-            component={() => <PlusIcon />}
-          />
-          <span className="text-[13px] leading-[14px]">Add new hint</span>
-        </button>
-      </div>
-
       <div className="flex flex-col grow overflow-auto thin-scrollbar">
         {isHintsLoading ? (
           <div className="flex grow items-center justify-center">
             <Spin className="z-50" size="large"></Spin>
           </div>
         ) : hints.length === 0 ? (
-          <PanelEmptyMessage message="No AI hints" />
+          <PanelEmptyMessage icon={<HintStarIcon />} message="No AI hints" />
         ) : (
-          <div className="p-1">
+          <div className="px-2">
             {hints.map((hint, index) => (
               <div
                 className="flex gap-1 overflow-hidden justify-between rounded-[3px] max-w-full truncate group items-center py-1 px-2 hover:bg-bgAccentPrimaryAlpha hover:cursor-pointer"

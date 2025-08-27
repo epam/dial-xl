@@ -3,11 +3,15 @@
   "tables": [
     {
       "span": {
+        "sheet": "test",
+        "text": "table 't1'\n  [*] = 1\n  [*] = 2\n",
         "from": 0,
         "to": 31
       },
       "name": {
         "span": {
+          "sheet": "test",
+          "text": "'t1'",
           "from": 6,
           "to": 10
         },
@@ -16,29 +20,42 @@
       "fields": [
         {
           "span": {
+            "sheet": "test",
+            "text": "[*] = 1",
             "from": 13,
             "to": 20
           },
-          "name": {
-            "span": {
-              "from": 13,
-              "to": 16
-            },
-            "text": "*"
-          },
+          "fields": [
+            {
+              "span": {
+                "sheet": "test",
+                "text": "[*]",
+                "from": 13,
+                "to": 16
+              },
+              "name": {
+                "span": {
+                  "sheet": "test",
+                  "text": "[*]",
+                  "from": 13,
+                  "to": 16
+                },
+                "text": "*"
+              },
+              "decorators": [],
+              "docs": []
+            }
+          ],
           "formula": {
+            "number": 1.0,
             "span": {
+              "sheet": "test",
+              "text": "1",
               "from": 19,
               "to": 20
             },
-            "formula": {
-              "number": 1.0,
-              "arguments": []
-            },
-            "errors": []
-          },
-          "decorators": [],
-          "docs": []
+            "arguments": []
+          }
         }
       ],
       "decorators": [],

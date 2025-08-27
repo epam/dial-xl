@@ -12,7 +12,7 @@ import { MenuItems } from '../../enums/MenuItems';
 import { ProjectPage } from '../../pages/ProjectPage';
 import { TestFixtures } from '../TestFixtures';
 
-let projectName = TestFixtures.addGuid('autotest_editmenu');
+const projectName = TestFixtures.addGuid('autotest_editmenu');
 
 const tableForSearch = 'SearchTable';
 
@@ -155,20 +155,6 @@ test.describe('edit menu', () => {
     const searchForm = new SearchForm(page);
     searchForm.search('jgdfk;jsdlkvncdfjvnfvlkdjfjasdfbmgflkf');
     await expect(searchForm.getNoResultsLabel()).toBeVisible();
-  });
-  //Rename project
-  test('rename project', async () => {
-    const projectPage = await ProjectPage.createInstance(page);
-    await projectPage.showProjectPanel();
-    await projectPage.performMenuCommand(
-      MenuItems.Edit,
-      EditMenuItems.RenameProject
-    );
-    const projectRenameForm = new ProjectCreationForm(page);
-    const newProjName = TestFixtures.addGuid('autotest_editmenu_renamed');
-    await projectRenameForm.fillForm(newProjName);
-    await projectPage.projectShouldBeInProjectsTree(newProjName);
-    projectName = newProjName;
   });
 
   // Rename sheet

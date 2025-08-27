@@ -29,6 +29,6 @@ public class CsvOutputWriter {
             writer.writeRow(values);
         }
 
-        writer.close();
+        writer.flush();
     }
 }

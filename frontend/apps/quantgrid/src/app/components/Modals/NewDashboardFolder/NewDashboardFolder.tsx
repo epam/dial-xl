@@ -12,6 +12,7 @@ import {
 import {
   inputClasses,
   KeyboardCode,
+  MetadataNodeType,
   modalFooterButtonClasses,
   primaryButtonClasses,
   primaryDisabledButtonClasses,
@@ -45,7 +46,7 @@ export function NewDashboardFolder({ newFolderModal }: Props) {
     const uniqueFolderName = createUniqueName(
       defaultFolderName,
       displayedDashboardItems
-        .filter(({ nodeType }) => nodeType === 'FOLDER')
+        .filter(({ nodeType }) => nodeType === MetadataNodeType.FOLDER)
         .map(({ name }) => name)
     );
 

@@ -5,42 +5,42 @@ from testing.framework.expected_actions import EditField, RemoveField, RemoveTab
 
 
 async def test_employees_count(employees_project: FrameProject):
-    answer = await employees_project.query(
-        "How many employees are there in this company?"
-    )
+    question = "How many employees are there in this company?"
+    gt_answer = "There are 27 employees"
+    answer = await employees_project.query(question, expectation=gt_answer)
 
     answer.assertion(Text(substrings=["27"]))
     answer.negative_assertion(EditField() | RemoveField() | RemoveTable())
 
 
 async def test_lead_employees_count(employees_project: FrameProject):
-    answer = await employees_project.query(
-        "How many of the employees have Lead (=4) title?"
-    )
+    question = "How many of the employees have Lead (=4) title?"
+    gt_answer = "There are 7 employees with Lead title."
+    answer = await employees_project.query(question, expectation=gt_answer)
     answer.assertion(Text(substrings=["7"]))
     answer.negative_assertion(EditField() | RemoveField() | RemoveTable())
 
 
 async def test_employees_experience(employees_project: FrameProject):
-    answer = await employees_project.query(
-        "How many employees have experience between 3-7 years?"
-    )
+    question = "How many employees have experience between 3-7 years?"
+    gt_answer = "There are 13 employees with experience between 3-7 years."
+    answer = await employees_project.query(question, expectation=gt_answer)
     answer.assertion(Text(substrings=["13"]))
     answer.negative_assertion(EditField() | RemoveField() | RemoveTable())
 
 
 async def test_no_assig_employees(employees_project: FrameProject):
-    answer = await employees_project.query(
-        "How many employees do not have any assignments?"
-    )
+    question = "How many employees do not have any assignments?"
+    gt_answer = "There are 17 employees without any assignments."
+    answer = await employees_project.query(question, expectation=gt_answer)
     answer.assertion(Text(substrings=["17"]))
     answer.negative_assertion(EditField() | RemoveField() | RemoveTable())
 
 
 async def test_no_assig_seniority_employees(employees_project: FrameProject):
-    answer = await employees_project.query(
-        "What's the average seniority of the employees without assignments?"
-    )
+    question = "What's the average seniority of the employees without assignments?"
+    gt_answer = "Average seniority of employees without assignments is around 3.1."
+    answer = await employees_project.query(question, expectation=gt_answer)
     answer.assertion(Text(substrings=["3.1"]))
     answer.negative_assertion(EditField() | RemoveField() | RemoveTable())
 
@@ -85,6 +85,7 @@ async def test_full_name_employees(employees_project: FrameProject):
                 "Peter Woodward",
                 "Mike Pillard",
             ],
+            is_focused=True,
         )
     )
     answer.negative_assertion(EditField() | RemoveField() | RemoveTable())
@@ -97,21 +98,22 @@ async def test_assignment_cost(employees_project: FrameProject):
     answer.assertion(
         AddField(
             values=[
-                "70.0",
-                "30.0",
-                "40.0",
-                "50.0",
-                "30.0",
-                "55.0",
-                "50.0",
-                "55.0",
-                "40.0",
-                "55.0",
-                "75.0",
-                "70.0",
-                "85.0",
-                "40.0",
-            ]
+                "70",
+                "30",
+                "40",
+                "50",
+                "30",
+                "55",
+                "50",
+                "55",
+                "40",
+                "55",
+                "75",
+                "70",
+                "85",
+                "40",
+            ],
+            is_focused=True,
         )
     )
     answer.negative_assertion(EditField() | RemoveField() | RemoveTable())
@@ -149,35 +151,42 @@ async def test_most_expensive_project(employees_project: FrameProject):
             field_substrings=["Most Expensive Project Name"],
             validator=validate,
             values=_get_true_costs(),
+            is_focused=True,
         )
         | AddField(
             table_regex="Employees",
             field_substrings=["Most Expensive Project Name"],
             validator=validate,
             values=_get_true_costs("N/A"),
+            is_focused=True,
         )
     )
     answer.negative_assertion(EditField() | RemoveField() | RemoveTable())
 
 
 async def test_specific_employee(employees_project: FrameProject):
-    answer = await employees_project.query("What project Jason is working on?")
-
+    question = "What project name Jason is working on?"
+    gt_answer = "Jason is working on Automated Testing Setup project."
+    answer = await employees_project.query(question, expectation=gt_answer)
     answer.assertion(Text(substrings=["Automated Testing Setup"]))
     answer.negative_assertion(EditField() | RemoveField() | RemoveTable())
 
 
 async def test_busy_employee(employees_project: FrameProject):
-    answer = await employees_project.query(
-        "Provide me top-3 busiest members for the project."
-    )
-    answer.assertion(Text(substrings=["Joseph Miller", "Jane Smith", "Emily Johnson"]))
+    question = "Provide me top-3 busiest employees names."
+    gt_answer = "Most busy employees are Joseph (optional: 3 assignments), Jane (optional: 2 assignments) and Emily (optional: 2 assignments)."
+
+    answer = await employees_project.query(question, expectation=gt_answer)
+    answer.assertion(Text(substrings=["Joseph", "Jane", "Emily"]))
     answer.negative_assertion(EditField() | RemoveField() | RemoveTable())
 
 
 async def test_avg_cost(employees_project: FrameProject):
-    answer = await employees_project.query(
+    question = (
         "Calculate average assignment cost for the employee with the most assignments."
     )
+    gt_answer = "The average assignment cost for the employee with the most assignments can be either 60 or 62.5."
+    answer = await employees_project.query(question, expectation=gt_answer)
+
     answer.assertion(Text(substrings=["60"]) | Text(substrings=["62.5"]))
     answer.negative_assertion(EditField() | RemoveField() | RemoveTable())

@@ -1,4 +1,4 @@
-from typing import Iterable
+from typing import Iterator
 
 from pydantic import BaseModel
 
@@ -8,6 +8,7 @@ from dial_xl.credentials import CredentialProvider
 from dial_xl.dial import _delete_project, _get_project_sheets, _save_project
 from dial_xl.events import Event, Observer
 from dial_xl.model.api_pb2 import FieldKey as FieldKeyProto
+from dial_xl.model.api_pb2 import TotalKey as TotalKeyProto
 from dial_xl.model.api_pb2 import Viewport as ViewportProto
 from dial_xl.sheet import Sheet, _parse_sheet
 from dial_xl.table import Table
@@ -25,16 +26,29 @@ class FieldKey(BaseModel):
         return FieldKeyProto(table=self.table, field=self.field)
 
 
+class TotalKey(BaseModel):
+    table: str
+    field: str
+    number: int
+
+    def to_proto(self) -> FieldKeyProto:
+        return TotalKeyProto(table=self.table, field=self.field, number=self.number)
+
+
 class Viewport(BaseModel):
-    key: FieldKey
+    key: FieldKey | TotalKey
     start_row: int
     end_row: int
 
+    is_raw: bool = False
+
     def to_proto(self) -> ViewportProto:
         return ViewportProto(
-            fieldKey=self.key.to_proto(),
+            fieldKey=self.key.to_proto() if isinstance(self.key, FieldKey) else None,
+            totalKey=self.key.to_proto() if isinstance(self.key, TotalKey) else None,
             start_row=self.start_row,
             end_row=self.end_row,
+            is_raw=self.is_raw,
         )
 
 
@@ -79,30 +93,32 @@ class Project(Observer):
 
     @property
     def name(self) -> str:
-        """Project name"""
+        """Get the project name."""
         return self.__path
 
     @property
     def base_etag(self) -> str:
-        """Project version"""
+        """Get the project ETag."""
         return self.__base_etag
 
     async def compile(self):
-        """Compiles the project, populates parsing errors and updates field types."""
+        """Compile the project, populate parsing errors, and update field types."""
         compile_result = await compile_project(
             self.__rest_base_url, self.to_dsl(), self.__credential_provider
         )
         for sheet_name in self.sheet_names:
             sheet = self.get_sheet(sheet_name)
             sheet._set_parsing_errors(compile_result.parsing_errors.get(sheet_name, []))
-            sheet._update_field_types(compile_result.field_types)
+            sheet._update_field_types(compile_result.types)
+            sheet._update_override_errors(compile_result.override_errors)
+
         self.__is_invalidated = False
 
     async def calculate(self, viewports: list[Viewport]):
-        """Calculates the project, populates parsing errors and updates field data."""
+        """Calculate the project, populate parsing errors, and update field data."""
         calculate_result = await calculate_project(
             self.__rest_base_url,
-            self.name if self.base_etag else "",
+            self.name,
             self.to_dsl(),
             [viewport.to_proto() for viewport in viewports],
             self.__credential_provider,
@@ -112,18 +128,18 @@ class Project(Observer):
             sheet._set_parsing_errors(
                 calculate_result.parsing_errors.get(sheet_name, [])
             )
-            sheet._update_field_types(calculate_result.field_types)
-            sheet._update_field_data(
-                calculate_result.field_data, calculate_result.field_types
-            )
+            sheet._update_field_types(calculate_result.types)
+            sheet._update_field_data(calculate_result.types, calculate_result.data)
+            sheet._update_override_errors(calculate_result.override_errors)
+
         self.__is_invalidated = False
 
     def get_sheet(self, name: str) -> Sheet:
-        """Returns a sheet by name"""
+        """Return a sheet by name."""
         return self.__sheets[name]
 
     def add_sheet(self, sheet: Sheet):
-        """Adds a sheet to the project object and invalidates compilation/computation results"""
+        """Add a sheet to the project object and invalidate compilation/computation results."""
         if sheet.name in self.__sheets:
             raise ValueError(f"Sheet '{sheet.name}' already exists")
 
@@ -137,14 +153,14 @@ class Project(Observer):
 
         self.__sheets[sheet.name] = sheet
         sheet._attach(self)
-        self._invalidate_results()
+        self.__invalidate_results()
 
     def remove_sheet(self, name: str) -> Sheet:
-        """Removes a sheet from the project object and invalidates compilation/computation results"""
+        """Remove a sheet from the project object and invalidate compilation/computation results."""
         if name not in self.__sheets:
             raise ValueError(f"Sheet '{name}' not found")
 
-        self._invalidate_results()
+        self.__invalidate_results()
         sheet = self.__sheets[name]
         sheet._detach()
         del self.__sheets[name]
@@ -152,32 +168,35 @@ class Project(Observer):
         return sheet
 
     @property
-    def sheet_names(self) -> Iterable[str]:
-        """Enumerates sheet names"""
+    def sheet_names(self) -> Iterator[str]:
+        """Enumerate sheet names."""
         return self.__sheets.keys()
 
     @property
-    def sheets(self) -> Iterable[Sheet]:
-        """Enumerates sheets"""
+    def sheets(self) -> Iterator[Sheet]:
+        """Enumerate sheets."""
         return self.__sheets.values()
 
     def _notify_before(self, event: Event):
         sender = event.sender
         if isinstance(sender, Sheet):
             if event.method_name == "name":
-                self._on_sheet_rename(sender.name, event.kwargs["value"])
+                self.__on_sheet_rename(sender.name, event.kwargs["value"])
             elif event.method_name == "add_table":
-                self._on_add_table(sender.name, event.kwargs["table"].name)
+                self.__on_add_table(sender.name, event.kwargs["table"].name)
         elif isinstance(sender, Table) and event.method_name == "name":
-            self._on_table_rename(sender.name, event.kwargs["value"])
+            self.__on_table_rename(sender.name, event.kwargs["value"])
 
     def _notify_after(self, event: Event):
-        self._invalidate_results()
+        if isinstance(event.sender, Sheet) and event.method_name == "name":
+            # Sheet rename doesn't affect computation results.
+            return
+        self.__invalidate_results()
 
-    def _on_sheet_rename(self, old_name: str, new_name: str):
+    def __on_sheet_rename(self, old_name: str, new_name: str):
         self.__sheets[new_name] = self.__sheets.pop(old_name)
 
-    def _on_add_table(self, sheet_name: str, table_name: str):
+    def __on_add_table(self, sheet_name: str, table_name: str):
         for sheet in self.__sheets.values():
             if sheet.has_table(table_name):
                 raise ValueError(
@@ -185,7 +204,7 @@ class Project(Observer):
                     f"Table '{table_name}' already exists in sheet '{sheet.name}'"
                 )
 
-    def _on_table_rename(self, old_name: str, new_name: str):
+    def __on_table_rename(self, old_name: str, new_name: str):
         for sheet in self.__sheets.values():
             if new_name in sheet.table_names:
                 raise ValueError(
@@ -193,12 +212,13 @@ class Project(Observer):
                     f"Table '{new_name}' already exists in sheet '{sheet.name}'"
                 )
 
-    def _invalidate_results(self):
+    def __invalidate_results(self):
         if not self.__is_invalidated:
             for sheet_name in self.sheet_names:
                 sheet = self.get_sheet(sheet_name)
                 sheet._update_field_types({})
                 sheet._update_field_data({}, {})
+                sheet._update_override_errors({})
             self.__is_invalidated = True
 
     def to_dsl(self) -> dict[str, str]:

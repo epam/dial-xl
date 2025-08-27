@@ -13,8 +13,11 @@ import { displayToast } from '../utils';
 import { useApiRequests } from './useApiRequests';
 
 export function useRenameFile() {
-  const { renameFile: renameFileRequest, renameProject: renameProjectRequest } =
-    useApiRequests();
+  const {
+    renameFile: renameFileRequest,
+    renameProject: renameProjectRequest,
+    deleteFile: deleteFileRequest,
+  } = useApiRequests();
 
   const renameFile = useCallback(
     async ({
@@ -22,11 +25,12 @@ export function useRenameFile() {
       bucket,
       path,
       newName,
-    }: FileReference & { newName: string }) => {
+      newNameIsFull = false,
+    }: FileReference & { newName: string; newNameIsFull?: boolean }) => {
       const initialFileName = name.substring(0, name.lastIndexOf('.'));
       const fileExtension = name.substring(name.lastIndexOf('.'));
       const isProject = fileExtension === dialProjectFileExtension;
-      const newFullFileName = newName + fileExtension;
+      const newFullFileName = newNameIsFull ? newName : newName + fileExtension;
       const res = isProject
         ? await renameProjectRequest({
             fileName: name,
@@ -51,6 +55,7 @@ export function useRenameFile() {
       );
 
       const isCsvFile = name.endsWith(csvFileExtension);
+      const isNewCsvFile = newFullFileName.endsWith(csvFileExtension);
 
       if (isCsvFile) {
         const schemaName =
@@ -59,12 +64,20 @@ export function useRenameFile() {
           '.' +
           newFullFileName.replaceAll(csvFileExtension, schemaFileExtension);
 
-        await renameFileRequest({
-          fileName: schemaName,
-          newFileName: newSchemaName,
-          parentPath: path,
-          bucket,
-        });
+        if (isNewCsvFile) {
+          await renameFileRequest({
+            fileName: schemaName,
+            newFileName: newSchemaName,
+            parentPath: path,
+            bucket,
+          });
+        } else {
+          await deleteFileRequest({
+            fileName: schemaName,
+            path,
+            bucket,
+          });
+        }
       }
 
       if (isProject) {
@@ -74,7 +87,7 @@ export function useRenameFile() {
 
       return {};
     },
-    [renameFileRequest, renameProjectRequest]
+    [renameFileRequest, renameProjectRequest, deleteFileRequest]
   );
 
   return {

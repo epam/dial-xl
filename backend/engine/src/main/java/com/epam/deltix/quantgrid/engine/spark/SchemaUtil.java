@@ -39,16 +39,18 @@ public class SchemaUtil {
 
     public static DataType sparkDataType(ColumnType columnType) {
         return switch (columnType) {
-            case DOUBLE, INTEGER, BOOLEAN, DATE -> DataTypes.DoubleType;
+            case DOUBLE -> DataTypes.DoubleType;
             case STRING -> DataTypes.StringType;
             case PERIOD_SERIES -> PERIOD_SERIES_DATA_TYPE;
+            default -> throw new IllegalArgumentException("not supported");
         };
     }
 
     public static boolean isNullable(ColumnType columnType) {
         return switch (columnType) {
-            case DOUBLE, INTEGER, BOOLEAN, DATE -> false;
+            case DOUBLE -> false;
             case STRING, PERIOD_SERIES -> true;
+            default -> throw new IllegalArgumentException("not supported");
         };
     }
 

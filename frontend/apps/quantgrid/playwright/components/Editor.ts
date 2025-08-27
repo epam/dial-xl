@@ -179,4 +179,8 @@ export class Editor extends BaseComponent {
       this.innerPage.locator(this.noSuggestionsMessage)
     ).toContainText('No suggestions');
   }
+
+  public async getEditorText() {
+    return await this.getValueLocator().textContent();
+  }
 }

@@ -3,11 +3,15 @@
   "tables": [
     {
       "span": {
+        "sheet": "test",
+        "text": "!placement(1,\n!placement(2,2)\ntable t1\n",
         "from": 0,
         "to": 39
       },
       "name": {
         "span": {
+          "sheet": "test",
+          "text": "t1",
           "from": 36,
           "to": 38
         },
@@ -17,11 +21,15 @@
       "decorators": [
         {
           "span": {
+            "sheet": "test",
+            "text": "!placement(2,2)\n",
             "from": 14,
             "to": 30
           },
           "name": {
             "span": {
+              "sheet": "test",
+              "text": "placement",
               "from": 15,
               "to": 24
             },
@@ -30,6 +38,8 @@
           "params": [
             {
               "span": {
+                "sheet": "test",
+                "text": "2",
                 "from": 25,
                 "to": 26
               },
@@ -37,6 +47,8 @@
             },
             {
               "span": {
+                "sheet": "test",
+                "text": "2",
                 "from": 27,
                 "to": 28
               },
@@ -50,11 +62,15 @@
     },
     {
       "span": {
+        "sheet": "test",
+        "text": "!asd\n  key [a] = 1 + 2\n  !format(\"#.##\")\n  dim [c] = 5\n\n!placement(1,1)\ntable t2\n    !format(\"number\")\n    [x] = 5\n",
         "from": 41,
         "to": 156
       },
       "name": {
         "span": {
+          "sheet": "test",
+          "text": "t2",
           "from": 119,
           "to": 121
         },
@@ -63,62 +79,85 @@
       "fields": [
         {
           "span": {
+            "sheet": "test",
+            "text": "!format(\"number\")\n    [x] = 5",
             "from": 126,
             "to": 155
           },
-          "name": {
-            "span": {
-              "from": 148,
-              "to": 151
-            },
-            "text": "x"
-          },
-          "formula": {
-            "span": {
-              "from": 154,
-              "to": 155
-            },
-            "formula": {
-              "number": 5.0,
-              "arguments": []
-            },
-            "errors": []
-          },
-          "decorators": [
+          "fields": [
             {
               "span": {
+                "sheet": "test",
+                "text": "!",
                 "from": 126,
-                "to": 144
+                "to": 127
               },
               "name": {
                 "span": {
-                  "from": 127,
-                  "to": 133
+                  "sheet": "test",
+                  "text": "[x]",
+                  "from": 148,
+                  "to": 151
                 },
-                "text": "format"
+                "text": "x"
               },
-              "params": [
+              "decorators": [
                 {
                   "span": {
-                    "from": 134,
-                    "to": 142
+                    "sheet": "test",
+                    "text": "!format(\"number\")\n",
+                    "from": 126,
+                    "to": 144
                   },
-                  "value": "number"
+                  "name": {
+                    "span": {
+                      "sheet": "test",
+                      "text": "format",
+                      "from": 127,
+                      "to": 133
+                    },
+                    "text": "format"
+                  },
+                  "params": [
+                    {
+                      "span": {
+                        "sheet": "test",
+                        "text": "\"number\"",
+                        "from": 134,
+                        "to": 142
+                      },
+                      "value": "number"
+                    }
+                  ]
                 }
-              ]
+              ],
+              "docs": []
             }
           ],
-          "docs": []
+          "formula": {
+            "number": 5.0,
+            "span": {
+              "sheet": "test",
+              "text": "5",
+              "from": 154,
+              "to": 155
+            },
+            "arguments": []
+          }
         }
       ],
       "decorators": [
         {
           "span": {
+            "sheet": "test",
+            "text": "\n  !format(\"#.##\")\n",
             "from": 63,
             "to": 82
           },
           "name": {
             "span": {
+              "sheet": "test",
+              "text": "format",
               "from": 67,
               "to": 73
             },
@@ -127,6 +166,8 @@
           "params": [
             {
               "span": {
+                "sheet": "test",
+                "text": "\"#.##\"",
                 "from": 74,
                 "to": 80
               },
@@ -136,11 +177,15 @@
         },
         {
           "span": {
+            "sheet": "test",
+            "text": "\n\n!placement(1,1)\n",
             "from": 95,
             "to": 113
           },
           "name": {
             "span": {
+              "sheet": "test",
+              "text": "placement",
               "from": 98,
               "to": 107
             },
@@ -149,6 +194,8 @@
           "params": [
             {
               "span": {
+                "sheet": "test",
+                "text": "1",
                 "from": 108,
                 "to": 109
               },
@@ -156,6 +203,8 @@
             },
             {
               "span": {
+                "sheet": "test",
+                "text": "1",
                 "from": 110,
                 "to": 111
               },

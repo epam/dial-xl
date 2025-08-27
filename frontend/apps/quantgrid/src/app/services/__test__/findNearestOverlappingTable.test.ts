@@ -17,13 +17,13 @@ describe('findNearestOverlappingTable', () => {
 
   const createParsedTable = (
     tableName: string,
-    startOffset: number,
-    stopOffset: number
+    from: number,
+    to: number
   ): any => ({
     tableName,
-    dslPlacement: {
-      startOffset,
-      stopOffset,
+    span: {
+      from,
+      to,
     },
   });
 

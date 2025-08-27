@@ -26,6 +26,7 @@ export function ColResizer() {
     gridCallbacks,
     getBitmapFontName,
     isPanModeEnabled,
+    setSelectionEdges,
   } = useContext(GridStateContext);
   const { viewportCoords, getCellX, getCellY, getCellFromCoords } =
     useContext(GridViewportContext);
@@ -139,6 +140,8 @@ export function ColResizer() {
       }
 
       if (isActive && initialCell) {
+        setSelectionEdges(null, { silent: true });
+
         const cellWidth =
           col - initialCell.col + initialCell.endCol - initialCell.startCol + 1;
 
@@ -172,6 +175,7 @@ export function ColResizer() {
       resizerX,
       resizerY,
       isPanModeEnabled,
+      setSelectionEdges,
     ]
   );
 
@@ -190,6 +194,8 @@ export function ColResizer() {
       isMouseDown.current = true;
 
       if (isNearColumnBorder.current) {
+        setSelectionEdges(null, { silent: true });
+
         setIsActive(true);
 
         const resizerTargetCell = getResizerRelatedCellByPosition(x, y);
@@ -217,7 +223,13 @@ export function ColResizer() {
         e.stopPropagation();
       }
     },
-    [getCell, getResizerRelatedCellByPosition, gridSizes, isPanModeEnabled]
+    [
+      getCell,
+      getResizerRelatedCellByPosition,
+      gridSizes,
+      isPanModeEnabled,
+      setSelectionEdges,
+    ]
   );
 
   const cleanup = useCallback(() => {
@@ -339,7 +351,9 @@ export function ColResizer() {
           )
             continue;
 
-          const cellWidth = (cell!.value?.length ?? 0) * symbolWidth;
+          const cellWidth =
+            (cell.displayValue?.length ?? cell.value?.length ?? 0) *
+            symbolWidth;
 
           if (maxWidth < cellWidth) {
             maxWidth = cellWidth;
@@ -408,11 +422,14 @@ export function ColResizer() {
 
     graphics.beginFill(color);
 
+    const resizerHeight = height * 0.7;
+    const verticalOffset = (height - resizerHeight) / 2;
+
     graphics.drawRoundedRect(
       resizerX - resizerWidth / 2 + (isActive ? deltaX : 0),
-      resizerY,
+      resizerY + verticalOffset,
       resizerWidth,
-      height,
+      resizerHeight,
       3
     );
 

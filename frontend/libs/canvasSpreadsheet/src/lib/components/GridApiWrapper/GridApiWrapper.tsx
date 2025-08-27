@@ -62,6 +62,8 @@ export const GridApiWrapper = ({
     theme,
     getBitmapFontName,
     isPanModeEnabled,
+    hasCharts,
+    setHasCharts,
   } = useContext(GridStateContext);
   const {
     viewportEdges,
@@ -97,10 +99,6 @@ export const GridApiWrapper = ({
     return viewportCoords.current;
   }, [viewportCoords]);
 
-  const getGridSizes = useCallback(() => {
-    return gridSizes;
-  }, [gridSizes]);
-
   const clearSelection = useCallback(() => {
     setSelectionEdges(null);
   }, [setSelectionEdges]);
@@ -114,7 +112,10 @@ export const GridApiWrapper = ({
 
         if (cell?.isTableHeader) continue;
 
-        max = Math.max(max, cell?.value?.length || 0);
+        max = Math.max(
+          max,
+          cell?.displayValue?.length ?? cell?.value?.length ?? 0
+        );
       }
 
       return max;
@@ -279,7 +280,6 @@ export const GridApiWrapper = ({
     gridApiRef.current.getCellFromCoords = getCellFromCoords;
     gridApiRef.current.getCellX = getCellX;
     gridApiRef.current.getCellY = getCellY;
-    gridApiRef.current.getGridSizes = getGridSizes;
     gridApiRef.current.getViewportCoords = getViewportCoords;
     gridApiRef.current.getViewportEdges = getViewportEdges;
     gridApiRef.current.gridViewportSubscription = gridViewportSubscription;
@@ -308,6 +308,9 @@ export const GridApiWrapper = ({
     gridApiRef.current.setDNDSelection = setDNDSelection;
     gridApiRef.current.dndSelection = dndSelection;
     gridApiRef.current.isPanModeEnabled = isPanModeEnabled;
+    gridApiRef.current.gridSizes = gridSizes;
+    gridApiRef.current.hasCharts = hasCharts;
+    gridApiRef.current.setHasCharts = setHasCharts;
   }, [
     arrowNavigation,
     clearSelection,
@@ -321,7 +324,7 @@ export const GridApiWrapper = ({
     getCellX,
     getCellY,
     getColumnContentMaxSymbols,
-    getGridSizes,
+    gridSizes,
     getViewportCoords,
     getViewportEdges,
     gridApiRef,
@@ -345,6 +348,8 @@ export const GridApiWrapper = ({
     tabNavigation,
     updateSelectionAfterDataChanged,
     isPanModeEnabled,
+    hasCharts,
+    setHasCharts,
   ]);
 
   useEffect(() => {

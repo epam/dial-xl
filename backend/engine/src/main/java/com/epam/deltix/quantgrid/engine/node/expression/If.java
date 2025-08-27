@@ -18,7 +18,7 @@ public class If extends Expression3<DoubleColumn, Column, Column, Column> {
 
     @Override
     public ColumnType getType() {
-        return ColumnType.closest(expression(1).getType(), expression(2).getType());
+        return expression(1).getType();
     }
 
     @Override

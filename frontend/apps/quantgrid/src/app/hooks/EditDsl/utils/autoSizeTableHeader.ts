@@ -24,33 +24,35 @@ export function autoSizeTableHeader(
 
   const fieldSizes: number[] = [];
   let currentTableCols = 0;
+  let idx = 0;
 
-  table.fields.forEach((field, idx) => {
-    const hasSizeDecorator = field.hasDecorator(fieldColSizeDecoratorName);
-    let size = 1;
+  for (const fieldGroup of table.fieldGroups) {
+    for (const field of fieldGroup.fields) {
+      const hasSizeDecorator = field.hasDecorator(fieldColSizeDecoratorName);
+      let size = 1;
 
-    if (hasSizeDecorator) {
-      const decorator = field.getDecorator(fieldColSizeDecoratorName);
-      const match = decorator.arguments.trim().match(/^\(\s*(-?\d+)\s*\)$/);
+      if (hasSizeDecorator) {
+        const decorator = field.getDecorator(fieldColSizeDecoratorName);
+        const match = decorator.arguments.trim().match(/^\(\s*(-?\d+)\s*\)$/);
 
-      if (match) {
-        size = Math.max(1, parseInt(match[1], 10));
+        if (match) {
+          size = Math.max(1, parseInt(match[1], 10));
+        }
       }
-    }
 
-    fieldSizes[idx] = size;
-    currentTableCols += size;
-  });
+      fieldSizes[idx] = size;
+      currentTableCols += size;
+      idx += 1;
+    }
+  }
 
   let extra = tableHeaderSize - currentTableCols;
 
   if (extra <= 0) return;
 
-  const fieldCount = table.fields.length;
-
   while (extra > 0) {
     let grew = false;
-    for (let i = 0; i < fieldCount && extra > 0; i++) {
+    for (let i = 0; i < idx && extra > 0; i++) {
       if (fieldSizes[i] < fieldNameSizeLimit) {
         fieldSizes[i]++;
         extra--;
@@ -60,11 +62,16 @@ export function autoSizeTableHeader(
     if (!grew) break;
   }
 
-  table.fields.forEach((field, idx) => {
-    const newSize = fieldSizes[idx];
+  idx = 0;
+  for (const fieldGroup of table.fieldGroups) {
+    for (const field of fieldGroup.fields) {
+      const newSize = fieldSizes[idx];
 
-    if (newSize > 1) {
-      editFieldDecorator(field, fieldColSizeDecoratorName, `(${newSize})`);
+      if (newSize > 1) {
+        editFieldDecorator(field, fieldColSizeDecoratorName, `(${newSize})`);
+      }
+
+      idx += 1;
     }
-  });
+  }
 }

@@ -5,17 +5,17 @@ from testing.framework import AddTable, FrameProject, code_regex
 
 async def test_arithmetics(basic_project: FrameProject):
     await basic_project.create_table(
-        code="""
-        !manual()
-        table TArithmetic
-          [num1]
-          [num2]
-        override
-          [num1],[num2]
-          10, 5
-          20, 10
-          30, 15
-          """
+        code=(
+            f"!manual()\n"
+            f"table TArithmetic\n"
+            f"  [num1]\n"
+            f"  [num2]\n"
+            f"override\n"
+            f"  [num1],[num2]\n"
+            f"  10, 5\n"
+            f"  20, 10\n"
+            f"  30, 15\n"
+        )
     )
 
     answer = await basic_project.query(
@@ -28,32 +28,32 @@ async def test_arithmetics(basic_project: FrameProject):
     answer.assertion(
         AddTable(
             table_regex="Arithmetic",
-            add=["15.0", "30.0", "45.0"],
-            subtract=["5.0", "10.0", "15.0"],
-            multiply=["50.0", "200.0", "450.0"],
-            divide=["2.0", "2.0", "2.0"],
+            add=["15", "30", "45"],
+            subtract=["5", "10", "15"],
+            multiply=["50", "200", "450"],
+            divide=["2", "2", "2"],
         )
     )
 
 
 async def test_abs(basic_project: FrameProject):
     await basic_project.create_table(
-        code="""
-        !manual()
-        table TAbs
-          [num1]
-          [num2]
-        override
-          [num1],[num2]
-          -10, 5
-          20, 10
-          -30, -15
-          """
+        code=(
+            f"!manual()\n"
+            f"table TAbs\n"
+            f"  [num1]\n"
+            f"  [num2]\n"
+            f"override\n"
+            f"  [num1],[num2]\n"
+            f"  -10, 5\n"
+            f"  20, 10\n"
+            f"  -30, -15\n"
+        )
     )
 
     answer = await basic_project.query(
-        """Create new table named "Absolute". It's columns "abs_num1" and "abs_num2" should contain absolute values \
-        derived from columns "num1" and "num2". Use designated function."""
+        f'Create new table named "Absolute". Its columns "abs_num1" and "abs_num2" should contain absolute values '
+        f'derived from columns "num1" and "num2". Use designated function.'
     )
 
     def check(_, __, table: Table):
@@ -63,8 +63,8 @@ async def test_abs(basic_project: FrameProject):
     answer.assertion(
         AddTable(
             table_regex="Absolute",
-            abs_num1=["10.0", "20.0", "30.0"],
-            abs_num2=["5.0", "10.0", "15.0"],
+            abs_num1=["10", "20", "30"],
+            abs_num2=["5", "10", "15"],
             validator=check,
         )
     )
@@ -72,17 +72,17 @@ async def test_abs(basic_project: FrameProject):
 
 async def test_round(basic_project: FrameProject):
     await basic_project.create_table(
-        code="""
-        !manual()
-        table TRound
-          [num1]
-          [num2]
-        override
-          [num1],[num2]
-          -0.1, 5.4
-          2, 0.78
-          -30, -3.4
-          """
+        code=(
+            f"!manual()\n"
+            f"table TRound\n"
+            f"  [num1]\n"
+            f"  [num2]\n"
+            f"override\n"
+            f"  [num1],[num2]\n"
+            f"  -0.1, 5.4\n"
+            f"  2, 0.78\n"
+            f"  -30, -3.4\n"
+        )
     )
 
     answer = await basic_project.query(
@@ -106,17 +106,17 @@ async def test_round(basic_project: FrameProject):
 
 async def test_strong_comparison(basic_project: FrameProject):
     await basic_project.create_table(
-        code="""
-        !manual()
-        table TComparison
-          [num1]
-          [num2]
-        override
-          [num1],[num2]
-          -0.1, 5.4
-          2, 0.78
-          -30, -3.4
-          """
+        code=(
+            f"!manual()\n"
+            f"table TComparison\n"
+            f"  [num1]\n"
+            f"  [num2]\n"
+            f"override\n"
+            f"  [num1],[num2]\n"
+            f"  -0.1, 5.4\n"
+            f"  2, 0.78\n"
+            f"  -30, -3.4\n"
+        )
     )
 
     answer = await basic_project.query(
@@ -132,8 +132,8 @@ async def test_strong_comparison(basic_project: FrameProject):
     answer.assertion(
         AddTable(
             table_regex="Comparisons",
-            greater=["FALSE", "TRUE", "FALSE"],
-            less=["TRUE", "FALSE", "TRUE"],
+            greater=["0", "1", "0"],
+            less=["1", "0", "1"],
             validator=check,
         )
     )
@@ -141,17 +141,17 @@ async def test_strong_comparison(basic_project: FrameProject):
 
 async def test_weak_comparison(basic_project: FrameProject):
     await basic_project.create_table(
-        code="""
-        !manual()
-        table TComparison
-          [num1]
-          [num2]
-        override
-          [num1],[num2]
-          -0.1, -0.1
-          2, 0.78
-          -30, 3.4
-          """
+        code=(
+            f"!manual()\n"
+            f"table TComparison\n"
+            f"  [num1]\n"
+            f"  [num2]\n"
+            f"override\n"
+            f"  [num1],[num2]\n"
+            f"  -0.1, -0.1\n"
+            f"  2, 0.78\n"
+            f"  -30, 3.4\n"
+        )
     )
 
     answer = await basic_project.query(
@@ -167,8 +167,8 @@ async def test_weak_comparison(basic_project: FrameProject):
     answer.assertion(
         AddTable(
             table_regex="Comparisons",
-            greater=["TRUE", "TRUE", "FALSE"],
-            less=["TRUE", "FALSE", "TRUE"],
+            greater=["1", "1", "0"],
+            less=["1", "0", "1"],
             validator=check,
         )
     )
@@ -176,17 +176,17 @@ async def test_weak_comparison(basic_project: FrameProject):
 
 async def test_equality(basic_project: FrameProject):
     await basic_project.create_table(
-        code="""
-        !manual()
-        table TEquality
-          [num1]
-          [num2]
-        override
-          [num1],[num2]
-          -0.1, -0.1
-          2, 0.78
-          30, 30
-          """
+        code=(
+            f"!manual()\n"
+            f"table TEquality\n"
+            f"  [num1]\n"
+            f"  [num2]\n"
+            f"override\n"
+            f"  [num1],[num2]\n"
+            f"  -0.1, -0.1\n"
+            f"  2, 0.78\n"
+            f"  30, 30\n"
+        )
     )
 
     answer = await basic_project.query(
@@ -202,8 +202,8 @@ async def test_equality(basic_project: FrameProject):
     answer.assertion(
         AddTable(
             table_regex="Equality",
-            equal=["TRUE", "FALSE", "TRUE"],
-            not_equal=["FALSE", "TRUE", "FALSE"],
+            equal=["1", "0", "1"],
+            not_equal=["0", "1", "0"],
             validator=check,
         )
     )

@@ -14,6 +14,7 @@ import {
   GridTable,
   isHiddenFieldCell,
   isHiddenTableHeaderCell,
+  useIsMobile,
 } from '@frontend/common';
 
 import { GridStateContext, GridViewportContext } from '../../context';
@@ -35,6 +36,7 @@ export function useHiddenCells(
     tableStructure,
   } = useContext(GridStateContext);
   const { getCellX } = useContext(GridViewportContext);
+  const isMobile = useIsMobile();
 
   const cells = useRef<Cell[]>([]);
   const [render, setRender] = useState(0);
@@ -174,16 +176,21 @@ export function useHiddenCells(
 
   const handleEmptySheetHint = useCallback(() => {
     if (!tableStructure.length) {
-      const text =
+      let text =
         'Welcome! Start working by typing in cells (use "=" for formulas).';
-      const text2 =
-        'To load the data Drag & drop CSV files directly into sheet or use Input panel → Upload file';
+      let text2 =
+        'To load the data Drag & drop CSV files directly into sheet or use Project panel → Inputs → Upload file';
+
+      if (isMobile) {
+        text = 'Welcome! Start working by typing in cells.';
+        text2 = 'To load the data use Input panel → Upload file';
+      }
 
       createCell(1, 2, text, 100000);
       createCell(1, 3, text2, 100000);
       setRender((prev) => prev + 1);
     }
-  }, [createCell, tableStructure]);
+  }, [createCell, isMobile, tableStructure.length]);
 
   const findHiddenCells = useCallback(
     (selectionEdges: Edges | null) => {

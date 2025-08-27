@@ -9,6 +9,7 @@ import {
   CurrentFieldExpression,
   Expression,
   FieldReferenceExpression,
+  FieldsReferenceExpression,
   FunctionExpression,
   parseUnaryOperation,
   QueryRowExpression,
@@ -20,12 +21,17 @@ import { EmptyExpression } from './ast/EmptyExpression';
 import { ErrorListener } from './ErrorListener';
 import { FieldKey } from './FieldKey';
 import {
+  Field_declarationContext,
+  Fields_definitionContext,
+} from './grammar/SheetParser';
+import {
   Decorator_definitionContext,
   ExpressionContext,
   FormulaContext,
   Override_definitionContext,
   Override_fieldContext,
   Override_rowContext,
+  ParsedFields,
   SheetContext,
   SheetLexer,
   SheetListener,
@@ -47,7 +53,6 @@ import { ParsedTotals } from './ParsedTotals';
 import {
   DSLNote,
   ExpressionMetadata,
-  FullDSLPlacement,
   naExpression,
   newLine,
   TableTotals,
@@ -55,9 +60,7 @@ import {
 } from './parser';
 import { PythonBlock } from './PythonBlock';
 import {
-  getFieldNameDslPlacement,
   getFullDSLPlacement,
-  getMultiContextFullDSLPlacement,
   getShortDSLPlacement,
   getTotalType,
 } from './services';
@@ -121,8 +124,6 @@ export class SheetReader implements SheetListener {
     const decorators: ParsedDecorator[] = [];
 
     for (const ctx of decoratorsCtxs) {
-      const decoratorDslPlacement = getShortDSLPlacement(ctx, 1);
-
       const paramsSpan = ctx.primitive_list().map((p) => {
         const numberP = p.number_();
         if (numberP != null) {
@@ -138,7 +139,6 @@ export class SheetReader implements SheetListener {
           ParsedText.from(ctx.decorator_name()),
           paramsSpan,
           ctx.decorator_name().getText(),
-          decoratorDslPlacement,
           ctx.primitive_list().map((p) => {
             const numberP = p.number_();
             if (numberP != null) {
@@ -154,8 +154,7 @@ export class SheetReader implements SheetListener {
     return decorators;
   }
 
-  private buildSheet(ctx: SheetContext) {
-    const tables: ParsedTable[] = [];
+  private getPythonBlocks(ctx: SheetContext): PythonBlock[] {
     const pythonBlocks: PythonBlock[] = [];
 
     for (const pythonBlock of ctx.python_definition_list()) {
@@ -166,128 +165,154 @@ export class SheetReader implements SheetListener {
       pythonBlocks.push(new PythonBlock(dslPlacement));
     }
 
+    return pythonBlocks;
+  }
+
+  private getNote(
+    ctx: Table_definitionContext | Field_declarationContext
+  ): DSLNote {
+    const note: DSLNote = {
+      text: '',
+      start: 0,
+      end: 0,
+    };
+
+    const docComment = ctx.doc_comment_list();
+
+    if (docComment.length > 0) {
+      const firstDocComment = docComment[0];
+      const lastDocComment = docComment.at(-1);
+
+      note.start = firstDocComment.start.start;
+      note.end = lastDocComment?.stop?.stop || note.start;
+
+      docComment.forEach((i) => {
+        note.text += i.getText();
+      });
+    }
+
+    return note;
+  }
+
+  private buildExpressionMetadata(
+    expressionCtx: ExpressionContext
+  ): ExpressionMetadata {
+    const startIndex = expressionCtx.start.start;
+    const end =
+      expressionCtx.stop?.stop ?? startIndex + expressionCtx.getText().length;
+    const expressionText = SheetReader.sourceText.substring(
+      startIndex,
+      end + 1
+    );
+
+    return {
+      text: expressionText || expressionCtx.getText(),
+      start: Math.min(startIndex, end),
+      end: Math.max(startIndex, end),
+    };
+  }
+
+  private parseFieldsDefinition(
+    ctx: Fields_definitionContext,
+    tableName: string,
+    fieldGroupIndex: number
+  ): ParsedFields {
+    const parsedFieldList: ParsedField[] = [];
+    const exprCtx = ctx.expression();
+    const builtExpression = exprCtx ? this.buildExpression(exprCtx) : undefined;
+    const expressionMetadata = exprCtx
+      ? this.buildExpressionMetadata(exprCtx)
+      : undefined;
+    const parsedExpressionText = ParsedText.fromExpression(exprCtx);
+
+    for (const declCtx of ctx.field_declaration_list()) {
+      const field = this.createParsedFieldFromDeclaration(
+        declCtx,
+        ctx,
+        tableName,
+        builtExpression,
+        expressionMetadata,
+        fieldGroupIndex
+      );
+      parsedFieldList.push(field);
+    }
+
+    return new ParsedFields(
+      Span.fromParserRuleContext(ctx),
+      parsedFieldList,
+      parsedExpressionText
+    );
+  }
+
+  private createParsedFieldFromDeclaration(
+    declCtx: Field_declarationContext,
+    defCtx: Fields_definitionContext,
+    tableName: string,
+    builtExpression: Expression | undefined,
+    expressionMetadata: ExpressionMetadata | undefined,
+    fieldGroupIndex: number
+  ): ParsedField {
+    const fieldNameCtx = declCtx.field_name();
+    const fieldName: string = fieldNameCtx.getText();
+    const fieldKey = new FieldKey(
+      tableName,
+      fieldName,
+      SheetReader.stripQuotes(fieldName)
+    );
+    const groupDim =
+      defCtx.field_declaration_list().length >= 1 &&
+      !!defCtx.field_declaration_list()[0].DIMENSION_KEYWORD();
+    const dslFieldPlacement = getShortDSLPlacement(declCtx);
+    const fieldNote = this.getNote(declCtx);
+
+    return new ParsedField(
+      fieldKey,
+      false,
+      builtExpression,
+      expressionMetadata,
+      fieldGroupIndex,
+      Span.fromParserRuleContext(declCtx),
+      ParsedText.fromFieldName(fieldNameCtx),
+      ParsedText.fromTerminalNode(declCtx.KEY_KEYWORD()),
+      ParsedText.fromTerminalNode(declCtx.DIMENSION_KEYWORD()),
+      ParsedText.fromExpression(defCtx.expression()),
+      ParsedText.fromDocs(declCtx.doc_comment_list()),
+      dslFieldPlacement,
+      SheetReader.parseDecorators(declCtx.decorator_definition_list()),
+      fieldNote.text ? fieldNote : undefined,
+      groupDim
+    );
+  }
+
+  private buildSheet(ctx: SheetContext) {
+    const tables: ParsedTable[] = [];
+
     for (const tableCtx of ctx.table_definition_list()) {
-      const fields: ParsedField[] = [];
+      const fields: ParsedFields[] = [];
       const tableNameCtx = tableCtx.table_name();
 
       if (!tableNameCtx) continue;
 
-      const tableNote: DSLNote = {
-        text: '',
-        start: 0,
-        end: 0,
-      };
-
-      const docComment = tableCtx.doc_comment_list();
-
-      if (docComment.length > 0) {
-        const firstDocComment = docComment[0];
-        const lastDocComment = docComment.at(-1);
-
-        tableNote.start = firstDocComment.start.start;
-        tableNote.end = lastDocComment?.stop?.stop || tableNote.start;
-
-        docComment.forEach((i) => {
-          tableNote.text += i.getText();
-        });
-      }
-
       const tableName = tableNameCtx.getText();
       const tableRange = getFullDSLPlacement(tableCtx);
 
-      const tableNameRange = {
-        start: tableNameCtx.start.start,
-        end: tableNameCtx.start.start + tableName.length,
-      };
-
-      for (const fieldCtx of tableCtx.field_definition_list()) {
-        const fieldNameCtx = fieldCtx.field_name();
-
-        if (!fieldNameCtx) continue;
-
-        const fieldName: string = fieldNameCtx.getText();
-        let fieldExpression: ExpressionContext | undefined;
-        let expressionMetadata: ExpressionMetadata | undefined;
-
+      for (const [index, fieldDefinitionCtx] of tableCtx
+        .fields_definition_list()
+        .entries()) {
         try {
-          fieldExpression = fieldCtx.expression();
-
-          if (fieldExpression) {
-            const startIndex = fieldExpression.start.start;
-            const end =
-              fieldExpression.stop?.stop ||
-              startIndex + fieldExpression.getText().length;
-
-            const expressionText = SheetReader.sourceText.substring(
-              startIndex,
-              end + 1
-            );
-
-            expressionMetadata = {
-              text: expressionText || fieldExpression.getText(),
-              start: Math.min(startIndex, end),
-              end: Math.max(startIndex, end),
-            };
-          }
-        } catch (err) {
-          // eslint-disable-next-line no-console
-          console.error(err);
-        }
-
-        const dslFieldNamePlacement = getFieldNameDslPlacement(
-          fieldNameCtx,
-          fieldName
-        );
-        const dslFieldPlacement = getShortDSLPlacement(fieldCtx);
-        const fieldNote: DSLNote = {
-          text: '',
-          start: 0,
-          end: 0,
-        };
-
-        const docComment = fieldCtx.doc_comment_list();
-
-        if (docComment.length > 0) {
-          const firstDocComment = docComment[0];
-          const lastDocComment = docComment.at(-1);
-
-          fieldNote.start = firstDocComment.start.start;
-          fieldNote.end = lastDocComment?.stop?.stop || fieldNote.start;
-
-          docComment.forEach((i) => {
-            fieldNote.text += i.getText();
-          });
-        }
-
-        try {
-          const field = new ParsedField(
-            new FieldKey(
-              tableName,
-              fieldName,
-              SheetReader.stripQuotes(fieldName)
-            ),
-            false,
-            fieldExpression && this.buildExpression(fieldExpression),
-            expressionMetadata,
-            Span.fromParserRuleContext(fieldCtx),
-            ParsedText.fromFieldName(fieldNameCtx),
-            ParsedText.fromTerminalNode(fieldCtx.KEY_KEYWORD()),
-            ParsedText.fromTerminalNode(fieldCtx.DIMENSION_KEYWORD()),
-            ParsedText.fromExpression(fieldCtx.expression()),
-            ParsedText.fromDocs(fieldCtx.doc_comment_list()),
-            dslFieldPlacement,
-            dslFieldNamePlacement,
-            SheetReader.parseDecorators(fieldCtx.decorator_definition_list()),
-            fieldNote.text ? fieldNote : undefined
+          const parsedFields = this.parseFieldsDefinition(
+            fieldDefinitionCtx,
+            tableName,
+            index
           );
-
-          fields.push(field);
+          fields.push(parsedFields);
         } catch (e) {
           // eslint-disable-next-line no-console
           console.error(e);
         }
       }
 
+      const tableNote: DSLNote = this.getNote(tableCtx);
       const decorators = SheetReader.parseDecorators(
         tableCtx.decorator_definition_list()
       );
@@ -296,17 +321,14 @@ export class SheetReader implements SheetListener {
       );
 
       const overrideDefinition = tableCtx.override_definition();
-      const keyFields = fields
+      const keyFields: string[] = fields
+        .reduce<ParsedField[]>((acc, curr) => acc.concat(curr.fields), [])
         .filter((f) => f.isKey)
         .map((f) => f.key.fieldName);
       const overrides = this.parseOverrides(
         keyFields,
         isManual,
         overrideDefinition
-      );
-      const dslOverridePlacement = getFullDSLPlacement(
-        overrideDefinition,
-        true
       );
       const parsedApply: ParsedApply | undefined = this.parseApply(tableCtx);
       const parsedTotals: ParsedTotals[] | undefined = this.parseTotals(
@@ -326,11 +348,9 @@ export class SheetReader implements SheetListener {
           fields,
           tableCtx.getText(),
           tableRange,
-          tableNameRange,
           decorators,
           ParsedText.fromDocs(tableCtx.doc_comment_list()),
           overrides,
-          dslOverridePlacement,
           parsedApply,
           parsedTotals,
           tableTotal,
@@ -342,7 +362,7 @@ export class SheetReader implements SheetListener {
     return new ParsedSheet(
       tables,
       this.errorListener.getErrors(),
-      pythonBlocks,
+      this.getPythonBlocks(ctx),
       SheetReader.sourceText
     );
   }
@@ -352,40 +372,31 @@ export class SheetReader implements SheetListener {
     tableName: string
   ): ParsedTotals[] | undefined {
     const totals: ParsedTotals[] = [];
-    const totalCtx = tableCtx.total_definition_list();
+    const totalCtxList = tableCtx.total_definition_list();
 
-    if (!totalCtx) return;
+    if (!totalCtxList) {
+      return undefined;
+    }
 
-    for (let i = 0; i < totalCtx.length; i++) {
-      const totalItemCtx = totalCtx[i];
+    for (const totalDefCtx of totalCtxList) {
+      const parsedFieldsArray: ParsedFields[] = [];
 
-      const fields: ParsedField[] = [];
-
-      for (const fieldCtx of totalItemCtx.field_definition_list()) {
-        const fieldNameCtx = fieldCtx.field_name();
-        const fullFieldName = fieldNameCtx.getText();
-        const fieldName: string = SheetReader.stripQuotes(fullFieldName);
-        const parsedField = new ParsedField(
-          new FieldKey(
-            tableName,
-            fieldName,
-            SheetReader.stripQuotes(fieldName)
-          ),
-          false,
-          ParsedText.fromExpression(fieldCtx.expression()),
-          undefined,
-          Span.fromParserRuleContext(fieldCtx),
-          ParsedText.fromFieldName(fieldCtx.field_name()),
-          undefined,
-          undefined,
-          ParsedText.fromExpression(fieldCtx.expression()),
-          []
+      for (const [index, fieldsDefinitionCtx] of totalDefCtx
+        .fields_definition_list()
+        .entries()) {
+        const parsedFields = this.parseFieldsDefinition(
+          fieldsDefinitionCtx,
+          tableName,
+          index
         );
-        fields.push(parsedField);
+        parsedFieldsArray.push(parsedFields);
       }
 
       totals.push(
-        new ParsedTotals(Span.fromParserRuleContext(totalItemCtx), fields)
+        new ParsedTotals(
+          Span.fromParserRuleContext(totalDefCtx),
+          parsedFieldsArray
+        )
       );
     }
 
@@ -396,34 +407,32 @@ export class SheetReader implements SheetListener {
     tableCtx: Table_definitionContext,
     tableName: string
   ): ParsedTotal | undefined {
-    const totalCtx = tableCtx.total_definition_list();
+    const totalCtxList = tableCtx.total_definition_list();
 
-    if (!totalCtx) return;
+    if (!totalCtxList) return;
 
-    const dslPlacement: FullDSLPlacement | undefined =
-      getMultiContextFullDSLPlacement(totalCtx);
-    const size = totalCtx.length;
+    const size = totalCtxList.length;
     const totals: TableTotals = {};
 
-    for (let i = 0; i < totalCtx.length; i++) {
-      for (const fieldCtx of totalCtx[i].field_definition_list()) {
-        const fieldNameCtx = fieldCtx.field_name();
-        const fullFieldName = fieldNameCtx.getText();
-        const fieldName: string = SheetReader.stripQuotes(fullFieldName);
-        let fieldExpression: ExpressionContext | undefined;
+    for (let i = 0; i < totalCtxList.length; i++) {
+      const totalDefCtx = totalCtxList[i];
 
-        try {
-          fieldExpression = fieldCtx.expression();
+      for (const fieldsDefCtx of totalDefCtx.fields_definition_list()) {
+        const exprCtx = fieldsDefCtx.expression();
+        const expressionText = exprCtx ? exprCtx.getText() : '';
+
+        for (const declCtx of fieldsDefCtx.field_declaration_list()) {
+          const fieldNameCtx = declCtx.field_name();
+          const fullFieldName = fieldNameCtx.getText();
+          const fieldName: string = SheetReader.stripQuotes(fullFieldName);
+
+          const itemType = expressionText
+            ? getTotalType(tableName, fieldName, expressionText)
+            : undefined;
 
           const totalItem: TotalItem = {
-            expression: fieldExpression.getText(),
-            type: getTotalType(tableName, fieldName, fieldExpression.getText()),
-            expressionDslPlacement: getShortDSLPlacement(fieldExpression),
-            totalDslPlacement: getShortDSLPlacement(totalCtx[i]),
-            fieldNameDslPlacement: getFieldNameDslPlacement(
-              fieldCtx,
-              fullFieldName
-            ),
+            expression: expressionText,
+            type: itemType,
           };
 
           const index = i + 1;
@@ -432,13 +441,11 @@ export class SheetReader implements SheetListener {
           } else {
             totals[fieldName] = { [index]: totalItem };
           }
-        } catch (e) {
-          return;
         }
       }
     }
 
-    return new ParsedTotal(dslPlacement, totals, size);
+    return new ParsedTotal(totals, size);
   }
 
   private parseApply(
@@ -454,18 +461,13 @@ export class SheetReader implements SheetListener {
 
     let parsedSort: ParsedSort | undefined = undefined;
     let parsedFilter: ParsedFilter | undefined = undefined;
-    const applyDslPlacement: FullDSLPlacement | undefined =
-      getFullDSLPlacement(applyCtx);
 
     if (applySortCtx) {
-      const sortDslPlacement = getShortDSLPlacement(applySortCtx);
-
       parsedSort = new ParsedSort(
         Span.fromParserRuleContext(applySortCtx),
         applySortCtx.expression_list().map((f) => {
           return ParsedText.fromExpression(f) as ParsedText;
         }),
-        sortDslPlacement,
         applySortCtx.expression_list().map((f) => {
           return this.buildExpression(f);
         }),
@@ -474,16 +476,9 @@ export class SheetReader implements SheetListener {
     }
 
     if (applyFilterCtx) {
-      const filterDslPlacement = getShortDSLPlacement(applyFilterCtx);
-      const filterExpressionDSLPlacement = getShortDSLPlacement(
-        applyFilterCtx.expression()
-      );
-
       parsedFilter = new ParsedFilter(
         Span.fromParserRuleContext(applyFilterCtx),
         ParsedText.fromExpression(applyFilterCtx.expression()),
-        filterDslPlacement,
-        filterExpressionDSLPlacement,
         applyFilterCtx.expression()
           ? this.buildExpression(applyFilterCtx.expression())
           : undefined,
@@ -494,8 +489,7 @@ export class SheetReader implements SheetListener {
     return new ParsedApply(
       Span.fromParserRuleContext(applyCtx),
       parsedSort,
-      parsedFilter,
-      applyDslPlacement
+      parsedFilter
     );
   }
 
@@ -636,7 +630,6 @@ export class SheetReader implements SheetListener {
 
       if (ctx.expression_list().length > 0) {
         return new FieldReferenceExpression(
-          // ctx.expression_list()[0],
           this.buildExpression(ctx.expression_list()[0]),
           text,
           dslPlacement?.start || 0,
@@ -690,6 +683,26 @@ export class SheetReader implements SheetListener {
         globalOffsetStart,
         globalOffsetEnd,
         this.buildExpression(rowReference.expression_list()[0])
+      );
+    }
+
+    const fieldReference = ctx.fields_reference();
+
+    if (fieldReference) {
+      const { start, stop } = fieldReference;
+      const text = fieldReference.getText();
+      const end = stop?.stop || start.start + text.length;
+
+      const globalOffsetStart = ctx.start.start;
+      const globalOffsetEnd = ctx.stop?.stop ?? end;
+
+      return new FieldsReferenceExpression(
+        this.buildExpression(ctx.expression_list()[0]),
+        fieldReference,
+        start.start,
+        end,
+        globalOffsetStart,
+        globalOffsetEnd
       );
     }
 

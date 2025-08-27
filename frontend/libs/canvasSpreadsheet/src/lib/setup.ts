@@ -43,11 +43,11 @@ export enum FontColorName {
 }
 
 export enum FontFamilies {
-  'InconsolataRegular' = 'InconsolataRegular',
-  'InconsolataBold' = 'InconsolataBold',
+  'JetBrainsMonoRegular' = 'JetBrainsMonoRegular',
+  'JetBrainsMonoBold' = 'JetBrainsMonoBold',
 }
 export const fontNameScale = 'scale=';
-export const defaultFontSize = 14;
+export const defaultFontSize = 12;
 
 // Firefox issue, documents.fonts.values() returns error
 function fontFaceSetIteratorToArray(fonts: FontFaceSet): FontFace[] {
@@ -68,8 +68,8 @@ function fontFaceSetIteratorToArray(fonts: FontFaceSet): FontFace[] {
 
 export async function loadFonts() {
   const fontRegular = new FontFace(
-    FontFamilies.InconsolataRegular,
-    'url(./assets/fonts/Inconsolata-Regular.ttf)',
+    FontFamilies.JetBrainsMonoRegular,
+    'url(./assets/fonts/JetBrainsMono-Regular.ttf)',
     {
       style: 'normal',
       unicodeRange: 'U+000-5FF,U+2026',
@@ -79,8 +79,8 @@ export async function loadFonts() {
   await fontRegular.load();
 
   const fontBold = new FontFace(
-    FontFamilies.InconsolataBold,
-    'url(./assets/fonts/Inconsolata-Bold.ttf)',
+    FontFamilies.JetBrainsMonoBold,
+    'url(./assets/fonts/JetBrainsMono-Bold.ttf)',
     {
       style: 'normal',
       unicodeRange: 'U+000-5FF,U+2026',
@@ -110,65 +110,65 @@ const fontColors: {
 }[] = [
   {
     colorName: FontColorName.lightTextPrimary,
-    color: getHexColor(themeColors[AppTheme.ThemeLight].textPrimary),
+    color: getHexColor(themeColors[AppTheme.ThemeLight].textGridPrimary),
     themes: [AppTheme.ThemeLight, AppTheme.ThemeDarkMixed],
     fontFamilies: [
-      FontFamilies.InconsolataRegular,
-      FontFamilies.InconsolataBold,
+      FontFamilies.JetBrainsMonoRegular,
+      FontFamilies.JetBrainsMonoBold,
     ],
   },
   {
     colorName: FontColorName.lightTextSecondary,
     color: getHexColor(themeColors[AppTheme.ThemeLight].textSecondary),
     themes: [AppTheme.ThemeLight, AppTheme.ThemeDarkMixed],
-    fontFamilies: [FontFamilies.InconsolataRegular],
+    fontFamilies: [FontFamilies.JetBrainsMonoRegular],
   },
   {
     colorName: FontColorName.darkTextPrimary,
-    color: getHexColor(themeColors[AppTheme.ThemeDark].textPrimary),
+    color: getHexColor(themeColors[AppTheme.ThemeDark].textGridPrimary),
     themes: [AppTheme.ThemeDark],
     fontFamilies: [
-      FontFamilies.InconsolataRegular,
-      FontFamilies.InconsolataBold,
+      FontFamilies.JetBrainsMonoRegular,
+      FontFamilies.JetBrainsMonoBold,
     ],
   },
   {
     colorName: FontColorName.darkTextSecondary,
     color: getHexColor(themeColors[AppTheme.ThemeDark].textSecondary),
     themes: [AppTheme.ThemeDark],
-    fontFamilies: [FontFamilies.InconsolataRegular],
+    fontFamilies: [FontFamilies.JetBrainsMonoRegular],
   },
   {
     colorName: FontColorName.lightTextAccent,
     color: getHexColor(themeColors[AppTheme.ThemeLight].textAccentTertiary),
     themes: [AppTheme.ThemeLight, AppTheme.ThemeDarkMixed],
-    fontFamilies: [FontFamilies.InconsolataRegular],
+    fontFamilies: [FontFamilies.JetBrainsMonoRegular],
   },
   {
     colorName: FontColorName.darkTextAccent,
     color: getHexColor(themeColors[AppTheme.ThemeDark].textAccentTertiary),
     themes: [AppTheme.ThemeDark],
-    fontFamilies: [FontFamilies.InconsolataRegular],
+    fontFamilies: [FontFamilies.JetBrainsMonoRegular],
   },
   {
     colorName: FontColorName.lightTextError,
     color: getHexColor(themeColors[AppTheme.ThemeLight].textError),
     themes: [AppTheme.ThemeLight, AppTheme.ThemeDarkMixed],
-    fontFamilies: [FontFamilies.InconsolataBold],
+    fontFamilies: [FontFamilies.JetBrainsMonoBold],
   },
   {
     colorName: FontColorName.darkTextError,
     color: getHexColor(themeColors[AppTheme.ThemeDark].textError),
     themes: [AppTheme.ThemeDark],
-    fontFamilies: [FontFamilies.InconsolataBold],
+    fontFamilies: [FontFamilies.JetBrainsMonoBold],
   },
   {
     colorName: FontColorName.lightTextAccentSecondary,
     color: getHexColor(themeColors[AppTheme.ThemeLight].textAccentSecondary),
     themes: [AppTheme.ThemeLight, AppTheme.ThemeDarkMixed],
     fontFamilies: [
-      FontFamilies.InconsolataBold,
-      FontFamilies.InconsolataRegular,
+      FontFamilies.JetBrainsMonoBold,
+      FontFamilies.JetBrainsMonoRegular,
     ],
   },
   {
@@ -176,8 +176,8 @@ const fontColors: {
     color: getHexColor(themeColors[AppTheme.ThemeDark].textAccentSecondary),
     themes: [AppTheme.ThemeDark],
     fontFamilies: [
-      FontFamilies.InconsolataBold,
-      FontFamilies.InconsolataRegular,
+      FontFamilies.JetBrainsMonoBold,
+      FontFamilies.JetBrainsMonoRegular,
     ],
   },
 ];

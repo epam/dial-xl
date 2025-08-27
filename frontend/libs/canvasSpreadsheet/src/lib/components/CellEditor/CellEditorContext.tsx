@@ -20,8 +20,6 @@ import {
   FormulaBarMode,
   GridCell,
   isCodeEditorMonacoInputFocused,
-  isComplexType,
-  overrideComplexFieldMessage,
   overrideFilteredOrSortedFieldMessage,
   overrideKeyFieldMessage,
   shouldNotOverrideCell,
@@ -55,6 +53,7 @@ type CellEditorContextProps = {
   apiRef: RefObject<GridApi>;
   gridCallbacksRef: RefObject<GridCallbacks>;
   formulaBarMode: FormulaBarMode;
+  isReadOnly: boolean;
   zoom: number;
 };
 
@@ -113,6 +112,7 @@ export function CellEditorContextProvider({
   children,
   gridCallbacksRef,
   formulaBarMode,
+  isReadOnly,
   zoom,
 }: PropsWithChildren<CellEditorContextProps>): JSX.Element {
   // Editor Visibility and Mode
@@ -265,10 +265,6 @@ export function CellEditorContextProvider({
         message = overrideKeyFieldMessage;
       }
 
-      if (isComplexType(cell?.field)) {
-        message = overrideComplexFieldMessage;
-      }
-
       if (editMode !== 'edit_cell_expression' && shouldNotOverrideCell(cell)) {
         message = overrideFilteredOrSortedFieldMessage;
       }
@@ -284,7 +280,7 @@ export function CellEditorContextProvider({
 
   const displayCellEditor = useCallback(
     (col: number, row: number, options: GridCellEditorOpenOptions) => {
-      if (!apiRef.current) return;
+      if (!apiRef.current || isReadOnly) return;
 
       const api = apiRef.current;
       const cell = api.getCell(col, row);
@@ -354,7 +350,7 @@ export function CellEditorContextProvider({
       }
 
       // TODO: probably we need to get real width of the cell, not a default one, because entire column can be different size
-      const gridSizes = api.getGridSizes();
+      const { gridSizes } = api;
       const { width } = gridSizes.cell;
       const initialWidth = isTableHeader ? 0 : Math.max(0, width);
 
@@ -388,6 +384,7 @@ export function CellEditorContextProvider({
       openCellEditor,
       gridCallbacksRef,
       showErrorMessage,
+      isReadOnly,
     ]
   );
 

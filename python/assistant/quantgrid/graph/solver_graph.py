@@ -227,9 +227,7 @@ async def _exit(state: GeneralState):
     stage_actions(state.config.choice, actions)
     changed_sheets(
         state.config.choice,
-        actions,
         created_project,
-        active_sheet_name=state.config.sheet.name,
         is_success=True,
     )
 

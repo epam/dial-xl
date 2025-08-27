@@ -1,5 +1,5 @@
 import { Decorator } from '../Decorator';
-import { Field } from '../Field';
+import { Field, FieldGroup } from '../Field';
 import { Table } from '../Table';
 import { createEditableTestSheet } from './utils';
 
@@ -11,8 +11,8 @@ describe('Table', () => {
 
     // Act
     const table = sheet.getTable('A');
-    table.removeField('a');
-    table.removeField('b');
+    table.fieldGroups.deleteItem(0);
+    table.fieldGroups.deleteItem(0);
 
     // Assert
     expect(sheet.toDSL()).toEqual('table A\n  # comment 1\n  # comment 2\n');
@@ -25,8 +25,8 @@ describe('Table', () => {
 
     // Act
     const table = sheet.getTable('A');
-    table.removeField('a');
-    table.addField(new Field('b', '2'));
+    table.fieldGroups.deleteItem(0);
+    table.fieldGroups.append(FieldGroup.fromField(new Field('b'), '2'));
 
     // Assert
     expect(sheet.toDSL()).toEqual('table A\n  # comment 1\n  [b] = 2\n');
@@ -66,7 +66,7 @@ describe('Table', () => {
 
     // Act
     const newTable = new Table('New table');
-    newTable.addField(new Field('b', '2'));
+    newTable.fieldGroups.append(FieldGroup.fromField(new Field('b'), '2'));
     sheet.addTable(newTable);
 
     // Assert
@@ -134,16 +134,16 @@ describe('Table', () => {
     expect(sheet.toDSL()).toEqual('table A\n  [a] = 1\n');
   });
 
-  it('should swap fields in a table', () => {
+  it('should add table decorator', () => {
     // Arrange
-    const dsl = 'table A\n  [a] = 1\n  [b] = 2\n  [c] = 3\n';
+    const dsl = '!decorator()\ntable A\n  [a] = 1\n';
     const sheet = createEditableTestSheet(dsl);
 
     // Act
     const table = sheet.getTable('A');
-    table.swapFields('a', 'c');
 
     // Assert
-    expect(sheet.toDSL()).toEqual('table A\n  [c] = 3\n  [b] = 2\n  [a] = 1\n');
+    expect(table.hasDecorator('decorator')).toBe(true);
+    expect(table.hasDecorator('missing')).toBe(false);
   });
 });

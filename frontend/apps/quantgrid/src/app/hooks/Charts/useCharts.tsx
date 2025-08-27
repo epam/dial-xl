@@ -57,7 +57,12 @@ export function useCharts() {
         return;
 
       if (fieldName === chartRowNumberSelector) {
-        updateTableDecoratorValue(tableName, key, chartSelectorDecoratorName);
+        const selectorValue = typeof key === 'string' ? escapeValue(key) : key;
+        updateTableDecoratorValue(
+          tableName,
+          selectorValue,
+          chartSelectorDecoratorName
+        );
       } else if (fieldName === histogramChartSeriesSelector) {
         const selectorValue = typeof key === 'string' ? escapeValue(key) : key;
         updateTableDecoratorValue(

@@ -4,13 +4,16 @@ import { CodeEditor, SetCodeRefFunction } from '@frontend/code-editor';
 import {
   CodeEditorContext,
   codeEditorId,
+  disabledTooltips,
   isCodeEditorMonacoInputFocused,
 } from '@frontend/common';
+import { newLine } from '@frontend/parser';
 
 import { PanelName } from '../../common';
 import {
   AppContext,
   AppSpreadsheetInteractionContext,
+  ChatOverlayContext,
   LayoutContext,
   ProjectContext,
   UndoRedoContext,
@@ -25,6 +28,7 @@ import {
   autoTablePlacement,
   getDSLChangeText,
 } from '../../services';
+import { stripNewLinesAtEnd } from '../../utils';
 
 export function CodeEditorWrapper() {
   const codeRef = useRef('');
@@ -39,9 +43,13 @@ export function CodeEditorWrapper() {
     sheetContent,
     manuallyUpdateSheetContent,
     projectVersion,
-    setIsOverrideProjectBanner,
+    initConflictResolving,
+    isProjectChangedOnServerByUser: isProjectChangedByUser,
+    isProjectEditable,
   } = useContext(ProjectContext);
   const { viewGridData } = useContext(ViewportContext);
+  const { isAIPendingChanges, isAIEditPendingChanges } =
+    useContext(ChatOverlayContext);
   const { openTable, openField } = useContext(AppSpreadsheetInteractionContext);
   const gridApi = useGridApi();
   const { showHasUnsavedChanges } = useContext(CodeEditorContext);
@@ -74,6 +82,13 @@ export function CodeEditorWrapper() {
     }
     currentSheetName.current = sheetName;
   }, [sheetContent, sheetName]);
+
+  useEffect(() => {
+    if (isProjectChangedByUser && hasUnsavedChangesRef.current) {
+      unsavedChangesVersionRef.current = projectVersion;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectVersion]);
 
   const onEditorReady = useCallback(() => {
     if (!hasUnsavedChangesRef.current) {
@@ -145,7 +160,7 @@ export function CodeEditorWrapper() {
         unsavedChangesVersion: unsavedChangesVersionRef.current,
         projectVersion,
       });
-      setIsOverrideProjectBanner(true);
+      initConflictResolving();
       sendPutRequest = false;
     }
 
@@ -171,6 +186,8 @@ export function CodeEditorWrapper() {
       parsedSheets
     );
 
+    updatedSheetContent = stripNewLinesAtEnd(updatedSheetContent) + newLine;
+
     codeRef.current = updatedSheetContent;
     setCode.current?.(updatedSheetContent, true);
     updateHasUnsavedChanges(false);
@@ -189,19 +206,19 @@ export function CodeEditorWrapper() {
 
     appendTo(historyTitle, [{ sheetName, content: updatedSheetContent }]);
   }, [
+    sheetContent,
     projectName,
     sheetName,
     projectSheets,
     projectVersion,
+    viewGridData,
+    gridApi,
     functions,
     parsedSheets,
-    viewGridData,
     updateHasUnsavedChanges,
     manuallyUpdateSheetContent,
-    gridApi,
-    sheetContent,
     appendTo,
-    setIsOverrideProjectBanner,
+    initConflictResolving,
   ]);
 
   const onGoToTable = useCallback(
@@ -249,6 +266,20 @@ export function CodeEditorWrapper() {
         errors={errors}
         functions={functions}
         language="code-editor"
+        options={{
+          readOnly:
+            (isAIPendingChanges && !isAIEditPendingChanges) ||
+            !isProjectEditable,
+          readOnlyMessage: isAIPendingChanges
+            ? {
+                value: disabledTooltips.pendingAIChanges,
+              }
+            : !isProjectEditable
+            ? {
+                value: disabledTooltips.readonlyProject,
+              }
+            : undefined,
+        }}
         parsedSheets={parsedSheets}
         setCode={setCode}
         sheetContent={sheetContent || ''}

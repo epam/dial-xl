@@ -35,7 +35,7 @@ export function History() {
             )}
             key={title + new Date(time).toLocaleString() + index}
             title={title + '\n' + new Date(time).toLocaleString()}
-            onClick={() => !isTopHistory && undo(reversedIndex)}
+            onClick={() => !isTopHistory && undo({ undoIndex: reversedIndex })}
           >
             <p className="ml-auto text-[13px] mr-1 text-textSecondary">{`[${reversedIndex}]`}</p>
             <p className="text-[13px] text-ellipsis text-textPrimary inline-block overflow-hidden w-full whitespace-nowrap mr-1">

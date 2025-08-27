@@ -3,7 +3,14 @@ from datetime import date
 from dial_xl.field import Field
 from dial_xl.table import Table
 
+from quantgrid_1.models.config_parameters import ConfigParametersDTO
+from quantgrid_1.models.generation_parameters import (
+    CHANGED_SHEETS_STAGE_NAME,
+    GenerationParameters,
+)
+from quantgrid_1.models.stage import Attachment, Stage
 from testing.framework import AddFieldOrTable, AddTable, FrameProject, Text
+from testing.framework.project_utils import get_sheet
 from testing.framework.testing_utils import field_code_regex, find_unsorted
 
 
@@ -33,13 +40,13 @@ async def test_note_awareness(basic_project: FrameProject):
     )
 
     def validate_dode(_, __, table: Table, field: Field):
-        assert field_code_regex(field, r"(?i).*(SORTBY|MAXBY).*")
+        assert field_code_regex(table, field, r"(?i).*(SORTBY|MAXBY).*")
 
     def validate_id(_, __, table: Table, field: Field):
         assert find_unsorted(table, ["5"])
 
     def validate_score(_, __, table: Table, field: Field):
-        assert find_unsorted(table, ["42.0"])
+        assert find_unsorted(table, ["42"])
 
     answer.assertion(
         Text(substrings="5")
@@ -120,11 +127,8 @@ async def test_index_description_awareness(basic_project: FrameProject):
         table_name="Cities",
         code=(
             f"table Cities\n"
-            f'  dim [source] = INPUT("{data_url}")\n'
-            f"  !index()\n"
-            f'  !description("fact")\n'
-            f"  [city] = [source][city]\n"
-            f"  [fact] = [source][fact]\n"
+            f'  !index()\n!description("fact")\n'
+            f'  dim [city], !description("fact") [fact] = INPUT("{data_url}")[[city], [fact]]'
         ),
     )
 
@@ -154,11 +158,7 @@ async def test_values_awareness(basic_project: FrameProject):
         table_name="Movies",
         code=(
             f"table Movies\n"
-            f'  dim [source] = INPUT("{data_url}")\n'
-            f"  [title] = [source][title]\n"
-            f"  [year] = [source][year]\n"
-            f"  [score] = [source][score]\n"
-            f"  [genre] = [source][genre]\n"
+            f'  dim [title], [year], [score], [genre] = INPUT("{data_url}")[[title], [year], [score], [genre]]\n'
         ),
     )
 
@@ -176,12 +176,12 @@ async def test_values_awareness(basic_project: FrameProject):
         )
 
     def validate_filter(_, __, table: Table, field: Field):
-        assert field_code_regex(field, ".*FILTER.*")
+        assert field_code_regex(table, field, ".*FILTER.*")
 
     def validate_fnts(_, __, table: Table, field: Field):
         # We use obscure genres codes to make sure bot is aware about exact spelling of the codes.
         # Bot only can generate correct code if it can look into the non-indexed data.
-        assert field_code_regex(field, ".*fnts.*")
+        assert field_code_regex(table, field, ".*fnts.*")
 
     answer.assertion(
         Text(

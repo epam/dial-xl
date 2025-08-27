@@ -5,15 +5,16 @@ import {
   GridTable,
 } from '@frontend/common';
 import {
-  layoutDecoratorName,
-  lineBreak,
   minTablePlacement,
   ParsedField,
   ParsedTable,
+  Sheet,
   SheetReader,
-  updateLayoutDecorator,
+  Table,
+  unescapeTableName,
 } from '@frontend/parser';
 
+import { editLayoutDecorator } from '../hooks/EditDsl/utils';
 import { fieldNameSizeLimit, getExpandedTextSize } from '../utils';
 
 interface ExistingRect {
@@ -24,10 +25,10 @@ interface ExistingRect {
 }
 
 interface PlacedTable {
-  tableName: string;
+  table: Table;
+  parsedTable: ParsedTable;
   startRow: number;
   startCol: number;
-  dslOffset: number;
 }
 
 const borderMargin = 1;
@@ -53,12 +54,20 @@ export function autoTablePlacement(
 ): string {
   try {
     let parsedSheet = SheetReader.parseSheet(dsl);
+    let editableSheet = parsedSheet.editableSheet;
 
-    if (parsedSheet.errors.length > 0) return dsl;
+    if (!editableSheet) return dsl;
 
-    dsl = moveTablesOutOfSpreadsheetEdges(dsl, parsedSheet.tables);
+    dsl = moveTablesOutOfSpreadsheetEdges(
+      dsl,
+      parsedSheet.tables,
+      editableSheet
+    );
 
     parsedSheet = SheetReader.parseSheet(dsl);
+    editableSheet = parsedSheet.editableSheet;
+
+    if (!editableSheet) return dsl;
 
     const { tables } = parsedSheet;
     const emptyPlacementTables = tables.filter((t) => !t.hasPlacement());
@@ -75,22 +84,17 @@ export function autoTablePlacement(
     );
 
     const results: PlacedTable[] = [];
-    for (const table of emptyPlacementTables) {
-      const { dslPlacement, tableName, note } = table;
-      if (!dslPlacement) continue;
+    for (const parsedTable of emptyPlacementTables) {
+      const { tableName } = parsedTable;
+      const table = editableSheet.getTable(unescapeTableName(tableName));
 
       const foundPlacement = findNearestPlacement(
         existingRectangles,
-        table,
+        parsedTable,
         tableStructures,
         grid,
         projectName,
         sheetName
-      );
-
-      const dslOffset = Math.max(
-        dslPlacement.startOffset,
-        note?.end ?? dslPlacement.startOffset
       );
 
       if (foundPlacement) {
@@ -104,16 +108,16 @@ export function autoTablePlacement(
         existingRectangles.push(placedRect);
 
         results.push({
-          tableName,
+          table,
+          parsedTable,
           startRow: placedRect.startRow,
           startCol: placedRect.startCol,
-          dslOffset,
         });
       } else {
         // Fallback if no placement found in the entire grid
         results.push({
-          tableName,
-          dslOffset,
+          table,
+          parsedTable,
           startRow: 1,
           startCol: 1,
         });
@@ -122,26 +126,16 @@ export function autoTablePlacement(
 
     if (results.length === 0) return dsl;
 
-    let updatedDsl = dsl;
-    const reversedTablesByPlacement = results.sort((a, b) => {
-      return b.dslOffset - a.dslOffset;
-    });
-    reversedTablesByPlacement.forEach(({ dslOffset, startRow, startCol }) => {
-      updatedDsl =
-        updatedDsl.substring(0, dslOffset).trimEnd() +
-        lineBreak +
-        lineBreak +
-        updateLayoutDecorator(undefined, {
-          col: startCol,
-          row: startRow,
-          showFieldHeaders: true,
-          showTableHeader: true,
-        }) +
-        lineBreak +
-        updatedDsl.substring(dslOffset).trimStart();
+    results.forEach(({ table, parsedTable, startRow, startCol }) => {
+      editLayoutDecorator(table, parsedTable, {
+        targetRow: startRow,
+        targetCol: startCol,
+        showTableHeader: true,
+        showFieldHeaders: true,
+      });
     });
 
-    return updatedDsl;
+    return editableSheet.toDSL();
   } catch (error) {
     return dsl;
   }
@@ -185,7 +179,7 @@ function findNearestPlacement(
   projectName: string | null,
   sheetName: string | null
 ): { row: number; col: number; width: number; height: number } | null {
-  const gridSizes = grid?.getGridSizes();
+  const gridSizes = grid?.gridSizes;
   const maxCols = gridSizes?.edges.col || defaultGridSizes.edges.col;
   const maxRows = gridSizes?.edges.row || defaultGridSizes.edges.row;
 
@@ -286,49 +280,36 @@ function buildExistingRectangles(
 
 const moveTablesOutOfSpreadsheetEdges = (
   dsl: string,
-  tables: ParsedTable[]
+  tables: ParsedTable[],
+  editableSheet: Sheet
 ) => {
-  const tablesWithWrongPlacement = tables.filter((t) => {
-    if (!t.hasPlacement()) return false;
+  try {
+    const tablesWithWrongPlacement = tables.filter((t) => {
+      if (!t.hasPlacement()) return false;
 
-    const [row, col] = t.getPlacement();
+      const [row, col] = t.getPlacement();
 
-    return row < 1 || col < 1;
-  });
-
-  if (tablesWithWrongPlacement.length === 0) return dsl;
-
-  const reversedTablesByPlacement = tablesWithWrongPlacement.sort((a, b) => {
-    const bStartOffset = b.dslPlacement?.startOffset || 0;
-    const aStartOffset = a.dslPlacement?.startOffset || 0;
-
-    return bStartOffset - aStartOffset;
-  });
-
-  reversedTablesByPlacement.forEach((t) => {
-    const [row, col] = t.getPlacement();
-
-    const layoutDecorator = t.decorators.find(
-      ({ decoratorName }) => decoratorName === layoutDecoratorName
-    );
-
-    const placementDsl = updateLayoutDecorator(layoutDecorator, {
-      col: Math.max(minTablePlacement, col),
-      row: Math.max(minTablePlacement, row),
+      return row < 1 || col < 1;
     });
 
-    if (layoutDecorator?.dslPlacement) {
-      const { start, end } = layoutDecorator.dslPlacement;
+    if (tablesWithWrongPlacement.length === 0) return dsl;
 
-      dsl =
-        dsl.substring(0, start) +
-        placementDsl +
-        lineBreak +
-        dsl.substring(end).trimStart();
-    }
-  });
+    tablesWithWrongPlacement.forEach((parsedTable) => {
+      const [row, col] = parsedTable.getPlacement();
+      const table = editableSheet.getTable(
+        unescapeTableName(parsedTable.tableName)
+      );
 
-  return dsl;
+      editLayoutDecorator(table, parsedTable, {
+        targetRow: Math.max(minTablePlacement, row),
+        targetCol: Math.max(minTablePlacement, col),
+      });
+    });
+
+    return editableSheet.toDSL();
+  } catch (e) {
+    return dsl;
+  }
 };
 
 /**

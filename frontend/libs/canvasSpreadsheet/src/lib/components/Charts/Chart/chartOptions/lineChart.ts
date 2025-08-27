@@ -29,24 +29,36 @@ export function organizeLineChartData(
 
   const legendData: string[] = [];
   const xAxisValuesSet: Set<string> = new Set();
+  const xDisplayByRaw = new Map<string, string>();
   const series: EChartsOption['series'] = [];
 
   // Gather all unique x-axis values from all sections
   for (const section of chartSections) {
     const { xAxisFieldName } = section;
     if (xAxisFieldName && data[xAxisFieldName]) {
-      const sectionXAxisData = data[xAxisFieldName] as string[];
-      sectionXAxisData.forEach((value) => xAxisValuesSet.add(value));
+      const sectionXAxisRaw = data[xAxisFieldName].rawValues as string[];
+      const sectionXAxisDisp = data[xAxisFieldName].displayValues as string[];
+      sectionXAxisRaw.forEach((raw, i) => {
+        xAxisValuesSet.add(raw);
+        if (!xDisplayByRaw.has(raw))
+          xDisplayByRaw.set(raw, sectionXAxisDisp?.[i] ?? raw);
+      });
     } else if (data[section.valueFieldNames[0]]) {
       // Use indexes if no x-axis field is specified
-      const sectionLength = data[section.valueFieldNames[0]].length;
+      const sectionLength = data[section.valueFieldNames[0]].rawValues.length;
       Array.from({ length: sectionLength }, (_, i) =>
         (i + 1).toString()
-      ).forEach((value) => xAxisValuesSet.add(value));
+      ).forEach((raw) => {
+        xAxisValuesSet.add(raw);
+        if (!xDisplayByRaw.has(raw)) xDisplayByRaw.set(raw, raw);
+      });
     }
   }
 
   const xAxisData = sortNumericOrText(Array.from(xAxisValuesSet));
+  const xAxisDisplayData = xAxisData.map(
+    (raw) => xDisplayByRaw.get(raw) ?? raw
+  );
 
   // Build series data
   for (const section of chartSections) {
@@ -58,24 +70,32 @@ export function organizeLineChartData(
 
     // Get x-axis data for this section
     const sectionXAxisData: string[] =
-      xAxisFieldName && data[xAxisFieldName]
-        ? (data[xAxisFieldName] as string[])
-        : Array.from({ length: data[valueFieldNames[0]].length }, (_, i) =>
-            (i + 1).toString()
+      xAxisFieldName && data[xAxisFieldName]?.rawValues
+        ? (data[xAxisFieldName].rawValues as string[])
+        : Array.from(
+            { length: data[valueFieldNames[0]]?.rawValues.length },
+            (_, i) => (i + 1).toString()
           );
 
     // Map x-axis values to y-axis data
     for (const valueFieldName of sortNumericOrText(valueFieldNames)) {
       if (data[valueFieldName]) {
-        const seriesYData: (string | null)[] = new Array(xAxisData.length).fill(
+        const seriesYData: (any | null)[] = new Array(xAxisData.length).fill(
           null
         );
-        const sectionYData = data[valueFieldName] as string[];
+        const sectionYDataRaw = data[valueFieldName].rawValues as string[];
+        const sectionYDataDisplay = data[valueFieldName]
+          .displayValues as string[];
 
         sectionXAxisData.forEach((xValue, index) => {
           const globalIndex = xAxisData.indexOf(xValue);
           if (globalIndex !== -1) {
-            seriesYData[globalIndex] = sectionYData[index];
+            const raw = sectionYDataRaw[index];
+            const disp = sectionYDataDisplay[index];
+            const num = parseFloat(raw);
+            seriesYData[globalIndex] = isNaN(num)
+              ? null
+              : { value: num, displayValue: disp };
           }
         });
 
@@ -99,7 +119,7 @@ export function organizeLineChartData(
     showLegend,
     legendData,
     series,
-    xAxisData: addLineBreaks(xAxisData),
+    xAxisData: addLineBreaks(xAxisDisplayData),
   };
 }
 
@@ -180,6 +200,22 @@ export function getLineChartOption({
       },
       backgroundColor: bgColor,
       borderColor: borderColor,
+      formatter: (params: any) => {
+        const axisLabel =
+          params.length > 0 ? params[0].axisValue + '</br>' : '';
+
+        return (
+          axisLabel +
+          params
+            .map(
+              ({ marker, data, seriesName }: any) =>
+                `${marker}${seriesName}<span style="float: right; margin-left: 20px"><b>${
+                  data?.displayValue || data?.value || ''
+                }</b></span>`
+            )
+            .join('<br/>')
+        );
+      },
     },
     dataZoom: [
       {

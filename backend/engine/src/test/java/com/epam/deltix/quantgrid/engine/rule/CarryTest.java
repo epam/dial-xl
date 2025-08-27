@@ -146,7 +146,7 @@ public class CarryTest {
         GraphPrinter.print(graph);
 
         new Duplicate().apply(graph);
-        new Carry(EmptyCache.INSTANCE).apply(graph);
+        new Carry(EmptyCache.INSTANCE, null).apply(graph);
         new Deduplicate().apply(graph);
         GraphPrinter.print(graph);
 

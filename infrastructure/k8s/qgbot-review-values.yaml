@@ -6,6 +6,9 @@ image:
   pullSecrets:
     - epm-rtc-registry-test
 
+podAnnotations:
+  autorestart: '{{ dateInZone "2006-01-02 15:04:05Z" (now) "UTC" }}'
+
 containerSecurityContext:
   runAsUser: 1001
 
@@ -21,10 +24,10 @@ env:
   QG_REST_URL: "https://{{ .Values.global.url }}" 
 
   BOT_VERSION: "1"
-  CORE_MODEL: "us.anthropic.claude-3-7-sonnet-20250219-v1"
+  CORE_MODEL: "anthropic.claude-v3-5-sonnet-v2"
   CLASSIFICATION_MODEL: "anthropic.claude-v3-5-sonnet-v2"
-  LLM_NAME: "us.anthropic.claude-3-7-sonnet-20250219-v1"
-  MAX_FIX_ATTEMPTS: "3"
+  LLM_NAME: "anthropic.claude-v3-5-sonnet-v2"
+  MAX_FIX_ATTEMPTS: "5"
   LLM_MAX_CONTEXT_TOKENS: "150000"
 
   LOG_LEVEL: "DEBUG"
@@ -35,12 +38,3 @@ env:
   WEB_CONCURRENCY: "4"
   UVICORN_LIMIT_CONCURRENCY: "512"
   UVICORN_TIMEOUT_KEEP_ALIVE: "600"
-
-  
-
-  BOT_VERSION: "1"
-  CORE_MODEL: "us.anthropic.claude-3-7-sonnet-20250219-v1"
-  CLASSIFICATION_MODEL: "anthropic.claude-v3-5-sonnet-v2"
-  LLM_NAME: "us.anthropic.claude-3-7-sonnet-20250219-v1"
-  MAX_FIX_ATTEMPTS: "3"
-  LLM_MAX_CONTEXT_TOKENS: "150000"

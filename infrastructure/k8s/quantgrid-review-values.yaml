@@ -12,12 +12,11 @@ backendControl:
 
   podAnnotations:
     autorestart: '{{ dateInZone "2023-01-02 15:04:05Z" (now) "UTC" }}'
+
   env:
     WEB_REDIS_ADDRESS: "[redis://redis-cluster.quantgrid-review.svc.cluster.local.:6379]"
     WEB_NODE_TYPE: "CONTROL"
     WEB_SERVER_PORT: "8080"
-    PROJECTS_FOLDER: "/deltix/data/projects"
-    INPUTS_FOLDER: "/deltix/data/inputs"
     SECURITY_ENABLED: "true"
     JWKS_URI: "https://chatbot-ui-staging.eu.auth0.com/.well-known/jwks.json"
     WEB_STORAGE_DIAL_ENABLED: "true"
@@ -52,16 +51,25 @@ backendCompute:
 
   podAnnotations:
     autorestart: '{{ dateInZone "2023-01-02 15:04:05Z" (now) "UTC" }}'
+
   env:
     WEB_REDIS_ADDRESS: "[redis://redis-cluster.quantgrid-review.svc.cluster.local.:6379]"
     WEB_NODE_TYPE: "COMPUTE"
     WEB_SERVER_PORT: "10001"
-    PROJECTS_FOLDER: "/deltix/data/projects"
-    INPUTS_FOLDER: "/deltix/data/inputs"
     SECURITY_ENABLED: "true"
     JWKS_URI: "https://chatbot-ui-staging.eu.auth0.com/.well-known/jwks.json"
     WEB_STORAGE_DIAL_ENABLED: "true"
     WEB_STORAGE_DIAL_BASE_URL: "https://core-{{ .Values.global.url }}"
+    JAVA_OPTS: |
+      -server
+      -Djava.awt.headless=true
+      -Xms1600m
+      -Xmx2g
+      -XX:+AlwaysActAsServerClassMachine
+      -XX:+AlwaysPreTouch
+      -XX:+PerfDisableSharedMem
+      -XX:MaxTenuringThreshold=1
+      -Dnetworkaddress.cache.ttl=60s
 
   secret:
     SOME_SECRET_ENV: secret_env
@@ -91,11 +99,15 @@ frontend:
   podAnnotations:
     autorestart: '{{ dateInZone "2023-01-02 15:04:05Z" (now) "UTC" }}'
 
+  updateStrategy:
+    type: Recreate
+
   config: |
     const dialOverlayUrl = 'https://chat-{{ .Values.global.url }}';
     const authAuthority = 'https://chatbot-ui-staging.eu.auth0.com';
     const authClientId = 'CWg7UOOe8VuN5yTX23GiUs3fxW5BVqU8';
     const authProvider = 'auth0';
+    const authScope = 'openid profile email offline_access';
     const dialBaseUrl = 'https://core-{{ .Values.global.url }}';
     const qgBotDeploymentName = 'qg';
     const adminRoles = ['admin'];
@@ -109,10 +121,6 @@ frontend:
         isActive: false,
         position: 'right',
       },
-      inputs: {
-        isActive: false,
-        position: 'right',
-      },
       error: {
         isActive: false,
         position: 'right',
@@ -122,10 +130,6 @@ frontend:
         position: 'right',
       },
       undoRedo: {
-        isActive: false,
-        position: 'left',
-      },
-      aiHints: {
         isActive: false,
         position: 'left',
       },

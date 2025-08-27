@@ -59,7 +59,7 @@ public class EvaluateNLocal extends PlanN<Table, Table> {
 
     @Override
     protected Meta meta() {
-        return new Meta(Schema.ofN(ColumnType.INTEGER, fieldsCount));
+        return new Meta(Schema.ofN(ColumnType.DOUBLE, fieldsCount));
     }
 
     @Override

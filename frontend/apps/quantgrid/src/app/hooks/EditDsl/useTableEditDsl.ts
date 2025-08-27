@@ -1,13 +1,15 @@
 import { useCallback, useContext } from 'react';
 
 import { HorizontalDirection } from '@frontend/canvas-spreadsheet';
-import { ChartType, TableArrangeType } from '@frontend/common';
+import { TableArrangeType } from '@frontend/common';
 import {
   collectTableNames,
   dynamicFieldName,
   escapeTableName,
+  FieldsReferenceExpression,
   getLayoutParams,
   Sheet,
+  SheetReader,
   unescapeFieldName,
   unescapeTableName,
   visualizationDecoratorName,
@@ -15,9 +17,9 @@ import {
 
 import { ProjectContext, ViewportContext } from '../../context';
 import { createUniqueName, findNearestOverlappingTable } from '../../services';
-import { UpdateDslParams, useDSLUtils } from '../ManualEditDSL';
 import { useSafeCallback } from '../useSafeCallback';
 import { useSpreadsheetSelection } from '../useSpreadsheetSelection';
+import { UpdateDslParams, useDSLUtils } from './useDSLUtils';
 import {
   editLayoutDecorator,
   EditLayoutDecoratorProps,
@@ -26,7 +28,7 @@ import {
 
 export function useTableEditDsl() {
   const { viewGridData } = useContext(ViewportContext);
-  const { parsedSheets } = useContext(ProjectContext);
+  const { parsedSheets, sheetName } = useContext(ProjectContext);
   const {
     updateDSL,
     findEditContext,
@@ -207,32 +209,6 @@ export function useTableEditDsl() {
     [findEditContext, updateDSL, updateSelectionAfterDataChanged]
   );
 
-  const convertToChart = useCallback(
-    (tableName: string, chartType: ChartType) => {
-      const context = findEditContext(tableName);
-      if (!context) return;
-
-      const { sheetName, sheet, table } = context;
-      const decoratorArgs = `("${chartType}")`;
-      const success = editTableDecorator(
-        table,
-        visualizationDecoratorName,
-        decoratorArgs,
-        true
-      );
-
-      if (!success) return;
-
-      const historyTitle = `Convert table "${tableName}" to chart`;
-      updateDSL({
-        updatedSheetContent: sheet.toDSL(),
-        sheetNameToChange: sheetName,
-        historyTitle,
-      });
-    },
-    [findEditContext, updateDSL]
-  );
-
   const convertToTable = useCallback(
     (tableName: string) => {
       const context = findEditContext(tableName);
@@ -302,7 +278,7 @@ export function useTableEditDsl() {
 
       if (!rfContext || !lfContext) return;
 
-      const { sheetName, sheet, table } = rfContext;
+      const { sheetName, sheet, table, parsedTable } = rfContext;
       let rightField = rfContext.parsedField || null;
       let leftField = lfContext.parsedField || null;
 
@@ -332,9 +308,59 @@ export function useTableEditDsl() {
 
       if (!rightField || !leftField) return;
 
+      // Swap fields on the left side
       const rFieldName = unescapeFieldName(rightField.key.fieldName);
       const lFieldName = unescapeFieldName(leftField.key.fieldName);
       table.swapFields(rFieldName, lFieldName);
+
+      const editableRightField = table.getField(rightFieldName);
+      const editableLeftField = table.getField(leftFieldName);
+
+      // Swap dimensions
+      if (editableLeftField.dim || editableRightField.dim) {
+        editableLeftField.dim = false;
+        editableRightField.dim = true;
+      }
+
+      // Swap fields on a multi-accessors list
+      const formula = rightField.expressionMetadata?.text;
+      const parsedFormula = rightField.expression;
+      const isFieldReferenceFormula =
+        parsedFormula instanceof FieldsReferenceExpression;
+
+      if (
+        rightField.fieldGroupIndex === leftField.fieldGroupIndex &&
+        formula &&
+        isFieldReferenceFormula
+      ) {
+        const targetFieldGroup = parsedTable.fields.filter(
+          ({ fieldGroupIndex }) =>
+            fieldGroupIndex === rightField.fieldGroupIndex
+        );
+        const rFieldIndex = targetFieldGroup.findIndex(
+          ({ key }) => key.fieldName === rightFieldName
+        );
+        const lFieldIndex = targetFieldGroup.findIndex(
+          ({ key }) => key.fieldName === leftFieldName
+        );
+
+        const { fields } = parsedFormula;
+        [fields[rFieldIndex], fields[lFieldIndex]] = [
+          fields[lFieldIndex],
+          fields[rFieldIndex],
+        ];
+        const updatedAccessors = `[${fields.map((f) => f).join(',')}]`;
+
+        const { relativeStart, relativeEnd } = parsedFormula;
+
+        if (relativeStart !== undefined && relativeEnd !== undefined) {
+          const updatedFormula =
+            formula.slice(0, relativeStart) +
+            updatedAccessors +
+            formula.slice(relativeEnd + 1);
+          table.setFieldFormula(rFieldName, updatedFormula);
+        }
+      }
 
       const historyTitle = `Swap fields [${rightFieldName}] and [${leftFieldName}] in table "${tableName}"`;
       updateDSL({
@@ -356,28 +382,21 @@ export function useTableEditDsl() {
       const { table } = context;
       const { fields } = table;
 
-      let rightFieldName = '';
-      let leftFieldName = '';
+      const fieldIndex = fields.findIndex((f) => f.key.fieldName === fieldName);
+      if (fieldIndex === -1) return;
 
-      for (let i = 0; i < fields.length; i++) {
-        const field = fields[i];
+      const targetIndex =
+        direction === 'left' ? fieldIndex - 1 : fieldIndex + 1;
 
-        if (field.key.fieldName === fieldName) {
-          if (direction === 'left') {
-            if (i === 0) return;
-            rightFieldName = field.key.fieldName;
-            leftFieldName = fields[i - 1].key.fieldName;
-          } else {
-            if (i === fields.length - 1) return;
-            rightFieldName = fields[i + 1].key.fieldName;
-            leftFieldName = field.key.fieldName;
-          }
-        }
-      }
+      if (targetIndex < 0 || targetIndex >= fields.length) return;
 
-      if (rightFieldName && leftFieldName) {
-        swapFields(tableName, rightFieldName, leftFieldName, direction);
-      }
+      const leftFieldName =
+        direction === 'left' ? fields[targetIndex].key.fieldName : fieldName;
+
+      const rightFieldName =
+        direction === 'left' ? fieldName : fields[targetIndex].key.fieldName;
+
+      swapFields(tableName, rightFieldName, leftFieldName, direction);
     },
     [findContext, swapFields]
   );
@@ -490,15 +509,108 @@ export function useTableEditDsl() {
     [findEditContext, updateDSL, viewGridData]
   );
 
+  const cloneTable = useCallback(
+    (tableName: string, options: { col?: number; row?: number } = {}) => {
+      const context = findEditContext(tableName);
+      if (!context || !sheetName) return;
+      const currentSheet = parsedSheets[sheetName];
+      const sheet = currentSheet.editableSheet;
+      if (!sheet) return;
+
+      const { table } = context;
+      const unescapedSourceTableName = unescapeTableName(tableName);
+      const uniqueNewTableName = escapeTableName(
+        createUniqueName(
+          unescapedSourceTableName + ' clone',
+          collectTableNames(parsedSheets)
+        )
+      );
+
+      try {
+        const parsedNewSheet = SheetReader.parseSheet(table.toDSL());
+        const editableNewSheet = parsedNewSheet.editableSheet;
+        const parsedNewTable = parsedNewSheet.tables.find(
+          (t) => t.tableName === tableName
+        );
+
+        if (!editableNewSheet || !parsedNewTable) return;
+
+        const newTable = editableNewSheet.getTable(unescapedSourceTableName);
+        newTable.name = uniqueNewTableName;
+
+        const layoutDecorator = parsedNewTable.getLayoutDecorator();
+        let targetCol = options.col;
+        let targetRow = options.row;
+
+        if (layoutDecorator && (!targetCol || !targetRow)) {
+          targetCol = (layoutDecorator.params[0][1] ?? 1) + 1;
+          targetRow = (layoutDecorator.params[0][0] ?? 1) + 1;
+        }
+
+        editLayoutDecorator(newTable, parsedNewTable, { targetRow, targetCol });
+        newTable.detach();
+        sheet.addTable(newTable);
+
+        const historyTitle = `Cloned table "${tableName}" with new name "${uniqueNewTableName}"`;
+        updateDSL({
+          updatedSheetContent: sheet.toDSL(),
+          historyTitle,
+          sheetNameToChange: sheetName,
+          tableName: uniqueNewTableName,
+        });
+      } catch (e) {
+        return;
+      }
+    },
+    [findEditContext, parsedSheets, sheetName, updateDSL]
+  );
+
+  const moveTableToSheet = useCallback(
+    (
+      tableName: string,
+      sourceSheetName: string,
+      destinationSheetName: string
+    ) => {
+      if (sourceSheetName === destinationSheetName) return;
+      const destinationSheet = parsedSheets[destinationSheetName].editableSheet;
+      const context = findEditContext(tableName);
+      if (!context || !destinationSheet) return;
+
+      const { sheet, table } = context;
+
+      table.detach();
+      destinationSheet.addTable(table);
+      sheet.removeTable(tableName);
+
+      const historyTitle = `Move table "${tableName}" from sheet "${sourceSheetName}" to sheet "${destinationSheetName}"`;
+      updateDSL([
+        {
+          updatedSheetContent: sheet.toDSL(),
+          sheetNameToChange: sourceSheetName,
+          historyTitle,
+          tableName,
+        },
+        {
+          updatedSheetContent: destinationSheet.toDSL(),
+          sheetNameToChange: destinationSheetName,
+          historyTitle,
+          tableName,
+        },
+      ]);
+    },
+    [findEditContext, parsedSheets, updateDSL]
+  );
+
   return {
     arrangeTable: useSafeCallback(arrangeTable),
-    convertToChart: useSafeCallback(convertToChart),
+    cloneTable: useSafeCallback(cloneTable),
     convertToTable: useSafeCallback(convertToTable),
     deleteTable: useSafeCallback(deleteTable),
     deleteTables: useSafeCallback(deleteTables),
     flipTable: useSafeCallback(flipTable),
     moveTable: useSafeCallback(moveTable),
     moveTableTo: useSafeCallback(moveTableTo),
+    moveTableToSheet: useSafeCallback(moveTableToSheet),
     renameTable: useSafeCallback(renameTable),
     swapFields: useSafeCallback(swapFields),
     swapFieldsByDirection: useSafeCallback(swapFieldsByDirection),

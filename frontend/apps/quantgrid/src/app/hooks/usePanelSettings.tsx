@@ -1,12 +1,17 @@
 import type { MenuProps } from 'antd';
+import classNames from 'classnames';
 import { useCallback, useContext } from 'react';
 
 import Icon from '@ant-design/icons';
 import {
+  ArrowAltIcon,
+  ArrowNarrowUp,
   BottomPositionIcon,
   ColumnsIcon,
+  DialChatLogoIcon,
   getDropdownDivider,
   getDropdownItem,
+  iconClasses,
   LeftPositionIcon,
   MinimizePanelIcon,
   RightPositionIcon,
@@ -15,7 +20,7 @@ import {
 } from '@frontend/common';
 
 import { PanelName, PanelPosition } from '../common';
-import { LayoutContext } from '../context';
+import { AppContext, LayoutContext } from '../context';
 
 export function usePanelSettings() {
   const {
@@ -26,15 +31,63 @@ export function usePanelSettings() {
     panelsSplitEnabled,
     updateSplitPanelsEnabled,
     updateCollapsedPanelsTextHidden,
+    toggleExpandPanel,
+    expandedPanelSide,
   } = useContext(LayoutContext);
+  const { toggleChatWindowPlacement } = useContext(AppContext);
 
   const getPanelSettingsItems = useCallback(
     (
       panelName: PanelName,
+      panelTitle: string,
       panelsPosition: PanelPosition,
       isPanelCollapsed = false
     ): MenuProps['items'] => {
+      const expanded = expandedPanelSide === panelsPosition;
+
+      const specificItems =
+        panelName === PanelName.Chat
+          ? [
+              getDropdownItem({
+                key: 'move-chat',
+                icon: (
+                  <Icon
+                    className={classNames(iconClasses, 'w-[18px]')}
+                    component={() => <DialChatLogoIcon />}
+                  />
+                ),
+                label: 'Move Chat to Window',
+                onClick: () => {
+                  toggleChatWindowPlacement();
+                },
+              }),
+            ]
+          : [];
+
       const positionItems: MenuProps['items'] = [
+        getDropdownItem({
+          key: 'expand-collapse',
+          icon: (
+            <Icon
+              className={classNames('text-textSecondary w-[18px]', {
+                'transform rotate-[225deg]': expanded,
+                'transform rotate-45': !expanded,
+              })}
+              component={() =>
+                expanded ? <ArrowNarrowUp /> : <ArrowAltIcon />
+              }
+            />
+          ),
+          label: (
+            <span>
+              {expanded ? `Restore ${panelTitle}` : `Expand ${panelTitle}`}
+            </span>
+          ),
+          onClick: () => {
+            toggleExpandPanel(panelName);
+          },
+        }),
+        getDropdownDivider(),
         getDropdownItem({
           key: 'left',
           icon: (
@@ -149,12 +202,20 @@ export function usePanelSettings() {
           ]
         : [];
 
-      return [...expandItem, ...positionItems, ...generalPanelsSettingsItems];
+      return [
+        ...specificItems,
+        ...expandItem,
+        ...positionItems,
+        ...generalPanelsSettingsItems,
+      ];
     },
     [
+      expandedPanelSide,
       collapsedPanelsTextHidden,
       panelsSplitEnabled,
       openedPanels,
+      toggleChatWindowPlacement,
+      toggleExpandPanel,
       changePanelPosition,
       updateCollapsedPanelsTextHidden,
       updateSplitPanelsEnabled,

@@ -19,12 +19,16 @@ class DynamicField:
 
     @property
     def name(self) -> str:
+        """Get the name of the dynamic field."""
         return self.__name
 
     @property
     def field_type(self) -> FieldType | str | None:
+        """Get the field type of the dynamic field."""
         return self.__field_type
 
     @property
     def field_data(self) -> FieldData | str | None:
+        """Get the field data of the dynamic field."""
         return self.__field_data
+

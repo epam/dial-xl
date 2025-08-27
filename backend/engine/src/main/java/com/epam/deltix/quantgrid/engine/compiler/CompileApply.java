@@ -4,12 +4,14 @@ import com.epam.deltix.quantgrid.engine.compiler.result.CompiledResult;
 import com.epam.deltix.quantgrid.engine.compiler.result.CompiledSimpleColumn;
 import com.epam.deltix.quantgrid.engine.compiler.result.CompiledTable;
 import com.epam.deltix.quantgrid.engine.compiler.result.validator.SimpleColumnValidators;
+import com.epam.deltix.quantgrid.engine.node.Trace;
 import com.epam.deltix.quantgrid.engine.node.expression.Expression;
 import com.epam.deltix.quantgrid.engine.node.plan.local.FilterLocal;
 import com.epam.deltix.quantgrid.engine.node.plan.local.OrderByLocal;
 import com.epam.deltix.quantgrid.parser.FieldKey;
 import com.epam.deltix.quantgrid.parser.ParsedApply;
-import com.epam.deltix.quantgrid.parser.ParsedFormula;
+import com.epam.deltix.quantgrid.parser.ParsedApplyFilter;
+import com.epam.deltix.quantgrid.parser.ParsedApplySort;
 import com.epam.deltix.quantgrid.parser.ParsedTable;
 import com.epam.deltix.quantgrid.parser.ast.Formula;
 import com.epam.deltix.quantgrid.parser.ast.UnaryOperation;
@@ -31,33 +33,34 @@ class CompileApply {
         CompiledTable current = context.currentTable(dimensions);
 
         if (apply.filter() != null) {
-            current = applyFilter(context, current, apply.filter().formula().formula(), dimensions);
+            current = applyFilter(context, current, apply.filter(), dimensions);
         }
 
         if (apply.sort() != null) {
-            List<Formula> formulas = apply.sort().formulas().stream()
-                    .map(ParsedFormula::formula)
-                    .toList();
-            current = applySort(context, current, formulas, dimensions);
+            current = applySort(context, current, apply.sort(), dimensions);
         }
 
         return current.withNested(true);
     }
 
     private CompiledTable applyFilter(CompileContext context, CompiledTable table,
-                                      Formula argument, List<FieldKey> dimensions) {
+                                      ParsedApplyFilter filter, List<FieldKey> dimensions) {
         try {
-            CompiledResult arg = context.compileFormula(argument);
+            CompiledResult arg = context.compileFormula(filter.formula());
             arg = context.promote(arg, dimensions);
             arg = context.align(table, arg);
 
-            CompiledSimpleColumn condition = SimpleColumnValidators.BOOLEAN.convert(arg, INCORRECT_FILTER_LAYOUT);
+            CompiledSimpleColumn condition = SimpleColumnValidators.DOUBLE.convert(arg, INCORRECT_FILTER_LAYOUT);
             CompileUtil.verifySameLayout(condition, table, INCORRECT_FILTER_LAYOUT);
 
-            FilterLocal filter = new FilterLocal(table.node(), condition.node());
-            return table.withNode(filter);
+            FilterLocal plan = new FilterLocal(table.node(), condition.node());
+
+            Trace trace = new Trace(context.computationId(), Trace.Type.COMPUTE, context.key().key(), filter.span());
+            plan.getTraces().add(trace);
+
+            return table.withNode(plan);
         } catch (Throwable e) {
-            if (e instanceof CompileError && e.getMessage().equals(INCORRECT_FILTER_LAYOUT)) {
+            if (e instanceof CompileError && e.getMessage() != null && e.getMessage().equals(INCORRECT_FILTER_LAYOUT)) {
                 throw e;
             }
             throw new CompileError("Can't apply filter. "
@@ -67,8 +70,10 @@ class CompileApply {
     }
 
     private CompiledTable applySort(CompileContext context, CompiledTable table,
-                                    List<Formula> arguments, List<FieldKey> dimensions) {
+                                    ParsedApplySort sorting, List<FieldKey> dimensions) {
         try {
+            List<Formula> arguments = sorting.formulas();
+
             List<CompiledSimpleColumn> keyResult = new ArrayList<>();
             boolean[] ascending = new boolean[arguments.size()];
             Arrays.fill(ascending, true);
@@ -93,10 +98,14 @@ class CompileApply {
             }
 
             List<Expression> keys = keyResult.stream().map(CompiledSimpleColumn::node).toList();
-            OrderByLocal sort = new OrderByLocal(table.node(), keys, ascending);
-            return table.withNode(sort);
+            OrderByLocal plan = new OrderByLocal(table.node(), keys, ascending);
+
+            Trace trace = new Trace(context.computationId(), Trace.Type.COMPUTE, context.key().key(), sorting.span());
+            plan.getTraces().add(trace);
+
+            return table.withNode(plan);
         } catch (Throwable e) {
-            if (e instanceof CompileError && e.getMessage().startsWith(INCORRECT_SORT_LAYOUT)) {
+            if (e instanceof CompileError && e.getMessage() != null && e.getMessage().startsWith(INCORRECT_SORT_LAYOUT)) {
                 throw e;
             }
             throw new CompileError("Can't apply sort. "

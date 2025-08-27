@@ -7,83 +7,87 @@
       },
       "fields": [
         {
-          "key": {
-            "text": "key"
-          },
-          "name": {
-            "text": "a"
-          },
-          "formula": {
-            "formula": {
-              "number": -1.0,
-              "arguments": []
-            },
-            "errors": []
-          },
-          "decorators": [
+          "fields": [
             {
-              "name": {
-                "text": "format"
+              "key": {
+                "text": "key"
               },
-              "params": [
+              "name": {
+                "text": "a"
+              },
+              "decorators": [
                 {
-                  "value": "#.##"
+                  "name": {
+                    "text": "format"
+                  },
+                  "params": [
+                    {
+                      "value": "#.##"
+                    }
+                  ]
                 }
-              ]
+              ],
+              "docs": []
             }
           ],
-          "docs": []
+          "formula": {
+            "number": -1.0,
+            "arguments": []
+          }
         },
         {
-          "dim": {
-            "text": "dim"
-          },
-          "name": {
-            "text": "b"
-          },
+          "fields": [
+            {
+              "dim": {
+                "text": "dim"
+              },
+              "name": {
+                "text": "b"
+              },
+              "decorators": [],
+              "docs": []
+            }
+          ],
           "formula": {
-            "formula": {
-              "number": 2.5,
-              "arguments": []
-            },
-            "errors": []
-          },
-          "decorators": [],
-          "docs": []
+            "number": 2.5,
+            "arguments": []
+          }
         },
         {
-          "name": {
-            "text": "c"
-          },
+          "fields": [
+            {
+              "name": {
+                "text": "c"
+              },
+              "decorators": [],
+              "docs": []
+            }
+          ],
           "formula": {
-            "formula": {
-              "number": 3.42,
-              "arguments": []
-            },
-            "errors": []
-          },
-          "decorators": [],
-          "docs": []
+            "number": 3.42,
+            "arguments": []
+          }
         },
         {
-          "key": {
-            "text": "key"
-          },
-          "dim": {
-            "text": "dim"
-          },
-          "name": {
-            "text": "d"
-          },
+          "fields": [
+            {
+              "key": {
+                "text": "key"
+              },
+              "dim": {
+                "text": "dim"
+              },
+              "name": {
+                "text": "d"
+              },
+              "decorators": [],
+              "docs": []
+            }
+          ],
           "formula": {
-            "formula": {
-              "number": 5.0,
-              "arguments": []
-            },
-            "errors": []
-          },
-          "decorators": [],
-          "docs": []
+            "number": 5.0,
+            "arguments": []
+          }
         }
       ],
       "decorators": [
@@ -110,88 +114,92 @@
       },
       "fields": [
         {
-          "key": {
-            "text": "key"
-          },
-          "dim": {
-            "text": "dim"
-          },
-          "name": {
-            "text": "x"
-          },
+          "fields": [
+            {
+              "key": {
+                "text": "key"
+              },
+              "dim": {
+                "text": "dim"
+              },
+              "name": {
+                "text": "x"
+              },
+              "decorators": [],
+              "docs": []
+            }
+          ],
           "formula": {
-            "formula": {
+            "table": "T1",
+            "arguments": []
+          }
+        },
+        {
+          "fields": [
+            {
+              "name": {
+                "text": "y"
+              },
+              "decorators": [],
+              "docs": []
+            }
+          ],
+          "formula": {
+            "table": "T2",
+            "arguments": []
+          }
+        },
+        {
+          "fields": [
+            {
+              "dim": {
+                "text": "dim"
+              },
+              "name": {
+                "text": "z"
+              },
+              "decorators": [],
+              "docs": []
+            }
+          ],
+          "formula": {
+            "table": {
               "table": "T1",
               "arguments": []
             },
-            "errors": []
-          },
-          "decorators": [],
-          "docs": []
+            "field": "a",
+            "arguments": [
+              {
+                "arguments": []
+              }
+            ]
+          }
         },
         {
-          "name": {
-            "text": "y"
-          },
+          "fields": [
+            {
+              "key": {
+                "text": "key"
+              },
+              "name": {
+                "text": "w"
+              },
+              "decorators": [],
+              "docs": []
+            }
+          ],
           "formula": {
-            "formula": {
-              "table": "T2",
+            "table": {
+              "field": "x",
               "arguments": []
             },
-            "errors": []
-          },
-          "decorators": [],
-          "docs": []
-        },
-        {
-          "dim": {
-            "text": "dim"
-          },
-          "name": {
-            "text": "z"
-          },
-          "formula": {
-            "formula": {
-              "table": {
-                "table": "T1",
+            "field": "y",
+            "arguments": [
+              {
                 "arguments": []
-              },
-              "field": "a",
-              "arguments": [
-                {
-                  "arguments": []
-                }
-              ]
-            },
-            "errors": []
-          },
-          "decorators": [],
-          "docs": []
-        },
-        {
-          "key": {
-            "text": "key"
-          },
-          "name": {
-            "text": "w"
-          },
-          "formula": {
-            "formula": {
-              "table": {
-                "field": "x",
-                "arguments": []
-              },
-              "field": "y",
-              "arguments": [
-                {
-                  "arguments": []
-                }
-              ]
-            },
-            "errors": []
-          },
-          "decorators": [],
-          "docs": []
+              }
+            ]
+          }
         }
       ],
       "decorators": [

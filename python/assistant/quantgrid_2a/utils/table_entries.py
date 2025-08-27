@@ -1,34 +1,36 @@
 import typing
 
-from dial_xl.calculate import FieldData, FieldType, PrimitiveFieldType
+from dial_xl.calculate import FieldData, PrimitiveFieldType
 from dial_xl.project import FieldKey, Project, Viewport
 from dial_xl.table import Table
 
+from quantgrid.utils.project import FieldGroupUtil
 from quantgrid_2a.utils.embedding_service import EmbeddingService, ScoreRecord
 from quantgrid_2a.utils.quote import quote_if_needed
 
 
-def _format_entry(entry: str, entry_type: FieldType) -> str:
+def _format_entry(entry: str) -> str:
     return entry.strip('"')
 
 
 async def _calculate_header(
     project: Project, table: Table, rows: int
 ) -> typing.Dict[str, typing.List[str]]:
+    table_fields = FieldGroupUtil.get_table_fields(table)
     viewports: typing.List[Viewport] = [
         Viewport(
             start_row=0, end_row=rows, key=FieldKey(table=table.name, field=field.name)
         )
-        for field in table.fields
+        for field in table_fields
     ]
 
     await project.calculate(viewports)
 
     max_rows = 0
     entries: typing.Dict[str, typing.List[str]] = {
-        field.name: [] for field in table.fields
+        field.name: [] for field in table_fields
     }
-    for field in table.fields:
+    for field in table_fields:
         if not isinstance(field.field_data, FieldData):
             continue
 
@@ -40,7 +42,7 @@ async def _calculate_header(
 
         field_entries = entries[field.name]
         for i, entry in enumerate(field.field_data.values):
-            field_entries.append(_format_entry(entry, field.field_type))
+            field_entries.append(_format_entry(entry))
 
         max_rows = max(max_rows, len(field.field_data.values))
 
@@ -62,7 +64,7 @@ async def fetch_table_entries(
         embedding_count = rows // 2 + 1
 
     entries: typing.Dict[str, typing.List[str]] = {
-        field.name: [] for field in table.fields
+        field.name: [] for field in FieldGroupUtil.get_table_fields(table)
     }
 
     embeddings: typing.Dict[str, typing.List[ScoreRecord]] = {}
@@ -75,18 +77,16 @@ async def fetch_table_entries(
 
     for field_name, records in embeddings.items():
         field_entries = entries[field_name]
-        field = table.get_field(field_name)
+        field = FieldGroupUtil.get_field_by_name(table, field_name)
 
-        if (
+        if field and (
             not isinstance(field.field_type, PrimitiveFieldType)
             or field.field_type.is_nested
         ):
             continue
 
         records.sort(key=lambda record: -record.score)
-        field_entries.extend(
-            (_format_entry(record.data, field.field_type) for record in records)
-        )
+        field_entries.extend((_format_entry(record.data) for record in records))
 
     for field_name, values in headers.items():
         field_entries = entries[field_name]

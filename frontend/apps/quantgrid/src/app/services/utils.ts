@@ -6,8 +6,11 @@ export function uniqueId(): string {
 }
 
 export function getApiUrl() {
-  const hostname = window.location.hostname;
-  const isProd = window.location.protocol === 'https:';
+  const { protocol, hostname } = window.location;
 
-  return isProd ? `https://${hostname}` : `http://${hostname}:8080`;
+  const apiBaseUrl = window.externalEnv.apiBaseUrl;
+
+  if (apiBaseUrl) return apiBaseUrl;
+
+  return `${protocol}//${hostname}`;
 }

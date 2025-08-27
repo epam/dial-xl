@@ -17,12 +17,11 @@ import org.apache.spark.sql.functions;
 
 @Getter
 public class Constant extends ExpressionWithPlan<Table, Column> {
-
     private final ColumnType type;
     private final Object constant;
 
     public Constant(boolean value) {
-        this(new Scalar(), value ? 1.0 : 0.0, ColumnType.BOOLEAN);
+        this(new Scalar(), value ? 1.0 : 0.0, ColumnType.DOUBLE);
     }
 
     public Constant(double number) {
@@ -38,7 +37,7 @@ public class Constant extends ExpressionWithPlan<Table, Column> {
     }
 
     public Constant(Plan layout, double number) {
-        this(layout, number, ColumnType.closest(number));
+        this(layout, number, ColumnType.DOUBLE);
     }
 
     public Constant(Plan layout, String text) {
@@ -63,9 +62,10 @@ public class Constant extends ExpressionWithPlan<Table, Column> {
     @Override
     protected Column evaluate(Table arg) {
         return switch (type) {
-            case DOUBLE, INTEGER, BOOLEAN, DATE -> new DoubleDirectColumn((Double) constant);
+            case DOUBLE -> new DoubleDirectColumn((Double) constant);
             case STRING -> new StringDirectColumn((String) constant);
             case PERIOD_SERIES -> new PeriodSeriesDirectColumn((PeriodSeries) constant);
+            case STRUCT -> throw new IllegalArgumentException("Unsupported type: " + type);
         };
     }
 
@@ -78,7 +78,7 @@ public class Constant extends ExpressionWithPlan<Table, Column> {
     @Override
     public String toString() {
         String value = switch (type) {
-            case DOUBLE, INTEGER, BOOLEAN, DATE -> {
+            case DOUBLE -> {
                 String result = Doubles.toString((Double) constant);
                 yield type.name().toLowerCase() + ": " + result;
             }
@@ -89,6 +89,7 @@ public class Constant extends ExpressionWithPlan<Table, Column> {
                 yield "string: " + quote + result + quote;
               }
             case PERIOD_SERIES -> (constant == null) ? "series: null" : ("\"" + constant + "\"");
+            default -> throw new IllegalArgumentException("Unsupported type: " + type);
         };
 
         return "Constant(" + value + ")";

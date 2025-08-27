@@ -64,28 +64,6 @@ To set environment variables you should set them using the file `apps/quantgrid/
 
 To run an application with authentication, you should set `authAuthority` and `authClientId` variables in file `apps/quantgrid/external-env.js`:
 
-## Temporary solution to disable cors for localhost.
-
-Add this snippet to the 'backend/src/main/java/com.epam.deltix.quantgrid/web/config/AuthConfig.java'
-
-```bash
-import org.springframework.web.cors.CorsConfiguration;
-import org.springframework.web.cors.CorsConfigurationSource;
-import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-
-    @Bean
-    CorsConfigurationSource
-    corsConfigurationSource() {
-        CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(Arrays.asList("*"));
-        configuration.setAllowedMethods(Arrays.asList("*"));
-        configuration.setAllowedHeaders(Arrays.asList("*"));
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", configuration);
-        return source;
-    }
-```
-
 ## Graph of the related libraries and applications
 
 Run `nx graph` to see a diagram of the dependencies of the projects.

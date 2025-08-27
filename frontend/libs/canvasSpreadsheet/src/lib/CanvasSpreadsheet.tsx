@@ -58,8 +58,7 @@ export const CanvasSpreadsheet = (
     columnSizes,
     currentSheetName,
     viewportInteractionMode,
-    onAIPendingBanner,
-    onAIPendingChanges,
+    isReadOnly,
     onAddAllFieldTotals,
     onAddAllTableTotals,
     onAddChart,
@@ -98,7 +97,6 @@ export const CanvasSpreadsheet = (
     onInsertChart,
     onMessage,
     onMoveTable,
-    onMoveTableToSheet,
     onOpenInEditor,
     onOpenSheet,
     onPaste,
@@ -219,8 +217,6 @@ export const CanvasSpreadsheet = (
     gridCallbacksRef.current.onAddTableRowToEnd = onAddTableRowToEnd;
     gridCallbacksRef.current.onRemoveOverrideRow = onRemoveOverrideRow;
     gridCallbacksRef.current.onUndo = onUndo;
-    gridCallbacksRef.current.onAIPendingChanges = onAIPendingChanges;
-    gridCallbacksRef.current.onAIPendingBanner = onAIPendingBanner;
     gridCallbacksRef.current.onOpenSheet = onOpenSheet;
     gridCallbacksRef.current.onArrangeTable = onArrangeTable;
     gridCallbacksRef.current.onAddAllFieldTotals = onAddAllFieldTotals;
@@ -228,15 +224,12 @@ export const CanvasSpreadsheet = (
     gridCallbacksRef.current.onInsertChart = onInsertChart;
     gridCallbacksRef.current.onSelectTableForChart = onSelectTableForChart;
     gridCallbacksRef.current.onChartDblClick = onChartDblClick;
-    gridCallbacksRef.current.onMoveTableToSheet = onMoveTableToSheet;
     gridCallbacksRef.current.onAutoFitFields = onAutoFitFields;
     gridCallbacksRef.current.onRemoveFieldSizes = onRemoveFieldSizes;
     gridCallbacksRef.current.onChangeFieldIndex = onChangeFieldIndex;
     gridCallbacksRef.current.onChangeDescription = onChangeDescription;
     gridCallbacksRef.current.onDownloadTable = onDownloadTable;
   }, [
-    onAIPendingBanner,
-    onAIPendingChanges,
     onAddAllFieldTotals,
     onAddAllTableTotals,
     onAddChart,
@@ -275,7 +268,6 @@ export const CanvasSpreadsheet = (
     onInsertChart,
     onMessage,
     onMoveTable,
-    onMoveTableToSheet,
     onOpenInEditor,
     onOpenSheet,
     onPaste,
@@ -350,6 +342,7 @@ export const CanvasSpreadsheet = (
             apiRef={gridApiRef as RefObject<GridApi>}
             formulaBarMode={formulaBarMode}
             gridCallbacksRef={gridCallbacksRef}
+            isReadOnly={isReadOnly}
             zoom={zoom}
           >
             <CellEditor

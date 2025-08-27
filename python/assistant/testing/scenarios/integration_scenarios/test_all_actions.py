@@ -4,6 +4,7 @@ from dial_xl.calculate import FieldData
 from dial_xl.field import Field
 from dial_xl.table import Table
 
+from quantgrid.utils.project import FieldGroupUtil
 from testing.framework import FrameProject, RemoveTable
 from testing.framework.expected_actions import (
     AddField,
@@ -28,10 +29,11 @@ async def test_add_column(all_actions_project: FrameProject):
     )
 
     def validate(_, __, table: Table, field: Field):
-        assert field_code_regex(field, ".*\\[a\\]\\s*\\+\\s*\\[b\\].*")
+        assert field_code_regex(table, field, ".*\\[a\\]\\s*\\+\\s*\\[b\\].*")
 
     answer.assertion(
-        Text() & AddField(field_regex="c", validator=validate), strict=True
+        Text() & AddField(field_regex="c", validator=validate, is_focused=True),
+        strict=True,
     )
 
 
@@ -53,10 +55,11 @@ async def test_change_column(all_actions_project: FrameProject):
     )
 
     def validate(_, __, table: Table, field: Field):
-        assert field_code_regex(field, ".*\\[a\\]\\s*\\-\\s*1.*")
+        assert field_code_regex(table, field, ".*\\[a\\]\\s*\\-\\s*1.*")
 
     answer.assertion(
-        Text() & EditField(field_regex="b", validator=validate), strict=True
+        Text() & EditField(field_regex="b", validator=validate, is_focused=True),
+        strict=True,
     )
 
 
@@ -68,11 +71,11 @@ async def test_rename_column(all_actions_project: FrameProject):
     )
 
     def validate_c(_, __, table: Table, field: Field):
-        assert field_code_regex(field, ".*RANGE\\(10\\).*")
+        assert field_code_regex(table, field, ".*RANGE\\(10\\).*")
         assert field.dim
 
     def validate_b(_, __, table: Table, field: Field):
-        assert field_code_regex(field, ".*\\[c\\]\\s*\\^\\s*2.*")
+        assert field_code_regex(table, field, ".*\\[c\\]\\s*\\^\\s*2.*")
         # Unfortunately bot randomly may fix or don't fix the comment. Cannot stabilize this behaviour.
         # assert field.doc_string and "In quadratic dependency from c" in field.doc_string
         assert field.doc_string
@@ -103,7 +106,7 @@ async def test_add_column_note(all_actions_project: FrameProject):
     )
 
     def validate(_, __, table: Table, field: Field):
-        assert field_code_regex(field, ".*RANGE\\(10\\).*")
+        assert field_code_regex(table, field, ".*RANGE\\(10\\).*")
         assert field.doc_string
         assert field.dim
         assert_regex_match(field.doc_string, "(?i).*(10|ten).*")
@@ -112,7 +115,8 @@ async def test_add_column_note(all_actions_project: FrameProject):
         )
 
     answer.assertion(
-        Text() & EditField(field_regex="a", validator=validate), strict=True
+        Text() & EditField(field_regex="a", validator=validate, is_focused=True),
+        strict=True,
     )
 
 
@@ -124,12 +128,13 @@ async def test_remove_column_note(all_actions_project: FrameProject):
     )
 
     def validate(_, __, table: Table, field: Field):
-        assert field_code_regex(field, ".*\\[a\\]\\s*\\^\\s*2.*")
+        assert field_code_regex(table, field, ".*\\[a\\]\\s*\\^\\s*2.*")
         assert field.doc_string is None
         assert any(d.name == "size" and "(2)" in d.arguments for d in field.decorators)
 
     answer.assertion(
-        Text() & EditField(field_regex="b", validator=validate), strict=True
+        Text() & EditField(field_regex="b", validator=validate, is_focused=True),
+        strict=True,
     )
 
 
@@ -141,13 +146,14 @@ async def test_change_column_note(all_actions_project: FrameProject):
     )
 
     def validate(_, __, table: Table, field: Field):
-        assert field_code_regex(field, ".*\\[a\\]\\s*\\^\\s*2.*")
+        assert field_code_regex(table, field, ".*\\[a\\]\\s*\\^\\s*2.*")
         assert field.doc_string
         assert_regex_match(field.doc_string, "(?i).*\\[a\\]\\s*\\^\\s*2.*")
         assert any(d.name == "size" and "(2)" in d.arguments for d in field.decorators)
 
     answer.assertion(
-        Text() & EditField(field_regex="b", validator=validate), strict=True
+        Text() & EditField(field_regex="b", validator=validate, is_focused=True),
+        strict=True,
     )
 
 
@@ -159,13 +165,14 @@ async def test_add_column_decorator(all_actions_project: FrameProject):
     )
 
     def validate(_, __, table: Table, field: Field):
-        assert field_code_regex(field, ".*RANGE\\(10\\).*")
+        assert field_code_regex(table, field, ".*RANGE\\(10\\).*")
         assert field.doc_string is None
         assert field.dim
         assert any(d.name == "size" and "(2)" in d.arguments for d in field.decorators)
 
     answer.assertion(
-        Text() & EditField(field_regex="a", validator=validate), strict=True
+        Text() & EditField(field_regex="a", validator=validate, is_focused=True),
+        strict=True,
     )
 
 
@@ -177,12 +184,13 @@ async def test_remove_column_decorator(all_actions_project: FrameProject):
     )
 
     def validate(_, __, table: Table, field: Field):
-        assert field_code_regex(field, ".*\\[a\\]\\s*\\^\\s*2.*")
+        assert field_code_regex(table, field, ".*\\[a\\]\\s*\\^\\s*2.*")
         assert not any(field.decorators)
         assert field.doc_string and "In quadratic dependency from a" in field.doc_string
 
     answer.assertion(
-        Text() & EditField(field_regex="b", validator=validate), strict=True
+        Text() & EditField(field_regex="b", validator=validate, is_focused=True),
+        strict=True,
     )
 
 
@@ -194,12 +202,13 @@ async def test_change_column_decorator(all_actions_project: FrameProject):
     )
 
     def validate(_, __, table: Table, field: Field):
-        assert field_code_regex(field, ".*\\[a\\]\\s*\\^\\s*2.*")
+        assert field_code_regex(table, field, ".*\\[a\\]\\s*\\^\\s*2.*")
         assert field.doc_string and "In quadratic dependency from a" in field.doc_string
         assert any(d.name == "size" and "(3)" in d.arguments for d in field.decorators)
 
     answer.assertion(
-        Text() & EditField(field_regex="b", validator=validate), strict=True
+        Text() & EditField(field_regex="b", validator=validate, is_focused=True),
+        strict=True,
     )
 
 
@@ -213,7 +222,7 @@ async def test_change_table_decorator(all_actions_project: FrameProject):
     answer.assertion(
         Text()
         & ChangeTableProperties(
-            table_regex="T1", decorators=[("layout", "\\(1,\\s*1\\)")]
+            table_regex="T1", decorators=[("layout", "\\(1,\\s*1\\)")], is_focused=True
         )
     )
 
@@ -244,24 +253,55 @@ async def test_add_table(all_actions_project: FrameProject):
     def validate_b(field: Field):
         assert isinstance(field.field_data, FieldData)
         return field.field_data.values == [
-            "1.0",
-            "4.0",
-            "9.0",
-            "16.0",
-            "25.0",
-            "36.0",
-            "49.0",
-            "64.0",
-            "81.0",
-            "100.0",
+            "1",
+            "4",
+            "9",
+            "16",
+            "25",
+            "36",
+            "49",
+            "64",
+            "81",
+            "100",
         ]
 
     def validate(_, __, table: Table):
-        assert any(validate_a(f) for f in table.fields)
-        assert any(validate_b(f) for f in table.fields)
+        assert any(validate_a(f) for f in FieldGroupUtil.get_table_fields(table))
+        assert any(validate_b(f) for f in FieldGroupUtil.get_table_fields(table))
 
     answer.assertion(
-        Text() & AddTable(table_regex="T2", validator=validate), strict=True
+        Text() & AddTable(table_regex="T2", validator=validate, is_focused=True),
+        strict=True,
+    )
+
+
+async def test_add_table_new_sheet(basic_project: FrameProject):
+    answer = await basic_project.query(
+        """
+        Create new table named "Numbers" in a new sheet named "sheet1". It must have only one field named "a" with
+        integer numbers from 1 to 10.
+        """
+    )
+    answer.assertion(
+        Text()
+        & AddTable(
+            table_regex="Numbers",
+            sheet_regex="Main",  # Test framework creates "Main" sheet by default
+            is_focused=True,
+            a=[
+                "1",
+                "2",
+                "3",
+                "4",
+                "5",
+                "6",
+                "7",
+                "8",
+                "9",
+                "10",
+            ],
+        ),
+        strict=True,
     )
 
 
@@ -286,6 +326,7 @@ async def test_rename_table(all_actions_project: FrameProject):
         assert len(fields(table)) == 2
 
         a2 = field(table, "a2")
+        assert answer.is_field_focused(table, a2)
         assert a2
         assert a2.dim
         assert isinstance(a2.field_data, FieldData)
@@ -301,27 +342,28 @@ async def test_rename_table(all_actions_project: FrameProject):
             "9",
             "10",
         ]
-        assert field_code_regex(a2, ".*RANGE\\(10\\).*")
+        assert field_code_regex(table, a2, ".*RANGE\\(10\\).*")
         assert not a2.doc_string
         assert not any(a2.decorators)
 
         b2 = field(table, "b2")
         assert b2
         assert not b2.dim
+        assert answer.is_field_focused(table, b2)
         assert isinstance(b2.field_data, FieldData)
         assert b2.field_data.values == [
-            "1.0",
-            "4.0",
-            "9.0",
-            "16.0",
-            "25.0",
-            "36.0",
-            "49.0",
-            "64.0",
-            "81.0",
-            "100.0",
+            "1",
+            "4",
+            "9",
+            "16",
+            "25",
+            "36",
+            "49",
+            "64",
+            "81",
+            "100",
         ]
-        assert field_code_regex(b2, ".*\\[a2\\]\\s*\\^\\s*2.*")
+        assert field_code_regex(table, b2, ".*\\[a2\\]\\s*\\^\\s*2.*")
         assert b2.doc_string and "In quadratic dependency from a" in b2.doc_string
         assert any(d.name == "size" and "(2)" in d.arguments for d in b2.decorators)
         assert any(b2.decorators)
@@ -329,7 +371,7 @@ async def test_rename_table(all_actions_project: FrameProject):
     answer.assertion(
         Text()
         & RemoveTable(table_regex="T1")
-        & AddTable(table_regex="T2", validator=validate)
+        & AddTable(table_regex="T2", validator=validate, is_focused=True)
     )
 
 
@@ -349,7 +391,10 @@ async def test_add_manual_table(basic_project: FrameProject):
         title = field(table, "title")
         assert title
         assert not title.dim
-        assert title.to_dsl() is None or field_code_regex(title, ".*NA.*")
+        title_field_group = FieldGroupUtil.get_field_group_by_name(table, "title")
+        assert title_field_group.to_dsl() is None or field_code_regex(
+            table, title, r"(.*\[title\]\s*\n.*)|.*NA.*"
+        )
         assert isinstance(title.field_data, FieldData)
         assert len(title.field_data.values) == 10
         # Need to check at least some values to make sure we have it.
@@ -367,19 +412,26 @@ async def test_add_manual_table(basic_project: FrameProject):
         year = field(table, "year")
         assert year
         assert not year.dim
-        assert year.to_dsl() is None or field_code_regex(year, ".*NA.*")
+        year_field_group = FieldGroupUtil.get_field_group_by_name(table, "year")
+        assert year_field_group.to_dsl() is None or field_code_regex(
+            table, year, r"(.*\[year\]\s*\n.*)|.*NA.*"
+        )
         assert isinstance(year.field_data, FieldData)
         assert len(year.field_data.values) == 10
 
         score = field(table, "score")
         assert score
         assert not score.dim
-        assert score.to_dsl() is None or field_code_regex(score, ".*NA.*")
+        score_field_group = FieldGroupUtil.get_field_group_by_name(table, "score")
+        assert score_field_group.to_dsl() is None or field_code_regex(
+            table, score, r"(.*\[score\]\s*\n.*)|.*NA.*"
+        )
         assert isinstance(score.field_data, FieldData)
         assert len(score.field_data.values) == 10
 
     answer.assertion(
-        Text() & AddTable(table_regex="Top10ImdbMovies", validator=validate),
+        Text()
+        & AddTable(table_regex="Top10ImdbMovies", validator=validate, is_focused=True),
         strict=True,
     )
 
@@ -394,10 +446,13 @@ async def test_add_manual_column(imdb_10_project: FrameProject):
     )
 
     def validate_override(_, __, table: Table):
-        field = table.get_field("genre")
+        field = FieldGroupUtil.get_field_by_name(table, "genre")
         assert field
         assert not field.dim
-        assert field.to_dsl() is None or field_code_regex(field, ".*NA.*")
+        genre_field_group = FieldGroupUtil.get_field_group_by_name(table, "genre")
+        assert genre_field_group.to_dsl() is None or field_code_regex(
+            table, field, r".(.*\[genre\]\s*\n.*)|.*NA.*"
+        )
         assert isinstance(field.field_data, FieldData)
         assert len(field.field_data.values) == 10
         assert all(
@@ -407,7 +462,7 @@ async def test_add_manual_column(imdb_10_project: FrameProject):
 
     answer.assertion(
         Text()
-        & AddField(table_regex="Top10ImdbMovies", field_regex="genre")
+        & AddField(table_regex="Top10ImdbMovies", field_regex="genre", is_focused=True)
         & Override(table_regex="Top10ImdbMovies", validator=validate_override)
     )
 
@@ -469,7 +524,10 @@ async def test_add_manual_rows(imdb_10_project: FrameProject):
 
         title = field(table, "title")
         assert title
-        assert title.to_dsl() is None or field_code_regex(title, ".*NA.*")
+        title_field_group = FieldGroupUtil.get_field_group_by_name(table, "title")
+        assert title_field_group.to_dsl() is None or field_code_regex(
+            table, title, r"(.*\[title\]\s*\n.*)|.*NA.*"
+        )
         assert not title.dim
         assert isinstance(title.field_data, FieldData)
         assert len(title.field_data.values) == 12
@@ -477,7 +535,8 @@ async def test_add_manual_rows(imdb_10_project: FrameProject):
         assert any(d == "Return of the Jedi" for d in title.field_data.values)
 
     answer.assertion(
-        Text() & Override(table_regex="Top10ImdbMovies", validator=validate)
+        Text()
+        & Override(table_regex="Top10ImdbMovies", validator=validate, is_focused=True)
     )
 
 
@@ -494,7 +553,10 @@ async def test_remove_manual_rows(imdb_10_project: FrameProject):
 
         title = field(table, "title")
         assert title
-        assert title.to_dsl() is None or field_code_regex(title, ".*NA.*")
+        title_field_group = FieldGroupUtil.get_field_group_by_name(table, "title")
+        assert title_field_group.to_dsl() is None or field_code_regex(
+            table, title, r"(.*\[title\]\s*\n.*)|.*NA.*"
+        )
         assert not title.dim
         assert isinstance(title.field_data, FieldData)
         assert len(title.field_data.values) == 8

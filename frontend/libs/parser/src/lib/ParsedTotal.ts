@@ -1,17 +1,9 @@
-import {
-  FullDSLPlacement,
-  TableTotals,
-  TotalItem,
-  TotalItems,
-  TotalType,
-} from './parser';
+import { TableTotals, TotalItem, TotalItems, TotalType } from './parser';
 
+// TODO: this class is needed only for UI for backward compatibility with implemented features
+// Probably, it should be merged with ParsedTotals to have a single class for totals
 export class ParsedTotal {
-  constructor(
-    public dslPlacement: FullDSLPlacement | undefined,
-    public totals: TableTotals,
-    public size: number
-  ) {}
+  constructor(public totals: TableTotals, public size: number) {}
 
   public getFieldTotal(fieldName: string): TotalItems | null {
     return this.totals[fieldName] || null;

@@ -1,41 +1,40 @@
 package com.epam.deltix.quantgrid.util;
 
-import com.epam.deltix.quantgrid.type.ColumnType;
+import com.epam.deltix.quantgrid.type.InputColumnType;
 import com.epam.deltix.quantgrid.util.type.EscapeType;
 import lombok.experimental.UtilityClass;
-import org.apache.commons.lang3.math.NumberUtils;
 import org.jetbrains.annotations.Nullable;
 
 @UtilityClass
 public class ParserUtils {
-    public ColumnType inferType(@Nullable String value, ColumnType type) {
+    public InputColumnType inferType(@Nullable String value, InputColumnType type) {
         if (isNa(value) || isMissing(value)) {
             return type;
         }
 
         boolean missing = (type == null);
 
-        if (missing || type == ColumnType.BOOLEAN) {
+        if (missing || type == InputColumnType.BOOLEAN) {
             if (isBoolean(value)) {
-                return ColumnType.BOOLEAN;
+                return InputColumnType.BOOLEAN;
             } else {
-                type = missing ? ColumnType.DATE : ColumnType.STRING;
+                type = missing ? InputColumnType.DATE : InputColumnType.STRING;
             }
         }
 
-        if (type == ColumnType.DATE) {
+        if (type == InputColumnType.DATE) {
             if (Doubles.isValue(Dates.from(value))) {
-                return ColumnType.DATE;
+                return InputColumnType.DATE;
             } else {
-                type = missing ? ColumnType.DOUBLE : ColumnType.STRING;
+                type = missing ? InputColumnType.DOUBLE : InputColumnType.STRING;
             }
         }
 
-        if (type == ColumnType.DOUBLE && NumberUtils.isParsable(value)) {
-            return ColumnType.DOUBLE;
+        if (type == InputColumnType.DOUBLE && !Doubles.isError(Doubles.parseDouble(value))) {
+            return InputColumnType.DOUBLE;
         }
 
-        return ColumnType.STRING;
+        return InputColumnType.STRING;
     }
 
     public double parseBoolean(String value) {
@@ -56,28 +55,12 @@ public class ParserUtils {
         }
     }
 
-    public double parseLong(String value) {
-        if (isNa(value)) {
-            return Doubles.ERROR_NA;
-        }
-
-        if (isMissing(value)) {
-            return Doubles.EMPTY;
-        }
-
-        return Long.parseLong(value);
-    }
-
     public double parseDouble(String value) {
         if (isNa(value)) {
             return Doubles.ERROR_NA;
         }
 
-        if (isMissing(value)) {
-            return Doubles.EMPTY;
-        }
-
-        return Double.parseDouble(value);
+        return Doubles.parseDouble(value);
     }
 
     public String parseString(String value) {

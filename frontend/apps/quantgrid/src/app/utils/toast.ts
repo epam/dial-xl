@@ -1,5 +1,5 @@
 import { toast } from 'react-toastify';
-import { ToastOptions, TypeOptions } from 'react-toastify/dist/types';
+import { ToastOptions, TypeOptions } from 'react-toastify';
 
 import { hashCode } from '@frontend/common';
 

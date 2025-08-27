@@ -7,6 +7,7 @@ export function UserAvatar() {
         strokeLinecap="round"
         strokeLinejoin="round"
         strokeWidth="1.5"
+        vectorEffect="non-scaling-stroke"
       />
       <path
         d="M4.5 15.75V14.25C4.5 13.4544 4.81607 12.6913 5.37868 12.1287C5.94129 11.5661 6.70435 11.25 7.5 11.25H10.5C11.2956 11.25 12.0587 11.5661 12.6213 12.1287C13.1839 12.6913 13.5 13.4544 13.5 14.25V15.75"
@@ -14,6 +15,7 @@ export function UserAvatar() {
         strokeLinecap="round"
         strokeLinejoin="round"
         strokeWidth="1.5"
+        vectorEffect="non-scaling-stroke"
       />
     </svg>
   );

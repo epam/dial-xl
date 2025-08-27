@@ -13,11 +13,12 @@ web:
         address: "redis://127.0.0.1:6379"
   storage:
     local:
-      projectsFolder: ./tmp/control/projects/
-      inputsFolder: ./tmp/control/projects
+      resultsFolder: ./tmp/control/.cache/
+      inputsFolder: ./tmp/control/inputs/
     dial:
       enabled: ${WEB_STORAGE_DIAL_INPUT_ENABLED:false}
       baseUrl: ${WEB_STORAGE_DIAL_BASE_URL}
+      appKey: ${WEB_STORAGE_DIAL_APP_KEY}
   heartbeatPeriodMillis: 60000
 
 spring:

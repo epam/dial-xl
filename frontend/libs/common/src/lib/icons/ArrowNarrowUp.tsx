@@ -12,6 +12,7 @@ export const ArrowNarrowUp = () => {
         strokeLinecap="round"
         strokeLinejoin="round"
         strokeWidth="1.5"
+        vectorEffect="non-scaling-stroke"
       />
     </svg>
   );

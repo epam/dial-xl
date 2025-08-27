@@ -15,6 +15,7 @@ export const HintStarIcon = ({ secondaryAccentCssVar = '' }: QGIconProps) => {
         strokeLinecap="round"
         strokeLinejoin="round"
         strokeWidth={1.5}
+        vectorEffect="non-scaling-stroke"
       />
       <path
         d="M5.56641 6.75H11.5664H5.56641Z"
@@ -37,6 +38,7 @@ export const HintStarIcon = ({ secondaryAccentCssVar = '' }: QGIconProps) => {
         strokeLinecap="round"
         strokeLinejoin="round"
         strokeWidth={1.5}
+        vectorEffect="non-scaling-stroke"
       />
     </svg>
   );

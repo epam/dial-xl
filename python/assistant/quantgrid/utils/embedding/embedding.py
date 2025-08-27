@@ -25,13 +25,13 @@ class EmbeddingUtil:
             return {}
 
         answer: typing.Dict[str, typing.List[ScoreRecord]] = {}
-        for result in response["searchResults"]:
+        for result in response["similaritySearchResponse"]["scores"]:
             if result.get("table", None) != table_name:
                 continue
-            if result.get("data", None) is None:
+            if result.get("value", None) is None:
                 continue
 
-            answer.setdefault(result.get("field", None), []).append(
+            answer.setdefault(result.get("column", None), []).append(
                 ScoreRecord(**result)
             )
 
@@ -44,12 +44,15 @@ class EmbeddingUtil:
 
         async with aiohttp.ClientSession() as session:
             async with session.post(
-                f"{self._qg_url}/v1/embeddings/search",
+                f"{self._qg_url}/v1/similarity_search",
                 json={
-                    "worksheets": sheets,
-                    "search_in_all": True,
-                    "n": entries,
-                    "query": query,
+                    "similaritySearchRequest": {
+                        "project": project.name,
+                        "sheets": sheets,
+                        "search_in_all": True,
+                        "n": entries,
+                        "query": query,
+                    }
                 },
                 headers=(
                     {"Authorization": f"Bearer {await self._credentials.get_jwt()}"}

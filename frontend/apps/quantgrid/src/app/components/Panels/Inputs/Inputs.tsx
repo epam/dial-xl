@@ -6,25 +6,17 @@ import Icon from '@ant-design/icons';
 import {
   DownOutlinedIcon,
   DragIcon,
+  FileIcon,
   FilesMetadata,
-  getDropdownItem,
-  HomeIcon,
-  publicBucket,
+  MetadataNodeType,
 } from '@frontend/common';
 
-import {
-  ApiContext,
-  InputsContext,
-  ProjectContext,
-  ViewportContext,
-} from '../../../context';
+import { InputsContext, ViewportContext } from '../../../context';
 import { useMoveResources } from '../../../hooks';
-import { Breadcrumb } from '../../../types/breadcrumbs';
 import { constructPath } from '../../../utils';
-import { Breadcrumbs } from '../../Breadcrumbs/Breadcrumbs';
 import { RenameFileModal, SelectFolder } from '../../Modals';
+import { PanelEmptyMessage } from '../PanelEmptyMessage';
 import { getNode } from './buildTree';
-import { InputUpload } from './InputUpload';
 import { InputChildData, useInputsContextMenu } from './useInputsContextMenu';
 import { useInputsDragDrop } from './useInputsDragDrop';
 
@@ -32,15 +24,11 @@ export function Inputs() {
   const {
     inputList,
     inputs,
-    inputsBucket,
-    inputsParentPath,
     isInputsLoading,
     updateInputsFolder,
     expandFile,
     getInputs,
   } = useContext(InputsContext);
-  const { projectBucket } = useContext(ProjectContext);
-  const { userBucket } = useContext(ApiContext);
   const { viewGridData } = useContext(ViewportContext);
 
   const { moveResources } = useMoveResources();
@@ -48,7 +36,6 @@ export function Inputs() {
   const [inputTree, setInputTree] = useState<DataNode[]>([]);
   const [childData, setChildData] = useState<InputChildData>({});
   const [hoverKey, setHoverKey] = useState('');
-  const [breadcrumbs, setBreadcrumbs] = useState<Breadcrumb[]>([]);
   const [renameItem, setRenameItem] = useState<FilesMetadata>();
   const [moveItem, setMoveItem] = useState<FilesMetadata>();
 
@@ -78,16 +65,6 @@ export function Inputs() {
     [updateInputsFolder]
   );
 
-  const handleSelectBreadcrumb = useCallback(
-    (breadcrumb: Breadcrumb) => {
-      updateInputsFolder({
-        parentPath: breadcrumb.path,
-        bucket: breadcrumb.bucket,
-      });
-    },
-    [updateInputsFolder]
-  );
-
   const handleMoveToFolder = useCallback(
     async (path: string | null | undefined, bucket: string) => {
       if (!moveItem) return;
@@ -111,9 +88,11 @@ export function Inputs() {
 
     inputList
       .sort((a, b) => {
-        return a.nodeType === 'FOLDER' && b.nodeType === 'ITEM'
+        return a.nodeType === MetadataNodeType.FOLDER &&
+          b.nodeType === MetadataNodeType.ITEM
           ? -1
-          : a.nodeType === 'ITEM' && b.nodeType === 'FOLDER'
+          : a.nodeType === MetadataNodeType.ITEM &&
+            b.nodeType === MetadataNodeType.FOLDER
           ? 1
           : a.name.localeCompare(b.name);
       })
@@ -130,101 +109,16 @@ export function Inputs() {
     setChildData(childData);
   }, [inputList, inputs]);
 
-  useEffect(() => {
-    if (projectBucket) {
-      const breadcrumbs = (
-        inputsParentPath ? inputsParentPath.split('/') : []
-      ).reduce(
-        (acc, curr, index) => {
-          const prevBreadcrumb = acc[index];
-
-          acc.push({
-            path: [prevBreadcrumb.path, curr].filter(Boolean).join('/'),
-            name: curr,
-            bucket: projectBucket,
-          });
-
-          return acc;
-        },
-        [
-          {
-            name:
-              inputsBucket === userBucket
-                ? 'Home'
-                : inputsBucket === publicBucket
-                ? 'Public'
-                : 'Shared with me',
-            dropdownItems: [
-              getDropdownItem({
-                key: 'Home',
-                label: 'Home',
-                onClick: () =>
-                  handleSelectBreadcrumb({
-                    name: 'Home',
-                    path: null,
-                    icon: <HomeIcon />,
-                    bucket: userBucket,
-                  }),
-              }),
-              getDropdownItem({
-                key: 'SharedWithMe',
-                label: 'Shared with me',
-                onClick: () =>
-                  handleSelectBreadcrumb({
-                    name: 'Home',
-                    path: null,
-                    icon: <HomeIcon />,
-                    bucket: undefined,
-                  }),
-              }),
-              getDropdownItem({
-                key: 'Public',
-                label: 'Public',
-                onClick: () =>
-                  handleSelectBreadcrumb({
-                    name: 'Public',
-                    path: null,
-                    icon: <HomeIcon />,
-                    bucket: publicBucket,
-                  }),
-              }),
-            ],
-            path: null,
-            icon: <HomeIcon />,
-            bucket: userBucket === projectBucket ? projectBucket : undefined,
-          },
-        ] as Breadcrumb[]
-      );
-
-      setBreadcrumbs(breadcrumbs);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [inputsParentPath, inputsBucket]);
-
   return (
     <div className="overflow-auto thin-scrollbar w-full h-full bg-bgLayer3 flex flex-col">
-      <InputUpload />
-
-      {breadcrumbs.length > 0 && (
-        <div className="px-1 py-2 border-b border-strokePrimary">
-          <Breadcrumbs
-            breadcrumbs={breadcrumbs}
-            classNames="text-xs pl-2"
-            onSelectBreadcrumb={handleSelectBreadcrumb}
-          />
-        </div>
-      )}
-
       {isInputsLoading ? (
         <div className="flex grow items-center justify-center">
           <Spin className="z-50" size="large"></Spin>
         </div>
       ) : !inputList || inputList.length === 0 ? (
-        <span className="grow w-full bg-bgLayer3 text-[13px] text-textSecondary text-center pt-3 px-2">
-          No inputs
-        </span>
+        <PanelEmptyMessage icon={<FileIcon />} message="No inputs" />
       ) : (
-        <div className="min-w-[200px] px-2 pt-2 relative">
+        <div className="min-w-[200px] pr-2 pt-2 relative">
           <Dropdown
             menu={{ items, onClick: onContextMenuClick }}
             trigger={['contextMenu']}
@@ -249,13 +143,14 @@ export function Inputs() {
                     className="flex w-full items-center justify-between select-none"
                     data-path={node.key}
                     draggable={
-                      childData[node.key as string]?.nodeType === 'ITEM'
+                      childData[node.key as string]?.nodeType ===
+                      MetadataNodeType.ITEM
                     }
                     key={node.key}
                     onDoubleClick={() => {
                       const data = childData[node.key as string];
 
-                      if (data.nodeType === 'FOLDER') {
+                      if (data.nodeType === MetadataNodeType.FOLDER) {
                         onOpenFolder(data);
                       }
                     }}
@@ -265,7 +160,8 @@ export function Inputs() {
                       {node.title as string}
                     </div>
                     {hoverKey === node.key &&
-                      childData[node.key]?.nodeType === 'ITEM' && (
+                      childData[node.key]?.nodeType ===
+                        MetadataNodeType.ITEM && (
                         <div className="flex items-center pointer-events-none">
                           <Icon
                             className="w-[18px] text-textSecondary mr-1"

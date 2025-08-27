@@ -1,27 +1,34 @@
 import { useCallback, useContext } from 'react';
 
 import {
+  ChartOrientation,
   ChartType,
   defaultChartCols,
   defaultChartRows,
+  isNumericType,
 } from '@frontend/common';
 import {
+  chartHorizontalDecoratorArg,
   chartSelectorDecoratorName,
   chartSeparatorDecoratorName,
   chartSizeDecoratorName,
+  chartXAxisDecoratorName,
   Decorator,
-  Field,
+  escapeValue,
   lineBreak,
+  ParsedTable,
   sourceFieldName,
   unescapeFieldName,
   unescapeTableName,
   visualizationDecoratorName,
 } from '@frontend/parser';
 
-import { ProjectContext } from '../../context';
+import { ChartOrientationValues } from '../../components/Panels/Chart/Components';
+import { chartsWithRowNumber } from '../../components/Panels/Chart/utils';
+import { ProjectContext, ViewportContext } from '../../context';
 import { createUniqueName } from '../../services';
-import { useDSLUtils } from '../ManualEditDSL';
 import { useSafeCallback } from '../useSafeCallback';
+import { useDSLUtils } from './useDSLUtils';
 import {
   createAndPlaceTable,
   editFieldDecorator,
@@ -29,8 +36,34 @@ import {
 } from './utils';
 
 export function useChartEditDsl() {
+  const { viewGridData } = useContext(ViewportContext);
   const { parsedSheets } = useContext(ProjectContext);
   const { updateDSL, findEditContext } = useDSLUtils();
+
+  const getInitialRowNumberArgs = useCallback(
+    (parsedTable: ParsedTable, orientation: ChartOrientation): string => {
+      let args = `()`;
+
+      if (orientation === 'horizontal') {
+        const tableData = viewGridData.getTableData(parsedTable.tableName);
+        const { types } = tableData;
+        const numericFieldNames = parsedTable.fields
+          .filter((f) => {
+            return isNumericType(types[f.key.fieldName]);
+          })
+          .map((f) => f.key.fieldName);
+
+        if (numericFieldNames.length > 0) {
+          args = `("${numericFieldNames[0]}")`;
+        }
+      } else {
+        args = `(1)`;
+      }
+
+      return args;
+    },
+    [viewGridData]
+  );
 
   const chartResize = useCallback(
     (tableName: string, cols: number, rows: number) => {
@@ -121,11 +154,21 @@ export function useChartEditDsl() {
       const { parsedTable, sheet, sheetName } = context;
       const { fields } = parsedTable;
 
+      const initialOrientation = viewGridData.getChartInitialOrientation(
+        parsedTable,
+        chartType
+      );
+
+      const textFieldNameWithAllUnique =
+        viewGridData.findFirstTextColumnWithAllUniques(parsedTable);
       const unescapedTableName = unescapeTableName(tableName);
       const baseName = `${unescapedTableName}_${chartType}`;
       const [row, col] = parsedTable.getPlacement();
       const newCol = col + fields.length + 1;
-      const visualizationArgs = `("${chartType}")`;
+      const visualizationArgs =
+        initialOrientation === 'horizontal'
+          ? `("${chartType}","${chartHorizontalDecoratorArg}")`
+          : `("${chartType}")`;
 
       const { table, tableName: newChartName } = createAndPlaceTable({
         sheet,
@@ -146,17 +189,32 @@ export function useChartEditDsl() {
         sourceFieldName,
         fields.map((f) => f.key.fieldName)
       );
-      const sourceField = new Field(uniqueSourceFieldName, tableName);
-      sourceField.dim = true;
-      table.addField(sourceField);
+      table.addField({
+        name: uniqueSourceFieldName,
+        formula: tableName,
+        isDim: true,
+      });
 
       fields
-        .map((f) => f.key.fullFieldName)
-        .forEach((fullName) => {
-          table.addField(
-            new Field(fullName, `[${uniqueSourceFieldName}]${fullName}`)
-          );
+        .map((f) => f.key)
+        .forEach(({ fullFieldName, fieldName }) => {
+          table.addField({
+            name: fullFieldName,
+            formula: `[${uniqueSourceFieldName}]${fullFieldName}`,
+          });
+
+          if (fieldName === textFieldNameWithAllUnique) {
+            const field = table.getField(fieldName);
+            editFieldDecorator(field, chartXAxisDecoratorName, '()');
+          }
         });
+
+      const isRowNumber = chartsWithRowNumber.includes(chartType);
+
+      if (isRowNumber) {
+        const args = getInitialRowNumberArgs(parsedTable, initialOrientation);
+        editTableDecorator(table, chartSelectorDecoratorName, args);
+      }
 
       const historyTitle = `Add chart "${newChartName}"`;
       updateDSL({
@@ -165,7 +223,13 @@ export function useChartEditDsl() {
         historyTitle,
       });
     },
-    [findEditContext, parsedSheets, updateDSL]
+    [
+      findEditContext,
+      parsedSheets,
+      updateDSL,
+      viewGridData,
+      getInitialRowNumberArgs,
+    ]
   );
 
   const selectTableForChart = useCallback(
@@ -183,16 +247,19 @@ export function useChartEditDsl() {
         sourceFieldName,
         fields.map((f) => f.key.fieldName)
       );
-      const sourceField = new Field(uniqueSourceFieldName, sourceTableName);
-      sourceField.dim = true;
-      table.addField(sourceField);
+      table.addField({
+        name: uniqueSourceFieldName,
+        formula: sourceTableName,
+        isDim: true,
+      });
 
       fields
         .map((f) => f.key.fullFieldName)
         .forEach((fullName) => {
-          table.addField(
-            new Field(fullName, `[${uniqueSourceFieldName}]${fullName}`)
-          );
+          table.addField({
+            name: fullName,
+            formula: `[${uniqueSourceFieldName}]${fullName}`,
+          });
         });
 
       const historyTitle = `Select table "${sourceTableName}" for chart "${targetTableName}"`;
@@ -278,9 +345,132 @@ export function useChartEditDsl() {
     [findEditContext, updateDSL]
   );
 
+  const updateChartOrientation = useCallback(
+    (tableName: string, value: ChartOrientationValues) => {
+      const context = findEditContext(tableName);
+      if (!context) return;
+
+      const { sheetName, sheet, table, parsedTable } = context;
+
+      const chartType = parsedTable.getChartType();
+      const isRowsNumber = chartType && chartsWithRowNumber.includes(chartType);
+      const currentChartOrientation = parsedTable.getChartOrientation();
+      const currentVisualizationArgs =
+        parsedTable.getVisualisationDecoratorValues();
+
+      if (
+        !currentVisualizationArgs ||
+        !currentVisualizationArgs.length ||
+        value === currentChartOrientation
+      )
+        return;
+
+      const chartTypeArg = escapeValue(currentVisualizationArgs[0]);
+
+      if (value === 'vertical') {
+        const args = `(${chartTypeArg})`;
+        const success = editTableDecorator(
+          table,
+          visualizationDecoratorName,
+          args
+        );
+        if (!success) return;
+      }
+
+      if (value === 'horizontal') {
+        const args = `(${chartTypeArg}, "${chartHorizontalDecoratorArg}")`;
+        const success = editTableDecorator(
+          table,
+          visualizationDecoratorName,
+          args
+        );
+        if (!success) return;
+      }
+
+      if (isRowsNumber) {
+        const args = getInitialRowNumberArgs(parsedTable, value);
+        editTableDecorator(table, chartSelectorDecoratorName, args);
+      } else {
+        editTableDecorator(table, chartSelectorDecoratorName, '', true);
+      }
+
+      const historyTitle = `Update chart orientation "${tableName}"`;
+      updateDSL({
+        updatedSheetContent: sheet.toDSL(),
+        sheetNameToChange: sheetName,
+        historyTitle,
+      });
+    },
+    [findEditContext, getInitialRowNumberArgs, updateDSL]
+  );
+
+  const setChartType = useCallback(
+    (tableName: string, chartType: ChartType) => {
+      const context = findEditContext(tableName);
+      if (!context) return;
+
+      const { sheetName, sheet, table, parsedTable } = context;
+      const currentChartType = parsedTable.getChartType();
+      if (currentChartType === chartType) return;
+
+      const initialOrientation = viewGridData.getChartInitialOrientation(
+        parsedTable,
+        chartType
+      );
+      const isRowNumber = chartsWithRowNumber.includes(chartType);
+      const textFieldNameWithAllUnique =
+        viewGridData.findFirstTextColumnWithAllUniques(parsedTable);
+
+      const visualizationArgs =
+        initialOrientation === 'horizontal'
+          ? `("${chartType}","${chartHorizontalDecoratorArg}")`
+          : `("${chartType}")`;
+
+      const success = editTableDecorator(
+        table,
+        visualizationDecoratorName,
+        visualizationArgs
+      );
+
+      if (!success) return;
+
+      parsedTable.fields.forEach((f) => {
+        const { fieldName } = f.key;
+
+        if (fieldName === textFieldNameWithAllUnique) {
+          const field = table.getField(fieldName);
+          editFieldDecorator(field, chartXAxisDecoratorName, '()');
+        } else if (f.isChartXAxis()) {
+          const field = table.getField(fieldName);
+          editFieldDecorator(field, chartXAxisDecoratorName, '', true);
+        }
+      });
+
+      if (isRowNumber) {
+        const args = getInitialRowNumberArgs(parsedTable, initialOrientation);
+        editTableDecorator(table, chartSelectorDecoratorName, args);
+      } else {
+        editTableDecorator(table, chartSelectorDecoratorName, '', true);
+      }
+
+      const historyTitle = currentChartType
+        ? `Change chart ${tableName} type to ${chartType}`
+        : `Convert table ${tableName} to chart`;
+      updateDSL({
+        updatedSheetContent: sheet.toDSL(),
+        sheetNameToChange: sheetName,
+        historyTitle,
+        tableName,
+      });
+    },
+    [findEditContext, getInitialRowNumberArgs, updateDSL, viewGridData]
+  );
+
   return {
     addChart: useSafeCallback(addChart),
     chartResize: useSafeCallback(chartResize),
+    setChartType: useSafeCallback(setChartType),
+    updateChartOrientation: useSafeCallback(updateChartOrientation),
     selectTableForChart: useSafeCallback(selectTableForChart),
     updateChartSections: useSafeCallback(updateChartSections),
     updateSelectorValue: useSafeCallback(updateSelectorValue),

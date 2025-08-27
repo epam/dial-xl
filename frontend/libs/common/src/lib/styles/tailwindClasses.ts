@@ -2,11 +2,16 @@ import cx from 'classnames';
 import { DefaultOptionType } from 'rc-select/lib/Select';
 import { ClassNamesConfig, GroupBase, StylesConfig } from 'react-select';
 
-export const inputClasses =
-  'rounded-[3px] border !border-strokeTertiary !bg-bgLayer3 text-textPrimary focus:!bg-bgLayer3 focus-within:!bg-bgLayer3 focus-within:!shadow-none focus:!shadow-none focus-within:!border-strokeAccentPrimary focus:!border-strokeAccentPrimary hover:!bg-bgLayer3 hover:!border-strokeAccentPrimary';
+export const inputClasses = cx(
+  'rounded-[3px] border !border-strokeTertiary !bg-bgLayer3 text-textPrimary ',
+  'focus:!bg-bgLayer3 focus:!border-strokeAccentPrimary',
+  'focus-within:!bg-bgLayer3 focus-within:!shadow-none focus:!shadow-none focus-within:!border-strokeAccentPrimary',
+  'hover:!bg-bgLayer3 hover:!border-strokeAccentPrimary',
+  'disabled:!border-strokeTertiary disabled:text-controlsTextDisable disabled:placeholder:text-controlsTextDisable'
+);
 
 export const primaryButtonClasses =
-  'border-controlsBgAccent rounded-[3px] !bg-controlsBgAccent !text-controlsTextPermanent !shadow-none focus:!outline-0 focus-visible:!outline-0 focus:!border focus:!border-strokeHoverFocus focus:!bg-controlsBgAccentHover hover:!border-controlsBgAccentHover hover:!bg-controlsBgAccentHover hover:!text-controlsTextPermanent';
+  'border-controlsBgAccent rounded-[3px] leading-none !bg-controlsBgAccent !text-controlsTextPermanent !shadow-none focus:!outline-0 focus-visible:!outline-0 focus:!border focus:!border-strokeHoverFocus focus:!bg-controlsBgAccentHover hover:!border-controlsBgAccentHover hover:!bg-controlsBgAccentHover hover:!text-controlsTextPermanent';
 
 export const primaryDisabledButtonClasses =
   'disabled:text-controlsTextDisable disabled:!bg-controlsBgDisable';
@@ -15,7 +20,7 @@ export const secondaryButtonClasses =
   'border-strokePrimary rounded-[3px] !text-textPrimary !bg-bgLayer2 !shadow-none hover:!border-bgLayer4 hover:!bg-bgLayer4 hover:!text-textPrimary focus:!outline-0 focus-visible:!outline-0 focus:!border focus:!border-strokeHoverFocus focus:!bg-bgLayer4';
 
 export const secondaryOutlineButtonClasses =
-  'border-strokePrimary rounded-[3px] !text-textPrimary !bg-transparent !shadow-none hover:!border-bgLayer4 hover:!bg-bgLayer4 hover:!text-textPrimary focus:!outline-0 focus-visible:!outline-0 focus:!border focus:!border-strokeHoverFocus focus:!bg-bgLayer4';
+  'max-md:h-7 border-strokePrimary rounded-[3px] leading-none !text-textPrimary !bg-transparent !shadow-none hover:!border-bgLayer4 hover:!bg-bgLayer4 hover:!text-textPrimary focus:!outline-0 focus-visible:!outline-0 focus:!border focus:!border-strokeHoverFocus focus:!bg-bgLayer4';
 
 export const secondaryOutlineInvertedButtonClasses =
   'border-strokePrimary rounded-[3px] !text-textInverted !bg-transparent !shadow-none hover:!border-bgLayer4 hover:!bg-bgLayer4 hover:!text-textPrimary focus:!text-textPrimary focus:!outline-0 focus-visible:!outline-0 focus:!border focus:!border-strokeHoverFocus focus:!bg-bgLayer4';
@@ -24,7 +29,7 @@ export const secondaryErrorButtonClasses =
   'border-strokeError rounded-[3px] !text-textError !bg-transparent !shadow-none hover:!border-textAccentTertiary hover:!text-textAccentTertiary';
 
 export const secondaryDisabledButtonClasses =
-  'disabled:!border-0 disabled:!text-controlsTextDisable disabled:!bg-controlsBgDisable';
+  'disabled:!text-controlsTextDisable disabled:!bg-bgLayer2 disabled:!cursor-not-allowed';
 
 export const modalFooterButtonClasses = 'h-9 text-[13px]';
 

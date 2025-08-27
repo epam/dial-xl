@@ -1,7 +1,6 @@
 import { MenuProps } from 'antd';
 
 import {
-  OverrideRows,
   OverrideValue,
   ParsedConditionFilter,
   ParsedField,
@@ -9,12 +8,18 @@ import {
   TotalType,
 } from '@frontend/parser';
 
-import { ColumnDataType, CompilationError, PeriodSeries } from '../services';
+import {
+  ColumnDataType,
+  ColumnFormat,
+  CompilationError,
+  FieldKey,
+  PeriodSeries,
+} from '../services';
 
 export type FormulasContextMenuKeyData = {
   insertFormula?: string;
   tableName?: string;
-  type?: 'derived' | 'size' | 'copy';
+  type?: 'derived' | 'size' | 'copy' | 'pivot';
 };
 
 export type InsertChartContextMenuKeyData = {
@@ -75,12 +80,15 @@ export type TotalData = {
   [columnName: string]: Record<number, string>;
 };
 
-export interface DiffData {
-  table: boolean;
-  changedFields: string[];
-  deletedFields: string[];
-  overrides: OverrideRows;
+export interface HighlightData {
+  tableHighlight?: Highlight;
+  fieldsHighlight?: { fieldName: string; highlight: Highlight }[];
 }
+
+export type TableHighlightDataMap = {
+  defaultHighlight: Highlight;
+  data: Record<string, HighlightData | undefined>;
+};
 
 export type VirtualTablesData = {
   [tableName: string]: VirtualTableData;
@@ -103,16 +111,17 @@ export type TableData = {
   dynamicFields?: string[];
   isDynamicFieldsRequested: boolean;
 
-  diff: DiffData | undefined;
-
   totalRows: number;
+  highlightData: HighlightData | undefined;
 
   fieldErrors: { [columnName: string]: string };
+  indexErrors: { [columnName: string]: string };
 
   nestedColumnNames: Set<string>;
 
   columnReferenceTableNames: { [columnName: string]: string };
   types: { [columnName: string]: ColumnDataType };
+  formats: { [columnName: string]: ColumnFormat | undefined };
 };
 
 export type ColumnChunk = { [columnName: string]: string[] };
@@ -122,10 +131,17 @@ export type ChartsData = {
 };
 
 export type ChartData = {
-  [columnName: string]: PeriodSeries[] | string[];
+  [columnName: string]: {
+    rawValues: PeriodSeries[] | string[];
+    displayValues: PeriodSeries[] | string[];
+  };
 };
 
 export type RuntimeError = CompilationError;
+export type IndexError = {
+  fieldKey: FieldKey;
+  message: string;
+};
 
 export enum AppTheme {
   ThemeLight = 'theme-light',
@@ -154,6 +170,12 @@ export type GridListFilter = {
   isFiltered?: boolean;
 };
 
+export enum Highlight {
+  'DIMMED' = 'DIMMED',
+  'NORMAL' = 'NORMAL',
+  'HIGHLIGHTED' = 'HIGHLIGHTED',
+}
+
 export type GridTable = {
   startRow: number;
   startCol: number;
@@ -167,7 +189,7 @@ export type GridTable = {
   totalSize: number;
   hasKeys: boolean;
   isManual: boolean;
-  isChanged: boolean;
+  highlightType?: 'DIMMED' | 'NORMAL' | 'HIGHLIGHTED' | undefined;
   note: string;
   fieldNames: string[];
 };
@@ -186,21 +208,24 @@ export type GridField = {
   sort: FieldSortOrder;
   isFieldUsedInSort: boolean;
   type: ColumnDataType;
+  format: ColumnFormat | undefined;
   referenceTableName?: string;
   note?: string;
   hasError: boolean;
   errorMessage?: string;
-  isChanged: boolean;
+  highlightType?: 'DIMMED' | 'NORMAL' | 'HIGHLIGHTED' | undefined;
   isIndex: boolean;
   isDescription: boolean;
   descriptionField?: string;
   dataLength: number;
+  hasOverrides: boolean;
 };
 
 export type GridCell = {
   table?: GridTable;
   field?: GridField;
   value?: string;
+  displayValue?: string;
 
   hasError?: boolean;
   errorMessage?: string;
@@ -216,19 +241,19 @@ export type GridCell = {
   overrideIndex?: number;
   overrideValue?: OverrideValue;
   isOverride?: boolean;
-  isOverrideChanged?: boolean;
 
   isUrl?: boolean;
 
   isTableHeader?: boolean;
   isFieldHeader?: boolean;
 
-  zIndex?: number;
-
   isRightAligned?: boolean;
 
   startCol: number;
   endCol: number;
+
+  startGroupColOrRow: number;
+  endGroupColOrRow: number;
 };
 
 export type RowData = { [col: string]: GridCell };
@@ -272,7 +297,10 @@ export type GridChart = {
 
   showLegend: boolean;
   isEmpty: boolean;
+  chartOrientation: ChartOrientation;
 };
+
+export type ChartOrientation = 'horizontal' | 'vertical';
 
 export type GridFieldCache = {
   field: ParsedField;

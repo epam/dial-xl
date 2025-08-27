@@ -29,9 +29,9 @@ export function useGridResize({ gridContainerRef, app }: Props) {
         const { width, height } = entry.contentRect;
         setGridSize({ width, height });
 
-        if (app) {
-          app.renderer.resize(width, height);
-          app.render();
+        if (app && app.renderer) {
+          app.renderer?.resize(width, height);
+          app.render?.();
         }
       }
     });

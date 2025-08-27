@@ -1,4 +1,4 @@
-import { createUniqueName } from '../createUniqueName';
+import { createUniqueFileName, createUniqueName } from '../createUniqueName';
 
 describe('createUniqueName', () => {
   it('should return default name if no existing names', () => {
@@ -90,5 +90,20 @@ describe('createUniqueName', () => {
 
     // Assert
     expect(result).toBe('Stat3');
+  });
+
+  it('should create unique file name', () => {
+    const result = createUniqueFileName('countries_2022_2023.csv', [
+      'countries_2022_2023.csv',
+    ]);
+    expect(result).toBe('countries_2022_2023 (1).csv');
+  });
+
+  it('should increase index when create unique file name', () => {
+    const result = createUniqueFileName('countries_2022_2023 (1).csv', [
+      'countries_2022_2023.csv',
+      'countries_2022_2023 (1).csv',
+    ]);
+    expect(result).toBe('countries_2022_2023 (2).csv');
   });
 });

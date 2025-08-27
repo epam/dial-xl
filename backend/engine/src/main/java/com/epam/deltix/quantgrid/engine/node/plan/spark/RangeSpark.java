@@ -27,7 +27,7 @@ public class RangeSpark extends Plan0<SparkTable> {
 
     @Override
     protected Meta meta() {
-        return new Meta(Schema.of(ColumnType.INTEGER));
+        return new Meta(Schema.of(ColumnType.DOUBLE));
     }
 
     @Override

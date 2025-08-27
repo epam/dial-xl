@@ -3,11 +3,15 @@
   "tables": [
     {
       "span": {
+        "sheet": "test",
+        "text": "table T1\n  [a] = 1\n  [b] = 2\n  [c] = [a] = [b]\n  [d] = [b] = [a]\n",
         "from": 0,
         "to": 65
       },
       "name": {
         "span": {
+          "sheet": "test",
+          "text": "T1",
           "from": 6,
           "to": 8
         },
@@ -16,139 +20,239 @@
       "fields": [
         {
           "span": {
+            "sheet": "test",
+            "text": "[a] = 1",
             "from": 11,
             "to": 18
           },
-          "name": {
-            "span": {
-              "from": 11,
-              "to": 14
-            },
-            "text": "a"
-          },
+          "fields": [
+            {
+              "span": {
+                "sheet": "test",
+                "text": "[a]",
+                "from": 11,
+                "to": 14
+              },
+              "name": {
+                "span": {
+                  "sheet": "test",
+                  "text": "[a]",
+                  "from": 11,
+                  "to": 14
+                },
+                "text": "a"
+              },
+              "decorators": [],
+              "docs": []
+            }
+          ],
           "formula": {
+            "number": 1.0,
             "span": {
+              "sheet": "test",
+              "text": "1",
               "from": 17,
               "to": 18
             },
-            "formula": {
-              "number": 1.0,
-              "arguments": []
-            },
-            "errors": []
-          },
-          "decorators": [],
-          "docs": []
+            "arguments": []
+          }
         },
         {
           "span": {
+            "sheet": "test",
+            "text": "[b] = 2",
             "from": 21,
             "to": 28
           },
-          "name": {
-            "span": {
-              "from": 21,
-              "to": 24
-            },
-            "text": "b"
-          },
+          "fields": [
+            {
+              "span": {
+                "sheet": "test",
+                "text": "[b]",
+                "from": 21,
+                "to": 24
+              },
+              "name": {
+                "span": {
+                  "sheet": "test",
+                  "text": "[b]",
+                  "from": 21,
+                  "to": 24
+                },
+                "text": "b"
+              },
+              "decorators": [],
+              "docs": []
+            }
+          ],
           "formula": {
+            "number": 2.0,
             "span": {
+              "sheet": "test",
+              "text": "2",
               "from": 27,
               "to": 28
             },
-            "formula": {
-              "number": 2.0,
-              "arguments": []
-            },
-            "errors": []
-          },
-          "decorators": [],
-          "docs": []
+            "arguments": []
+          }
         },
         {
           "span": {
+            "sheet": "test",
+            "text": "[c] = [a] = [b]",
             "from": 31,
             "to": 46
           },
-          "name": {
-            "span": {
-              "from": 31,
-              "to": 34
-            },
-            "text": "c"
-          },
+          "fields": [
+            {
+              "span": {
+                "sheet": "test",
+                "text": "[c]",
+                "from": 31,
+                "to": 34
+              },
+              "name": {
+                "span": {
+                  "sheet": "test",
+                  "text": "[c]",
+                  "from": 31,
+                  "to": 34
+                },
+                "text": "c"
+              },
+              "decorators": [],
+              "docs": []
+            }
+          ],
           "formula": {
+            "left": {
+              "field": "a",
+              "span": {
+                "sheet": "test",
+                "text": "[a]",
+                "from": 37,
+                "to": 40
+              },
+              "arguments": []
+            },
+            "right": {
+              "field": "b",
+              "span": {
+                "sheet": "test",
+                "text": "[b]",
+                "from": 43,
+                "to": 46
+              },
+              "arguments": []
+            },
+            "operation": "EQ",
+            "name": "BinaryOperator",
             "span": {
+              "sheet": "test",
+              "text": "[a] = [b]",
               "from": 37,
               "to": 46
             },
-            "formula": {
-              "left": {
-                "field": "a",
-                "arguments": []
-              },
-              "right": {
-                "field": "b",
-                "arguments": []
-              },
-              "operation": "EQ",
-              "name": "BinaryOperator",
-              "arguments": [
-                {
-                  "arguments": []
+            "arguments": [
+              {
+                "span": {
+                  "sheet": "test",
+                  "text": "[a]",
+                  "from": 37,
+                  "to": 40
                 },
-                {
-                  "arguments": []
-                }
-              ]
-            },
-            "errors": []
-          },
-          "decorators": [],
-          "docs": []
+                "arguments": []
+              },
+              {
+                "span": {
+                  "sheet": "test",
+                  "text": "[b]",
+                  "from": 43,
+                  "to": 46
+                },
+                "arguments": []
+              }
+            ]
+          }
         },
         {
           "span": {
+            "sheet": "test",
+            "text": "[d] = [b] = [a]",
             "from": 49,
             "to": 64
           },
-          "name": {
-            "span": {
-              "from": 49,
-              "to": 52
-            },
-            "text": "d"
-          },
+          "fields": [
+            {
+              "span": {
+                "sheet": "test",
+                "text": "[d]",
+                "from": 49,
+                "to": 52
+              },
+              "name": {
+                "span": {
+                  "sheet": "test",
+                  "text": "[d]",
+                  "from": 49,
+                  "to": 52
+                },
+                "text": "d"
+              },
+              "decorators": [],
+              "docs": []
+            }
+          ],
           "formula": {
+            "left": {
+              "field": "b",
+              "span": {
+                "sheet": "test",
+                "text": "[b]",
+                "from": 55,
+                "to": 58
+              },
+              "arguments": []
+            },
+            "right": {
+              "field": "a",
+              "span": {
+                "sheet": "test",
+                "text": "[a]",
+                "from": 61,
+                "to": 64
+              },
+              "arguments": []
+            },
+            "operation": "EQ",
+            "name": "BinaryOperator",
             "span": {
+              "sheet": "test",
+              "text": "[b] = [a]",
               "from": 55,
               "to": 64
             },
-            "formula": {
-              "left": {
-                "field": "b",
-                "arguments": []
-              },
-              "right": {
-                "field": "a",
-                "arguments": []
-              },
-              "operation": "EQ",
-              "name": "BinaryOperator",
-              "arguments": [
-                {
-                  "arguments": []
+            "arguments": [
+              {
+                "span": {
+                  "sheet": "test",
+                  "text": "[b]",
+                  "from": 55,
+                  "to": 58
                 },
-                {
-                  "arguments": []
-                }
-              ]
-            },
-            "errors": []
-          },
-          "decorators": [],
-          "docs": []
+                "arguments": []
+              },
+              {
+                "span": {
+                  "sheet": "test",
+                  "text": "[a]",
+                  "from": 61,
+                  "to": 64
+                },
+                "arguments": []
+              }
+            ]
+          }
         }
       ],
       "decorators": [],

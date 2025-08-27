@@ -6,6 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.ParserRuleContext;
+import org.antlr.v4.runtime.RecognitionException;
 import org.jetbrains.annotations.TestOnly;
 
 import java.util.ArrayList;
@@ -25,7 +26,7 @@ public class SheetReader extends SheetBaseListener {
     @Getter
     private final ErrorListener errorListener;
     @Getter
-    private SheetParser.Field_definitionContext lastFieldContext;
+    private SheetParser.Fields_definitionContext lastFieldsContext;
 
     private SheetReader(String name, SheetLexer lexer, SheetParser parser) {
         this.name = name;
@@ -42,6 +43,8 @@ public class SheetReader extends SheetBaseListener {
     public void exitFormula(SheetParser.FormulaContext ctx) {
         try {
             formula = ParsedFormula.buildFormula(ctx.expression());
+        } catch (RecognitionException ex) {
+            // goes into error listener
         } catch (Exception ex) {
             log.error("Failed to parse formula", ex);
         }
@@ -50,13 +53,13 @@ public class SheetReader extends SheetBaseListener {
     @Override
     public void enterEveryRule(ParserRuleContext ctx) {
         if (ctx.getRuleIndex() != SheetParser.RULE_lb) {
-            lastFieldContext = null;
+            lastFieldsContext = null;
         }
     }
 
     @Override
-    public void exitField_definition(SheetParser.Field_definitionContext ctx) {
-        lastFieldContext = ctx;
+    public void exitFields_definition(SheetParser.Fields_definitionContext ctx) {
+        lastFieldsContext = ctx;
     }
 
     @Override
@@ -111,7 +114,7 @@ public class SheetReader extends SheetBaseListener {
     }
 
     private static SheetReader prepareParser(String name, String text) {
-        SheetLexer lexer = new SheetLexer(CharStreams.fromString(text));
+        SheetLexer lexer = new SheetLexer(CharStreams.fromString(text, name));
         SheetParser parser = new SheetParser(new CommonTokenStream(lexer));
         SheetReader listener = new SheetReader(name, lexer, parser);
         lexer.removeErrorListeners();
@@ -125,10 +128,7 @@ public class SheetReader extends SheetBaseListener {
         SheetReader reader = prepareParser(null, text);
         reader.getParser().formula();
 
-        return new ParsedFormula(
-                new Span(0, text.length()),
-                reader.getFormula(),
-                reader.getErrorListener().getErrors());
+        return new ParsedFormula(reader.getFormula(), reader.getErrorListener().getErrors());
     }
 
     @TestOnly

@@ -1,6 +1,7 @@
 from typing import Any, Iterable, Mapping
 
 from dial_xl.decorator import Decorator as XLDecorator
+from dial_xl.field_groups import FieldGroup as XLFieldGroup
 from dial_xl.overrides import Overrides as XLOverrides
 from dial_xl.table import Table as XLTable
 
@@ -81,7 +82,9 @@ class BaseMetaTable(type):
         xl_table = XLCopier.copy_table(cls._xl_table)
 
         for field in cls.get_fields().values():
-            xl_table.add_field(field.as_xl())
+            xl_table.field_groups.append(
+                XLFieldGroup.from_field(field.as_xl(), field.formula)
+            )
 
         return xl_table
 

@@ -16,10 +16,8 @@ import { CellEditorContext } from '../CellEditorContext';
 import {
   CellEditorExplicitOpenOptions,
   GridCellEditorEvent,
-  GridCellEditorEventAddOverride,
   GridCellEditorEventAddTotal,
   GridCellEditorEventEdit,
-  GridCellEditorEventEditOverride,
   GridCellEditorEventEditTotal,
   GridCellEditorEventFocus,
   GridCellEditorEventHide,
@@ -101,10 +99,10 @@ export function useCellEditorEvents({ app, apiRef, formulaBarMode }: Props) {
       if (!mousePosition || !apiRef.current) return;
 
       const api = apiRef.current;
-      const gridSizes = api.getGridSizes();
+      const { gridSizes, isPanModeEnabled } = api;
       if (
         !gridSizes ||
-        api.isPanModeEnabled ||
+        isPanModeEnabled ||
         !isClickInsideCanvas(mousePosition.x, mousePosition.y, gridSizes)
       )
         return;
@@ -358,28 +356,6 @@ export function useCellEditorEvents({ app, apiRef, formulaBarMode }: Props) {
             isEditOverride: isTableCell && cell?.isOverride,
             isAddTotal,
             isEditTotal,
-          });
-        }
-      )
-    );
-
-    subscriptions.push(
-      subscribeToCellEditorEvent<GridCellEditorEventAddOverride>(
-        GridCellEditorEventType.AddOverride,
-        ({ col, row }) => {
-          displayCellEditor(col, row, {
-            isAddOverride: true,
-          });
-        }
-      )
-    );
-
-    subscriptions.push(
-      subscribeToCellEditorEvent<GridCellEditorEventEditOverride>(
-        GridCellEditorEventType.EditOverride,
-        ({ col, row }) => {
-          displayCellEditor(col, row, {
-            isEditOverride: true,
           });
         }
       )

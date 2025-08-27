@@ -1,4 +1,4 @@
-import { notifyObserver, ObservableNode, Reader } from '../utils';
+import { Reader } from '../utils';
 
 /**
  * Represents a modifier attached to a field, such as `"key"` or `"dim"`.
@@ -8,7 +8,7 @@ import { notifyObserver, ObservableNode, Reader } from '../utils';
  * key [a] = 1
  * ```
  */
-export class FieldModifier extends ObservableNode {
+export class FieldModifier {
   /**
    * The name of this modifier (e.g. `"key"`, `"dim"`, or other).
    */
@@ -25,7 +25,6 @@ export class FieldModifier extends ObservableNode {
    * @param name - The modifier name, such as `"key"` or `"dim"`.
    */
   constructor(name: string) {
-    super();
     this._name = name;
   }
 
@@ -39,7 +38,6 @@ export class FieldModifier extends ObservableNode {
   /**
    * Sets the modifier's name, triggering observer notifications.
    */
-  @notifyObserver()
   public set name(value: string) {
     this._name = value;
   }

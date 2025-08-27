@@ -3,6 +3,7 @@ package com.epam.deltix.quantgrid.engine.compiler;
 import com.epam.deltix.quantgrid.engine.ResultType;
 import com.epam.deltix.quantgrid.engine.SimilarityRequest;
 import com.epam.deltix.quantgrid.engine.SimilarityRequestField;
+import com.epam.deltix.quantgrid.engine.Util;
 import com.epam.deltix.quantgrid.engine.Viewport;
 import com.epam.deltix.quantgrid.engine.compiler.evaluation.EvaluationUtils;
 import com.epam.deltix.quantgrid.engine.compiler.function.Argument;
@@ -11,38 +12,61 @@ import com.epam.deltix.quantgrid.engine.compiler.function.FunctionType;
 import com.epam.deltix.quantgrid.engine.compiler.function.Functions;
 import com.epam.deltix.quantgrid.engine.compiler.result.CompiledColumn;
 import com.epam.deltix.quantgrid.engine.compiler.result.CompiledNestedColumn;
-import com.epam.deltix.quantgrid.engine.compiler.result.CompiledPivotTable;
+import com.epam.deltix.quantgrid.engine.compiler.result.CompiledPivotColumn;
 import com.epam.deltix.quantgrid.engine.compiler.result.CompiledResult;
 import com.epam.deltix.quantgrid.engine.compiler.result.CompiledRow;
 import com.epam.deltix.quantgrid.engine.compiler.result.CompiledSimpleColumn;
 import com.epam.deltix.quantgrid.engine.compiler.result.CompiledTable;
+import com.epam.deltix.quantgrid.engine.compiler.result.format.ColumnFormat;
+import com.epam.deltix.quantgrid.engine.compiler.result.format.FormatUtils;
+import com.epam.deltix.quantgrid.engine.compiler.result.format.GeneralFormat;
+import com.epam.deltix.quantgrid.engine.compiler.result.validator.SimpleOrNestedValidators;
 import com.epam.deltix.quantgrid.engine.embeddings.EmbeddingType;
 import com.epam.deltix.quantgrid.engine.graph.Graph;
+import com.epam.deltix.quantgrid.engine.graph.GraphPrinter;
+import com.epam.deltix.quantgrid.engine.node.Node;
+import com.epam.deltix.quantgrid.engine.node.Trace;
 import com.epam.deltix.quantgrid.engine.node.plan.Plan;
 import com.epam.deltix.quantgrid.engine.node.plan.Scalar;
+import com.epam.deltix.quantgrid.engine.node.plan.local.IndexResultLocal;
+import com.epam.deltix.quantgrid.engine.ComputationType;
+import com.epam.deltix.quantgrid.engine.node.plan.local.SimilaritySearchLocal;
 import com.epam.deltix.quantgrid.engine.node.plan.local.ViewportLocal;
+import com.epam.deltix.quantgrid.engine.rule.AssignIdentity;
+import com.epam.deltix.quantgrid.engine.rule.AssignTrace;
+import com.epam.deltix.quantgrid.engine.rule.Clean;
+import com.epam.deltix.quantgrid.engine.rule.ConstantFolding;
+import com.epam.deltix.quantgrid.engine.rule.Deduplicate;
+import com.epam.deltix.quantgrid.engine.rule.EliminateProjection;
+import com.epam.deltix.quantgrid.engine.rule.OptimizeAggregate;
+import com.epam.deltix.quantgrid.engine.rule.OptimizeFilter;
+import com.epam.deltix.quantgrid.engine.rule.PushDownExpand;
+import com.epam.deltix.quantgrid.engine.rule.Reduce;
+import com.epam.deltix.quantgrid.engine.rule.ReverseProjection;
 import com.epam.deltix.quantgrid.engine.service.input.storage.InputProvider;
 import com.epam.deltix.quantgrid.parser.FieldKey;
 import com.epam.deltix.quantgrid.parser.ParsedApply;
 import com.epam.deltix.quantgrid.parser.ParsedDecorator;
 import com.epam.deltix.quantgrid.parser.ParsedField;
-import com.epam.deltix.quantgrid.parser.ParsedFormula;
+import com.epam.deltix.quantgrid.parser.ParsedFields;
 import com.epam.deltix.quantgrid.parser.ParsedKey;
+import com.epam.deltix.quantgrid.parser.ParsedPrimitive;
 import com.epam.deltix.quantgrid.parser.ParsedPython;
 import com.epam.deltix.quantgrid.parser.ParsedSheet;
 import com.epam.deltix.quantgrid.parser.ParsedTable;
 import com.epam.deltix.quantgrid.parser.ParsedTotal;
 import com.epam.deltix.quantgrid.parser.ParsingError;
+import com.epam.deltix.quantgrid.parser.Span;
 import com.epam.deltix.quantgrid.parser.TableKey;
 import com.epam.deltix.quantgrid.parser.TotalKey;
 import com.epam.deltix.quantgrid.parser.ast.ConstText;
 import com.epam.deltix.quantgrid.parser.ast.Formula;
 import com.epam.deltix.quantgrid.type.ColumnType;
 import lombok.Getter;
-import lombok.RequiredArgsConstructor;
 import lombok.experimental.Accessors;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.Nullable;
+import org.slf4j.event.Level;
 
 import java.security.Principal;
 import java.util.ArrayList;
@@ -56,10 +80,7 @@ import java.util.Set;
 
 @Slf4j
 @Accessors(fluent = true)
-@RequiredArgsConstructor
 public class Compiler {
-
-    private static final String DEFAULT_COMPILATION_ERROR = "Failed to compile field ";
     static final String DIMENSIONAL_SCHEMA_REQUEST_TABLE_NAME = "_invalid_031574268";
 
     // FieldKey -> ParsedField
@@ -68,18 +89,19 @@ public class Compiler {
     private final Map<ParsedKey, Object> parsed = new LinkedHashMap<>();
     private final Map<String, CompileExplode> explodes = new HashMap<>();
     private final Map<String, CompileOverride> overrides = new HashMap<>();
-    @Getter
     private final Map<CompileKey, CompiledResult> compiled = new HashMap<>();
     private final Set<CompileKey> compiling = new HashSet<>();
-    // table, viewports
-    private final Map<ParsedKey, Set<Viewport>> viewports = new LinkedHashMap<>();
 
     private final Map<ParsedKey, CompileError> compileErrors = new HashMap<>();
     private final Map<String, ParsedPython.Function> pythonFunctions = new HashMap<>();
+    private final Map<Formula, CompiledResult> formulas = new HashMap<>();
+
+    @Getter
+    private final Map<FieldKey, IndexResultLocal> indices = new HashMap<>();
 
     // reuse across explodes within a single compilation only (at least Executor and Carry rule modify Select)
     @Getter
-    private final CompiledTable scalar = new CompiledNestedColumn(new Scalar(), CompiledTable.REF_NA);
+    private final CompiledTable scalar = new CompiledNestedColumn(new Scalar(), CompiledTable.REF_NA, GeneralFormat.INSTANCE);
 
     @Getter
     private ParsedTable evaluationTable;
@@ -89,18 +111,102 @@ public class Compiler {
 
     @Getter
     private final Principal principal;
+    @Getter
+    private final long computationId;
+    @Getter
+    private final ComputationType computationType;
 
-    public Graph compile(List<ParsedSheet> sheets,
-                         Collection<Viewport> viewports,
-                         @Nullable SimilarityRequest similarityRequest) {
+    public Compiler(InputProvider inputProvider, Principal principal) {
+       this(inputProvider, principal, 0, ComputationType.OPTIONAL);
+    }
+
+    public Compiler(InputProvider inputProvider, Principal principal, long computationId, ComputationType computationType) {
+        this.inputProvider = inputProvider;
+        this.principal = principal;
+        this.computationId = computationId;
+        this.computationType = computationType;
+    }
+
+    public Compilation compile(List<ParsedSheet> sheets,
+                               Collection<Viewport> viewports,
+                               boolean index,
+                               @Nullable SimilarityRequest similarityRequest) {
         setSheet(sheets);
-
         Graph graph = new Graph();
 
-        compileViewPortNodes(graph, viewports);
-        compileSimilarityNodes(sheets, graph, similarityRequest);
+        compileAll(viewports);
+        compileViewports(graph, viewports);
+        compileIndices(graph, index);
+        compileSimilaritySearch(sheets, graph, similarityRequest);
 
-        return graph;
+        graph = normalizeGraph(graph);
+        return buildCompilation(graph);
+    }
+
+    private void compileAll(Collection<Viewport> viewports) {
+        Set<ParsedKey> keys = new HashSet<>(parsed.keySet());        // compile sheets fields
+        keys.addAll(viewports.stream().map(Viewport::key).toList()); // compile viewports fields
+
+        // can trigger appearing new dynamic fields
+        for (ParsedKey key : keys) {
+            try {
+                compile(CompileKey.fromKey(key));
+            } catch (CompileError ignored) {
+            }
+        }
+    }
+
+    private Graph normalizeGraph(Graph graph) {
+        Graph copy = graph.copy(); // needs to be copied because compiled results will be broken
+        GraphPrinter.print(Level.DEBUG, "Compiled graph", copy);
+
+        new AssignTrace().apply(copy);
+        new Clean(false).apply(copy);
+        new Deduplicate().apply(copy);
+        new Reduce(true).apply(copy);
+        new ReverseProjection().apply(copy);
+        new PushDownExpand().apply(copy);
+        new ConstantFolding().apply(copy);
+        new EliminateProjection().apply(copy);
+        new OptimizeFilter().apply(copy);
+        new Reduce(true).apply(copy);
+        new OptimizeAggregate().apply(copy);
+        new Deduplicate().apply(copy);
+        new AssignIdentity().apply(copy);
+        new AssignTrace().apply(copy);
+
+        GraphPrinter.print(Level.DEBUG, "Normalized graph", copy);
+        return copy;
+    }
+
+    private Compilation buildCompilation(Graph graph) {
+        Map<ParsedKey, CompiledResult> results = new HashMap<>();
+        Map<ParsedKey, String> hashes = new HashMap<>();
+        Map<ParsedKey, CompileError> errors = new HashMap<>(compileErrors);
+        Set<FieldKey> keys = new HashSet<>(indices.keySet());
+
+        for (Map.Entry<CompileKey, CompiledResult> entry : compiled.entrySet()) {
+            CompileKey key = entry.getKey();
+            CompiledResult result = entry.getValue();
+
+            if (!key.isTable() && key.exploded() && key.overridden()) {
+                results.put(key.key(), result);
+            }
+        }
+
+        for (Node node : graph.getNodes()) {
+            if (node instanceof ViewportLocal viewport && viewport.getComputationType() != ComputationType.REQUIRED) {
+                hashes.put(viewport.getKey(), viewport.getSource().semanticId());
+            }
+        }
+
+        for (ParsedKey key : results.keySet()) {
+            if (key instanceof FieldKey || key instanceof TotalKey) {
+                Util.verify(hashes.containsKey(key));
+            }
+        }
+
+        return new Compilation(results, keys, errors, hashes, graph);
     }
 
     private static ParsedTable getEvaluationTable(List<ParsedSheet> sheets) {
@@ -115,9 +221,9 @@ public class Compiler {
         return null;
     }
 
-    private void compileSimilarityNodes(List<ParsedSheet> sheets,
-                                        Graph graph,
-                                        @Nullable SimilarityRequest similarityRequest) {
+    private void compileSimilaritySearch(List<ParsedSheet> sheets,
+                                         Graph graph,
+                                         @Nullable SimilarityRequest similarityRequest) {
         if (similarityRequest == null) {
             return;
         }
@@ -133,92 +239,132 @@ public class Compiler {
                 similarityRequest.modelName(),
                 EmbeddingType.QUERY);
 
-        ParsedTable evaluationTable = null;
         if (similarityRequest.useEvaluation()) {
-            evaluationTable = getEvaluationTable(sheets);
-
+            ParsedTable evaluationTable = getEvaluationTable(sheets);
             if (evaluationTable == null) {
                 throw new CompileError("Evaluation table doesn't exist in the project");
             }
-        }
-
-        for (SimilarityRequestField field : similarityRequest.fields()) {
-            try {
-                if (evaluationTable != null) {
-                    graph.add(CompileSimilaritySearch.compileSimilaritySearch(this, field, similarityRequest.query(), evaluationTable));
-                } else {
-                    graph.add(CompileSimilaritySearch.compileSimilaritySearch(this, field, similarityRequest.modelName(), queryPlan));
+            List<CompileEvaluationUtils.EvaluationField> evaluationFields =
+                    CompileEvaluationUtils.getEvaluationFields(evaluationTable);
+            for (CompileEvaluationUtils.EvaluationField evaluationField : evaluationFields) {
+                graph.add(CompileSimilaritySearch.compileSimilaritySearch(
+                        this, evaluationField.field(), similarityRequest.query(), evaluationField.span()));
+            }
+        } else if (similarityRequest.searchInAll()) {
+            indices.forEach((key, data) -> {
+                SimilaritySearchLocal plan =
+                        new SimilaritySearchLocal(data.getSource(), queryPlan, key, similarityRequest.n(), computationId);
+                plan.getTraces().addAll(data.getTraces());
+                graph.add(plan);
+            });
+        } else {
+            for (SimilarityRequestField field : similarityRequest.fields()) {
+                IndexResultLocal data = indices.get(field.key());
+                if (data == null) {
+                    throw new IllegalArgumentException("Column %s does not have index.".formatted(field.key()));
                 }
-            } catch (Exception e) {
-                // all errors already stored during compile() method
-                // but in some cases (like duplicated tables) they may absent
-                // since we don't have a proper solution - they are ignored for now
-                // Util.verify(compileErrors.containsKey(key.toFieldKey()));
+
+                SimilaritySearchLocal plan = new SimilaritySearchLocal(data.getSource(), queryPlan,
+                        field.key(), field.n(), computationId);
+                plan.getTraces().addAll(data.getTraces());
+                graph.add(plan);
             }
         }
     }
 
-    public void compileViewPortNodes(Graph graph,
-                                     Collection<Viewport> viewports) {
-        setViewports(viewports);
+    public void compileViewports(Graph graph, Collection<Viewport> viewports) {
+        Map<ParsedKey, Set<Viewport>> map = new HashMap<>();
 
-        for (ParsedKey viewportKey : this.viewports.keySet()) {
-            CompileKey compileKey = CompileKey.fromKey(viewportKey);
+        for (Viewport viewport : viewports) {
+            Set<Viewport> all = map.computeIfAbsent(viewport.key(), t -> new HashSet<>());
+            all.add(viewport);
+        }
 
+        for (ParsedKey key : parsed.keySet()) {
+            if ((key instanceof FieldKey || key instanceof TotalKey)) {
+                Set<Viewport> all = map.computeIfAbsent(key, t -> new HashSet<>());
+                Viewport anchor = new Viewport(key, computationType, 0, 0, false, false);
+                all.add(anchor);
+            }
+        }
+
+        for (ParsedKey key : map.keySet()) {
+            CompileKey compileKey = CompileKey.fromKey(key);
             try {
-                CompiledResult explodedResult = compile(compileKey);
-                List<ViewportLocal> viewPortNodes = compileViewports(compileKey, explodedResult);
-                viewPortNodes.forEach(graph::add);
-            } catch (Exception e) {
+                CompiledResult result = compile(compileKey);
+                Set<Viewport> all = map.get(key);
+                List<ViewportLocal> plans = compileViewports(compileKey, result, all);
+                plans.forEach(graph::add);
+            } catch (CompileError e) {
                 // TODO: Propagate errors related to unknown fields in viewports
                 // all errors already stored during compile() method
                 // but in some cases (like duplicated tables) they may absent
                 // since we don't have a proper solution - they are ignored for now
                 // Util.verify(compileErrors.containsKey(key.toFieldKey()));
+                compileErrors.putIfAbsent(compileKey.key(), e);
             }
         }
     }
 
-    public List<SimilarityRequestField> getKeyStringFieldsWithDescriptions(List<ParsedSheet> sheets) {
-        setSheet(sheets);
-
-        List<SimilarityRequestField> fields = new ArrayList<>();
-        for (ParsedSheet sheet : sheets) {
-            for (ParsedTable table : sheet.tables()) {
-                for (ParsedField field : table.fields()) {
-                    FieldKey descriptionField = null;
-                    boolean toIndex = field.isKey();
-                    for (ParsedDecorator decorator : field.decorators()) {
-                        if (decorator.decoratorName().equals(CompileEvaluationUtils.DESCRIPTION_DECORATOR)) {
-                            descriptionField = new FieldKey(table.tableName(), (String) decorator.params().get(0).value());
-                        }
-
-                        toIndex |= decorator.decoratorName().equals(CompileEvaluationUtils.INDEX_DECORATOR);
-                    }
-
-                    if (!toIndex) {
-                        continue;
-                    }
-
-                    FieldKey key = new FieldKey(table.tableName(), field.fieldName());
-
-                    CompiledColumn result;
-                    try {
-                        result = compileField(new CompileKey(key, true, true)).cast(CompiledColumn.class);
-                    } catch (CompileError e) {
-                        continue;
-                    }
-
-                    if (result.type() != ColumnType.STRING) {
-                        continue;
-                    }
-
-                    fields.add(new SimilarityRequestField(key, descriptionField, -1));
+    public void compileIndices(Graph graph, boolean index) {
+        for (ParsedKey key : parsed.keySet()) {
+            CompileKey compileKey = CompileKey.fromKey(key);
+            try {
+                IndexResultLocal plan = compileIndex(compileKey, index ? ComputationType.REQUIRED : computationType);
+                if (plan != null) {
+                    graph.add(plan);
                 }
+            } catch (CompileError e) {
+                compileErrors.putIfAbsent(compileKey.key(), e);
+            }
+        }
+    }
+
+    private IndexResultLocal compileIndex(CompileKey compileKey, ComputationType type) {
+        if (!compileKey.isField()) {
+            return null;
+        }
+        FieldKey fieldKey = compileKey.fieldKey();
+        IndexResultLocal plan = indices.get(fieldKey);
+        if (plan != null) {
+            Util.verify(plan.getComputationType() != type);
+            return plan;
+        }
+
+        CompiledResult result = compile(compileKey);
+        ParsedField field = getParsedField(fieldKey);
+        ParsedDecorator indexDecorator = findDecorator(field, CompileEvaluationUtils.INDEX_DECORATOR);
+        Span span;
+        if (indexDecorator != null) {
+            span = indexDecorator.span();
+        } else if (field.isKey() && result instanceof CompiledColumn column && column.type().isString()) {
+            span = field.key().span();
+        } else {
+            return null;
+        }
+
+        CompileContext context = new CompileContext(this, compileKey);
+        Plan embedding = CompileSimilaritySearch.compileIndex(
+                context, fieldKey, findDecorator(field, CompileEvaluationUtils.DESCRIPTION_DECORATOR));
+        plan = new IndexResultLocal(embedding, fieldKey, computationId, type);
+
+        Trace trace = new Trace(context.computationId(), Trace.Type.INDEX, fieldKey, span);
+        plan.getTraces().add(trace);
+
+        this.indices.put(compileKey.fieldKey(), plan);
+        return plan;
+    }
+
+    private ParsedField getParsedField(FieldKey fieldKey) {
+        ParsedFields fields = (ParsedFields) parsed.get(fieldKey);
+
+        for (ParsedField candidate : fields.fields()) {
+            if (candidate.fieldName().equals(fieldKey.fieldName())) {
+                return candidate;
             }
         }
 
-        return fields;
+        throw new CompileError("Missing field: %s".formatted(fieldKey));
     }
 
     public void setSheet(Collection<ParsedSheet> sheets) {
@@ -243,18 +389,20 @@ public class Compiler {
                 overrides.put(table.tableName(), new CompileOverride(context, table));
             }
 
-            for (ParsedField field : table.fields()) {
-                FieldKey fieldKey = new FieldKey(tableName, field.fieldName());
-                parsed.put(fieldKey, field);
+            for (ParsedFields declaration : table.fields()) {
+                for (ParsedField field : declaration.fields()) {
+                    FieldKey fieldKey = new FieldKey(tableName, field.fieldName());
+                    parsed.put(fieldKey, declaration);
+                }
             }
 
             List<ParsedTotal> totals = table.totals();
             for (int i = 0; i < totals.size(); i++) {
                 ParsedTotal total = totals.get(i);
-                for (ParsedField field : total.fields()) {
-                    ParsedFormula formula = field.formula();
+                for (ParsedFields field : total.fields()) {
+                    Formula formula = field.formula();
                     if (formula != null) {
-                        TotalKey totalKey = new TotalKey(tableName, field.fieldName(), i + 1);
+                        TotalKey totalKey = new TotalKey(tableName, field.fields().get(0).fieldName(), i + 1);
                         parsed.put(totalKey, formula);
                     }
                 }
@@ -272,37 +420,6 @@ public class Compiler {
         }
 
         evaluationTable = EvaluationUtils.getAndValidateEvaluationTable(compileErrors, parsed, tables);
-    }
-
-    public Map<ParsedKey, String> compileErrors() {
-        Map<ParsedKey, String> result = new HashMap<>();
-        for (Map.Entry<ParsedKey, CompileError> entry : compileErrors.entrySet()) {
-            ParsedKey key = entry.getKey();
-            CompileError exception = entry.getValue();
-            String errorMessage = exception.getMessage() == null
-                    ? defaultErrorMessage(key) : exception.getMessage();
-            result.put(key, errorMessage);
-        }
-        return result;
-    }
-
-    private static String defaultErrorMessage(ParsedKey key) {
-        return DEFAULT_COMPILATION_ERROR + key;
-    }
-
-    private void setViewports(Collection<Viewport> newViewports) {
-        viewports.clear();
-
-        for (Viewport viewport : newViewports) {
-            Set<Viewport> ranges = viewports.computeIfAbsent(viewport.key(), t -> new HashSet<>());
-            ranges.add(viewport);
-        }
-
-        for (ParsedKey key : parsed.keySet()) {
-            if ((key instanceof FieldKey || key instanceof TotalKey) && !viewports.containsKey(key)) {
-                viewports.put(key, Set.of(new Viewport(key, -1, -1, false)));
-            }
-        }
     }
 
     CompiledResult compile(CompileKey key) {
@@ -339,8 +456,14 @@ public class Compiler {
 
             compiled.put(key, result);
         } catch (Throwable exception) {
-            log.warn("Compile error: {}. Error: ", key, exception);
-            error = exception instanceof CompileError e ? e : new CompileError(exception);
+            if (exception instanceof CompileError e) {
+                log.info("Compile error: {}. Error: {}", key, exception.getMessage());
+                error = e;
+            } else {
+                log.warn("Compile error: {}. Error: ", key, exception);
+                error = new CompileError(exception);
+            }
+
             compileErrors.put(key.key(), error);
         }
 
@@ -360,8 +483,9 @@ public class Compiler {
 
         List<FieldKey> dims = table.fields()
                 .stream()
-                .filter(ParsedField::isDim)
-                .map(f -> new FieldKey(table.tableName(), f.fieldName()))
+                .filter(ParsedFields::isDim)
+                .map(fields -> fields.fields().get(0))
+                .map(field -> new FieldKey(table.tableName(), field.fieldName()))
                 .toList();
 
         List<FieldKey> allDims = new ArrayList<>(dims);
@@ -378,7 +502,8 @@ public class Compiler {
         explodes.put(key.table(), explode);
 
         if (manual) {
-            CompiledTable result = CompileManual.compile(table, scalar, dims);
+            CompileContext context = new CompileContext(this, key);
+            CompiledTable result = CompileManual.compile(context, table, dims);
             explode.add(result, allDims.get(0));
         } else {
             for (FieldKey dimension : dims) {
@@ -398,13 +523,29 @@ public class Compiler {
 
     private CompiledResult compileField(CompileKey key) {
         FieldKey fieldKey = key.fieldKey();
+        CompiledResult result;
+
         if (key.exploded()) {
-            return compileExplodedField(fieldKey, key.overridden());
+            result = compileExplodedField(fieldKey, key.overridden());
         } else if (key.overridden()) {
-            return compileOverriddenField(fieldKey);
+            result = compileOverriddenField(fieldKey);
         } else {
-            return compileUnexplodedField(fieldKey);
+            result = compileUnexplodedField(fieldKey);
         }
+
+        ParsedFields fields = (ParsedFields) parsed.get(fieldKey);
+        Span span = fields.formula().span();
+
+        if (span == null) {
+            span = fields.span();
+        }
+
+        if (span != null) { // for dynamic fields
+            Trace trace = new Trace(computationId, Trace.Type.COMPUTE, fieldKey, span);
+            result.node().getTraces().add(trace);
+        }
+
+        return result;
     }
 
     private CompiledResult compileExplodedField(FieldKey fieldKey, boolean overridden) {
@@ -423,24 +564,143 @@ public class Compiler {
 
         if (override != null) {
             CompileContext context = new CompileContext(this, new CompileKey(fieldKey, false, true));
-            return override.compileField(context, result);
+            result = override.compileField(context, result);
+        }
+
+        return format(result, fieldKey);
+    }
+
+    private CompiledResult compileUnexplodedField(FieldKey fieldKey) {
+        CompileExplode explode = explodes.get(fieldKey.tableName());
+        ParsedFields fields = (ParsedFields) parsed.get(fieldKey);
+
+        try {
+            CompileContext context = new CompileContext(this, new CompileKey(fieldKey, false, false));
+            CompiledResult result = compileFormula(context, fields.formula());
+
+            if (fields.isDim()) {
+                ParsedField first = fields.fields().get(0);
+                FieldKey dimension = new FieldKey(fieldKey.table(), first.fieldName());
+                result = explode.add(result, dimension).flat();
+            }
+
+            return assignUnexplodedField(context, fieldKey, fields, result);
+        } catch (Throwable exception) {
+            CompileError error = exception instanceof CompileError e ? e : new CompileError(exception);
+
+            for (ParsedField field : fields.fields()) {
+                compiled.remove(CompileKey.fieldKey(fieldKey.table(), field.fieldName(), false, false));
+                compileErrors.put(new FieldKey(fieldKey.table(), field.fieldName()), error);
+            }
+
+            throw exception;
+        }
+    }
+
+    private CompiledResult assignUnexplodedField(CompileContext context, FieldKey key,
+                                                 ParsedFields fields, CompiledResult result) {
+        List<ParsedField> declaredFields = fields.fields();
+
+        if (declaredFields.size() == 1 && (result instanceof CompiledColumn || result instanceof CompiledPivotColumn)) {
+            return result;
+        }
+
+        if (!result.assignable()) {
+            CompiledTable resultTable = result.cast(CompiledTable.class);
+            List<String> resultFields = resultTable.fields(context);
+            throw new CompileError("Unable to assign result. Change formula to access one or more columns: "
+                    + String.join(", ", resultFields));
+        }
+
+        if (declaredFields.size() > 1 || !result.reference()) {
+            if (result.reference()) {
+                throw new CompileError("Declared " + declaredFields.size()
+                        + " columns, but formula produces table reference");
+            }
+
+            if (result instanceof CompiledColumn) {
+                throw new CompileError("Declared " + declaredFields.size()
+                        + " columns, but formula produces 1 column");
+            }
+
+            CompiledTable resultTable = result.cast(CompiledTable.class);
+            List<String> resultFields = resultTable.fields(context);
+
+            if (resultFields.size() != declaredFields.size()) {
+                throw new CompileError("Declared " + declaredFields.size() + " columns, but formula produces "
+                        + resultFields.size() + ": " + String.join(", ", resultFields));
+            }
+
+            for (int i = 0; i < declaredFields.size(); i++) {
+                ParsedField field = declaredFields.get(i);
+                CompiledResult fieldResult = resultTable.field(context, resultFields.get(i));
+                CompileKey fieldKey = CompileKey.fieldKey(key.table(), field.fieldName(), false, false);
+                compiled.put(fieldKey, fieldResult);
+
+                if (key.fieldName().equals(field.fieldName())) {
+                    result = fieldResult;
+                }
+            }
         }
 
         return result;
     }
 
-    private CompiledResult compileUnexplodedField(FieldKey fieldKey) {
-        CompileExplode explode = explodes.get(fieldKey.tableName());
-        ParsedField field = (ParsedField) parsed.get(fieldKey);
-
-        CompileContext context = new CompileContext(this, new CompileKey(fieldKey, false, false));
-        CompiledResult result = compileFormula(context, field.formula().formula());
-
-        if (field.isDim()) {
-            result = explode.add(result, fieldKey).flat();
+    /**
+     * Applies a format decorator if specified on a numeric column.
+     * @param result The compiled result.
+     * @param fieldKey The column key.
+     * @return A column with an assigned format, or the unchanged {@code result} if no format is specified.
+     */
+    public CompiledResult format(CompiledResult result, FieldKey fieldKey) {
+        ParsedField field = getParsedField(fieldKey);
+        ParsedDecorator decorator = findDecorator(field, "format");
+        if (decorator == null) {
+            return result;
         }
 
-        return result;
+        if (!(result instanceof CompiledColumn column)) {
+            throw new CompileError("Cannot apply format to %s."
+                    .formatted(CompileUtil.getResultTypeDisplayName(result)));
+        }
+
+        List<Object> params = decorator.params().stream()
+                .map(ParsedPrimitive::value)
+                .toList();
+        if (params.isEmpty()) {
+            throw new CompileError("Missing format parameters");
+        }
+        if (!(params.get(0) instanceof String formatName)) {
+            throw new CompileError("Format name must be a text");
+        }
+
+        if ("text".equals(formatName)) {
+            CompileUtil.verify(params.size() == 1, "Text formatting doesn't have arguments");
+            return CompileUtil.toStringColumn(column);
+        }
+
+        ColumnFormat format = FormatUtils.createFormat(formatName, params.stream().skip(1).toList());
+        if (format != GeneralFormat.INSTANCE) {
+            column = SimpleOrNestedValidators.forType(ColumnType.DOUBLE).convert(column);
+        }
+        return column.transform(node -> node, format);
+    }
+
+    @Nullable
+    private ParsedDecorator findDecorator(ParsedField field, String decoratorName) {
+        List<ParsedDecorator> decorators = field.decorators().stream()
+                .filter(decorator -> decoratorName.equals(decorator.decoratorName()))
+                .limit(2)
+                .toList();
+        if (decorators.isEmpty()) {
+            return null;
+        }
+
+        if (decorators.size() > 1) {
+            throw new CompileError("Only a single %s decorator is allowed on a field".formatted(decoratorName));
+        }
+
+        return decorators.get(0);
     }
 
     @Nullable
@@ -479,40 +739,39 @@ public class Compiler {
 
     private CompiledResult compileTotal(CompileKey key) {
         CompileContext context = new CompileContext(this, key);
-        ParsedFormula formula = parsedObject(key);
-        return CompileTotal.compile(context, formula.formula());
+        Formula formula = parsedObject(key);
+        return CompileTotal.compile(context, formula);
     }
 
-    private List<ViewportLocal> compileViewports(CompileKey key, CompiledResult explodedResult) {
-        CompiledResult unexplodedResult = key.isField()
+    private List<ViewportLocal> compileViewports(CompileKey key, CompiledResult exploded, Set<Viewport> viewports) {
+        CompiledResult unexploded = key.isField()
                 ? compile(CompileKey.fieldKey(key.fieldKey(), false, true))
-                : explodedResult;
+                : exploded;
 
         CompileContext context = new CompileContext(this, key);
-        List<ViewportLocal> viewportPlans = new ArrayList<>();
-        ResultType resultType = ResultType.toResultType(explodedResult);
+        List<ViewportLocal> plans = new ArrayList<>();
+        ResultType type = ResultType.toResultType(exploded);
 
-        for (Viewport viewport : viewports.getOrDefault(key.key(), Set.of())) {
-            ViewportLocal viewportPlan = CompileViewport.compileViewport(
-                    context,
-                    resultType,
-                    unexplodedResult,
-                    explodedResult.dimensions(),
-                    viewport);
-
-            viewportPlans.add(viewportPlan);
+        for (Viewport viewport : viewports) {
+            ViewportLocal plan = CompileViewport.compileViewport(context, type, unexploded, exploded.dimensions(), viewport);
+            plans.add(plan);
         }
 
-        if (unexplodedResult instanceof CompiledPivotTable pivot) { // just to cache, should be revisited
-            List<ViewportLocal> views = CompileViewport.compilePivotViewports(key.fieldKey(), pivot);
-            viewportPlans.addAll(views);
-        }
-
-        return viewportPlans;
+        return plans;
     }
 
     CompiledResult compileFormula(CompileContext context, Formula formula) {
-        return CompileFormula.compile(context, formula);
+        CompiledResult result = CompileFormula.compile(context, formula);
+        formulas.put(formula, result);
+        ParsedKey key = context.key().key();
+        Span span = formula.span();
+
+        if (span != null && result.node().getTraces().isEmpty()) {
+            Trace trace = new Trace(computationId, Trace.Type.COMPUTE, key, span);
+            result.node().getTraces().add(trace);
+        }
+
+        return result;
     }
 
     CompiledTable layoutTable(String table, List<FieldKey> dimensions) {
@@ -530,7 +789,9 @@ public class Compiler {
         }
 
         CompileExplode explode = explodes.get(context.key().table());
-        return explode.promote(result, dimensions);
+        CompiledResult promoted = explode.promote(result, dimensions);
+        promoted.node().getTraces().addAll(result.node().getTraces());
+        return promoted;
     }
 
     List<FieldKey> combineDimensions(CompileContext context, List<FieldKey> left, List<FieldKey> right) {
@@ -557,8 +818,8 @@ public class Compiler {
         }
 
         if (object == null && key.isField()) {
-            ParsedField pivot = (ParsedField) parsed.get(CompilePivot.pivotKey(key.table()));
-            CompileUtil.verify(pivot != null, "The column '%s' does not exist in the table '%s'.",
+            ParsedFields fields = (ParsedFields) parsed.get(CompilePivot.pivotKey(key.table()));
+            CompileUtil.verify(fields != null, "The column '%s' does not exist in the table '%s'.",
                     key.fieldKey().fieldName(), key.table());
 
             object = CompilePivot.pivotParsedField(key.fieldKey());
@@ -610,5 +871,9 @@ public class Compiler {
 
     public List<Function> getPythonFunctionList() {
         return pythonFunctions.keySet().stream().map(this::getFunctionSpec).toList();
+    }
+
+    CompiledResult lookupResult(Formula formula) {
+        return formulas.get(formula);
     }
 }

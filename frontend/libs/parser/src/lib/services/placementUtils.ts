@@ -19,28 +19,6 @@ export function getFullDSLPlacement(
   };
 }
 
-export function getMultiContextFullDSLPlacement(
-  ctx: ParserRuleContext[]
-): FullDSLPlacement | undefined {
-  if (!ctx || ctx.length === 0) return;
-
-  const firstCtx = ctx[0];
-  const lastCtx = ctx[ctx.length - 1];
-
-  const firstCtxPlacement = getFullDSLPlacement(firstCtx);
-  const lastCtxPlacement = getFullDSLPlacement(lastCtx);
-
-  if (!firstCtxPlacement || !lastCtxPlacement) return;
-
-  return {
-    startOffset: firstCtxPlacement.startOffset,
-    stopOffset: lastCtxPlacement.stopOffset,
-    startLine: firstCtxPlacement.startLine,
-    stopLine: lastCtxPlacement.stopLine,
-    startColumn: firstCtxPlacement.startColumn,
-  };
-}
-
 export function getShortDSLPlacement(
   ctx: ParserRuleContext | undefined,
   stopIndexOffset = 0
@@ -52,17 +30,5 @@ export function getShortDSLPlacement(
     end: ctx.stop?.stop
       ? ctx.stop.stop + stopIndexOffset
       : ctx.start.start + ctx.getText().length,
-  };
-}
-
-export function getFieldNameDslPlacement(
-  ctx: ParserRuleContext | undefined,
-  fieldName: string
-): ShortDSLPlacement | undefined {
-  if (!ctx) return;
-
-  return {
-    start: ctx.start.start,
-    end: ctx.start.start + fieldName.length,
   };
 }

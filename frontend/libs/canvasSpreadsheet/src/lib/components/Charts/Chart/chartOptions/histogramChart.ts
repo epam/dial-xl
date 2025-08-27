@@ -25,10 +25,10 @@ export function organizeHistogramChartData(
 
   if (!data || !Object.keys(data).length) return;
 
-  const bucketNumbers = data['BucketNumber'];
-  const lowerBounds = data['LowerBound'];
-  const upperBounds = data['UpperBound'];
-  const rowCounts = data['RowCount'];
+  const bucketNumbers = data['BucketNumber']?.rawValues;
+  const lowerBounds = data['LowerBound']?.displayValues;
+  const upperBounds = data['UpperBound']?.displayValues;
+  const rowCounts = data['RowCount']?.rawValues;
 
   if (
     !bucketNumbers ||

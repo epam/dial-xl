@@ -10,6 +10,7 @@ import {
   unescapeTableName,
 } from '@frontend/parser';
 
+import { chartsWithRowNumber } from '../../components/Panels/Chart/utils';
 import { ProjectContext, ViewportContext } from '../../context';
 import { createUniqueName, uniqueId } from '../../services';
 import { createVirtualChartTableDSL, hasValuesFieldName } from '../../utils';
@@ -63,12 +64,25 @@ export function useChartKeys() {
       for (const table of tables) {
         const { tableName } = table;
         const unescapedTableName = unescapeTableName(tableName);
+        const chartType = table.getChartType();
+
+        // Quick solution to get values for row number dropdown when field marked with !x()
+        const isVerticalOrientation =
+          table.getChartOrientation() === 'vertical';
+        const isRowNumberRequiredValues =
+          chartType &&
+          chartsWithRowNumber.includes(chartType) &&
+          isVerticalOrientation;
 
         for (const field of table.fields) {
           const { fieldName } = field.key;
+          const isXAxis = field.isChartXAxis();
+          const isRowNumberEligibleGetValues =
+            isRowNumberRequiredValues && isXAxis;
 
           if (targetFieldName && fieldName !== targetFieldName) continue;
-          if (!field.isChartSelector()) continue;
+          if (!field.isChartSelector() && !isRowNumberEligibleGetValues)
+            continue;
 
           buildVirtualViewportForChartKey(
             table,
@@ -110,6 +124,7 @@ export function useChartKeys() {
         const baseVirtualRequest = {
           start_row: cachedRowNumber,
           end_row: cachedRowNumber + keysPerPage,
+          is_raw: true,
         };
 
         virtualRequests.push({

@@ -1,13 +1,20 @@
 import {
   csvFileExtension,
+  DslSheetChange,
+  ProjectAIResponseId,
+  ProjectMetadataSetting,
+  projectMetadataSettingsKey,
+  ProjectSettings,
   ProjectState,
   QGDialProject,
   WorksheetState,
 } from '@frontend/common';
 import { SheetReader } from '@frontend/parser';
 
-import { routeParams, routes } from '../../AppRoutes';
+import { routeParams, routes } from '../types';
 import { encodeApiUrl, safeEncodeURIComponent } from './name';
+
+const maxResponseIds = 1000;
 
 export const mapQGDialProjectToProject = (
   dialProject: QGDialProject,
@@ -18,12 +25,13 @@ export const mapQGDialProjectToProject = (
 ): ProjectState => {
   const entries = Object.entries(dialProject);
   const settings = entries
-    .filter((entry) => entry[0].startsWith('/'))
-    .reduce((acc, [key, value]) => {
-      acc[key.slice(1)] = value;
+    .filter(([entry]) => entry.startsWith('/'))
+    .reduce<ProjectSettings>((acc, [key, value]) => {
+      const stripped = key.slice(1) as keyof ProjectSettings;
+      acc[stripped] = parseSetting(stripped, value);
 
       return acc;
-    }, <Record<string, any>>{});
+    }, {} as ProjectSettings);
 
   const sheets = entries
     .filter((entry) => !entry[0].startsWith('/'))
@@ -44,22 +52,54 @@ export const mapQGDialProjectToProject = (
     settings,
   };
 };
+
 export const mapProjectToQGDialProject = (
   project: ProjectState
 ): QGDialProject => {
-  let dataObj = project.sheets.reduce((acc, curr) => {
-    acc[curr.sheetName] = curr.content;
+  const sheetEntries: QGDialProject = project.sheets.reduce<QGDialProject>(
+    (acc, { sheetName, content }) => {
+      acc[sheetName] = content;
+
+      return acc;
+    },
+    {}
+  );
+
+  const settingEntries: QGDialProject = Object.entries(
+    project.settings
+  ).reduce<QGDialProject>((acc, [rawKey, rawValue]) => {
+    const key = rawKey as keyof ProjectSettings;
+    acc[`/${key}`] = serialiseSetting(
+      key,
+      rawValue as ProjectSettings[typeof key]
+    );
 
     return acc;
-  }, {} as Record<string, string>);
-  dataObj = Object.entries(project.settings).reduce((acc, curr) => {
-    dataObj['/' + curr[0]] = curr[1];
+  }, {});
 
-    return dataObj;
-  }, dataObj);
-
-  return dataObj;
+  return { ...sheetEntries, ...settingEntries };
 };
+
+export function updateAIResponseIds(
+  projectStateRef: Pick<ProjectState, 'settings'>,
+  updatedResponseIds: ProjectAIResponseId[] | null | undefined
+): ProjectSettings {
+  if (!updatedResponseIds) return projectStateRef.settings ?? {};
+
+  const settings: ProjectSettings = (projectStateRef.settings ??= {});
+
+  settings[projectMetadataSettingsKey] ??= {} as ProjectMetadataSetting;
+
+  const keys = Object.keys(updatedResponseIds);
+  const excess = keys.length - maxResponseIds;
+  if (excess > 0) {
+    updatedResponseIds = updatedResponseIds.slice(excess);
+  }
+
+  settings.projectMetadata.assistantResponseIds = updatedResponseIds;
+
+  return settings;
+}
 
 export const updateSheetInProject = (
   oldProjectState: ProjectState,
@@ -91,10 +131,12 @@ export const getProjectNavigateUrl = ({
   projectSheetName?: string | null;
   projectPath?: string | null;
 }) => {
-  return `${routes.project}/${projectName}${
-    projectSheetName ? '/' + projectSheetName : ''
-  }?${routeParams.projectBucket}=${projectBucket}${
-    projectPath ? `&${routeParams.projectPath}=${projectPath}` : ''
+  return `${routes.project}/${safeEncodeURIComponent(projectName)}${
+    projectSheetName ? '/' + safeEncodeURIComponent(projectSheetName) : ''
+  }?${routeParams.projectBucket}=${safeEncodeURIComponent(projectBucket)}${
+    projectPath
+      ? `&${routeParams.projectPath}=${safeEncodeURIComponent(projectPath)}`
+      : ''
   }`;
 };
 
@@ -132,33 +174,37 @@ export const collectFilesFromProject = (
   sheetContents: string[]
 ): string[] | undefined => {
   try {
+    const collectedFiles = sheetContents
+      .map((content) => {
+        const parsedSheet = SheetReader.parseSheet(content);
+
+        const files = parsedSheet.tables
+          .map((table) =>
+            table.fields.map((field) => field.expressionMetadata?.text)
+          )
+          .flat(2)
+          .map((expression) => {
+            if (!expression) return undefined;
+
+            const myRegexp = /INPUT\("([^)]*)"\)/g;
+            const matches = [...expression.matchAll(myRegexp)].map(
+              (match) => match[1]
+            );
+
+            return matches;
+          })
+          .filter(Boolean)
+          .flat()
+          .filter(Boolean) as string[];
+
+        return files;
+      })
+      .flat();
+
+    const uniqueFiles = Array.from(new Set(collectedFiles));
+
     return (
-      sheetContents
-        .map((content) => {
-          const parsedSheet = SheetReader.parseSheet(content);
-
-          const res = parsedSheet.tables
-            .map((table) =>
-              table.fields.map((field) => field.expressionMetadata?.text)
-            )
-            .flat(2)
-            .map((expression) => {
-              if (!expression) return undefined;
-
-              const myRegexp = /INPUT\("([^)]*)"\)/g;
-              const matches = [...expression.matchAll(myRegexp)].map(
-                (match) => match[1]
-              );
-
-              return matches;
-            })
-            .filter(Boolean)
-            .flat()
-            .filter(Boolean) as string[];
-
-          return res;
-        })
-        .flat()
+      uniqueFiles
         // Need to share schema file also with normal files
         .map((file) => {
           const lastPathSegmentStart = file.lastIndexOf('/') + 1;
@@ -187,31 +233,25 @@ export const collectFilesFromProject = (
 
 export const updateFilesPathInputsInProject = (
   sheets: WorksheetState[],
-  oldProjectFolderPath: string,
   newProjectFolderPath: string
 ): WorksheetState[] => {
-  return sheets.map((sheet) => {
-    const newContent = sheet.content.replaceAll(
-      /INPUT\("([^)]*)"\)/g,
-      (_, url) => {
-        const oldEncodedPath = oldProjectFolderPath
-          ? encodeApiUrl(oldProjectFolderPath)
-          : null;
-        const newEncodedPath = newProjectFolderPath
-          ? encodeApiUrl(newProjectFolderPath)
-          : null;
-        const updatedFileUrl = oldEncodedPath
-          ? url.replaceAll(oldEncodedPath, newEncodedPath)
-          : url;
+  const encodedNewPath = encodeApiUrl(newProjectFolderPath);
 
-        return `INPUT("${updatedFileUrl}")`;
+  return sheets.map((sheet) => {
+    const content = sheet.content.replace(
+      /INPUT\("([^"]+)"\)/g,
+      (_, url: string) => {
+        if (!url.startsWith('files/')) return `INPUT("${url}")`;
+
+        const lastSlash = url.lastIndexOf('/');
+        const fileName = url.slice(lastSlash + 1);
+        const updatedUrl = `files/${encodedNewPath}/${fileName}`;
+
+        return `INPUT("${updatedUrl}")`;
       }
     );
 
-    return {
-      ...sheet,
-      content: newContent,
-    };
+    return { ...sheet, content };
   });
 };
 
@@ -223,4 +263,70 @@ export const getProjectSheetsRecord = (
 
     return acc;
   }, {} as Record<string, string>);
+};
+
+const parseSetting = <K extends keyof ProjectSettings>(
+  key: K,
+  value: unknown
+): ProjectSettings[K] => {
+  if (key === projectMetadataSettingsKey && typeof value === 'string') {
+    return JSON.parse(value) as ProjectSettings[K];
+  }
+
+  return value as ProjectSettings[K];
+};
+
+export const serialiseSetting = <K extends keyof ProjectSettings>(
+  key: K,
+  value: ProjectSettings[K]
+): string => {
+  if (key === projectMetadataSettingsKey) {
+    return JSON.stringify(value);
+  }
+
+  return typeof value === 'string' ? value : JSON.stringify(value);
+};
+
+export function updateProjectSheets(
+  changedSheets: DslSheetChange[],
+  currentSheets: WorksheetState[],
+  projectName: string
+) {
+  const changedSheetsCopy = changedSheets.slice();
+  const sheets = currentSheets
+    .map((sheet) => {
+      const changedSheetIndex = changedSheetsCopy.findIndex(
+        (changedSheet) => sheet.sheetName === changedSheet.sheetName
+      );
+
+      if (changedSheetIndex !== -1) {
+        const data = changedSheetsCopy[changedSheetIndex];
+        changedSheetsCopy.splice(changedSheetIndex, 1);
+
+        return { ...sheet, ...data };
+      }
+
+      return sheet;
+    })
+    .filter((sheet) => sheet.content != null)
+    .concat(
+      changedSheetsCopy
+        .filter((sheet) => sheet.content != null)
+        .map((sheet) => ({
+          ...sheet,
+          content: sheet.content,
+          projectName: projectName!,
+        }))
+    ) as WorksheetState[];
+
+  return sheets;
+}
+
+export const getDSLChangesFromSheets = (
+  sheets: Record<string, string>
+): DslSheetChange[] => {
+  return Object.entries(sheets).map(([sheetName, content]) => ({
+    sheetName,
+    content,
+  }));
 };

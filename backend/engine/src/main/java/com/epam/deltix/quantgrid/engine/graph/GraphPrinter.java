@@ -10,6 +10,7 @@ import it.unimi.dsi.fastutil.objects.Object2IntMap;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.event.Level;
 
 import java.util.ArrayDeque;
 import java.util.Arrays;
@@ -24,11 +25,15 @@ import java.util.stream.IntStream;
 public class GraphPrinter {
 
     public void print(Graph graph) {
-        log.trace("\n{}", GraphPrinter.toString(graph));
+        log.info("\n{}", GraphPrinter.toString(graph));
     }
 
     public void print(String message, Graph graph) {
-        log.trace("{}\n{}", message, GraphPrinter.toString(graph));
+        log.info("{}\n{}", message, GraphPrinter.toString(graph));
+    }
+
+    public void print(Level level, String message, Graph graph) {
+        log.atLevel(level).log("{}\n{}", message, GraphPrinter.toString(graph));
     }
 
     private static void nodeToString(Object2IntMap<Plan> colours, StringBuilder sb, Node node) {
@@ -39,8 +44,8 @@ public class GraphPrinter {
         String shape = (node instanceof Plan) ? "rectangle" : "ellipse";
         String style = "filled";
         String color = "#" + Integer.toHexString(colour);
-        String tooltip = String.format("Id: %s\\nSchema: %s\\nIdentities: %s",
-                node.getId(), formatSchema(node), formatIdentities(node));
+        String tooltip = String.format("Id: %s\\nSchema: %s\\nIdentities: %s\\nTraces: %s",
+                node.getId(), formatSchema(node), formatIdentities(node), formatTraces(node));
 
         sb.append(String.format(
                 "\t\"%s\" [label = \"%s#%s\"] [tooltip = \"%s\"] [shape =\"%s\"] [style=\"%s\"] [fillcolor=\"%s\"];%n",
@@ -96,6 +101,20 @@ public class GraphPrinter {
 
         List<String> identities = node.getIdentities().stream()
                 .map(GraphPrinter::formatIdentity)
+                .collect(Collectors.toList());
+
+        return "\\n    " + String.join("\\n    ", identities);
+    }
+
+    private String formatTraces(Node node) {
+        if (node.getTraces().isEmpty()) {
+            return "none";
+        }
+
+        List<String> identities = node.getTraces().stream()
+                .map(trace -> "#" + trace.id() + " " + trace.type() + ": " + trace.sheet() + " -> " + trace.key()
+                        + " = " + trace.text() + " (" + trace.start() + ":" + trace.end() + ")")
+                .map(trace -> trace.replace("\"", "\\\""))
                 .collect(Collectors.toList());
 
         return "\\n    " + String.join("\\n    ", identities);

@@ -67,7 +67,9 @@ test.afterAll(async ({ browser }, testInfo) => {
 
 test.describe('editor', () => {
   //change placement layout
-  test('edit placement row in dsl', async () => {
+  test(`Project has a table
+        edit layout row&save dsl
+        Table was moved`, async () => {
     const projectPage = await ProjectPage.createInstance(page);
     const newRow = 4;
     await projectPage
@@ -83,7 +85,9 @@ test.describe('editor', () => {
     tableRow = newRow;
   });
 
-  test('edit placement column in dsl', async () => {
+  test(`Project has a table
+        edit layout column&save dsl
+        Table was moved`, async () => {
     const projectPage = await ProjectPage.createInstance(page);
     const newColumn = 4;
     await projectPage
@@ -104,7 +108,9 @@ test.describe('editor', () => {
     tableColumn = newColumn;
   });
   //change tableName
-  test('edit table name in dsl', async () => {
+  test(`Project has a table
+        edit table name&save dsl
+        Table name updated`, async () => {
     const projectPage = await ProjectPage.createInstance(page);
     const newName = 'TableNew';
     await projectPage
@@ -117,7 +123,9 @@ test.describe('editor', () => {
     tableName = newName;
   });
   //change fieldName
-  test('edit table field name in dsl', async () => {
+  test(`Project has a table
+        edit field name&save dsl
+        Field name updated`, async () => {
     const projectPage = await ProjectPage.createInstance(page);
     const newName = 'ChangedName';
     await projectPage.getEditor().setTokenValue(2, 7, 6, newName);
@@ -127,7 +135,9 @@ test.describe('editor', () => {
       .expectCellTextChange(tableRow + 1, tableColumn, newName);
   });
   //change fieldValue
-  test('edit table field value in dsl', async () => {
+  test(`Project has a table
+        edit field value&save dsl
+        Field value updated`, async () => {
     const projectPage = await ProjectPage.createInstance(page);
     const newName = '8';
     await projectPage.getEditor().setTokenValue(3, 12, 1, newName);
@@ -139,7 +149,9 @@ test.describe('editor', () => {
   });
 
   //delete field
-  test('delete field in dsl', async () => {
+  test(`Project has a table
+        remove field&save dsl
+        Field removed`, async () => {
     const projectPage = await ProjectPage.createInstance(page);
     await projectPage.getEditor().setTokenValue(5, 13, 13, '');
     await projectPage.getEditor().saveDsl();
@@ -149,7 +161,9 @@ test.describe('editor', () => {
     tableDslSize--;
   });
   //add key
-  test('add key in dsl', async () => {
+  test(`Project has a table
+        Add key&save dsl
+        Key is added`, async () => {
     const projectPage = await ProjectPage.createInstance(page);
     await projectPage.getEditor().setTokenValue(tableDslSize + 3, 0, 0, 'key ');
     await projectPage.getEditor().saveDsl();
@@ -158,7 +172,9 @@ test.describe('editor', () => {
       .expectFieldToBeKey(table2Row + 1, table2Column);
   });
   //remove key
-  test('remove key in dsl', async () => {
+  test(`Project has a table with key
+        Remove key&save dsl
+        Key is removed`, async () => {
     const projectPage = await ProjectPage.createInstance(page);
     await projectPage.getEditor().setTokenValue(tableDslSize + 4, 4, 4, '');
     await projectPage.getEditor().saveDsl();
@@ -167,7 +183,9 @@ test.describe('editor', () => {
       .expectFieldNotBeKey(table2Row + 1, table2Column + 1);
   });
   //add dim
-  test('add dimension in dsl', async () => {
+  test(`Project has a multi-row table 
+        Add dim&save dsl
+        Dim is added`, async () => {
     const projectPage = await ProjectPage.createInstance(page);
     await projectPage.getEditor().setTokenValue(tableDslSize + 5, 0, 0, 'dim ');
     await projectPage.getEditor().saveDsl();
@@ -179,7 +197,9 @@ test.describe('editor', () => {
       .expectFieldIsDimension(table2Row + 1, table2Column + 2);
   });
   //remove dim
-  test('remove dimension in dsl', async () => {
+  test(`Project has a table with dim
+        Remove dim&save dsl
+        Dim is removed`, async () => {
     const projectPage = await ProjectPage.createInstance(page);
     await projectPage.getEditor().setTokenValue(tableDslSize + 6, 4, 4, '');
     await projectPage.getEditor().saveDsl();
@@ -191,7 +211,9 @@ test.describe('editor', () => {
       .expectFieldIsNotDimension(table2Row + 1, table2Column + 3);
   });
   //add new table
-  test('add new table in dsl', async () => {
+  test(`Open project
+        add table&save dsl
+        Table is dispalyed`, async () => {
     const projectPage = await ProjectPage.createInstance(page);
     await projectPage.addDSL(
       '!layout(1, 1, "title", "headers")\ntable NewTable\n[Field1] = 3'

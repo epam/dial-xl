@@ -5,7 +5,7 @@ import { escapeTableName } from '@frontend/parser';
 
 import { AppContext, ProjectContext } from '../context';
 import { EventBusMessages } from '../services';
-import { useDSLUtils } from './ManualEditDSL';
+import { useDSLUtils } from './EditDsl';
 import useEventBus from './useEventBus';
 import { useFindTableKeys } from './useFindTableKeys';
 import { useGridApi } from './useGridApi';

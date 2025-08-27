@@ -1,6 +1,6 @@
 package com.epam.deltix.quantgrid.engine.service.input.storage;
 
-import com.epam.deltix.quantgrid.type.ColumnType;
+import com.epam.deltix.quantgrid.type.InputColumnType;
 import com.epam.deltix.quantgrid.util.Dates;
 import com.epam.deltix.quantgrid.util.DeduplicateSet;
 import com.epam.deltix.quantgrid.util.ParserException;
@@ -40,13 +40,13 @@ public class CsvInputParser {
     private static final int MAX_COLUMNS = 512;
     private static final int MAX_CHARS = 1_048_576;
 
-    public LinkedHashMap<String, ColumnType> inferSchema(Reader reader) {
+    public LinkedHashMap<String, InputColumnType> inferSchema(Reader reader) {
         try {
             CsvParser parser = new CsvParser(inputCsvSettings());
             IterableResult<String[], ParsingContext> rows = parser.iterate(reader);
 
             LinkedHashMap<String, Boolean> parsedHeader = parseHeader(rows.getContext().headers());
-            List<ColumnType> columnTypes = new ArrayList<>(Collections.nCopies(parsedHeader.size(), null));
+            List<InputColumnType> columnTypes = new ArrayList<>(Collections.nCopies(parsedHeader.size(), null));
             int processedRows = 0;
             for (String[] row : rows) {
                 for (int i = 0; i < row.length; i++) {
@@ -56,9 +56,9 @@ public class CsvInputParser {
                         parsedHeader.put(columnName, Boolean.FALSE);
                     }
 
-                    ColumnType prevType = columnTypes.get(i);
+                    InputColumnType prevType = columnTypes.get(i);
 
-                    if (prevType != ColumnType.STRING) {
+                    if (prevType != InputColumnType.STRING) {
                         columnTypes.set(i, ParserUtils.inferType(emptyIfNull(row[i]), prevType));
                     }
                 }
@@ -68,12 +68,12 @@ public class CsvInputParser {
                 }
             }
 
-            LinkedHashMap<String, ColumnType> schema = new LinkedHashMap<>();
+            LinkedHashMap<String, InputColumnType> schema = new LinkedHashMap<>();
             int index = 0;
             for (Map.Entry<String, Boolean> entry : parsedHeader.entrySet()) {
                 String columnName = entry.getKey();
-                ColumnType columnType = columnTypes.get(index++);
-                schema.put(columnName, columnType == null && entry.getValue() ? ColumnType.DOUBLE : columnType);
+                InputColumnType columnType = columnTypes.get(index++);
+                schema.put(columnName, columnType == null && entry.getValue() ? InputColumnType.DOUBLE : columnType);
             }
 
             return schema;
@@ -102,7 +102,7 @@ public class CsvInputParser {
      */
     public Object[] parseCsvInput(Reader reader,
                                   List<String> readColumns,
-                                  LinkedHashMap<String, ColumnType> columnTypes) {
+                                  LinkedHashMap<String, InputColumnType> columnTypes) {
 
         Map<String, ObjectArrayList<String>> stringColumns = new HashMap<>();
         Map<String, DoubleArrayList> doubleColumns = new HashMap<>();
@@ -111,9 +111,9 @@ public class CsvInputParser {
         int columnIndex = 0;
         StringConsumer[] consumers = new StringConsumer[expectedColumns];
         for (String columnName : readColumns) {
-            ColumnType columnType = columnTypes.get(columnName);
+            InputColumnType columnType = columnTypes.get(columnName);
 
-            if (columnType == ColumnType.STRING) {
+            if (columnType == InputColumnType.STRING) {
                 DeduplicateSet<String> set = new DeduplicateSet<>();
                 ObjectArrayList<String> stringData = new ObjectArrayList<>();
                 consumers[columnIndex++] = s -> stringData.add(set.add(ParserUtils.parseString(s)));
@@ -124,7 +124,6 @@ public class CsvInputParser {
                     case DATE -> s -> doubleData.add(Dates.from(s));
                     case BOOLEAN -> s -> doubleData.add(ParserUtils.parseBoolean(s));
                     case DOUBLE -> s -> doubleData.add(ParserUtils.parseDouble(s));
-                    case INTEGER -> s -> doubleData.add(ParserUtils.parseLong(s));
                     default -> throw new UnsupportedOperationException("Unsupported column type: " + columnType);
                 };
                 doubleColumns.put(columnName, doubleData);
@@ -136,14 +135,12 @@ public class CsvInputParser {
         Object[] columns = new Object[expectedColumns];
         columnIndex = 0;
         for (String columnName : readColumns) {
-            ColumnType columnType = columnTypes.get(columnName);
+            InputColumnType columnType = columnTypes.get(columnName);
 
-            if (columnType.isString()) {
+            if (columnType == InputColumnType.STRING) {
                 columns[columnIndex++] = stringColumns.get(columnName);
-            } else if (columnType.isDouble()) {
-                columns[columnIndex++] = doubleColumns.get(columnName);
             } else {
-                throw new UnsupportedOperationException("Unsupported column type: " + columnType);
+                columns[columnIndex++] = doubleColumns.get(columnName);
             }
         }
 

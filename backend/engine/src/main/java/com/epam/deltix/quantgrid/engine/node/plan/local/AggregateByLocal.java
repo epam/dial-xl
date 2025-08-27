@@ -1,11 +1,13 @@
 package com.epam.deltix.quantgrid.engine.node.plan.local;
 
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 import com.epam.deltix.quantgrid.engine.Util;
+import com.epam.deltix.quantgrid.engine.executor.ExecutionError;
 import com.epam.deltix.quantgrid.engine.meta.Meta;
 import com.epam.deltix.quantgrid.engine.meta.Schema;
-import com.epam.deltix.quantgrid.engine.node.NotSemantic;
 import com.epam.deltix.quantgrid.engine.node.expression.Expression;
 import com.epam.deltix.quantgrid.engine.node.plan.Plan;
 import com.epam.deltix.quantgrid.engine.node.plan.Plan1;
@@ -14,6 +16,7 @@ import com.epam.deltix.quantgrid.engine.node.plan.local.aggregate.AggregateType;
 import com.epam.deltix.quantgrid.engine.node.plan.local.util.TableHashStrategy;
 import com.epam.deltix.quantgrid.engine.value.Column;
 import com.epam.deltix.quantgrid.engine.value.DoubleColumn;
+import com.epam.deltix.quantgrid.engine.value.ErrorColumn;
 import com.epam.deltix.quantgrid.engine.value.PeriodSeries;
 import com.epam.deltix.quantgrid.engine.value.Table;
 import com.epam.deltix.quantgrid.engine.value.local.DoubleDirectColumn;
@@ -24,19 +27,38 @@ import com.epam.deltix.quantgrid.type.ColumnType;
 import it.unimi.dsi.fastutil.doubles.DoubleArrayList;
 import it.unimi.dsi.fastutil.longs.Long2IntOpenCustomHashMap;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
-import lombok.Getter;
+
+import java.util.List;
 
 public class AggregateByLocal extends Plan1<Table, Table> {
 
-    @Getter
-    private final AggregateType type;
-    @NotSemantic
     private final int keyCount;
+    private final AggregateType[] types;
+    private final int[] valCount;
 
-    public AggregateByLocal(AggregateType type, Plan source, List<Expression> keys, List<Expression> values) {
-        super(source, Util.combine(keys, values));
-        this.type = type;
+    public AggregateByLocal(Plan source, List<Expression> keys, List<Aggregation> aggregations) {
+        super(source, Util.combine(keys, aggregations.stream().map(Aggregation::values)
+                .flatMap(Collection::stream).toList()));
+
         this.keyCount = keys.size();
+        this.types = aggregations.stream().map(Aggregation::type).toArray(AggregateType[]::new);
+        this.valCount = aggregations.stream().map(Aggregation::values).mapToInt(List::size).toArray();
+    }
+
+    public List<Expression> getKeys() {
+        return expressions(0).subList(0, keyCount);
+    }
+
+    public List<Aggregation> getAggregations() {
+        List<Aggregation> aggregations = new ArrayList<>();
+        List<Expression> expressions = expressions(0);
+
+        for (int i = 0, position = keyCount; i < types.length; position += valCount[i++]) {
+            List<Expression> values = expressions.subList(position, position + valCount[i]);
+            aggregations.add(new Aggregation(types[i], values));
+        }
+
+        return aggregations;
     }
 
     @Override
@@ -46,25 +68,26 @@ public class AggregateByLocal extends Plan1<Table, Table> {
 
     @Override
     protected Meta meta() {
-        List<Expression> keys = expressions(0).subList(0, keyCount);
-        Schema left = Schema.of(keys.stream().map(Expression::getType).toArray(ColumnType[]::new));
-        AggregateType.SchemaFunction schemaFunction = type.schemaFunction();
+        List<ColumnType> schema = new ArrayList<>();
+        getKeys().stream().map(Expression::getType).forEach(schema::add);
 
-        if (schemaFunction == AggregateType.SchemaFunction.INPUT) {
-            schemaFunction = AggregateType.SchemaFunction.INFERRED;
+        for (int i = 0, position = keyCount; i < types.length; position += valCount[i++]) {
+            AggregateType.SchemaFunction function = types[i].schemaFunction();
+
+            if (function == AggregateType.SchemaFunction.INPUT) {
+                function = AggregateType.SchemaFunction.INFERRED;
+            }
+
+            ColumnType type = function.apply(this, 0, position).getType(0);
+            schema.add(type);
         }
 
-        Schema right = schemaFunction.apply(this, 0, keyCount);
-        return new Meta(Schema.of(left, right));
+        return new Meta(Schema.of(schema));
     }
 
     @Override
     protected Table execute(Table table) {
-        List<Column> columns = expressions(0).stream()
-                .map(expression -> (Column) expression.evaluate()).toList();
-        List<Column> keys = columns.subList(0, keyCount);
-        List<Column> values = columns.subList(keyCount, columns.size());
-
+        List<Column> keys = getKeys().stream().map(expression -> (Column) expression.evaluate()).toList();
         TableHashStrategy strategy = TableHashStrategy.fromColumns(keys);
         Long2IntOpenCustomHashMap map = new Long2IntOpenCustomHashMap(strategy);
         map.defaultReturnValue(-1);
@@ -84,21 +107,42 @@ public class AggregateByLocal extends Plan1<Table, Table> {
         }
 
         DoubleColumn rows = new DoubleDirectColumn(indices);
-        Column result = aggregate(rows, values, map.size());
-
         Table left = LocalTable.indirectOf(new LocalTable(keys), refs);
-        Table right = new LocalTable(result);
-
+        Table right = aggregate(rows, map.size());
         return LocalTable.compositeOf(left, right);
     }
 
-    private Column aggregate(DoubleColumn rows, List<Column> values, int size) {
-        AggregateFunction function = type.aggregateFunction();
-        Object result = function.aggregate(rows, values, size);
+    private Table aggregate(DoubleColumn rows, int size) {
+        List<Column> results = new ArrayList<>();
 
-        if (result instanceof long[] references) {
-            return Column.indirectOf(values.get(0), references);
+        for (Aggregation aggregation : getAggregations()) {
+            Column column;
+
+            try {
+                column = aggregate(aggregation, rows, size);
+            } catch (ExecutionError error) {
+                column = new ErrorColumn(error.getMessage(), size);
+            }
+
+            results.add(column);
         }
+
+        return new LocalTable(results);
+    }
+
+    private static Column aggregate(Aggregation aggregation, DoubleColumn rows, int size) {
+        AggregateFunction function = aggregation.type.aggregateFunction();
+        List<Column> values = aggregation.values.stream()
+                .map(expression -> (Column) expression.evaluate()).toList();
+
+        if (aggregation.type().schemaFunction() == AggregateType.SchemaFunction.INPUT) {
+            Column vals = values.get(0);
+            List<Column> args = values.subList(1, values.size());
+            long[] refs = (long[]) function.aggregate(rows, args, size);
+            return Column.indirectOf(vals, refs);
+        }
+
+        Object result = function.aggregate(rows, values, size);
 
         if (result instanceof double[] numbers) {
             return new DoubleDirectColumn(numbers);
@@ -113,5 +157,8 @@ public class AggregateByLocal extends Plan1<Table, Table> {
         }
 
         throw new IllegalArgumentException("Unsupported result: " + result.getClass());
+    }
+
+    public record Aggregation(AggregateType type, List<Expression> values) {
     }
 }

@@ -1,8 +1,12 @@
 import { useCallback, useContext } from 'react';
 
 import { ProjectContext } from '../../context';
-import { useCreateTableDsl, useOverridesEditDsl } from '../EditDsl';
-import { useDSLUtils, useManualModifyTableDSL } from '../ManualEditDSL';
+import {
+  useCreateTableDsl,
+  useDSLUtils,
+  useOverridesEditDsl,
+  useTableModifyDsl,
+} from '../EditDsl';
 import { useGridApi } from '../useGridApi';
 import { useSafeCallback } from '../useSafeCallback';
 
@@ -12,7 +16,7 @@ export function useAddTableRow() {
   const { findTable } = useDSLUtils();
   const { createSingleValueTable } = useCreateTableDsl();
   const { addOverride } = useOverridesEditDsl();
-  const { addTableRowWithConvertToManualTable } = useManualModifyTableDSL();
+  const { addTableRowWithConvertToManualTable } = useTableModifyDsl();
 
   const addTableRow = useCallback(
     (col: number, row: number, tableName: string, value: string) => {

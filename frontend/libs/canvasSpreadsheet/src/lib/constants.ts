@@ -1,7 +1,9 @@
 export const defaultGridSizes = {
   edges: {
-    col: 1000,
-    row: 100000,
+    col: 200,
+    row: 2000,
+    maxCol: 1000000,
+    maxRow: 100000000,
   },
   gridLine: {
     width: 1,
@@ -12,7 +14,7 @@ export const defaultGridSizes = {
     width: 65,
     minWidth: 20,
     minHeight: 20,
-    fontSize: 14,
+    fontSize: 12,
     padding: 4,
     totalIconSize: 12,
     applyIconSize: 10,
@@ -23,12 +25,12 @@ export const defaultGridSizes = {
     minWidth: 35,
     width: 35,
     height: 20,
-    fontSize: 14,
+    fontSize: 12,
     padding: 7,
   },
   colNumber: {
     height: 20,
-    fontSize: 14,
+    fontSize: 12,
     padding: 5,
     resizerWidth: 6,
     width: 65,
@@ -62,8 +64,8 @@ export const defaultGridSizes = {
     circleRadius: 4,
   },
   dottedSelection: {
-    width: 1,
-    dash: 3,
+    width: 1.5,
+    dash: 5,
   },
   noteLabel: {
     size: 8,
@@ -121,3 +123,8 @@ export const cellEditorContainerId = 'cellEditorContainer';
 export const noteTextAreaId = 'noteTextArea';
 
 export const mouseRightButton = 2;
+
+export const viewportColStep = 40;
+export const viewportRowStep = 400;
+export const viewportPrefetchCols = 20;
+export const viewportPrefetchRows = 80;

@@ -1,9 +1,10 @@
 package com.epam.deltix.quantgrid.web.controller;
 
 import com.epam.deltix.quantgrid.engine.ResultType;
+import com.epam.deltix.quantgrid.engine.compiler.Compilation;
 import com.epam.deltix.quantgrid.engine.compiler.CompileContext;
 import com.epam.deltix.quantgrid.engine.compiler.CompileError;
-import com.epam.deltix.quantgrid.engine.compiler.CompilePivot;
+import com.epam.deltix.quantgrid.engine.compiler.CompileKey;
 import com.epam.deltix.quantgrid.engine.compiler.Compiler;
 import com.epam.deltix.quantgrid.engine.compiler.function.Functions;
 import com.epam.deltix.quantgrid.engine.compiler.result.CompiledResult;
@@ -17,6 +18,7 @@ import com.epam.deltix.quantgrid.web.utils.ApiMessageMapper;
 import com.google.protobuf.util.JsonFormat;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
+import org.apache.commons.lang3.StringUtils;
 import org.epam.deltix.proto.Api;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -44,10 +46,9 @@ public class CompileController {
         Api.CompileWorksheetsRequest request = apiRequest.getCompileWorksheetsRequest();
         List<ParsedSheet> parsedSheets = parseSheets(request.getWorksheetsMap());
         Compiler compiler = new Compiler(inputProvider, principal);
-        compiler.compile(parsedSheets, List.of(), null);
+        Compilation compilation = compiler.compile(parsedSheets, List.of(), false, null);
 
-        Api.Response apiResponse = ApiMessageMapper.toCompilationResponse(apiRequest.getId(), parsedSheets,
-                compiler.compiled(), compiler.compileErrors());
+        Api.Response apiResponse = ApiMessageMapper.toCompilationResponse(apiRequest.getId(), parsedSheets, compilation);
         return formatResponse(apiResponse);
     }
 
@@ -92,20 +93,23 @@ public class CompileController {
         List<ParsedSheet> parsedSheets = parseSheets(request.getWorksheetsMap());
         compiler.setSheet(parsedSheets);
 
-        CompileContext formulaContext = new CompileContext(compiler);
+
+        String table = request.getTable();
+        CompileContext formulaContext = StringUtils.isBlank(table) ? new CompileContext(compiler)
+                : new CompileContext(compiler, CompileKey.tableKey(table));
+
         CompiledResult result = formulaContext.compileFormula(parsedFormula.formula());
 
         List<String> fields = List.of();
         List<String> keys = List.of();
         if (result instanceof CompiledTable compiledTable) {
-            fields = compiledTable.fields(formulaContext).stream()
-                    .filter(field -> !field.equals(CompilePivot.PIVOT_NAME)).toList();
+            fields = compiledTable.fields(formulaContext);
             keys = compiledTable.keys(formulaContext);
         }
 
         ResultType resultType = ResultType.toResultType(result);
-        Api.FieldInfo fieldInfo = ApiMessageMapper.toFieldInfo(
-                ApiMessageMapper.DIMENSIONAL_SCHEMA_REQUEST_FIELD, resultType);
+        Api.FieldInfo fieldInfo = ApiMessageMapper.toFieldInfo(ApiMessageMapper.DIMENSIONAL_SCHEMA_REQUEST_FIELD,
+                null, resultType);
         return Api.DimensionalSchemaResponse.newBuilder()
                 .setFormula(request.getFormula())
                 .addAllSchema(fields)

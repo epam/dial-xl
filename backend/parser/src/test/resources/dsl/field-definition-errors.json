@@ -3,132 +3,21 @@
   "tables": [
     {
       "span": {
+        "sheet": "test",
+        "text": "table t1\n",
         "from": 0,
-        "to": 25
+        "to": 9
       },
       "name": {
         "span": {
+          "sheet": "test",
+          "text": "t1",
           "from": 6,
           "to": 8
         },
         "text": "t1"
       },
-      "fields": [
-        {
-          "span": {
-            "from": 16,
-            "to": 23
-          },
-          "name": {
-            "span": {
-              "from": 16,
-              "to": 19
-            },
-            "text": "b"
-          },
-          "formula": {
-            "span": {
-              "from": 22,
-              "to": 23
-            },
-            "formula": {
-              "number": 5.0,
-              "arguments": []
-            },
-            "errors": []
-          },
-          "decorators": [],
-          "docs": []
-        }
-      ],
-      "decorators": [],
-      "docs": [],
-      "totals": []
-    },
-    {
-      "span": {
-        "from": 25,
-        "to": 59
-      },
-      "name": {
-        "span": {
-          "from": 31,
-          "to": 33
-        },
-        "text": "t2"
-      },
-      "fields": [
-        {
-          "span": {
-            "from": 50,
-            "to": 57
-          },
-          "name": {
-            "span": {
-              "from": 50,
-              "to": 53
-            },
-            "text": "c"
-          },
-          "formula": {
-            "span": {
-              "from": 56,
-              "to": 57
-            },
-            "formula": {
-              "number": 6.0,
-              "arguments": []
-            },
-            "errors": []
-          },
-          "decorators": [],
-          "docs": []
-        }
-      ],
-      "decorators": [],
-      "docs": [],
-      "totals": []
-    },
-    {
-      "span": {
-        "from": 59,
-        "to": 80
-      },
-      "name": {
-        "span": {
-          "from": 65,
-          "to": 67
-        },
-        "text": "t3"
-      },
-      "fields": [
-        {
-          "span": {
-            "from": 72,
-            "to": 79
-          },
-          "name": {
-            "span": {
-              "from": 72,
-              "to": 75
-            },
-            "text": "a"
-          },
-          "formula": {
-            "span": {
-              "from": 78,
-              "to": 79
-            },
-            "formula": {
-              "number": 1.0,
-              "arguments": []
-            },
-            "errors": []
-          },
-          "decorators": [],
-          "docs": []
-        }
-      ],
+      "fields": [],
       "decorators": [],
       "docs": [],
       "totals": []
@@ -139,20 +28,7 @@
     {
       "line": 2,
       "position": 3,
-      "message": "token recognition error at: '[a\\n'"
-    },
-    {
-      "line": 11,
-      "position": 5,
-      "message": "Column formula is expected to fit on a single line. Use backslash \"\\\" to continue the formula on the next line.",
-      "tableName": "t3",
-      "fieldName": "a"
-    },
-    {
-      "line": 6,
-      "position": 4,
-      "message": "Missing field name",
-      "tableName": "t2"
+      "message": "extraneous input '[' expecting {<EOF>, '!', 'table', PYTHON_BLOCK, LINE_BREAK, DOC_COMMENT}"
     }
   ]
 }

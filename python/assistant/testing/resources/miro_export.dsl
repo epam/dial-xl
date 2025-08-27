@@ -1,12 +1,8 @@
 table QuestionsReview
-  dim [source] = INPUT("files/5HCArAscWRhNCLqUTZXZyYo61qYFGU6FqujQz9WdvE66dqTChVXf27zhN76yeqkV6K/Tables/MiroExport-6.csv")
-  !size(2) key [id] = [source][data.id]
+!size(2) dim key [id], !size(4) [label], !size(10) [question], [answer] = INPUT("files/{{ bucket }}/test-resources/MiroExport-6.csv")[[id], [label], [question], [answer]]
   [Updated] = ""
-  !size(4) [label] = [source][data.label]
-  !size(10) [question] = [source][data.question]
   [new label] = ""
   [new question] = ""
-  [answer] = [source][data.details]
   !size(8) [notes] = ""
   !size(2) [Status] = NA
   [question-fixed] = [new question] = "" OR [question] = [new question]

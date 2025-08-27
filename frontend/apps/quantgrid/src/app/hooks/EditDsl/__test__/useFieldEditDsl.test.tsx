@@ -1,12 +1,12 @@
 import fetchMock, { enableFetchMocks } from 'jest-fetch-mock';
 
+import { ColumnDataType, FormatKeys } from '@frontend/common';
 import {
   chartSelectorDecoratorName,
   chartXAxisDecoratorName,
 } from '@frontend/parser';
 import { act, RenderHookResult } from '@testing-library/react';
 
-import { FormatKeys } from '../../../utils';
 import { useFieldEditDsl } from '../useFieldEditDsl';
 import { hookTestSetup } from './hookTestSetup';
 import { RenderProps, TestWrapperProps } from './types';
@@ -140,6 +140,42 @@ describe('useFieldEditDsl', () => {
       expect(props.appendToFn).not.toHaveBeenCalled();
       expect(props.manuallyUpdateSheetContent).not.toHaveBeenCalled();
     });
+
+    it('should add dimension to a field in multi field group', () => {
+      // Arrange
+      dsl = 'table t1\n  [a],[b],[c] = INPUT("url")';
+      const expectedDsl = 'table t1\n  dim [a],[b],[c] = INPUT("url")\r\n';
+      rerender({ dsl });
+
+      // Act
+      act(() => result.current.changeFieldDimension('t1', 'a'));
+
+      // Assert
+      expect(props.appendToFn).toHaveBeenCalledWith(`Add dimension t1[a]`, [
+        { sheetName: props.sheetName, content: expectedDsl },
+      ]);
+      expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
+        { sheetName: props.sheetName, content: expectedDsl },
+      ]);
+    });
+
+    it('should remove dimension from a field in multi field group', () => {
+      // Arrange
+      dsl = 'table t1\n  dim [a],[b],[c] = INPUT("url")';
+      const expectedDsl = 'table t1\n  [a],[b],[c] = INPUT("url")\r\n';
+      rerender({ dsl });
+
+      // Act
+      act(() => result.current.changeFieldDimension('t1', 'a', true));
+
+      // Assert
+      expect(props.appendToFn).toHaveBeenCalledWith(`Remove dimension t1[a]`, [
+        { sheetName: props.sheetName, content: expectedDsl },
+      ]);
+      expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
+        { sheetName: props.sheetName, content: expectedDsl },
+      ]);
+    });
   });
 
   describe('changeFieldKey', () => {
@@ -192,7 +228,7 @@ describe('useFieldEditDsl', () => {
     it('should add key between size decorator and dim keyword', () => {
       // Arrange
       const dsl = 'table t1 [f1]=1 !size(3) dim [f2]=2';
-      const expectedDsl = 'table t1 [f1]=1 !size(3) key dim [f2]=2\r\n';
+      const expectedDsl = 'table t1 [f1]=1 !size(3) dim key [f2]=2\r\n';
       rerender({ dsl });
 
       // Act
@@ -498,8 +534,9 @@ describe('useFieldEditDsl', () => {
 
     it('should remove format if general format passed', async () => {
       // Arrange
-      const dsl = '!layout(1, 1)\ntable t1\n!format("general", 1) [f1]=1';
-      const expectedDsl = '!layout(1, 1)\ntable t1\n[f1]=1\r\n';
+      const dsl = '!layout(1, 1)\ntable t1\n!format("any", 1) [f1]=1';
+      const expectedDsl =
+        '!layout(1, 1)\ntable t1\n!format("general") [f1]=1\r\n';
       rerender({ dsl });
 
       // Act
@@ -534,6 +571,51 @@ describe('useFieldEditDsl', () => {
         [{ sheetName: props.sheetName, content: expectedDsl }]
       );
 
+      expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
+        { sheetName: props.sheetName, content: expectedDsl },
+      ]);
+    });
+  });
+
+  describe('editExpressionWithOverrideRemove', () => {
+    it('should edit expression and remove override from this cell', () => {
+      // Arrange
+      const dsl =
+        'table t1\nkey dim [source] = RANGE(10)\n[f1]=1\noverride\n[source],[f1]\n"1",123';
+      const expectedDsl =
+        'table t1\nkey dim [source] = RANGE(10)\n[f1]=1234\r\n';
+      rerender({ dsl });
+
+      // Act
+      act(() =>
+        result.current.editExpressionWithOverrideRemove('t1', 'f1', '1234', 0)
+      );
+
+      // Assert
+      expect(props.appendToFn).toHaveBeenCalledWith(
+        `Update expression of field [f1] in table "t1"`,
+        [{ sheetName: props.sheetName, content: expectedDsl }]
+      );
+      expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
+        { sheetName: props.sheetName, content: expectedDsl },
+      ]);
+    });
+
+    it('should delete table if delete last override in the manual table', () => {
+      // Arrange
+      const dsl = '!manual()\ntable t1\n[f1]=1\noverride\n[f1]\n123';
+      const expectedDsl = '\r\n';
+      rerender({ dsl });
+
+      // Act
+      act(() =>
+        result.current.editExpressionWithOverrideRemove('t1', 'f1', '1234', 0)
+      );
+
+      // Assert
+      expect(props.appendToFn).toHaveBeenCalledWith(`Delete table "t1"`, [
+        { sheetName: props.sheetName, content: expectedDsl },
+      ]);
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
       ]);
@@ -655,25 +737,115 @@ describe('useFieldEditDsl', () => {
       expect(fetchMock).toHaveBeenCalledTimes(1);
     });
 
-    it('should not make a schema call if table is not simple', async () => {
+    it('should add fields to the left side', async () => {
       // Arrange
-      const dsl = 'table t1\n[f1] = 1 + 1\n[f2] = 2 + 2';
-      const expectedDsl = 'table t1\n[f1] = RANGE(10)\n[f2] = 2 + 2\r\n';
+      const dsl = 'table t1 [x] = "test"';
+      const expectedDsl = 'table t1 [x], [b] = T1(1)[[a],[b]]\r\n';
       rerender({ dsl });
-      fetchMock.mockResponseOnce(mockedResponseNested);
+      const mockedResponse = JSON.stringify({
+        dimensionalSchemaResponse: {
+          schema: ['a', 'b'],
+          fieldInfo: { isNested: false, type: ColumnDataType.TABLE_VALUE },
+        },
+      });
+      fetchMock.mockResponseOnce(mockedResponse);
 
       // Act
-      await act(() => result.current.editExpression('t1', 'f1', 'RANGE(10)'));
+      await act(() =>
+        result.current.editExpression('t1', 'x', 'T1(1)[[a],[b]]')
+      );
 
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
-        `Update expression of column [f1] in table "t1"`,
+        `Update expression of column [x] in table "t1"`,
         [{ sheetName: props.sheetName, content: expectedDsl }]
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
       ]);
-      expect(fetchMock).toHaveBeenCalledTimes(0);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('should remove fields on the left side', async () => {
+      // Arrange
+      const dsl = 'table t1 [x], [b] = T1(1)[[a],[b]]\n[Column1] = 1';
+      const expectedDsl = 'table t1 [x] = T1(1)\n[Column1] = 1\r\n';
+      rerender({ dsl });
+      const mockedResponse = JSON.stringify({
+        dimensionalSchemaResponse: {
+          schema: ['a', 'b', 'c'],
+          fieldInfo: { isNested: false, type: ColumnDataType.TABLE_REFERENCE },
+        },
+      });
+      fetchMock.mockResponseOnce(mockedResponse);
+
+      // Act
+      await act(() => result.current.editExpression('t1', 'x', 'T1(1)'));
+
+      // Assert
+      expect(props.appendToFn).toHaveBeenCalledWith(
+        `Update expression of column [x] in table "t1"`,
+        [{ sheetName: props.sheetName, content: expectedDsl }]
+      );
+      expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
+        { sheetName: props.sheetName, content: expectedDsl },
+      ]);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('should recreate table with a single column using old names on the left part', async () => {
+      // Arrange
+      const dsl = 'table t1 [x], [b] = T1(1)[[a],[b]]';
+      const expectedDsl = 'table t1 [x], [b], [c] = T1(1)[[a],[b],[c]]\r\n';
+      rerender({ dsl });
+      const mockedResponse = JSON.stringify({
+        dimensionalSchemaResponse: {
+          schema: ['a', 'b', 'c'],
+          fieldInfo: { isNested: false, type: ColumnDataType.TABLE_REFERENCE },
+        },
+      });
+      fetchMock.mockResponseOnce(mockedResponse);
+
+      // Act
+      await act(() => result.current.editExpression('t1', 'x', 'T1(1)'));
+
+      // Assert
+      expect(props.appendToFn).toHaveBeenCalledWith(
+        `Update expression of column [x] in table "t1"`,
+        [{ sheetName: props.sheetName, content: expectedDsl }]
+      );
+      expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
+        { sheetName: props.sheetName, content: expectedDsl },
+      ]);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('should add fields on the left side, add dim, add accessors to the input formula', async () => {
+      // Arrange
+      const dsl = 'table t1 [x], [b] = T1(1)[[a],[b]]';
+      const expectedDsl =
+        'table t1 dim [x], [b], [c] = INPUT("url")[[a],[b],[c]]\r\n';
+      rerender({ dsl });
+      const mockedResponse = JSON.stringify({
+        dimensionalSchemaResponse: {
+          schema: ['a', 'b', 'c'],
+          fieldInfo: { isNested: true, type: ColumnDataType.TABLE_VALUE },
+        },
+      });
+      fetchMock.mockResponseOnce(mockedResponse);
+
+      // Act
+      await act(() => result.current.editExpression('t1', 'x', 'INPUT("url")'));
+
+      // Assert
+      expect(props.appendToFn).toHaveBeenCalledWith(
+        `Update expression of column [x] in table "t1"`,
+        [{ sheetName: props.sheetName, content: expectedDsl }]
+      );
+      expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
+        { sheetName: props.sheetName, content: expectedDsl },
+      ]);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
     });
 
     it('should do nothing if no target field', async () => {
@@ -687,6 +859,68 @@ describe('useFieldEditDsl', () => {
       // Assert
       expect(props.appendToFn).not.toHaveBeenCalled();
       expect(props.manuallyUpdateSheetContent).not.toHaveBeenCalled();
+    });
+
+    it('should not remove existing dim', async () => {
+      // Arrange
+      const dsl = 'table t1 dim [x] = RANGE(10)\n[y] = 1';
+      const expectedDsl = 'table t1 dim [x] = RANGE(8)\n[y] = 1\r\n';
+      rerender({ dsl });
+      const mockedResponse = JSON.stringify({
+        dimensionalSchemaResponse: {
+          schema: [],
+          fieldInfo: { isNested: true, type: ColumnDataType.DOUBLE },
+        },
+      });
+      fetchMock.mockResponseOnce(mockedResponse);
+
+      // Act
+      await act(() => result.current.editExpression('t1', 'x', 'RANGE(8)'));
+
+      // Assert
+      expect(props.appendToFn).toHaveBeenCalledWith(
+        `Update expression of column [x] in table "t1"`,
+        [{ sheetName: props.sheetName, content: expectedDsl }]
+      );
+      expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
+        { sheetName: props.sheetName, content: expectedDsl },
+      ]);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('should not add accessors with dynamic field', async () => {
+      // Arrange
+      const dsl =
+        'table t1 dim [country], [*] = PIVOT(A[country], A[indicator], A[value], "SUM")';
+      const expectedDsl =
+        'table t1 dim [country], [*] = PIVOT(A[country], A[indicator], A[value], "AVG")\r\n';
+      rerender({ dsl });
+      const mockedResponse = JSON.stringify({
+        dimensionalSchemaResponse: {
+          schema: ['country', '*'],
+          fieldInfo: { isNested: true, type: ColumnDataType.TABLE_VALUE },
+        },
+      });
+      fetchMock.mockResponseOnce(mockedResponse);
+
+      // Act
+      await act(() =>
+        result.current.editExpression(
+          't1',
+          'country',
+          'PIVOT(A[country], A[indicator], A[value], "AVG")'
+        )
+      );
+
+      // Assert
+      expect(props.appendToFn).toHaveBeenCalledWith(
+        `Update expression of column [country] in table "t1"`,
+        [{ sheetName: props.sheetName, content: expectedDsl }]
+      );
+      expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
+        { sheetName: props.sheetName, content: expectedDsl },
+      ]);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -1069,14 +1303,35 @@ describe('useFieldEditDsl', () => {
   });
 
   describe('addField', () => {
-    it('should add field to table', () => {
+    beforeEach(() => {
+      fetchMock.resetMocks();
+    });
+
+    const emptyResponse = JSON.stringify({});
+    const mockedTableReferenceResponse = JSON.stringify({
+      dimensionalSchemaResponse: {
+        fieldInfo: { isNested: true, type: ColumnDataType.TABLE_REFERENCE },
+        schema: ['a', 'b', 'c'],
+        keys: [],
+      },
+    });
+    const mockedTableValueResponse = JSON.stringify({
+      dimensionalSchemaResponse: {
+        fieldInfo: { isNested: true, type: ColumnDataType.TABLE_VALUE },
+        schema: ['a', 'b', 'c'],
+        keys: [],
+      },
+    });
+
+    it('should add field to table', async () => {
       // Arrange
       const dsl = 'table t1\n  [f1]=1';
       const expectedDsl = 'table t1\n  [f1]=1\r\n  [f2] = 2 + 2\r\n';
       rerender({ dsl });
+      fetchMock.mockResponseOnce(emptyResponse);
 
       // Act
-      act(() => result.current.addField('t1', '[f2] = 2 + 2'));
+      await act(() => result.current.addField('t1', '[f2] = 2 + 2'));
 
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(`Add [f2] to table "t1"`, [
@@ -1087,14 +1342,15 @@ describe('useFieldEditDsl', () => {
       ]);
     });
 
-    it('should add field to empty table', () => {
+    it('should add field to empty table', async () => {
       // Arrange
       const dsl = 'table t1';
       const expectedDsl = 'table t1\r\n  [f2] = 2 + 2\r\n';
       rerender({ dsl });
+      fetchMock.mockResponseOnce(emptyResponse);
 
       // Act
-      act(() => result.current.addField('t1', '[f2] = 2 + 2'));
+      await act(() => result.current.addField('t1', '[f2] = 2 + 2'));
 
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(`Add [f2] to table "t1"`, [
@@ -1105,14 +1361,15 @@ describe('useFieldEditDsl', () => {
       ]);
     });
 
-    it('should add field before first field if direction is left', () => {
+    it('should add field before first field if direction is left', async () => {
       // Arrange
       const dsl = `table t1\n  [f1] = 2`;
       const expectedDsl = 'table t1\n  [field]\n  [f1] = 2\r\n';
       rerender({ dsl });
+      fetchMock.mockResponseOnce(emptyResponse);
 
       // Act
-      act(() =>
+      await act(() =>
         result.current.addField('t1', 'field', {
           direction: 'left',
           insertFromFieldName: 'f1',
@@ -1129,15 +1386,16 @@ describe('useFieldEditDsl', () => {
       ]);
     });
 
-    it('should add field to left with left direction and table has multiple fields', () => {
+    it('should add field to left with left direction and table has multiple fields', async () => {
       // Arrange
       const dsl = 'table t1\n  [f1] = 2\n  [f2] = 3\n  [f3] = 4';
       const expectedDsl =
         'table t1\n  [f1] = 2\n  [field]\n  [f2] = 3\n  [f3] = 4\r\n';
       rerender({ dsl });
+      fetchMock.mockResponseOnce(emptyResponse);
 
       // Act
-      act(() =>
+      await act(() =>
         result.current.addField('t1', 'field', {
           direction: 'left',
           insertFromFieldName: 'f2',
@@ -1154,15 +1412,16 @@ describe('useFieldEditDsl', () => {
       ]);
     });
 
-    it('should add field to right with right direction', () => {
+    it('should add field to right with right direction', async () => {
       // Arrange
       const dsl = 'table t1\n  [f1] = 2\n  [f2] = 3\n  [f3] = 4';
       const expectedDsl =
         'table t1\n  [f1] = 2\n  [field]\n  [f2] = 3\n  [f3] = 4\r\n';
       rerender({ dsl });
+      fetchMock.mockResponseOnce(emptyResponse);
 
       // Act
-      act(() =>
+      await act(() =>
         result.current.addField('t1', 'field', {
           direction: 'right',
           insertFromFieldName: 'f1',
@@ -1179,15 +1438,16 @@ describe('useFieldEditDsl', () => {
       ]);
     });
 
-    it('should add field at the end of the table if there is no insertFromFieldName', () => {
+    it('should add field at the end of the table if there is no insertFromFieldName', async () => {
       // Arrange
       const dsl = 'table t1  [f1] = 2  [f2] = 3  [f3] = 4';
       const expectedDsl =
         'table t1  [f1] = 2  [f2] = 3  [f3] = 4\r\n  [field]\r\n';
       rerender({ dsl });
+      fetchMock.mockResponseOnce(emptyResponse);
 
       // Act
-      act(() =>
+      await act(() =>
         result.current.addField('t1', 'field', {
           direction: 'right',
         })
@@ -1203,15 +1463,16 @@ describe('useFieldEditDsl', () => {
       ]);
     });
 
-    it('should add field at the end of the table if there is no insertFromFieldName and direction', () => {
+    it('should add field at the end of the table if there is no insertFromFieldName and direction', async () => {
       // Arrange
       const dsl = 'table t1  [f1] = 2  [f2] = 3  [f3] = 4';
       const expectedDsl =
         'table t1  [f1] = 2  [f2] = 3  [f3] = 4\r\n  [field]\r\n';
       rerender({ dsl });
+      fetchMock.mockResponseOnce(emptyResponse);
 
       // Act
-      act(() => result.current.addField('t1', 'field'));
+      await act(() => result.current.addField('t1', 'field'));
 
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
@@ -1223,19 +1484,132 @@ describe('useFieldEditDsl', () => {
       ]);
     });
 
-    it('should add field with a unique generated name', () => {
+    it('should add field with a unique generated name', async () => {
       // Arrange
       const dsl = 'table t1\n[Column1] = 1\n[Column2] = 2';
       const expectedDsl =
         'table t1\n[Column1] = 1\n[Column2] = 2\r\n  [Column3] = 3 + 3\r\n';
       rerender({ dsl });
+      fetchMock.mockResponseOnce(emptyResponse);
 
       // Act
-      act(() => result.current.addField('t1', '= 3 + 3'));
+      await act(() => result.current.addField('t1', '= 3 + 3'));
 
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Add [Column3] to table "t1"`,
+        [{ sheetName: props.sheetName, content: expectedDsl }]
+      );
+      expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
+        { sheetName: props.sheetName, content: expectedDsl },
+      ]);
+    });
+
+    it('should add table reference field group with unique names', async () => {
+      // Arrange
+      const dsl = 'table t1\n[a] = 1\n[b] = 2';
+      const expectedDsl = 'table t1\n[a] = 1\n[b] = 2\r\n  [Column1] = t\r\n';
+      rerender({ dsl });
+      fetchMock.mockResponseOnce(mockedTableReferenceResponse);
+
+      // Act
+      await act(() => result.current.addField('t1', '= t'));
+
+      // Assert
+      expect(props.appendToFn).toHaveBeenCalledWith(
+        `Add group of 1 field to table "t1"`,
+        [{ sheetName: props.sheetName, content: expectedDsl }]
+      );
+      expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
+        { sheetName: props.sheetName, content: expectedDsl },
+      ]);
+    });
+
+    it('should add table value field group with unique names', async () => {
+      // Arrange
+      const dsl = 'table t1\n[a] = 1\n[b] = 2';
+      const expectedDsl =
+        'table t1\n[a] = 1\n[b] = 2\r\n  [a1], [b1], [c] = INPUT("url")[[a],[b],[c]]\r\n';
+      rerender({ dsl });
+      fetchMock.mockResponseOnce(mockedTableValueResponse);
+
+      // Act
+      await act(() => result.current.addField('t1', '= INPUT("url")'));
+
+      // Assert
+      expect(props.appendToFn).toHaveBeenCalledWith(
+        `Add group of 3 fields to table "t1"`,
+        [{ sheetName: props.sheetName, content: expectedDsl }]
+      );
+      expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
+        { sheetName: props.sheetName, content: expectedDsl },
+      ]);
+    });
+
+    it('should add field group with user provided field names', async () => {
+      // Arrange
+      const dsl = 'table t1\n[a] = 1\n[b] = 2';
+      const expectedDsl =
+        'table t1\n[a] = 1\n[b] = 2\r\n  [q], [w], [e] = INPUT("url")[[a],[b],[c]]\r\n';
+      rerender({ dsl });
+      fetchMock.mockResponseOnce(mockedTableValueResponse);
+
+      // Act
+      await act(() => result.current.addField('t1', 'q,w,e = INPUT("url")'));
+
+      // Assert
+      expect(props.appendToFn).toHaveBeenCalledWith(
+        `Add group of 3 fields to table "t1"`,
+        [{ sheetName: props.sheetName, content: expectedDsl }]
+      );
+      expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
+        { sheetName: props.sheetName, content: expectedDsl },
+      ]);
+    });
+
+    it('should add field group when user provided field names but less than expected', async () => {
+      // Arrange
+      const dsl = 'table t1\n[a] = 1\n[b] = 2';
+      const expectedDsl =
+        'table t1\n[a] = 1\n[b] = 2\r\n  [q], [w], [c] = INPUT("url")[[a],[b],[c]]\r\n';
+      rerender({ dsl });
+      fetchMock.mockResponseOnce(mockedTableValueResponse);
+
+      // Act
+      await act(() => result.current.addField('t1', 'q,w = INPUT("url")'));
+
+      // Assert
+      expect(props.appendToFn).toHaveBeenCalledWith(
+        `Add group of 3 fields to table "t1"`,
+        [{ sheetName: props.sheetName, content: expectedDsl }]
+      );
+      expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
+        { sheetName: props.sheetName, content: expectedDsl },
+      ]);
+    });
+
+    it('should add field group with one normalized field reference', async () => {
+      // Arrange
+      const dsl = 'table t1\n[a] = 1\n[b] = 2';
+      const expectedDsl =
+        'table t1\n[a] = 1\n[b] = 2\r\n  [c] = INPUT("url")[c]\r\n';
+      rerender({ dsl });
+      fetchMock.mockResponseOnce(
+        JSON.stringify({
+          dimensionalSchemaResponse: {
+            fieldInfo: { isNested: true, type: ColumnDataType.TABLE_VALUE },
+            schema: ['c'],
+            keys: [],
+          },
+        })
+      );
+
+      // Act
+      await act(() => result.current.addField('t1', '= INPUT("url")'));
+
+      // Assert
+      expect(props.appendToFn).toHaveBeenCalledWith(
+        `Add group of 1 field to table "t1"`,
         [{ sheetName: props.sheetName, content: expectedDsl }]
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
@@ -1284,14 +1658,14 @@ describe('useFieldEditDsl', () => {
       props = { ...initialProps };
       props.gridApi = {
         getCanvasSymbolWidth: () => 6,
-        getGridSizes: () => ({
+        gridSizes: {
           colNumber: {
             width: 65,
           },
           cell: {
             padding: 4,
           },
-        }),
+        },
       } as any;
       jest.clearAllMocks();
 

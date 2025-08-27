@@ -27,7 +27,7 @@ from quantgrid.python.runtime.types import (
     Type,
 )
 from quantgrid.utils.compilation import VirtualDirectory
-from quantgrid.utils.project import ProjectUtil
+from quantgrid.utils.project import FieldGroupUtil, ProjectUtil
 from quantgrid.utils.string import snake_case
 
 
@@ -258,12 +258,20 @@ class PythonEnv:
                     field.ui_name: field for field in table.get_fields().values()
                 }
 
-                for xl_field in xl_table.fields:
-                    namespace_fields[xl_field.name].decorators = xl_field.decorators
+                for xl_field_with_formula in FieldGroupUtil.get_fields_with_formulas(
+                    xl_table
+                ):
+                    namespace_fields[xl_field_with_formula.field.name].decorators = (
+                        xl_field_with_formula.field.decorators
+                    )
 
-                    if xl_field.formula is not None:
-                        namespace_fields[xl_field.name].formula = xl_field.formula
-                        namespace_fields[xl_field.name].function.validate_with(None)
+                    if xl_field_with_formula.formula is not None:
+                        namespace_fields[xl_field_with_formula.field.name].formula = (
+                            xl_field_with_formula.formula
+                        )
+                        namespace_fields[
+                            xl_field_with_formula.field.name
+                        ].function.validate_with(None)
 
     @staticmethod
     def _populate_tables(

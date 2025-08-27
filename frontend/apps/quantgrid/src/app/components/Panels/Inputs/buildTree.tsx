@@ -4,6 +4,7 @@ import {
   CSVFileIcon,
   FilesMetadata,
   FolderIcon,
+  MetadataNodeType,
 } from '@frontend/common';
 
 export function getNode(
@@ -13,7 +14,7 @@ export function getNode(
 ) {
   const { name, nodeType } = inputFile;
   const LeafIcon =
-    nodeType === 'FOLDER' ? (
+    nodeType === MetadataNodeType.FOLDER ? (
       <Icon
         className="text-strokeAccentSecondary w-[18px]"
         component={() => <FolderIcon />}
@@ -30,7 +31,7 @@ export function getNode(
     key,
     title: name,
     icon: LeafIcon,
-    isLeaf: nodeType === 'FOLDER',
+    isLeaf: nodeType === MetadataNodeType.FOLDER,
     children: fields.map((fieldName, index) => ({
       key: key + '-' + index,
       title: fieldName,

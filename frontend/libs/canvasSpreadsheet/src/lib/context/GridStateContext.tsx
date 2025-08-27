@@ -20,7 +20,14 @@ import {
 } from '@frontend/common';
 import { Application } from '@pixi/app';
 
-import { defaultGridSizes, GridSizes } from '../constants';
+import {
+  defaultGridSizes,
+  GridSizes,
+  viewportColStep,
+  viewportPrefetchCols,
+  viewportPrefetchRows,
+  viewportRowStep,
+} from '../constants';
 import { useGridResize } from '../hooks';
 import { fontNameScale } from '../setup';
 import { getTheme } from '../theme';
@@ -59,9 +66,10 @@ type GridStateContextActions = {
   ) => void;
   setDottedSelectionEdges: (edges: SelectionEdges | null) => void;
   setPointClickError: (error: boolean) => void;
-  setRowNumberWidth: (newWidth: number) => void;
+  setRowNumberWidth: (width: number) => void;
   setIsTableDragging: (isDragging: boolean) => void;
   setDNDSelection: (selection: SelectionEdges | null) => void;
+  setHasCharts: (hasCharts: boolean) => void;
   selection$: BehaviorSubject<Edges | null>;
 };
 
@@ -84,6 +92,13 @@ type GridStateContextValues = {
   theme: Theme;
   columnSizes: Record<string, number>;
   isPanModeEnabled: boolean;
+  hasCharts: boolean;
+  zoom: number;
+  updateMaxRowOrCol: (
+    targetCol: number | null,
+    targetRow: number | null
+  ) => void;
+  shrinkRowOrCol: (targetCol: number | null, targetRow: number | null) => void;
 };
 
 export const GridStateContext = createContext<
@@ -118,8 +133,13 @@ export function GridStateContextProvider({
   const [selectedTable, setSelectedTable] = useState<string | null>(null);
   const [isTableDragging, setIsTableDragging] = useState(false);
   const [dndSelection, setDNDSelection] = useState<SelectionEdges | null>(null);
+  const [hasCharts, setHasCharts] = useState(false);
 
   const selectionEdgesRef = useRef<SelectionEdges | null>(null);
+  const currentEdgesRef = useRef<{ col: number; row: number }>({
+    col: defaultGridSizes.edges.col,
+    row: defaultGridSizes.edges.row,
+  });
 
   const getCell = useCallback(
     (col: number, row: number) => {
@@ -144,15 +164,104 @@ export function GridStateContextProvider({
     [zoom]
   );
 
-  const setRowNumberWidth = useCallback(
-    (newWidth: number) => {
-      const updatedSizes = structuredClone(gridSizes);
+  const setRowNumberWidth = useCallback((width: number) => {
+    setGridSizes((prev) => ({
+      ...prev,
+      rowNumber: { ...prev.rowNumber, width },
+    }));
+  }, []);
 
-      updatedSizes.rowNumber.width = newWidth;
+  const updateMaxRowOrCol = useCallback(
+    (targetCol: number | null, targetRow: number | null) => {
+      const currentCol = currentEdgesRef.current.col;
+      const currentRow = currentEdgesRef.current.row;
 
-      setGridSizes(updatedSizes);
+      let newCol = currentCol;
+      let newRow = currentRow;
+
+      if (targetCol !== null) {
+        const desiredColEdge =
+          Math.ceil(targetCol / viewportColStep) * viewportColStep;
+        newCol = Math.min(
+          defaultGridSizes.edges.maxCol,
+          Math.max(desiredColEdge, currentCol)
+        );
+      }
+
+      if (targetRow !== null) {
+        const desiredRowEdge =
+          Math.ceil(targetRow / viewportRowStep) * viewportRowStep;
+        newRow = Math.min(
+          defaultGridSizes.edges.maxRow,
+          Math.max(desiredRowEdge, currentRow)
+        );
+      }
+
+      if (newCol === currentCol && newRow === currentRow) return;
+
+      currentEdgesRef.current = { col: newCol, row: newRow };
+
+      setGridSizes((prev) => {
+        if (prev.edges.col === newCol && prev.edges.row === newRow) {
+          return prev;
+        }
+
+        return {
+          ...prev,
+          edges: {
+            ...prev.edges,
+            col: newCol,
+            row: newRow,
+          },
+        };
+      });
     },
-    [gridSizes]
+    []
+  );
+
+  const shrinkRowOrCol = useCallback(
+    (targetCol: number | null, targetRow: number | null) => {
+      const currentCol = currentEdgesRef.current.col;
+      const currentRow = currentEdgesRef.current.row;
+
+      let newCol = currentCol;
+      let newRow = currentRow;
+
+      if (targetCol !== null) {
+        const minColEdge =
+          Math.ceil((targetCol + viewportPrefetchCols) / viewportColStep) *
+          viewportColStep;
+
+        newCol = Math.max(viewportColStep, Math.min(minColEdge, currentCol));
+      }
+
+      if (targetRow !== null) {
+        const minRowEdge =
+          Math.ceil((targetRow + viewportPrefetchRows) / viewportRowStep) *
+          viewportRowStep;
+        newRow = Math.max(viewportRowStep, Math.min(minRowEdge, currentRow));
+      }
+
+      if (newCol === currentCol && newRow === currentRow) return;
+
+      currentEdgesRef.current = { col: newCol, row: newRow };
+
+      setGridSizes((prev) => {
+        if (prev.edges.col === newCol && prev.edges.row === newRow) {
+          return prev;
+        }
+
+        return {
+          ...prev,
+          edges: {
+            ...prev.edges,
+            col: newCol,
+            row: newRow,
+          },
+        };
+      });
+    },
+    []
   );
 
   const selection$: BehaviorSubject<Edges | null> = useMemo(
@@ -187,24 +296,23 @@ export function GridStateContextProvider({
   }, [viewportInteractionMode]);
 
   useEffect(() => {
-    const updatedSizes = Object.fromEntries(
-      Object.entries(defaultGridSizes).map(([scope, currentScope]) => [
-        scope,
-        Object.fromEntries(
-          Object.entries(currentScope).map(([param, size]) => [
-            param,
-            Math.max(1, Math.round(size * zoom)),
-          ])
-        ),
-      ])
-    ) as GridSizes;
+    setGridSizes((prev) => {
+      return Object.fromEntries(
+        Object.entries(defaultGridSizes).map(([scope, currentScope]) => {
+          if (scope === 'edges') {
+            return [scope, prev.edges];
+          }
 
-    updatedSizes.edges = {
-      col: defaultGridSizes.edges.col,
-      row: defaultGridSizes.edges.row,
-    };
+          const scaledScope = Object.fromEntries(
+            Object.entries(currentScope as Record<string, number>).map(
+              ([param, size]) => [param, Math.max(1, Math.round(size * zoom))]
+            )
+          );
 
-    setGridSizes(updatedSizes);
+          return [scope, scaledScope];
+        })
+      ) as GridSizes;
+    });
   }, [zoom]);
 
   useEffect(() => {
@@ -234,6 +342,8 @@ export function GridStateContextProvider({
       gridSizes,
       gridWidth,
       isTableDragging,
+      hasCharts,
+      setHasCharts,
       pointClickError,
       pointClickMode,
       selectedTable,
@@ -249,6 +359,9 @@ export function GridStateContextProvider({
       theme,
       columnSizes,
       isPanModeEnabled,
+      updateMaxRowOrCol,
+      shrinkRowOrCol,
+      zoom,
     }),
     [
       app,
@@ -264,6 +377,8 @@ export function GridStateContextProvider({
       gridSizes,
       gridWidth,
       isTableDragging,
+      hasCharts,
+      setHasCharts,
       pointClickError,
       pointClickMode,
       selectedTable,
@@ -275,6 +390,9 @@ export function GridStateContextProvider({
       theme,
       columnSizes,
       isPanModeEnabled,
+      updateMaxRowOrCol,
+      shrinkRowOrCol,
+      zoom,
     ]
   );
 

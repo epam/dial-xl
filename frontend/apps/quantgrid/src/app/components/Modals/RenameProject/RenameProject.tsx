@@ -39,13 +39,15 @@ export function RenameProject({ renameProjectModal }: Props) {
   }, []);
 
   const handleOk = useCallback(() => {
+    setIsModalOpen(false);
+
     if (newProjectName && projectName) {
       renameCurrentProject({
         newName: newProjectName,
         silent: true,
       });
     }
-    setIsModalOpen(false);
+
     setNewProjectName('');
   }, [newProjectName, projectName, renameCurrentProject]);
 

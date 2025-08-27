@@ -19,6 +19,10 @@ import {
   defaultViewportEdges,
   extendedColsCount,
   extendedRowsCount,
+  viewportColStep,
+  viewportPrefetchCols,
+  viewportPrefetchRows,
+  viewportRowStep,
 } from '../constants';
 import { GetCellX, GetCellY, ViewportCoords, ViewportEdges } from '../types';
 import { getFirstVisibleColOrRow, getRowOrColPosition } from '../utils';
@@ -29,7 +33,7 @@ type GridViewportContextActions = {
   getCellX: GetCellX;
   getCellY: GetCellY;
   getCellFromCoords: (x: number, y: number) => CellPlacement;
-  moveViewport: (x: number, y: number) => void;
+  moveViewport: (x: number, y: number, skipMaxCheck?: boolean) => void;
 
   gridViewportSubscriber: MutableRefObject<GridViewportSubscriber>;
 };
@@ -55,6 +59,9 @@ export function GridViewportContextProvider({
     fullHeight,
     gridSizes,
     columnSizes,
+    zoom,
+    updateMaxRowOrCol,
+    shrinkRowOrCol,
   } = useContext(GridStateContext);
 
   const gridViewportSubscriber = useRef<GridViewportSubscriber>(
@@ -72,30 +79,53 @@ export function GridViewportContextProvider({
 
   const viewportEdges = useRef<ViewportEdges>(defaultViewportEdges);
   const columnSizesRef = useRef<Record<string, number>>(columnSizes);
+  const edgesWasExtended = useRef(false);
 
+  /**
+   * Moves the sheet viewport by the given delta and updates all viewport properties.
+   *
+   * @param x              Horizontal delta in pixels (positive = scroll right).
+   * @param y              Vertical delta in pixels (positive = scroll down).
+   * @param skipMaxCheck   When `true`, disables the “cannot scroll past maxX/maxY”
+   *                       clamp, allowing the viewport to push beyond the existing
+   *                       grid so `updateMaxRowOrCol` can allocate more rows /
+   *                       columns on-demand. Defaults to `false`.
+   */
   const moveViewport = useCallback(
-    (x: number, y: number) => {
+    (x: number, y: number, skipMaxCheck = false) => {
+      // skip the next viewport update if edges were extended
+      if (edgesWasExtended.current) {
+        edgesWasExtended.current = false;
+
+        return;
+      }
+
       const { x1: prevX1, y1: prevY1 } = viewportCoords.current;
-      const x1 = Math.min(
-        Math.max(prevX1 + x, 0),
+
+      const maxX =
         fullWidth -
-          gridWidth +
-          gridSizes.scrollBar.trackSize +
-          gridSizes.gridLine.width
-      );
-      const y1 = Math.min(
-        Math.max(prevY1 + y, 0),
+        gridWidth +
+        gridSizes.scrollBar.trackSize +
+        gridSizes.gridLine.width;
+      const maxY =
         fullHeight -
-          gridHeight +
-          gridSizes.scrollBar.trackSize +
-          gridSizes.gridLine.width
-      );
+        gridHeight +
+        gridSizes.scrollBar.trackSize +
+        gridSizes.gridLine.width;
+
+      const x1 = skipMaxCheck
+        ? Math.max(prevX1 + x, 0)
+        : Math.min(Math.max(prevX1 + x, 0), maxX);
+
+      const y1 = skipMaxCheck
+        ? Math.max(prevY1 + y, 0)
+        : Math.min(Math.max(prevY1 + y, 0), maxY);
 
       const x2 = x1 + gridWidth;
       const y2 = y1 + gridHeight;
 
       viewportCoords.current = { x1, y1, x2, y2 };
-      const { cell } = gridSizes;
+      const { cell, edges } = gridSizes;
 
       const startCol =
         getFirstVisibleColOrRow(x1, columnSizesRef.current, cell.width) + 1;
@@ -110,6 +140,37 @@ export function GridViewportContextProvider({
       const endRow = firstVisibleEndRow + extendedRowsCount;
 
       viewportEdges.current = { startCol, startRow, endCol, endRow };
+
+      const willNeedMoreCols = (end: number) =>
+        end >= edges.col - viewportPrefetchCols;
+
+      const willNeedMoreRows = (end: number) =>
+        end >= edges.row - viewportPrefetchRows;
+
+      const canShrinkCols = (end: number) =>
+        end > viewportColStep && end <= edges.col - viewportColStep * 3;
+
+      const canShrinkRows = (end: number) =>
+        end > viewportRowStep && end <= edges.row - viewportRowStep * 3;
+
+      const growCols = willNeedMoreCols(endCol);
+      const growRows = willNeedMoreRows(endRow);
+
+      if (growCols || growRows) {
+        updateMaxRowOrCol(
+          growCols ? endCol + viewportPrefetchCols : null,
+          growRows ? endRow + viewportPrefetchRows : null
+        );
+        edgesWasExtended.current = true;
+      }
+
+      const shrinkColTarget = canShrinkCols(endCol) ? endCol : null;
+      const shrinkRowTarget = canShrinkRows(endRow) ? endRow : null;
+
+      if (shrinkColTarget !== null || shrinkRowTarget !== null) {
+        shrinkRowOrCol(shrinkColTarget, shrinkRowTarget);
+        edgesWasExtended.current = true;
+      }
 
       gridViewportSubscriber.current.changeViewport(x, y);
     },
@@ -181,7 +242,7 @@ export function GridViewportContextProvider({
 
   useEffect(() => {
     moveViewport(0, 0);
-  }, [gridHeight, gridWidth, moveViewport]);
+  }, [gridHeight, gridWidth, moveViewport, zoom]);
 
   const value = useMemo(
     () => ({

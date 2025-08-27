@@ -3,6 +3,7 @@ import cx from 'classnames';
 import { ChangeEvent, useCallback, useEffect, useRef, useState } from 'react';
 
 import {
+  dialProjectFileExtension,
   inputClasses,
   KeyboardCode,
   modalFooterButtonClasses,
@@ -22,15 +23,19 @@ type Props = {
 };
 
 export function RenameFileModal({ item, onModalClose }: Props) {
-  const initialFileName = item.name.substring(0, item.name.lastIndexOf('.'));
+  const isProject = item.name.endsWith(dialProjectFileExtension);
+  const initialFileName = isProject
+    ? item.name.substring(0, item.name.lastIndexOf('.'))
+    : item.name;
   const { renameFile } = useRenameFile();
 
   const [isOpen, setIsOpen] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [newFileName, setNewFileName] = useState(initialFileName);
   const inputRef = useRef<InputRef | null>(null);
 
   const onNameChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
-    if (isEntityNameInvalid(event.target.value)) return;
+    if (isEntityNameInvalid(event.target.value, true)) return;
 
     setNewFileName(event.target.value);
   }, []);
@@ -43,6 +48,7 @@ export function RenameFileModal({ item, onModalClose }: Props) {
       bucket,
       path: parentPath,
       newName: newFileName,
+      newNameIsFull: true,
     });
   }, [item, newFileName, renameFile]);
 
@@ -69,9 +75,11 @@ export function RenameFileModal({ item, onModalClose }: Props) {
         },
       });
     } else {
+      setLoading(true);
       await handleRenameFile();
       setIsOpen(false);
       onModalClose();
+      setLoading(false);
     }
   }, [handleRenameFile, item.isSharedByMe, onModalClose]);
 
@@ -84,7 +92,8 @@ export function RenameFileModal({ item, onModalClose }: Props) {
       if (
         event.key === KeyboardCode.Enter &&
         newFileName &&
-        newFileName !== initialFileName
+        newFileName !== initialFileName &&
+        !isEntityNameInvalid(newFileName)
       ) {
         handleOk();
       }
@@ -119,6 +128,7 @@ export function RenameFileModal({ item, onModalClose }: Props) {
     <Modal
       cancelButtonProps={{
         className: cx(modalFooterButtonClasses, secondaryButtonClasses),
+        disabled: loading,
       }}
       destroyOnClose={true}
       okButtonProps={{
@@ -127,21 +137,32 @@ export function RenameFileModal({ item, onModalClose }: Props) {
           primaryButtonClasses,
           primaryDisabledButtonClasses
         ),
-        disabled: !newFileName || newFileName === initialFileName,
+        disabled:
+          !newFileName ||
+          newFileName === initialFileName ||
+          isEntityNameInvalid(newFileName),
+        loading,
       }}
       open={isOpen}
       title="Rename file"
       onCancel={handleCancel}
       onOk={handleOk}
     >
-      <Input
-        className={cx('h-12 my-3', inputClasses)}
-        placeholder="File name"
-        ref={inputRef}
-        value={newFileName}
-        autoFocus
-        onChange={onNameChange}
-      />
+      <div className="flex gap-2 items-center relative">
+        <Input
+          className={cx('h-12 my-3', inputClasses, isProject && 'pr-12')}
+          placeholder="File name"
+          ref={inputRef}
+          value={newFileName}
+          autoFocus
+          onChange={onNameChange}
+        />
+        {isProject && (
+          <span className="absolute right-4 top-[calc(50%-10px)]">
+            {dialProjectFileExtension}
+          </span>
+        )}
+      </div>
     </Modal>
   );
 }

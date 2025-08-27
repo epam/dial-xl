@@ -82,7 +82,7 @@ test.beforeEach(async () => {
   await projectPage.hideAllPanels();
   await page.keyboard.press('Alt+1');
   await page.keyboard.press('Alt+2');
-  await page.keyboard.press('Alt+5');
+  await page.keyboard.press('Alt+4');
   await projectPage.expectPanelToBeVisible(Panels.HistoryPanel);
   await TestFixtures.expectTableToBeDisplayed(page, spreadsheet.getTable(2));
 });

@@ -19,8 +19,8 @@ export const getExpandedTextSize = ({
   useMaxLimit?: boolean;
 }) => {
   const symbolWidth = grid?.getCanvasSymbolWidth?.();
-  const defaultColWidth = grid?.getGridSizes?.()?.colNumber.width;
-  const cellPadding = grid?.getGridSizes?.()?.cell.padding;
+  const defaultColWidth = grid?.gridSizes?.colNumber.width;
+  const cellPadding = grid?.gridSizes?.cell.padding;
 
   if (
     !symbolWidth ||

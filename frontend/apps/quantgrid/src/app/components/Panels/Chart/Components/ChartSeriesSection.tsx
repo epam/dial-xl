@@ -17,7 +17,6 @@ import {
 } from '@frontend/common';
 import {
   chartSeriesColorDecoratorName,
-  ChartType,
   escapeValue,
   ParsedTable,
 } from '@frontend/parser';
@@ -28,12 +27,12 @@ import {
   ViewportContext,
 } from '../../../../context';
 import { useFieldEditDsl } from '../../../../hooks';
-import { ScatterPlotSeriesSection } from './ScatterPlotSeriesSection';
 import {
   ChartPanelSelectClasses,
   CustomColorOption,
   CustomSingleColorValue,
 } from './SelectUtils';
+import { SeriesColumnAttributesSection } from './SeriesColumnAttributesSection';
 
 type FieldOption = {
   value: string;
@@ -45,8 +44,12 @@ const defaultColor = undefined;
 
 export function ChartSeriesSection({
   parsedTable,
+  showSeriesColumnAttributesSection,
+  showSeriesSection,
 }: {
   parsedTable: ParsedTable;
+  showSeriesColumnAttributesSection: boolean;
+  showSeriesSection: boolean;
 }) {
   const { openTable } = useContext(AppSpreadsheetInteractionContext);
   const { sheetName } = useContext(ProjectContext);
@@ -175,77 +178,79 @@ export function ChartSeriesSection({
 
   return (
     <div className="flex flex-col">
-      <div className="w-full flex items-center">
-        <Select
-          classNames={{
-            ...SelectClasses,
-            ...ChartPanelSelectClasses,
-          }}
-          components={{
-            IndicatorSeparator: null,
-            Option: CustomColorOption,
-            SingleValue: CustomSingleColorValue,
-          }}
-          isSearchable={true}
-          menuPortalTarget={document.body}
-          menuPosition="fixed"
-          name="chartSeries"
-          options={fieldOptions}
-          styles={selectStyles}
-          value={selectedField}
-          onChange={handleChangeField}
-        />
-        <ColorPicker
-          className="ml-2 px-1"
-          disabledAlpha={true}
-          disabledFormat={true}
-          open={colorPickerOpen}
-          panelRender={(panel) => (
-            <div className="flex flex-col">
-              {panel}
+      {showSeriesSection && (
+        <div className="w-full flex items-center">
+          <Select
+            classNames={{
+              ...SelectClasses,
+              ...ChartPanelSelectClasses,
+            }}
+            components={{
+              IndicatorSeparator: null,
+              Option: CustomColorOption,
+              SingleValue: CustomSingleColorValue,
+            }}
+            isSearchable={true}
+            menuPortalTarget={document.body}
+            menuPosition="fixed"
+            name="chartSeries"
+            options={fieldOptions}
+            styles={selectStyles}
+            value={selectedField}
+            onChange={handleChangeField}
+          />
+          <ColorPicker
+            className="ml-2 px-1"
+            disabledAlpha={true}
+            disabledFormat={true}
+            open={colorPickerOpen}
+            panelRender={(panel) => (
+              <div className="flex flex-col">
+                {panel}
 
-              <div className="flex justify-between w-full pt-2">
-                <Button
-                  className={cx(
-                    secondaryButtonClasses,
-                    secondaryDisabledButtonClasses,
-                    'text-[13px] font-semibold h-5 w-full !rounded-none'
-                  )}
-                  onClick={handleApplyColor}
-                >
-                  Apply color
-                </Button>
+                <div className="flex justify-between w-full pt-2">
+                  <Button
+                    className={cx(
+                      secondaryButtonClasses,
+                      secondaryDisabledButtonClasses,
+                      'text-[13px] font-semibold h-5 w-full !rounded-none'
+                    )}
+                    onClick={handleApplyColor}
+                  >
+                    Apply color
+                  </Button>
+                </div>
               </div>
-            </div>
-          )}
-          showText={() => (
-            <div className="flex items-center">
-              {selectedColor && (
-                <Tooltip title="Remove series color">
-                  <Icon
-                    className="w-[18px] text-textPrimary mr-1"
-                    component={() => <CloseIcon />}
-                    onClick={handleRemoveColor}
-                  />
-                </Tooltip>
-              )}
-              <Icon
-                className={cx('w-[18px] text-textPrimary', {
-                  'rotate-180': colorPickerOpen,
-                  'rotate-0': !colorPickerOpen,
-                })}
-                component={() => <ChevronDown />}
-              />
-            </div>
-          )}
-          value={selectedColor}
-          onChangeComplete={handleColorChange}
-          onOpenChange={handleOpenChange}
-        />
-      </div>
+            )}
+            showText={() => (
+              <div className="flex items-center">
+                {selectedColor && (
+                  <Tooltip title="Remove series color">
+                    <Icon
+                      className="w-[18px] text-textPrimary mr-1"
+                      component={() => <CloseIcon />}
+                      onClick={handleRemoveColor}
+                    />
+                  </Tooltip>
+                )}
+                <Icon
+                  className={cx('w-[18px] text-textPrimary', {
+                    'rotate-180': colorPickerOpen,
+                    'rotate-0': !colorPickerOpen,
+                  })}
+                  component={() => <ChevronDown />}
+                />
+              </div>
+            )}
+            value={selectedColor}
+            onChangeComplete={handleColorChange}
+            onOpenChange={handleOpenChange}
+          />
+        </div>
+      )}
 
-      {parsedTable.getChartType() === ChartType.SCATTER_PLOT && (
-        <ScatterPlotSeriesSection parsedTable={parsedTable} />
+      {showSeriesColumnAttributesSection && (
+        <SeriesColumnAttributesSection parsedTable={parsedTable} />
       )}
     </div>
   );

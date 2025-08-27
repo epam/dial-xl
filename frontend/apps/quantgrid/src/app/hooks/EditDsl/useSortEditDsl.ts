@@ -3,8 +3,8 @@ import { useCallback } from 'react';
 import { FieldSortOrder } from '@frontend/common';
 import { Apply, ApplySort } from '@frontend/parser';
 
-import { useDSLUtils } from '../ManualEditDSL';
 import { useSafeCallback } from '../useSafeCallback';
+import { useDSLUtils } from './useDSLUtils';
 
 export function useSortEditDsl() {
   const { updateDSL, findEditContext } = useDSLUtils();

@@ -1,12 +1,14 @@
 import { Checkbox } from 'antd';
 import { CheckboxChangeEvent } from 'antd/es/checkbox';
 import cx from 'classnames';
+import { format } from 'date-fns';
 import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import Icon from '@ant-design/icons';
 import {
   ArrowUpRightIcon,
+  ColumnDataType,
   csvFileExtension,
   CSVFileIcon,
   csvTempFolder,
@@ -15,7 +17,7 @@ import {
   FileIcon,
   FolderIcon,
   formatBytes,
-  getFormattedFullDate,
+  MetadataNodeType,
   projectFoldersRootPrefix,
   QGLogo,
 } from '@frontend/common';
@@ -33,6 +35,7 @@ import {
   encodeApiUrl,
   getDashboardNavigateUrl,
   getProjectNavigateUrl,
+  isProjectMetadata,
 } from '../../../utils';
 import { FileListItemMenu } from './FileListItemMenu';
 
@@ -58,24 +61,35 @@ export function FileListItem({ item }: Props) {
   } = useApiRequests();
   const { getDimensionalTableFromFormula } = useCreateTableDsl();
 
-  const isProject = useMemo(
-    () => item.name.endsWith(dialProjectFileExtension),
+  const isProject = useMemo(() => isProjectMetadata(item), [item]);
+
+  const isCSV = useMemo(
+    () =>
+      item.name.endsWith(csvFileExtension) &&
+      item.nodeType === MetadataNodeType.ITEM,
     [item]
   );
-
-  const isCSV = useMemo(() => item.name.endsWith(csvFileExtension), [item]);
 
   const isSimplifiedColumns =
     currentTab === 'recent' || (currentTab === 'sharedByMe' && !folderPath);
 
   const isSearchColumns = searchValue !== '';
 
-  const isFolder = useMemo(() => item.nodeType === 'FOLDER', [item]);
+  const isFolder = useMemo(
+    () => item.nodeType === MetadataNodeType.FOLDER,
+    [item]
+  );
 
   const isSharedWithMe = useMemo(
     () => item.bucket !== userBucket,
     [item.bucket, userBucket]
   );
+
+  const updatedAt = useMemo(() => {
+    return item.nodeType === MetadataNodeType.ITEM && item.updatedAt
+      ? format(item.updatedAt, 'MMM dd, yyyy')
+      : '-';
+  }, [item.nodeType, item.updatedAt]);
 
   const itemLink = useMemo(() => {
     return isProject
@@ -164,7 +178,8 @@ export function FileListItem({ item }: Props) {
       dimensionalSchema.dimensionalSchemaResponse.schema,
       dimensionalSchema.dimensionalSchemaResponse.keys,
       1,
-      1
+      1,
+      ColumnDataType.TABLE_VALUE
     );
 
     const projectName = item.name.replaceAll(csvFileExtension, '');
@@ -217,12 +232,15 @@ export function FileListItem({ item }: Props) {
   }, [item, selectedItems]);
 
   return (
-    <div className="relative flex flex-col group" data-file-name={item.name}>
+    <div
+      className="relative flex flex-col group min-w-[400px]"
+      data-file-name={item.name}
+    >
       <FileListItemMenu
         className="flex flex-col"
         isFolder={isFolder}
         item={item}
-        trigger={'contextMenu'}
+        trigger={['contextMenu']}
       >
         <Tag
           className={cx('flex py-3 border-b border-b-strokeTertiary', {
@@ -235,8 +253,8 @@ export function FileListItem({ item }: Props) {
           onMouseLeave={() => setIsHovered(false)}
           onMouseOver={() => setIsHovered(true)}
         >
-          <div className="flex grow items-center overflow-x-hidden">
-            <div className="flex items-center min-w-[60%] pl-4 pr-2 gap-4 overflow-hidden text-ellipsis">
+          <div className="flex grow items-center overflow-x-hidden leading-none">
+            <div className="flex items-center min-w-[200px] md:min-w-[60%] pl-3 md:pl-4 pr-2 gap-2 md:gap-4 overflow-hidden text-ellipsis">
               <div className="text-lg flex items-center justify-center relative">
                 {!isFolder && (isHovered || isSelected) ? (
                   <Checkbox
@@ -275,7 +293,7 @@ export function FileListItem({ item }: Props) {
               </span>
             </div>
             {(isSimplifiedColumns || isSearchColumns) && (
-              <div className="min-w-[20%] pr-2 overflow-hidden text-ellipsis whitespace-nowrap">
+              <div className="min-w-[100px] md:min-w-[20%] pr-2 overflow-hidden text-ellipsis whitespace-nowrap">
                 <span
                   className="text-textSecondary text-sm select-none"
                   title={
@@ -290,15 +308,13 @@ export function FileListItem({ item }: Props) {
                 </span>
               </div>
             )}
-            <div className="min-w-[20%] pr-2">
+            <div className="min-w-[100px] md:min-w-[20%] pr-2">
               <span className="text-textSecondary text-sm select-none">
-                {item.nodeType === 'ITEM' && item.updatedAt
-                  ? getFormattedFullDate(item.updatedAt)
-                  : '-'}
+                {updatedAt}
               </span>
             </div>
             {!isSimplifiedColumns && !isSearchColumns && (
-              <div className="min-w-[20%] pr-2">
+              <div className="min-w-[100px] md:min-w-[20%] pr-2">
                 <span className="text-textSecondary text-sm select-none">
                   {item.contentLength ? formatBytes(item.contentLength) : '-'}
                 </span>
@@ -309,10 +325,10 @@ export function FileListItem({ item }: Props) {
         </Tag>
       </FileListItemMenu>
       <FileListItemMenu
-        className="absolute top-4 right-0 w-6 flex items-center justify-center pr-4 cursor-pointer mr-4 text-transparent group-hover:text-textSecondary group-hover:hover:text-textAccentPrimary"
+        className="absolute top-[calc((100%-18px)/2)] right-0 w-6 flex items-center justify-center pr-4 cursor-pointer mr-4 text-transparent group-hover:text-textSecondary group-hover:hover:text-textAccentPrimary"
         isFolder={isFolder}
         item={item}
-        trigger={'click'}
+        trigger={['click', 'contextMenu']}
       >
         <Icon
           className="w-[18px] shrink-0"

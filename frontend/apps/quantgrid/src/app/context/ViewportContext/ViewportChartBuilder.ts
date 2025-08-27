@@ -84,7 +84,12 @@ export class ViewportChartBuilder {
           key.tableName === tableName
       );
 
-      if (rowNumberKey) {
+      // Special case for horizontal pie/bar chart:
+      // row number selector works as numeric field selector, need to receive all table data
+      const isHorizontalChart =
+        tableData.table.getChartOrientation() === 'horizontal';
+
+      if (rowNumberKey && !isHorizontalChart) {
         this.addChartRowNumberViewports(
           rowNumberKey,
           fieldsToRequest,
@@ -147,6 +152,7 @@ export class ViewportChartBuilder {
           start_row: rowIndex,
           end_row: rowIndex + 1,
           fieldKey: { field, table: unescapedTableName },
+          is_raw: true,
         });
       }
     }
@@ -162,6 +168,7 @@ export class ViewportChartBuilder {
         start_row: 0,
         end_row: defaultChartViewportRows,
         fieldKey: { field, table: unescapedTableName },
+        is_raw: true,
       });
     }
   }
@@ -213,6 +220,7 @@ export class ViewportChartBuilder {
           field,
           table: tableName,
         },
+        is_raw: true,
       }))
     );
   }

@@ -20,6 +20,9 @@ This repository contains source code for QuantGrid AI Chat Bot based on the pyth
    * MacOS - recommended way to install poetry is to [use pipx](https://python-poetry.org/docs/#installing-with-pipx)
    * Windows - recommended way to install poetry is to use [official installer](https://python-poetry.org/docs/#installing-with-the-official-installer)
    * Make sure that `poetry` is in the PATH and works properly (run `poetry --version`).
+4. Install [ProtoBuf Compiler](https://protobuf.dev/) **version 22.5**
+   * Any OS instruction: https://protobuf.dev/installation/#binary-install
+   * Find the binary here https://github.com/protocolbuffers/protobuf/releases/tag/v22.5
 
 ### Setup
 
@@ -31,14 +34,18 @@ This repository contains source code for QuantGrid AI Chat Bot based on the pyth
     ```
 4. Open project in IDE and make sure that correct venv is used.
    * For PyCharm go to File → Settings → Project:qg → Python Interpreter
-5. Fill `DIAL_API_KEY` and `QG_API_KEY` in `.env` (ask teammates for a key).
+5. From folder `quantgrid/python` run building dial_xl package:
+   ```bash
+    make build_client_package
+   ```
+6. Fill `DIAL_API_KEY` and `QG_API_KEY` in `.env` (ask teammates for a key).
    
 ### Run
 
-1. Use `run_local.py` to start QG locally. By default, it starts on port 5000, make sure it's free (run `netstat -a -o -n | grep 5000`). 
+1. Use `run_local.py` to start QG locally from folder `quantgrid/python/assistant`. By default, it starts on port 5000, make sure it's free (run `netstat -a -o -n | grep 5000`). 
 Application may not warn you. Run `http://localhost:5000/health` it must return `{"status": "ok"}`.
 2. Run test to make sure it's working. For instance, you can run: [test_functions::test_text_function](testing/scenarios/integration_scenarios/test_functions.py).
-It will run against your local setup, as `AGENT_DIAL_URL` in `.env` points to a localhost. Make sure that current directory is set to project root.
+It will run against your local setup, as `AGENT_DIAL_URL` in `.env` points to a localhost. Make sure that current directory is set to project root (`quantgrid/python/assistant`).
 
 
 ### Linter

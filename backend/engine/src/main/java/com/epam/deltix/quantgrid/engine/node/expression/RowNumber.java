@@ -19,7 +19,7 @@ public class RowNumber extends ExpressionWithPlan<Table, DoubleColumn> {
 
     @Override
     public ColumnType getType() {
-        return ColumnType.INTEGER;
+        return ColumnType.DOUBLE;
     }
 
     @Override

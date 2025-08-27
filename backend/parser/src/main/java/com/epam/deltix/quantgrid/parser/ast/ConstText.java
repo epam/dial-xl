@@ -1,12 +1,25 @@
 package com.epam.deltix.quantgrid.parser.ast;
 
-import lombok.EqualsAndHashCode;
-import lombok.Value;
+import com.epam.deltix.quantgrid.parser.Span;
+import lombok.Getter;
 import lombok.experimental.Accessors;
 
-@Value
+@Getter
 @Accessors(fluent = true)
-@EqualsAndHashCode(callSuper = false)
 public class ConstText extends Formula {
-    String text;
+    private final String text;
+
+    public ConstText(String text) {
+        this(null, text);
+    }
+
+    public ConstText(Span span, String text) {
+        super(span);
+        this.text = text;
+    }
+
+    @Override
+    public String toString() {
+        return "ConstText(span=" + span() + ", text=" + text + ")";
+    }
 }

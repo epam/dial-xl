@@ -1,10 +1,5 @@
 import { lineBreak } from '../parser';
-import {
-  notifyObserver,
-  ObservableNode,
-  ObservableObserver,
-  Reader,
-} from './utils';
+import { notifyObserver, ObservableNode, Reader } from './utils';
 
 /**
  * Represents a single DSL decorator, prefixed by `!` and optionally followed by arguments in parentheses.
@@ -115,7 +110,7 @@ export class Decorator extends ObservableNode {
 /**
  * Wraps a Decorator specifically for fields.
  */
-export class FieldDecorator extends ObservableObserver {
+export class FieldDecorator {
   /**
    * The underlying `Decorator` instance.
    */
@@ -132,9 +127,7 @@ export class FieldDecorator extends ObservableObserver {
    * @param decorator - The decorator to wrap.
    */
   constructor(decorator: Decorator) {
-    super();
     this._decorator = decorator;
-    decorator.attach(this);
   }
 
   /**
@@ -165,20 +158,11 @@ export class FieldDecorator extends ObservableObserver {
     // Create a placeholder decorator, then replace it after deserialization
     const result = new FieldDecorator(new Decorator('', ''));
     const dec = Decorator.deserialize(reader);
-    dec.attach(result);
 
     result._decorator = dec;
     // Read leftover text (e.g. spacing) before next token
     result._after = reader.beforeNext();
 
     return result;
-  }
-
-  /**
-   * Detaches the underlying decorator from this observer and
-   * allows this `FieldDecorator` to be fully cleaned up.
-   */
-  public override detach(): void {
-    this._decorator.detach();
   }
 }

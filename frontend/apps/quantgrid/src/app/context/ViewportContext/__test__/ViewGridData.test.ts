@@ -38,13 +38,16 @@ describe('ViewGridData', () => {
 
         nestedColumnNames: new Set(),
         isDynamicFieldsRequested: false,
+        diff: undefined,
 
         total: {},
         totalRows: 0,
         types: {},
+        formats: {},
         columnReferenceTableNames: {},
 
         fieldErrors: {},
+        indexErrors: {},
       });
     });
 

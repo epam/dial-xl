@@ -3,7 +3,6 @@ import { useCallback, useContext } from 'react';
 import { ColumnDataType, isComplexType, isNumericType } from '@frontend/common';
 import {
   dynamicFieldName,
-  Field,
   naExpression,
   Total,
   TotalType,
@@ -11,8 +10,8 @@ import {
 
 import { ProjectContext, ViewportContext } from '../../context';
 import { autoFixSingleExpression } from '../../services';
-import { useDSLUtils } from '../ManualEditDSL';
 import { useSafeCallback } from '../useSafeCallback';
+import { useDSLUtils } from './useDSLUtils';
 import { findFirstEmptyTotalIndex } from './utils';
 
 export const numTotals: TotalType[] = [
@@ -24,6 +23,11 @@ export const numTotals: TotalType[] = [
 ];
 export const textTotals: TotalType[] = ['count', 'min', 'max'];
 export const tableTotals: TotalType[] = ['count'];
+
+// TODO: In previous versions, total rows were 1-indexed.
+// In current implementation of the Edit Dsl library, total rows are 0-indexed.
+// In the future, we should update all frontend code to use 0-indexed total rows.
+export const indexOffset = 1;
 
 export function useTotalEditDsl() {
   const { viewGridData } = useContext(ViewportContext);
@@ -38,13 +42,13 @@ export function useTotalEditDsl() {
       const { sheet, table, parsedTable } = context;
       const { total } = parsedTable;
 
-      if (!total || total?.size === 0 || !table.totalCount) return;
+      if (!total || total?.size === 0 || !table.totals.length) return;
 
       const fieldTotals = total.getFieldTotal(fieldName);
 
       if (!fieldTotals || !fieldTotals[index]) return;
 
-      const targetTotal = table.getTotal(index);
+      const targetTotal = table.getTotal(index - indexOffset);
       targetTotal.removeField(fieldName);
       table.cleanUpTotals();
 
@@ -66,7 +70,7 @@ export function useTotalEditDsl() {
       const { sheet, table, parsedTable } = context;
       const { total } = parsedTable;
 
-      if (!total || total?.size === 0 || !table.totalCount) return;
+      if (!total || total?.size === 0 || !table.totals.length) return;
 
       const fieldTotals = total.getFieldTotal(fieldName);
 
@@ -75,7 +79,7 @@ export function useTotalEditDsl() {
       for (const [rowStr, fieldTotal] of Object.entries(fieldTotals)) {
         if (fieldTotal.type === type) {
           const row = Number(rowStr);
-          const targetTotal = table.getTotal(row);
+          const targetTotal = table.getTotal(row - indexOffset);
           targetTotal.removeField(fieldName);
         }
       }
@@ -107,21 +111,20 @@ export function useTotalEditDsl() {
         parsedSheets,
         tableName
       );
-      const newTotalField = new Field(fieldName, fixedExpression);
 
-      if (!parsedTotal || parsedTotal?.size === 0 || !table.totalCount) {
+      if (!parsedTotal || parsedTotal?.size === 0 || !table.totals.length) {
         const total = new Total();
-        total.addField(newTotalField);
-        table.addTotal(total);
+        total.addField(fieldName, fixedExpression);
+        table.totals.append(total);
       } else {
         const fieldTotals = parsedTotal.getTotalByIndex(index);
         if (fieldTotals.length === 0) {
           const total = new Total();
-          total.addField(newTotalField);
-          table.addTotal(total);
+          total.addField(fieldName, fixedExpression);
+          table.totals.append(total);
         } else {
-          const targetTotal = table.getTotal(index);
-          targetTotal.addField(newTotalField);
+          const targetTotal = table.getTotal(index - indexOffset);
+          targetTotal.addField(fieldName, fixedExpression);
         }
       }
 
@@ -148,7 +151,8 @@ export function useTotalEditDsl() {
       const { sheet, table, parsedTable } = context;
       const { total: parsedTotal } = parsedTable;
 
-      if (!parsedTotal || parsedTotal?.size === 0 || !table.totalCount) return;
+      if (!parsedTotal || parsedTotal?.size === 0 || !table.totals.length)
+        return;
 
       const fieldTotals = parsedTotal.getFieldTotal(fieldName);
 
@@ -161,8 +165,8 @@ export function useTotalEditDsl() {
         tableName
       );
 
-      const targetTotal = table.getTotal(index).getField(fieldName);
-      targetTotal.formula = fixedExpression;
+      const targetTotal = table.getTotal(index - indexOffset);
+      targetTotal.setFormula(fieldName, fixedExpression);
 
       const historyTitle = `Edit total formula for the ${tableName}[${fieldName}]`;
       updateDSL({
@@ -179,41 +183,30 @@ export function useTotalEditDsl() {
       const context = findEditContext(tableName, fieldName);
       if (!context || !context.parsedField) return;
 
-      const { parsedTable, parsedField } = context;
+      const { parsedTable } = context;
       const { total: parsedTotal } = parsedTable;
 
-      const targetFieldName = parsedField.isDynamic
-        ? dynamicFieldName
-        : fieldName;
-      const expression = getTotalExpression(tableName, targetFieldName, type);
+      const expression = getTotalExpression(tableName, fieldName, type);
 
       if (!parsedTotal || parsedTotal?.size === 0) {
-        addTotalExpression(tableName, targetFieldName, 1, expression);
+        addTotalExpression(tableName, fieldName, indexOffset, expression);
 
         return;
       }
 
-      const fieldTotal = parsedTotal.getFieldTotalTypes(targetFieldName);
+      const fieldTotal = parsedTotal.getFieldTotalTypes(fieldName);
 
       if (!fieldTotal.includes(type) || type === 'custom') {
-        const totalRowIndex = findFirstEmptyTotalIndex(
-          parsedTotal,
-          targetFieldName
-        );
+        const totalRowIndex = findFirstEmptyTotalIndex(parsedTotal, fieldName);
 
         if (!totalRowIndex) return;
 
-        addTotalExpression(
-          tableName,
-          targetFieldName,
-          totalRowIndex,
-          expression
-        );
+        addTotalExpression(tableName, fieldName, totalRowIndex, expression);
 
         return;
       }
 
-      return removeTotalByType(tableName, targetFieldName, type);
+      return removeTotalByType(tableName, fieldName, type);
     },
     [addTotalExpression, findEditContext, removeTotalByType]
   );
@@ -269,7 +262,7 @@ export function useTotalEditDsl() {
       const totalSize = parsedTotal?.size || 0;
       const fieldTotals = parsedTotal?.getFieldTotal(targetFieldName);
 
-      for (let i = 1; i <= totalSize; i++) {
+      for (let i = indexOffset; i <= totalSize; i++) {
         if (totalsToAdd.length === 0) break;
 
         if (!fieldTotals?.[i]) {
@@ -280,7 +273,7 @@ export function useTotalEditDsl() {
             totalType
           );
           const targetTotal = table.getTotal(i);
-          targetTotal.addField(new Field(fieldName, expression));
+          targetTotal.addField(fieldName, expression);
         }
       }
 
@@ -292,9 +285,8 @@ export function useTotalEditDsl() {
           totalType
         );
         const total = new Total();
-        total.addField(new Field(fieldName, expression));
-
-        table.addTotal(total);
+        total.addField(fieldName, expression);
+        table.totals.append(total);
       }
 
       const historyTitle = `Add all totals to ${tableName}[${fieldName}]`;

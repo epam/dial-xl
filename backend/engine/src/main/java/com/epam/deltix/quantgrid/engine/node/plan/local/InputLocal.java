@@ -10,6 +10,7 @@ import com.epam.deltix.quantgrid.engine.service.input.InputMetadata;
 import com.epam.deltix.quantgrid.engine.service.input.storage.InputProvider;
 import com.epam.deltix.quantgrid.engine.value.Value;
 import com.epam.deltix.quantgrid.type.ColumnType;
+import com.epam.deltix.quantgrid.type.InputColumnType;
 import lombok.Getter;
 
 import java.security.Principal;
@@ -61,8 +62,16 @@ public class InputLocal extends Plan0<Value> {
     protected Meta meta() {
         ColumnType[] types = readColumns.stream()
                 .map(metadata.columnTypes()::get)
+                .map(InputLocal::getColumnType)
                 .toArray(ColumnType[]::new);
         return new Meta(Schema.of(types));
+    }
+
+    private static ColumnType getColumnType(InputColumnType columnType) {
+        return switch (columnType) {
+            case BOOLEAN, DATE, DOUBLE -> ColumnType.DOUBLE;
+            case STRING -> ColumnType.STRING;
+        };
     }
 
     @Override
@@ -70,7 +79,7 @@ public class InputLocal extends Plan0<Value> {
         return inputProvider.readData(readColumns, metadata, principal);
     }
 
-    private static List<String> columnsToRead(LinkedHashMap<String, ColumnType> columnTypes) {
+    private static List<String> columnsToRead(LinkedHashMap<String, InputColumnType> columnTypes) {
         return columnTypes.keySet().stream()
                 .filter(key -> columnTypes.get(key) != null)
                 .toList();

@@ -4,6 +4,7 @@ import com.epam.deltix.quantgrid.engine.test.ResultCollector;
 import com.epam.deltix.quantgrid.engine.test.TestInputs;
 import com.epam.deltix.quantgrid.engine.value.Period;
 import com.epam.deltix.quantgrid.engine.value.PeriodSeries;
+import com.epam.deltix.quantgrid.parser.FieldKey;
 import com.epam.deltix.quantgrid.util.Doubles;
 import com.epam.deltix.quantgrid.util.Strings;
 import org.junit.jupiter.api.Assertions;
@@ -23,6 +24,7 @@ import static com.epam.deltix.quantgrid.engine.test.TestExecutor.executeWithoutE
 import static java.lang.Double.NEGATIVE_INFINITY;
 import static java.lang.Double.POSITIVE_INFINITY;
 import static java.lang.Math.PI;
+import static org.assertj.core.api.Assertions.assertThat;
 
 class CompilerTest {
 
@@ -210,7 +212,7 @@ class CompilerTest {
     void testFind() {
         String dsl = """
                     table A
-                       key dim [a] = RANGE(4)
+                       dim key [a] = RANGE(4)
                            key [ab] = TEXT([a] + 10)
                            [c] = [a] + 100
 
@@ -265,7 +267,7 @@ class CompilerTest {
     void testFindWithNestedKey() {
         String dsl = """
                     table A
-                       key dim [a] = RANGE(5)
+                       dim key [a] = RANGE(5)
                        key [b] = "key " & [a]
 
                     table B
@@ -441,20 +443,15 @@ class CompilerTest {
                        dim [a] = RANGE(5)
                            [b] = [a] + 10
                            [c] = [b] + 20
-                       
+                
                     table B
-                       dim [d] = PERIODSERIES(A[b], A[c], "DAY")
-                           [e] = [d][period]
-                           [f] = [d][timestamp]
-                           [g] = [d][value]
+                       dim [e], [f], [g] = PERIODSERIES(A[b], A[c], "DAY")[[period],[date],[value]]
                 """;
 
         ResultCollector data = executeWithoutErrors(dsl);
-        data.verify("B", "d", "(1900-01-10, 31.0)", "(1900-01-11, 32.0)",
-                "(1900-01-12, 33.0)", "(1900-01-13, 34.0)", "(1900-01-14, 35.0)");
 
         data.verify("B", "e", "DAY", "DAY", "DAY", "DAY", "DAY");
-        data.verify("B", "f", 11, 12, 13, 14, 15);
+        data.verify("B", "f", "1/10/1900", "1/11/1900", "1/12/1900", "1/13/1900", "1/14/1900");
         data.verify("B", "g", 31, 32, 33, 34, 35);
     }
 
@@ -465,23 +462,16 @@ class CompilerTest {
                        dim [a] = RANGE(5)
                            [b] = [a] + 10
                            [c] = [b] + 20
-                       
+                 
                     table B
                        dim [d] = RANGE(4)
-                       dim [e] = PERIODSERIES(A.FILTER([d] < $[a])[b], A.FILTER([d] < $[a])[c], "DAY")
-                           [f] = [e][period]
-                           [g] = [e][timestamp]
-                           [h] = [e][value]
-                """;
+                       dim [f], [g], [h] = PERIODSERIES(A.FILTER([d] < $[a])[b], A.FILTER([d] < $[a])[c], "DAY")[[period],[date],[value]]
+                    """;
 
         ResultCollector data = executeWithoutErrors(dsl);
-        data.verify("B", "e",
-                "(1900-01-11, 32.0)", "(1900-01-12, 33.0)", "(1900-01-13, 34.0)", "(1900-01-14, 35.0)",
-                "(1900-01-12, 33.0)", "(1900-01-13, 34.0)", "(1900-01-14, 35.0)", "(1900-01-13, 34.0)",
-                "(1900-01-14, 35.0)", "(1900-01-14, 35.0)");
-
         data.verify("B", "f", "DAY", "DAY", "DAY", "DAY", "DAY", "DAY", "DAY", "DAY", "DAY", "DAY");
-        data.verify("B", "g", 12, 13, 14, 15, 13, 14, 15, 14, 15, 15);
+        data.verify("B", "g", "1/11/1900", "1/12/1900", "1/13/1900", "1/14/1900", "1/12/1900",
+                "1/13/1900", "1/14/1900", "1/13/1900", "1/14/1900", "1/14/1900");
         data.verify("B", "h", 32, 33, 34, 35, 33, 34, 35, 34, 35, 35);
     }
 
@@ -495,25 +485,16 @@ class CompilerTest {
                        
                     table B
                        dim [d] = RANGE(4)
-                       dim [e] = PERIODSERIES(A.FILTER([d] < $[a])[b], A.FILTER([d] < $[a])[c], "DAY")
+                       dim [g], [h], [j] = PERIODSERIES(A.FILTER([d] < $[a])[b], A.FILTER([d] < $[a])[c], "DAY")[[period],[date],[value]]
                        dim [f] = A.FILTER([d] = $[a])
-                           [g] = [e][period]
-                           [h] = [e][timestamp]
-                           [j] = [e][value]
                 """;
 
         ResultCollector data = executeWithoutErrors(dsl);
-        data.verify("B", "e",
-                "(1900-01-11, 32.0)", "(1900-01-12, 33.0)", "(1900-01-13, 34.0)", "(1900-01-14, 35.0)",
-                "(1900-01-12, 33.0)", "(1900-01-13, 34.0)", "(1900-01-14, 35.0)", "(1900-01-13, 34.0)",
-                "(1900-01-14, 35.0)", "(1900-01-14, 35.0)");
 
-        data.verify("B", "g",
-                "DAY", "DAY", "DAY", "DAY", "DAY", "DAY", "DAY", "DAY", "DAY", "DAY");
-        data.verify("B", "h",
-                12, 13, 14, 15, 13, 14, 15, 14, 15, 15);
-        data.verify("B", "j",
-                32, 33, 34, 35, 33, 34, 35, 34, 35, 35);
+        data.verify("B", "g", "DAY", "DAY", "DAY", "DAY", "DAY", "DAY", "DAY", "DAY", "DAY", "DAY");
+        data.verify("B", "h", "1/11/1900", "1/12/1900", "1/13/1900", "1/14/1900", "1/12/1900",
+                "1/13/1900", "1/14/1900", "1/13/1900", "1/14/1900", "1/14/1900");
+        data.verify("B", "j", 32, 33, 34, 35, 33, 34, 35, 34, 35, 35);
     }
 
     @Test
@@ -919,6 +900,195 @@ class CompilerTest {
     }
 
     @Test
+    void testPivotWithPercentile() {
+        String dsl = """
+                !manual()
+                table A
+                  [a] = "PERCENTILE"
+                  [b] = 0.5
+                  [c]
+                  [d]
+                override
+                [c],[d]
+                1,1
+                2,3
+                1,2
+                4,6
+                3,1
+                2,4
+
+                table B
+                  dim [a], [*] = PIVOT(A[a], A[c], A[[d],[b]], "PERCENTILE")
+                  [p1] = [1]
+                  [p2] = [2]
+                  [p3] = [3]
+                  [p4] = [4]
+                """;
+
+        ResultCollector data = executeWithoutErrors(dsl);
+
+        data.verify("""
+                Table: A
+                +------------+-----+---+---+
+                |          a |   b | c | d |
+                +------------+-----+---+---+
+                | PERCENTILE | 0.5 | 1 | 1 |
+                | PERCENTILE | 0.5 | 2 | 3 |
+                | PERCENTILE | 0.5 | 1 | 2 |
+                | PERCENTILE | 0.5 | 4 | 6 |
+                | PERCENTILE | 0.5 | 3 | 1 |
+                | PERCENTILE | 0.5 | 2 | 4 |
+                +------------+-----+---+---+
+                
+                Table: B
+                +------------+---+-----+-----+----+----+
+                |          a | * |  p1 |  p2 | p3 | p4 |
+                +------------+---+-----+-----+----+----+
+                | PERCENTILE | 1 | 1.5 | 3.5 |  1 |  6 |
+                |          - | 2 |   - |   - |  - |  - |
+                |          - | 3 |   - |   - |  - |  - |
+                |          - | 4 |   - |   - |  - |  - |
+                +------------+---+-----+-----+----+----+
+                """);
+    }
+
+    @Test
+    void testPercentile() {
+        String dsl = """
+                !manual()
+                table A
+                  [a]
+                override
+                [a]
+                1
+                2
+                4
+                
+                3
+            
+                !manual()
+                table B
+                  [b]
+                  [c] = A[a].PERCENTILE([b])
+                  [d] = A.FILTER(ROW() <= $[a])[a].PERCENTILE([b])
+                override
+                [b]
+                
+                -0.5
+                0
+                0.5
+                1
+                1.5
+                """;
+
+        ResultCollector data = executeWithoutErrors(dsl);
+        data.verify("B", "c", Doubles.ERROR_NA, Doubles.ERROR_NA, 1, 2.5, 4, Doubles.ERROR_NA);
+        data.verify("B", "d", Doubles.ERROR_NA, Doubles.ERROR_NA, 3, 4, Doubles.ERROR_NA, Doubles.ERROR_NA);
+    }
+
+    @Test
+    void testPercentileExc() {
+        String dsl = """
+                !manual()
+                table A
+                  [a]
+                override
+                [a]
+                1
+                2
+                4
+                
+                3
+            
+                !manual()
+                table B
+                  [b]
+                  [c] = A[a].PERCENTILE_EXC([b])
+                  [d] = A.FILTER(ROW() <= $[a])[a].PERCENTILE_EXC([b])
+                override
+                [b]
+                
+                -0.5
+                0
+                0.5
+                1
+                1.5
+                """;
+
+        ResultCollector data = executeWithoutErrors(dsl);
+        data.verify("B", "c", Doubles.ERROR_NA, Doubles.ERROR_NA, Doubles.ERROR_NA, 2.5, Doubles.ERROR_NA, Doubles.ERROR_NA);
+        data.verify("B", "d", Doubles.ERROR_NA, Doubles.ERROR_NA, Doubles.ERROR_NA, 4, Doubles.ERROR_NA, Doubles.ERROR_NA);
+    }
+
+    @Test
+    void testQuartile() {
+        String dsl = """
+                !manual()
+                table A
+                  [a]
+                override
+                [a]
+                1
+                2
+                4
+                
+                3
+            
+                !manual()
+                table B
+                  [b]
+                  [c] = A[a].QUARTILE([b])
+                  [d] = A.FILTER(ROW() <= $[a])[a].QUARTILE([b])
+                override
+                [b]
+                
+                -2
+                0
+                2
+                4
+                6
+                """;
+
+        ResultCollector data = executeWithoutErrors(dsl);
+        data.verify("B", "c", Doubles.ERROR_NA, Doubles.ERROR_NA, 1, 2.5, 4, Doubles.ERROR_NA);
+        data.verify("B", "d", Doubles.ERROR_NA, Doubles.ERROR_NA, 3, 4, Doubles.ERROR_NA, Doubles.ERROR_NA);
+    }
+
+    @Test
+    void testQuartileExc() {
+        String dsl = """
+                !manual()
+                table A
+                  [a]
+                override
+                [a]
+                1
+                2
+                4
+                
+                3
+            
+                !manual()
+                table B
+                  [b]
+                  [c] = A[a].QUARTILE_EXC([b])
+                  [d] = A.FILTER(ROW() <= $[a])[a].QUARTILE_EXC([b])
+                override
+                [b]
+                
+                -2
+                0
+                2
+                4
+                6
+                """;
+
+        ResultCollector data = executeWithoutErrors(dsl);
+        data.verify("B", "c", Doubles.ERROR_NA, Doubles.ERROR_NA, Doubles.ERROR_NA, 2.5, Doubles.ERROR_NA, Doubles.ERROR_NA);
+        data.verify("B", "d", Doubles.ERROR_NA, Doubles.ERROR_NA, Doubles.ERROR_NA, 4, Doubles.ERROR_NA, Doubles.ERROR_NA);
+    }
+
+    @Test
     void testDereferenceFlatTable() {
         String dsl = """
                     table A
@@ -985,7 +1155,7 @@ class CompilerTest {
     void testDereferenceNestedTable() {
         String dsl = """
                     table A
-                       key dim [a] = RANGE(3)
+                       dim key [a] = RANGE(3)
                            [b] = A.FILTER($[a] <= [a])
                            
                     table B
@@ -993,8 +1163,6 @@ class CompilerTest {
                        dim [d] = [c][b]
                            [e] = [d][a]
                 """;
-
-        executeWithoutErrors(dsl);
 
         ResultCollector data = executeWithoutErrors(dsl);
         data.verify("B", "e", 1, 1, 2, 1, 2, 3);
@@ -1004,15 +1172,13 @@ class CompilerTest {
     void testDereferenceNestedTableAfterFind() {
         String dsl = """
                     table A
-                       key dim [a] = RANGE(3)
+                       dim key [a] = RANGE(3)
                            [b] = A.FILTER($[a] <= [a])
                            
                     table B
                        dim [c] = A.FIND(2)[b]
                            [d] = [c][a]
                 """;
-
-        executeWithoutErrors(dsl);
 
         ResultCollector data = executeWithoutErrors(dsl);
         data.verify("B", "d", 1, 2);
@@ -1029,8 +1195,6 @@ class CompilerTest {
                        dim [x] = A.FIND(0)[b]
                 """;
 
-        executeWithoutErrors(dsl);
-
         ResultCollector data = executeWithoutErrors(dsl);
         data.verify("B", "x", 1, 2, 3);
     }
@@ -1039,7 +1203,7 @@ class CompilerTest {
     void testDereferenceNestedTableWithinFormula() {
         String dsl = """
                     table A
-                       key dim [a] = RANGE(3)
+                       dim key [a] = RANGE(3)
                            [b] = A.FILTER($[a] <= [a])
                            [c] = A.FILTER($[b].COUNT())
                 """;
@@ -1065,10 +1229,7 @@ class CompilerTest {
     void testInputSingleDim() {
         String dsl = """
                     table A
-                       dim [a]  = INPUT("%s")
-                           [f1]  = [a][DATA_DOMAIN.id] # dereference !nested field from INPUT
-                           [f3]  = [a][INDICATOR.id]
-                           [f7]  = [a][OBS_VALUE]
+                       dim [f1], [f3], [f7]  = INPUT("%s")[[DATA_DOMAIN.id], [INDICATOR.id], [OBS_VALUE]]
                            [b]  = [f7] + 1
                   
                     table B
@@ -1084,9 +1245,7 @@ class CompilerTest {
     void testInputWithQuotedHeaders() {
         String dsl = """
                     table A
-                      dim [source] = INPUT("country-stats-quoted.csv")
-                          [country] = [source][country]
-                          [date] = [source][date]
+                      dim [country], !format("general") [date] = INPUT("country-stats-quoted.csv")[[country], [date]]
                 """;
 
         ResultCollector data = executeWithoutErrors(dsl);
@@ -1128,11 +1287,7 @@ class CompilerTest {
     void testInputWithFilterMultiDim() {
         String dsl = """
                     table A
-                       dim [a]   = INPUT("%s").FILTER($[OBS_VALUE] > 100) # dereference !nested column [OBS_VALUE]
-                           [f1]  = [a][DATA_DOMAIN.id]
-                           [f3]  = [a][INDICATOR.id]
-                           [f6]  = [a][TIME_PERIOD]
-                           [f7]  = [a][OBS_VALUE]
+                       dim [f1], [f3], [f6], [f7] = INPUT("%s").FILTER($[OBS_VALUE] > 100)[[DATA_DOMAIN.id], [INDICATOR.id], [TIME_PERIOD], [OBS_VALUE]]
                            [bin] = [f7] + 1
                        dim [b]   = RANGE(2)
                            [x]   = [b] + [bin]
@@ -1158,13 +1313,13 @@ class CompilerTest {
     void testInputWithEmptyAndAnonymousColumns() {
         String dsl = """
                 table A
-                  dim [source] = INPUT("%s")
+                  dim [Column2], [Column2_2], [b], [c], [d], [Column8] = INPUT("%1$s")[[Column2], [Column2_2], [b], [c], [d], [Column8]]
                 
                 table B
-                  dim [fields] = A[source].FIELDS()
+                  dim [fields] = INPUT("%1$s").FIELDS()
                 
                 table C
-                  dim [source] = A[source]
+                  dim [source] = A
                   [Column2] = [source][Column2]
                   [Column2_2] = [source][Column2_2]
                   [Column8] = [source][Column8]
@@ -1188,9 +1343,7 @@ class CompilerTest {
     void testSimplePeriodSeries() {
         String dsl = """
                 table A
-                    dim [a]     = INPUT("%s")
-                        [date]  = [a][date]
-                        [value] = [a][value]
+                    dim [date], [value] = INPUT("%s")[[date], [value]]
 
                 table B
                     [a] = PERIODSERIES(A[date], A[value], "DAY")
@@ -1206,61 +1359,35 @@ class CompilerTest {
     }
 
     @Test
-    void testPivotDim() {
-        String dsl = """
-                    table A
-                       dim [row]   = INPUT("%s")
-                           [indicator]  = [row][indicator]
-                           [value]  = [row][value]
-
-                    table B
-                       dim [*] = A.PIVOT($[indicator], $[value].COUNT())
-                """.formatted(TestInputs.COUNTRY_INDICATORS_CSV);
-
-        ResultCollector collector = executeWithErrors(dsl);
-        collector.verifyError("B", "*", "Pivot table can't be dimension or used in formulas");
-    }
-
-    @Test
     void testPivotInFormula() {
         String dsl = """
                     table A
-                       dim [row]   = INPUT("%s")
-                           [indicator]  = [row][indicator]
-                           [value]  = [row][value]
+                       dim [country], [indicator], [value] = INPUT("%s")[[country], [indicator], [value]]
 
                     table B
-                           [*] = A.PIVOT($[indicator], $[value].COUNT()).FILTER($[IR] > 5)
+                       dim [country], [*] = PIVOT(A[country], A[indicator], A[value], "COUNT").FILTER($[IR] > 5)
                 """.formatted(TestInputs.COUNTRY_INDICATORS_CSV);
 
         ResultCollector collector = executeWithErrors(dsl);
-        collector.verifyError("B", "*", "Pivot table can't be dimension or used in formulas");
+        collector.verifyError("B", "*", "The table does not contain a column: IR");
     }
 
     @Test
     void testPivot() {
         String dsl = """
                     table A
-                       dim [a]   = INPUT("%s")
-                           [country]  = [a][country]
-                           [date]  = [a][date]
-                           [indicator]  = [a][indicator]
-                           [value]  = [a][value]
-
+                       dim [country], !format("general") [date], [indicator], [value] = INPUT("%s")[[country], [date], [indicator], [value]]
+                
                     table B
-                       dim [a] = A.UNIQUEBY($[country], $[date])
-                           [country] = [a][country]
-                           [date] = [a][date]
-                           [row] = A.FILTER([country] = $[country] AND [date] = $[date])
-                           [*]   = [row].PIVOT($[indicator], B.COUNT() + $[value].COUNT())
+                       dim [country], [date], [*] = PIVOT(A[[country], [date]], A[indicator], A[value], "COUNT")[[country], [date], [*]]
                            [GDP Percent Change] = [GDP] + 1
-                           [IR2] = [*][IR] + 1
+                           [IR2] = [IR] + 1
                            [e] = [MISSING] + 1
 
                     table C
                         dim [a] = A.UNIQUEBY($[country])
                             [country] = [a][country]
-                            [b] = B.FILTER([country] = $[country] AND $[GDP] = 7)[IR]
+                            [b] = B.FILTER([country] = $[country] AND $[GDP] = 1)[IR]
                             [c] = [b].COUNT()
                 """.formatted(TestInputs.COUNTRY_INDICATORS_CSV);
 
@@ -1271,11 +1398,11 @@ class CompilerTest {
         data.verify("A", "date",
                 44562, 44562, 44562, 44197, 44197, 44197, 44562, 44562, 44562, 44197, 44197, 44197);
 
-        data.verify("B", "country", "USA", "China", "EU", "USA", "China", "EU");
-        data.verify("B", "date", 44562, 44562, 44562, 44197, 44197, 44197);
+        data.verify("B", "country", "China", "China", "EU", "EU", "USA", "USA");
+        data.verify("B", "date", 44197, 44562, 44197, 44562, 44197, 44562);
 
-        data.verify("B", "GDP Percent Change", 8, 8, 8, 8, 8, 8);
-        data.verify("B", "IR2", 8, 8, 8, 8, 8, 8);
+        data.verify("B", "GDP Percent Change", 2, 2, 2, 2, 2, 2);
+        data.verify("B", "IR2", 2, 2, 2, 2, 2, 2);
         data.verifyError("B", "e", "The column 'MISSING' does not exist in the pivot table.");
 
         data.verify("C", "c", 2, 2, 2);
@@ -1285,20 +1412,13 @@ class CompilerTest {
     void testPivotPromoted() {
         String dsl = """
                     table A
-                       dim [a]   = INPUT("%s")
-                           [country]  = [a][country]
-                           [date]  = [a][date]
-                           [indicator]  = [a][indicator]
-                           [value]  = [a][value]
-
+                       dim [country], !format("general") [date], [indicator], [value] = INPUT("%s")[[country], [date], [indicator], [value]]
+                
                     table B
                        dim [n] = RANGE(2)
-                       dim [a] = A.UNIQUEBY($[country], $[date])
-                           [country] = [a][country]
-                           [date] = [a][date]
-                           [*] = A.FILTER([country] = $[country] AND [date] = $[date]).PIVOT($[indicator], COUNT($[value]))
+                       dim [country], [date], [*] = PIVOT(A[[country], [date]], A[indicator], A[value], "COUNT")
                            [GDP Percent Change] = [GDP] + 1
-                           [IR2] = [*][IR] + 1
+                           [IR2] = [IR] + 1
                 """.formatted(TestInputs.COUNTRY_INDICATORS_CSV);
 
         ResultCollector data = executeWithoutErrors(dsl);
@@ -1308,10 +1428,10 @@ class CompilerTest {
         data.verify("A", "date",
                 44562, 44562, 44562, 44197, 44197, 44197, 44562, 44562, 44562, 44197, 44197, 44197);
 
-        data.verify("B", "country", "USA", "China", "EU", "USA", "China", "EU",
-                "USA", "China", "EU", "USA", "China", "EU");
-        data.verify("B", "date", 44562, 44562, 44562, 44197, 44197, 44197,
-                44562, 44562, 44562, 44197, 44197, 44197);
+        data.verify("B", "country", "China", "China", "EU", "EU", "USA", "USA",
+                "China", "China", "EU", "EU", "USA", "USA");
+        data.verify("B", "date", 44197, 44562, 44197, 44562, 44197, 44562,
+                44197, 44562, 44197, 44562, 44197, 44562);
 
         data.verify("B", "GDP Percent Change", 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2);
         data.verify("B", "IR2", 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2);
@@ -1321,17 +1441,11 @@ class CompilerTest {
     void testPivotWithPeriodSeries() {
         String dsl = """
                     table A
-                       dim [a]         = INPUT("%s")
-                           [country]   = [a][country]
-                           [date]      = [a][date]
-                           [indicator] = [a][indicator]
-                           [value]     = [a][value]
-
+                       dim [country], [date], [indicator], [value] = INPUT("%s")[[country], [date], [indicator], [value]]
+                           [period] = "YEAR"
+                
                     table B
-                       dim [a]       = A.UNIQUEBY($[country])
-                           [country] = [a][country]
-                           [row]     = A.FILTER([country] = $[country])
-                           [*]       = [row].PIVOT($[indicator], PERIODSERIES($[date], $[value], "YEAR"))
+                       dim [country], [*] = PIVOT(A[country], A[indicator], A[[date], [value], [period]], "PERIODSERIES")[[country],[*]]
                            [GDP_PS]  = [GDP]
                            [IR_PS]   = [IR]
                            [e]       = [MISSING]
@@ -1339,106 +1453,14 @@ class CompilerTest {
 
         ResultCollector data = executeWithErrors(dsl);
         data.verify("B", "GDP_PS",
-                new PeriodSeries(Period.YEAR, 121, 21060, 23315),
                 new PeriodSeries(Period.YEAR, 121, 14688, 17734),
-                new PeriodSeries(Period.YEAR, 121, 13085, 14563));
+                new PeriodSeries(Period.YEAR, 121, 13085, 14563),
+                new PeriodSeries(Period.YEAR, 121, 21060, 23315));
         data.verify("B", "IR_PS",
-                new PeriodSeries(Period.YEAR, 121, 5, 4.9),
                 new PeriodSeries(Period.YEAR, 121, 0.1, 0.2),
-                new PeriodSeries(Period.YEAR, 121, 7, 6.1));
+                new PeriodSeries(Period.YEAR, 121, 7, 6.1),
+                new PeriodSeries(Period.YEAR, 121, 5, 4.9));
         data.verifyError("B", "e", "The column 'MISSING' does not exist in the pivot table.");
-    }
-
-    @Test
-    void testPivotWithErrors() {
-        String dsl = """
-                    table A
-                       dim [a]         = INPUT("%s")
-                           [country]   = [a][country]
-                           [date]      = [a][date]
-                           [indicator] = [a][indicator]
-                           [value]     = [a][value]
-
-                    table B
-                       dim [a]                  = A.UNIQUEBY($[country], $[date])
-                           [country]            = [a][country]
-                           [date]               = [a][date]
-                           [row]                = A.FILTER([country] = $[country] AND [date] = $[date])
-                           [*]                  = [row].PIVOT($[indicator], COUNT($[value]))
-                           [GDP Percent Change] = [GDP] + 1
-                           [e]                  = [MISSING] + 1
-                """.formatted(TestInputs.COUNTRY_INDICATORS_CSV);
-
-        ResultCollector data = executeWithErrors(dsl);
-        data.verify("B", "GDP Percent Change", 2, 2, 2, 2, 2, 2);
-        data.verifyError("B", "e", "The column 'MISSING' does not exist in the pivot table.");
-    }
-
-    @Test
-    void testSimplePivot() {
-        String dsl = """
-                    table A
-                       [*] = INPUT("%s").PIVOT($[indicator], COUNT($[value]))
-                       [IR2] = [IR] + 1
-                       [GDP Percent Change] = [GDP] + 1
-                       [e] = [MISSING] + 1
-                """.formatted(TestInputs.COUNTRY_INDICATORS_CSV);
-
-        ResultCollector data = executeWithErrors(dsl);
-        data.verify("A", "IR2", 7);
-        data.verify("A", "GDP Percent Change", 7);
-        data.verifyError("A", "e", "The column 'MISSING' does not exist in the pivot table.");
-    }
-
-    @Test
-    void testSimplePivotPromoted() {
-        String dsl = """
-                    table A
-                       dim [x] = RANGE(2)
-                       [*] = INPUT("%s").PIVOT($[indicator], COUNT($[value]))
-                       [IR2] = [IR] + 1
-                       [GDP Percent Change] = [GDP] + 1
-                       [e] = [MISSING] + 1
-                """.formatted(TestInputs.COUNTRY_INDICATORS_CSV);
-
-        ResultCollector data = executeWithErrors(dsl);
-        data.verify("A", "IR2", 7, 7);
-        data.verify("A", "GDP Percent Change", 7, 7);
-        data.verifyError("A", "e", "The column 'MISSING' does not exist in the pivot table.");
-    }
-
-    @Test
-    void testSimplePivotWithError() {
-        String dsl = """
-                    table A
-                      [*]                   = INPUT("%s").PIVOT($[indicator], COUNT($[value]))
-                      [GDP Percent Change]  = [GDP] + 1;
-                      [e]                   = [MISSING] + 1;
-                """.formatted(TestInputs.COUNTRY_INDICATORS_CSV);
-
-        ResultCollector data = executeWithErrors(dsl);
-        data.verify("A", "GDP Percent Change", 7);
-        data.verifyError("A", "e", "The column 'MISSING' does not exist in the pivot table.");
-    }
-
-    @Test
-    void testSimplePivotWithRefTable() {
-        String dsl = """
-                    table A
-                        dim [a] = INPUT("%s")
-                            [indicator] = [a][indicator]
-                            [value] = [a][value]
-
-                    table B
-                       [*] = A.PIVOT($[indicator], COUNT($[value]))
-                       [IR2] = [IR] + 1
-                       [GDP Percent Change] = [GDP] + 1;
-                """.formatted(TestInputs.COUNTRY_INDICATORS_CSV);
-
-        ResultCollector data = executeWithoutErrors(dsl);
-
-        data.verify("B", "IR2", 6 + 1);
-        data.verify("B", "GDP Percent Change", 6 + 1);
     }
 
     @Test
@@ -1520,7 +1542,7 @@ class CompilerTest {
 
         ResultCollector data = executeWithoutErrors(dsl);
         data.verify("A", "a", "USA", "UK");
-        data.verify("A", "b", "5.0", "7.0");
+        data.verify("A", "b", 5, 7);
     }
 
     @Test
@@ -1548,7 +1570,7 @@ class CompilerTest {
     void testOverrideWithMultipleKeys() {
         String dsl = """
                 table A
-                   key dim [a] = RANGE(5)
+                   dim key [a] = RANGE(5)
                    key [b] = [a] + 3
                    [c] = 7
                    [d] = 9
@@ -1637,7 +1659,7 @@ class CompilerTest {
 
         ResultCollector collector = executeWithoutErrors(dsl);
         collector.verify("A", "a", 0, 1, 2, Doubles.ERROR_NA);
-        collector.verify("A", "b", "0.0", "b", "2.0", "c");
+        collector.verify("A", "b", "0", "b", "2", "c");
     }
 
     @Test
@@ -1678,8 +1700,7 @@ class CompilerTest {
     void testNaOverrides2() {
         String dsl = """            
                 table A
-                   dim [source] = INPUT("%s")
-                       [CPI] = [source][DATA_DOMAIN.id]
+                   dim [CPI] = INPUT("%s")[DATA_DOMAIN.id]
                 override
                 row, [CPI]
                 1, NA
@@ -1695,6 +1716,7 @@ class CompilerTest {
         String dsl = """
                 !manual()
                 table A
+                  [key] = 1
                   [country] = NA
                   [population] = NA
                 override
@@ -1705,13 +1727,11 @@ class CompilerTest {
                 "USA", 40
                                 
                 table B
-                   [*] = A.PIVOT($[country], SUM($[population]))
-                   [Germany] = 100
+                  dim [key], [*] = PIVOT(A[key], A[country], A[population], "SUM")
+                      [Germany] = 100
                    
                 table C
-                   dim [row] = B.UNPIVOT("country", "population")
-                       [country] = [row][country]
-                       [population] = [row][population]
+                   dim [key], [country], [population] = UNPIVOT(B, {"key"})[[key], [name], [value]]
                 """;
 
         ResultCollector collector = executeWithoutErrors(dsl);
@@ -1721,10 +1741,11 @@ class CompilerTest {
     }
 
     @Test
-    void testUnpivotWithSimplePivotAndCondition() {
+    void testUnpivotWithSimplePivotAndExcludeList() {
         String dsl = """
                 !manual()
                 table A
+                  [key] = "1"
                   [country] = NA
                   [population] = NA
                 override
@@ -1735,15 +1756,13 @@ class CompilerTest {
                 "USA", 40
                                 
                 table B
-                   [*] = A.PIVOT($[country], SUM($[population]))
+                   dim [key], [*] = PIVOT(A[key], A[country], A[population], "SUM")
                    [Germany] = 100
                    [Italy] = 200
                    [bs] = "BS"
                    
                 table C
-                   dim [row] = B.UNPIVOT("country", "population", $ <> "Spain" AND $ <> "bs")
-                       [country] = [row][country]
-                       [population] = [row][population]
+                   dim [country], [population] = UNPIVOT(B, {}, {}, {"Spain", "bs", "key"})[[name],[value]]
                 """;
 
         ResultCollector collector = executeWithoutErrors(dsl);
@@ -1757,6 +1776,7 @@ class CompilerTest {
         String dsl = """
                 !manual()
                 table A
+                  [key] = 1
                   [country] = NA
                   [population] = NA
                 override
@@ -1768,13 +1788,11 @@ class CompilerTest {
                                 
                 table B
                    dim [ignore] = RANGE(1)
-                       [*] = A.PIVOT($[country], SUM($[population]))
+                   dim [key], [*] = PIVOT(A[key], A[country], A[population], "SUM")
                        [Germany] = 100
                    
                 table C
-                   dim [row] = B.UNPIVOT("country", "population", $ <> "ignore")
-                       [country] = [row][country]
-                       [population] = [row][population]
+                   dim [country], [population] = UNPIVOT(B, {}, {"USA", "UK", "Spain", "Germany", "UK"})[[name],[value]]
                 """;
 
         ResultCollector collector = executeWithoutErrors(dsl);
@@ -1784,7 +1802,7 @@ class CompilerTest {
     }
 
     @Test
-    void testUnpivotWithNestedPivotAndCondition() {
+    void testUnpivotWithNestedPivot() {
         String dsl = """
                 !manual()
                 table A
@@ -1800,42 +1818,30 @@ class CompilerTest {
                 "USA", "GDP", 50
                                 
                 table B
-                   dim [country] = UNIQUE(A[country])
-                       [*] = A.FILTER([country] = $[country]).PIVOT($[indicator], SUM($[population]))
+                   dim [country], [*]  = PIVOT(A[country], A[indicator], A[population], "SUM")
                        [ABC] = [IR] + 100
                    
                 table C
-                   dim [row] = B.UNPIVOT("indicator", "value", $ <> "country")
-                       [country] = [row][country]
-                       [indicator] = [row][indicator]
-                       [value] = [row][value]
+                   dim [country], [indicator], [value] = UNPIVOT(B, {"country"})[[country], [name], [value]]
                 """;
 
         ResultCollector collector = executeWithoutErrors(dsl);
 
         collector.verify("C", "country",
-                "USA", "USA", "USA", "UK", "UK", "UK", "Spain", "Spain", "Spain");
+                "Spain", "Spain", "Spain", "UK", "UK", "UK", "USA", "USA", "USA");
 
         collector.verify("C", "indicator", "ABC", "GDP", "IR", "ABC", "GDP", "IR", "ABC", "GDP", "IR");
-        collector.verify("C", "value", 110, 90, 10, 100, 20, Doubles.EMPTY, 130, Doubles.EMPTY, 30);
+        collector.verify("C", "value", 130, Doubles.EMPTY, 30, 100, 20, Doubles.EMPTY, 110, 90, 10);
     }
 
     @Test
     void testUnpivotWithoutPivot() {
         String dsl = """
                     table A
-                       dim [row]     = INPUT("%s")
-                           [country] = [row][country]
-                           [date]    = [row][date]
-                           [GDP]     = [row][GDP]
-                           [IR]      = [row][IR]
-
+                       dim [country], !format("general") [date], [GDP], [IR] = INPUT("%s")[[country], [date], [GDP], [IR]]
+                
                     table B
-                       dim [row]       = A.UNPIVOT("indicator", "value", $ = "GDP" OR  $ = "IR")
-                           [country]   = [row][country]
-                           [date]      = [row][date]
-                           [indicator] = [row][indicator]
-                           [value]     = [row][value]
+                       dim [country], [date], [indicator], [value] = UNPIVOT(A, {"country", "date"}, {"GDP", "IR"})[[country], [date], [name], [value]]
                 """.formatted(TestInputs.COUNTRY_STATS_CSV);
 
         ResultCollector data = executeWithoutErrors(dsl);
@@ -1854,18 +1860,10 @@ class CompilerTest {
     void testUnpivotWithFilter() {
         String dsl = """
                     table A
-                       dim [row]     = INPUT("%s")
-                           [country] = [row][country]
-                           [date]    = [row][date]
-                           [GDP]     = [row][GDP]
-                           [IR]      = [row][IR]
+                       dim [country], !format("general") [date], [GDP], [IR] = INPUT("%s")[[country], [date], [GDP], [IR]]
 
                     table B
-                       dim [row]       = A.FILTER(1).UNPIVOT("indicator", "value", $ = "GDP" OR  $ = "IR").FILTER($[value] > 0)
-                           [country]   = [row][country]
-                           [date]      = [row][date]
-                           [indicator] = [row][indicator]
-                           [value]     = [row][value]
+                       dim [country], [date], [indicator], [value] = A.FILTER(1).UNPIVOT({"country", "date"}).FILTER($[value] > 0)[[country], [date], [name], [value]]
                 """.formatted(TestInputs.COUNTRY_STATS_CSV);
 
         ResultCollector data = executeWithoutErrors(dsl);
@@ -1880,20 +1878,12 @@ class CompilerTest {
     @Test
     void testUnpivotWithCurrent() {
         String dsl = """
-                    table A
-                       dim [row]     = INPUT("%s")
-                           [country] = [row][country]
-                           [date]    = [row][date]
-                           [GDP]     = [row][GDP]
-                           [IR]      = [row][IR]
-
-                    table B
-                       dim [x]         = RANGE(2)
-                       dim [row]       = A.FILTER([x] = 1).UNPIVOT("indicator", "value", $ = "GDP" OR  $ = "IR")
-                           [country]   = [row][country]
-                           [date]      = [row][date]
-                           [indicator] = [row][indicator]
-                           [value]     = [row][value]
+                  table A
+                       dim [country], !format("general") [date], [GDP], [IR] = INPUT("%s")[[country], [date], [GDP], [IR]]
+                
+                  table B
+                     dim [x]         = RANGE(2)
+                     dim [country], [date], [indicator], [value] = A.FILTER([x] = 1).UNPIVOT({"country", "date"})[[country], [date], [name], [value]]
                 """.formatted(TestInputs.COUNTRY_STATS_CSV);
 
         ResultCollector data = executeWithoutErrors(dsl);
@@ -1955,7 +1945,9 @@ class CompilerTest {
                     [day] = 5 * ([source] - 11)
                     [month] = [source] - 11
                     [year] = 2020
+                    !format("general")
                     [date] = DATE([year], [month], [day])
+                    !format("general")
                     [date2] = DATE(2020, [month], [day])
                     [invalidDate] = DATE([year], [month])
                 """;
@@ -1983,13 +1975,10 @@ class CompilerTest {
     void testDateTimePartFunctions() {
         String dsl = """
                     table A
-                       dim [row]          = INPUT("%s")
-                           [date]         = [row][date]
+                       dim [date]          = INPUT("%s")[date]
                            [text]         = "44587"
                            [year]         = YEAR([date])
-                           [invalidYear]  = YEAR([text])
                            [month]        = MONTH([date])
-                           [invalidMonth] = MONTH([text])
                            [day]          = DAY([date])
                            [invalidDay]   = DAY()
                            [hour]         = HOUR([date])
@@ -2007,10 +1996,6 @@ class CompilerTest {
         data.verify("A", "minute", 37, 5, 40, 59, 0, 59);
         data.verify("A", "second", 28, 57, 3, 0, 59, 1);
 
-        Assertions.assertEquals("Invalid argument \"date\" for function YEAR: expected a date, but got a text.",
-                data.getError("A", "invalidYear"));
-        Assertions.assertEquals("Invalid argument \"date\" for function MONTH: expected a date, but got a text.",
-                data.getError("A", "invalidMonth"));
         Assertions.assertEquals("Function DAY expects 1 argument - \"date\", but 0 were provided",
                 data.getError("A", "invalidDay"));
         Assertions.assertEquals("Function HOUR expects 1 argument - \"date\", but 3 were provided",
@@ -2023,6 +2008,7 @@ class CompilerTest {
                 table A
                     dim [source] = RANGE(5)
                         [a] = [source] - 1
+                        !format("number", 0, ",")
                         [b] = DATE(2020, 1, [a])
                         [c] = "AND"
                         [d] = 2.7
@@ -2038,10 +2024,10 @@ class CompilerTest {
                 """;
 
         ResultCollector data = executeWithErrors(dsl);
-        data.verify("A", "concat", Strings.ERROR_NA, "1 43831.0AND2.7 FALSE", "2 43832.0AND2.7 FALSE",
-                "3 43833.0AND2.7 TRUE", "4 43834.0AND2.7 TRUE");
-        data.verify("A", "concatenate", Strings.ERROR_NA, "1 43831.0AND2.7 FALSE", "2 43832.0AND2.7 FALSE",
-                "3 43833.0AND2.7 TRUE", "4 43834.0AND2.7 TRUE");
+        data.verify("A", "concat", Strings.ERROR_NA, "1 43,831AND2.7 FALSE", "2 43,832AND2.7 FALSE",
+                "3 43,833AND2.7 TRUE", "4 43,834AND2.7 TRUE");
+        data.verify("A", "concatenate", Strings.ERROR_NA, "1 43,831AND2.7 FALSE", "2 43,832AND2.7 FALSE",
+                "3 43,833AND2.7 TRUE", "4 43,834AND2.7 TRUE");
         data.verify("A", "concat2", "0", "1", "2", "3", "4");
         data.verify("A", "operator", "0AND", "1AND", "2AND", "3AND", "4AND");
 
@@ -2054,21 +2040,23 @@ class CompilerTest {
     void testText() {
         String dsl = """
                     table A
-                       dim [row]          = INPUT("%s")
+                       !format("date", "M/d/yyyy hh:mm:ss a")
+                       dim [date]          = INPUT("%s")[date]
                            [rn]           = ROW()
                            [const]        = 3
                            [bool]         = [rn] > [const]
-                           [date]         = [row][date]
                            [text1]         = TEXT(3.5)
                            [text2]         = TEXT([rn])
-                           [text3]         = TEXT([date], "yyyy-MM-dd")
-                           [text4]         = TEXT([date], "hh:mm:ss a")
+                           !format("date", "yyyy-MM-dd")
+                           [text3]         = [date]
+                           !format("date", "hh:mm:ss a")
+                           [text4]         = [date]
                            [text5]         = TEXT([date])
                            [text6]         = TEXT([bool])
-                           [textFormatted] = TEXT([const], "yyyy-MM-dd")
+                           !format("date", "yyyy-MM-dd")
+                           [textFormatted] = [const]
                            [textInvalid2]  = TEXT()
-                           [textInvalid3]  = TEXT([rn], [bool])
-                           
+                
                 """.formatted(TestInputs.DATE_TIME_CSV);
 
         ResultCollector data = executeWithErrors(dsl);
@@ -2085,30 +2073,31 @@ class CompilerTest {
                 "1900-01-02", "1900-01-02");
 
         Assertions.assertEquals(
-                "Function TEXT expects from 1 to 2 arguments - \"value\" and \"format\" (optional), but 0 were provided",
+                "Function TEXT expects 1 argument - \"value\", but 0 were provided",
                 data.getError("A", "textInvalid2"));
-        Assertions.assertEquals("Invalid argument \"format\" for function TEXT: constant text is expected, like \"Example\"",
-                data.getError("A", "textInvalid3"));
     }
 
     @Test
     void testValue() {
         String dsl = """
+                !manual()
                 table A
-                    dim [a] = RANGE(5)
-                        [b] = TEXT([a])
-                        [c] = CONCAT([b], "text")
-                        [d] = VALUE([a])
-                        [e] = VALUE([b])
-                        [f] = VALUE([c])
+                  [a]
+                  [b] = VALUE([a])
+                override
+                [a]
+                
+                1/0
+                -1
+                5
+                "10.2B"
+                "12,345,678,912.34"
+                1e-5
                 """;
 
         ResultCollector collector = executeWithErrors(dsl);
 
-        collector.verify("A", "d", 1, 2, 3, 4, 5);
-        collector.verify("A", "e", 1, 2, 3, 4, 5);
-        collector.verify("A", "f", Doubles.ERROR_NA, Doubles.ERROR_NA, Doubles.ERROR_NA,
-                Doubles.ERROR_NA, Doubles.ERROR_NA);
+        collector.verify("A", "b", Doubles.EMPTY, Doubles.ERROR_NA, -1, 5, 10.2e9, 12.3e9, 1e-5);
     }
 
     @Test
@@ -2151,7 +2140,7 @@ class CompilerTest {
         ResultCollector collector = executeWithErrors(dsl);
 
         collector.verify("A", "c", 1, 2, 10);
-        collector.verify("A", "d", "1.0", "2.0", "10");
+        collector.verify("A", "d", "1", "2", "10");
         collector.verifyError("A", "e", "IFNA function requires source and fallback arguments to have same type");
     }
 
@@ -2175,9 +2164,9 @@ class CompilerTest {
 
         ResultCollector collector = executeWithErrors(dsl);
 
-        collector.verify("A", "c", 0.0, 0.0, 1.0);
-        collector.verify("A", "d", 0.0, 0.0, 1.0);
-        collector.verify("A", "f", 0.0, 0.0, 1.0);
+        collector.verify("A", "c", "FALSE", "FALSE", "TRUE");
+        collector.verify("A", "d", "FALSE", "FALSE", "TRUE");
+        collector.verify("A", "f", "FALSE", "FALSE", "TRUE");
     }
 
     @Test
@@ -2202,7 +2191,7 @@ class CompilerTest {
 
         ResultCollector collector = executeWithErrors(dsl);
 
-        collector.verify("Nested1", "a", 0, 0, 1);
+        collector.verify("Nested1", "a", "FALSE", "FALSE", "TRUE");
         collector.verify("Nested2", "a", 1, 2);
         collector.verify("Nested2", "b", 2, 1);
     }
@@ -2329,7 +2318,7 @@ class CompilerTest {
                 """;
 
         ResultCollector data = executeWithErrors(dsl);
-        data.verify("A", "c", 0, 1, 1, 1, 0);
+        data.verify("A", "c", "FALSE", "TRUE", "TRUE", "TRUE", "FALSE");
 
         data.verifyError("A", "d",
                 "Function CONTAINS expects 2 arguments - \"text\" and \"value\", but 0 were provided");
@@ -2434,7 +2423,7 @@ class CompilerTest {
                         [f] = MODE(A[b])
                         [g] = MODE(A[c])
                         [h] = MODE(A[d])
-                        
+                
                 table B
                     dim [a] = RANGE(5)
                         [rows] = A.FILTER($[a] > [a])
@@ -2474,7 +2463,7 @@ class CompilerTest {
                     5, -3
                     6, 9
                     7, -4
-                        
+                
                 table B
                     dim [source] = RANGE(8)
                         [a] = [source] - 1
@@ -2588,7 +2577,7 @@ class CompilerTest {
         return Stream.of(
                 Arguments.of(
                         "ABS",
-                        new String[] {"-1", "-0", "0", "1"},
+                        new String[] {"-1", "-0.0", "0", "1"},
                         new double[] {1, 0, 0, 1},
                         new double[] {POSITIVE_INFINITY, Doubles.ERROR_NA, POSITIVE_INFINITY}),
                 Arguments.of(
@@ -2608,8 +2597,8 @@ class CompilerTest {
                         new double[] {-PI / 2, Doubles.ERROR_NA, PI / 2}),
                 Arguments.of(
                         "CEIL",
-                        new String[] {"-0.9", "-0", "0", "0.9"},
-                        new double[] {-0, 0, 0, 1},
+                        new String[] {"-0.9", "-0.0", "0", "0.9"},
+                        new double[] {-0.0, -0.0, 0, 1},
                         new double[] {NEGATIVE_INFINITY, Doubles.ERROR_NA, POSITIVE_INFINITY}),
                 Arguments.of(
                         "COS",
@@ -2618,28 +2607,28 @@ class CompilerTest {
                         new double[] {Doubles.ERROR_NA, Doubles.ERROR_NA, Doubles.ERROR_NA}),
                 Arguments.of(
                         "EXP",
-                        new String[] {"-1", "-0", "0", "1"},
+                        new String[] {"-1", "-0.0", "0", "1"},
                         new double[] {0.36787944117144233, 1.0, 1.0, 2.718281828459045},
                         new double[] {0, Doubles.ERROR_NA, POSITIVE_INFINITY}),
                 Arguments.of(
                         "FLOOR",
-                        new String[] {"-0.9", "-0", "0", "0.9"},
-                        new double[] {-1, 0, 0, 0},
+                        new String[] {"-0.9", "-0.0", "0", "0.9"},
+                        new double[] {-1, -0.0, 0, 0},
                         new double[] {NEGATIVE_INFINITY, Doubles.ERROR_NA, POSITIVE_INFINITY}),
                 Arguments.of(
                         "LN",
-                        new String[] {"-1", "-0", "2.718281828459045"},
+                        new String[] {"-1", "-0.0", "2.718281828459045"},
                         new double[] {Doubles.ERROR_NA, Doubles.ERROR_NA, 1},
                         new double[] {Doubles.ERROR_NA, Doubles.ERROR_NA, POSITIVE_INFINITY}),
                 Arguments.of(
                         "LOG10",
-                        new String[] {"-1", "-0", "10"},
+                        new String[] {"-1", "-0.0", "10"},
                         new double[] {Doubles.ERROR_NA, Doubles.ERROR_NA, 1},
                         new double[] {Doubles.ERROR_NA, Doubles.ERROR_NA, POSITIVE_INFINITY}),
                 Arguments.of(
                         "ROUND",
-                        new String[] {"-0.9", "-0", "0", "0.5", "0.9"},
-                        new double[] {-1, 0, 0, 1, 1},
+                        new String[] {"-0.9", "-0.0", "0", "0.5", "0.9", "1e100", "1e-100"},
+                        new double[] {-1, 0, 0, 1, 1, 1e100, 0},
                         new double[] {NEGATIVE_INFINITY, Doubles.ERROR_NA, POSITIVE_INFINITY}),
                 Arguments.of(
                         "SIN",
@@ -2648,7 +2637,7 @@ class CompilerTest {
                         new double[] {Doubles.ERROR_NA, Doubles.ERROR_NA, Doubles.ERROR_NA}),
                 Arguments.of(
                         "SQRT",
-                        new String[] {"-1", "-0", "0", "0.25", "1"},
+                        new String[] {"-1", "-0.0", "0", "0.25", "1"},
                         new double[] {Doubles.ERROR_NA, -0.0, 0.0, 0.5, 1.0},
                         new double[] {Doubles.ERROR_NA, Doubles.ERROR_NA, POSITIVE_INFINITY}),
                 Arguments.of(
@@ -2819,9 +2808,8 @@ class CompilerTest {
                     [double] = 0.5
                     [date] = DATE(2020, 1, 1)
                     [int-operations] = [int] + [bool] - [int] * [int] MOD [int]
-                    [int-to-double] = [int] / [int]
-                    [int-to-double2] = [int] + [double]
-                    [date-operations] = POW([date] + [int] * [double], [bool])
+                    [int-to-double] = [int] + [double]
+                    [date-operations] = ([date] + [int] * [double]) MOD [bool]
                 """;
 
         ResultCollector collector = executeWithoutErrors(dsl);
@@ -2829,11 +2817,10 @@ class CompilerTest {
         collector.verify("A", "int", "1");
         collector.verify("A", "bool", "TRUE");
         collector.verify("A", "double", "0.5");
-        collector.verify("A", "date", "1/1/2020 12:00:00 AM");
+        collector.verify("A", "date", "1/1/2020");
         collector.verify("A", "int-operations", "2");
-        collector.verify("A", "int-to-double", "1.0");
-        collector.verify("A", "int-to-double2", "1.5");
-        collector.verify("A", "date-operations", "1/1/2020 12:00:00 PM");
+        collector.verify("A", "int-to-double", "1.5");
+        collector.verify("A", "date-operations", "12/30/1899");
     }
 
     @Test
@@ -2859,7 +2846,7 @@ class CompilerTest {
         collector.verify("A", "int", "1");
         collector.verify("A", "bool", "TRUE");
         collector.verify("A", "double", "0.5");
-        collector.verify("A", "date", "1/1/2020 12:00:00 AM");
+        collector.verify("A", "date", "1/1/2020");
         collector.verify("A", "neg-int", "-1");
         collector.verify("A", "neg-bool", "-1");
         collector.verify("A", "neg-double", "-0.5");
@@ -2910,79 +2897,79 @@ class CompilerTest {
                         "SUM(A[%s])",
                         Map.of(
                                 "int", "1",
-                                "bool", "1",
+                                "bool", "TRUE",
                                 "double", "2.5",
-                                "date", "131494.0")),
+                                "date", "1/6/2260")),
                 Arguments.of(
                         "AVERAGE(A[%s])",
                         Map.of(
-                                "int", "0.3333333333333333",
-                                "bool", "0.3333333333333333",
-                                "double", "0.8333333333333334",
-                                "date", "43831.333333333336")),
+                                "int", "0.3333333333",
+                                "bool", "FALSE",
+                                "double", "0.8333333333",
+                                "date", "1/1/2020")),
                 Arguments.of(
                         "MIN(A[%s])",
                         Map.of(
                                 "int", "0",
                                 "bool", "FALSE",
                                 "double", "0.5",
-                                "date", "1/1/2020 12:00:00 AM")),
+                                "date", "1/1/2020")),
                 Arguments.of(
                         "MAX(A[%s])",
                         Map.of(
                                 "int", "1",
                                 "bool", "TRUE",
                                 "double", "1.5",
-                                "date", "1/2/2020 12:00:00 AM")),
+                                "date", "1/2/2020")),
                 Arguments.of(
                         "STDEVS(A[%s])",
                         Map.of(
-                                "int", "0.5773502691896257",
-                                "bool", "0.5773502691896257",
-                                "double", "0.5773502691896257",
-                                "date", "0.5773502691896257")),
+                                "int", "0.5773502692",
+                                "bool", "0.5773502692",
+                                "double", "0.5773502692",
+                                "date", "0.5773502692")),
                 Arguments.of(
                         "STDEVP(A[%s])",
                         Map.of(
-                                "int", "0.4714045207910317",
-                                "bool", "0.4714045207910317",
-                                "double", "0.4714045207910317",
-                                "date", "0.4714045207910317")),
+                                "int", "0.4714045208",
+                                "bool", "0.4714045208",
+                                "double", "0.4714045208",
+                                "date", "0.4714045208")),
                 Arguments.of(
                         "GEOMEAN(A[%s])",
                         Map.of(
-                                "int", "0.0",
-                                "bool", "0.0",
-                                "double", "0.7211247851537042",
-                                "date", "43831.33333079836")),
+                                "int", "0",
+                                "bool", "FALSE",
+                                "double", "0.7211247852",
+                                "date", "1/1/2020")),
                 Arguments.of(
                         "MEDIAN(A[%s])",
                         Map.of(
-                                "int", "0.0",
-                                "bool", "0.0",
+                                "int", "0",
+                                "bool", "FALSE",
                                 "double", "0.5",
-                                "date", "43831.0")),
+                                "date", "1/1/2020")),
                 Arguments.of(
                         "MODE(A[%s])",
                         Map.of(
                                 "int", "0",
                                 "bool", "FALSE",
                                 "double", "0.5",
-                                "date", "1/1/2020 12:00:00 AM")),
+                                "date", "1/1/2020")),
                 Arguments.of(
                         "CORREL(A[%1$s], A[%1$s])",
                         Map.of(
-                                "int", "1.0",
-                                "bool", "1.0",
-                                "double", "0.9999999999999999",
-                                "date", "0.9999999999999999")),
+                                "int", "1",
+                                "bool", "1",
+                                "double", "1",
+                                "date", "1")),
                 Arguments.of(
                         "FIRST(A[%s])",
                         Map.of(
                                 "int", "0",
                                 "bool", "FALSE",
                                 "double", "0.5",
-                                "date", "1/1/2020 12:00:00 AM")),
+                                "date", "1/1/2020")),
                 Arguments.of(
                         "FIRST(%s)",
                         Map.of(
@@ -2993,7 +2980,7 @@ class CompilerTest {
                                 "int", "1",
                                 "bool", "TRUE",
                                 "double", "1.5",
-                                "date", "1/2/2020 12:00:00 AM")),
+                                "date", "1/2/2020")),
                 Arguments.of(
                         "LAST(%s)",
                         Map.of(
@@ -3004,7 +2991,7 @@ class CompilerTest {
                                 "int", "0",
                                 "bool", "FALSE",
                                 "double", "0.5",
-                                "date", "1/1/2020 12:00:00 AM")),
+                                "date", "1/1/2020")),
                 Arguments.of(
                         "SINGLE(FILTER(%s, $[source1] = 2))",
                         Map.of(
@@ -3015,7 +3002,7 @@ class CompilerTest {
                                 "int", "0",
                                 "bool", "FALSE",
                                 "double", "0.5",
-                                "date", "1/1/2020 12:00:00 AM")),
+                                "date", "1/1/2020")),
                 Arguments.of(
                         "INDEX(%s, 1)",
                         Map.of(
@@ -3035,7 +3022,7 @@ class CompilerTest {
 
         collector.verify("A", "a", "112");
         collector.verify("A", "b", "12TRUE");
-        collector.verify("A", "c", "45387.0");
+        collector.verify("A", "c", "4/5/2024");
     }
 
     @Test
@@ -3052,12 +3039,12 @@ class CompilerTest {
 
         ResultCollector collector = executeWithoutErrors(dsl);
 
-        collector.verify("A", "a", "26.0");
-        collector.verify("A", "b", "31.5");
-        collector.verify("A", "c", "0.5");
-        collector.verify("A", "d", "5.0");
-        collector.verify("A", "e", "32.0");
-        collector.verify("A", "f", "11/30/1999 12:00:00 AM");
+        collector.verify("A", "a", 26);
+        collector.verify("A", "b", 31.5);
+        collector.verify("A", "c", 0.5);
+        collector.verify("A", "d", 5);
+        collector.verify("A", "e", 32);
+        collector.verify("A", "f", "11/30/1999");
     }
 
     @Test
@@ -3147,19 +3134,19 @@ class CompilerTest {
 
         ResultCollector data = executeWithErrors(dsl);
 
-        data.verify("A", "a", "4/15/2024 12:00:00 AM");
-        data.verify("A", "b", "4/12/2024 12:00:00 AM");
-        data.verify("A", "c", "4/11/2024 12:00:00 AM");
-        data.verify("A", "d", "4/10/2024 12:00:00 AM");
-        data.verify("A", "e", "4/9/2024 12:00:00 AM");
-        data.verify("A", "f", "4/8/2024 12:00:00 AM");
-        data.verify("A", "g", "4/5/2024 12:00:00 AM");
+        data.verify("A", "a", "4/15/2024");
+        data.verify("A", "b", "4/12/2024");
+        data.verify("A", "c", "4/11/2024");
+        data.verify("A", "d", "4/10/2024");
+        data.verify("A", "e", "4/9/2024");
+        data.verify("A", "f", "4/8/2024");
+        data.verify("A", "g", "4/5/2024");
         data.verify("A", "h", Doubles.ERROR_NA);
-        data.verify("A", "i", "4/11/2024 12:00:00 AM");
-        data.verify("B", "date", "4/4/2024 12:00:00 AM", "4/5/2024 12:00:00 AM", "4/8/2024 12:00:00 AM",
-                "4/9/2024 12:00:00 AM", "4/10/2024 12:00:00 AM", "4/11/2024 12:00:00 AM", "4/12/2024 12:00:00 AM",
-                "4/15/2024 12:00:00 AM", "4/16/2024 12:00:00 AM", "4/17/2024 12:00:00 AM", "4/18/2024 12:00:00 AM",
-                "4/19/2024 12:00:00 AM");
+        data.verify("A", "i", "4/11/2024");
+        data.verify("B", "date", "4/4/2024", "4/5/2024", "4/8/2024",
+                "4/9/2024", "4/10/2024", "4/11/2024", "4/12/2024",
+                "4/15/2024", "4/16/2024", "4/17/2024", "4/18/2024",
+                "4/19/2024");
     }
 
     @Test
@@ -3336,7 +3323,7 @@ class CompilerTest {
                       [e2] = A(2, 3)
                                 
                 table B
-                  key dim [a] = RANGE(4)
+                  dim key [a] = RANGE(4)
                           [b] = A(3)[a]
                           [c] = A([a] + 1)[a]
                           [e] = B(1, "2")
@@ -3425,6 +3412,7 @@ class CompilerTest {
                 table A
                   dim [a] = RANGE(2) + 2000
                   dim [b] = RANGE(3)
+                  !format("general")
                   dim [c] = DATE([a], [b], B[x])
                 """;
 
@@ -3458,6 +3446,54 @@ class CompilerTest {
         ResultCollector collector = executeWithErrors(dsl);
         collector.verifyError("A", "b", "The arguments 'table_or_array' and 'condition' of the FILTER function are from different origins and may have different sizes.");
         collector.verifyError("A", "c", "Operands of the '+' operator are from different origins and may have different sizes.");
+    }
+
+    @Test
+    void testIncorrectVectorSuggestion() {
+        String dsl = """
+                table A
+                  dim [a] = RANGE(3)
+                  [b] = [a] + 1
+                
+                table B
+                  dim [a] = RANGE(2)
+                  [b] = A.FILTER(1).FILTER(-A[a] < A[a].COUNT()) # no suggestion for A[a].COUNT()
+                  [c] = A.FILTER(1).SORTBY(A[a])
+                  [d] = A.FILTER(1).SORTBY(-A[a] + A[b])
+                  [e] = A.FILTER(1).FILTER(A[a].UNION(B[a])) # no suggestion
+                  [f] = A.FILTER(1).FILTER(A.FILTER(A[a] > 1)[a] < 1) # no suggestion
+                
+                table C
+                  dim [a] = RANGE(1)
+                  dim [b] = RANGE([a])
+                  [c] = RANGE([b])
+                  [d] = A.FILTER(A[a] > [b]).FILTER(-A[a] < [b] OR A[a].COUNT() = 0) # no suggestion for A[a].COUNT()
+                  [e] = A.FILTER(A[a] > [b]).FILTER(-A[a].UNION([c])) # no suggestion
+                  [f] = A.FILTER(1).FILTER((A[a] + [a]) + [b])
+                """;
+
+        ResultCollector collector = executeWithErrors(dsl);
+        collector.verifyError("B", "b",
+                "The arguments 'table_or_array' and 'condition' of the FILTER function are from different origins and may have different sizes."
+                        + " Did you mean A.FILTER(1).FILTER(-A.FILTER(1)[a] < A[a].COUNT())?");
+        collector.verifyError("B", "c",
+                "The arguments 'table_or_array' and 'keys' of the SORTBY function are from different origins and may have different sizes."
+                        + " Did you mean A.FILTER(1).SORTBY(A.FILTER(1)[a])?");
+        collector.verifyError("B", "d",
+                "The arguments 'table_or_array' and 'keys' of the SORTBY function are from different origins and may have different sizes."
+                        + " Did you mean A.FILTER(1).SORTBY(-A.FILTER(1)[a] + A.FILTER(1)[b])?");
+        collector.verifyError("B", "e",
+                "The arguments 'table_or_array' and 'condition' of the FILTER function are from different origins and may have different sizes.");
+        collector.verifyError("B", "f",
+                "The arguments 'table_or_array' and 'condition' of the FILTER function are from different origins and may have different sizes.");
+        collector.verifyError("C", "d",
+                "The arguments 'table_or_array' and 'condition' of the FILTER function are from different origins and may have different sizes."
+                        + " Did you mean A.FILTER(A[a] > [b]).FILTER(-A.FILTER(A[a] > [b])[a] < [b] OR A[a].COUNT() = 0)?");
+        collector.verifyError("C", "e",
+                "The arguments 'table_or_array' and 'condition' of the FILTER function are from different origins and may have different sizes.");
+        collector.verifyError("C", "f",
+                "The arguments 'table_or_array' and 'condition' of the FILTER function are from different origins and may have different sizes."
+                        + " Did you mean A.FILTER(1).FILTER((A.FILTER(1)[a] + [a]) + [b])?");
     }
 
     @Test
@@ -3550,9 +3586,9 @@ class CompilerTest {
         collector.verify("T2", "f6", 5, 6, 7, 8, 9);
         collector.verify("T3", "r3", 5, 4, 3, 2, 1);
 
-        collector.verifyError("T2", "nf1", "The arguments 'table_or_array' and 'condition' of the FILTER function are from different origins and may have different sizes.");
-        collector.verifyError("T2", "nf2", "The arguments 'table_or_array' and 'condition' of the FILTER function are from different origins and may have different sizes.");
-        collector.verifyError("T2", "nf3", "The arguments 'table_or_array' and 'condition' of the FILTER function are from different origins and may have different sizes.");
+        collector.verifyError("T2", "nf1", "The arguments 'table_or_array' and 'condition' of the FILTER function are from different origins and may have different sizes. Did you mean [f1].FILTER([f1][r1] <= [r2])?");
+        collector.verifyError("T2", "nf2", "The arguments 'table_or_array' and 'condition' of the FILTER function are from different origins and may have different sizes. Did you mean [f1].FILTER([f1][r1] <= [r2] + T3[r3].COUNT())?");
+        collector.verifyError("T2", "nf3", "The arguments 'table_or_array' and 'condition' of the FILTER function are from different origins and may have different sizes. Did you mean [f1].FILTER([f1][r1] <= [r2] + T1[r1].COUNT())?");
     }
 
     @Test
@@ -3651,7 +3687,7 @@ class CompilerTest {
     void testApplyAfterKeyOverride() {
         String dsl = """
                 table A
-                  key dim [a] = RANGE(5)
+                  dim key [a] = RANGE(5)
                       [b] = [a]
                       [c] = ROW()
                 apply
@@ -3763,7 +3799,7 @@ class CompilerTest {
                   2, LAST(A[a])
                                 
                 table C
-                  key dim [x] = RANGE(5)
+                  dim key [x] = RANGE(5)
                       [c] = 10
                 override
                   [x], [c]
@@ -3787,7 +3823,7 @@ class CompilerTest {
                       [a_sum] = A.TOTAL()[a]
                       [a_count] = A.TOTAL(2)[a]
                       [b_first] =  A.TOTAL(1)[b]
-                      [b_last] = [c][b]
+                      [b_last] = A.TOTAL(2)[b]
                 total
                       [a] = SUM(A[a])
                       [b] = FIRST(A[b])
@@ -3796,10 +3832,9 @@ class CompilerTest {
                       [b] = LAST(A[b])
                 """;
 
-        ResultCollector collector = executeWithoutErrors(dsl);
+        ResultCollector collector = executeWithErrors(dsl);
         collector.verify("A", "a", 1, 2, 3, 4, 5);
         collector.verify("A", "b", "1 word", "2 word", "3 word", "4 word", "5 word");
-        collector.verify("A", "c", 1, 1, 1, 1, 1);
         collector.verify("A", "a_sum", 15, 15, 15, 15, 15);
         collector.verify("A", "a_count", 5, 5, 5, 5, 5);
         collector.verify("A", "b_first", "1 word", "1 word", "1 word", "1 word", "1 word");
@@ -3809,6 +3844,8 @@ class CompilerTest {
         collector.verifyTotal("A", "b", 1, "1 word");
         collector.verifyTotal("A", "a", 2, 5);
         collector.verifyTotal("A", "b", 2, "5 word");
+
+        collector.verifyError("A", "c", "Unable to assign result. Change formula to access one or more columns: a, b");
     }
 
     @Test
@@ -3901,15 +3938,15 @@ class CompilerTest {
         String dsl = """
                 table T1
                   dim [r] = RANGE(5)
-                  [*] = PIVOT(RANGE(3), $, FIRST($))
+                  dim [x], [*] = PIVOT(RANGE(3) - RANGE(3), RANGE(3), RANGE(3), "FIRST")
                   
                 table T2
                   dim [r] = RANGE(5)
-                  [*] = PIVOT(RANGE(3), TEXT($), FIRST($))
+                  dim [x], [*] = PIVOT(RANGE(3) - RANGE(3), TEXT(RANGE(3)), RANGE(3), "FIRST")
                   
                 table T3
                   dim [r] = RANGE(5)
-                  [*] = PIVOT(RANGE(3), VALUE($), FIRST($))
+                  dim [x], [*] = PIVOT(RANGE(3) - RANGE(3), VALUE(RANGE(3)), RANGE(3), "FIRST")
                   
                 table T1f
                   dim [f] = FIELDS(T1).SORT()
@@ -3922,9 +3959,9 @@ class CompilerTest {
                 """;
 
         ResultCollector collector = executeWithoutErrors(dsl);
-        collector.verify("T1f", "f", "1", "2", "3", "r");
-        collector.verify("T2f", "f", "1", "2", "3", "r");
-        collector.verify("T3f", "f", "1.0", "2.0", "3.0", "r");
+        collector.verify("T1f", "f", "1", "2", "3", "r", "x");
+        collector.verify("T2f", "f", "1", "2", "3", "r", "x");
+        collector.verify("T3f", "f", "1", "2", "3", "r", "x");
     }
 
     @Test
@@ -3942,7 +3979,7 @@ class CompilerTest {
                   5, 42
                                 
                 table B
-                  key dim [a] = RANGE(10).FILTER(4 <= $ AND $ <= 7)
+                  dim key [a] = RANGE(10).FILTER(4 <= $ AND $ <= 7)
                           [b] = [a] + 10
                           [c] = [a] + 20
                 override
@@ -3988,8 +4025,7 @@ class CompilerTest {
     void testPivotOverride() {
         String dsl = """
                 table A
-                  dim [a] = RANGE(5)
-                      [*] = A.FILTER([a] <= $[a]).PIVOT("p_" & $[a], COUNT($[a]))
+                  dim [a], [*] = PIVOT(RANGE(5), "p_" & RANGE(5), RANGE(5), "COUNT")
                       [b] = [p_3]
                       [c] = [p_4]
                 override
@@ -3999,8 +4035,8 @@ class CompilerTest {
                 """;
 
         ResultCollector collector = executeWithoutErrors(dsl);
-        collector.verify("A", "b", 1, 1, 10, 5, Doubles.EMPTY);
-        collector.verify("A", "c", 1, 1, 1, 1, Doubles.EMPTY);
+        collector.verify("A", "b", Doubles.EMPTY, Doubles.EMPTY, 9, 5, Doubles.EMPTY);
+        collector.verify("A", "c", Doubles.EMPTY, Doubles.EMPTY, Doubles.EMPTY, 1, Doubles.EMPTY);
     }
 
     @Test
@@ -4060,7 +4096,7 @@ class CompilerTest {
     void testOverridesKeyAutoCast() {
         String dsl = """
                    table A
-                     key dim [a] = RANGE(5)
+                     dim key [a] = RANGE(5)
                      [b] = NA
                    override
                    [a], [b]
@@ -4069,7 +4105,7 @@ class CompilerTest {
                    "4.00", A("3.00")[b] + 1
                                 
                    table B
-                     key dim [a] = TEXT(RANGE(5))
+                     dim key [a] = TEXT(RANGE(5))
                      [b] = NA
                    override
                    [a], [b]
@@ -4192,29 +4228,29 @@ class CompilerTest {
         ResultCollector collector = executeWithoutErrors(dsl);
         String NA = Strings.ERROR_NA;
 
-        collector.verify("A", "NEG", "0.0", NA);
-        collector.verify("A", "ABS", "0.0", NA);
-        collector.verify("A", "SQRT", "0.0", NA);
+        collector.verify("A", "NEG", "0", NA);
+        collector.verify("A", "ABS", "0", NA);
+        collector.verify("A", "SQRT", "0", NA);
         collector.verify("A", "ROUND", "0", NA);
         collector.verify("A", "FLOOR", "0", NA);
         collector.verify("A", "CEIL", "0", NA);
-        collector.verify("A", "EXP", "1.0", NA);
+        collector.verify("A", "EXP", "1", NA);
         collector.verify("A", "LN", NA, NA);
         collector.verify("A", "LOG10", NA, NA);
-        collector.verify("A", "SIN", "0.0", NA);
-        collector.verify("A", "COS", "1.0", NA);
-        collector.verify("A", "TAN", "0.0", NA);
-        collector.verify("A", "ASIN", "0.0", NA);
-        collector.verify("A", "ACOS", "1.5707963267948966", NA);
-        collector.verify("A", "ATAN", "0.0", NA);
+        collector.verify("A", "SIN", "0", NA);
+        collector.verify("A", "COS", "1", NA);
+        collector.verify("A", "TAN", "0", NA);
+        collector.verify("A", "ASIN", "0", NA);
+        collector.verify("A", "ACOS", "1.570796327", NA);
+        collector.verify("A", "ATAN", "0", NA);
 
-        collector.verify("B", "ADD", "1.0", NA, "1.0", NA);
-        collector.verify("B", "SUB", "-1.0", NA, "1.0", NA);
-        collector.verify("B", "MUL", "0.0", NA, "0.0", NA);
-        collector.verify("B", "DIV", "0.0", NA, NA, NA);
-        collector.verify("B", "MOD", "0.0", NA, NA, NA);
+        collector.verify("B", "ADD", "1", NA, "1", NA);
+        collector.verify("B", "SUB", "-1", NA, "1", NA);
+        collector.verify("B", "MUL", "0", NA, "0", NA);
+        collector.verify("B", "DIV", "0", NA, NA, NA);
+        collector.verify("B", "MOD", "0", NA, NA, NA);
         collector.verify("B", "LOG", NA, NA, NA, NA);
-        collector.verify("B", "POW", "0.0", NA, "1.0", NA);
+        collector.verify("B", "POW", "0", NA, "1", NA);
     }
 
     @Test
@@ -4360,11 +4396,13 @@ class CompilerTest {
         collector.verify("A", "MINUTE", Doubles.ERROR_NA, 38, 0, Doubles.ERROR_NA, 7, 33);
         collector.verify("A", "SECOND", Doubles.ERROR_NA, 24, 0, Doubles.ERROR_NA, 12, 36);
 
-        collector.verify("B", "WORKDAY", 2, Doubles.ERROR_NA, 1,
-                Doubles.ERROR_NA, 0, 0, 0, Doubles.ERROR_NA);
+        collector.verify("B", "WORKDAY",
+                "1/1/1900", Strings.ERROR_NA, "12/31/1899", Strings.ERROR_NA,
+                "12/30/1899", "12/30/1899", "12/30/1899", Strings.ERROR_NA);
 
-        collector.verify("C", "DATE", 0, Doubles.ERROR_NA, Doubles.ERROR_NA,
-                Doubles.ERROR_NA, 1, Doubles.ERROR_NA, Doubles.ERROR_NA, Doubles.ERROR_NA);
+        collector.verify("C", "DATE",
+                "12/30/1899", Strings.ERROR_NA, Strings.ERROR_NA, Strings.ERROR_NA,
+                "12/31/1899", Strings.ERROR_NA, Strings.ERROR_NA, Strings.ERROR_NA);
     }
 
     @Test
@@ -4425,9 +4463,9 @@ class CompilerTest {
         collector.verify("A", "ISNA", "FALSE", "TRUE");
         collector.verify("A", "NOT", "FALSE", NA);
 
-        collector.verify("B", "b", "", NA, "1.0", "1.0", "");
-        collector.verify("B", "c", "1.0", "1.0", "", NA, "");
-        collector.verify("B", "IFNA", "", "1.0", "1.0", "1.0", "");
+        collector.verify("B", "b", "", NA, "1", "1", "");
+        collector.verify("B", "c", "1", "1", "", NA, "");
+        collector.verify("B", "IFNA", "", "1", "1", "1", "");
         collector.verify("B", "AND", "FALSE", NA, "FALSE", NA, "FALSE");
         collector.verify("B", "OR", "TRUE", NA, "TRUE", NA, "FALSE");
         collector.verify("B", "LT", "FALSE", NA, "FALSE", NA, "FALSE");
@@ -4437,7 +4475,7 @@ class CompilerTest {
         collector.verify("B", "NEQ", "TRUE", NA, "TRUE", NA, "FALSE");
         collector.verify("B", "EQ", "FALSE", NA, "FALSE", NA, "TRUE");
 
-        collector.verify("C", "IF", "2.0", NA, "", NA, "2.0", "2.0", "1.0", "1.0");
+        collector.verify("C", "IF", "2", NA, "", NA, "2", "2", "1", "1");
     }
 
     @Test
@@ -4493,13 +4531,13 @@ class CompilerTest {
 
         collector.verify("A", "c", "3", "3", "3", "3");
         collector.verify("A", "COUNT", "3", "2", "2", "2");
-        collector.verify("A", "SUM", NA, "3.0", NA, NA);
+        collector.verify("A", "SUM", NA, "3", NA, NA);
         collector.verify("A", "AVERAGE", NA, "1.5", NA, NA);
-        collector.verify("A", "MAX", NA, "2.0", NA, NA);
-        collector.verify("A", "MIN", NA, "1.0", NA, NA);
-        collector.verify("A", "STDEVS", NA, "0.7071067811865476", NA, NA);
+        collector.verify("A", "MAX", NA, "2", NA, NA);
+        collector.verify("A", "MIN", NA, "1", NA, NA);
+        collector.verify("A", "STDEVS", NA, "0.7071067812", NA, NA);
         collector.verify("A", "STDEVP", NA, "0.5", NA, NA);
-        collector.verify("A", "GEOMEAN",NA, "1.414213562373095", NA, NA);
+        collector.verify("A", "GEOMEAN",NA, "1.414213562", NA, NA);
         collector.verify("A", "MEDIAN", NA, "1.5", NA, NA);
         collector.verify("A", "MODE", NA, NA, NA, NA);
         collector.verify("A", "FIRST", NA, "", "", "");
@@ -4525,7 +4563,7 @@ class CompilerTest {
                   1
               
                 table A
-                  key dim [a] = Z[a]
+                  dim key [a] = Z[a]
                   [FILTER]   = A.FILTER([a] = $[a])
                   [FIND]     = A.FIND([a])
                
@@ -4559,16 +4597,16 @@ class CompilerTest {
         collector.verify("A", "FILTER", "1", "1", "0", "1");
         collector.verify("A", "FIND", "1", "2", NA, "4");
 
-        collector.verify("C", "UNIQUE", "0.0", "", NA, "1.0");
-        collector.verify("D", "SORT",  "", "", "-0.0", "0.0", "1.0", "1.0", NA, NA);
-        collector.verify("E", "SORT",   "0.0", "-0.0", "1.0", "1.0", "", "", NA, NA);
+        collector.verify("C", "UNIQUE", "0", "", NA, "1");
+        collector.verify("D", "SORT",  Doubles.EMPTY, Doubles.EMPTY, 0, -0.0, 1, 1, Doubles.ERROR_NA, Doubles.ERROR_NA);
+        collector.verify("E", "SORT",   0, -0.0, 1, 1, Doubles.EMPTY, Doubles.EMPTY, Doubles.ERROR_NA, Doubles.ERROR_NA);
     }
 
     @Test
     void testEmptyValuesInOverrides() {
         String dsl = """
                 table A
-                  key dim [x] = RANGE(5)
+                  dim key [x] = RANGE(5)
                   key [y]
                   [z]
                 override
@@ -4579,7 +4617,7 @@ class CompilerTest {
                 """;
 
         ResultCollector collector = executeWithoutErrors(dsl);
-        collector.verify("A", "z", "", "", "10.0", "4.0", "10.0");
+        collector.verify("A", "z", "", "", "10", "4", "10");
     }
 
     @Test
@@ -4630,15 +4668,15 @@ class CompilerTest {
                 
                  table Table2
                    dim [source] = Table1[ps]
-                   dim [v] = [source]
+                   dim [period], [date], [value] = [source][[period],[date],[value]]
                 """;
 
         ResultCollector collector = executeWithoutErrors(dsl);
 
-        collector.verify("Table2", "v",
-                "(1900-01-01, 1.0)", "(1900-01-02, 2.0)", "(1900-01-03, 3.0)",
-                "(1900-01-01, 1.0)", "(1900-01-02, 2.0)", "(1900-01-03, 3.0)",
-                "(1900-01-01, 1.0)", "(1900-01-02, 2.0)", "(1900-01-03, 3.0)");
+        collector.verify("Table2", "period", "DAY", "DAY", "DAY", "DAY", "DAY", "DAY", "DAY", "DAY", "DAY");
+        collector.verify("Table2", "date", "1/1/1900", "1/2/1900", "1/3/1900",
+                "1/1/1900", "1/2/1900", "1/3/1900", "1/1/1900", "1/2/1900", "1/3/1900");
+        collector.verify("Table2", "value", 1.0, 2.0, 3.0, 1.0, 2.0, 3.0, 1.0, 2.0, 3.0);
     }
 
     @Test
@@ -4760,7 +4798,7 @@ class CompilerTest {
         ResultCollector collector = executeWithoutErrors(dsl);
 
         collector.verify("EvaluationResult", "Number of passed", "3");
-        collector.verify("EvaluationResult", "Avg recall", "1.0");
+        collector.verify("EvaluationResult", "Avg recall", "1");
 
         collector.verify("EvaluatedModels", "Item model", "bge-small-en-v1.5");
         collector.verify("EvaluatedModels", "Type model", "bge-small-en-v1.5");
@@ -4769,7 +4807,7 @@ class CompilerTest {
         collector.verify("EvaluatedModels", "Type N", "1");
         collector.verify("EvaluatedModels", "Rus Item N", "2");
 
-        collector.verify("Evaluation", "Passed", 1, 1, 1);
+        collector.verify("Evaluation", "Passed", "TRUE", "TRUE", "TRUE");
         collector.verify("Evaluation", "Retrieve Rus Items", "2", "2", "2");
         collector.verify("Evaluation", "Retrieve Rus Items Scores", "2", "2", "2");
         collector.verify("Evaluation", "Avg Recall", 1, 1, 1);
@@ -4791,6 +4829,541 @@ class CompilerTest {
 
         ResultCollector collector = executeWithoutErrors(dsl);
         collector.verify("B", "y", "0", "0", "0", "0");
+    }
+
+    @Test
+    void testFormatting() {
+        String dsl = """
+                table A
+                  [int] = 12345
+                  [double] = 12345.67
+                  [bool1] = 1=1
+                  [bool2] = NOT([bool1])
+                  !format("currency", 2, ",", "BTC")
+                  [ccy1] = 12345.678
+                  !format("currency", 0, "BTC")
+                  [ccy2] = [ccy1]
+                  !format("date", "MM/dd/yyyy")
+                  [date] = 12345
+                  !format("date", "HH:mm:ss")
+                  [time] = 0.12345
+                  !format("number", 3, ",")
+                  [number1] = 1234.5678
+                  !format("number", 0)
+                  [number2] = [number1]
+                  !format("percentage", 2)
+                  [percentage] = 0.234
+                  !format("scientific", 2)
+                  [scientific] = 12345.67
+                  !format("text")
+                  [text] = 12345.0
+                """;
+
+        ResultCollector collector = executeWithoutErrors(dsl);
+        collector.verify("A", "int", "12,345");
+        collector.verify("A", "bool1", "TRUE");
+        collector.verify("A", "bool2", "FALSE");
+        collector.verify("A", "double", "12,345.67");
+        collector.verify("A", "ccy1", "BTC 12,345.68");
+        collector.verify("A", "ccy2", "BTC 12346");
+        collector.verify("A", "date", "10/18/1933");
+        collector.verify("A", "time", "02:57:46");
+        collector.verify("A", "number1", "1,234.568");
+        collector.verify("A", "number2", "1235");
+        collector.verify("A", "percentage", "23.40%");
+        collector.verify("A", "scientific", "1.23E+4");
+        // not really testing the type
+        collector.verify("A", "text", "12,345");
+    }
+
+    @Test
+    void testAddFormatting() {
+        String dsl = """
+                table A
+                  [general] = 12345.67
+                  [bool1] = 1=1
+                  !format("currency", 2, ",", "BTC")
+                  [ccy1] = 12345.678
+                  !format("currency", 0, "BTC")
+                  [ccy2] = [ccy1]
+                  !format("date", "MM/dd/yyyy")
+                  [date] = 12345
+                  !format("date", "HH:mm:ss")
+                  [time] = 0.12345
+                  !format("number", 3, ",")
+                  [number1] = 1234.5678
+                  !format("number", 0)
+                  [number2] = [number1]
+                  !format("percentage", 2)
+                  [percentage1] = 0.234
+                  !format("percentage", 0)
+                  [percentage2] = [percentage1]
+                  !format("scientific", 2)
+                  [scientific1] = 12345.67
+                  !format("scientific", 0)
+                  [scientific2] = [scientific1]
+                
+                table General
+                  [gen-plus-gen] = A(1)[general] + A(1)[general]
+                  [gen-plus-bool] = A(1)[general] + A(1)[bool1]
+                  [gen-plus-ccy] = A(1)[general] + A(1)[ccy1]
+                  [gen-plus-date] = A(1)[general] + A(1)[date]
+                  [gen-plus-number] = A(1)[general] + A(1)[number1]
+                  [gen-plus-percentage] = A(1)[general] + A(1)[percentage1]
+                  [gen-plus-scientific] = A(1)[general] + A(1)[scientific1]
+                
+                table Boolean
+                  [bool-plus-gen] = A(1)[bool1] + A(1)[general]
+                  [bool-plus-bool] = A(1)[bool1] + A(1)[bool1]
+                  [bool-plus-ccy] = A(1)[bool1] + A(1)[ccy1]
+                  [bool-plus-date] = A(1)[bool1] + A(1)[date]
+                  [bool-plus-number] = A(1)[bool1] + A(1)[number1]
+                  [bool-plus-percentage] = A(1)[bool1] + A(1)[percentage1]
+                  [bool-plus-scientific] = A(1)[bool1] + A(1)[scientific1]
+                
+                table Currency
+                  [ccy-plus-gen] = A(1)[ccy1] + A(1)[general]
+                  [ccy-plus-bool] = A(1)[ccy1] + A(1)[bool1]
+                  [ccy-plus-ccy1] = A(1)[ccy1] + A(1)[ccy2]
+                  [ccy-plus-ccy2] = A(1)[ccy2] + A(1)[ccy1]
+                  [ccy-plus-date] = A(1)[ccy1] + A(1)[date]
+                  [ccy-plus-number] = A(1)[ccy1] + A(1)[number1]
+                  [ccy-plus-percentage] = A(1)[ccy1] + A(1)[percentage1]
+                  [ccy-plus-scientific] = A(1)[ccy1] + A(1)[scientific1]
+                
+                table Date
+                  [date-plus-gen] = A(1)[date] + A(1)[general]
+                  [date-plus-bool] = A(1)[date] + A(1)[bool1]
+                  [date-plus-ccy] = A(1)[date] + A(1)[ccy1]
+                  [date-plus-date] = A(1)[date] + A(1)[date]
+                  [date-plus-number] = A(1)[date] + A(1)[number1]
+                  [date-plus-percentage] = A(1)[date] + A(1)[percentage1]
+                  [date-plus-scientific] = A(1)[date] + A(1)[scientific1]
+                
+                table Number
+                  [number-plus-gen] = A(1)[number1] + A(1)[general]
+                  [number-plus-bool] = A(1)[number1] + A(1)[bool1]
+                  [number-plus-ccy] = A(1)[number1] + A(1)[ccy1]
+                  [number-plus-date] = A(1)[number1] + A(1)[date]
+                  [number-plus-number1] = A(1)[number1] + A(1)[number2]
+                  [number-plus-number2] = A(1)[number2] + A(1)[number1]
+                  [number-plus-percentage] = A(1)[number1] + A(1)[percentage1]
+                  [number-plus-scientific] = A(1)[number1] + A(1)[scientific1]
+                
+                table Percentage
+                  [percentage-plus-gen] = A(1)[percentage1] + A(1)[general]
+                  [percentage-plus-bool] = A(1)[percentage1] + A(1)[bool1]
+                  [percentage-plus-ccy] = A(1)[percentage1] + A(1)[ccy1]
+                  [percentage-plus-date] = A(1)[percentage1] + A(1)[date]
+                  [percentage-plus-number] = A(1)[percentage1] + A(1)[number1]
+                  [percentage-plus-percentage1] = A(1)[percentage1] + A(1)[percentage2]
+                  [percentage-plus-percentage2] = A(1)[percentage2] + A(1)[percentage1]
+                  [percentage-plus-scientific] = A(1)[percentage1] + A(1)[scientific1]
+                
+                table Scientific
+                  [scientific-plus-gen] = A(1)[scientific1] + A(1)[general]
+                  [scientific-plus-bool] = A(1)[scientific1] + A(1)[bool1]
+                  [scientific-plus-ccy] = A(1)[scientific1] + A(1)[ccy1]
+                  [scientific-plus-date] = A(1)[scientific1] + A(1)[date]
+                  [scientific-plus-number] = A(1)[scientific1] + A(1)[number1]
+                  [scientific-plus-percentage] = A(1)[scientific1] + A(1)[percentage1]
+                  [scientific-plus-scientific1] = A(1)[scientific1] + A(1)[scientific2]
+                  [scientific-plus-scientific2] = A(1)[scientific2] + A(1)[scientific1]
+                """;
+
+        ResultCollector collector = executeWithoutErrors(dsl);
+
+        collector.verify("General", "gen-plus-gen", "24,691.34");
+        collector.verify("General", "gen-plus-bool", "12,346.67");
+        collector.verify("General", "gen-plus-ccy", "BTC 24,691.35");
+        collector.verify("General", "gen-plus-date", "08/06/1967");
+        collector.verify("General", "gen-plus-number", "13,580.238");
+        collector.verify("General", "gen-plus-percentage", "1234590.40%");
+        collector.verify("General", "gen-plus-scientific", "2.47E+4");
+
+        collector.verify("Boolean", "bool-plus-gen", "12,346.67");
+        collector.verify("Boolean", "bool-plus-bool", "2");
+        collector.verify("Boolean", "bool-plus-ccy", "BTC 12,346.68");
+        collector.verify("Boolean", "bool-plus-date", "10/19/1933");
+        collector.verify("Boolean", "bool-plus-number", "1,235.568");
+        collector.verify("Boolean", "bool-plus-percentage", "123.40%");
+        collector.verify("Boolean", "bool-plus-scientific", "1.23E+4");
+
+        collector.verify("Currency", "ccy-plus-gen", "BTC 24,691.35");
+        collector.verify("Currency", "ccy-plus-bool", "BTC 12,346.68");
+        collector.verify("Currency", "ccy-plus-ccy1", "BTC 24,691.36");
+        collector.verify("Currency", "ccy-plus-ccy2", "BTC 24,691.36");
+        collector.verify("Currency", "ccy-plus-date", "BTC 24,690.68");
+        collector.verify("Currency", "ccy-plus-number", "BTC 13,580.25");
+        collector.verify("Currency", "ccy-plus-percentage", "BTC 12,345.91");
+        collector.verify("Currency", "ccy-plus-scientific", "BTC 24,691.35");
+
+        collector.verify("Date", "date-plus-gen", "08/06/1967");
+        collector.verify("Date", "date-plus-bool", "10/19/1933");
+        collector.verify("Date", "date-plus-ccy", "08/06/1967");
+        collector.verify("Date", "date-plus-date", "24,690");
+        collector.verify("Date", "date-plus-number", "03/05/1937");
+        collector.verify("Date", "date-plus-percentage", "10/18/1933");
+        collector.verify("Date", "date-plus-scientific", "08/06/1967");
+
+        collector.verify("Number", "number-plus-gen", "13,580.238");
+        collector.verify("Number", "number-plus-bool", "1,235.568");
+        collector.verify("Number", "number-plus-ccy", "13,580.246");
+        collector.verify("Number", "number-plus-date", "13,579.568");
+        collector.verify("Number", "number-plus-number1", "2,469.136");
+        collector.verify("Number", "number-plus-number2", "2,469.136");
+        collector.verify("Number", "number-plus-percentage", "1,234.802");
+        collector.verify("Number", "number-plus-scientific", "13,580.238");
+
+        collector.verify("Percentage", "percentage-plus-gen", "1234590.40%");
+        collector.verify("Percentage", "percentage-plus-bool", "123.40%");
+        collector.verify("Percentage", "percentage-plus-ccy", "1234591.20%");
+        collector.verify("Percentage", "percentage-plus-date", "1234523.40%");
+        collector.verify("Percentage", "percentage-plus-number", "123480.18%");
+        collector.verify("Percentage", "percentage-plus-percentage1", "46.80%");
+        collector.verify("Percentage", "percentage-plus-percentage2", "46.80%");
+        collector.verify("Percentage", "percentage-plus-scientific", "1234590.40%");
+
+        collector.verify("Scientific", "scientific-plus-gen", "2.47E+4");
+        collector.verify("Scientific", "scientific-plus-bool", "1.23E+4");
+        collector.verify("Scientific", "scientific-plus-ccy", "2.47E+4");
+        collector.verify("Scientific", "scientific-plus-date", "2.47E+4");
+        collector.verify("Scientific", "scientific-plus-number", "1.36E+4");
+        collector.verify("Scientific", "scientific-plus-percentage", "1.23E+4");
+        collector.verify("Scientific", "scientific-plus-scientific1", "2.47E+4");
+        collector.verify("Scientific", "scientific-plus-scientific2", "2.47E+4");
+    }
+
+    @Test
+    void testMulFormatting() {
+        String dsl = """
+                table A
+                  [general] = 12345.67
+                  [bool1] = 1=1
+                  !format("currency", 2, ",", "BTC")
+                  [ccy1] = 12345.678
+                  !format("currency", 0, "BTC")
+                  [ccy2] = [ccy1]
+                  !format("date", "MM/dd/yyyy")
+                  [date] = 12345
+                  !format("date", "HH:mm:ss")
+                  [time] = 0.12345
+                  !format("number", 3, ",")
+                  [number1] = 1234.5678
+                  !format("number", 0)
+                  [number2] = [number1]
+                  !format("percentage", 2)
+                  [percentage1] = 0.234
+                  !format("percentage", 0)
+                  [percentage2] = [percentage1]
+                  !format("scientific", 2)
+                  [scientific1] = 12345.67
+                  !format("scientific", 0)
+                  [scientific2] = [scientific1]
+                
+                table General
+                  [gen-mul-gen] = A(1)[general] * A(1)[general]
+                  [gen-mul-bool] = A(1)[general] * A(1)[bool1]
+                  [gen-mul-ccy] = A(1)[general] * A(1)[ccy1]
+                  [gen-mul-date] = A(1)[general] * A(1)[date]
+                  [gen-mul-number] = A(1)[general] * A(1)[number1]
+                  [gen-mul-percentage] = A(1)[general] * A(1)[percentage1]
+                  [gen-mul-scientific] = A(1)[general] * A(1)[scientific1]
+                
+                table Boolean
+                  [bool-mul-gen] = A(1)[bool1] * A(1)[general]
+                  [bool-mul-bool] = A(1)[bool1] * A(1)[bool1]
+                  [bool-mul-ccy] = A(1)[bool1] * A(1)[ccy1]
+                  [bool-mul-date] = A(1)[bool1] * A(1)[date]
+                  [bool-mul-number] = A(1)[bool1] * A(1)[number1]
+                  [bool-mul-percentage] = A(1)[bool1] * A(1)[percentage1]
+                  [bool-mul-scientific] = A(1)[bool1] * A(1)[scientific1]
+                
+                table Currency
+                  [ccy-mul-gen] = A(1)[ccy1] * A(1)[general]
+                  [ccy-mul-bool] = A(1)[ccy1] * A(1)[bool1]
+                  [ccy-mul-ccy1] = A(1)[ccy1] * A(1)[ccy2]
+                  [ccy-mul-ccy2] = A(1)[ccy2] * A(1)[ccy1]
+                  [ccy-mul-date] = A(1)[ccy1] * A(1)[date]
+                  [ccy-mul-number] = A(1)[ccy1] * A(1)[number1]
+                  [ccy-mul-percentage] = A(1)[ccy1] * A(1)[percentage1]
+                  [ccy-mul-scientific] = A(1)[ccy1] * A(1)[scientific1]
+                
+                table Date
+                  [date-mul-gen] = A(1)[date] * A(1)[general]
+                  [date-mul-bool] = A(1)[date] * A(1)[bool1]
+                  [date-mul-ccy] = A(1)[date] * A(1)[ccy1]
+                  [date-mul-date] = A(1)[date] * A(1)[date]
+                  [date-mul-number] = A(1)[date] * A(1)[number1]
+                  [date-mul-percentage] = A(1)[date] * A(1)[percentage1]
+                  [date-mul-scientific] = A(1)[date] * A(1)[scientific1]
+                
+                table Number
+                  [number-mul-gen] = A(1)[number1] * A(1)[general]
+                  [number-mul-bool] = A(1)[number1] * A(1)[bool1]
+                  [number-mul-ccy] = A(1)[number1] * A(1)[ccy1]
+                  [number-mul-date] = A(1)[number1] * A(1)[date]
+                  [number-mul-number1] = A(1)[number1] * A(1)[number2]
+                  [number-mul-number2] = A(1)[number2] * A(1)[number1]
+                  [number-mul-percentage] = A(1)[number1] * A(1)[percentage1]
+                  [number-mul-scientific] = A(1)[number1] * A(1)[scientific1]
+                
+                table Percentage
+                  [percentage-mul-gen] = A(1)[percentage1] * A(1)[general]
+                  [percentage-mul-bool] = A(1)[percentage1] * A(1)[bool1]
+                  [percentage-mul-ccy] = A(1)[percentage1] * A(1)[ccy1]
+                  [percentage-mul-date] = A(1)[percentage1] * A(1)[date]
+                  [percentage-mul-number] = A(1)[percentage1] * A(1)[number1]
+                  [percentage-mul-percentage1] = A(1)[percentage1] * A(1)[percentage2]
+                  [percentage-mul-percentage2] = A(1)[percentage2] * A(1)[percentage1]
+                  [percentage-mul-scientific] = A(1)[percentage1] * A(1)[scientific1]
+                
+                table Scientific
+                  [scientific-mul-gen] = A(1)[scientific1] * A(1)[general]
+                  [scientific-mul-bool] = A(1)[scientific1] * A(1)[bool1]
+                  [scientific-mul-ccy] = A(1)[scientific1] * A(1)[ccy1]
+                  [scientific-mul-date] = A(1)[scientific1] * A(1)[date]
+                  [scientific-mul-number] = A(1)[scientific1] * A(1)[number1]
+                  [scientific-mul-percentage] = A(1)[scientific1] * A(1)[percentage1]
+                  [scientific-mul-scientific1] = A(1)[scientific1] * A(1)[scientific2]
+                  [scientific-mul-scientific2] = A(1)[scientific2] * A(1)[scientific1]
+                """;
+
+        ResultCollector collector = executeWithoutErrors(dsl);
+
+        collector.verify("General", "gen-mul-gen", "152,415,567.7");
+        collector.verify("General", "gen-mul-bool", "12,345.67");
+        collector.verify("General", "gen-mul-ccy", "BTC 152,415,666.51");
+        collector.verify("General", "gen-mul-date", "12/31/+419176");
+        collector.verify("General", "gen-mul-number", "15,241,566.65");
+        collector.verify("General", "gen-mul-percentage", "2,888.88678");
+        collector.verify("General", "gen-mul-scientific", "1.52E+8");
+
+        collector.verify("Boolean", "bool-mul-gen", "12,345.67");
+        collector.verify("Boolean", "bool-mul-bool", "1");
+        collector.verify("Boolean", "bool-mul-ccy", "BTC 12,345.68");
+        collector.verify("Boolean", "bool-mul-date", "10/18/1933");
+        collector.verify("Boolean", "bool-mul-number", "1,234.5678");
+        collector.verify("Boolean", "bool-mul-percentage", "0.234");
+        collector.verify("Boolean", "bool-mul-scientific", "1.23E+4");
+
+        collector.verify("Currency", "ccy-mul-gen", "BTC 152,415,666.51");
+        collector.verify("Currency", "ccy-mul-bool", "BTC 12,345.68");
+        collector.verify("Currency", "ccy-mul-ccy1", "152,415,765.3");
+        collector.verify("Currency", "ccy-mul-ccy2", "152,415,765.3");
+        collector.verify("Currency", "ccy-mul-date", "152,407,394.9");
+        collector.verify("Currency", "ccy-mul-number", "BTC 15,241,576.53");
+        collector.verify("Currency", "ccy-mul-percentage", "BTC 2,888.89");
+        collector.verify("Currency", "ccy-mul-scientific", "BTC 152,415,666.51");
+
+        collector.verify("Date", "date-mul-bool", "10/18/1933");
+        collector.verify("Date", "date-mul-ccy", "152,407,394.9");
+        collector.verify("Date", "date-mul-date", "152,399,025");
+        collector.verify("Date", "date-mul-gen", "12/31/+419176");
+        collector.verify("Date", "date-mul-number", "09/21/+43627");
+        collector.verify("Date", "date-mul-percentage", "11/27/1907");
+        collector.verify("Date", "date-mul-scientific", "12/31/+419176");
+
+        collector.verify("Number", "number-mul-gen", "15,241,566.65");
+        collector.verify("Number", "number-mul-bool", "1,234.5678");
+        collector.verify("Number", "number-mul-ccy", "BTC 15,241,576.53");
+        collector.verify("Number", "number-mul-date", "09/21/+43627");
+        collector.verify("Number", "number-mul-number1", "1,524,157.653");
+        collector.verify("Number", "number-mul-number2", "1,524,157.653");
+        collector.verify("Number", "number-mul-percentage", "288.8888652");
+        collector.verify("Number", "number-mul-scientific", "1.52E+7");
+
+        collector.verify("Percentage", "percentage-mul-gen", "2,888.88678");
+        collector.verify("Percentage", "percentage-mul-bool", "0.234");
+        collector.verify("Percentage", "percentage-mul-ccy", "BTC 2,888.89");
+        collector.verify("Percentage", "percentage-mul-date", "11/27/1907");
+        collector.verify("Percentage", "percentage-mul-number", "288.8888652");
+        collector.verify("Percentage", "percentage-mul-percentage1", "5.48%");
+        collector.verify("Percentage", "percentage-mul-percentage2", "5.48%");
+        collector.verify("Percentage", "percentage-mul-scientific", "2.89E+3");
+
+        collector.verify("Scientific", "scientific-mul-gen", "1.52E+8");
+        collector.verify("Scientific", "scientific-mul-bool", "1.23E+4");
+        collector.verify("Scientific", "scientific-mul-ccy", "BTC 152,415,666.51");
+        collector.verify("Scientific", "scientific-mul-date", "12/31/+419176");
+        collector.verify("Scientific", "scientific-mul-number", "1.52E+7");
+        collector.verify("Scientific", "scientific-mul-percentage", "2.89E+3");
+        collector.verify("Scientific", "scientific-mul-scientific1", "1.52E+8");
+        collector.verify("Scientific", "scientific-mul-scientific2", "1.52E+8");
+    }
+
+    @Test
+    void testRowOverrideFormatting() {
+        String dsl = """
+                table A
+                  dim [dim] = RANGE(3)
+                  [a]
+                  !format("number", 2)
+                  [b]
+                  [c] = 1
+                  [d]
+                override
+                row,[a],[b],[c],[d]
+                1,1=1,2=2,3=3,4=4
+                2,1>1,2>2,3>3,DATE(2020, 1, 1)
+                """;
+
+        ResultCollector collector = executeWithoutErrors(dsl);
+
+        collector.verify("A", "a", "TRUE", "FALSE", "");
+        collector.verify("A", "b", "1.00", "0.00", "");
+        collector.verify("A", "c", "TRUE", "FALSE", "TRUE");
+        collector.verify("A", "d", 1, 43831, Doubles.EMPTY);
+    }
+
+    @Test
+    void testManualOverrideFormatting() {
+        String dsl = """
+                !manual()
+                table A
+                  [a]
+                  !format("number", 2)
+                  [b]
+                  [c] = 1
+                  [d]
+                  [e] = 1=1
+                override
+                [a],[b],[c],[d],[e]
+                1=1,2=2,3=3,4=4,
+                1>1,2>2,3>3,DATE(2020, 1, 1),0
+                ,,,,1
+                """;
+
+        ResultCollector collector = executeWithoutErrors(dsl);
+
+        collector.verify("A", "a", "TRUE", "FALSE", "");
+        collector.verify("A", "b", "1.00", "0.00", "");
+        collector.verify("A", "c", "TRUE", "FALSE", "TRUE");
+        collector.verify("A", "d", 1, 43831, Doubles.EMPTY);
+        collector.verify("A", "e", "TRUE", "FALSE", "TRUE");
+    }
+
+    @Test
+    void testRecursiveOverrideFormatting() {
+        String dsl = """
+                !manual()
+                table A
+                  [a]
+                override
+                [a]
+                DATE(2020, 1, 1)
+                TEXT(A(1)[a] + 1)
+                """;
+
+        ResultCollector collector = executeWithoutErrors(dsl);
+
+        // TODO: Expected result
+        // collector.verify("A", "a", "1/1/2020", Strings.ERROR_NA);
+        // Actual result
+        collector.verify("A", "a", "1/1/2020", "1/2/2020");
+    }
+
+    @Test
+    void testListFormatting() {
+        String dsl = """
+                table A
+                  dim [a] = {1=1, 1<1, 1>2, NA}
+                
+                table B
+                  !format("number", 2)
+                  dim [b] = A[a]
+                
+                table C
+                  dim [c] = {1=1, 1<1, B(1)[b]}
+                """;
+
+        ResultCollector collector = executeWithoutErrors(dsl);
+
+        collector.verify("A", "a", "TRUE", "FALSE", "FALSE", Strings.ERROR_NA);
+        collector.verify("B", "b", "1.00", "0.00", "0.00", Strings.ERROR_NA);
+        collector.verify("C", "c", 1, 0, 1);
+    }
+
+    @Test
+    void testPivotFormatting() {
+        String dsl = """
+                !manual()
+                table A
+                  [key] = "a"
+                  [name]
+                  [date]
+                override
+                [name],[date]
+                "a",DATE(2024, 11, 17)
+                "b",DATE(2024, 11, 18)
+                "c",DATE(2024, 11, 19)
+                
+                table B
+                  dim [k], [*] = PIVOT(A[key], A[name], A[date], "SINGLE")
+                  [a2] = [a]
+                  [b2] = [b]
+                  [c2] = [c]
+                """;
+
+        ResultCollector collector = executeWithoutErrors(dsl);
+
+        collector.verify("B", "a2", "11/17/2024");
+        collector.verify("B", "b2", "11/18/2024");
+        collector.verify("B", "c2", "11/19/2024");
+    }
+
+    @Test
+    void testUnpivotFormatting() {
+        String dsl = """
+                table SingleFormat
+                  !format("date", "M/d/yyyy")
+                  [a] = 1
+                  !format("date", "M/d/yyyy")
+                  [b] = 2
+
+                table TwoFormats
+                  !format("number", 2)
+                  [c] = 1
+                  !format("date", "M/d/yyyy")
+                  [d] = 2
+                
+                table A
+                  dim [a] = UNPIVOT(SingleFormat, {})[value]
+
+                table B
+                  dim [b] = UNPIVOT(TwoFormats, {})[value]
+                """;
+
+        ResultCollector collector = executeWithoutErrors(dsl);
+
+        collector.verify("A", "a", "12/31/1899", "1/1/1900");
+        collector.verify("B", "b", 1, 2);
+    }
+
+    @Test
+    void testUnpivotAfterPivotFormatting() {
+        String dsl = """
+                !manual()
+                table A
+                  [key] = "1"
+                  [name]
+                  [date]
+                override
+                [name],[date]
+                "a",DATE(2024, 11, 17)
+                "b",DATE(2024, 11, 18)
+                "c",DATE(2024, 11, 19)
+                
+                table B
+                  dim [key], [*] = PIVOT(A[key], A[name], A[date], "SINGLE")
+                
+                table C
+                  dim [date] = UNPIVOT(B, {"key"})[value]
+                """;
+
+        ResultCollector collector = executeWithoutErrors(dsl);
+
+        collector.verify("C", "date", "11/17/2024", "11/18/2024", "11/19/2024");
     }
 
     @Test
@@ -4921,7 +5494,7 @@ class CompilerTest {
                 [num],[str]
                 NA,NA
                 ,
-                1,"1.0"
+                1,"1"
                 10,"Z"
                 
                 table B
@@ -4930,7 +5503,7 @@ class CompilerTest {
 
         ResultCollector collector = executeWithoutErrors(dsl, true);
 
-        collector.verify("B", "a", Strings.ERROR_NA, Strings.EMPTY, "1.0", "10.0", "Z");
+        collector.verify("B", "a", Strings.ERROR_NA, Strings.EMPTY, "1", "10", "Z");
     }
 
     @Test
@@ -4943,8 +5516,8 @@ class CompilerTest {
 
         ResultCollector collector = executeWithoutErrors(dsl);
 
-        collector.verify("A", "a", 1);
-        collector.verify("A", "b", 0);
+        collector.verify("A", "a", "TRUE");
+        collector.verify("A", "b", "FALSE");
     }
 
     @Test
@@ -4977,9 +5550,9 @@ class CompilerTest {
 
         ResultCollector collector = executeWithoutErrors(dsl);
 
-        collector.verify("B", "b", 0, 0, 1, 0);
-        collector.verify("C", "b", 0, 1, 1, 0);
-        collector.verify("D", "b", 1, 0, 1);
+        collector.verify("B", "b", "FALSE", "FALSE", "TRUE", "FALSE");
+        collector.verify("C", "b", "FALSE", "TRUE", "TRUE", "FALSE");
+        collector.verify("D", "b", "TRUE", "FALSE", "TRUE");
     }
 
     @Test
@@ -5012,8 +5585,8 @@ class CompilerTest {
 
         ResultCollector collector = executeWithoutErrors(dsl);
 
-        collector.verify("B", "a", 0, 0, 1, 0);
-        collector.verify("C", "a", 0, 1, 1, 0);
+        collector.verify("B", "a", "FALSE", "FALSE", "TRUE", "FALSE");
+        collector.verify("C", "a", "FALSE", "TRUE", "TRUE", "FALSE");
         collector.verify("D", "a", 2, 2);
         collector.verify("E", "a", 2, 2);
     }
@@ -5058,7 +5631,7 @@ class CompilerTest {
         String dsl = """
                 table A
                   dim [a] = RANGE(2)
-                      [*] = PIVOT(RANGE(3), $, SUM($))
+                  dim [ignore], [*] = PIVOT(RANGE(3) - RANGE(3), RANGE(3), RANGE(3), "SUM")
                       [b] = -[missing]
                       [c] = [missing] + 1
                       [d] = RANGE([missing])
@@ -5355,24 +5928,24 @@ class CompilerTest {
 
         data.verify("B", "filter", "2", "0", "0");
         data.verify("B", "COUNT", "2", "0", "0");
-        data.verify("B", "SUM", "5.0", "0.0", "0.0");
+        data.verify("B", "SUM", "5", "0", "0");
         data.verify("B", "AVERAGE", "2.5", null, null);
-        data.verify("B", "MIN", "1.0", null, null);
-        data.verify("B", "MAX", "4.0", null, null);
-        data.verify("B", "STDEVS", "2.1213203435596424", null, null);
+        data.verify("B", "MIN", "1", null, null);
+        data.verify("B", "MAX", "4", null, null);
+        data.verify("B", "STDEVS", "2.121320344", null, null);
         data.verify("B", "STDEVP", "1.5", null, null);
-        data.verify("B", "GEOMEAN", "2.0", null, null);
+        data.verify("B", "GEOMEAN", "2", null, null);
         data.verify("B", "MEDIAN", "2.5", null, null);
         data.verify("B", "MODE", (String) null, null, null);
-        data.verify("B", "CORREL", "1.0", null, null);
+        data.verify("B", "CORREL", "1", null, null);
 
-        data.verify("B", "MINBY", "1.0", null, null);
-        data.verify("B", "MAXBY", "4.0", null, null);
+        data.verify("B", "MINBY", "1", null, null);
+        data.verify("B", "MAXBY", "4", null, null);
 
-        data.verify("B", "FIRST", "1.0", null, null);
+        data.verify("B", "FIRST", "1", null, null);
         data.verify("B", "SINGLE", (String) null, null, null);
-        data.verify("B", "LAST", "4.0", null, null);
-        data.verify("B", "INDEX", "1.0", null, null);
+        data.verify("B", "LAST", "4", null, null);
+        data.verify("B", "INDEX", "1", null, null);
 
         data.verify("B", "FIRSTS", "1", "0", "0");
         data.verify("B", "LASTS", "1", "0", "0");
@@ -5393,5 +5966,320 @@ class CompilerTest {
 
         ResultCollector data = executeWithoutErrors(dsl);
         data.verify("A", "c", (String) null);
+    }
+
+    @Test
+    void testProjection() {
+        String dsl = """
+                    table PriceData
+                    dim [x] = RANGE(10)
+                        [close] = [x]  * 17 MOD 147
+                        [decreases] = PriceData.INDEX(ROW()-1)[close] > [close]
+                        [bear_start] = PriceData.INDEX(ROW()-1)[decreases]
+                """;
+
+        ResultCollector data = executeWithErrors(dsl, false, true);
+        data.verify("PriceData", "bear_start", null, null, "FALSE", "FALSE", "FALSE",
+                "FALSE", "FALSE", "FALSE", "FALSE", "TRUE");
+    }
+
+    @Test
+    void testUniteAggregations() {
+        String dsl = """
+                table A
+                  dim [a] = RANGE(5)
+                      [b] = SUM(FILTER(A, A[a] = [a])[a])
+                      [c] = SUM(FILTER(A, A[a] = [a])[b])       # depends on b
+                      [d] = SUM(FILTER(A, A[a] = [a])[b] + 1)   # depends on b
+                      [e] = SUM(FILTER(A, A[a] = [a])[c])       # depends on c (transitively on b)
+                      [f] = SUM(FILTER(A, A[a] = [a])[d])       # depends on d (transitively on b)
+                """;
+
+        ResultCollector data = executeWithoutErrors(dsl);
+        data.verify("A", "b", 1, 2, 3, 4, 5);
+        data.verify("A", "c", 1, 2, 3, 4, 5);
+        data.verify("A", "d", 2, 3, 4, 5, 6);
+        data.verify("A", "e", 1, 2, 3, 4, 5);
+        data.verify("A", "f", 2, 3, 4, 5, 6);
+    }
+
+    @Test
+    void testDoublesFormatting() {
+        String dsl = """
+                table A
+                  [a] = 0
+                  [b] = -0
+                  [c] = 1E5
+                  [d] = 1.0e5
+                  [e] = 1.0e+5
+                  [f] = -1.0e-8
+                  [g] = 1234567
+                  [h] = 123456.70
+                  [i] = 12345678912345678
+                  [j] = -12345678912345678
+                  [k] = 0.00000009
+                  [l] = 0.00000012345678912345678
+                """;
+
+        ResultCollector data = executeWithoutErrors(dsl);
+
+        data.verify("A", "a", "0");
+        data.verify("A", "b", "0");
+        data.verify("A", "c", "100,000");
+        data.verify("A", "d", "100,000");
+        data.verify("A", "e", "100,000");
+        data.verify("A", "f", "-1E-8");
+        data.verify("A", "g", "1,234,567");
+        data.verify("A", "h", "123,456.7");
+        data.verify("A", "i", "12,345,678.9B");
+        data.verify("A", "j", "-12,345,678.9B");
+        data.verify("A", "k", "9E-8");
+        data.verify("A", "l", "0.0000001234567891");
+    }
+
+    @Test
+    void testOverridesFormatting() {
+        String dsl = """
+                !manual()
+                table A
+                  !format("scientific", 2)
+                  [a]
+                  !format("number", 2)
+                  [b]
+                  !format("text")
+                  [c]
+                  !format("text")
+                  [d]
+                override
+                [a],[b],[c],[d]
+                1,2,3,DATE(2025,4,24)
+                4,A(1)[b],A(1)[b],A(1)[d]
+                
+                table B
+                  [a] = A(1)[a]
+                  [b] = A(1)[b]
+                """;
+
+        ResultCollector data = executeWithoutErrors(dsl);
+
+        data.verify("A", "a", "1.00E+0", "4.00E+0");
+        data.verify("A", "b", "2.00", "2.00");
+        data.verify("A", "c", "3.00", "2.00");
+        data.verify("A", "d", "4/24/2025", "4/24/2025");
+        data.verify("B", "a", "1.00E+0");
+        data.verify("B", "b", "2.00");
+    }
+
+    @Test
+    void testTextToDoubleFormatAutoCast() {
+        String dsl = """
+                !manual()
+                table A
+                  !format("number", 2, ",")
+                  [a]
+                  !format("general")
+                  [b]
+                  !format("text")
+                  [c]
+                override
+                [a],[b],[c]
+                "12M","asd","sdf"
+                "123","dsa","fds"
+                """;
+
+        ResultCollector data = executeWithoutErrors(dsl);
+
+        data.verify("A", "a", "12,000,000.00", "123.00");
+        data.verify("A", "b", "asd", "dsa");
+        data.verify("A", "c", "sdf", "fds");
+    }
+
+    @Test
+    void testMultiAssignment() {
+        String dsl = """
+                table A
+                  dim [a] = RANGE(4)
+                      [b] = [a] + 10
+                      [c] = RANGE([a])
+                
+                table B
+                  dim [a],\n [b]\n, [c] = A[[a],\\\n[b]\\\n, [c]]
+                
+                table C
+                  dim [a], [b], [c] = FILTER(A, A[a] > 2)[[a], [b], [c]]
+                
+                table D
+                  dim [a], [b], [c] = FILTER(A[[a], [b], [c]], A[a] > 2)
+                
+                table F
+                  dim [a], [b], [c] = A
+                
+                table G
+                  dim [a] = A[[a], [b]]
+                
+                table H
+                  dim [a], [b] = A[a]
+                """;
+
+        String expected = """
+                Table: A
+                +---+----+---+
+                | a |  b | c |
+                +---+----+---+
+                | 1 | 11 | 1 |
+                | 2 | 12 | 2 |
+                | 3 | 13 | 3 |
+                | 4 | 14 | 4 |
+                +---+----+---+
+                
+                Table: B
+                +---+----+---+
+                | a |  b | c |
+                +---+----+---+
+                | 1 | 11 | 1 |
+                | 2 | 12 | 2 |
+                | 3 | 13 | 3 |
+                | 4 | 14 | 4 |
+                +---+----+---+
+                
+                Table: C
+                +---+----+---+
+                | a |  b | c |
+                +---+----+---+
+                | 3 | 13 | 3 |
+                | 4 | 14 | 4 |
+                +---+----+---+
+                
+                Table: D
+                +---+----+---+
+                | a |  b | c |
+                +---+----+---+
+                | 3 | 13 | 3 |
+                | 4 | 14 | 4 |
+                +---+----+---+
+                
+                Table: F
+                ERR >> F    - Declared 3 columns, but formula produces table reference
+                ERR >> F[a] - Declared 3 columns, but formula produces table reference
+                ERR >> F[b] - Declared 3 columns, but formula produces table reference
+                ERR >> F[c] - Declared 3 columns, but formula produces table reference
+                
+                Table: G
+                ERR >> G    - Declared 1 columns, but formula produces 2: a, b
+                ERR >> G[a] - Declared 1 columns, but formula produces 2: a, b
+                
+                Table: H
+                ERR >> H    - Declared 2 columns, but formula produces 1 column
+                ERR >> H[a] - Declared 2 columns, but formula produces 1 column
+                ERR >> H[b] - Declared 2 columns, but formula produces 1 column
+                """;
+
+        ResultCollector data = executeWithErrors(dsl);
+        data.verify(expected);
+    }
+
+    @Test
+    void testUnpivotAutoCast() {
+        String dsl = """
+                !manual()
+                table A
+                  [key] = 1
+                  [country]
+                  [population]
+                override
+                [country], [population]
+                "USA", 10
+                "UK", 20
+                "Spain", 30
+                "USA", 40
+                                
+                table B
+                  dim [key], [*] = PIVOT(A[key], A[country], A[population], "SUM")
+                      [Germany] = "100g"
+                   
+                table C
+                   dim [key], [country], [population] = UNPIVOT(B, {"key"})[[key], [name], [value]]
+                """;
+
+        ResultCollector data = executeWithErrors(dsl);
+        data.verify("C", "country", "Germany", "Spain", "UK", "USA");
+        data.verify("C", "population", "100g", "30", "20", "50");
+    }
+
+    @Test
+    void testPivotAfterAssignment() {
+        String dsl = """
+                table A
+                  dim [value] = RANGE(10)
+                      [company] = "company" & ([value] MOD 3)
+                      [indicator] = "index" & ([value] MOD 4)
+                
+                table B
+                  dim [company], [*] = PIVOT(A[company], A[indicator], A[value], "SUM")
+                
+                table C
+                  dim [index1] = B[index1]
+                
+                table D
+                  dim [company],[index1] = B[[company],[index1]]
+                
+                table E
+                  dim [*] = B[*]
+                      [index1_2] = [index1]
+                
+                table F
+                  dim [company], [*] = B[[company], [*]]
+                      [index1_2] = [index1]
+                """;
+
+        ResultCollector data = executeWithErrors(dsl);
+        data.verify("C", "index1", 9, 1, 5);
+        data.verify("D", "index1", 9, 1, 5);
+        data.verify("E", "index1_2", 9, 1, 5);
+        data.verify("F", "index1_2", 9, 1, 5);
+    }
+
+    @Test
+    void testPivotReferenceAggregations() {
+        String dsl = """
+               table A
+                 dim [value] = RANGE(10)
+                     [company] = "company" & ([value] MOD 3)
+                     [indicator] = "indicator" & ([value] MOD 2)
+                     [index] = [value] MOD 3
+               
+               table B
+                 dim [company], [*] = PIVOT(A[company], A[indicator], A[[value], [value]], "MINBY")
+                     [result] = [indicator0]
+               
+               table C
+                 dim [company], [*] = PIVOT(A[company], A[indicator], A[[value], [index]], "INDEX")
+                     [result] = [indicator0]
+               
+               table D
+                 dim [company], [*] = PIVOT(A[company], A[indicator], A[value], "LAST")
+                     [result] = [indicator0]
+               """;
+
+        ResultCollector data = executeWithoutErrors(dsl);
+        data.verify("B", "result", "6", "4", "2");
+        data.verify("C", "result", Strings.ERROR_NA, "4", "8");
+        data.verify("D", "result", "6", "10", "8");
+    }
+
+    @Test
+    void testIndices() {
+        String dsl = """
+                table A
+                  !index()
+                  [a] = "abc"
+                  key [b] = "def"
+                  key [c] = 456
+                """;
+
+        ResultCollector data = executeWithoutErrors(dsl);
+
+        assertThat(data.getIndices())
+                .containsExactlyInAnyOrder(new FieldKey("A", "a"), new FieldKey("A", "b"));
     }
 }

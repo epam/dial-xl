@@ -68,13 +68,13 @@ class SheetParserTest {
                   dim [b] = 2.5
                   # test field
                   [c] = 3.42
-                  key dim [d] = 5.00
+                  dim key [d] = 5.00
                   # test comment9
                   # test comment10
 
                 !placement(5, 1)
                 table T2
-                  key dim [x] = T1
+                  dim key [x] = T1
                   [y] = T2
                   dim [z] = T1[a]
                   key [w] = [x][y]
@@ -90,10 +90,10 @@ class SheetParserTest {
                   !format("#.##") key [a] = -1 
                   dim [b] = 2.5 
                   [c] = 3.42 
-                  key dim [d] = 5.00
+                  dim key [d] = 5.00
 
                 !placement(5, 1) table T2
-                  key dim [x] = T1
+                  dim key [x] = T1
                   [y] = T2
                   dim [z] = T1[a]
                   key [w] = [x][y]
@@ -108,10 +108,10 @@ class SheetParserTest {
                 !format("#.##") key [a] = -1 
                 dim [b] = 2.5 
                 [c] = 3.42 
-                key dim [d] = 5.00
+                dim key [d] = 5.00
 
                 !placement(5, 1) table T2
-                key dim [x] = T1 
+                dim key [x] = T1 
                 [y] = T2 
                 dim [z] = T1[a] 
                 key [w] = [x][y]
@@ -286,7 +286,7 @@ class SheetParserTest {
     void testOverrides() {
         String sheet = """
                 table t1
-                key dim [a] = RANGE(4)
+                dim key [a] = RANGE(4)
                         [b] = NA
                         [c] = 5
                 override
@@ -304,7 +304,7 @@ class SheetParserTest {
     void testOverridesWithRowNumberKey() {
         String sheet = """
                 table t1
-                key dim [a] = RANGE(4)
+                dim key [a] = RANGE(4)
                         [b] = NA
                 override
                 row, [b]
@@ -321,7 +321,7 @@ class SheetParserTest {
     void testOverrideWithGaps() {
         String sheet = """
                 table t1
-                key dim [a] = RANGE(4)
+                dim key [a] = RANGE(4)
                         [b] = NA
                         [c] = 5
                 override
@@ -339,8 +339,8 @@ class SheetParserTest {
     void testOverrideWithMultipleKeys() {
         String sheet = """
                 table t1
-                key dim [a] = RANGE(4)
-                key dim [x] = RANGE(5)
+                dim key [a] = RANGE(4)
+                dim key [x] = RANGE(5)
                         [b] = NA
                         [c] = 5
                 override
@@ -360,8 +360,8 @@ class SheetParserTest {
     @Test
     void testOverrideWithMultipleKeys2() {
         String sheet = "table t1\n"
-                + "key dim [a] = RANGE(4)\n"
-                + "key dim [x] = RANGE(5)\n"
+                + "dim key [a] = RANGE(4)\n"
+                + "dim key [x] = RANGE(5)\n"
                 + "        [b] = NA\n"
                 + "        [c] = 5\n"
                 + "override\n"
@@ -378,8 +378,8 @@ class SheetParserTest {
     void testOverrideDefinitionWithTableAfter() {
         String sheet = """
                 table t1
-                key dim [a] = RANGE(4)
-                key dim [x] = RANGE(5)
+                dim key [a] = RANGE(4)
+                dim key [x] = RANGE(5)
                         [b] = NA
                         [c] = 5
                 # missing trailing newline in override section
@@ -401,8 +401,8 @@ class SheetParserTest {
     void testIncorrectOverrideDefinition2() {
         String sheet = """
                 table t1
-                key dim [a] = RANGE(4)
-                key dim [x] = RANGE(5)
+                dim key [a] = RANGE(4)
+                dim key [x] = RANGE(5)
                         [b] = NA
                         [c] = 5
                 # wrong values number in some rows
@@ -433,7 +433,7 @@ class SheetParserTest {
     void testEscaping() {
         String sheet = """
                 table t1
-                key dim [a''] = RANGE(4)
+                dim key [a''] = RANGE(4)
                         [b] = NA
                         [c] = 5
                 override
@@ -471,7 +471,7 @@ class SheetParserTest {
     void testKeyAndDimWithoutOrder() {
         String dsl = """
                 table A
-                  key dim [a] = 1
+                  dim key [a] = 1
                   dim key [b] = 2
                 """;
 

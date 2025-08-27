@@ -2,18 +2,20 @@ import { WorksheetState } from '@frontend/common';
 import {
   escapeTableName,
   SheetReader,
+  Table,
   unescapeTableName,
 } from '@frontend/parser';
 
 import { createUniqueName } from './createUniqueName';
 
-type DuplicateTable = {
-  tableName: string;
-  newTableName: string;
-  start: number;
-  end: number;
-};
-
+/**
+ * Automatically renames tables in a sheet to avoid naming conflicts with other sheets.
+ *
+ * @param dsl - The DSL content of the sheet to process
+ * @param sheetName - The name of the current sheet
+ * @param projectSheets - All sheets in the project
+ * @returns initial DSL or updated DSL whether changes were made
+ */
 export const autoRenameTables = (
   dsl: string,
   sheetName: string,
@@ -21,66 +23,62 @@ export const autoRenameTables = (
 ) => {
   try {
     const parsedSheet = SheetReader.parseSheet(dsl);
-    const { tables } = parsedSheet;
-    const tableNames = getAllTableNames(
-      projectSheets.filter((s) => s.sheetName !== sheetName)
-    ).map((tableName) => unescapeTableName(tableName));
-    const tableNameSet = new Set(tableNames);
-    const duplicateTables: DuplicateTable[] = [];
+    const editableSheet = parsedSheet.editableSheet;
 
-    tables.forEach((table) => {
-      const currentTableName = unescapeTableName(table.tableName);
+    if (!editableSheet) return dsl;
 
-      if (tableNameSet.has(currentTableName) && table.dslTableNamePlacement) {
-        const { dslTableNamePlacement } = table;
-        const tableName = unescapeTableName(currentTableName);
-        const newTableName = createUniqueName(tableName, tableNames);
-        tableNames.push(newTableName);
+    const existingNames = new Set(
+      extractProjectTableNames(
+        projectSheets.filter((s) => s.sheetName !== sheetName)
+      ).map(unescapeTableName)
+    );
 
-        duplicateTables.push({
-          tableName,
-          newTableName,
-          start: dslTableNamePlacement?.start || 0,
-          end: dslTableNamePlacement?.end || 0,
-        });
-      } else {
-        if (currentTableName !== table.tableName) {
-          duplicateTables.push({
-            tableName: table.tableName,
-            newTableName: table.tableName,
-            start: table.dslTableNamePlacement?.start || 0,
-            end: table.dslTableNamePlacement?.end || 0,
-          });
-        }
+    const hasTableNameChanges = processTableNames(
+      editableSheet.tables,
+      existingNames
+    );
 
-        tableNameSet.add(currentTableName);
-        tableNames.push(currentTableName);
-      }
-    });
-
-    if (duplicateTables.length === 0) return dsl;
-
-    const reversedTablesByPlacement = duplicateTables.sort((a, b) => {
-      return b.start - a.start;
-    });
-
-    let updatedDsl = dsl;
-
-    reversedTablesByPlacement.forEach((t) => {
-      const sanitizedTableName = escapeTableName(t.newTableName);
-      updatedDsl =
-        updatedDsl.substring(0, t.start) +
-        sanitizedTableName +
-        updatedDsl.substring(t.end);
-    });
-
-    return updatedDsl;
-  } catch (error) {
+    return hasTableNameChanges ? editableSheet.toDSL() : dsl;
+  } catch (e) {
     return dsl;
   }
 };
 
-export const getAllTableNames = (projectSheets: WorksheetState[] | null) => {
+const processTableNames = (
+  tables: Table[],
+  existingNames: Set<string>
+): boolean => {
+  let hasTableNameChanges = false;
+
+  tables.forEach((table) => {
+    const currentTableName = table.name;
+
+    if (existingNames.has(currentTableName)) {
+      const newTableName = createUniqueName(
+        currentTableName,
+        Array.from(existingNames)
+      );
+      existingNames.add(newTableName);
+
+      table.name = escapeTableName(newTableName);
+
+      hasTableNameChanges = true;
+    } else {
+      if (currentTableName !== table.rawName) {
+        table.rawName = escapeTableName(currentTableName);
+        hasTableNameChanges = true;
+      }
+
+      existingNames.add(currentTableName);
+    }
+  });
+
+  return hasTableNameChanges;
+};
+
+export const extractProjectTableNames = (
+  projectSheets: WorksheetState[] | null
+) => {
   let tableNames: string[] = [];
 
   if (!projectSheets) return tableNames;

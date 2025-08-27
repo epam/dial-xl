@@ -16,6 +16,7 @@ class ApiKey(ApiKeyProvider):
         self.__api_key = api_key
 
     async def get_api_key(self) -> str:
+        """Return the API key."""
         return self.__api_key
 
 
@@ -24,6 +25,7 @@ class Jwt(JwtProvider):
         self.__jwt = jwt
 
     async def get_jwt(self) -> str:
+        """Return the JWT."""
         return self.__jwt
 
 

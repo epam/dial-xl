@@ -27,12 +27,15 @@ export function DashboardSearchBar() {
   const { dropdownItems } = useDashboardCreateMenuItems(projects);
 
   return (
-    <div className="flex justify-between">
+    <div className="flex justify-between gap-2 md:gap-5">
       <Input
-        className={cx('ant-input-md text-base', inputClasses)}
+        className={cx(
+          'ant-input-md text-sm md:text-base max-md:px-4 max-md:py-2.5 h-[38px] md:h-auto',
+          inputClasses
+        )}
         placeholder="Search project..."
         prefix={
-          <div className="px-3 w-[18px] text-textSecondary">
+          <div className="size-[18px] text-textSecondary shrink-0">
             <SearchIcon />
           </div>
         }
@@ -47,7 +50,10 @@ export function DashboardSearchBar() {
         trigger={['click']}
       >
         <Button
-          className={cx('h-12 px-5 ml-5 text-base', primaryButtonClasses)}
+          className={cx(
+            'h-[38px] md:h-11 px-5 text-base',
+            primaryButtonClasses
+          )}
         >
           New
         </Button>

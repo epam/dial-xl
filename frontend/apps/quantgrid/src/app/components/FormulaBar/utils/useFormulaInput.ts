@@ -45,11 +45,25 @@ export function useFormulaInput() {
 
         return `=${extractExpression(fieldTotal.expression)}`;
       }
-      if (type === Override || (type === Cell && formulaBarMode === 'value'))
-        return isOverrideValueFormula(overrideValue) &&
+
+      if (type === Override) {
+        if (
+          isOverrideValueFormula(overrideValue) &&
           formulaBarMode === 'formula'
-          ? `=${extractExpression(overrideValue?.toString())}`
-          : selectedCell.value || '';
+        ) {
+          return `=${extractExpression(overrideValue?.toString())}`;
+        }
+
+        if (!isNaN(Number(overrideValue))) {
+          return overrideValue?.toString() || '';
+        } else {
+          return selectedCell.value || '';
+        }
+      }
+
+      if (type === Cell && formulaBarMode === 'value') {
+        return selectedCell.value || '';
+      }
 
       if ([Field, Table, Cell].includes(type)) {
         if (!tableName) return null;

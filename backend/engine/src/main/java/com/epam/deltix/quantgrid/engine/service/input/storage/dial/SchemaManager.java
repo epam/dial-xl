@@ -1,7 +1,9 @@
 package com.epam.deltix.quantgrid.engine.service.input.storage.dial;
 
+import com.epam.deltix.quantgrid.util.BodyWriter;
 import com.epam.deltix.quantgrid.util.DialFileApi;
 import com.epam.deltix.quantgrid.util.EtaggedStream;
+import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -28,7 +30,8 @@ public class SchemaManager {
     private static final String SCHEMA_PREFIX = ".";
     private static final String USER_BUCKET_PATH_PATTERN = "files/%s/";
     private static final ObjectMapper MAPPER = new ObjectMapper()
-            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+            .configure(JsonGenerator.Feature.AUTO_CLOSE_TARGET, false);
     private static final int MAX_COLLECTION_WRITE_ATTEMPTS = 3;
     private static final int MAX_SCHEMA_FILE_SIZE_IN_BYTES = 1_000_000;
 
@@ -137,8 +140,8 @@ public class SchemaManager {
         String schemaPath = getSchemaFilePath();
         try {
             log.debug("Writing schema {}", schemaPath);
-            byte[] bytes = MAPPER.writeValueAsBytes(schema);
-            fileApi.writeFile(schemaPath, "*", bytes, "application/json", principal);
+            BodyWriter bodyWriter = stream -> MAPPER.writeValue(stream, schema);
+            fileApi.writeFile(schemaPath, "*", bodyWriter, "application/json", principal);
         } catch (AccessDeniedException ignore) {
             writeSchemaToCollectionFile(schema);
         } catch (Exception e) {
@@ -164,8 +167,8 @@ public class SchemaManager {
                 }
 
                 log.debug("Writing schema for {} to {}", inputPath, path);
-                byte[] bytes = MAPPER.writeValueAsBytes(schemaMap);
-                fileApi.writeFile(path, schemaCollection.etag(), bytes, "application/json", principal);
+                BodyWriter bodyWriter = stream -> MAPPER.writeValue(stream, schemaMap);
+                fileApi.writeFile(path, schemaCollection.etag(), bodyWriter, "application/json", principal);
                 return;
             } catch (ConcurrentModificationException e) {
                 log.info("Failed to write schema for {} to {}. Attempt {} of {}.",

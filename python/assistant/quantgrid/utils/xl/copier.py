@@ -1,5 +1,6 @@
 from dial_xl.decorator import Decorator
 from dial_xl.field import Field
+from dial_xl.field_groups import FieldGroup
 from dial_xl.overrides import Override, Overrides
 from dial_xl.sheet import Sheet
 from dial_xl.table import Table
@@ -23,8 +24,12 @@ class XLCopier:
         for decorator in table.decorators:
             clone.add_decorator(XLCopier.copy_decorator(decorator))
 
-        for field in table.fields:
-            clone.add_field(XLCopier.copy_field(field))
+        for field_group in table.field_groups:
+            cloned_field_group = FieldGroup(field_group.formula)
+            for field in field_group.fields:
+                cloned_field_group.add_field(XLCopier.copy_field(field))
+
+            clone.field_groups.append(cloned_field_group)
 
         clone.overrides = (
             None
@@ -36,7 +41,7 @@ class XLCopier:
 
     @staticmethod
     def copy_field(field: Field) -> Field:
-        clone = Field(field.name, field.formula)
+        clone = Field(field.name)
         clone.doc_string = field.doc_string
         clone.dim = field.dim
         clone.key = field.key
@@ -64,5 +69,7 @@ class XLCopier:
     @staticmethod
     def copy_override(override: Override) -> Override:
         return Override(
-            {key: override[key] for key in override.names}, override.row_number
+            values={key: override[key] for key in override.names},
+            errors={},
+            row_number=override.row_number,
         )

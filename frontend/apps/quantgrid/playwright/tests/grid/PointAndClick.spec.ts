@@ -105,7 +105,7 @@ test.describe('point and click', () => {
       <Canvas>projectPage.getVisualization(),
       table.getFirstCellCoord(),
       table.getLeft() + 1,
-      '23.0'
+      '23'
     );
     table.addField(new Field('Field1', 'NA'));
     table.addOverrideValue('Field1', 1, '23.0');

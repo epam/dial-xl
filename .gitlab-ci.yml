@@ -1,16 +1,27 @@
-# trigger 23
-
 include:
   - project: Gitlab/ci
     ref: 1.0.0
     file: jobs/cloud-auth/aws.gitlab-ci.yml 
 
+.sed_template: &sed_template |
+  sed -i -E 's@^URIs:.+ubuntu\.com.+@URIs: http://ftp.uni-stuttgart.de/ubuntu/@' /etc/apt/sources.list.d/ubuntu.sources
+
 workflow:
   rules:
+    - if: '$CI_PIPELINE_SOURCE == "web"'    
+      allow_failure: true
+    - if: '$CI_PIPELINE_SOURCE  == "schedule"'
+      when: always
+      allow_failure: true
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
       when: always
       auto_cancel:
         on_new_commit: interruptible
+    - if: $CI_COMMIT_BRANCH == "main"
+      when: always
+    - if: $CI_COMMIT_BRANCH == "stable" && $CI_COMMIT_MESSAGE !~ /^RobotBuild/
+      when: always
+    - if: $CI_COMMIT_TAG
 
 stages:
   - prepare # semver tag on stable branch
@@ -43,7 +54,7 @@ variables:
   HELM_EXTRA_ARGS: "-f ${HELM_SECRET_FILE}" # temporary remove --timeout=15m
   SECRET_NAME: "epm-rtc-registry-dev"
   CHART: "quantgrid" # Helm chart name, e.g. "gitlab-runner"
-  VERSION: "0.2.3" # Helm chart version!
+  VERSION: "0.3.2" # Helm chart version!
   RELEASE: ${CHART}
 
   development_AWS_ACCESS_KEY_ID: ${staging_AWS_ACCESS_KEY_ID}
@@ -56,13 +67,14 @@ variables:
 
   staging_DEPLOY_ENV: "false" # now we need only dev, review and sales (deployed separately) environments
 
+
   review_DEPLOY_ENV: "true"
   review_ENV_ID: "staging"
   review_HELM_VALUES_FILE: "infrastructure/k8s/quantgrid-review-values.yaml"
-  review_ENV_URL: "https://${CI_PROJECT_NAME}-${CI_MERGE_REQUEST_IID}.staging.deltixhub.io"
+  review_ENV_URL: "https://${CI_PROJECT_NAME}-${CI_COMMIT_REF_SLUG}.staging.deltixhub.io"
   review_NAMESPACE: quantgrid-review
-  review_HELM_CUSTOM_VALUES: "global.url=quantgrid-$CI_MERGE_REQUEST_IID.staging.deltixhub.io,ingress.hosts[0]=${CI_PROJECT_NAME}-${CI_MERGE_REQUEST_IID}.staging.deltixhub.io,fullnameOverride=${CI_PROJECT_NAME}-${CI_MERGE_REQUEST_IID},frontend.image.tag=${CI_COMMIT_REF_SLUG},backendControl.image.tag=${CI_COMMIT_REF_SLUG},backendCompute.image.tag=${CI_COMMIT_REF_SLUG},backendControl.env.WEB_CLUSTER_NAMESPACE=mr-${CI_MERGE_REQUEST_IID},backendCompute.env.WEB_CLUSTER_NAMESPACE=mr-${CI_MERGE_REQUEST_IID}"
-  review_RELEASE: ${CHART}-${CI_MERGE_REQUEST_IID}
+  review_HELM_CUSTOM_VALUES: "global.url=quantgrid-${CI_COMMIT_REF_SLUG}.staging.deltixhub.io,ingress.hosts[0]=${CI_PROJECT_NAME}-${CI_COMMIT_REF_SLUG}.staging.deltixhub.io,fullnameOverride=qg-${CI_COMMIT_REF_SLUG},frontend.image.tag=${CI_COMMIT_REF_SLUG},backendControl.image.tag=${CI_COMMIT_REF_SLUG},backendCompute.image.tag=${CI_COMMIT_REF_SLUG},backendControl.env.WEB_CLUSTER_NAMESPACE=branch-${CI_COMMIT_REF_SLUG},backendCompute.env.WEB_CLUSTER_NAMESPACE=branch-${CI_COMMIT_REF_SLUG}"
+  review_RELEASE: ${CHART}-${CI_COMMIT_REF_SLUG}
   review_SECRET_NAME: "epm-rtc-registry-test"
   review_DOCKER_REGISTRY_SERVER: "registry-test.deltixhub.com"
 
@@ -102,6 +114,7 @@ check_existing_branch_tag:
       fi
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"' 
+    - if: '$CI_PIPELINE_SOURCE == "web"'
   interruptible: true
   tags:
     - epam
@@ -133,19 +146,20 @@ helm_diff_quantgrid:
     - job: publish_backend
       optional: true
     - job: check_existing_branch_tag
-      optional: true
   environment:
     name: review/quantgrid-$CI_COMMIT_REF_SLUG
   rules:
     - if: '$CI_MERGE_REQUEST_ID && $review_DEPLOY_ENV == "true"'
-    
+    - if: '$CI_PIPELINE_SOURCE == "web"'
+      
 helm_diff_qgbot:
   image: ${TOOLS_IMAGE}
   stage: deploy
   extends: .helm_diff
   needs:
-    - job: check_existing_branch_tag
+    - job: publish_qgbot
       optional: true
+    - job: check_existing_branch_tag
   variables:
     PRIVATE_HELM_REPO: "false"
     HELM_REPO: https://charts.epam-rail.com
@@ -154,9 +168,9 @@ helm_diff_qgbot:
     VERSION: "1.2.0"
     review_NAMESPACE: "quantgrid-review"
     review_HELM_EXTRA_ARGS: "-f ${HELM_SECRET_FILE_QGBOT}"
-    review_HELM_CUSTOM_VALUES: "global.url=quantgrid-$CI_MERGE_REQUEST_IID.staging.deltixhub.io,global.name=${review_RELEASE},global.mergeid=$CI_MERGE_REQUEST_IID,image.tag=${CI_COMMIT_REF_SLUG}"
+    review_HELM_CUSTOM_VALUES: "global.url=quantgrid-${CI_COMMIT_REF_SLUG}.staging.deltixhub.io,global.name=${review_RELEASE},global.mergeid=${CI_COMMIT_REF_SLUG},image.tag=${CI_COMMIT_REF_SLUG}"
     review_HELM_VALUES_FILE: "infrastructure/k8s/qgbot-review-values.yaml"
-    review_RELEASE: "qgbot-${CI_MERGE_REQUEST_IID}"
+    review_RELEASE: "qgbot-${CI_COMMIT_REF_SLUG}"
   before_script:
     - echo $HELM_EXTRA_ARGS
     - echo $review_HELM_VALUES_FILE
@@ -164,6 +178,7 @@ helm_diff_qgbot:
     name: review/qgbot-$CI_COMMIT_REF_SLUG
   rules:
     - if: '$CI_MERGE_REQUEST_ID && $review_DEPLOY_ENV == "true"'
+    - if: '$CI_PIPELINE_SOURCE == "web"'
 
 helm_diff_dial:
   image: ${TOOLS_IMAGE}
@@ -171,7 +186,6 @@ helm_diff_dial:
   extends: .helm_diff
   needs:
     - job: check_existing_branch_tag
-      optional: true
   variables:
     PRIVATE_HELM_REPO: "false"
     HELM_REPO: https://charts.epam-rail.com
@@ -180,13 +194,15 @@ helm_diff_dial:
     VERSION: "5.6.0"
     review_NAMESPACE: "quantgrid-review"
     SECRET: "false" # we rely on docker secret creation in main deploy job which runs in parallel
+    review_RELEASE: dial-${CI_COMMIT_REF_SLUG}
     review_HELM_EXTRA_ARGS: "-f ${HELM_SECRET_FILE_DIAL}"
-    review_HELM_CUSTOM_VALUES: "global.url=quantgrid-$CI_MERGE_REQUEST_IID.staging.deltixhub.io,global.name=${review_RELEASE},global.mergeid=$CI_MERGE_REQUEST_IID"
+    review_HELM_CUSTOM_VALUES: "global.url=quantgrid-${CI_COMMIT_REF_SLUG}.staging.deltixhub.io,global.name=${review_RELEASE},global.mergeid=${CI_COMMIT_REF_SLUG}"
     review_HELM_VALUES_FILE: "infrastructure/k8s/dial-review-values.yaml"
   environment:
     name: review/dial-$CI_COMMIT_REF_SLUG
   rules:
     - if: '$CI_MERGE_REQUEST_ID && $review_DEPLOY_ENV == "true"'
+    - if: '$CI_PIPELINE_SOURCE == "web"'
 
 .deploy:
   cache: []
@@ -239,8 +255,9 @@ deploy_quantgrid_review:
     auto_stop_in: 1 day
   rules:
     - if: '$CI_MERGE_REQUEST_ID && $review_DEPLOY_ENV == "true"'
-
-### destroy quantgrid app fpr review environment
+    - if: '$CI_PIPELINE_SOURCE == "web"'
+ 
+### destroy quantgrid app for review environment
 destroy_quantgrid_review:
   image: ${TOOLS_IMAGE}
   stage: deploy
@@ -252,6 +269,9 @@ destroy_quantgrid_review:
     name: review/quantgrid-$CI_COMMIT_REF_SLUG
   rules:
     - if: '$CI_MERGE_REQUEST_ID && $review_DEPLOY_ENV == "true"'
+      when: manual
+      allow_failure: true
+    - if: '$CI_PIPELINE_SOURCE == "web"'
       when: manual
       allow_failure: true
 
@@ -271,9 +291,9 @@ deploy_qgbot_review:
     review_NAMESPACE: "quantgrid-review"
     SECRET: "false" # we rely on docker secret creation in main deploy job which runs in parallel
     review_HELM_EXTRA_ARGS: "-f ${HELM_SECRET_FILE_QGBOT}"
-    review_HELM_CUSTOM_VALUES: "global.url=quantgrid-$CI_MERGE_REQUEST_IID.staging.deltixhub.io,global.name=${review_RELEASE},global.mergeid=$CI_MERGE_REQUEST_IID,image.tag=${CI_COMMIT_REF_SLUG}"
+    review_HELM_CUSTOM_VALUES: "global.url=quantgrid-${CI_COMMIT_REF_SLUG}.staging.deltixhub.io,global.name=${review_RELEASE},global.mergeid=${CI_COMMIT_REF_SLUG},image.tag=${CI_COMMIT_REF_SLUG}"
     review_HELM_VALUES_FILE: "infrastructure/k8s/qgbot-review-values.yaml"
-    review_RELEASE: "qgbot-${CI_MERGE_REQUEST_IID}"
+    review_RELEASE: "qgbot-${CI_COMMIT_REF_SLUG}"
   environment:
     name: review/qgbot-$CI_COMMIT_REF_SLUG
     url: ${review_ENV_URL}
@@ -281,6 +301,7 @@ deploy_qgbot_review:
     auto_stop_in: 1 day
   rules:
     - if: '$CI_MERGE_REQUEST_ID && $review_DEPLOY_ENV == "true"'
+    - if: '$CI_PIPELINE_SOURCE == "web"'
 
 ### destroy qgbot for review environment
 destroy_qgbot_review:
@@ -288,7 +309,7 @@ destroy_qgbot_review:
   stage: deploy
   extends: .destroy
   variables:
-    review_RELEASE: "qgbot-${CI_MERGE_REQUEST_IID}"
+    review_RELEASE: "qgbot-${CI_COMMIT_REF_SLUG}"
   needs:
     - job: deploy_qgbot_review
       optional: true
@@ -296,6 +317,9 @@ destroy_qgbot_review:
     name: review/qgbot-$CI_COMMIT_REF_SLUG
   rules:
     - if: '$CI_MERGE_REQUEST_ID && $review_DEPLOY_ENV == "true"'
+      when: manual
+      allow_failure: true
+    - if: '$CI_PIPELINE_SOURCE == "web"'
       when: manual
       allow_failure: true
 
@@ -311,13 +335,14 @@ deploy_dial_review:
     HELM_REPO: https://charts.epam-rail.com
     ENV_ID: "staging"
     CHART: "dial"
-    VERSION: "5.5.0"
+    VERSION: "5.13.1"
     review_NAMESPACE: "quantgrid-review"
     SECRET: "false" # we rely on docker secret creation in main deploy job which runs in parallel
     review_HELM_EXTRA_ARGS: "-f ${HELM_SECRET_FILE_DIAL}"
-    review_HELM_CUSTOM_VALUES: "global.url=quantgrid-$CI_MERGE_REQUEST_IID.staging.deltixhub.io,global.name=${review_RELEASE},global.mergeid=$CI_MERGE_REQUEST_IID"
+    review_HELM_CUSTOM_VALUES: "global.url=quantgrid-${CI_COMMIT_REF_SLUG}.staging.deltixhub.io,global.name=${review_RELEASE},global.mergeid=${CI_COMMIT_REF_SLUG}"
     review_HELM_VALUES_FILE: "infrastructure/k8s/dial-review-values.yaml"
-    review_ENV_URL: "https://chat-${CI_PROJECT_NAME}-${CI_MERGE_REQUEST_IID}.staging.deltixhub.io"
+    review_ENV_URL: "https://chat-${CI_PROJECT_NAME}-${CI_COMMIT_REF_SLUG}.staging.deltixhub.io"
+    review_RELEASE: dial-${CI_COMMIT_REF_SLUG}
   environment:
     name: review/dial-$CI_COMMIT_REF_SLUG
     url: ${review_ENV_URL}
@@ -325,13 +350,14 @@ deploy_dial_review:
     auto_stop_in: 1 day
   rules:
     - if: '$CI_MERGE_REQUEST_ID && $review_DEPLOY_ENV == "true"'
+    - if: '$CI_PIPELINE_SOURCE == "web"'
 
 destroy_dial_review:
   image: ${TOOLS_IMAGE}
   stage: deploy
   extends: .destroy
   variables:
-    review_RELEASE: dial-${CI_MERGE_REQUEST_IID}
+    review_RELEASE: dial-${CI_COMMIT_REF_SLUG}
   needs:
     - job: deploy_dial_review
       optional: true
@@ -339,6 +365,9 @@ destroy_dial_review:
     name: review/dial-$CI_COMMIT_REF_SLUG
   rules:
     - if: '$CI_MERGE_REQUEST_ID && $review_DEPLOY_ENV == "true"'
+      when: manual
+      allow_failure: true
+    - if: '$CI_PIPELINE_SOURCE == "web"'
       when: manual
       allow_failure: true
 
@@ -394,7 +423,6 @@ deploy_qgbot_development:
       optional: true
   environment:
     name: development/qgbot
-    #url: ${development_ENV_URL}
     on_stop: destroy_qgbot_development
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
@@ -445,6 +473,7 @@ build_backend:
     - export GRADLE_USER_HOME=`pwd`/.gradle
   script:
     # Note: with "--continue" option Gradle will execute tests for all projects
+    - *sed_template
     - apt update
     - apt install -y python3-pip
     - python3 --version
@@ -452,13 +481,19 @@ build_backend:
   artifacts:
     when: always
     paths:
+      - backend/engine/build/reports/
+      - backend/common/build/reports/
+      - backend/parser/build/reports/
+      - backend/proto/build/reports/
       - backend/web/build/libs/
       - backend/web/build/reports/
-      - backend/engine/build/reports/
     reports:
       junit:
-        - backend/web/build/test-results/test/**/TEST-*.xml
         - backend/engine/build/test-results/test/**/TEST-*.xml
+        - backend/common/build/test-results/test/**/TEST-*.xml
+        - backend/parser/build/test-results/test/**/TEST-*.xml
+        - backend/proto/build/test-results/test/**/TEST-*.xml
+        - backend/web/build/test-results/test/**/TEST-*.xml
   cache:
     key: "$GRADLE_CACHE_KEY"
     paths:
@@ -473,6 +508,7 @@ build_backend:
       changes:
         paths:
           - backend/**/*
+          - infrastructure/**/*
     - if: $CI_COMMIT_TAG
     - if: $CI_COMMIT_BRANCH  == "main"
   interruptible: true
@@ -500,9 +536,31 @@ build_frontend:
         paths:
           - frontend/**/*
           - backend/parser/src/main/antlr/com/epam/deltix/quantgrid/parser/**/*
+          - infrastructure/**/*
     - if: $CI_COMMIT_TAG
     - if: $CI_COMMIT_BRANCH  == "main"
   interruptible: true
+
+# lint for qgbot
+lint_qgbot:
+  image: python:3.12-slim
+  stage: build
+  before_script:
+    - apt-get update && apt-get install -y make
+  script:
+    - pip install poetry==1.8.3
+    - cd ./python/assistant
+    - make lint
+  rules:
+    - if: "$CI_PIPELINE_SOURCE == 'merge_request_event'"
+      changes:
+        paths:
+          - python/**/*
+          - infrastructure/**/*
+    - if: $CI_COMMIT_BRANCH  == "main"
+    - if: $CI_COMMIT_TAG
+  tags:
+    - kubernetes
 
 ### CI template for build docker images
 .publish_template:
@@ -555,6 +613,7 @@ publish_backend:
     changes:
       paths:
         - backend/**/*
+        - infrastructure/**/*
   - if: $CI_COMMIT_TAG
     variables:
       DOCKER_TAG: ${CI_COMMIT_TAG}
@@ -580,6 +639,7 @@ publish_frontend:
     changes:
       paths:
         - frontend/**/*
+        - infrastructure/**/*
         - backend/parser/src/main/antlr/com/epam/deltix/quantgrid/parser/**/*
   - if: $CI_COMMIT_TAG
     variables:
@@ -594,6 +654,8 @@ publish_frontend:
 publish_qgbot:
   image: public.ecr.aws/docker/library/docker:27.3-cli # change dockerhub.deltixhub.com/docker:23.0.6 to avoid limit hit
   stage: publish
+  needs:
+  - job: lint_qgbot
   variables:
     DOCKER_HOST: tcp://docker:2375
     DOCKER_TLS_CERTDIR: ""
@@ -634,7 +696,8 @@ publish_qgbot:
         DOCKERFILE_PATH: "python/Dockerfile"
       changes:
         paths:
-          - python/*
+          - python/**/*
+          - infrastructure/**/*
   interruptible: true
   tags:
     - Linux
@@ -685,6 +748,7 @@ container_scanning_frontend:
           paths:
             - frontend/**/*
             - backend/parser/src/main/antlr/com/epam/deltix/quantgrid/parser/**/*
+            - infrastructure/**/*
       variables:
         DOCKER_TAG: ${CI_COMMIT_REF_SLUG}
         REPOSITORY: ${ARTIFACTORY_DOCKER_TEST_REPOSITORY}
@@ -703,6 +767,7 @@ container_scanning_backend:
       changes:
           paths:
             - backend/**/*
+            - infrastructure/**/*
       variables:
         DOCKER_TAG: ${CI_COMMIT_REF_SLUG}
         REPOSITORY: ${ARTIFACTORY_DOCKER_TEST_REPOSITORY}
@@ -720,6 +785,7 @@ promote:
   script:
     - 'curl --retry 6 --retry-all-errors --no-progress-meter --fail -X POST "${ARTIFACTORY_URL}/api/docker/epm-rtc-docker/v2/promote" -H "Content-Type: application/json" -u${ARTIFACTORY_USER}:${ARTIFACTORY_PASS} -d ''{ "targetRepo": "epm-rtc-public-docker", "dockerRepository": "''"${ARTIFACTORY_DOCKER_PATH_FRONTEND}"''", "tag" : "''"$CI_COMMIT_TAG"''", "copy": true }'''
     - 'curl --retry 6 --retry-all-errors --no-progress-meter --fail -X POST "${ARTIFACTORY_URL}/api/docker/epm-rtc-docker/v2/promote" -H "Content-Type: application/json" -u${ARTIFACTORY_USER}:${ARTIFACTORY_PASS} -d ''{ "targetRepo": "epm-rtc-public-docker", "dockerRepository": "''"${ARTIFACTORY_DOCKER_PATH_BACKEND}"''", "tag" : "''"$CI_COMMIT_TAG"''", "copy": true }'''
+    - 'curl --retry 6 --retry-all-errors --no-progress-meter --fail -X POST "${ARTIFACTORY_URL}/api/docker/epm-rtc-docker/v2/promote" -H "Content-Type: application/json" -u${ARTIFACTORY_USER}:${ARTIFACTORY_PASS} -d ''{ "targetRepo": "epm-rtc-public-docker", "dockerRepository": "''"${ARTIFACTORY_DOCKER_PATH_QGBOT}"''", "tag" : "''"$CI_COMMIT_TAG"''", "copy": true }'''
   dependencies: []
   rules:
     - if: $CI_COMMIT_TAG
@@ -746,6 +812,7 @@ promote:
       - frontend/allure-results
       - frontend/test-results/videos
   tags:
+#    - gpu
     - AWS
     - DockerExecutor
     - aws-2xlarge
@@ -766,6 +833,7 @@ promote:
         paths:
           - frontend/**/*
           - backend/**/*
+          - infrastructure/**/*
   interruptible: true
 
 run_fronted_e2e_tests_default_1:
@@ -792,6 +860,12 @@ run_fronted_e2e_tests_hidden:
   variables:
     TEST_TAG: "@hiddenTable @hiddenAll @horizontal"
     
+run_fronted_e2e_tests_chat:
+  stage: e2e-test
+  extends: .run_fronted_e2e_tests_template
+  variables:
+    TEST_FEATURES: "(.*)tests.bot(.*)"    
+    
 run_fronted_e2e_tests_flaky:
   stage: e2e-test
   extends: .run_fronted_e2e_tests_template
@@ -801,10 +875,10 @@ run_fronted_e2e_tests_flaky:
 ### step required to copy qgbot test files from directory in root to dial review prefix folder
 copy_integration_test_files_qgbot:
   image: ${TOOLS_IMAGE}
-  stage: e2e-test
+  stage: deploy
   extends: .cloud-auth
   variables:
-    DIAL_PREFIX: "dial-${CI_MERGE_REQUEST_IID}"
+    DIAL_PREFIX: "dial-${CI_COMMIT_REF_SLUG}"
     AWS_DEFAULT_REGION: us-east-1
     AWS_ROLE_ARN: arn:aws:iam::725751206603:role/GitLab-CI-project-1542-role
   script:
@@ -815,6 +889,9 @@ copy_integration_test_files_qgbot:
       changes:
         paths:
           - python/**/*
+          - infrastructure/**/*
+          - backend/**/*
+    - if: '$CI_PIPELINE_SOURCE == "web"'
   interruptible: true
   tags:
     - kubernetes
@@ -826,38 +903,57 @@ integration_test_qgbot:
   before_script:
     - apt-get update && apt-get install -y make && apt-get install -y protobuf-compiler && apt-get install -y wget
   script:
+    - echo "Bot version " $BOT_VERSION
+    - echo "LLM name " $LLM_NAME
+    - echo "Core model " $CORE_MODEL
+    - echo "Classification model " $CLASSIFICATION_MODEL
+    - echo "AI hint model " $AI_HINT_MODEL
+    - echo "Max fix attempts " $MAX_FIX_ATTEMPTS
+
     - pip install poetry==1.8.3
     - cd ./python/
     - make build_client_package
     - cd ./assistant/
     - poetry install
+    - poetry run python -m run_local &> qg.log &
     - |
-      if poetry run python -m scripts.healthcheck --addr $QG_HEALTHCHECK_URL; then
+      if poetry run python -m scripts.healthcheck --addr http://localhost:5000; then
         poetry run nox -s integration_tests
       else
         echo "QG server failed to start"
         exit 1
       fi
   rules:
+    - if: '$CI_PIPELINE_SOURCE == "web"'
+      variables: 
+        AGENT_DIAL_URL: http://localhost:5000 
+        QG_URL: https://quantgrid-${CI_COMMIT_REF_SLUG}.staging.deltixhub.io
+        DIAL_URL: https://core-quantgrid-${CI_COMMIT_REF_SLUG}.staging.deltixhub.io
+      allow_failure: true
+    - if: '$CI_PIPELINE_SOURCE  == "schedule"'
+      variables:
+        AGENT_DIAL_URL: http://localhost:5000
+        QG_URL: https://quantgrid-dev.staging.deltixhub.io
+        DIAL_URL: https://dev-dial-core.staging.deltixhub.io
+      when: always
+      allow_failure: true
     - if: '$CI_COMMIT_BRANCH  == "main"'
       variables:
         AGENT_DIAL_URL: http://qgbot.quantgrid-dev
         QG_URL: https://quantgrid-dev.staging.deltixhub.io
         DIAL_URL: https://dev-dial-core.staging.deltixhub.io
-        QG_HEALTHCHECK_URL: http://qgbot.quantgrid-dev
       allow_failure: true
     - if: "$CI_PIPELINE_SOURCE == 'merge_request_event'"
       variables:
-        review_HELM_CUSTOM_VALUES: "global.url=quantgrid-$CI_MERGE_REQUEST_IID.staging.deltixhub.io,global.name=${review_RELEASE}"
-        AGENT_DIAL_URL: http://qgbot-${CI_MERGE_REQUEST_IID}-dial-extension.quantgrid-review
-        QG_URL: https://quantgrid-${CI_MERGE_REQUEST_IID}.staging.deltixhub.io
-        DIAL_URL: https://core-quantgrid-${CI_MERGE_REQUEST_IID}.staging.deltixhub.io
-        QG_HEALTHCHECK_URL: http://qgbot-${CI_MERGE_REQUEST_IID}-dial-extension.quantgrid-review
+        AGENT_DIAL_URL: http://localhost:5000
+        QG_URL: https://quantgrid-${CI_COMMIT_REF_SLUG}.staging.deltixhub.io
+        DIAL_URL: https://core-quantgrid-${CI_COMMIT_REF_SLUG}.staging.deltixhub.io
       allow_failure: true
       changes:
         paths:
           - python/**/*
           - backend/**/*
+          - infrastructure/**/*
   interruptible: true
   tags:
     - kubernetes
@@ -865,6 +961,7 @@ integration_test_qgbot:
   artifacts:
     paths:
       - python/assistant/report.xlsx
+      - python/assistant/qg.log
     expire_in: 3 month
     when: always
 
@@ -874,19 +971,41 @@ business_test_qgbot:
   before_script:
     - apt-get update && apt-get install -y make && apt-get install -y protobuf-compiler && apt-get install -y wget
   script:
+    - echo "Bot version " $BOT_VERSION
+    - echo "LLM name " $LLM_NAME
+    - echo "Core model " $CORE_MODEL
+    - echo "Classification model " $CLASSIFICATION_MODEL
+    - echo "AI hint model " $AI_HINT_MODEL
+    - echo "Max fix attempts " $MAX_FIX_ATTEMPTS
+
     - pip install poetry==1.8.3
     - cd ./python/
     - make build_client_package
     - cd ./assistant/
     - poetry install
+    - poetry run python -m run_local &> qg.log &
     - |
-      if poetry run python -m scripts.healthcheck --addr $QG_HEALTHCHECK_URL; then
+      if poetry run python -m scripts.healthcheck --addr http://localhost:5000; then
         poetry run nox -s business_tests
       else
         echo "QG server failed to start"
         exit 1
       fi
   rules:
+    - if: '$CI_PIPELINE_SOURCE == "web"'
+      variables: 
+        AGENT_DIAL_URL: http://localhost:5000 
+        QG_URL: https://quantgrid-${CI_COMMIT_REF_SLUG}.staging.deltixhub.io
+        DIAL_URL: https://core-quantgrid-${CI_COMMIT_REF_SLUG}.staging.deltixhub.io
+      allow_failure: true
+      when: manual
+    - if: '$CI_PIPELINE_SOURCE  == "schedule"'
+      variables:
+        AGENT_DIAL_URL: http://localhost:5000
+        QG_URL: https://quantgrid-dev.staging.deltixhub.io
+        DIAL_URL: https://dev-dial-core.staging.deltixhub.io
+      when: always
+      allow_failure: true
     - if: '$CI_COMMIT_BRANCH  == "main"'
       variables:
         AGENT_DIAL_URL: http://qgbot.quantgrid-dev
@@ -897,17 +1016,16 @@ business_test_qgbot:
       allow_failure: true
     - if: "$CI_PIPELINE_SOURCE == 'merge_request_event'"
       variables:
-        review_HELM_CUSTOM_VALUES: "global.url=quantgrid-$CI_MERGE_REQUEST_IID.staging.deltixhub.io,global.name=${review_RELEASE}"
-        AGENT_DIAL_URL: http://qgbot-${CI_MERGE_REQUEST_IID}-dial-extension.quantgrid-review
-        QG_URL: https://quantgrid-${CI_MERGE_REQUEST_IID}.staging.deltixhub.io
-        DIAL_URL: https://core-quantgrid-${CI_MERGE_REQUEST_IID}.staging.deltixhub.io
-        QG_HEALTHCHECK_URL: http://qgbot-${CI_MERGE_REQUEST_IID}-dial-extension.quantgrid-review
+        AGENT_DIAL_URL: http://localhost:5000 
+        QG_URL: https://quantgrid-${CI_COMMIT_REF_SLUG}.staging.deltixhub.io
+        DIAL_URL: https://core-quantgrid-${CI_COMMIT_REF_SLUG}.staging.deltixhub.io
       when: manual 
       allow_failure: true  
       changes:
         paths:
           - python/**/*
           - backend/**/*
+          - infrastructure/**/*
   interruptible: true
   tags:
     - kubernetes
@@ -915,6 +1033,7 @@ business_test_qgbot:
   artifacts:
     paths:
       - python/assistant/report.xlsx
+      - python/assistant/qg.log
     expire_in: 3 month
     when: always
 
@@ -929,6 +1048,10 @@ prepare_report:
     - aws s3 sync ./frontend/allure-report-s3 s3://new-reports.deltixhub.net/Deltix/Quantgrid/$CI_PIPELINE_ID
     - echo "The report is available at the adress:"
     - echo "http://new-reports.deltixhub.net.s3-website-us-west-2.amazonaws.com/Deltix/Quantgrid/$CI_PIPELINE_ID"
+    - expected_test_count=324
+    - line_count=$(grep "chromium" ./frontend/allure-report-s3/data/suites.csv | wc -l)
+    - '[ "$line_count" -eq "$expected_test_count" ] || { echo "Error: test count mistatch. Expected $expected_test_count, executed $line_count ."; exit 1; }'
+    - echo "Test count is correct"
   artifacts:
     name: "${CI_JOB_ID}_${CI_JOB_NAME}"
     when: always
@@ -941,5 +1064,11 @@ prepare_report:
   when: always
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes:
+        paths:
+          - frontend/**/*
+          - backend/**/*
+          - infrastructure/**/*
     - if: $CI_COMMIT_BRANCH  == "main"
   interruptible: true
+

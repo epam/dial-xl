@@ -2,11 +2,13 @@ import { useCallback, useContext } from 'react';
 
 import {
   ChartType,
+  ColumnDataType,
   defaultChartCols,
   defaultChartRows,
   defaultFieldName,
   isComplexType,
   isNumericType,
+  isTableType,
 } from '@frontend/common';
 import {
   chartSizeDecoratorName,
@@ -16,6 +18,7 @@ import {
   escapeTableName,
   Field,
   fieldColSizeDecoratorName,
+  FieldGroup,
   manualTableDecoratorName,
   Override,
   Overrides,
@@ -33,14 +36,15 @@ import {
 } from '../../context';
 import { autoFixSingleExpression, createUniqueName } from '../../services';
 import { getExpandedTextSize } from '../../utils';
-import { useDSLUtils } from '../ManualEditDSL';
 import { useGridApi } from '../useGridApi';
 import { useSafeCallback } from '../useSafeCallback';
+import { useDSLUtils } from './useDSLUtils';
 import { numTotals, tableTotals, textTotals } from './useTotalEditDsl';
 import {
   autoSizeTableHeader,
   createAndPlaceTable,
-  createSchemaReferenceTable,
+  CreateExpandedTableParams,
+  getParsedFormulaInfo,
 } from './utils';
 
 const defaultSheetName = 'Sheet1';
@@ -94,30 +98,33 @@ export function useCreateTableDsl() {
         sourceFieldName,
         fields.map((f) => f.key.fieldName)
       );
-      const sourceField = new Field(uniqueSourceFieldName, tableName);
 
-      sourceField.dim = true;
+      table.addField({
+        name: uniqueSourceFieldName,
+        formula: tableName,
+        isDim: true,
+      });
 
-      table.addField(sourceField);
-
-      fields
-        .map((f) => f.key.fullFieldName)
-        .forEach((f, index) => {
-          const field = new Field(f, `[${uniqueSourceFieldName}]${f}`);
-          const fieldSize = getExpandedTextSize({
-            text: field.name,
-            col: newTableCol + index,
-            grid,
-            projectName,
-            sheetName,
-          });
-          if (fieldSize && fieldSize > 1) {
-            field.addDecorator(
-              new Decorator(fieldColSizeDecoratorName, `(${fieldSize})`)
-            );
-          }
-          table.addField(field);
+      fields.forEach((f, index) => {
+        const { fieldName, fullFieldName } = f.key;
+        table.addField({
+          name: fieldName,
+          formula: `[${uniqueSourceFieldName}]${fullFieldName}`,
         });
+        const field = table.getField(fieldName);
+        const fieldSize = getExpandedTextSize({
+          text: field.name,
+          col: newTableCol + index,
+          grid,
+          projectName,
+          sheetName,
+        });
+        if (fieldSize && fieldSize > 1) {
+          field.addDecorator(
+            new Decorator(fieldColSizeDecoratorName, `(${fieldSize})`)
+          );
+        }
+      });
 
       autoSizeTableHeader(table, newTableCol, grid, projectName, sheetName);
 
@@ -156,7 +163,8 @@ export function useCreateTableDsl() {
       });
 
       const sanitizedValue = sanitizeExpressionOrOverride(value);
-      const field = new Field(defaultFieldName, sanitizedValue);
+      table.addField({ name: defaultFieldName, formula: sanitizedValue });
+      const field = table.getField(defaultFieldName);
       const fieldSize = getExpandedTextSize({
         text: field.name,
         col,
@@ -169,7 +177,6 @@ export function useCreateTableDsl() {
           new Decorator(fieldColSizeDecoratorName, `(${fieldSize})`)
         );
       }
-      table.addField(field);
 
       if (showTableHeader) {
         autoSizeTableHeader(table, col, grid, projectName, sheetName);
@@ -218,8 +225,8 @@ export function useCreateTableDsl() {
           parsedSheets,
           newTableName
         );
-        const field = new Field(fieldName, expression);
-        field.dim = true;
+        table.addField({ name: fieldName, formula: expression, isDim: true });
+        const field = table.getField(fieldName);
         const fieldSize = getExpandedTextSize({
           text: field.name,
           col: col + index,
@@ -232,7 +239,6 @@ export function useCreateTableDsl() {
             new Decorator(fieldColSizeDecoratorName, `(${fieldSize})`)
           );
         }
-        table.addField(field);
       });
 
       autoSizeTableHeader(table, col, grid, projectName, sheetName);
@@ -308,7 +314,12 @@ export function useCreateTableDsl() {
 
       const fieldCount = cells[0].length;
       for (let i = 0; i < fieldCount; i++) {
-        const field = new Field(`Column${i + 1}`, null);
+        const fieldName = `Column${i + 1}`;
+        table.addField({
+          name: fieldName,
+          formula: null,
+        });
+        const field = table.getField(fieldName);
         const fieldSize = getExpandedTextSize({
           text: field.name,
           col: col + i,
@@ -321,7 +332,6 @@ export function useCreateTableDsl() {
             new Decorator(fieldColSizeDecoratorName, `(${fieldSize})`)
           );
         }
-        table.addField(field);
       }
 
       const overrides = new Overrides();
@@ -360,12 +370,14 @@ export function useCreateTableDsl() {
       tableName: string,
       isSourceDimField: boolean,
       fieldName: string,
-      expression: string,
+      formula: string,
       schema: string[],
       keys: string[],
       row: number,
       col: number,
-      editableSheet?: Sheet
+      type: ColumnDataType,
+      editableSheet?: Sheet,
+      isHorizontal = false
     ) => {
       const sheet = editableSheet || new Sheet(defaultSheetName);
 
@@ -378,22 +390,84 @@ export function useCreateTableDsl() {
         layoutOptions: {
           showFieldHeaders: true,
           showTableHeader: true,
+          isHorizontal,
         },
       });
 
+      const isPeriodSeries = type === ColumnDataType.PERIOD_SERIES;
+
+      if (isTableType(type) || isPeriodSeries) {
+        let finalFormula = formula;
+
+        const { isPivotFunction, isFieldReferenceFormula } =
+          getParsedFormulaInfo(formula);
+
+        // For PeriodSeries create schema manually
+        if (isPeriodSeries && !isFieldReferenceFormula) {
+          schema = ['date', 'value'];
+        }
+
+        const fieldsSelector =
+          schema.length > 1
+            ? schema
+                .map((fieldName) => `[${escapeFieldName(fieldName)}]`)
+                .join(',')
+            : escapeFieldName(schema[0]);
+        finalFormula =
+          isFieldReferenceFormula || isPivotFunction
+            ? formula
+            : `${formula}[${fieldsSelector}]`;
+        const fieldGroup = new FieldGroup(finalFormula);
+        schema.forEach((fieldName, index) => {
+          const field = new Field(fieldName);
+
+          if (index === 0 && (isSourceDimField || isPeriodSeries)) {
+            field.dim = true;
+          }
+
+          if (keys.includes(fieldName)) {
+            field.key = true;
+          }
+
+          const fieldSize = getExpandedTextSize({
+            text: fieldName,
+            col: col + index,
+            grid,
+            projectName,
+            sheetName,
+          });
+          if (fieldSize && fieldSize > 1) {
+            field.addDecorator(
+              new Decorator(fieldColSizeDecoratorName, `(${fieldSize})`)
+            );
+          }
+
+          fieldGroup.addField(field);
+        });
+        table.fieldGroups.append(fieldGroup);
+
+        return { dsl: sheet.toDSL(), newTableName };
+      }
+
       const finalSourceFieldName = fieldName || sourceFieldName;
-      const sourceField = new Field(finalSourceFieldName, expression);
-      sourceField.dim = isSourceDimField;
-      table.addField(sourceField);
+      table.addField({
+        name: finalSourceFieldName,
+        isDim: isSourceDimField,
+        formula,
+      });
 
       const tableFields: string[] = [finalSourceFieldName];
-      schema.forEach((f, index) => {
-        const uniqueFieldName = createUniqueName(f, tableFields);
+      schema.forEach((fieldName, index) => {
+        const uniqueFieldName = createUniqueName(fieldName, tableFields);
         tableFields.push(uniqueFieldName);
-        const field = new Field(
-          uniqueFieldName,
-          `[${finalSourceFieldName}][${escapeFieldName(f)}]`
-        );
+        table.addField({
+          name: uniqueFieldName,
+          formula: `[${finalSourceFieldName}][${escapeFieldName(
+            uniqueFieldName
+          )}]`,
+          isKey: keys.includes(fieldName),
+        });
+        const field = table.getField(uniqueFieldName);
         const fieldSize = getExpandedTextSize({
           text: field.name,
           col: col + index,
@@ -406,8 +480,6 @@ export function useCreateTableDsl() {
             new Decorator(fieldColSizeDecoratorName, `(${fieldSize})`)
           );
         }
-        field.key = keys.includes(f);
-        table.addField(field);
       });
 
       autoSizeTableHeader(table, col, grid, projectName, sheetName);
@@ -417,129 +489,65 @@ export function useCreateTableDsl() {
     [grid, parsedSheets, projectName, sheetName]
   );
 
-  const createDimensionalTableFromFormula = useCallback(
-    (
-      col: number,
-      row: number,
-      tableName: string,
-      fieldName: string,
-      expression: string,
-      schema: string[],
-      keys: string[],
-      isSourceDimField: boolean
-    ) => {
-      const editableSheet = parsedSheet?.editableSheet;
+  const createExpandedTable = useCallback(
+    ({
+      col,
+      row,
+      tableName,
+      fieldName = '',
+      formula,
+      schema,
+      keys,
+      type,
+      variant,
+      keyValues,
+      isSourceDimField = true,
+    }: CreateExpandedTableParams) => {
+      const sheet =
+        variant === 'dimFormula'
+          ? parsedSheet?.editableSheet
+          : findEditContext(tableName)?.sheet;
 
-      if (!editableSheet) return;
+      if (!sheet) return;
+
+      const isHorizontal = variant === 'rowReference';
+      let baseTableName = tableName;
+
+      if (variant !== 'dimFormula' && keyValues !== undefined && fieldName) {
+        const sanitizedKey =
+          typeof keyValues === 'string'
+            ? keyValues.replaceAll('"', '')
+            : keyValues;
+        baseTableName = `${unescapeTableName(
+          tableName
+        )}_(${sanitizedKey})[${fieldName}]`;
+      }
 
       const { dsl, newTableName } = getDimensionalTableFromFormula(
-        tableName,
-        isSourceDimField,
+        baseTableName,
+        variant === 'dimFormula' ? isSourceDimField : variant === 'expand',
         fieldName,
-        expression,
+        formula,
         schema,
         keys,
         row,
         col,
-        editableSheet
+        type,
+        sheet,
+        isHorizontal
       );
 
-      const historyTitle = `Add dimension table "${newTableName}"`;
-      updateDSL({ updatedSheetContent: dsl, historyTitle });
-    },
-    [getDimensionalTableFromFormula, parsedSheet, updateDSL]
-  );
+      const titlePrefix =
+        variant === 'rowReference'
+          ? 'Add row reference table'
+          : 'Add dimension table';
 
-  const createDimensionalTableFromSchema = useCallback(
-    (
-      col: number,
-      row: number,
-      tableName: string,
-      fieldName: string,
-      keyValues: string | number,
-      formula: string,
-      schema: string[],
-      keys: string[]
-    ) => {
-      const context = findEditContext(tableName);
-      if (!context) return;
-
-      const { sheet, sheetName } = context;
-
-      const sanitizedKeyValues =
-        typeof keyValues === 'string'
-          ? keyValues.replaceAll(`"`, '')
-          : keyValues;
-      const baseTableName = `${unescapeTableName(
-        tableName
-      )}_(${sanitizedKeyValues})[${fieldName}]`;
-
-      const { tableName: newTableName } = createSchemaReferenceTable({
-        sheet,
-        parsedSheets,
-        baseTableName,
-        col,
-        row,
-        formula,
-        schema,
-        keys,
-        grid,
-        projectName,
-        sheetName,
-        isSourceDim: true, // Dimension
-        skipSourceFieldInSchema: false,
+      updateDSL({
+        updatedSheetContent: dsl,
+        historyTitle: `${titlePrefix} "${newTableName}"`,
       });
-
-      const historyTitle = `Add dimension table "${newTableName}"`;
-      updateDSL({ updatedSheetContent: sheet.toDSL(), historyTitle });
     },
-    [findEditContext, grid, parsedSheets, projectName, updateDSL]
-  );
-
-  const createRowReferenceTableFromSchema = useCallback(
-    (
-      col: number,
-      row: number,
-      tableName: string,
-      fieldName: string,
-      keyValues: string | number,
-      formula: string,
-      schema: string[],
-      keys: string[]
-    ) => {
-      const context = findEditContext(tableName);
-      if (!context) return;
-
-      const { sheet, sheetName } = context;
-
-      const sanitizedKeyValues =
-        typeof keyValues === 'string'
-          ? keyValues.replaceAll(`"`, '')
-          : keyValues;
-      const baseTableName = `${unescapeTableName(
-        tableName
-      )}_(${sanitizedKeyValues})[${fieldName}]`;
-
-      const { tableName: newTableName } = createSchemaReferenceTable({
-        sheet,
-        parsedSheets,
-        baseTableName,
-        col,
-        row,
-        formula,
-        schema,
-        keys,
-        grid,
-        projectName,
-        sheetName,
-        isSourceDim: false,
-        skipSourceFieldInSchema: true,
-      });
-
-      const historyTitle = `Add row reference table "${newTableName}"`;
-      updateDSL({ updatedSheetContent: sheet.toDSL(), historyTitle });
-    },
-    [findEditContext, grid, parsedSheets, projectName, updateDSL]
+    [findEditContext, getDimensionalTableFromFormula, parsedSheet, updateDSL]
   );
 
   const createAllTableTotals = useCallback(
@@ -580,12 +588,12 @@ export function useCreateTableDsl() {
       });
 
       const statFieldName = 'Stat';
-      table.addField(new Field(statFieldName, null));
+      table.addField({ name: statFieldName, formula: null });
 
       sourceFields
         .map((f) => f.key.fullFieldName)
         .forEach((f) => {
-          table.addField(new Field(f, null));
+          table.addField({ name: f, formula: null });
         });
 
       const overrides = new Overrides();
@@ -641,17 +649,9 @@ export function useCreateTableDsl() {
     createAllTableTotals: useSafeCallback(createAllTableTotals),
     createDerivedTable: useSafeCallback(createDerivedTable),
     createDimensionTable: useSafeCallback(createDimensionTable),
-    createDimensionalTableFromFormula: useSafeCallback(
-      createDimensionalTableFromFormula
-    ),
-    createDimensionalTableFromSchema: useSafeCallback(
-      createDimensionalTableFromSchema
-    ),
     createEmptyChartTable: useSafeCallback(createEmptyChartTable),
+    createExpandedTable: useSafeCallback(createExpandedTable),
     createManualTable: useSafeCallback(createManualTable),
-    createRowReferenceTableFromSchema: useSafeCallback(
-      createRowReferenceTableFromSchema
-    ),
     createSingleValueTable: useSafeCallback(createSingleValueTable),
     getDimensionalTableFromFormula: useSafeCallback(
       getDimensionalTableFromFormula

@@ -3,11 +3,15 @@
   "tables": [
     {
       "span": {
+        "sheet": "test",
+        "text": "table A\n  [a] = NA\ntotal\n  [a] = 1\napply\n  filter [a]\ntotal\n  [a] = 2\napply\n  sort [a]\n",
         "from": 0,
         "to": 87
       },
       "name": {
         "span": {
+          "sheet": "test",
+          "text": "A",
           "from": 6,
           "to": 7
         },
@@ -16,122 +20,168 @@
       "fields": [
         {
           "span": {
+            "sheet": "test",
+            "text": "[a] = NA",
             "from": 10,
             "to": 18
           },
-          "name": {
-            "span": {
-              "from": 10,
-              "to": 13
-            },
-            "text": "a"
-          },
+          "fields": [
+            {
+              "span": {
+                "sheet": "test",
+                "text": "[a]",
+                "from": 10,
+                "to": 13
+              },
+              "name": {
+                "span": {
+                  "sheet": "test",
+                  "text": "[a]",
+                  "from": 10,
+                  "to": 13
+                },
+                "text": "a"
+              },
+              "decorators": [],
+              "docs": []
+            }
+          ],
           "formula": {
+            "number": NaN,
             "span": {
+              "sheet": "test",
+              "text": "NA",
               "from": 16,
               "to": 18
             },
-            "formula": {
-              "number": NaN,
-              "arguments": []
-            },
-            "errors": []
-          },
-          "decorators": [],
-          "docs": []
+            "arguments": []
+          }
         }
       ],
       "decorators": [],
       "docs": [],
       "apply": {
         "span": {
+          "sheet": "test",
+          "text": "apply\n  filter [a]\n",
           "from": 35,
           "to": 54
         },
         "filter": {
           "span": {
+            "sheet": "test",
+            "text": "filter [a]\n",
             "from": 43,
             "to": 54
           },
           "formula": {
+            "field": "a",
             "span": {
+              "sheet": "test",
+              "text": "[a]",
               "from": 50,
               "to": 53
             },
-            "formula": {
-              "field": "a",
-              "arguments": []
-            },
-            "errors": []
+            "arguments": []
           }
         }
       },
       "totals": [
         {
           "span": {
+            "sheet": "test",
+            "text": "total\n  [a] = 1\n",
             "from": 19,
             "to": 35
           },
           "fields": [
             {
               "span": {
+                "sheet": "test",
+                "text": "[a] = 1",
                 "from": 27,
                 "to": 34
               },
-              "name": {
-                "span": {
-                  "from": 27,
-                  "to": 30
-                },
-                "text": "a"
-              },
+              "fields": [
+                {
+                  "span": {
+                    "sheet": "test",
+                    "text": "[a]",
+                    "from": 27,
+                    "to": 30
+                  },
+                  "name": {
+                    "span": {
+                      "sheet": "test",
+                      "text": "[a]",
+                      "from": 27,
+                      "to": 30
+                    },
+                    "text": "a"
+                  },
+                  "decorators": [],
+                  "docs": []
+                }
+              ],
               "formula": {
+                "number": 1.0,
                 "span": {
+                  "sheet": "test",
+                  "text": "1",
                   "from": 33,
                   "to": 34
                 },
-                "formula": {
-                  "number": 1.0,
-                  "arguments": []
-                },
-                "errors": []
-              },
-              "decorators": [],
-              "docs": []
+                "arguments": []
+              }
             }
           ]
         },
         {
           "span": {
+            "sheet": "test",
+            "text": "total\n  [a] = 2\n",
             "from": 54,
             "to": 70
           },
           "fields": [
             {
               "span": {
+                "sheet": "test",
+                "text": "[a] = 2",
                 "from": 62,
                 "to": 69
               },
-              "name": {
-                "span": {
-                  "from": 62,
-                  "to": 65
-                },
-                "text": "a"
-              },
+              "fields": [
+                {
+                  "span": {
+                    "sheet": "test",
+                    "text": "[a]",
+                    "from": 62,
+                    "to": 65
+                  },
+                  "name": {
+                    "span": {
+                      "sheet": "test",
+                      "text": "[a]",
+                      "from": 62,
+                      "to": 65
+                    },
+                    "text": "a"
+                  },
+                  "decorators": [],
+                  "docs": []
+                }
+              ],
               "formula": {
+                "number": 2.0,
                 "span": {
+                  "sheet": "test",
+                  "text": "2",
                   "from": 68,
                   "to": 69
                 },
-                "formula": {
-                  "number": 2.0,
-                  "arguments": []
-                },
-                "errors": []
-              },
-              "decorators": [],
-              "docs": []
+                "arguments": []
+              }
             }
           ]
         }

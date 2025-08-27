@@ -9,10 +9,8 @@ import {
   defaultFieldName,
   getFormulaType,
   GridCell,
-  isComplexType,
   isHiddenFieldCell,
   isHiddenTableHeaderCell,
-  overrideComplexFieldMessage,
   overrideKeyFieldMessage,
   shouldNotOverrideCell,
 } from '@frontend/common';
@@ -29,20 +27,23 @@ import {
   useTotalEditDsl,
 } from './EditDsl';
 import { useAddTableRow } from './EditDsl/useAddTableRow';
-import { useManualEditDSL } from './ManualEditDSL';
 import { useGridApi } from './useGridApi';
 import { useRequestDimTable } from './useRequestDimTable';
 
 export const useSubmitCellEditor = () => {
   const gridApi = useGridApi();
   const { parsedSheet } = useContext(ProjectContext);
-  const { editExpressionWithOverrideRemove } = useManualEditDSL();
   const { renameField } = useRenameFieldDsl();
-  const { editExpression, addField, addFieldWithOverride } = useFieldEditDsl();
+  const {
+    editExpression,
+    editExpressionWithOverrideRemove,
+    addField,
+    addFieldWithOverride,
+  } = useFieldEditDsl();
   const { renameTable } = useTableEditDsl();
   const { createDimensionTable, createSingleValueTable } = useCreateTableDsl();
   const { addTableRow } = useAddTableRow();
-  const { createDimTableFromDimensionFormula, createDimTableFromFormula } =
+  const { requestDimSchemaForFormula, requestDimSchemaForDimFormula } =
     useRequestDimTable();
   const { addTotalExpression, editTotalExpression } = useTotalEditDsl();
   const { addOverride, editOverride } = useOverridesEditDsl();
@@ -68,7 +69,7 @@ export const useSubmitCellEditor = () => {
       if (valueType === 'single_dim') {
         gridApi?.hideCellEditor();
 
-        return createDimTableFromDimensionFormula(col, row, value);
+        return requestDimSchemaForDimFormula(col, row, value);
       }
 
       const leftTableCell = gridApi?.getCell(Math.max(1, col - 1), row);
@@ -184,14 +185,14 @@ export const useSubmitCellEditor = () => {
         return createSingleValueTable(col, row, value);
 
       if (!addRowCell?.table && valueType === 'formula')
-        return createDimTableFromFormula(col, row, value);
+        return requestDimSchemaForFormula(col, row, value);
     },
     [
       gridApi,
       createSingleValueTable,
-      createDimTableFromFormula,
+      requestDimSchemaForFormula,
+      requestDimSchemaForDimFormula,
       createDimensionTable,
-      createDimTableFromDimensionFormula,
       parsedSheet?.tables,
       addFieldWithOverride,
       addField,
@@ -245,6 +246,14 @@ export const useSubmitCellEditor = () => {
           }
 
           return true;
+
+        case 'edit_complex_field':
+        case 'edit_dynamic_field_header':
+          if (trimmedValue === cell?.field?.expression) return true;
+
+          editExpression(tableName, fieldName, trimmedValue);
+
+          return true;
         case 'edit_field_expression':
         case 'edit_cell_expression':
           if (
@@ -258,8 +267,7 @@ export const useSubmitCellEditor = () => {
               tableName,
               fieldName,
               trimmedValue,
-              cell.overrideIndex!,
-              cell.overrideValue!
+              cell.overrideIndex!
             );
           } else {
             if (trimmedValue === cell?.field?.expression) return true;
@@ -280,12 +288,6 @@ export const useSubmitCellEditor = () => {
 
             if (cell.field?.isKey) {
               openStatusModal?.(overrideKeyFieldMessage);
-
-              return false;
-            }
-
-            if (isComplexType(cell?.field)) {
-              openStatusModal?.(overrideComplexFieldMessage);
 
               return false;
             }

@@ -4,6 +4,7 @@ import typing
 from dial_xl.project import Project
 from dial_xl.table import Table
 
+from quantgrid.utils.project import FieldGroupUtil
 from quantgrid_2a.utils.pseudo_type import pseudo_type
 from quantgrid_2a.utils.quote import quote_if_needed
 
@@ -14,7 +15,7 @@ def table_schema(table: Table) -> str:
         stream.write(quote_if_needed(table.name))
         stream.write(":")
 
-        for field in table.fields:
+        for field in FieldGroupUtil.get_table_fields(table):
             stream.write("\n  ")
             stream.write("[unnested] " if field.dim else "")
             stream.write(quote_if_needed(field.name) + ": ")

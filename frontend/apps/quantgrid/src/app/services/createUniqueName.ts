@@ -34,17 +34,38 @@ export function createUniqueFileName(
   name: string,
   existingNames: string[]
 ): string {
-  function getFileName(fileName: string) {
-    return fileName.substring(0, fileName.lastIndexOf('.'));
+  if (!name) return '';
+  if (!existingNames?.length) return name;
+
+  function escapeRegExp(str: string) {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
-  const uniqueName = createUniqueName(
-    getFileName(name),
-    existingNames.filter(Boolean).map((name) => getFileName(name))
-  );
 
-  const extension = name.substring(name.lastIndexOf('.'));
+  const dotIndex = name.lastIndexOf('.');
+  const base = dotIndex === -1 ? name : name.slice(0, dotIndex);
+  const extension = dotIndex === -1 ? '' : name.slice(dotIndex);
 
-  return `${uniqueName}${extension}`;
+  const matches = base.match(/^(.*?)(?:\s\((\d+)\))?$/)!;
+  const root = matches[1];
+  const version = matches[2] ? +matches[2] : 0;
+
+  const pattern = new RegExp(`^${escapeRegExp(root)}(?: \\((\\d+)\\))?$`);
+  let maxVersion = version;
+
+  for (const existing of existingNames) {
+    const dotIndex = existing.lastIndexOf('.');
+    const exBase = dotIndex === -1 ? existing : existing.slice(0, dotIndex);
+
+    const matches = exBase.match(pattern);
+    if (matches) {
+      const n = matches[1] ? +matches[1] : 0;
+      if (n >= maxVersion) maxVersion = n + 1;
+    }
+  }
+
+  if (maxVersion === version && !existingNames.includes(name)) return name;
+
+  return `${root} (${maxVersion})${extension}`;
 }
 
 function createNextName(name: string, count: number): string {

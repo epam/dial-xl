@@ -1,5 +1,6 @@
 package com.epam.deltix.quantgrid.parser;
 
+import com.epam.deltix.quantgrid.parser.ast.Formula;
 import com.google.gson.annotations.Expose;
 import lombok.Value;
 import lombok.experimental.Accessors;
@@ -13,7 +14,7 @@ public class ParsedApplySort {
     @Expose
     Span span;
     @Expose
-    List<ParsedFormula> formulas;
+    List<Formula> formulas;
 
     @Nullable
     public static ParsedApplySort from(SheetParser.Apply_sortContext context) {
@@ -21,8 +22,8 @@ public class ParsedApplySort {
             return null;
         }
 
-        List<ParsedFormula> formulas = context.expression().stream()
-                .map(ParsedFormula::from)
+        List<Formula> formulas = context.expression().stream()
+                .map(ParsedFormula::buildFormula)
                 .toList();
         return new ParsedApplySort(Span.from(context), formulas);
     }

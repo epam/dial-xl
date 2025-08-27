@@ -1,10 +1,10 @@
 package com.epam.deltix.quantgrid.parser;
 
+import java.util.List;
+
 import com.google.gson.annotations.Expose;
 import lombok.Value;
 import lombok.experimental.Accessors;
-
-import java.util.List;
 
 @Value
 @Accessors(fluent = true)
@@ -12,11 +12,11 @@ public class ParsedTotal {
     @Expose
     Span span;
     @Expose
-    List<ParsedField> fields;
+    List<ParsedFields> fields;
 
     public static ParsedTotal from(
             SheetParser.Total_definitionContext context, String tableName, ErrorListener errorListener) {
-        List<ParsedField> fields = ParsedField.from(context.field_definition(), tableName, errorListener);
+        List<ParsedFields> fields = ParsedFields.from(context.fields_definition(), tableName, errorListener, false);
         return new ParsedTotal(Span.from(context), fields);
     }
 

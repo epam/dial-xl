@@ -152,9 +152,9 @@ class DataSourceV2Test extends SharedLocalSparkTest {
     private void printColumn(ColumnPartition column) {
         Configuration conf = spark.sparkContext().hadoopConfiguration();
         TypeDescription schema = switch (column.getType()) {
-            case DOUBLE, INTEGER, BOOLEAN, DATE -> TypeDescription.createDouble();
+            case DOUBLE -> TypeDescription.createDouble();
             case STRING -> TypeDescription.createString();
-            case PERIOD_SERIES -> throw new IllegalArgumentException("not supported");
+            default -> throw new IllegalArgumentException("not supported");
         };
 
         // .orcTail(); we can cache OrcTail to avoid reading footer

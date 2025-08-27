@@ -4,6 +4,7 @@ import com.epam.deltix.quantgrid.engine.node.Node;
 import com.epam.deltix.quantgrid.engine.node.expression.Expression;
 import com.epam.deltix.quantgrid.engine.node.expression.Get;
 import com.epam.deltix.quantgrid.engine.node.plan.Plan;
+import com.epam.deltix.quantgrid.engine.ComputationType;
 import com.epam.deltix.quantgrid.engine.node.plan.local.ViewportLocal;
 import com.epam.deltix.quantgrid.parser.FieldKey;
 import lombok.experimental.UtilityClass;
@@ -23,6 +24,7 @@ public class RuleTestUtil {
         } else {
             throw new UnsupportedOperationException("Unsupported node: " + node.getClass().getSimpleName());
         }
-        return new ViewportLocal(data, null, new FieldKey(TEST_TABLE, TEST_FIELD), 0, 100, true);
+        return new ViewportLocal(data, null, new FieldKey(TEST_TABLE, TEST_FIELD), 0, 100, true, false, -1,
+                ComputationType.REQUIRED);
     }
 }

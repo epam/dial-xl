@@ -1,6 +1,6 @@
-import { ReactElement } from 'react';
+import { ReactElement, ReactNode } from 'react';
 
-import { FilesMetadata } from '@frontend/common';
+import { FilesMetadata, ForkedFrom } from '@frontend/common';
 import { OverrideValue } from '@frontend/parser';
 
 // Project Panels
@@ -17,15 +17,22 @@ export type PanelInfo = {
 };
 
 export enum PanelName {
-  ProjectTree = 'project',
-  Inputs = 'inputs',
   Errors = 'error',
   CodeEditor = 'editor',
   UndoRedo = 'undoRedo',
   Chat = 'chat',
   Details = 'details',
-  AIHints = 'aiHints',
+  Project = 'project',
 }
+
+export const PanelTitle: Record<PanelName, string> = {
+  [PanelName.Errors]: 'Errors',
+  [PanelName.CodeEditor]: 'Editor',
+  [PanelName.UndoRedo]: 'History',
+  [PanelName.Chat]: 'Chat',
+  [PanelName.Details]: 'Details',
+  [PanelName.Project]: 'Project',
+};
 
 export type PanelRecord = Record<PanelName, PanelInfo>;
 
@@ -37,9 +44,9 @@ export type MinimizedPanelProps = {
 
 export type PanelProps = {
   isActive: boolean;
-  position: PanelPosition;
+  position?: PanelPosition;
   panelName: PanelName;
-  title: string;
+  title: string | ReactNode;
   secondaryTitle?: string;
 };
 
@@ -117,6 +124,10 @@ export type FileReference = {
   path: string | null | undefined;
 };
 
+export type ForkedProjectSettings = ForkedFrom & {
+  isExists: boolean;
+};
+
 // Selected Cell
 
 export interface SelectedCell {
@@ -141,3 +152,14 @@ export enum SelectedCellType {
   Override = 'override',
   Total = 'total',
 }
+
+export type ColorSchema = 'read' | 'review' | 'default';
+export const LongCalcStatus = {
+  NeedAccept: 'need_accept' as const,
+  Accepted: 'accepted' as const,
+  Cancelled: 'cancelled' as const,
+  None: null as null,
+};
+
+export type LongCalcStatus =
+  (typeof LongCalcStatus)[keyof typeof LongCalcStatus];

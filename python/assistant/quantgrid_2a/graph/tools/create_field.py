@@ -3,9 +3,11 @@ import typing
 
 from dial_xl.calculate import PrimitiveFieldType
 from dial_xl.field import Field
+from dial_xl.field_groups import FieldGroup
 from dial_xl.project import Project
 from dial_xl.table import Table
 
+from quantgrid.utils.project import FieldGroupUtil
 from quantgrid_2a.configuration import Env
 from quantgrid_2a.graph.states import GeneralState
 from quantgrid_2a.models import ToolArtifact
@@ -54,9 +56,13 @@ async def _count_and_unique(
 
     misc_project.get_sheet(state.config.sheet.name).add_table(misc_table)
 
-    misc_table.add_field(Field("count", f"{table.name}[{field.name}].COUNT()"))
-    misc_table.add_field(
-        Field("unique", f"{table.name}[{field.name}].UNIQUEBY($).COUNT()")
+    misc_table.field_groups.append(
+        FieldGroup.from_field(Field("count"), f"{table.name}[{field.name}].COUNT()")
+    )
+    misc_table.field_groups.append(
+        FieldGroup.from_field(
+            Field("unique"), f"{table.name}[{field.name}].UNIQUEBY($).COUNT()"
+        )
     )
 
     misc_values = await fetch_table_entries(misc_project, misc_table, 1, None, "", 0)
@@ -82,7 +88,7 @@ async def create_field(
     if isinstance(new_table, str):
         return CreateFieldArtifact(output=new_table)
 
-    if field_name in new_table.field_names:
+    if field_name in FieldGroupUtil.get_table_field_names(new_table):
         return CreateFieldArtifact(
             output=f"Failed. Field {quote_if_needed(field_name)} already exists."
         )
@@ -95,8 +101,9 @@ async def create_field(
             output=f"Failed.\n{populate_pseudo_errors(ErrorConverter.convert_pseudo_errors(field_dsl))}"
         )
 
-    new_field = Field(field_name, field_dsl)
-    new_table.add_field(new_field)
+    new_field = Field(field_name)
+    new_field_group = FieldGroup.from_field(new_field, field_dsl)
+    new_table.field_groups.append(new_field_group)
     if unnest_formula:
         new_field.dim = True
 

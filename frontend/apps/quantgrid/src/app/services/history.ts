@@ -216,20 +216,32 @@ export function cleanUpProjectHistory(projectList?: FilesMetadata[]) {
   localStorage.setItem(storageKey, JSON.stringify(history));
 }
 
-export function appendToProjectHistory(
-  title: string,
-  sheetsState: Record<string, string>,
-  projectName: string,
-  bucket: string,
-  path: string | undefined | null,
-  isUpdate = false
-) {
+export function appendToProjectHistory({
+  title,
+  sheetsState,
+  projectName,
+  bucket,
+  path,
+  isUpdate = false,
+}: {
+  title: string;
+  sheetsState: Record<string, string>;
+  projectName: string;
+  bucket: string;
+  path: string | undefined | null;
+  isUpdate?: boolean;
+  isTemporary?: boolean;
+}) {
   cleanOldProjectHistory();
 
   let history = getProjectHistory(projectName, bucket, path);
 
   if (isUpdate) {
-    history[history.length - 1] = { title, time: Date.now(), sheetsState };
+    history[history.length - 1] = {
+      title,
+      time: Date.now(),
+      sheetsState,
+    };
 
     saveProjectHistory(history, projectName, bucket, path);
 
@@ -260,7 +272,9 @@ export function removeLastProjectHistoryElement(
 
   saveProjectHistory(history, projectName, bucket, path);
 
-  return history.length && history[history.length - 1];
+  if (!history.length) return undefined;
+
+  return history[history.length - 1];
 }
 
 export function removeOldestHistoryItems(

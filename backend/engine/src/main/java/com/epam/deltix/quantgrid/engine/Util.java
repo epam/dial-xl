@@ -1,5 +1,6 @@
 package com.epam.deltix.quantgrid.engine;
 
+import com.epam.deltix.quantgrid.engine.executor.ExecutionError;
 import com.epam.deltix.quantgrid.engine.value.Column;
 import com.epam.deltix.quantgrid.engine.value.DoubleColumn;
 import com.epam.deltix.quantgrid.engine.value.ErrorColumn;
@@ -13,6 +14,7 @@ import com.epam.deltix.quantgrid.engine.value.local.StringLambdaColumn;
 import lombok.experimental.UtilityClass;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 @UtilityClass
@@ -136,9 +138,15 @@ public final class Util {
 
     public Column throwIfError(Column column) {
         if (column instanceof ErrorColumn errorColumn) {
-            throw new IllegalArgumentException(errorColumn.message());
+            throw new ExecutionError(errorColumn.message());
         }
 
         return column;
+    }
+
+    public boolean[] boolArray(int size, boolean value) {
+        boolean[] array = new boolean[size];
+        Arrays.fill(array, value);
+        return array;
     }
 }

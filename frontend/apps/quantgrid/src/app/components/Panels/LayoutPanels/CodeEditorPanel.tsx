@@ -10,14 +10,13 @@ import {
   SaveIcon,
   Shortcut,
   shortcutApi,
+  useIsMobile,
 } from '@frontend/common';
 
 import { PanelProps } from '../../../common';
 import { CodeEditorWrapper } from '../../CodeEditorWrapper';
 import { PanelToolbar } from '../PanelToolbar';
 import { PanelWrapper } from './PanelWrapper';
-
-const changesText = `*${shortcutApi.getLabel(Shortcut.Save)} to save`;
 
 export function CodeEditorPanel({
   panelName,
@@ -26,6 +25,10 @@ export function CodeEditorPanel({
   isActive,
 }: PanelProps) {
   const { hasUnsavedChanges, formatDocument } = useContext(CodeEditorContext);
+  const isMobile = useIsMobile();
+  const changesText = isMobile
+    ? '*Unsaved changes'
+    : `*${shortcutApi.getLabel(Shortcut.Save)} to save`;
 
   return (
     <PanelWrapper isActive={isActive} panelName={panelName}>
@@ -34,7 +37,6 @@ export function CodeEditorPanel({
         position={position}
         secondaryTitle={hasUnsavedChanges ? changesText : undefined}
         title={title}
-        showExpand
       >
         <Tooltip placement="bottom" title="Format document">
           <Icon

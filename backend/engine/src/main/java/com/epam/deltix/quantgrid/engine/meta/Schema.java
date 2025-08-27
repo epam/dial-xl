@@ -81,6 +81,10 @@ public class Schema {
         return Schema.of(types);
     }
 
+    public static Schema of(List<ColumnType> types) {
+        return of(types.toArray(ColumnType[]::new));
+    }
+
     public static Schema of(ColumnType... types) {
         int[] indices = new int[types.length];
         Arrays.fill(indices, ORIGINAL);

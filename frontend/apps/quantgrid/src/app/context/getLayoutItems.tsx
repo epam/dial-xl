@@ -1,6 +1,8 @@
+import classNames from 'classnames';
 import { ReflexContainer, ReflexElement, ReflexSplitter } from 'react-reflex';
 
 import {
+  MinimizedPanelProps,
   PanelName,
   PanelPosition,
   PanelPositionProps,
@@ -301,3 +303,57 @@ function savePanelSize(e: HandlerProps, key: string) {
     localStorage.setItem(key, domElement.offsetWidth.toString());
   }
 }
+
+export const getMobileLayoutPanels = ({
+  openedPanels,
+  panels,
+}: {
+  openedPanels: PanelRecord;
+  panels: PanelSettings;
+}) => {
+  const finalPanels = [];
+  const minimizedPanels: (MinimizedPanelProps & { isActive: boolean })[] = [];
+  const mobileOrder = [
+    { key: PanelName.Chat, value: openedPanels.chat },
+    { key: PanelName.CodeEditor, value: openedPanels.editor },
+    { key: PanelName.Project, value: openedPanels.project },
+    { key: PanelName.Errors, value: openedPanels.error },
+    { key: PanelName.UndoRedo, value: openedPanels.undoRedo },
+    { key: PanelName.Details, value: openedPanels.details },
+  ];
+
+  for (const { key: name, value: panelInfo } of mobileOrder) {
+    const panelName = name as PanelName;
+    const panel = panels[panelName];
+    if (!panel || panel.inactive) continue;
+
+    const isActive = panelInfo.isActive || openedPanels[panelName]?.isActive;
+
+    finalPanels.push(
+      <div
+        className={classNames('size-full', !isActive && 'hidden')}
+        key={panelName}
+      >
+        <panel.component
+          isActive={isActive}
+          panelName={panelName}
+          title={panel.title}
+        />
+      </div>
+    );
+
+    minimizedPanels.push({
+      name: panelName,
+      title: panel.title,
+      icon: panel.icon,
+      isActive,
+    });
+  }
+
+  return {
+    mobilePanels: finalPanels,
+    mobileMinimizedPanels: minimizedPanels,
+    isMobileActivePanels:
+      minimizedPanels.filter((item) => item.isActive).length > 0,
+  };
+};

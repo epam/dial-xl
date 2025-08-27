@@ -1,14 +1,16 @@
-import { Expose, Transform } from 'class-transformer';
+import { Expose } from 'class-transformer';
 
 import { FieldKey } from './FieldKey';
 import { ParsedApply } from './ParsedApply';
 import { ParsedDecorator } from './ParsedDecorator';
 import { ParsedField } from './ParsedField';
+import { ParsedFields } from './ParsedFields';
 import { ParsedOverride } from './ParsedOverride';
 import { ParsedText } from './ParsedText';
 import { ParsedTotal } from './ParsedTotal';
 import { ParsedTotals } from './ParsedTotals';
 import {
+  chartHorizontalDecoratorArg,
   chartSelectorDecoratorName,
   ChartType,
   DSLNote,
@@ -18,10 +20,9 @@ import {
   FullDSLPlacement,
   layoutDecoratorName,
   manualTableDecoratorName,
-  ShortDSLPlacement,
   visualizationDecoratorName,
 } from './parser';
-import { getLayoutParams } from './services';
+import { findFunctionExpressions, getLayoutParams } from './services';
 import { Span } from './Span';
 
 // TODO: need a cleanup after implement DSL edit
@@ -32,11 +33,8 @@ export class ParsedTable {
   @Expose()
   name: ParsedText;
 
-  @Expose()
-  @Transform(({ value }) =>
-    value.filter((field: ParsedField) => !field.isDynamic)
-  )
-  fields: ParsedField[];
+  @Expose({ name: 'fields' })
+  parsedFields: ParsedFields[];
 
   @Expose()
   public decorators: ParsedDecorator[];
@@ -53,18 +51,20 @@ export class ParsedTable {
   @Expose()
   public totals: ParsedTotals[] | undefined;
 
+  public fields: ParsedField[];
+
+  public isPivot: boolean;
+
   constructor(
     span: Span,
     name: ParsedText,
     public tableName: string,
-    fields: ParsedField[],
+    fields: ParsedFields[],
     public text: string,
     public dslPlacement: FullDSLPlacement | undefined,
-    public dslTableNamePlacement: ShortDSLPlacement | undefined,
     decorators: ParsedDecorator[],
     docs: ParsedText[],
     overrides: ParsedOverride | undefined,
-    public dslOverridePlacement: FullDSLPlacement | undefined,
     apply: ParsedApply | undefined,
     totals: ParsedTotals[] | undefined,
     public total: ParsedTotal | undefined,
@@ -73,12 +73,25 @@ export class ParsedTable {
     this.span = span;
     this.name = name;
     this.tableName = tableName;
-    this.fields = fields;
+    this.parsedFields = fields;
     this.decorators = decorators;
     this.docs = docs;
     this.overrides = overrides;
     this.apply = apply;
     this.totals = totals;
+
+    this.fields = fields.reduce<ParsedField[]>(
+      (acc, curr) => acc.concat(curr.fields),
+      []
+    );
+
+    this.isPivot = this.fields.some(
+      (f) =>
+        f.expression &&
+        findFunctionExpressions(f.expression).some(
+          (func) => func.name === 'PIVOT'
+        )
+    );
   }
 
   public getPlacement(): [number, number] {
@@ -146,6 +159,8 @@ export class ParsedTable {
     const newFields = [];
     const dynamicField = this.getDynamicField();
 
+    if (!dynamicField) return;
+
     // For cases when dynamic fields are changed after dsl changes
     // remove old dynamic fields to avoid stale fields in the table
     this.fields = this.fields.filter(
@@ -159,8 +174,9 @@ export class ParsedTable {
         new ParsedField(
           new FieldKey(this.tableName, `[${fieldName}]`, fieldName),
           true,
-          dynamicField?.expression,
-          dynamicField?.expressionMetadata
+          dynamicField.expression,
+          dynamicField.expressionMetadata,
+          dynamicField.fieldGroupIndex
         )
       );
     }
@@ -334,6 +350,17 @@ export class ParsedTable {
     }
 
     return sections;
+  }
+
+  public getChartOrientation(): 'horizontal' | 'vertical' {
+    const visualizationParams = this.getVisualisationDecoratorValues();
+
+    if (!visualizationParams || visualizationParams?.length <= 1)
+      return 'vertical';
+
+    return visualizationParams[1] === chartHorizontalDecoratorArg
+      ? 'horizontal'
+      : 'vertical';
   }
 
   public isChartSelector(): boolean {

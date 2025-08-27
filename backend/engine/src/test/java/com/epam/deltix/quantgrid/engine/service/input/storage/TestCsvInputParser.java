@@ -1,6 +1,6 @@
 package com.epam.deltix.quantgrid.engine.service.input.storage;
 
-import com.epam.deltix.quantgrid.type.ColumnType;
+import com.epam.deltix.quantgrid.type.InputColumnType;
 import com.epam.deltix.quantgrid.util.ParserException;
 import it.unimi.dsi.fastutil.doubles.DoubleArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
@@ -34,11 +34,11 @@ class TestCsvInputParser {
                 7, 8, 6
                 """;
         List<String> expectedNames = List.of("a", "b", "c", "Column4", "Column5");
-        List<ColumnType> expectedTypes = Arrays.asList(
-                ColumnType.DOUBLE, ColumnType.DOUBLE, ColumnType.DOUBLE, null, ColumnType.DOUBLE);
+        List<InputColumnType> expectedTypes = Arrays.asList(
+                InputColumnType.DOUBLE, InputColumnType.DOUBLE, InputColumnType.DOUBLE, null, InputColumnType.DOUBLE);
 
         Reader csvReader = new StringReader(csv);
-        LinkedHashMap<String, ColumnType> schema = CsvInputParser.inferSchema(csvReader);
+        LinkedHashMap<String, InputColumnType> schema = CsvInputParser.inferSchema(csvReader);
 
         Assertions.assertEquals(expectedNames, new ArrayList<>(schema.keySet()));
         Assertions.assertEquals(expectedTypes, new ArrayList<>(schema.values()));
@@ -57,16 +57,16 @@ class TestCsvInputParser {
         // replace "S" in "USA" with negative byte value
         bytesCsv[21] = -100;
 
-        LinkedHashMap<String, ColumnType> schema =
+        LinkedHashMap<String, InputColumnType> schema =
                 CsvInputParser.inferSchema(new InputStreamReader(new ByteArrayInputStream(bytesCsv)));
 
-        LinkedHashMap<String, ColumnType> expectedSchema = new LinkedHashMap<>();
-        expectedSchema.put("country", ColumnType.STRING);
-        expectedSchema.put("date", ColumnType.DATE);
-        expectedSchema.put("GDP", ColumnType.DOUBLE);
-        expectedSchema.put("IR", ColumnType.DOUBLE);
+        LinkedHashMap<String, InputColumnType> expectedSchema = new LinkedHashMap<>();
+        expectedSchema.put("country", InputColumnType.STRING);
+        expectedSchema.put("date", InputColumnType.DATE);
+        expectedSchema.put("GDP", InputColumnType.DOUBLE);
+        expectedSchema.put("IR", InputColumnType.DOUBLE);
 
-        Assertions.assertEquals(schema, expectedSchema);
+        Assertions.assertEquals(expectedSchema, schema);
 
         Object[] data = CsvInputParser.parseCsvInput(new InputStreamReader(new ByteArrayInputStream(bytesCsv)),
                 schema.keySet().stream().toList(), schema);
@@ -78,14 +78,34 @@ class TestCsvInputParser {
     }
 
     @Test
+    void testCustomNumbers() {
+        String csv = """
+                a
+                "-1,234,567.89"
+                12.3M
+                1K
+                -2.3B
+                """;
+
+        LinkedHashMap<String, InputColumnType> schema = CsvInputParser.inferSchema(new StringReader(csv));
+        assertThat(List.copyOf(schema.keySet())).isEqualTo(List.of("a"));
+        assertThat(List.copyOf(schema.values())).isEqualTo(List.of(InputColumnType.DOUBLE));
+
+        Object[] content = CsvInputParser.parseCsvInput(new StringReader(csv), List.copyOf(schema.keySet()), schema);
+        assertThat(content).isEqualTo(new Object[] {
+                new DoubleArrayList(new double[] {-1234567.89, 1.23E7, 1000.0, -2.3E9})
+        });
+    }
+
+    @Test
     void testMixedLineEnding() {
         String csv = "a,b\r\n1,2\n3,4";
 
-        LinkedHashMap<String, ColumnType> schema = CsvInputParser.inferSchema(new StringReader(csv));
+        LinkedHashMap<String, InputColumnType> schema = CsvInputParser.inferSchema(new StringReader(csv));
         assertThat(List.copyOf(schema.keySet()))
                 .isEqualTo(List.of("a", "b", "Column3"));
         assertThat(List.copyOf(schema.values()))
-                .isEqualTo(List.of(ColumnType.DOUBLE, ColumnType.STRING, ColumnType.DOUBLE));
+                .isEqualTo(List.of(InputColumnType.DOUBLE, InputColumnType.STRING, InputColumnType.DOUBLE));
 
         Object[] content = CsvInputParser.parseCsvInput(new StringReader(csv), List.copyOf(schema.keySet()), schema);
         assertThat(content).isEqualTo(new Object[] {

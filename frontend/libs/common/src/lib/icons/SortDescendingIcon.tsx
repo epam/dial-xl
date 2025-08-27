@@ -11,6 +11,7 @@ export const SortDescendingIcon = ({
       strokeLinecap="round"
       strokeLinejoin="round"
       strokeWidth="1.5"
+      vectorEffect="non-scaling-stroke"
       viewBox="0 0 24 24"
       width="100%"
       xmlns="http://www.w3.org/2000/svg"

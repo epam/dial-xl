@@ -44,7 +44,7 @@ async def test_sort_by(basic_project: FrameProject):
         AddTable(
             validator=validate_sortby,
             A=["A", "A", "B", "B", "C"],
-            B=["3.0", "1.0", "2.0", "1.0", "1.0"],
+            B=["3", "1", "2", "1", "1"],
         )
     )
 

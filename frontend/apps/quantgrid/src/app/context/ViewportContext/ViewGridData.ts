@@ -1,8 +1,16 @@
-import { bufferTime, debounceTime, filter, Observable, Subject } from 'rxjs';
+import {
+  bufferTime,
+  debounceTime,
+  filter,
+  Observable,
+  shareReplay,
+  Subject,
+} from 'rxjs';
 
 import { ViewportEdges } from '@frontend/canvas-spreadsheet';
 import {
   ChartData,
+  ChartOrientation,
   chartRowNumberSelector,
   ChartsData,
   ChartTableWithoutSelectors,
@@ -12,16 +20,22 @@ import {
   CompilationError,
   defaultChartCols,
   defaultChartRows,
-  DiffData,
+  formatNumberGeneral,
+  formatValue,
   GridChart,
   GridChartSection,
   GridData,
   GridListFilter,
   GridTable,
   GridViewport,
+  HighlightData,
   histogramChartSeriesSelector,
+  Index,
+  IndexError,
+  isGeneralFormatting,
   isNumericType,
   ParsingError,
+  Profile,
   RuntimeError,
   SelectedChartKey,
   TableData,
@@ -39,8 +53,14 @@ import {
   unescapeValue,
 } from '@frontend/parser';
 
+import {
+  chartsWithOrientation,
+  chartsWithRowNumber,
+} from '../../components/Panels/Chart/utils';
 import { hasValuesFieldName, histogramDefaultBucketCount } from '../../utils';
+import { firstColumnWithAllUniques } from './firstColumnWithAllUniques';
 import { GridBuilder } from './GridBuilder';
+import { ProfileManager } from './ProfileManager';
 import {
   ChartUpdate,
   FiltersUpdate,
@@ -50,7 +70,6 @@ import { ViewportBuilder } from './ViewportBuilder';
 import { ViewportChartBuilder } from './ViewportChartBuilder';
 
 export const chunkSize = 500;
-export const defaultZIndex = 2;
 export const dataUpdateDebounceTime = 50;
 // TODO: Remove chart grouping after API Change related with multiply viewports override
 export const chartUpdateBufferTime = 200;
@@ -68,6 +87,7 @@ export const chartUpdateBufferTime = 200;
  * @property {GridBuilder} gridBuilder - Instance of GridBuilder class (build tablesData to necessary format for grid).
  * @property {ViewportBuilder} viewportBuilder - Instance of ViewportBuilder class (generating viewports request considering tablesData).
  * @property {ViewportChartBuilder} viewportChartBuilder - Instance of ViewportChartBuilder class (generating viewports request considering charts).
+ * @property {ProfileManager} profileManager - Instance of ProfileManager class (managing execution profiles).
  */
 export class ViewGridData {
   protected tablesData: TablesData;
@@ -86,6 +106,7 @@ export class ViewGridData {
   protected gridBuilder: GridBuilder;
   protected viewportBuilder: ViewportBuilder;
   protected viewportChartBuilder: ViewportChartBuilder;
+  protected profileManager: ProfileManager;
 
   protected tableOrder: string[];
 
@@ -93,6 +114,8 @@ export class ViewGridData {
   protected chartKeyVirtualTableMapping: Map<string, Map<string, string>>;
   protected chartDataVirtualTableMapping: Map<string, string>;
   protected filterDataVirtualTableMapping: Map<string, Map<string, string>>;
+
+  private readonly chartUpdate$: Observable<ChartUpdate[]>;
 
   constructor() {
     this.tablesData = {};
@@ -108,6 +131,7 @@ export class ViewGridData {
     this.parsingErrors = [];
     this.compilationErrors = [];
 
+    this.profileManager = new ProfileManager();
     this.gridBuilder = new GridBuilder(this);
     this.viewportBuilder = new ViewportBuilder(this);
     this.viewportChartBuilder = new ViewportChartBuilder(this);
@@ -117,6 +141,12 @@ export class ViewGridData {
     this.chartDataVirtualTableMapping = new Map();
     this.filterDataVirtualTableMapping = new Map();
     this.virtualTablesData = {};
+
+    this.chartUpdate$ = this._chartUpdate$.pipe(
+      bufferTime(chartUpdateBufferTime),
+      filter((events) => events.length > 0),
+      shareReplay({ bufferSize: 1, refCount: true })
+    );
   }
 
   /**
@@ -136,15 +166,19 @@ export class ViewGridData {
   }
 
   /**
+   * Observable which trigger action if should update profile
+   * @returns {Observable<Profile[]>} Actual observable
+   */
+  get profileUpdate$(): Observable<Profile[]> {
+    return this.profileManager.profileUpdate$;
+  }
+
+  /**
    * Observable which trigger action if grid should update charts
    * @returns {Observable<ChartUpdate[]>} Actual observable
    */
   get chartUpdate(): Observable<ChartUpdate[]> {
-    // TODO: Remove bufferTime -> check chartUpdateBufferTime description
-    return this._chartUpdate$.pipe(
-      bufferTime(chartUpdateBufferTime),
-      filter((events) => events.length > 0)
-    );
+    return this.chartUpdate$;
   }
 
   /**
@@ -182,6 +216,14 @@ export class ViewGridData {
    */
   protected triggerFiltersUpdate(update: FiltersUpdate): void {
     this._filtersUpdate$.next(update);
+  }
+
+  /**
+   * Method which gets current profiles
+   * @returns {Profile[]} Current profiles
+   */
+  public getProfiles(): Profile[] {
+    return this.profileManager.getProfiles();
   }
 
   /**
@@ -285,6 +327,32 @@ export class ViewGridData {
       const { tableName } = table;
 
       for (const [fieldName, message] of Object.entries(fieldErrors)) {
+        errors.push({
+          fieldKey: {
+            table: tableName,
+            field: fieldName,
+          },
+          message,
+        });
+      }
+    }
+
+    return errors;
+  }
+
+  /**
+   * Gets list of all index errors
+   * @returns {IndexError[]} Actual list
+   */
+  public getIndexErrors(): IndexError[] {
+    const tablesData = this.getTablesData();
+    const errors: IndexError[] = [];
+
+    for (const tableData of tablesData) {
+      const { indexErrors, table } = tableData;
+      const { tableName } = table;
+
+      for (const [fieldName, message] of Object.entries(indexErrors)) {
         errors.push({
           fieldKey: {
             table: tableName,
@@ -417,7 +485,8 @@ export class ViewGridData {
         totalRows,
         selectorFieldNames,
         selectedKeys,
-        availableKeys
+        availableKeys,
+        types
       );
 
       const histogramBucketsCount = this.processHistogram(
@@ -437,6 +506,8 @@ export class ViewGridData {
         chartType
       );
 
+      const chartOrientation = table.getChartOrientation();
+
       charts.push({
         tableName: table.tableName,
         chartType,
@@ -452,6 +523,7 @@ export class ViewGridData {
         customSeriesColors,
         selectorFieldNames,
         chartSections,
+        chartOrientation,
         showLegend,
         isEmpty,
       });
@@ -547,13 +619,16 @@ export class ViewGridData {
     totalRows: number,
     selectorFieldNames: string[],
     selectedKeys: Record<string, string | string[]>,
-    availableKeys: Record<string, string[]>
+    availableKeys: Record<string, string[]>,
+    types: { [p: string]: ColumnDataType }
   ): void {
-    const isRowNumberSelector =
-      chartType === ChartType.BAR || chartType === ChartType.PIE;
-
+    const isRowNumberSelector = chartsWithRowNumber.includes(chartType);
     const isHistogram = chartType === ChartType.HISTOGRAM;
     const tableSelectorValues = table.getChartSelectorValues();
+    const chartOrientation = table.getChartOrientation();
+    const isVerticalOrientation = chartOrientation === 'vertical';
+    const isHorizontalOrientation = chartOrientation === 'horizontal';
+    const xAxisField = table.fields.find((f) => f.isChartXAxis());
 
     if (isRowNumberSelector && !isHistogram) {
       selectorFieldNames.push(chartRowNumberSelector);
@@ -572,10 +647,56 @@ export class ViewGridData {
         }
       }
 
-      availableKeys[chartRowNumberSelector] = Array.from(
-        { length: totalRows },
-        (_, i) => (i + 1).toString()
-      );
+      // Special case:
+      // for vertical(rows) pie/bar chart with !x() decorator use !x() field values
+      // For now values stores as chart selector keys
+      if (isRowNumberSelector && isVerticalOrientation && xAxisField) {
+        const virtualKeyTableName = this.chartKeyVirtualTableMapping
+          .get(table.tableName)
+          ?.get(xAxisField.key.fieldName);
+
+        if (!virtualKeyTableName) return;
+
+        const virtualKeyTable = this.virtualTablesData[virtualKeyTableName];
+        if (!virtualKeyTable) return;
+
+        const { chunks } = virtualKeyTable;
+        const rowNumberKeys: string[] = [];
+
+        for (const chunkIndex of Object.keys(chunks)) {
+          const chunk = chunks[+chunkIndex];
+
+          for (const fieldKey in chunk) {
+            if (fieldKey === xAxisField.key.fieldName) {
+              rowNumberKeys.push(...chunk[fieldKey]);
+            }
+          }
+        }
+
+        availableKeys[chartRowNumberSelector] = rowNumberKeys;
+
+        if (rowNumberKeys.length) return;
+      }
+
+      if (isRowNumberSelector && isHorizontalOrientation) {
+        const numericFieldNames = table.fields
+          .filter((f) => {
+            return isNumericType(types[f.key.fieldName]);
+          })
+          .map((f) => f.key.fieldName);
+
+        availableKeys[chartRowNumberSelector] = numericFieldNames;
+
+        // If there is only one numeric field, use it as a selector by default
+        if (numericFieldNames.length === 1) {
+          selectedKeys[chartRowNumberSelector] = numericFieldNames[0];
+        }
+      } else {
+        availableKeys[chartRowNumberSelector] = Array.from(
+          { length: totalRows },
+          (_, i) => (i + 1).toString()
+        );
+      }
     }
   }
 
@@ -615,6 +736,73 @@ export class ViewGridData {
       .map((f) => f.key.fieldName);
 
     return histogramBucketsCount;
+  }
+
+  public getChartInitialOrientation(
+    parsedTable: ParsedTable,
+    chartType: ChartType
+  ): ChartOrientation {
+    const { tableName } = parsedTable;
+    const tableData = this.getTableData(tableName);
+
+    if (!tableData) return 'vertical';
+
+    const { types, totalRows, chunks } = tableData;
+
+    // Chart that not support orientation
+    if (!chartsWithOrientation.includes(chartType)) return 'vertical';
+
+    // Auto mode - run checks and determine orientation
+    const tableHasMoreRows = totalRows > parsedTable.getFieldsCount();
+    const rowLimit = 100;
+    const isCorrectRowLimit = totalRows < rowLimit;
+
+    // return early not to check all chunk values without reason
+    if (!tableHasMoreRows || !isCorrectRowLimit) return 'vertical';
+
+    const textFieldNames = Object.entries(types)
+      .filter(([, type]) => type === ColumnDataType.STRING)
+      .map(([name]) => name);
+
+    if (textFieldNames.length === 0) return 'vertical';
+
+    const textFieldWithUniqueValues = firstColumnWithAllUniques(
+      chunks,
+      textFieldNames
+    );
+
+    return textFieldWithUniqueValues ? 'horizontal' : 'vertical';
+  }
+
+  public findFirstTextColumnWithAllUniques(
+    parsedTable: ParsedTable
+  ): string | null {
+    const { tableName, fields } = parsedTable;
+    const tableData = this.getTableData(tableName);
+
+    if (!tableData) return null;
+
+    const { chunks, types } = tableData;
+
+    const parsedFieldNames = fields
+      .map((field) => field.name?.text.slice(1, -1))
+      .filter(Boolean) as string[];
+    const textFieldNames = Object.entries(types)
+      .filter(([, type]) => type === ColumnDataType.STRING)
+      .map(([name]) => name);
+
+    const resultedFieldNames = parsedFieldNames.filter((name) =>
+      textFieldNames.includes(name)
+    );
+    textFieldNames.forEach((name) => {
+      if (!resultedFieldNames.includes(name)) {
+        resultedFieldNames.push(name);
+      }
+    });
+
+    if (resultedFieldNames.length === 0) return null;
+
+    return firstColumnWithAllUniques(chunks, resultedFieldNames);
   }
 
   /**
@@ -705,7 +893,7 @@ export class ViewGridData {
    */
   protected initTableData(
     table: ParsedTable,
-    diff: DiffData | undefined
+    highlightData: HighlightData | undefined
   ): TableData {
     const { tableName } = table;
 
@@ -722,11 +910,13 @@ export class ViewGridData {
       isDynamicFieldsRequested: false,
 
       types: {},
+      formats: {},
       columnReferenceTableNames: {},
 
-      diff,
+      highlightData: highlightData,
 
       fieldErrors: {},
+      indexErrors: {},
     };
 
     if (table.isChart()) {
@@ -745,13 +935,28 @@ export class ViewGridData {
    * -> trigger data update
    * @param table {ParsedTable} specified table
    */
-  public updateTableMeta(table: ParsedTable, diff?: DiffData): void {
+  public updateTableMeta(
+    table: ParsedTable,
+    {
+      isDSLChange = true,
+      highlightData,
+    }: { highlightData?: HighlightData; isDSLChange?: boolean } = {
+      isDSLChange: true,
+    }
+  ): void {
     const { tableName } = table;
 
     const tableData = this.getTableData(tableName);
 
     if (!tableData) {
-      this.initTableData(table, diff);
+      this.initTableData(table, highlightData);
+
+      return;
+    }
+
+    if (!isDSLChange) {
+      tableData.highlightData = highlightData;
+      this.triggerDataUpdate();
 
       return;
     }
@@ -760,7 +965,7 @@ export class ViewGridData {
     tableData.fallbackChunks = { ...tableData.chunks };
     tableData.chunks = {};
     tableData.isDynamicFieldsRequested = false;
-    tableData.diff = diff;
+    tableData.highlightData = highlightData;
 
     const isChart = table.isChart();
 
@@ -953,7 +1158,7 @@ export class ViewGridData {
    * Currently used for histogram chart.
    */
   private saveNewColumnForVirtualDataTable(columnData: ColumnData) {
-    const { fieldKey, data } = columnData;
+    const { fieldKey, data, type, format } = columnData;
     if (!fieldKey?.table) return;
 
     const tableName = escapeTableName(fieldKey.table, true);
@@ -970,7 +1175,20 @@ export class ViewGridData {
       this.chartsData[tableName] = {};
     }
 
-    this.chartsData[tableName][fieldKey.field] = data;
+    const useGeneralFormatting = isGeneralFormatting(type, format);
+
+    this.chartsData[tableName][fieldKey.field] = {
+      rawValues: data,
+      displayValues: data.map((value) => {
+        if (useGeneralFormatting) {
+          return (
+            formatNumberGeneral(value, Number.MAX_SAFE_INTEGER, 1) || value
+          );
+        }
+
+        return format ? formatValue(value, format) : value;
+      }),
+    };
   }
 
   /**
@@ -1118,6 +1336,7 @@ export class ViewGridData {
       type,
       referenceTableName,
       periodSeries,
+      format,
     } = columnData;
 
     if (!fieldKey) {
@@ -1162,7 +1381,10 @@ export class ViewGridData {
         return;
       }
 
-      chartData[columnName] = periodSeries;
+      chartData[columnName] = {
+        rawValues: periodSeries,
+        displayValues: periodSeries,
+      };
 
       this.triggerChartsUpdate({
         chartName: tableName,
@@ -1193,6 +1415,7 @@ export class ViewGridData {
     }
 
     tableData.types[columnName] = type;
+    tableData.formats[columnName] = format;
 
     // if data comes for specific field, should remove cache for this column
     this.clearOldCachedDataForColumn(tableName, columnName);
@@ -1253,7 +1476,21 @@ export class ViewGridData {
         const isXAxis = tableField?.isChartXAxis();
 
         if (chartData && (isNumeric || isDotColor || isDotSize || isXAxis)) {
-          chartData[columnName] = chunk[columnName];
+          const useGeneralFormatting = isGeneralFormatting(type, format);
+
+          chartData[columnName] = {
+            rawValues: chunk[columnName].slice(),
+            displayValues: chunk[columnName].slice().map((value) => {
+              if (useGeneralFormatting) {
+                return (
+                  formatNumberGeneral(value, Number.MAX_SAFE_INTEGER, 1) ||
+                  value
+                );
+              }
+
+              return format ? formatValue(value, format) : value;
+            }),
+          };
         }
       }
 
@@ -1285,6 +1522,57 @@ export class ViewGridData {
         isKeyUpdate: true,
       });
     }
+  }
+
+  /**
+   * Updates the execution profile data
+   * Delegates to the ProfileManager
+   * @param requestId The ID of the request that initiated this profile update
+   * @param profile The profile to save
+   */
+  public saveProfileData(requestId: string, profile: Profile): void {
+    this.profileManager.saveProfileData(requestId, profile);
+  }
+
+  /**
+   * Saves index data, currently for save error messages
+   * @param index {Index} Index data to save
+   */
+  public saveIndexData(index: Index): void {
+    const { key, errorMessage } = index;
+    const { table, field } = key;
+
+    const tableData = this.getTableData(table);
+
+    if (!tableData) return;
+
+    if (errorMessage) {
+      tableData.indexErrors[field] = errorMessage;
+    } else if (field in tableData.indexErrors) {
+      delete tableData.indexErrors[field];
+    }
+  }
+
+  public getRequests(): string[] {
+    return this.profileManager.requests;
+  }
+
+  /**
+   * Keep track of started request
+   * Delegates to the ProfileManager
+   * @param requestId The ID of the started request
+   */
+  public startRequest(requestId: string): void {
+    this.profileManager.startRequest(requestId);
+  }
+
+  /**
+   * Handles cleanup when a request finished
+   * Delegates to the ProfileManager
+   * @param requestId The ID of the finished request
+   */
+  public finishRequest(requestId: string): void {
+    this.profileManager.finishRequest(requestId);
   }
 
   /**
@@ -1561,6 +1849,7 @@ export class ViewGridData {
     this.chartsData = {};
     this.filtersData = {};
     this.tableOrder = [];
+    this.profileManager.clear();
     this.chartKeyVirtualTableMapping = new Map();
     this.chartDataVirtualTableMapping = new Map();
     this.filterDataVirtualTableMapping = new Map();

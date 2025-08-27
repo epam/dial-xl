@@ -2,62 +2,51 @@ import { SheetReader } from '@frontend/parser';
 
 import { createUniqueName } from './createUniqueName';
 
-type DuplicateField = {
-  tableName: string;
-  fieldName: string;
-  newFieldName: string;
-  start: number;
-  end: number;
-};
-
-export const autoRenameFields = (dsl: string) => {
+/**
+ * Automatically renames fields in a DSL to ensure unique field names across the table.
+ *
+ * @param {string} dsl - The DSL string representing the structure of a sheet to be processed.
+ * @returns {string} - The updated DSL with renamed fields, or the original DSL if no changes were made.
+ */
+export const autoRenameFields = (dsl: string): string => {
   try {
     const parsedSheet = SheetReader.parseSheet(dsl);
-    const { tables } = parsedSheet;
-    const duplicateFields: DuplicateField[] = [];
+    const editableSheet = parsedSheet.editableSheet;
 
-    tables.forEach((table) => {
-      const { tableName } = table;
-      const fieldNames = table.fields.map((f) => f.key.fieldName);
-      const fieldNameSet = new Set();
+    if (!editableSheet) return dsl;
 
-      table.fields.forEach((f) => {
-        const { dslFieldNamePlacement, key } = f;
-        const { fieldName } = key;
+    let hasFieldNameChanges = false;
 
-        if (fieldNameSet.has(fieldName) && dslFieldNamePlacement) {
-          const newFieldName = createUniqueName(fieldName, fieldNames);
-          fieldNames.push(newFieldName);
+    editableSheet.tables.forEach((table) => {
+      const allFieldNamesSet: Set<string> = new Set();
+      const existingNames: Set<string> = new Set();
 
-          duplicateFields.push({
-            tableName,
-            fieldName,
-            newFieldName,
-            start: dslFieldNamePlacement?.start || 0,
-            end: dslFieldNamePlacement?.end || 0,
-          });
-        } else {
-          fieldNameSet.add(fieldName);
+      for (const fieldGroup of table.fieldGroups) {
+        for (const field of fieldGroup.fields) {
+          allFieldNamesSet.add(field.name);
         }
-      });
+      }
+
+      for (const fieldGroup of table.fieldGroups) {
+        for (const field of fieldGroup.fields) {
+          const currentFieldName = field.name;
+          if (existingNames.has(currentFieldName)) {
+            const newFieldName = createUniqueName(
+              currentFieldName,
+              Array.from(allFieldNamesSet)
+            );
+            allFieldNamesSet.add(newFieldName);
+
+            field.name = newFieldName;
+            hasFieldNameChanges = true;
+          } else {
+            existingNames.add(currentFieldName);
+          }
+        }
+      }
     });
 
-    if (duplicateFields.length === 0) return dsl;
-
-    const reversedFieldsByPlacement = duplicateFields.sort((a, b) => {
-      return b.start - a.start;
-    });
-
-    let updatedDsl = dsl;
-
-    reversedFieldsByPlacement.forEach((f) => {
-      updatedDsl =
-        updatedDsl.substring(0, f.start) +
-        `[${f.newFieldName}]` +
-        updatedDsl.substring(f.end);
-    });
-
-    return updatedDsl;
+    return hasFieldNameChanges ? editableSheet.toDSL() : dsl;
   } catch (error) {
     return dsl;
   }

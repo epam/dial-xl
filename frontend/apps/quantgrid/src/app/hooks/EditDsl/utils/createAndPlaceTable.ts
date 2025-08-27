@@ -21,6 +21,7 @@ interface CreateAndPlaceTableOptions {
   layoutOptions?: {
     showTableHeader?: boolean;
     showFieldHeaders?: boolean;
+    isHorizontal?: boolean;
   };
   additionalDecorators?: Decorator[];
 }
@@ -48,6 +49,7 @@ export function createAndPlaceTable({
     row: Math.max(minTablePlacement, row),
     showTableHeader: layoutOptions.showTableHeader ?? false,
     showFieldHeaders: layoutOptions.showFieldHeaders ?? false,
+    isHorizontal: layoutOptions.isHorizontal ?? false,
     includeDecoratorName: false,
   });
   table.addDecorator(new Decorator(layoutDecoratorName, layoutArgs));

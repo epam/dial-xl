@@ -1,14 +1,7 @@
 import { Tooltip } from 'antd';
 import cx from 'classnames';
 import { ResizeDirection } from 're-resizable';
-import {
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { DraggableData, DraggableEvent } from 'react-draggable';
 import { Position, ResizableDelta, Rnd } from 'react-rnd';
 
@@ -21,10 +14,7 @@ import {
   DialChatLogoIcon,
 } from '@frontend/common';
 
-import { AppContext, ProjectContext } from '../../context';
-import { ApplySuggestionButton } from './ApplySuggestionButton';
-import { useApplySuggestions } from './useApplySuggestion';
-import { useOverlay } from './useOverlay';
+import { AppContext, ChatOverlayContext } from '../../context';
 
 const chatWindowDragHandleClass = 'chat-window-drag-handle';
 const positionOffset = 20;
@@ -49,16 +39,13 @@ const minSize = '200px';
 export function ChatFloatingWindow() {
   const { toggleChatWindowPlacement, toggleChat, isChatOpen } =
     useContext(AppContext);
-  const { projectSheets, sheetName } = useContext(ProjectContext);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const { attachOverlay } = useContext(ChatOverlayContext);
+
   const [isInitialized, setIsInitialized] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [rndOptions, setRndOptions] = useState<ChatWindowOptions>(
     defaultChatWindowOptions
   );
-
-  const { GPTSuggestions, lastStageCompleted } = useOverlay(containerRef);
-  const { applySuggestion } = useApplySuggestions();
 
   const toggleExpanded = useCallback(() => {
     const { height, width } = defaultChatWindowOptions;
@@ -202,7 +189,7 @@ export function ChatFloatingWindow() {
           </div>
           <Tooltip placement="top" title="Move Chat to Panel">
             <Icon
-              className="w-[14px] text-textSecondary mr-2"
+              className="shrink-0 w-4 text-textSecondary mr-2"
               component={() => <DialChatLogoIcon />}
               onClick={toggleChatWindowPlacement}
             />
@@ -212,7 +199,7 @@ export function ChatFloatingWindow() {
             title={expanded ? 'Restore Chat' : 'Expand Chat'}
           >
             <Icon
-              className={cx('w-[14px] text-textSecondary mr-2', {
+              className={cx('shrink-0 w-[14px] text-textSecondary mr-2', {
                 'transform rotate-[225deg]': expanded,
                 'transform rotate-45': !expanded,
               })}
@@ -224,20 +211,16 @@ export function ChatFloatingWindow() {
           </Tooltip>
           <Tooltip placement="top" title="Close Chat">
             <Icon
-              className="w-[14px] text-textSecondary mr-2"
+              className="shrink-0 w-[14px] text-textSecondary mr-2"
               component={() => <CloseIcon />}
               onClick={toggleChat}
             />
           </Tooltip>
         </div>
-        <div className={cx('h-full w-full')} ref={containerRef}></div>
-        <ApplySuggestionButton
-          applySuggestion={() => applySuggestion(GPTSuggestions)}
-          currentSheetName={sheetName}
-          GPTSuggestions={GPTSuggestions}
-          lastStageCompleted={lastStageCompleted}
-          projectSheets={projectSheets}
-        />
+        <div
+          className={cx('h-full w-full')}
+          ref={(el) => attachOverlay(el)}
+        ></div>
       </div>
     </Rnd>
   );

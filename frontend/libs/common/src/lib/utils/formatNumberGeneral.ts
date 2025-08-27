@@ -50,13 +50,13 @@ const convertToBigLetterNotation = (
   let divisor = 0;
   let modifier: 'K' | 'M' | 'B' | undefined;
 
-  if (value >= 1e9) {
+  if (Math.abs(value) >= 1e9) {
     divisor = 1e9;
     modifier = 'B';
-  } else if (value >= 1e6) {
+  } else if (Math.abs(value) >= 1e6) {
     divisor = 1e6;
     modifier = 'M';
-  } else if (value >= 1e3) {
+  } else if (Math.abs(value) >= 1e3) {
     divisor = 1e3;
     modifier = 'K';
   }

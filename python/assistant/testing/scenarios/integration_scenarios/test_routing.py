@@ -38,6 +38,17 @@ async def test_actions_route(basic_project: FrameProject):
     assert result
 
 
+async def test_explain_route(casualties_project: FrameProject):
+    explanation_queries = [
+        "What is the main topic of Casualties table?",
+        "How can I use ULAE_GROSS column?",
+        "What is this project about?",
+    ]
+    result = await _run_routing_check(
+        casualties_project, "Explain", explanation_queries
+    )
+    assert result
+
 
 async def test_general_route(basic_project: FrameProject):
     general_queries = ["What does this bot do?", "How to use this bot?"]

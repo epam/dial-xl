@@ -7,6 +7,7 @@ from dial_xl.client import Client
 from dial_xl.project import Project
 from dial_xl.sheet import Sheet
 from pydantic import TypeAdapter
+from typing_extensions import deprecated
 
 from quantgrid.configuration import LOGGER
 from quantgrid.exceptions import XLLoadingException
@@ -81,6 +82,7 @@ async def load_project(
     return project, sheet
 
 
+@deprecated("Use load_hints_from instead")
 async def load_hints(dial_api: DIALApi, request: Request) -> dict[str, ProjectHint]:
     try:
         state = _parse_request_json(request)
@@ -89,8 +91,22 @@ async def load_hints(dial_api: DIALApi, request: Request) -> dict[str, ProjectHi
                 "Request did not contain project folder path for ai-hints."
             )
 
-        hints_bytes = await dial_api.get_file(f"{state['inputFolder']}/.hints.ai")
-        LOGGER.info(f"Found hints for project {state['inputFolder']}")
+        return await load_hints_from(dial_api, state["inputFolder"])
+    except Exception as e:
+        LOGGER.info(f"Failed to load hints for project: {e}")
+
+    return {}
+
+
+async def load_hints_from(
+    dial_api: DIALApi, input_folder: str | None
+) -> dict[str, ProjectHint]:
+    if input_folder is None:
+        LOGGER.info("No hints input folder provided.")
+
+    try:
+        hints_bytes = await dial_api.get_file(f"{input_folder}/.hints.ai")
+        LOGGER.info(f"Found hints for project {input_folder}")
     except Exception as e:
         LOGGER.info(f"Failed to load hints for project: {e}")
         hints_bytes = b"[]"  # No hints found

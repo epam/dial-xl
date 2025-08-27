@@ -290,7 +290,7 @@ export function fieldTagsItem(
 ): MenuItem {
   return getDropdownItem({
     key: 'Indices',
-    label: 'Add/remove indices',
+    label: 'Index',
     icon: (
       <Icon
         className="text-textWarning w-[18px]"

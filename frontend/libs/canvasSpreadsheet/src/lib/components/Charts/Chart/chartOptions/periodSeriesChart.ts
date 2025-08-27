@@ -23,8 +23,8 @@ export function organizePeriodSeriesChartData(
   for (const [key, item] of Object.entries(data)) {
     legendData.push(key);
 
-    for (let i = 0; i < item.length; i++) {
-      const points = (item as PeriodSeries[])[i].points;
+    for (let i = 0; i < item.rawValues.length; i++) {
+      const points = (item.rawValues as PeriodSeries[])[i].points;
 
       if (!points) continue;
 
@@ -38,8 +38,8 @@ export function organizePeriodSeriesChartData(
   xAxisData.sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
 
   for (const [key, item] of Object.entries(data)) {
-    for (let i = 0; i < item.length; i++) {
-      const points = (item as PeriodSeries[])[i].points;
+    for (let i = 0; i < item.rawValues.length; i++) {
+      const points = (item.rawValues as PeriodSeries[])[i].points;
 
       if (!points) continue;
 

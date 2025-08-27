@@ -16,7 +16,8 @@ public class ParsedSheet {
     List<ParsedTable> tables;
     List<ParsedPython> pythons;
     @Expose
-    List<ParsingError> errors;
+    @Builder.Default
+    List<ParsingError> errors = List.of();
 
     public ParsedSheet(String name, List<ParsedTable> tables, List<ParsingError> errors) {
        this(name, tables, List.of(), errors);

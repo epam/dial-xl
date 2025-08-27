@@ -1,6 +1,5 @@
 import os
-
-from typing import Literal
+import statistics
 
 from pydantic import BaseModel, TypeAdapter
 from xlsxwriter.format import Format
@@ -8,6 +7,7 @@ from xlsxwriter.utility import xl_rowcol_to_cell
 from xlsxwriter.workbook import Workbook
 from xlsxwriter.worksheet import Worksheet
 
+from quantgrid_1.models.stage import Attachment
 from testing.framework.exceptions import CompileError, MatchError, ScoreError
 from testing.models import QGReport, QueryInfo, Verdict
 
@@ -15,6 +15,7 @@ from testing.models import QGReport, QueryInfo, Verdict
 class XLSXReport:
 
     DEFAULT_STYLE_DICT = {"font_name": "Consolas", "font_size": "11"}
+    _CASE_RESULT_START_COLUMN = 4
 
     def __init__(
         self,
@@ -52,6 +53,11 @@ class XLSXReport:
             self._write_summary_case(case_name, case_reports)
             self._update_statistic(case_reports)
 
+        # if no scores were calculated, columns are made more narrow
+        if not self._statistic.llm_score_runs_count:
+            self.summary_sheet.set_column_pixels(first_col=2, last_col=2, width=20)
+        if not self._statistic.redundancy_score_runs_count:
+            self.summary_sheet.set_column_pixels(first_col=3, last_col=3, width=20)
         self._summary_line += 1
 
     def __enter__(self) -> "XLSXReport":
@@ -98,7 +104,7 @@ class XLSXReport:
         return header_style
 
     @staticmethod
-    def apply_color(style: Format, status: Verdict | Literal["skipped"]) -> Format:
+    def apply_color(style: Format, status: Verdict | str) -> Format:
         match status:
             case Verdict.PASSED:
                 style.set_bg_color("#C0F1C8")
@@ -113,6 +119,45 @@ class XLSXReport:
 
     # endregion
 
+    @staticmethod
+    def _get_avg_llm_score(reports: list[QGReport], key: str) -> dict | None:
+        scores = [
+            getattr(info, key).score
+            for report in reports
+            for info in report.queries
+            if getattr(info, key) and getattr(info, key).score is not None
+        ]
+        # -1 as score means failed score calculation, it shouldn't be included into avg calculation
+        successful_scores = [score for score in scores if score >= 0]
+        if scores:
+            scores_mean = (
+                statistics.mean(successful_scores) if successful_scores else None
+            )
+            return {
+                "scores_mean": scores_mean,
+                "successful_scores_count": len(successful_scores),
+                "total_scores_count": len(scores),
+            }
+        else:
+            return None
+
+    @staticmethod
+    def _get_avg_tokens(reports: list[QGReport], key: str) -> float | None:
+        reports_generation_output_tokens = []
+        for report in reports:
+            reports_generation_output_tokens += [
+                int(stage.get_attachment(key).data)
+                for query in report.queries
+                for stage in query.stages
+                if key in stage.attachment_titles
+                and int(stage.get_attachment(key).data) > 0
+            ]
+        return (
+            statistics.mean(reports_generation_output_tokens)
+            if reports_generation_output_tokens
+            else None
+        )
+
     def _write_legend(self) -> None:
         self.summary_sheet.merge_range(
             self._summary_line,
@@ -126,7 +171,9 @@ class XLSXReport:
         self._summary_line += 1
 
         def _write_legend_meaning(
-            status: Verdict | Literal["skipped"], symbol: str, meaning: str
+            status: Verdict | str,
+            symbol: str,
+            meaning: str,
         ) -> None:
             style = self.apply_color(self.default_style, status)
             self.summary_sheet.write(self._summary_line, 2, symbol, style)
@@ -141,7 +188,7 @@ class XLSXReport:
 
             self._summary_line += 1
 
-        _status: Verdict | Literal["skipped"]
+        _status: Verdict | str
         for _status, _symbol, _meaning in (
             (Verdict.PASSED, "OK", "Test passed"),
             (Verdict.PASSED, "#N", "Test passed with N attempts"),
@@ -151,6 +198,10 @@ class XLSXReport:
             (Verdict.FAILED, "RE", "Runtime error (in bot)"),
             ("skipped", "SK", "Test skipped"),
             (Verdict.PARTIAL, "PT", "Partial"),
+            ("LLMS", "LLMS", "LLM fact check score"),
+            ("RLLMS", "RLLMS", "Redundant facts LLM score"),
+            ("GAAT", "GAAT", "Generate Actions average output tokens"),
+            ("SAT", "SAT", "Summary average output tokens"),
         ):
             _write_legend_meaning(_status, _symbol, _meaning)
 
@@ -225,6 +276,41 @@ class XLSXReport:
             "Full success rate (all runs are OK):", f"{full_success_rate * 100:.2f}%"
         )
 
+        llm_score_avg = (
+            statistics.mean(self._statistic.llm_avg_scores)
+            if self._statistic.llm_avg_scores
+            else None
+        )
+        _write_statistic_value(
+            f"Average llm score ({self._statistic.llm_score_runs_count}/{self._statistic.llm_score_max_runs_count} test cases):",
+            str(llm_score_avg),
+        )
+
+        redundancy_score_avg = (
+            statistics.mean(self._statistic.redundancy_avg_scores)
+            if self._statistic.redundancy_avg_scores
+            else None
+        )
+        _write_statistic_value(
+            f"Average redundancy score ({self._statistic.redundancy_score_runs_count}/{self._statistic.redundancy_score_max_runs_count} test cases):",
+            str(redundancy_score_avg),
+        )
+
+        generation_tokens_avg = (
+            statistics.mean(self._statistic.generation_avg_tokens)
+            if self._statistic.generation_avg_tokens
+            else None
+        )
+        summary_tokens_avg = (
+            statistics.mean(self._statistic.summary_avg_tokens)
+            if self._statistic.summary_avg_tokens
+            else None
+        )
+        _write_statistic_value(
+            f"Average output tokens count (generate action tokens/summary tokens):",
+            f"{generation_tokens_avg}/{summary_tokens_avg}",
+        )
+
     def _write_env_variables(self) -> None:
         def _write_variable(name: str) -> None:
             value = os.environ.get(name, "")
@@ -282,10 +368,46 @@ class XLSXReport:
                 f"{name} [{summary_time:.1f}s.]",
                 test_cell_style,
             )
-
+        avg_llm_score_dict = XLSXReport._get_avg_llm_score(reports, "llm_score")
+        if avg_llm_score_dict is not None:
+            self.summary_sheet.write(
+                self._summary_line,
+                2,
+                avg_llm_score_dict["scores_mean"],
+                self.default_style,
+            )
+        avg_redundancy_score_dict = XLSXReport._get_avg_llm_score(
+            reports, "redundancy_score"
+        )
+        if avg_redundancy_score_dict is not None:
+            self.summary_sheet.write(
+                self._summary_line,
+                3,
+                avg_redundancy_score_dict["scores_mean"],
+                self.default_style,
+            )
         for run_index, report in enumerate(reports):
             self._write_summary_report(run_index, report)
 
+        avg_gen_output_tokens = XLSXReport._get_avg_tokens(
+            reports, "generation_output_tokens"
+        )
+        self.summary_sheet.write(
+            self._summary_line,
+            self._CASE_RESULT_START_COLUMN + 20,
+            avg_gen_output_tokens,
+            self.default_style,
+        )
+
+        avg_summary_output_tokens = XLSXReport._get_avg_tokens(
+            reports, "summary_output_tokens"
+        )
+        self.summary_sheet.write(
+            self._summary_line,
+            self._CASE_RESULT_START_COLUMN + 21,
+            avg_summary_output_tokens,
+            self.default_style,
+        )
         self._summary_line += 1
 
     def _write_summary_report(self, run_index: int, report: QGReport) -> None:
@@ -296,7 +418,7 @@ class XLSXReport:
                 error_count = sum([info.error_count for info in report.queries])
                 self.summary_sheet.write(
                     self._summary_line,
-                    run_index + 2,
+                    run_index + self._CASE_RESULT_START_COLUMN,
                     "OK" if error_count == 0 else "#" + str(error_count),
                     run_cell_style,
                 )
@@ -304,17 +426,26 @@ class XLSXReport:
             case Verdict.FAILED:
                 verdict_code = self._get_verdict_code(report.exception_name)
                 self.summary_sheet.write(
-                    self._summary_line, run_index + 2, verdict_code, run_cell_style
+                    self._summary_line,
+                    run_index + self._CASE_RESULT_START_COLUMN,
+                    verdict_code,
+                    run_cell_style,
                 )
 
             case "skipped":
                 self.summary_sheet.write(
-                    self._summary_line, run_index + 2, "SK", run_cell_style
+                    self._summary_line,
+                    run_index + self._CASE_RESULT_START_COLUMN,
+                    "SK",
+                    run_cell_style,
                 )
 
             case Verdict.PASSED:
                 self.summary_sheet.write(
-                    self._summary_line, run_index + 2, "PT", run_cell_style
+                    self._summary_line,
+                    run_index + self._CASE_RESULT_START_COLUMN,
+                    "PT",
+                    run_cell_style,
                 )
 
     @staticmethod
@@ -399,7 +530,7 @@ class XLSXReport:
         self,
         query_index: int,
         query_info: QueryInfo,
-        status: Verdict | Literal["skipped"],
+        status: Verdict | str,
     ) -> None:
         query_index_style = self.apply_color(self.enum_style, status)
         self.details_sheet.write(self._details_line, 1, query_index, query_index_style)
@@ -439,7 +570,7 @@ class XLSXReport:
 
             if len(stage.attachments):
                 serialized = (
-                    TypeAdapter(dict[str, str])
+                    TypeAdapter(list[Attachment])
                     .dump_json(stage.attachments, indent=2)
                     .decode("utf-8")
                 )
@@ -495,14 +626,28 @@ class XLSXReport:
         # endregion
         # region Write LLM Assistant Score
 
-        if query_info.llm_score.verdict != Verdict.PASSED:
+        if query_info.llm_score.score is not None:
             self.details_sheet.write(
                 self._details_line, 2, "LLM Score:", query_cell_style
             )
+            if query_info.llm_score.score >= 0:
+                score_text = f"Score: {query_info.llm_score.score}. Explanation: {query_info.llm_score.explanation}"
+            else:
+                score_text = "Score was not generated."
 
-            score_text = (
-                f"{query_info.llm_score.verdict}. {query_info.llm_score.explanation}"
+            self.details_sheet.write(
+                self._details_line, 3, score_text, query_cell_style
             )
+
+            self._details_line += 1
+        if query_info.redundancy_score.score is not None:
+            self.details_sheet.write(
+                self._details_line, 2, "Redundancy LLM Score:", query_cell_style
+            )
+            if query_info.redundancy_score.score >= 0:
+                score_text = f"Score: {query_info.redundancy_score.score}. Explanation: {query_info.redundancy_score.explanation}"
+            else:
+                score_text = "Score was not generated."
 
             self.details_sheet.write(
                 self._details_line, 3, score_text, query_cell_style
@@ -527,11 +672,13 @@ class XLSXReport:
         # endregion
 
     def _update_statistic(self, reports: list[QGReport]) -> None:
+        # run counts
         is_runs_present = False
         is_full_success = True
         is_partial_success = False
 
         for report in reports:
+            # status statistics
             if report.status == "skipped":
                 continue
 
@@ -548,14 +695,82 @@ class XLSXReport:
         self._statistic.full_success_case_count += is_full_success and is_runs_present
         self._statistic.partial_success_case_count += is_partial_success
 
+        # llm-based scores
+        reports_llm_avg_score_dict = self._get_avg_llm_score(reports, "llm_score")
+        if reports_llm_avg_score_dict:
+            self._statistic.llm_avg_scores.append(
+                reports_llm_avg_score_dict["scores_mean"]
+            )
+            self._statistic.llm_score_runs_count += reports_llm_avg_score_dict[
+                "successful_scores_count"
+            ]
+            self._statistic.llm_score_max_runs_count += reports_llm_avg_score_dict[
+                "total_scores_count"
+            ]
+
+        reports_redundancy_avg_score_dict = self._get_avg_llm_score(
+            reports, "redundancy_score"
+        )
+        if reports_redundancy_avg_score_dict:
+            self._statistic.redundancy_avg_scores.append(
+                reports_redundancy_avg_score_dict["scores_mean"]
+            )
+            self._statistic.redundancy_score_runs_count += (
+                reports_redundancy_avg_score_dict["successful_scores_count"]
+            )
+            self._statistic.redundancy_score_max_runs_count += (
+                reports_redundancy_avg_score_dict["total_scores_count"]
+            )
+
+        # token counts
+        reports_gen_tokens = XLSXReport._get_avg_tokens(
+            reports, "generation_output_tokens"
+        )
+        if reports_gen_tokens:
+            self._statistic.generation_avg_tokens.append(reports_gen_tokens)
+
+        reports_summary_tokens = XLSXReport._get_avg_tokens(
+            reports, "summary_output_tokens"
+        )
+        if reports_summary_tokens:
+            self._statistic.summary_avg_tokens.append(reports_summary_tokens)
+
     def _prepare_summary_sheet(self, sheet: Worksheet) -> None:
         sheet.write(self._summary_line, 0, "Case", self.header_style)
         sheet.write(self._summary_line, 1, "", self.header_style)
+        sheet.write(self._summary_line, 2, "LLMS", self.header_style)
+        sheet.write(self._summary_line, 3, "RLLMS", self.header_style)
 
-        sheet.set_column_pixels(2, 20, width=20)
+        sheet.set_column_pixels(2, 3, width=50)
+        sheet.set_column_pixels(
+            self._CASE_RESULT_START_COLUMN,
+            self._CASE_RESULT_START_COLUMN + 20,
+            width=20,
+        )
         for i in range(0, 19):
-            sheet.write(self._summary_line, 2 + i, f"{i + 1}", self.header_style)
-
+            sheet.write(
+                self._summary_line,
+                self._CASE_RESULT_START_COLUMN + i,
+                f"{i + 1}",
+                self.header_style,
+            )
+        sheet.write(
+            self._summary_line,
+            self._CASE_RESULT_START_COLUMN + 20,
+            "GAAT",
+            self.header_style,
+        )
+        sheet.write(
+            self._summary_line,
+            self._CASE_RESULT_START_COLUMN + 21,
+            "SAT",
+            self.header_style,
+        )
+        sheet.set_column_pixels(
+            self._CASE_RESULT_START_COLUMN + 20,
+            self._CASE_RESULT_START_COLUMN + 21,
+            width=50,
+        )
         sheet.set_column(0, 0, width=140)
 
         self._summary_line += 1
@@ -571,6 +786,17 @@ class ReportStatistic(BaseModel):
     total_test_case_count: int = 0
     full_success_case_count: int = 0
     partial_success_case_count: int = 0
+
+    llm_avg_scores: list[float] = []
+    llm_score_runs_count: int = 0
+    llm_score_max_runs_count: int = 0
+
+    redundancy_avg_scores: list[float] = []
+    redundancy_score_runs_count: int = 0
+    redundancy_score_max_runs_count: int = 0
+
+    generation_avg_tokens: list[float] = []
+    summary_avg_tokens: list[float] = []
 
     total_test_count: int = 0
     success_test_count: int = 0

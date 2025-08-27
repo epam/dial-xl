@@ -6,6 +6,7 @@ import {
   appMessages,
   dialProjectFileExtension,
   FilesMetadata,
+  MetadataNodeType,
   modalFooterButtonClasses,
   primaryButtonClasses,
   projectFoldersRootPrefix,
@@ -25,7 +26,7 @@ export function useDashboardDiscardAccessResource() {
       const fileName = isProject
         ? item.name.replace(dialProjectFileExtension, '')
         : item.name;
-      const isFolder = item.nodeType === 'FOLDER';
+      const isFolder = item.nodeType === MetadataNodeType.FOLDER;
       const resourceName = isProject ? 'project' : isFolder ? 'folder' : 'file';
 
       return `Do you want to discard shared with you ${resourceName} "${fileName}"?`;
@@ -49,7 +50,7 @@ export function useDashboardDiscardAccessResource() {
             name: item.name.replaceAll(dialProjectFileExtension, ''),
             bucket: item.bucket,
             path: constructPath([projectFoldersRootPrefix, item.parentPath]),
-            nodeType: 'FOLDER',
+            nodeType: MetadataNodeType.FOLDER,
           },
         ]),
       ]);

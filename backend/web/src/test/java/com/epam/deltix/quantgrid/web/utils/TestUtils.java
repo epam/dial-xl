@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.TextNode;
 import lombok.experimental.UtilityClass;
 import org.junit.jupiter.api.Assertions;
 
@@ -34,6 +35,10 @@ public class TestUtils {
 
         if (expected == null || actual == null) {
             return false;
+        }
+
+        if (expected instanceof TextNode text && text.textValue().equals("@ignore")) {
+            return true;
         }
 
         if (expected.isDouble() && actual.isDouble()) {

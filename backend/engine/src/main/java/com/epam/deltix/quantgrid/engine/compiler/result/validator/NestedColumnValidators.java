@@ -16,7 +16,7 @@ public class NestedColumnValidators {
 
     public ResultValidator<CompiledNestedColumn> forType(ColumnType type) {
         return ResultValidator.nestedColumnValidator(compiledResult -> {
-            if (!ColumnType.isClose(compiledResult.type(), type)) {
+            if (compiledResult.type() != type) {
                 throw new CompileError("expected an array of %s, but got an array of %s.".formatted(
                         CompileUtil.getColumnTypeDisplayNamePlural(type),
                         CompileUtil.getColumnTypeDisplayNamePlural(compiledResult.type())));
@@ -26,8 +26,7 @@ public class NestedColumnValidators {
 
     public ResultValidator<CompiledNestedColumn> forTypes(ColumnType type1, ColumnType type2) {
         return ResultValidator.nestedColumnValidator(compiledResult -> {
-            if (!ColumnType.isClose(compiledResult.type(), type1)
-                    && !ColumnType.isClose(compiledResult.type(), type2)) {
+            if (compiledResult.type() != type1 && compiledResult.type() != type2) {
                 throw new CompileError("expected an array of %s or %s, but got an array of %s.".formatted(
                         CompileUtil.getColumnTypeDisplayNamePlural(type1),
                         CompileUtil.getColumnTypeDisplayNamePlural(type2),

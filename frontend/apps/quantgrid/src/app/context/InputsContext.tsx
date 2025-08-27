@@ -15,10 +15,15 @@ import {
   csvFileExtension,
   DimensionalSchemaResponse,
   FilesMetadata,
+  MetadataNodeType,
   projectFoldersRootPrefix,
 } from '@frontend/common';
 
-import { PreUploadFile } from '../components';
+import {
+  PreUploadFile,
+  SelectFile,
+  WithCustomProgressBar,
+} from '../components';
 import { useApiRequests, useRequestDimTable } from '../hooks';
 import { constructPath, getProjectSheetsRecord } from '../utils';
 import { ProjectContext } from './ProjectContext';
@@ -42,6 +47,7 @@ type InputsContextActions = {
     row?: number;
     col?: number;
   }) => void;
+  importInput: () => void;
   getInputs: () => void;
   updateInputsFolder: (args: {
     parentPath: string | null | undefined;
@@ -59,10 +65,15 @@ export function InputsContextProvider({
 }: PropsWithChildren<Record<string, unknown>>): JSX.Element {
   const { projectName, projectBucket, projectPath, projectSheets } =
     useContext(ProjectContext);
-  const { createFile, getFiles, getSharedWithMeFiles, getDimensionalSchema } =
-    useApiRequests();
+  const {
+    createFile,
+    getFiles,
+    getSharedWithMeFiles,
+    getDimensionalSchema,
+    cloneFile,
+  } = useApiRequests();
   const { viewGridData } = useContext(ViewportContext);
-  const { createDimTableFromDimensionFormula } = useRequestDimTable();
+  const { requestDimSchemaForDimFormula } = useRequestDimTable();
 
   const [inputsFolder, setInputsFolder] = useState<{
     path: string | null | undefined;
@@ -72,6 +83,7 @@ export function InputsContextProvider({
   const [inputs, setInputs] = useState<Inputs>({});
   const [isInputsLoading, setIsInputsLoading] = useState(true);
   const [isPreUploadOpen, setIsPreUploadOpen] = useState(false);
+  const [isImportInputOpen, setIsImportInputOpen] = useState(false);
   const [initialFileList, setInitialFileList] = useState<
     FileList | undefined
   >();
@@ -167,7 +179,8 @@ export function InputsContextProvider({
         .filter((file) => file?.name)
         .filter(
           (file) =>
-            file.name.endsWith(csvFileExtension) || file.nodeType === 'FOLDER'
+            file.name.endsWith(csvFileExtension) ||
+            file.nodeType === MetadataNodeType.FOLDER
         )
         .map((file) => ({
           ...file,
@@ -228,6 +241,33 @@ export function InputsContextProvider({
     [inputsFolder?.bucket]
   );
 
+  const importInput = useCallback(() => {
+    setIsImportInputOpen(true);
+  }, []);
+
+  const handleImportInput = useCallback(
+    async (path: string | null | undefined, bucket: string, name: string) => {
+      setIsImportInputOpen(false);
+
+      if (!projectBucket || projectPath === null || !projectName) return;
+
+      await cloneFile({
+        name,
+        path,
+        bucket,
+        targetBucket: projectBucket,
+        targetPath: constructPath([
+          projectFoldersRootPrefix,
+          projectPath,
+          projectName,
+        ]),
+      });
+
+      getInputs();
+    },
+    [cloneFile, getInputs, projectBucket, projectName, projectPath]
+  );
+
   const handleUploadFiles = useCallback(
     async (
       parentPath: string | null | undefined,
@@ -241,30 +281,35 @@ export function InputsContextProvider({
 
       toast.dismiss();
 
-      let uploadingToast;
-      if (files.length > 1) {
-        uploadingToast = toast.loading(`Uploading files...`);
-      } else {
-        uploadingToast = toast.loading(`File '${files[0].name}' uploading...`);
-      }
-
       const requests = files.map(async (file) => {
+        const uploadingToast = toast(WithCustomProgressBar, {
+          customProgressBar: true,
+          data: {
+            message: `File '${file.name}' uploading...`,
+          },
+        });
+
+        const fullFileName = file.name + file.extension;
+
         const result = await createFile({
           bucket: bucket,
-          fileName: file.name + file.extension,
+          fileName: fullFileName,
           fileType: file.file.type,
           fileBlob: file.file,
           path: parentPath,
+          onProgress: (progress) => {
+            toast.update(uploadingToast, {
+              progress: progress / 100,
+            });
+          },
         });
 
         if (result?.file) {
-          const toastText = `File '${result.file.name}' uploaded successfully`;
-
-          toast.success(toastText, {});
+          toast.dismiss(uploadingToast);
+          toast.success(`File "${fullFileName}" uploaded successfully`);
         } else {
-          toast.error(
-            `Error happened during uploading "${file.name + file.extension}"`
-          );
+          toast.dismiss(uploadingToast);
+          toast.error(`Error happened during uploading "${fullFileName}"`);
         }
 
         return result?.file;
@@ -281,7 +326,7 @@ export function InputsContextProvider({
 
           if (uploadColRef.current && uploadRowRef.current) {
             const formula = `:INPUT("${result.value.url}")`;
-            createDimTableFromDimensionFormula(
+            requestDimSchemaForDimFormula(
               uploadColRef.current,
               uploadRowRef.current,
               formula
@@ -290,13 +335,11 @@ export function InputsContextProvider({
         }
       });
 
-      toast.dismiss(uploadingToast);
-
       viewGridData.clearCachedViewports();
       getInputs();
     },
     [
-      createDimTableFromDimensionFormula,
+      requestDimSchemaForDimFormula,
       createFile,
       expandFile,
       getInputs,
@@ -340,6 +383,7 @@ export function InputsContextProvider({
       getInputs,
       updateInputsFolder,
       expandFile,
+      importInput,
     }),
     [
       inputList,
@@ -351,6 +395,7 @@ export function InputsContextProvider({
       getInputs,
       updateInputsFolder,
       expandFile,
+      importInput,
     ]
   );
 
@@ -367,6 +412,18 @@ export function InputsContextProvider({
           initialPath={inputsFolder.path}
           onCancel={() => setIsPreUploadOpen(false)}
           onOk={handleUploadFiles}
+        />
+      )}
+
+      {isImportInputOpen && (
+        <SelectFile
+          fileExtensions={[csvFileExtension]}
+          initialBucket={projectBucket || ''}
+          initialPath={projectPath}
+          modalTitle="Import input file"
+          okButtonText="Select input"
+          onCancel={() => setIsImportInputOpen(false)}
+          onOk={handleImportInput}
         />
       )}
     </InputsContext.Provider>

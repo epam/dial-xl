@@ -6,6 +6,8 @@ interface Window {
     authClientId?: string;
     authClientSecret?: string;
     authAuthority?: string;
+    authScope?: string;
+    apiBaseUrl?: string;
     dialBaseUrl?: string;
     qgBotDeploymentName?: string;
     adminRoles?: string[];

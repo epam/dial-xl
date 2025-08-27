@@ -84,11 +84,11 @@ export class ApplyFilter extends ObservableNode {
       result._formula = reader.next(formulaEntity.span.to);
     } else {
       // Otherwise read prefix up to the final
-      result._prefix = reader.next((d) => d.span.to);
+      result._prefix = reader.tillLinebreak();
     }
 
     // Leftover text after the formula
-    result._after = reader.beforeNext();
+    result._after = reader.next((d) => d.span.to);
 
     return result;
   }

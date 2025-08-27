@@ -8,6 +8,7 @@ from openai import RateLimitError
 from quantgrid_1.chains.parameters import ChainParameters
 from quantgrid_1.log_config import qg_logger as logger
 from quantgrid_1.prompts import GENERAL_QUESTION
+from quantgrid_1.utils.create_exception_stage import create_exception_stage
 from quantgrid_1.utils.stages import append_duration
 from quantgrid_1.utils.stream_content import get_token_error, stream_content
 
@@ -31,13 +32,19 @@ async def general(inputs: dict) -> dict:
                     input=history.messages
                 )
 
-                total_content = await stream_content(iterator, choice)
+                total_content, total_output_tokens = await stream_content(
+                    iterator, choice
+                )
+                stage.add_attachment(
+                    title="summary_output_tokens", data=str(total_output_tokens)
+                )
                 state.actions_history.append(total_content)
                 break
 
             except RateLimitError as error:
                 raise get_token_error(error)
             except Exception as exception:
+                create_exception_stage(choice, exception)
                 logger.exception(exception)
 
             if retry == 2:

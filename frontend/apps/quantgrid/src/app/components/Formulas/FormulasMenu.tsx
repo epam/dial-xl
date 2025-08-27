@@ -10,7 +10,12 @@ import {
 } from '@frontend/common';
 
 import { InputsContext, ProjectContext } from '../../context';
-import { useCreateTableDsl, useGridApi, useManualEditDSL } from '../../hooks';
+import {
+  useCreateTableAction,
+  useCreateTableDsl,
+  useGridApi,
+  useTableEditDsl,
+} from '../../hooks';
 import useEventBus from '../../hooks/useEventBus';
 import { EventBusMessages } from '../../services';
 
@@ -24,9 +29,10 @@ export function FormulasMenu({ position, place }: Props) {
   const { functions } = useContext(ProjectContext);
   const gridApi = useGridApi();
   const eventBus = useEventBus<EventBusMessages>();
-  const { onCloneTable } = useManualEditDSL();
   const { inputList } = useContext(InputsContext);
   const { createDerivedTable, createManualTable } = useCreateTableDsl();
+  const { cloneTable } = useTableEditDsl();
+  const { onCreateTableAction } = useCreateTableAction();
 
   const [contextMenuOpen, setContextMenuOpen] = useState(false);
   const [contextMenuItems, setContextMenuItems] = useState<MenuItem[]>([]);
@@ -50,7 +56,7 @@ export function FormulasMenu({ position, place }: Props) {
         switch (data.type) {
           case 'copy': {
             if (data.tableName) {
-              onCloneTable(data.tableName, {
+              cloneTable(data.tableName, {
                 col: selectedCell?.col ?? 1,
                 row: selectedCell?.row ?? 1,
               });
@@ -67,6 +73,11 @@ export function FormulasMenu({ position, place }: Props) {
             }
             break;
           }
+          case 'pivot':
+            if (data.tableName) {
+              onCreateTableAction(action, data.type, undefined, data.tableName);
+            }
+            break;
           case 'size':
           default:
             break;
@@ -97,7 +108,15 @@ export function FormulasMenu({ position, place }: Props) {
       }
       setContextMenuOpen(false);
     },
-    [createDerivedTable, eventBus, gridApi, onCloneTable, place, selectedCell]
+    [
+      createDerivedTable,
+      eventBus,
+      gridApi,
+      cloneTable,
+      onCreateTableAction,
+      place,
+      selectedCell,
+    ]
   );
 
   const handleCreateTableBySize = useCallback(

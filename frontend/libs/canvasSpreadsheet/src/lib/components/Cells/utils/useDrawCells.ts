@@ -2,10 +2,10 @@ import * as PIXI from 'pixi.js';
 import { RefObject, useCallback, useContext, useEffect, useState } from 'react';
 
 import {
-  ColumnDataType,
-  formatDate,
   formatNumberGeneral,
+  FormatType,
   GridCell,
+  isGeneralFormatting,
 } from '@frontend/common';
 import { unescapeFieldName, unescapeTableName } from '@frontend/parser';
 
@@ -13,7 +13,7 @@ import { adjustmentFontMultiplier } from '../../../constants';
 import { GridStateContext, GridViewportContext } from '../../../context';
 import { useDraw } from '../../../hooks';
 import { Cell, IconCell } from '../../../types';
-import { applyCellGraphics, cropText } from '../../../utils';
+import { applyCellGraphics, cropText, hashText } from '../../../utils';
 import {
   getCellIcon,
   getTableHeaderContextMenuIcon,
@@ -60,15 +60,8 @@ export const useDrawCells = ({ cells, graphicsRef }: Props) => {
         finalCellValue = unescapeTableName(cellValue);
       } else if (cell?.isFieldHeader) {
         finalCellValue = unescapeFieldName(cellValue);
-      } else if (
-        cell?.field?.type === ColumnDataType.DATE &&
-        !cell?.field?.isNested
-      ) {
-        try {
-          finalCellValue = formatDate(cellValue);
-        } catch (e) {
-          // empty block
-        }
+      } else if (!cell?.field?.isNested && cell?.displayValue) {
+        finalCellValue = cell.displayValue;
       }
 
       return finalCellValue;
@@ -283,6 +276,7 @@ export const useDrawCells = ({ cells, graphicsRef }: Props) => {
       const bottomCell = getCell(col, row + 1);
       applyCellGraphics(
         graphics,
+        text,
         cell,
         bottomCell,
         x,
@@ -361,18 +355,26 @@ export const useDrawCells = ({ cells, graphicsRef }: Props) => {
       }
 
       let textVal: string | undefined;
-      if (
-        cell.field &&
-        !cell.isFieldHeader &&
-        [ColumnDataType.INTEGER, ColumnDataType.DOUBLE].includes(
-          cell.field.type
-        )
-      ) {
-        textVal = formatNumberGeneral(
-          finalCellValue,
-          textCellWidth - 2 * padding - iconWidth,
-          symbolWidth
-        );
+      if (cell.field && !cell.isFieldHeader) {
+        if (
+          isGeneralFormatting(cell.field.type, cell.field.format) ||
+          cell.totalType
+        ) {
+          textVal = formatNumberGeneral(
+            finalCellValue,
+            textCellWidth - 2 * padding - iconWidth,
+            symbolWidth
+          );
+        } else if (
+          cell.field?.format &&
+          cell.field?.format.type !== FormatType.FORMAT_TYPE_GENERAL
+        ) {
+          textVal = hashText(
+            finalCellValue,
+            textCellWidth - 2 * padding - iconWidth,
+            symbolWidth
+          );
+        }
       }
 
       if (textVal === undefined) {

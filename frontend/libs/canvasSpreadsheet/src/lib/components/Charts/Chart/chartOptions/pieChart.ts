@@ -8,7 +8,12 @@ import { chartRowNumberSelector, ChartsData } from '@frontend/common';
 
 import { ChartConfig } from '../../types';
 import { GetOptionProps, OrganizedData } from '../chartRegistry';
-import { getColor, getThemeColors, sortNumericOrText } from '../common';
+import {
+  getColor,
+  getThemeColors,
+  isHtmlColor,
+  sortNumericOrText,
+} from '../common';
 
 export function organizePieChartData(
   chartData: ChartsData,
@@ -16,8 +21,13 @@ export function organizePieChartData(
 ): OrganizedData | undefined {
   const data = chartData[chartConfig.tableName];
   const { gridChart } = chartConfig;
-  const { chartSections, customSeriesColors, selectedKeys, showLegend } =
-    gridChart;
+  const {
+    chartSections,
+    customSeriesColors,
+    selectedKeys,
+    showLegend,
+    chartOrientation,
+  } = gridChart;
 
   if (
     !data ||
@@ -27,24 +37,86 @@ export function organizePieChartData(
   )
     return;
 
-  const rowNumber = selectedKeys[chartRowNumberSelector];
-  if (typeof rowNumber !== 'string') return;
+  const rowOrCol = selectedKeys[chartRowNumberSelector];
+  if (typeof rowOrCol !== 'string') return;
 
   const legendData: string[] = [];
   const seriesData = [];
   const valueFieldNames = chartSections[0].valueFieldNames;
   const sortedDataKeys = sortNumericOrText(valueFieldNames);
+  const dotColorFieldName = chartSections[0].dotColorFieldName;
+  const dotColors: string[] | undefined =
+    dotColorFieldName && Array.isArray(data[dotColorFieldName]?.rawValues)
+      ? (data[dotColorFieldName].rawValues as string[])
+      : undefined;
 
-  for (const key of sortedDataKeys) {
-    const value = data[key];
-    legendData.push(key);
-    const rowIndex = parseInt(rowNumber) - 1;
+  if (chartOrientation === 'vertical') {
+    const rowIndex = parseInt(rowOrCol, 10) - 1;
+    if (isNaN(rowIndex)) return;
 
-    if (value.length < rowIndex) return;
+    for (const key of sortedDataKeys) {
+      const columnValues = data[key]?.rawValues;
+      const displayValues = data[key]?.displayValues;
+      if (!Array.isArray(columnValues) || rowIndex >= columnValues.length)
+        return;
 
-    seriesData.push({
-      name: key,
-      value: parseFloat(value[rowIndex] as string),
+      legendData.push(key);
+      seriesData.push({
+        name: key,
+        value: parseFloat(columnValues[rowIndex] as string),
+        displayValue: displayValues[rowIndex],
+      });
+    }
+  } else if (chartOrientation === 'horizontal') {
+    const numericField = valueFieldNames.includes(rowOrCol)
+      ? rowOrCol
+      : valueFieldNames[0];
+
+    if (!numericField) return;
+
+    const { xAxisFieldName } = chartSections[0];
+    const rowLabels: string[] =
+      xAxisFieldName && Array.isArray(data[xAxisFieldName]?.rawValues)
+        ? (data[xAxisFieldName].rawValues as string[])
+        : Array.from(
+            { length: (data[numericField]?.rawValues || []).length },
+            (_, i) => `${i + 1}`
+          );
+
+    const rowLabelsDisplay: string[] | undefined =
+      xAxisFieldName && Array.isArray(data[xAxisFieldName]?.displayValues)
+        ? (data[xAxisFieldName].displayValues as string[])
+        : undefined;
+
+    const columnValues = data[numericField]?.rawValues || [];
+    const displayValues = data[numericField]?.displayValues || [];
+
+    columnValues.forEach((raw: any, i: number) => {
+      const num = parseFloat(raw as string);
+      if (isNaN(num)) return;
+
+      const rawLabel = rowLabels[i] ?? `${i + 1}`;
+      const displayLabel = rowLabelsDisplay?.[i] ?? rawLabel;
+
+      legendData.push(displayLabel);
+      let sliceColor: string | undefined;
+      const colorCandidate = dotColors?.[i];
+
+      if (colorCandidate && isHtmlColor(colorCandidate)) {
+        sliceColor = colorCandidate;
+      } else {
+        const legendIdx = legendData.indexOf(displayLabel);
+        sliceColor =
+          customSeriesColors?.[rawLabel] || getColor(legendIdx, rawLabel);
+      }
+
+      seriesData.push({
+        name: displayLabel,
+        rawName: rawLabel,
+        value: num,
+        itemStyle: { color: sliceColor },
+        displayValue: displayValues[i],
+      });
     });
   }
 
@@ -57,12 +129,16 @@ export function organizePieChartData(
       stillShowZeroSum: false,
       itemStyle: {
         color: (params) => {
-          const { name } = params.data as OptionDataItemObject<OptionDataValue>;
-          const legendIndex = legendData.indexOf(params.name);
+          const { name, rawName } =
+            params.data as OptionDataItemObject<OptionDataValue> & {
+              rawName: string;
+            };
+          const lookupName = name?.toString() || params.name;
+          const legendIndex = legendData.indexOf(lookupName);
 
           return (
-            customSeriesColors?.[params.name] ||
-            getColor(legendIndex, name?.toString())
+            customSeriesColors?.[lookupName] ||
+            getColor(legendIndex, rawName?.toString() || name?.toString())
           );
         },
       },
@@ -104,6 +180,9 @@ export function getPieChartOption({
                   (item as OptionDataItemObject<OptionDataValue>).value === 0
               )
             ),
+            formatter: (p: any) => {
+              return p.data?.displayValue ?? p.value;
+            },
           },
           labelLine: {
             length: getValue(15),
@@ -154,6 +233,13 @@ export function getPieChartOption({
       },
       backgroundColor: bgColor,
       borderColor: borderColor,
+      formatter: (params: any) => {
+        const { marker, data, name } = params;
+
+        return `${marker}${name}<span style="float: right; margin-left: 20px"><b>${
+          data?.displayValue || data.value
+        }</b></span>`;
+      },
     },
   };
 }

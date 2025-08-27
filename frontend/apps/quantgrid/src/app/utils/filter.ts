@@ -1,115 +1,171 @@
-import { escapeFieldName, escapeTableName } from '@frontend/parser';
 import {
-  applyKeyword,
-  dimKeyword,
-  escapeValue,
-  filterKeyword,
+  Apply,
+  ApplyFilter,
+  ApplySort,
+  escapeTableName,
   newLine,
-  ParsedField,
-  ParsedTable,
-  sortKeyword,
-  tableKeyword,
+  Sheet,
+  SheetReader,
+  Table,
+  unescapeTableName,
 } from '@frontend/parser';
+import { escapeValue, ParsedField, ParsedTable } from '@frontend/parser';
 
-export function createVirtualTableUniqueFieldValuesDSL({
-  sheetContent,
-  table,
-  field,
-  virtualTableName,
-  searchValue,
-  sort,
-}: {
-  sheetContent: string;
-  table: ParsedTable;
-  field: ParsedField;
+interface VirtualTableConfig {
+  editableSheet: Sheet;
+  parsedTable: ParsedTable;
+  parsedField: ParsedField;
   virtualTableName: string;
   searchValue: string;
   sort: 1 | -1;
-}): string {
-  const cloneTableNameWithoutFullApply = escapeTableName(
-    virtualTableName + '_clone_source_table_without_full_apply'
+}
+
+/**
+ * Generates a DSL string representation for 3 virtual tables that helps receive unique filter values for a table field.
+ * @return {string} The generated DSL string.
+ */
+export function createVirtualTableUniqueFieldValuesDSL(
+  config: VirtualTableConfig
+): string {
+  try {
+    const cloneWithoutFullApplyName = escapeTableName(
+      `${config.virtualTableName}_clone_source_table_without_full_apply`
+    );
+    const cloneWithoutOtherApplyName = escapeTableName(
+      `${config.virtualTableName}_clone_source_table_with_other_apply`
+    );
+
+    const withoutFullApplyDSL = createCloneWithoutFullApply(
+      config,
+      cloneWithoutFullApplyName
+    );
+
+    const withoutOtherApplyDSL = createCloneWithoutOtherApply(
+      config,
+      cloneWithoutOtherApplyName
+    );
+
+    const uniqueFieldTableDSL = createUniqueFieldTable(
+      config,
+      cloneWithoutFullApplyName,
+      cloneWithoutOtherApplyName
+    );
+
+    return [
+      withoutFullApplyDSL,
+      withoutOtherApplyDSL,
+      uniqueFieldTableDSL,
+    ].join(newLine + newLine);
+  } catch (e) {
+    return '';
+  }
+}
+
+function createCloneWithoutFullApply(
+  { editableSheet, parsedTable }: VirtualTableConfig,
+  cloneWithoutFullApplyName: string
+): string {
+  const sourceTable = editableSheet.getTable(
+    unescapeTableName(parsedTable.tableName)
   );
-  const cloneTableNameWithoutOtherApply = escapeTableName(
-    virtualTableName + '_clone_source_table_with_other_apply'
+
+  const parsedSheet = SheetReader.parseSheet(sourceTable.toDSL());
+  const newSheet = parsedSheet.editableSheet;
+
+  if (!newSheet) return '';
+
+  const unescapedSourceTableName = unescapeTableName(sourceTable.name);
+  const clonedTable = newSheet.getTable(unescapedSourceTableName);
+  clonedTable.name = cloneWithoutFullApplyName;
+
+  if (clonedTable.apply) {
+    if (clonedTable.apply.filter) {
+      clonedTable.apply.filter = null;
+    }
+    clonedTable.apply = null;
+  }
+
+  return newSheet.toDSL().trim();
+}
+
+function createCloneWithoutOtherApply(
+  { editableSheet, parsedTable, parsedField }: VirtualTableConfig,
+  cloneWithoutOtherApplyName: string
+): string {
+  const sourceTable = editableSheet.getTable(
+    unescapeTableName(parsedTable.tableName)
   );
-  const clonedTableWithoutApplyFilterDSL =
-    sheetContent.substring(
-      table.dslPlacement!.startOffset,
-      table.dslTableNamePlacement!.start
-    ) +
-    cloneTableNameWithoutFullApply +
-    (table.apply?.filter?.dslPlacement
-      ? sheetContent.substring(
-          table.dslTableNamePlacement!.end,
-          table.apply!.filter!.dslPlacement!.start
-        ) +
-        sheetContent.substring(
-          table.apply!.filter!.dslPlacement!.end,
-          table.dslPlacement?.stopOffset
-        )
-      : sheetContent.substring(
-          table.dslTableNamePlacement!.end,
-          table.dslPlacement?.stopOffset
-        ));
+  const parsedSheet = SheetReader.parseSheet(sourceTable.toDSL());
+  const newSheet = parsedSheet.editableSheet;
 
-  const filterExpressions = table.apply?.filter
-    ? table.apply.filter.getFilterExpressionsWithModify({
-        excludeFieldName: field.key.fieldName,
-      })
-    : [];
-  const filter = table.apply?.filter?.filterExpressionDSLPlacement
-    ? filterExpressions.length > 0
-      ? sheetContent.substring(
-          table.dslTableNamePlacement!.end,
-          table.apply.filter.filterExpressionDSLPlacement.start
-        ) +
-        filterExpressions +
-        sheetContent.substring(
-          table.apply.filter.filterExpressionDSLPlacement.end + 1,
-          table.dslPlacement?.stopOffset
-        )
-      : // ignore filter section
-        sheetContent.substring(
-          table.dslTableNamePlacement!.end,
-          table.apply.filter.dslPlacement?.start
-        ) +
-        sheetContent.substring(
-          table.apply.filter.filterExpressionDSLPlacement.end + 1,
-          table.dslPlacement?.stopOffset
-        )
-    : sheetContent.substring(
-        table.dslTableNamePlacement!.end,
-        table.dslPlacement?.stopOffset
-      );
-  const clonedTableWithoutOtherApplyFilterDSL =
-    sheetContent.substring(
-      table.dslPlacement!.startOffset,
-      table.dslTableNamePlacement!.start
-    ) +
-    cloneTableNameWithoutOtherApply +
-    filter;
+  if (!newSheet) return '';
 
-  const { fullFieldName, fieldName } = field.key;
-  const tableDSL = `${newLine}${newLine}${tableKeyword} ${escapeTableName(
-    virtualTableName
-  )}`;
-  const virtualKeyFieldWithoutFullApplyDSL = `${dimKeyword} ${fullFieldName} = ${cloneTableNameWithoutFullApply}${fullFieldName}.UNIQUE()`;
+  const unescapedSourceTableName = unescapeTableName(sourceTable.name);
+  const clonedTable = newSheet.getTable(unescapedSourceTableName);
+  clonedTable.name = cloneWithoutOtherApplyName;
 
-  const fieldNameFiltered = escapeFieldName(`${fieldName}_filtered`);
-  const virtualKeyFieldWithoutOtherApplyDSL = `[${fieldNameFiltered}] = IN(${fullFieldName}, ${cloneTableNameWithoutOtherApply}${fullFieldName})`;
+  if (clonedTable.apply?.filter) {
+    const filterExpressions = parsedTable.apply?.filter
+      ? parsedTable.apply.filter.getFilterExpressionsWithModify({
+          excludeFieldName: parsedField.key.fieldName,
+        })
+      : [];
 
-  const preprocessedWithDataVirtualTables = `${clonedTableWithoutApplyFilterDSL}${newLine}${newLine}${clonedTableWithoutOtherApplyFilterDSL}${newLine}${newLine}`;
+    if (filterExpressions.length > 0) {
+      const fieldFilterExpression = filterExpressions.join(' AND ');
+      clonedTable.apply = new Apply();
+      clonedTable.apply.filter = new ApplyFilter(fieldFilterExpression);
+    } else {
+      clonedTable.apply.filter = null;
+      clonedTable.apply = null;
+    }
+  }
 
+  return newSheet.toDSL().trim();
+}
+
+function createUniqueFieldTable(
+  { virtualTableName, searchValue, sort, parsedField }: VirtualTableConfig,
+  cloneWithoutFullApplyName: string,
+  cloneWithoutOtherApplyName: string
+): string {
+  const table = new Table(virtualTableName, true);
+  const { fullFieldName, fieldName } = parsedField.key;
+
+  // Add unique field
+  const virtualKeyFieldExpression = `${cloneWithoutFullApplyName}${fullFieldName}.UNIQUE()`;
+  table.addField({
+    name: fieldName,
+    formula: virtualKeyFieldExpression,
+    isDim: true,
+  });
+
+  // Add filtered field
+  const fieldNameFiltered = `${fieldName}_filtered`;
+  const virtualKeyFilteredExpression = `IN(${fullFieldName}, ${cloneWithoutOtherApplyName}${fullFieldName})`;
+  table.addField({
+    name: fieldNameFiltered,
+    formula: virtualKeyFilteredExpression,
+  });
+
+  // Add apply section with filter and sort
+  const apply = new Apply();
+
+  // Add filter if search value exists
   const filterValue = searchValue
-    ? `${filterKeyword} CONTAINS([${fieldName}].LOWER(),${escapeValue(
-        searchValue
-      )})${newLine}`
+    ? `CONTAINS([${fieldName}].LOWER(),${escapeValue(searchValue)})`
     : '';
-  const sortValue = `${sortKeyword} ${
-    sort === -1 ? '-' : ''
-  }[${fieldName}]${newLine}`;
-  const applyBlock = `${applyKeyword}${newLine}${filterValue}${sortValue}`;
-  const finalVirtualDataTable = `${tableDSL}${newLine}${virtualKeyFieldWithoutFullApplyDSL}${newLine}${virtualKeyFieldWithoutOtherApplyDSL}${newLine}${applyBlock}${newLine}`;
 
-  return `${preprocessedWithDataVirtualTables}${finalVirtualDataTable}${newLine}`;
+  if (filterValue) {
+    apply.filter = new ApplyFilter(filterValue);
+  }
+
+  // Add sort
+  const sortValue = `${sort === -1 ? '-' : ''}[${fieldName}]`;
+  const applySort = new ApplySort();
+  applySort.append(sortValue);
+  apply.sort = applySort;
+  table.apply = apply;
+
+  return table.toDSL().trim();
 }

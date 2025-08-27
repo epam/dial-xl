@@ -1,10 +1,8 @@
 import { Expose } from 'class-transformer';
 
 import { ParsedText } from './ParsedText';
-import { ShortDSLPlacement } from './parser';
 import { Span } from './Span';
 
-// TODO: need a cleanup after implement DSL edit
 export class ParsedDecorator {
   @Expose()
   public span: Span;
@@ -22,7 +20,6 @@ export class ParsedDecorator {
     name: ParsedText | undefined,
     paramsSpan: (ParsedText | undefined)[],
     public decoratorName: string,
-    public dslPlacement: ShortDSLPlacement | undefined,
     ...params: any[]
   ) {
     this.span = span;

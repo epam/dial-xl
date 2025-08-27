@@ -20,14 +20,24 @@ public abstract class PlanN<P extends Value, R extends Value> extends Plan {
     @Override
     @SuppressWarnings("unchecked")
     public final R execute() {
-        List<P> values = new ArrayList<>(planCount);
+        try {
+            List<P> values = new ArrayList<>(planCount);
 
-        for (int i = 0; i < planCount; i++) {
-            P value = (P) plan(i).execute();
-            values.add(value);
+            for (int i = 0; i < planCount; i++) {
+                P value = (P) plan(i).execute();
+                values.add(value);
+            }
+
+            R result = execute(values);
+            onExecution(result, null);
+            return result;
+        } catch (Throwable e) {
+            onExecution(null, e);
+            throw e;
         }
+    }
 
-        return execute(values);
+    public void onExecution(R value, Throwable error) {
     }
 
     protected abstract R execute(List<P> args);

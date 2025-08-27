@@ -6,19 +6,50 @@ from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.runnables import Runnable, RunnableLambda
 from openai import RateLimitError
 
+from quantgrid.graph.helpers.solver import build_actions
+from quantgrid.utils.project import ProjectUtil
 from quantgrid_1.chains.parameters import ChainParameters
 from quantgrid_1.log_config import qg_logger as logger
+from quantgrid_1.models.stage_generation_type import StageGenerationMethod
+from quantgrid_1.utils.action_converter import diff_to_bot_actions
+from quantgrid_1.utils.action_stream_splitter import JSONStreamSplitter
 from quantgrid_1.utils.actions import parse_actions, process_actions
+from quantgrid_1.utils.create_exception_stage import create_exception_stage
 from quantgrid_1.utils.errors import output_errors, smart_filter_errors
 from quantgrid_1.utils.formatting import format_sheets
 from quantgrid_1.utils.project_utils import create_project
-from quantgrid_1.utils.stages import append_duration
+from quantgrid_1.utils.stages import append_duration, replicate_stages
 from quantgrid_1.utils.stream_content import get_token_error, stream_content
+
+STAGE_NAME = "Generate Actions"
+
+
+async def _generate_predefined_solution(inputs: dict, solution: dict[str, str]) -> dict:
+    imported_project = ChainParameters.get_imported_project(inputs)
+    client = ChainParameters.get_client(inputs)
+
+    generated_project = await create_project(
+        ChainParameters.get_url_parameters(inputs),
+        client,
+        imported_project.name,
+        solution,
+    )
+
+    actions = diff_to_bot_actions(
+        generated_project,
+        build_actions(ProjectUtil(client), imported_project, generated_project),
+    )
+
+    inputs[ChainParameters.GENERATED_ACTIONS] = actions
+    inputs[ChainParameters.GENERATED_ERRORS] = []
+    inputs[ChainParameters.GENERATED_PROJECT] = generated_project
+    return inputs
 
 
 async def action_generator(inputs: dict):
+    current_sheet = ChainParameters.get_current_sheet(inputs)
     history = ChainParameters.get_history(inputs)
-    original_project = ChainParameters.get_original_project(inputs)
+    imported_project = ChainParameters.get_imported_project(inputs)
     choice = ChainParameters.get_choice(inputs)
     client = ChainParameters.get_client(inputs)
     embeddings = ChainParameters.get_embeddings(inputs)
@@ -26,17 +57,33 @@ async def action_generator(inputs: dict):
     messages = ChainParameters.get_messages(inputs)  # user message
     selection = ChainParameters.get_selection(inputs)
     hint = ChainParameters.get_hint(inputs)
+    parameters = ChainParameters.get_request_parameters(inputs)
+
+    forced_changed_sheets = parameters.generation_parameters.changed_sheets
+    actions_generation_method = (
+        parameters.generation_parameters.actions_generation_method
+    )
+
+    if actions_generation_method == StageGenerationMethod.SKIP:
+        return await _generate_predefined_solution(inputs, imported_project.to_dsl())
+
+    if actions_generation_method == StageGenerationMethod.REPLICATE:
+        saved_stages = parameters.generation_parameters.saved_stages
+        replicate_stages(choice, saved_stages, STAGE_NAME)
+
+        assert forced_changed_sheets is not None
+        return await _generate_predefined_solution(inputs, forced_changed_sheets)
 
     generated_project = await create_project(
         ChainParameters.get_url_parameters(inputs),
         client,
-        original_project.original_name,
-        original_project.to_dsl(),
+        imported_project.name,
+        imported_project.to_dsl(),
     )
 
     hm_intro = (
         f"### DIAL XL project code\n"
-        f"{format_sheets(original_project)}\n"
+        f"{format_sheets(imported_project)}\n"
         f"\n"
         f"### Table sample (heads). limited samples from larger dataset..\n"
         f"{table_data}\n\n"
@@ -62,11 +109,10 @@ async def action_generator(inputs: dict):
 
     history.add_message(HumanMessage(human_message))
 
+    choice.append_content("\n\n💡 **Thinking**\n\n")
     for retry_id in range(3):
         stage_name = (
-            "Generate Actions"
-            if retry_id == 0
-            else f"Generate Actions (Retry #{retry_id})"
+            STAGE_NAME if retry_id == 0 else f"{STAGE_NAME} (Retry #{retry_id})"
         )
 
         with choice.create_stage(stage_name) as action_generation_stage:
@@ -77,21 +123,35 @@ async def action_generator(inputs: dict):
                     input=history.messages,
                 )
 
-                action_generation_stage.append_content("```json\n")
-                total_content = await stream_content(iterator, action_generation_stage)
-                action_generation_stage.append_content("\n```\n")
+                splitter = JSONStreamSplitter(
+                    choice,
+                    action_generation_stage,
+                    json_placeholder="\n\n⌛ **Processing...**\n\n",
+                )
 
-                actions = await parse_actions(client, total_content)
+                action_generation_stage.append_content("```json\n")
+                total_content, total_output_tokens = await stream_content(
+                    iterator, splitter
+                )
+                action_generation_stage.append_content("\n```\n")
+                action_generation_stage.add_attachment(
+                    title="generation_output_tokens", data=str(total_output_tokens)
+                )
+
+                actions = await parse_actions(
+                    client, total_content, current_sheet if len(current_sheet) else None
+                )
 
                 await process_actions(selection, actions, generated_project, client)
 
                 errors = await smart_filter_errors(
-                    original_project, generated_project, actions
+                    imported_project, generated_project, actions
                 )
 
             except RateLimitError as error:
                 raise get_token_error(error)
             except Exception as exception:
+                create_exception_stage(choice, exception)
                 logger.exception(exception)
 
                 append_duration(action_generation_stage, start_time)

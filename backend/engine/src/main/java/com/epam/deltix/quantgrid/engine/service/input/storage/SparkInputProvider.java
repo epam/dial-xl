@@ -5,11 +5,12 @@ import com.epam.deltix.quantgrid.engine.node.plan.spark.util.DatasetUtil;
 import com.epam.deltix.quantgrid.engine.service.input.InputMetadata;
 import com.epam.deltix.quantgrid.engine.spark.ScalaUtil;
 import com.epam.deltix.quantgrid.engine.spark.Spark;
+import com.epam.deltix.quantgrid.engine.value.StringColumn;
 import com.epam.deltix.quantgrid.engine.value.spark.SparkDatasetTable;
 import com.epam.deltix.quantgrid.engine.value.spark.SparkValue;
-import com.epam.deltix.quantgrid.type.ColumnType;
-import com.epam.deltix.quantgrid.util.Doubles;
+import com.epam.deltix.quantgrid.type.InputColumnType;
 import com.epam.deltix.quantgrid.util.Dates;
+import com.epam.deltix.quantgrid.util.Doubles;
 import com.epam.deltix.quantgrid.util.ParserUtils;
 import org.apache.spark.sql.Column;
 import org.apache.spark.sql.Dataset;
@@ -61,6 +62,11 @@ public class SparkInputProvider implements InputProvider {
     }
 
     @Override
+    public void writeData(String path, List<String> names, List<StringColumn> values, Principal principal) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public String name() {
         return "Spark";
     }
@@ -68,7 +74,7 @@ public class SparkInputProvider implements InputProvider {
     private Dataset<Row> readCsv(
             String path,
             List<String> readColumns,
-            LinkedHashMap<String, ColumnType> columnTypes) {
+            LinkedHashMap<String, InputColumnType> columnTypes) {
 
         List<StructField> sourceFields = columnTypes.entrySet().stream()
                 .map(columnType -> {
@@ -88,7 +94,7 @@ public class SparkInputProvider implements InputProvider {
     }
 
     private Column[] convertReadColumns(List<String> readColumns,
-                                        LinkedHashMap<String, ColumnType> sourceTypes,
+                                        LinkedHashMap<String, InputColumnType> sourceTypes,
                                         StructType sourceSchema,
                                         Dataset<Row> csv) {
 
@@ -98,14 +104,14 @@ public class SparkInputProvider implements InputProvider {
 
             StructField field = sourceSchema.apply(readColumn);
             DataType fieldType = field.dataType();
-            ColumnType originalType = sourceTypes.get(readColumn);
+            InputColumnType originalType = sourceTypes.get(readColumn);
 
             Column col = DatasetUtil.escapedCol(csv, field.name());
 
-            if (originalType == ColumnType.BOOLEAN) {
+            if (originalType == InputColumnType.BOOLEAN) {
                 Util.verify(fieldType == DataTypes.StringType);
                 readCols.add(parseBoolean(col).as(readColumn));
-            } else if (originalType == ColumnType.DATE) {
+            } else if (originalType == InputColumnType.DATE) {
                 Util.verify(fieldType == DataTypes.StringType);
                 readCols.add(parseDate(col).as(readColumn));
             } else if (fieldType == DataTypes.DoubleType) {
@@ -123,12 +129,11 @@ public class SparkInputProvider implements InputProvider {
      * Based on the inferred type we output corresponding Spark type.
      * If Spark parsing is not suitable - we will return StringType to parse it manually later.
      */
-    private static DataType csvReadType(ColumnType calcType) {
+    private static DataType csvReadType(InputColumnType calcType) {
         return switch (calcType) {
             case STRING -> DataTypes.StringType;
-            case DOUBLE, INTEGER -> DataTypes.DoubleType;
+            case DOUBLE -> DataTypes.DoubleType;
             case BOOLEAN, DATE -> DataTypes.StringType; // handle parsing later
-            default -> throw new IllegalArgumentException("Unsupported column type " + calcType);
         };
     }
 

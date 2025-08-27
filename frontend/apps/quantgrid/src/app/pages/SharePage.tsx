@@ -2,8 +2,8 @@ import { useContext, useEffect, useMemo } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 
-import { routeParams } from '../../AppRoutes';
 import { ProjectContext } from '../context';
+import { routeParams } from '../types';
 
 export function SharePage() {
   const navigate = useNavigate();
@@ -36,7 +36,9 @@ export function SharePage() {
     } else if (shareId) {
       acceptShareFiles({ invitationId: shareId });
     } else {
-      toast.error('Incorrect share link used. Please recheck it and try again');
+      toast.error(
+        'Share link is invalid or already expired. Please recheck it and try again'
+      );
 
       navigate('/');
 

@@ -18,10 +18,11 @@ import {
   removeLastProjectHistoryElement,
   UndoRedoHistoryState,
 } from '../services';
+import { ChatOverlayContext } from './ChatOverlayContext';
 import { ProjectContext } from './ProjectContext';
 
 type UndoRedoActions = {
-  undo: (undoIndex?: number) => void;
+  undo: (args?: { undoIndex?: number; skipPut?: boolean }) => void;
 
   redo: () => void;
 
@@ -51,8 +52,8 @@ export function UndoRedoProvider({ children }: PropsWithChildren) {
     sheetContent,
     projectSheets,
     updateSheetContent,
-    isAIPendingChanges,
   } = useContext(ProjectContext);
+  const { isAIPendingChanges } = useContext(ChatOverlayContext);
   const eventBus = useEventBus<EventBusMessages>();
   const [history, setHistory] = useState<UndoRedoHistoryState[]>([]);
 
@@ -109,14 +110,14 @@ export function UndoRedoProvider({ children }: PropsWithChildren) {
         const title = getTitle(countChanges, newRevertedIndex, isPlural);
         const sheetsState = currentHistory[newRevertedIndex].sheetsState;
 
-        appendToProjectHistory(
+        appendToProjectHistory({
           title,
           sheetsState,
           projectName,
-          projectBucket,
-          projectPath,
-          true
-        );
+          bucket: projectBucket,
+          path: projectPath,
+          isUpdate: true,
+        });
         const updatedSheets = Object.entries(sheetsState).map(
           ([key, value]) => ({ sheetName: key, content: value })
         );
@@ -139,7 +140,10 @@ export function UndoRedoProvider({ children }: PropsWithChildren) {
   );
 
   const undo = useCallback(
-    (undoIndex?: number) => {
+    ({
+      undoIndex,
+      skipPut,
+    }: { undoIndex?: number; skipPut?: boolean } = {}) => {
       if (!projectName || !projectBucket || !sheetName) return;
 
       const currentHistory = getProjectHistory(
@@ -165,7 +169,7 @@ export function UndoRedoProvider({ children }: PropsWithChildren) {
         );
         const changes = combineSheetChanges(projectSheets ?? [], updatedSheets);
 
-        updateSheetContent(changes);
+        updateSheetContent(changes, { sendPutWorksheet: !skipPut });
 
         const countChanges =
           currentHistory.length -
@@ -182,14 +186,14 @@ export function UndoRedoProvider({ children }: PropsWithChildren) {
 
         const title = getTitle(countChanges, newRevertedIndex, isPlural);
 
-        appendToProjectHistory(
+        appendToProjectHistory({
           title,
-          undoElement.sheetsState,
+          sheetsState: undoElement.sheetsState,
           projectName,
-          projectBucket,
-          projectPath,
-          revertedIndex !== null
-        );
+          bucket: projectBucket,
+          path: projectPath,
+          isUpdate: revertedIndex !== null,
+        });
 
         setHistory(getProjectHistory(projectName, projectBucket, projectPath));
 
@@ -251,13 +255,13 @@ export function UndoRedoProvider({ children }: PropsWithChildren) {
           return acc;
         }, {} as Record<string, string>) ?? {};
 
-      appendToProjectHistory(
-        historyTitle,
-        sheets,
+      appendToProjectHistory({
+        title: historyTitle,
+        sheetsState: sheets,
         projectName,
-        projectBucket,
-        projectPath
-      );
+        bucket: projectBucket,
+        path: projectPath,
+      });
 
       setHistory(getProjectHistory(projectName, projectBucket, projectPath));
 

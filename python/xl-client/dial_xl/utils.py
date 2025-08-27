@@ -1,3 +1,5 @@
+import re
+
 from pydantic import BaseModel, ConfigDict
 
 from dial_xl.credentials import ApiKeyProvider, CredentialProvider, JwtProvider
@@ -8,7 +10,7 @@ def _parse_sheet_url(host: str, port: int):
 
 
 def _escape_table_name(name: str) -> str:
-    if " " in name or "'" in name:
+    if not re.fullmatch(r"\w+", name):
         return "'" + name.replace("'", "''") + "'"
 
     return name
@@ -30,6 +32,14 @@ def _unescape_field_name(name: str) -> str:
         return name[1:-1].replace("'[", "[").replace("']", "]")
 
     return name
+
+
+def _validate_index(index: int, end: int, name: str):
+    if index < 0 or index >= end:
+        raise ValueError(
+            f"{name} index {index} is out of bounds: valid indices start from 0,"
+            f" the current range is [0, {end})."
+        )
 
 
 async def _auth_header(credentials: CredentialProvider) -> dict[str, str]:

@@ -27,7 +27,7 @@ const getRequiredCellEditorWidth = (
   zoom: number,
   currentWidth = 0
 ): number => {
-  const gridSizes = api.getGridSizes();
+  const { gridSizes } = api;
   const minWidth = gridSizes.cell.width - borderOffset;
   let contentWidth =
     (value.length + 2) * (baseSymbolWidth * zoom) +
@@ -51,7 +51,7 @@ export const getCellEditorWidth = (
   currentWidth: number
 ): number => {
   const width = getRequiredCellEditorWidth(api, value, zoom, currentWidth);
-  const gridSizes = api.getGridSizes();
+  const { gridSizes } = api;
   const minWidth = gridSizes.cell.width;
 
   const container = document.getElementById(canvasId);
@@ -73,7 +73,7 @@ export const getCellEditorStyle = (
   zoom: number,
   cellWidth: number
 ): { style: EditorStyle; requiresIgnoreScroll: boolean } | undefined => {
-  const gridSizes = api.getGridSizes();
+  const { gridSizes } = api;
 
   const height = gridSizes.cell.height;
   let requiresIgnoreScroll = false;

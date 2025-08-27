@@ -1,14 +1,14 @@
-from typing import Iterable
+from typing import Iterator
 
 from dial_xl.apply import Apply
 from dial_xl.decorator import Decorator
 from dial_xl.doc_string import _DocLine, _DocString
 from dial_xl.dynamic_field import DynamicField
 from dial_xl.events import Event, ObservableObserver, notify_observer
-from dial_xl.field import Field
+from dial_xl.field_groups import FieldGroups
 from dial_xl.overrides import Overrides
 from dial_xl.reader import _Reader
-from dial_xl.total import Total
+from dial_xl.totals import Total, Totals
 from dial_xl.utils import _escape_table_name, _unescape_table_name
 
 
@@ -19,38 +19,42 @@ class Table(ObservableObserver):
     __prefix: str = "table "
     __name: str
     __after_name: str = "\n"
-    __fields: list[Field | str]
+    __field_groups: FieldGroups
     __apply_totals: list[Apply | Total]
+    __totals: Totals
     __overrides: Overrides | None = None
     __after: str = ""
-    __dynamic_fields: dict[str, DynamicField] = []
-    __field_indices: dict[str, int]
+    __dynamic_fields: dict[str, DynamicField]
     __apply_index: int | None = None
     __decorator_indices: dict[str, int]
 
     def __init__(self, name: str):
+        """Initialize a Table with a given name."""
         self.__name = _escape_table_name(name)
         self.__doc_string = _DocString([], _DocLine)
         self.__decorators = []
-        self.__fields = []
+        self.__field_groups = FieldGroups()
+        self.__field_groups._attach(self)
         self.__apply_totals = []
-        self.__field_indices = {}
+        self.__totals = Totals()
+        self.__totals._attach(self)
         self.__decorator_indices = {}
         self.__dynamic_fields = {}
 
     @property
     def name(self) -> str:
+        """Get the name of the table."""
         return _unescape_table_name(self.__name)
 
     @name.setter
     @notify_observer
     def name(self, value: str):
-        """Set the name of the table and invalidates compilation/computation results and sheet parsing errors"""
-
+        """Set the name of the table, which invalidates all compilation and computation results, as well as any sheet parsing errors."""
         self.__name = _escape_table_name(value)
 
     @property
     def apply(self) -> Apply | None:
+        """Get the apply object of the table."""
         return (
             self.__apply_totals[self.__apply_index]
             if self.__apply_index is not None
@@ -60,65 +64,40 @@ class Table(ObservableObserver):
     @apply.setter
     @notify_observer
     def apply(self, value: Apply | None):
+        """Set the apply object of the table, which invalidates all compilation and computation results, as well as any sheet parsing errors."""
         self.__apply_index = self._set_indexed_node(
             value, self.__apply_totals, self.__apply_index
         )
 
-    def get_total(self, index: int) -> Total:
-        return self.__apply_totals[self._total_index(index - 1)]
+    @property
+    def totals(self) -> Totals:
+        """Get the totals of the table."""
+        return self.__totals
 
+    @totals.setter
     @notify_observer
-    def add_total(self, value: Total):
+    def totals(self, value: Totals):
+        """Set the totals of the table, which invalidates all compilation and computation results, as well as any sheet parsing errors."""
         value._attach(self)
-        self.__apply_totals.append(value)
 
-    @notify_observer
-    def remove_total(self, index: int) -> Total:
-        total = self.__apply_totals.pop(self._total_index(index - 1))
-        total._detach()
-
-        if self.__apply_index is not None and index - 1 < self.__apply_index:
-            self.__apply_index -= 1
-
-        return total
-
-    def _total_index(self, index: int) -> int:
-        if index < 0:
-            raise ValueError(
-                f"Total index {index + 1} is out of bounds: valid indices start from 1,"
-                f" but the current range is [1, {self.total_count}]."
-            )
-        return (
-            index
-            if self.__apply_index is None or index < self.__apply_index
-            else index + 1
-        )
-
-    @property
-    def total_count(self) -> int:
         if self.__apply_index is None:
-            return len(self.__apply_totals)
+            self.__apply_totals = [total for total in value]
+        else:
+            self.__apply_totals = [self.__apply_totals[self.__apply_index]]
+            self.__apply_index = 0
 
-        return len(self.__apply_totals) - 1
-
-    @property
-    def totals(self) -> Iterable[Total]:
-        """Enumerates fields"""
-        return (
-            total
-            for index, total in enumerate(self.__apply_totals)
-            if index != self.__apply_index
-        )
+        self.__totals._detach()
+        self.__totals = value
 
     @property
     def overrides(self) -> Overrides | None:
+        """Get the overrides of the table."""
         return self.__overrides
 
     @overrides.setter
     @notify_observer
     def overrides(self, value: Overrides | None):
-        """Set the override of the table and invalidates compilation/computation results and sheet parsing errors"""
-
+        """Set the override of the table, which invalidates all compilation and computation results, as well as any sheet parsing errors."""
         if self.__overrides is not None:
             self.__overrides._detach()
 
@@ -128,7 +107,6 @@ class Table(ObservableObserver):
 
     def to_dsl(self) -> str:
         """Converts the table to DSL format."""
-
         return (
             f"{self.__before}"
             f"{self.__doc_string.to_dsl()}"
@@ -136,7 +114,7 @@ class Table(ObservableObserver):
             f"{self.__prefix}"
             f"{self.__name}"
             f"{self.__after_name}"
-            f"{''.join(f if isinstance(f, str) else f.to_dsl() for f in self.__fields)}"
+            f"{self.__field_groups.to_dsl()}"
             f"{''.join(at.to_dsl() for at in self.__apply_totals)}"
             f"{self.__overrides.to_dsl() if self.__overrides else ''}"
             f"{self.__after}"
@@ -144,120 +122,93 @@ class Table(ObservableObserver):
 
     @property
     def doc_string(self) -> str | None:
+        """Get the doc string of the table."""
         return self.__doc_string.text
 
     @doc_string.setter
     def doc_string(self, value: str | None):
+        """Set the doc string of the table."""
         self.__doc_string.text = value
 
-    def get_field(self, name: str) -> Field:
-        index = self._find_field(name)
-        if index == -1:
-            raise ValueError(f"Field '{name}' not found")
+    @property
+    def field_groups(self) -> FieldGroups:
+        """Get the field groups of the table."""
+        return self.__field_groups
 
-        return self.__fields[index]
-
+    @field_groups.setter
     @notify_observer
-    def add_field(self, field: Field):
-        """Add a field to the table and invalidates compilation/computation results and sheet parsing errors"""
-        if field.name in self.__field_indices:
-            raise ValueError(f"Field '{field.name}' already exists")
-
-        field._attach(self)
-        self.__fields.append(field)
-        self.__field_indices[field.name] = len(self.__fields) - 1
-
-    @notify_observer
-    def remove_field(self, name: str) -> Field:
-        """Remove a field from the table and invalidates compilation/computation results and sheet parsing errors"""
-        index = self._find_field(name)
-        if index == -1:
-            raise ValueError(f"Field '{name}' not found")
-
-        field = self.__fields.pop(index)
-        field._detach()
-        self._update_field_indices()
-
-        return field
-
-    def _find_field(self, name: str) -> int:
-        return self.__field_indices.get(name, -1)
-
-    @notify_observer
-    def swap_fields(self, name1: str, name2: str):
-        index1 = self._find_field(name1)
-        index2 = self._find_field(name2)
-        if index1 == -1:
-            raise ValueError(f"Field '{name1}' not found")
-        if index2 == -1:
-            raise ValueError(f"Field '{name2}' not found")
-
-        self.__fields[index1], self.__fields[index2] = (
-            self.__fields[index2],
-            self.__fields[index1],
-        )
-        self.__field_indices[name1], self.__field_indices[name2] = (
-            self.__field_indices[name2],
-            self.__field_indices[name1],
-        )
+    def field_groups(self, value: FieldGroups):
+        """Set the field groups of the table, which invalidates all compilation and computation results, as well as any sheet parsing errors."""
+        value._attach(self)
+        self.__field_groups._detach()
+        self.__field_groups = value
 
     @property
-    def field_names(self) -> Iterable[str]:
-        """Enumerates field names"""
-        return (field.name for field in self.fields)
+    def dynamic_field_names(self) -> Iterator[str]:
+        """Enumerates dynamic field names."""
+        return self.__dynamic_fields.keys().__iter__()
 
     @property
-    def dynamic_field_names(self) -> Iterable[str]:
-        """Enumerates dynamic field names"""
-        return self.__dynamic_fields.keys()
-
-    @property
-    def fields(self) -> Iterable[Field]:
-        """Enumerates fields"""
-        return (field for field in self.__fields if isinstance(field, Field))
-
-    @property
-    def dynamic_fields(self) -> Iterable[DynamicField]:
-        """Enumerates dynamic fields"""
-        return self.__dynamic_fields.values()
+    def dynamic_fields(self) -> Iterator[DynamicField]:
+        """Enumerates dynamic fields."""
+        return self.__dynamic_fields.values().__iter__()
 
     def get_dynamic_field(self, name: str) -> DynamicField:
+        """Get a dynamic field by name."""
         if name not in self.__dynamic_fields:
             raise ValueError(f"Dynamic field '{name}' not found")
 
         return self.__dynamic_fields[name]
 
     def get_decorator(self, name: str) -> Decorator:
-        index = self._find_decorator(name)
+        """Get a decorator by name."""
+        index = self.__find_decorator(name)
         if index == -1:
             raise ValueError(f"Decorator '{name}' not found")
 
         return self.__decorators[index]
 
+    def has_decorator(self, name: str) -> bool:
+        """Check if a decorator exists."""
+        return name in self.__decorator_indices
+
     @notify_observer
     def add_decorator(self, decorator: Decorator):
-        """Add a decorator to the table and invalidates compilation/computation results and sheet parsing errors"""
+        """Add a decorator to the table, which invalidates all compilation and computation results, as well as any sheet parsing errors."""
         if decorator.name in self.__decorator_indices:
             raise ValueError(f"Decorator '{decorator.name}' already exists")
 
         decorator._attach(self)
+        self.__decorator_indices[decorator.name] = len(self.__decorators)
         self.__decorators.append(decorator)
-        self.__decorator_indices[decorator.name] = len(self.__decorators) - 1
+
+    @notify_observer
+    def insert_decorator(self, index: int, decorator: Decorator):
+        """Insert a decorator at a specified index, which invalidates all compilation and computation results, as well as any sheet parsing errors."""
+        if index < 0 or index >= len(self.__decorator_indices):
+            raise ValueError(
+                f"Decorator index {index} is out of bounds: valid indices start from 0,"
+                f" the current range is [0, {len(self.__decorator_indices)})."
+            )
+
+        decorator._attach(self)
+        self.__decorators.insert(index, decorator)
+        self.__update_decorator_indices()
 
     @notify_observer
     def remove_decorator(self, name: str) -> Decorator:
-        """Remove a decorator from the table and invalidates compilation/computation results and sheet parsing errors"""
-        index = self._find_decorator(name)
+        """Remove a decorator from the table, which invalidates all compilation and computation results, as well as any sheet parsing errors."""
+        index = self.__find_decorator(name)
         if index == -1:
             raise ValueError(f"Decorator '{name}' not found")
 
         decorator = self.__decorators.pop(index)
         decorator._detach()
-        self._update_decorator_indices()
+        self.__update_decorator_indices()
 
         return decorator
 
-    def _find_decorator(self, name: str) -> int:
+    def __find_decorator(self, name: str) -> int:
         return self.__decorator_indices.get(name, -1)
 
     def _notify_before(self, event: Event):
@@ -270,22 +221,27 @@ class Table(ObservableObserver):
             and event.method_name == "name"
             and sender._observer == self
         ):
-            self._on_decorator_rename(sender.name, event.kwargs["value"])
-        elif isinstance(sender, Field) and event.method_name == "name":
-            self._on_field_rename(sender.name, event.kwargs["value"])
+            self.__on_decorator_rename(sender.name, event.kwargs["value"])
 
-    def _on_field_rename(self, old_name: str, new_name: str):
-        index = self._find_field(old_name)
-        if index == -1:
-            raise ValueError(f"Field '{old_name}' not found")
+    def _notify_after(self, event: Event):
+        if self._observer:
+            self._observer._notify_after(event)
 
-        if new_name in self.__field_indices:
-            raise ValueError(f"Field '{new_name}' already exists")
+        if isinstance(event.sender, Totals):
+            match event.method_name:
+                case Totals.append.__name__:
+                    self.__on_total_append(event.kwargs["value"])
+                case Totals.__setitem__.__name__:
+                    self.__on_total_replace(
+                        event.kwargs["index"], event.kwargs["value"]
+                    )
+                case Totals.insert.__name__:
+                    self.__on_total_insert(event.kwargs["index"], event.kwargs["value"])
+                case Totals.__delitem__.__name__ | Totals.pop.__name__:
+                    self.__on_total_remove(event.kwargs["index"])
 
-        self.__field_indices[new_name] = self.__field_indices.pop(old_name)
-
-    def _on_decorator_rename(self, old_name: str, new_name: str):
-        index = self._find_decorator(old_name)
+    def __on_decorator_rename(self, old_name: str, new_name: str):
+        index = self.__find_decorator(old_name)
         if index == -1:
             raise ValueError(f"Decorator '{old_name}' not found")
 
@@ -294,29 +250,50 @@ class Table(ObservableObserver):
 
         self.__decorator_indices[new_name] = self.__decorator_indices.pop(old_name)
 
-    def _update_decorator_indices(self):
+    def __on_total_append(self, value: Total):
+        self.__apply_totals.append(value)
+
+    def __on_total_replace(self, index: int, value: Total):
+        index = self.__total_index(index)
+        self.__apply_totals[index] = value
+
+    def __on_total_insert(self, index: int, value: Total):
+        index = self.__total_index(index)
+        self.__apply_totals.insert(index, value)
+
+        if self.__apply_index is not None and index < self.__apply_index:
+            self.__apply_index += 1
+
+    def __on_total_remove(self, index: int):
+        index = self.__total_index(index)
+        del self.__apply_totals[index]
+
+        if self.__apply_index is not None and index < self.__apply_index:
+            self.__apply_index -= 1
+
+    def __total_index(self, index: int) -> int:
+        return (
+            index
+            if self.__apply_index is None or index < self.__apply_index
+            else index + 1
+        )
+
+    def __update_decorator_indices(self):
         self.__decorator_indices = {
             decorator.name: index for index, decorator in enumerate(self.__decorators)
-        }
-
-    def _update_field_indices(self):
-        self.__field_indices = {
-            field.name: index
-            for index, field in enumerate(self.__fields)
-            if isinstance(field, Field)
         }
 
     def _set_dynamic_fields(self, dynamic_fields: list[DynamicField]):
         self.__dynamic_fields = {field.name: field for field in dynamic_fields}
 
     @property
-    def decorator_names(self) -> Iterable[str]:
-        """Enumerates decorator names"""
+    def decorator_names(self) -> Iterator[str]:
+        """Enumerates decorator names."""
         return (decorator.name for decorator in self.__decorators)
 
     @property
-    def decorators(self) -> Iterable[Decorator]:
-        """Enumerates decorators"""
+    def decorators(self) -> Iterator[Decorator]:
+        """Enumerates decorators."""
         return (decorator for decorator in self.__decorators)
 
     @classmethod
@@ -342,15 +319,7 @@ class Table(ObservableObserver):
         result.__prefix = reader.next(lambda d: d["name"]["span"]["from"])
         result.__name = reader.next(lambda d: d["name"]["span"]["to"])
         result.__after_name = reader.till_linebreak()
-        for field_entity in reader.entity.get("fields", []):
-            field_reader = reader.with_entity(field_entity)
-            unparsed = field_reader.next_unparsed(lambda d: d["span"]["from"])
-            if unparsed:
-                result.__fields.append(unparsed + field_reader.till_linebreak())
-            field = Field._deserialize(field_reader)
-            result.__fields.append(field)
-            field._attach(result)
-            reader.position = field_reader.position
+        result.field_groups = FieldGroups._deserialize(reader)
         apply_total_entities = []
         apply_entity = reader.entity.get("apply")
         if apply_entity:
@@ -370,8 +339,7 @@ class Table(ObservableObserver):
             else:
                 total_reader = reader.with_entity(apply_total_entity)
                 total = Total._deserialize(total_reader)
-                result.__apply_totals.append(total)
-                total._attach(result)
+                result.__totals.append(total)
                 reader.position = total_reader.position
 
         if reader.entity.get("overrides"):
@@ -381,7 +349,6 @@ class Table(ObservableObserver):
             reader.position = overrides_reader.position
 
         result.__after = reader.next(lambda d: d["span"]["to"])
-        result._update_decorator_indices()
-        result._update_field_indices()
+        result.__update_decorator_indices()
 
         return result

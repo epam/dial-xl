@@ -1,5 +1,7 @@
 import { useCallback } from 'react';
 
+import { FormatKeys, resetFormatKey } from '@frontend/common';
+
 import { useFieldEditDsl, useGridApi } from '../../hooks';
 import {
   CurrencyKeyData,
@@ -7,14 +9,13 @@ import {
   FormatKeyData,
   NumberKeyData,
 } from '../../types/format';
-import { FormatKeys } from '../../utils';
 
 export const useOnFormatClick = () => {
   const api = useGridApi();
   const { setFormat } = useFieldEditDsl();
 
   const onClick = useCallback(
-    (action: string, data: FormatKeyData) => {
+    (action: string, data: FormatKeyData | undefined) => {
       if (!api) return;
 
       const selection = api.selection$.getValue();
@@ -28,65 +29,57 @@ export const useOnFormatClick = () => {
       switch (action) {
         case FormatKeys.General:
         case FormatKeys.Text:
+        case FormatKeys.Boolean:
           setFormat(cell.table.tableName, cell.field.fieldName, action, []);
           break;
-        case FormatKeys.Integer: {
-          const castedData = data as NumberKeyData;
-
-          setFormat(cell.table.tableName, cell.field.fieldName, action, [
-            castedData.thousandComma ?? false,
-          ]);
-          break;
-        }
+        case FormatKeys.Integer:
         case FormatKeys.Number: {
-          const castedData = data as NumberKeyData;
+          const castedData = data as NumberKeyData | undefined;
 
           setFormat(cell.table.tableName, cell.field.fieldName, action, [
-            castedData.decimalAmount ?? 1,
-            castedData.thousandComma ?? false,
+            castedData?.decimalAmount ?? 1,
+            castedData?.thousandComma ?? false,
           ]);
           break;
         }
         case FormatKeys.Scientific: {
-          const castedData = data as NumberKeyData;
+          const castedData = data as NumberKeyData | undefined;
 
           setFormat(cell.table.tableName, cell.field.fieldName, action, [
-            castedData.decimalAmount ?? 1,
+            castedData?.decimalAmount ?? 1,
           ]);
           break;
         }
         case FormatKeys.Currency: {
-          const castedData = data as CurrencyKeyData;
+          const castedData = data as CurrencyKeyData | undefined;
 
           setFormat(cell.table.tableName, cell.field.fieldName, action, [
-            castedData.decimalAmount ?? 1,
-            castedData.thousandComma ?? false,
-            castedData.currencySymbol ?? 'EUR', // TODO: use default from library
+            castedData?.decimalAmount ?? 1,
+            castedData?.thousandComma ?? false,
+            castedData?.currencySymbol ?? 'EUR',
           ]);
           break;
         }
+        case FormatKeys.DateTime:
+        case FormatKeys.Time:
         case FormatKeys.Date: {
-          const castedData = data as DateTimeKeyData;
+          const castedData = data as DateTimeKeyData | undefined;
 
           setFormat(cell.table.tableName, cell.field.fieldName, action, [
-            castedData.patternDate ?? 'dd-M-yyyy',
-          ]);
-          break;
-        }
-        case FormatKeys.Time: {
-          const castedData = data as DateTimeKeyData;
-
-          setFormat(cell.table.tableName, cell.field.fieldName, action, [
-            castedData.patternDate ?? 'HH:mm',
+            castedData?.patternDate ?? 'dd-M-yyyy',
           ]);
           break;
         }
         case FormatKeys.Percentage: {
-          const castedData = data as NumberKeyData;
+          const castedData = data as NumberKeyData | undefined;
 
           setFormat(cell.table.tableName, cell.field.fieldName, action, [
-            castedData.decimalAmount ?? 1,
+            castedData?.decimalAmount ?? 1,
           ]);
+          break;
+        }
+        case resetFormatKey: {
+          setFormat(cell.table.tableName, cell.field.fieldName);
           break;
         }
         default:

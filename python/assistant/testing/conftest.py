@@ -2,12 +2,12 @@ import asyncio
 import dataclasses
 import datetime
 import os
-import re
 import threading
 import uuid
 
 from typing import Any, Literal, cast
 
+import pytest
 import xdist
 
 from dial_xl.client import Client
@@ -60,6 +60,34 @@ LOCAL = threading.local()
 QUANTGRID_REPORTS_KEY = StashKey[dict[str, list[QGReport]]]()
 ENVIRONMENT_KEY = StashKey[TestEnv]()
 START_TIME: str = "start_time"
+
+
+@pytest.fixture(scope="session")
+def bucket() -> str:
+    dial_url = os.environ["DIAL_URL"]
+    dial_api_key = os.environ["DIAL_API_KEY"]
+
+    credential = ApiKey(cast(str, dial_api_key))
+    dial_api_client = DIALApi(cast(str, dial_url), credential)
+
+    return asyncio.run(dial_api_client.bucket())
+
+
+@pytest.fixture(scope="session")
+def client() -> Client:
+    qg_url = os.environ["QG_URL"]
+    dial_url = os.environ["DIAL_URL"]
+    qg_api_key = os.environ["QG_API_KEY"]
+
+    return Client(qg_url, dial_url, ApiKey(qg_api_key))
+
+
+@pytest.fixture(scope="session")
+def api() -> DIALApi:
+    dial_url = os.environ["DIAL_URL"]
+    dial_api_key = os.environ["DIAL_API_KEY"]
+
+    return DIALApi(dial_url, ApiKey(dial_api_key))
 
 
 def load_environment(config: Config, start_time: str | None = None) -> TestEnv:
@@ -139,14 +167,6 @@ def pytest_configure(config: Config):
         config.option.count = int(run_count)
 
 
-def strip_test_indexing(node_id: str) -> str:
-    result = re.sub(r"\[\d+-\d+]", "", node_id)
-    result = "".join(char if char.isalnum() else "_" for char in result).replace(
-        "__", "_"
-    )
-    return result
-
-
 @hookimpl(hookwrapper=True)
 def pytest_runtest_makereport(item: Item, call: CallInfo) -> Any:
     result = yield
@@ -155,8 +175,9 @@ def pytest_runtest_makereport(item: Item, call: CallInfo) -> Any:
         return report
 
     queries: list[QueryInfo] = getattr(item, "queries")
-    project_id = getattr(item, "project_id")
     ai_hints: list[str] = getattr(item, "ai_hint")
+    test_name: str = getattr(item, "test_name")
+    test_index: str = getattr(item, "test_index")
 
     report_status: Verdict | Literal["skipped"] = cast(
         Verdict | Literal["skipped"], report.outcome
@@ -170,7 +191,8 @@ def pytest_runtest_makereport(item: Item, call: CallInfo) -> Any:
         (
             "quantgrid_report",
             QGReport(
-                name=project_id,
+                name=test_name,
+                index=test_index,
                 status=(
                     Verdict(report_status) if report_status != "skipped" else "skipped"
                 ),

@@ -2,13 +2,13 @@ import json
 
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class ScoreRecord(BaseModel):
     table: str
-    field: str
-    data: str
+    field: str = Field(..., alias="column")
+    data: str = Field(..., alias="value")
     score: float
     description: Optional[str] = None
 
@@ -17,8 +17,8 @@ class Embeddings(Dict[str, List[ScoreRecord]]):
     def __init__(self, embeddings_response: dict):
         embeddings: Dict[str, List[ScoreRecord]] = {}
 
-        for result in embeddings_response["searchResults"]:
-            field = f'{result["table"]}[{result["field"]}]'
+        for result in embeddings_response["similaritySearchResponse"]["scores"]:
+            field = f'{result["table"]}[{result["column"]}]'
 
             if field not in embeddings:
                 embeddings[field] = []
@@ -28,10 +28,10 @@ class Embeddings(Dict[str, List[ScoreRecord]]):
         dict.__init__(self, embeddings)
 
     def __str__(self):
-        comprased_dict: Dict[str, List[Any]] = {}
+        comprised_dict: Dict[str, List[Any]] = {}
 
         for field, records in self.items():
-            comprased_dict[field] = [
+            comprised_dict[field] = [
                 (
                     record.data
                     if record.description is None
@@ -44,4 +44,4 @@ class Embeddings(Dict[str, List[ScoreRecord]]):
                 if "data" in record.model_fields_set
             ]
 
-        return json.dumps(comprased_dict, indent=2)
+        return json.dumps(comprised_dict, indent=2)

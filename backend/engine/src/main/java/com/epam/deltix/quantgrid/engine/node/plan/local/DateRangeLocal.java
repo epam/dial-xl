@@ -63,7 +63,7 @@ public class DateRangeLocal extends Plan1<Table, Table> {
     @Override
     protected Meta meta() {
         Schema source = Schema.inputs(this, 0);
-        Schema substring = Schema.of(ColumnType.DATE);
+        Schema substring = Schema.of(ColumnType.DOUBLE);
         return new Meta(Schema.of(source, substring));
     }
 

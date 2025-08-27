@@ -5,6 +5,7 @@ import com.epam.deltix.quantgrid.engine.compiler.result.CompiledNestedColumn;
 import com.epam.deltix.quantgrid.engine.compiler.result.CompiledResult;
 import com.epam.deltix.quantgrid.engine.compiler.result.CompiledSimpleColumn;
 import com.epam.deltix.quantgrid.engine.compiler.result.CompiledTable;
+import com.epam.deltix.quantgrid.engine.compiler.result.format.GeneralFormat;
 import com.epam.deltix.quantgrid.engine.node.expression.Text;
 import com.epam.deltix.quantgrid.engine.node.expression.UnaryFunction;
 import com.epam.deltix.quantgrid.type.ColumnType;
@@ -73,17 +74,14 @@ public class ResultValidator<T extends CompiledResult> {
     public static UnaryOperator<CompiledResult> columnConverter(ColumnType columnType) {
         return switch (columnType) {
             case STRING -> ResultValidator::convertToString;
-            case DOUBLE, INTEGER, BOOLEAN -> ResultValidator::convertToDouble;
+            case DOUBLE -> ResultValidator::convertToDouble;
             default -> NO_CONVERTER;
         };
     }
 
     private static CompiledResult convertToString(CompiledResult result) {
         if (result instanceof CompiledColumn column && column.type().isDouble()) {
-            return column.transform(node -> new Text(
-                    node,
-                    column.type() == ColumnType.DATE ? ColumnType.DOUBLE : column.type(),
-                    null));
+            return column.transform(node -> new Text(node, column.format()), GeneralFormat.INSTANCE);
         }
 
         return result;
@@ -91,7 +89,7 @@ public class ResultValidator<T extends CompiledResult> {
 
     private static CompiledResult convertToDouble(CompiledResult result) {
         if (result instanceof CompiledColumn column && column.type().isString()) {
-            return column.transform(node -> new UnaryFunction(node, UnaryFunction.Type.VALUE));
+            return column.transform(node -> new UnaryFunction(node, UnaryFunction.Type.VALUE), column.format());
         }
 
         return result;

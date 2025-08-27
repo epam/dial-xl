@@ -2,17 +2,17 @@ import { useCallback } from 'react';
 
 import { errorFunction, OverrideValue } from '@frontend/parser';
 
-import { useDSLUtils } from '../ManualEditDSL';
 import { useGridApi } from '../useGridApi';
 import { useRequestDimTable } from '../useRequestDimTable';
 import { useSafeCallback } from '../useSafeCallback';
+import { useDSLUtils } from './useDSLUtils';
 import { useTableEditDsl } from './useTableEditDsl';
 import { addOverridesToTable } from './utils';
 
 export function useOverridesEditDsl() {
   const { updateDSL, findEditContext } = useDSLUtils();
   const { deleteTable } = useTableEditDsl();
-  const { createDimTableFromFormula } = useRequestDimTable();
+  const { requestDimSchemaForFormula } = useRequestDimTable();
   const gridApi = useGridApi();
 
   const removeOverride = useCallback(
@@ -126,7 +126,7 @@ export function useOverridesEditDsl() {
       ) {
         const [row, col] = parsedTable.getPlacement();
         deleteTable(tableName);
-        createDimTableFromFormula(col, row, `=${value}`);
+        requestDimSchemaForFormula(col, row, `=${value}`);
 
         return;
       }
@@ -141,7 +141,7 @@ export function useOverridesEditDsl() {
         tableName,
       });
     },
-    [createDimTableFromFormula, deleteTable, findEditContext, updateDSL]
+    [requestDimSchemaForFormula, deleteTable, findEditContext, updateDSL]
   );
 
   const addOverrides = useCallback(

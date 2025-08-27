@@ -3,35 +3,49 @@ import { Key } from 'antd/es/table/interface';
 import type { DataNode, EventDataNode } from 'antd/es/tree';
 import { TreeProps } from 'antd/es/tree/Tree';
 import classNames from 'classnames';
-import { useCallback, useContext, useEffect, useRef, useState } from 'react';
+import cx from 'classnames';
+import {
+  ComponentRef,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 
 import Icon from '@ant-design/icons';
 import {
+  ColumnsAIIcon,
   ColumnsIcon,
   DownOutlinedIcon,
   DragIcon,
   FileIcon,
+  Highlight,
   projectTreeId,
-  QGLogo,
+  TableAIIcon,
   TableIcon,
 } from '@frontend/common';
-import { dynamicFieldName } from '@frontend/parser';
-
-import { AppContext, ProjectContext } from '../../../context';
 import {
-  useManualEditDSL,
-  useRenameFieldDsl,
-  useTableEditDsl,
-} from '../../../hooks';
+  dynamicFieldName,
+  unescapeFieldName,
+  unescapeTableName,
+} from '@frontend/parser';
+
+import {
+  AppContext,
+  ChatOverlayContext,
+  ProjectContext,
+} from '../../../context';
+import { useRenameFieldDsl, useTableEditDsl } from '../../../hooks';
 import { ProjectTreeRenameModal } from './ProjectTreeRenameModal';
 import {
   ProjectTreeChildData,
   useProjectTreeContextMenu,
 } from './useProjectTreeContextMenu';
-
-export const defaultRootKey = '0-0';
+import { useTreeHeight } from './useTreeHeight';
 
 type RenameItemCallback = (data: ProjectTreeChildData[string]) => void;
+const tableSelectedNodeClass = 'tree-parent-selected';
 
 export function ProjectTree() {
   const { isPointClickMode } = useContext(AppContext);
@@ -41,13 +55,17 @@ export function ProjectTree() {
     projectSheets,
     sheetName,
     parsedSheet,
-    tablesDiffData,
+    diffData,
     selectedCell,
   } = useContext(ProjectContext);
-  const { moveTableToSheet } = useManualEditDSL();
-  const { renameTable } = useTableEditDsl();
+  const { isAIPendingChanges, isAIPreview } = useContext(ChatOverlayContext);
+  const { renameTable, moveTableToSheet } = useTableEditDsl();
   const { renameField } = useRenameFieldDsl();
 
+  const height = useTreeHeight();
+
+  const treeRef = useRef<ComponentRef<typeof Tree>>(null);
+  const prevParentRef = useRef<HTMLElement | null>(null);
   const onRenameTableRef = useRef<RenameItemCallback>();
   const onRenameFieldRef = useRef<RenameItemCallback>();
 
@@ -91,6 +109,21 @@ export function ProjectTree() {
     const sortedSheets = projectSheets.sort((a, b) => {
       return a.sheetName.localeCompare(b.sheetName);
     });
+    const diffSheets = Object.entries(parsedSheets).reduce(
+      (acc, [key, value]) => {
+        const isPresented =
+          !diffData ||
+          diffData?.defaultHighlight !== Highlight.DIMMED ||
+          value.tables.some(
+            (table) => !!diffData.data[unescapeTableName(table.tableName)]
+          );
+
+        acc[key] = isPresented;
+
+        return acc;
+      },
+      {} as Record<string, boolean>
+    );
 
     children = sortedSheets.map((sheet, index) => {
       const name = sheet.sheetName;
@@ -120,13 +153,18 @@ export function ProjectTree() {
         sheetsToExpand.push(key);
       }
 
+      const isViewChanges = isAIPreview || isAIPendingChanges;
+
       return {
         key,
         title: (
           <span
             className={classNames(
               'truncate flex justify-between group items-center',
-              sheetName === name && '!text-textAccentPrimary'
+              sheetName === name && '!text-textAccentPrimary',
+              {
+                'text-textSecondary opacity-50': !diffSheets[name],
+              }
             )}
             id={key}
             title={name}
@@ -146,12 +184,9 @@ export function ProjectTree() {
             tableName: t.tableName,
             sheetName: name,
           };
-          const tableDiff = tablesDiffData[t.tableName];
-          const isTableDiff =
-            tableDiff?.table ||
-            tableDiff?.changedFields.length ||
-            tableDiff?.overrides?.length ||
-            tableDiff?.deletedFields.length;
+          const tableDiff = diffData?.data[unescapeTableName(t.tableName)];
+          const tableHighlight =
+            tableDiff?.tableHighlight ?? diffData?.defaultHighlight;
 
           const key = `0-0-${index}-${tableIndex}`;
           if (expandedTables.current.has(t.tableName)) {
@@ -164,8 +199,11 @@ export function ProjectTree() {
               <span
                 className={classNames(
                   'truncate flex justify-between group items-center',
-                  selectedCell?.tableName === t.tableName &&
-                    '!text-textAccentPrimary'
+                  {
+                    'text-textAccentTertiary': tableHighlight === 'HIGHLIGHTED',
+                    'text-textSecondary opacity-50':
+                      tableHighlight === 'DIMMED',
+                  }
                 )}
                 id={key}
                 title={t.tableName}
@@ -180,14 +218,19 @@ export function ProjectTree() {
                 </div>
               </span>
             ),
-            className: classNames(
-              isPointClickMode && 'point-click',
-              isTableDiff && 'text-textAccentTertiary font-semibold'
-            ),
+            className: classNames(isPointClickMode && 'point-click'),
             icon: (
               <Icon
-                className="text-textSecondary w-[18px]"
-                component={() => <TableIcon />}
+                className={cx('text-textSecondary w-[18px]', {
+                  'opacity-50': tableHighlight === 'DIMMED',
+                })}
+                component={() =>
+                  isViewChanges && tableHighlight !== 'DIMMED' ? (
+                    <TableAIIcon />
+                  ) : (
+                    <TableIcon />
+                  )
+                }
               />
             ),
             children: t.fields
@@ -199,15 +242,12 @@ export function ProjectTree() {
                   sheetName: name,
                   fieldName: f.key.fieldName,
                 };
-                const isFieldDiff = tableDiff?.changedFields.includes(
-                  f.key.fieldName
-                );
-                const isOverrideDiff = !!tableDiff?.overrides?.some(
-                  (override) =>
-                    Object.keys(override).includes(f.key.fieldName) &&
-                    !f.isKey &&
-                    override[f.key.fieldName] !== '""'
-                );
+                const fieldHighlight =
+                  tableDiff?.fieldsHighlight?.find(
+                    (item) =>
+                      item.fieldName === unescapeFieldName(f.key.fieldName)
+                  )?.highlight ?? diffData?.defaultHighlight;
+
                 const key = `0-0-${index}-${tableIndex}-${fieldIndex}`;
 
                 return {
@@ -216,8 +256,10 @@ export function ProjectTree() {
                     <span
                       className={classNames(
                         'truncate flex justify-between group items-center',
-                        selectedCell?.fieldName === f.key.fieldName &&
-                          '!text-textAccentPrimary'
+                        {
+                          'text-textSecondary opacity-50':
+                            fieldHighlight === 'DIMMED',
+                        }
                       )}
                       id={key}
                       title={f.key.fieldName}
@@ -225,15 +267,22 @@ export function ProjectTree() {
                       <span className="truncate">{f.key.fieldName}</span>
                     </span>
                   ),
-                  className: classNames(
-                    isPointClickMode && 'point-click',
-                    (isFieldDiff || isOverrideDiff) &&
-                      'text-textAccentTertiary font-semibold'
-                  ),
+                  className: classNames(isPointClickMode && 'point-click'),
                   icon: (
                     <Icon
-                      className="size-[18px] text-textSecondary"
-                      component={() => <ColumnsIcon />}
+                      className={cx('size-[18px]', {
+                        'text-textAccentTertiary':
+                          fieldHighlight === 'HIGHLIGHTED',
+                        'text-textSecondary opacity-50':
+                          fieldHighlight === 'DIMMED',
+                      })}
+                      component={() =>
+                        isViewChanges && fieldHighlight !== 'DIMMED' ? (
+                          <ColumnsAIIcon />
+                        ) : (
+                          <ColumnsIcon />
+                        )
+                      }
                     />
                   ),
                   isLeaf: true,
@@ -244,66 +293,9 @@ export function ProjectTree() {
       };
     });
 
-    children.forEach((child) => {
-      const itemSheetName = childData[child.key.toString()]?.sheetName;
+    setProjectTreeData([...children]);
 
-      if (itemSheetName === sheetName) {
-        let localSelectedKeys = [child.key];
-        if (!expandedSheets.current.has(child.key.toString())) {
-          sheetsToExpand.push(child.key.toString());
-        }
-
-        child.children?.forEach((child) => {
-          const tableName = childData[child.key.toString()].tableName;
-
-          if (tableName === selectedCell?.tableName) {
-            localSelectedKeys = [child.key];
-            if (!expandedTables.current.has(child.key.toString())) {
-              tablesToExpand.push(child.key.toString());
-            }
-
-            child.children?.forEach((child) => {
-              const fieldName = childData[child.key.toString()].fieldName;
-
-              if (fieldName === selectedCell?.fieldName) {
-                localSelectedKeys = [child.key];
-              }
-            });
-          }
-        });
-
-        if (localSelectedKeys[0]) {
-          // We need to have timeout because there is some animation for expanding item in tree
-          setTimeout(() => {
-            document
-              .getElementById(localSelectedKeys[0].toString())
-              ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          }, 300);
-        }
-        setSelectedKeys(localSelectedKeys);
-      }
-    });
-
-    setProjectTreeData([
-      {
-        title: projectName,
-        key: defaultRootKey,
-        icon: (
-          <Icon
-            className="stroke-transparent w-[18px]"
-            component={() => <QGLogo />}
-          />
-        ),
-        children,
-      },
-    ]);
-
-    const expKeys = [
-      defaultRootKey,
-      openedSheetIndex,
-      ...sheetsToExpand,
-      ...tablesToExpand,
-    ];
+    const expKeys = [openedSheetIndex, ...tablesToExpand, ...sheetsToExpand];
     expandedSheets.current.add(sheetName);
 
     setExpandedKeys(expKeys);
@@ -318,9 +310,9 @@ export function ProjectTree() {
     sheetName,
     expandedSheets,
     expandedTables,
-    tablesDiffData,
-    selectedCell?.tableName,
-    selectedCell?.fieldName,
+    diffData,
+    isAIPendingChanges,
+    isAIPreview,
   ]);
 
   const onSelect = useCallback(
@@ -429,6 +421,99 @@ export function ProjectTree() {
     [childData, moveTableToSheet]
   );
 
+  useEffect(() => {
+    const sheetsToExpand: string[] = [];
+    const tablesToExpand: string[] = [];
+
+    projectTreeData.forEach((child) => {
+      const itemSheetName = childData[child.key.toString()]?.sheetName;
+
+      if (itemSheetName === sheetName) {
+        let localSelectedKeys = [child.key];
+        if (!expandedSheets.current.has(child.key.toString())) {
+          sheetsToExpand.push(child.key.toString());
+        }
+
+        child.children?.forEach((child) => {
+          const tableName = childData[child.key.toString()].tableName;
+
+          if (tableName === selectedCell?.tableName) {
+            localSelectedKeys = [child.key];
+            if (!expandedTables.current.has(child.key.toString())) {
+              tablesToExpand.push(child.key.toString());
+            }
+
+            child.children?.forEach((child) => {
+              const fieldName = childData[child.key.toString()].fieldName;
+
+              if (fieldName === selectedCell?.fieldName) {
+                localSelectedKeys = [child.key];
+              }
+            });
+          }
+        });
+
+        if (localSelectedKeys[0]) {
+          requestAnimationFrame(() => {
+            setTimeout(() => {
+              treeRef.current?.scrollTo({
+                key: localSelectedKeys[0].toString(),
+                align: 'auto',
+              });
+            }, 300);
+          });
+        }
+        setSelectedKeys(localSelectedKeys);
+      }
+    });
+
+    setExpandedKeys((prev) => [
+      ...new Set([...prev, ...sheetsToExpand, ...tablesToExpand]),
+    ]);
+  }, [
+    childData,
+    projectTreeData,
+    selectedCell?.fieldName,
+    selectedCell?.tableName,
+    sheetName,
+  ]);
+
+  useEffect(() => {
+    // wait until nodes are expanded
+    setTimeout(() => {
+      prevParentRef.current?.classList.remove(tableSelectedNodeClass);
+      prevParentRef.current = null;
+
+      if (!selectedCell?.fieldName || !selectedCell.tableName) return;
+
+      const parentKey = Object.keys(childData).find((key) => {
+        const d = childData[key];
+
+        return (
+          d.sheetName === sheetName &&
+          d.tableName === selectedCell.tableName &&
+          !d.fieldName
+        );
+      });
+      if (!parentKey) return;
+
+      const span = document.getElementById(parentKey);
+      const wrapper = span?.closest<HTMLElement>(
+        '.ant-tree-node-content-wrapper'
+      );
+      if (!wrapper) return;
+
+      wrapper.classList.add(tableSelectedNodeClass);
+      prevParentRef.current = wrapper;
+    }, 300);
+  }, [
+    childData,
+    sheetName,
+    selectedCell?.fieldName,
+    selectedCell?.tableName,
+    selectedKeys,
+  ]);
+
   if (!projectName) {
     return <span className="w-full text-center pt-3">No opened project</span>;
   }
@@ -438,7 +523,7 @@ export function ProjectTree() {
       className="overflow-auto thin-scrollbar w-full h-full bg-bgLayer3"
       id={projectTreeId}
     >
-      <div className="min-w-[200px] px-2 pt-2 relative">
+      <div className="min-w-[200px] pr-2 relative">
         <Dropdown
           menu={{ items, onClick: onContextMenuClick }}
           trigger={['contextMenu']}
@@ -450,7 +535,10 @@ export function ProjectTree() {
               draggable={{ icon: false, nodeDraggable: handleIsNodeDraggable }}
               expandAction={false}
               expandedKeys={expandedKeys}
+              height={height}
+              motion={false}
               multiple={false}
+              ref={treeRef}
               selectedKeys={selectedKeys}
               switcherIcon={
                 <Icon

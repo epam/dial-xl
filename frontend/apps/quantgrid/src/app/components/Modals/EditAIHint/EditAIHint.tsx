@@ -126,8 +126,8 @@ export const EditAIHint = ({
   }, [otherHints]);
 
   const isFormChanged = useMemo(() => {
-    return !isEqual(initialFormValues, formValues);
-  }, [formValues, initialFormValues]);
+    return isProjectEditable && !isEqual(initialFormValues, formValues);
+  }, [formValues, initialFormValues, isProjectEditable]);
 
   const onCodeEditorMount = useCallback(
     (editor: editor.IStandaloneCodeEditor, monaco: Monaco) => {
@@ -194,7 +194,7 @@ export const EditAIHint = ({
   }, [codeEditor, form, onSave]);
 
   const handleCancel = useCallback(() => {
-    if (!isFormChanged) {
+    if (!isFormChanged || !isProjectEditable) {
       codeEditor?.updateOptions({ theme: codeEditorTheme });
       onCancel();
 
@@ -216,7 +216,7 @@ export const EditAIHint = ({
         onCancel();
       },
     });
-  }, [codeEditor, isFormChanged, onCancel]);
+  }, [codeEditor, isFormChanged, isProjectEditable, onCancel]);
 
   useEffect(() => {
     codeEditor?.updateOptions({

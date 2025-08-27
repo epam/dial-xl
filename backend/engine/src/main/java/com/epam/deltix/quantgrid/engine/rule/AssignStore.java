@@ -2,22 +2,28 @@ package com.epam.deltix.quantgrid.engine.rule;
 
 import com.epam.deltix.quantgrid.engine.graph.Graph;
 import com.epam.deltix.quantgrid.engine.node.Node;
+import com.epam.deltix.quantgrid.engine.node.NodeUtil;
 import com.epam.deltix.quantgrid.engine.node.expression.Expression;
 import com.epam.deltix.quantgrid.engine.node.expression.RowNumber;
 import com.epam.deltix.quantgrid.engine.node.plan.Executed;
 import com.epam.deltix.quantgrid.engine.node.plan.Failed;
 import com.epam.deltix.quantgrid.engine.node.plan.Plan;
+import com.epam.deltix.quantgrid.engine.node.plan.ResultPlan;
 import com.epam.deltix.quantgrid.engine.node.plan.Scalar;
-import com.epam.deltix.quantgrid.engine.node.plan.local.RetrieverResultLocal;
+import com.epam.deltix.quantgrid.engine.node.plan.local.CacheLocal;
 import com.epam.deltix.quantgrid.engine.node.plan.local.SelectLocal;
-import com.epam.deltix.quantgrid.engine.node.plan.local.SimilaritySearchLocal;
 import com.epam.deltix.quantgrid.engine.node.plan.local.StoreLocal;
-import com.epam.deltix.quantgrid.engine.node.plan.local.ViewportLocal;
+import com.epam.deltix.quantgrid.engine.store.Store;
+import lombok.RequiredArgsConstructor;
 
 import java.util.HashSet;
 import java.util.Set;
+import java.util.function.Predicate;
 
+@RequiredArgsConstructor
 public class AssignStore implements Rule {
+    private final Store store;
+    private final Predicate<Plan> toStore;
 
     @Override
     public void apply(Graph graph) {
@@ -26,33 +32,23 @@ public class AssignStore implements Rule {
     }
 
     private static Set<Plan> collect(Graph graph) {
-        Set<Plan> toStore = new HashSet<>();
+        Set<Plan> toCache = new HashSet<>();
         Set<Node> visited = new HashSet<>();
 
         graph.visitOut(node -> {
             if (node instanceof RowNumber number) {
-                collect(number.getSource(), visited, toStore);
+                collect(number.getSource(), visited, toCache);
                 return;
             }
 
-            if (node instanceof ViewportLocal viewport) {
-                collect(viewport.getSource(), visited, toStore);
-            }
-
-            if (node instanceof SimilaritySearchLocal similaritySearch) {
-                for (Node child : similaritySearch.getInputs()) {
-                    collect(child, visited, toStore);
-                }
-            }
-
-            if (node instanceof RetrieverResultLocal retrieverResultLocal) {
-                for (Node child : retrieverResultLocal.getInputs()) {
-                    collect(child, visited, toStore);
+            if (node instanceof ResultPlan) {
+                for (Node input : node.getInputs()) {
+                    collect(input, visited, toCache);
                 }
             }
         });
 
-        return toStore;
+        return toCache;
     }
 
     private static void collect(Node node, Set<Node> visited, Set<Plan> toStore) {
@@ -73,16 +69,20 @@ public class AssignStore implements Rule {
         toStore.add(plan.getLayout());
     }
 
-    private static void replace(Graph graph, Set<Plan> toStore) {
+    private void replace(Graph graph, Set<Plan> toCache) {
         graph.transformOut(node -> {
-            if (node instanceof Scalar || node instanceof StoreLocal
-                    || node instanceof Executed || node instanceof Failed) {
+            Plan original = NodeUtil.unwrapOriginal(node);
+
+            if (node instanceof Executed || node instanceof Failed ||
+                    original instanceof Scalar || original instanceof CacheLocal || original instanceof StoreLocal) {
                 return node;
             }
 
-            if (node instanceof Plan plan && toStore.contains(plan)) {
+            if (node instanceof Plan plan && toCache.contains(plan)) {
                 Plan copy = plan.copy(false);
-                return new StoreLocal(copy);
+                return toStore.test(copy)
+                        ? new StoreLocal(copy, store)
+                        : new CacheLocal(copy);
             }
 
             return node;

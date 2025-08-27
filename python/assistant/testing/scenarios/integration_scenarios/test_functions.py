@@ -12,7 +12,7 @@ from testing.framework import (
     fields,
 )
 from testing.framework.exceptions import CompileError, MatchError
-from testing.framework.project_utils import get_field_or_fail
+from testing.framework.project_utils import get_field_formula_or_fail
 
 
 async def test_text_function(basic_project: FrameProject):
@@ -27,10 +27,10 @@ async def test_text_function(basic_project: FrameProject):
     def check(_, __, table: Table):
         assert len(fields(table)) == 2
         assert re.fullmatch(
-            ".*RANGE.*", get_field_or_fail(table, "row").formula, re.DOTALL
+            ".*RANGE.*", get_field_formula_or_fail(table, "row"), re.DOTALL
         )
         assert re.fullmatch(
-            ".*TEXT.*", get_field_or_fail(table, "text").formula, re.DOTALL
+            ".*TEXT.*", get_field_formula_or_fail(table, "text"), re.DOTALL
         )
 
     answer.assertion(AddTable(validator=check))
@@ -48,10 +48,10 @@ async def test_value_function(basic_project: FrameProject):
     def check(_, __, table: Table):
         assert len(fields(table)) == 2
         assert re.fullmatch(
-            ".*RANGE.*", get_field_or_fail(table, "row").formula, re.DOTALL
+            ".*RANGE.*", get_field_formula_or_fail(table, "row"), re.DOTALL
         )
         assert re.fullmatch(
-            ".*VALUE.*", get_field_or_fail(table, "value").formula, re.DOTALL
+            ".*VALUE.*", get_field_formula_or_fail(table, "value"), re.DOTALL
         )
 
     answer.assertion(AddTable(validator=check))
@@ -69,10 +69,10 @@ async def test_date_function(basic_project: FrameProject):
     def check(_, __, table: Table):
         assert len(fields(table)) == 2
         assert re.fullmatch(
-            ".*RANGE.*", get_field_or_fail(table, "row").formula, re.DOTALL
+            ".*RANGE.*", get_field_formula_or_fail(table, "row"), re.DOTALL
         )
         assert re.fullmatch(
-            ".*DATE.*", get_field_or_fail(table, "date").formula, re.DOTALL
+            ".*DATE.*", get_field_formula_or_fail(table, "date"), re.DOTALL
         )
 
     answer.assertion(AddTable(validator=check))
@@ -91,10 +91,10 @@ async def test_day_function(basic_project: FrameProject):
     def check(_, __, table: Table):
         assert len(fields(table)) == 2
         assert re.fullmatch(
-            ".*RANGE.*", get_field_or_fail(table, "row").formula, re.DOTALL
+            ".*RANGE.*", get_field_formula_or_fail(table, "row"), re.DOTALL
         )
         assert re.fullmatch(
-            ".*DAY.*", get_field_or_fail(table, "day").formula, re.DOTALL
+            ".*DAY.*", get_field_formula_or_fail(table, "day"), re.DOTALL
         )
 
     answer.assertion(AddTable(validator=check))
@@ -113,10 +113,10 @@ async def test_month_function(basic_project: FrameProject):
     def check(_, __, table: Table):
         assert len(fields(table)) == 2
         assert re.fullmatch(
-            ".*RANGE.*", get_field_or_fail(table, "row").formula, re.DOTALL
+            ".*RANGE.*", get_field_formula_or_fail(table, "row"), re.DOTALL
         )
         assert re.fullmatch(
-            ".*MONTH.*", get_field_or_fail(table, "month").formula, re.DOTALL
+            ".*MONTH.*", get_field_formula_or_fail(table, "month"), re.DOTALL
         )
 
     answer.assertion(AddTable(validator=check))
@@ -155,10 +155,10 @@ async def test_year_function(basic_project: FrameProject):
     def check(_, __, table: Table):
         assert len(fields(table)) == 2
         assert re.fullmatch(
-            ".*RANGE.*", get_field_or_fail(table, "row").formula, re.DOTALL
+            ".*RANGE.*", get_field_formula_or_fail(table, "row"), re.DOTALL
         )
         assert re.fullmatch(
-            ".*YEAR.*", get_field_or_fail(table, "year").formula, re.DOTALL
+            ".*YEAR.*", get_field_formula_or_fail(table, "year"), re.DOTALL
         )
 
     answer.assertion(AddTable(validator=check))
@@ -195,7 +195,7 @@ async def test_unique(basic_project: FrameProject):
         """
     )
 
-    answer.assertion(AddTable(validator=validate_unique, value=["10.0", "20.0"]))
+    answer.assertion(AddTable(validator=validate_unique, value=["10", "20"]))
 
 
 async def test_logic_if(basic_project: FrameProject):
@@ -271,7 +271,7 @@ async def test_logic_ifna(basic_project: FrameProject):
             table_regex="TIF",
             field_regex="result",
             validator=validate_ifna,
-            values=["5.0", "0.0", "1.0", "3.0", "0.0"],
+            values=["5", "0", "1", "3", "0"],
         )
     )
 
@@ -314,13 +314,13 @@ async def test_logic_operators(basic_project: FrameProject):
                 table_regex="TIF",
                 field_regex="Con",
                 validator=validate_and,
-                values=["FALSE", "FALSE", "FALSE", "TRUE"],
+                values=["0", "0", "0", "1"],
             ),
             AddField(
                 table_regex="TIF",
                 field_regex="Dis",
                 validator=validate_or,
-                values=["TRUE", "TRUE", "FALSE", "TRUE"],
+                values=["1", "1", "0", "1"],
             ),
         )
     )
@@ -352,6 +352,6 @@ async def test_first_value(basic_project: FrameProject):
 
     answer.assertion(
         AddFieldOrTable(
-            values=["5.0"],
+            values=["5"],
         )
     )

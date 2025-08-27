@@ -36,13 +36,13 @@ class ObservableNode(ABC):
     _observer: Observer | None = None
 
     def _attach(self, observer: Observer):
-        if self._observer:
+        if self._observer is not None:
             raise ValueError(f"{type(self).__name__} is already attached to a parent")
 
         self._observer = observer
 
     def _detach(self):
-        if not self._observer:
+        if self._observer is None:
             raise ValueError(f"{type(self).__name__} is not attached to a parent")
 
         self._observer = None
@@ -84,6 +84,8 @@ class ObservableObserver(Observer, ObservableNode):
 
 
 def notify_observer(func):
+    """Decorator to notify observers before and after a function call."""
+
     @functools.wraps(func)
     def wrapper(self: ObservableNode, *args, **kwargs):
         event: Event | None = None

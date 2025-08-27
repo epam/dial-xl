@@ -4,7 +4,6 @@ import com.epam.deltix.quantgrid.engine.meta.Meta;
 import com.epam.deltix.quantgrid.engine.meta.Schema;
 import com.epam.deltix.quantgrid.engine.node.expression.Expression;
 import com.epam.deltix.quantgrid.engine.node.plan.Plan;
-import com.epam.deltix.quantgrid.engine.node.plan.Plan1;
 import com.epam.deltix.quantgrid.engine.node.plan.Plan2;
 import com.epam.deltix.quantgrid.engine.node.plan.local.evaluation.EvaluationUtils;
 import com.epam.deltix.quantgrid.engine.value.DoubleColumn;

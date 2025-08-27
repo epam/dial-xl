@@ -1,9 +1,13 @@
 import Fuse from 'fuse.js';
 
-import { csvFileExtension, dialProjectFileExtension } from '@frontend/common';
+import {
+  csvFileExtension,
+  dialProjectFileExtension,
+  MetadataNodeType,
+} from '@frontend/common';
 
-import { routeParams, routes } from '../../AppRoutes';
 import { DashboardFilter, DashboardSortType, DashboardTab } from '../common';
+import { routeParams, routes } from '../types';
 import { DashboardItem } from '../types/dashboard';
 
 export const routeToTabMap: { [key: string]: DashboardTab } = {
@@ -42,7 +46,7 @@ export function filterDashboardItems(
   if (filter === 'all') return items;
 
   return items.filter((i) => {
-    const isFolder = i.nodeType === 'FOLDER';
+    const isFolder = i.nodeType === MetadataNodeType.FOLDER;
     const isQG = i.name.endsWith(dialProjectFileExtension);
     const isCSV = i.name.endsWith(csvFileExtension);
 
@@ -67,8 +71,8 @@ export function sortDashboardItems(
   sortAsc: boolean
 ): DashboardItem[] {
   return items.sort((a, b) => {
-    const aIsFolder = a.nodeType === 'FOLDER';
-    const bIsFolder = b.nodeType === 'FOLDER';
+    const aIsFolder = a.nodeType === MetadataNodeType.FOLDER;
+    const bIsFolder = b.nodeType === MetadataNodeType.FOLDER;
 
     if (aIsFolder && !bIsFolder) return -1;
     if (!aIsFolder && bIsFolder) return 1;

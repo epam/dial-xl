@@ -5,26 +5,36 @@ from typing import Iterable, List, Tuple
 import numpy
 
 from dial_xl.calculate import FieldData
+from dial_xl.field import Field
 from dial_xl.project import Project
+from dial_xl.table import Table
 from numpy import integer
 from numpy.typing import NDArray
 from pydantic import BaseModel
 
 from quantgrid.configuration import LOGGER
 from quantgrid.models import AddTableAction
+from quantgrid.utils.project import FieldGroupUtil
+from quantgrid_1.models.focus import Focus
 from testing.framework.exception_utils import fetch_most_relevant_exceptions_from_list
 from testing.framework.exceptions import MatchError, MatchingError
 from testing.framework.expected_actions import ExpectedAction
 from testing.framework.match_candidates import MatchCandidates
 from testing.framework.models import Output
 from testing.framework.project_utils import get_sheet, get_table
+from testing.framework.validation_utils import is_field_focused, is_table_focused
 
 
 class Answer:
     def __init__(
-        self, project_state: Project, output: list[Output], classification_route: str
+        self,
+        project_state: Project,
+        focus: Focus,
+        output: list[Output],
+        classification_route: str,
     ):
         self._project_state = project_state
+        self._focus = focus
         self._output = output
         self._classification_route = classification_route
 
@@ -115,7 +125,7 @@ class Answer:
             mask: list[int] = []
             for i, item in enumerate(self._output):
                 try:
-                    expected.match(self._project_state, item)
+                    expected.match(self._project_state, self._focus, item)
                     mask.append(i)
                 except MatchingError as error:
                     candidates.exceptions[i] = error
@@ -138,6 +148,12 @@ class Answer:
                     return matches, True
 
         return matches, False
+
+    def is_table_focused(self, table: Table) -> bool:
+        return is_table_focused(self._focus, table)
+
+    def is_field_focused(self, table: Table, field: Field) -> bool:
+        return is_field_focused(self._focus, table, field)
 
     @staticmethod
     def _match(candidates: list[NDArray[integer]]) -> bool:
@@ -257,22 +273,25 @@ class Answer:
         table = get_table(sheet, table_name)
         if table is None:
             return "-//-"
-
+        table_field_names = FieldGroupUtil.get_table_field_names(table)
         lines = [
-            "".join(["{:^30}".format(field_name) for field_name in table.field_names])
+            "".join(["{:^30}".format(field_name) for field_name in table_field_names])
         ]
 
         length = 0
-        for field_name in table.field_names:
-            data = table.get_field(field_name).field_data
+
+        for field_name in table_field_names:
+            found_field = FieldGroupUtil.get_field_by_name(table, field_name)
+            data = found_field.field_data if found_field else None
 
             if isinstance(data, FieldData):
                 length = max(length, len(data.values))
 
         for i in range(length):
             line = ""
-            for field_name in table.field_names:
-                data = table.get_field(field_name).field_data
+            for field_name in table_field_names:
+                found_field = FieldGroupUtil.get_field_by_name(table, field_name)
+                data = found_field.field_data if found_field else None
 
                 if isinstance(data, FieldData):
                     line += "{:^30}".format(data.values[i])

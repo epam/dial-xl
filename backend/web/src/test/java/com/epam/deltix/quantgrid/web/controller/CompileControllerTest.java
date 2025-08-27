@@ -1,6 +1,6 @@
 package com.epam.deltix.quantgrid.web.controller;
 
-import com.epam.deltix.quantgrid.engine.service.input.storage.DialInputProvider;
+import com.epam.deltix.quantgrid.engine.service.input.storage.dial.DialInputProvider;
 import com.epam.deltix.quantgrid.engine.service.input.storage.InputProvider;
 import com.epam.deltix.quantgrid.util.DialFileApi;
 import com.epam.deltix.quantgrid.util.EtaggedStream;
@@ -14,10 +14,10 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.core.io.ResourceLoader;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.io.FileNotFoundException;
@@ -30,6 +30,7 @@ import java.util.stream.Stream;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -51,7 +52,7 @@ class CompileControllerTest {
     @Autowired
     private MockMvc mockMvc;
 
-    @MockBean
+    @MockitoBean
     private DialFileApi dialFileApi;
 
     @Autowired
@@ -89,7 +90,8 @@ class CompileControllerTest {
                                 .setFieldKey(Api.FieldKey.newBuilder()
                                         .setTable("A")
                                         .setField("a"))
-                                .setType(Api.ColumnDataType.INTEGER))
+                                .setType(Api.ColumnDataType.DOUBLE)
+                                .setHash("667668fa41db37f4e12d14309f1712a49f3e1bf7e24fbb9433f842fbdb5453ca"))
                         .addCompilationErrors(Api.CompilationError.newBuilder()
                                 .setFieldKey(Api.FieldKey.newBuilder()
                                         .setTable("A")
@@ -124,7 +126,7 @@ class CompileControllerTest {
                                 .setFieldKey(Api.FieldKey.newBuilder()
                                         .setTable("__DimensionalSchemaRequestTable")
                                         .setField("__formula"))
-                                .setType(Api.ColumnDataType.TABLE)
+                                .setType(Api.ColumnDataType.TABLE_REFERENCE)
                                 .setIsNested(true)
                                 .setReferenceTableName("A")))
                 .build();
@@ -144,8 +146,8 @@ class CompileControllerTest {
         String schema = prefix + "." + name + ".schema";
         InputStream inputStream = resourceLoader.getResource("classpath:test-inputs/malformed/" + name + ".csv")
                 .getInputStream();
-        when(dialFileApi.getAttributes(eq(input), any()))
-                .thenReturn(new DialFileApi.Attributes(etag, List.of("READ")));
+        when(dialFileApi.getAttributes(eq(input), eq(true), eq(false), isNull(), any()))
+                .thenReturn(new DialFileApi.Attributes(etag, input, null, null, List.of("READ"), null, List.of()));
         when(dialFileApi.readFile(eq(schema), any()))
                 .thenThrow(new FileNotFoundException());
         when(dialFileApi.getBucket(any()))

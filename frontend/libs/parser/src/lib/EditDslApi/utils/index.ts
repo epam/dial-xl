@@ -3,3 +3,4 @@ export * from './Event';
 export * from './Observer';
 export * from './Reader';
 export * from './notifyObserver';
+export * from './validateIndex';

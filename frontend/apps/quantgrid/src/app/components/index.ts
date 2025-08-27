@@ -9,3 +9,4 @@ export * from './Project';
 export * from './SearchWindow';
 export * from './SpreadsheetWrapper';
 export * from './UserMenu';
+export * from './Toast';

@@ -4,35 +4,53 @@ import {
   ApplyFilter,
   ApplySort,
   dynamicFieldName,
+  FieldsReferenceExpression,
   ParsedField,
 } from '@frontend/parser';
 
-import { ViewportContext } from '../../context';
-import { findTablesInSelection, isTableInsideSelection } from '../../utils';
-import { useDSLUtils } from '../ManualEditDSL';
+import { ProjectContext, ViewportContext } from '../../context';
+import {
+  findTablesInSelection,
+  getProjectSheetsRecord,
+  isTableInsideSelection,
+} from '../../utils';
 import { useGridApi } from '../useGridApi';
 import { useSafeCallback } from '../useSafeCallback';
 import { useSpreadsheetSelection } from '../useSpreadsheetSelection';
+import { useDSLUtils } from './useDSLUtils';
 import { useOverridesEditDsl } from './useOverridesEditDsl';
 import { useTableEditDsl } from './useTableEditDsl';
 import { useTotalEditDsl } from './useTotalEditDsl';
 
 export function useDeleteEntityDsl() {
   const { updateSelectionAfterDataChanged } = useSpreadsheetSelection();
+  const { projectSheets } = useContext(ProjectContext);
   const { viewGridData } = useContext(ViewportContext);
-  const { updateDSL, findEditContext, findTable, findTableField } =
-    useDSLUtils();
+  const {
+    updateDSL,
+    findEditContext,
+    findTable,
+    findTableField,
+    getFormulaSchema,
+  } = useDSLUtils();
   const { deleteTable, deleteTables } = useTableEditDsl();
   const { removeOverride } = useOverridesEditDsl();
   const { removeTotalByIndex } = useTotalEditDsl();
   const gridApi = useGridApi();
 
   const deleteField = useCallback(
-    (tableName: string, fieldName: string) => {
+    async (tableName: string, fieldName: string) => {
       const context = findEditContext(tableName, fieldName);
-      if (!context || !context.parsedField) return;
+      if (!context || !context.parsedField || !projectSheets) return;
 
-      const { sheet, sheetName, parsedTable, parsedField, table } = context;
+      const {
+        sheet,
+        sheetContent,
+        sheetName,
+        parsedTable,
+        parsedField,
+        table,
+      } = context;
 
       if (parsedTable.getFieldsCount() === 1) {
         deleteTable(tableName);
@@ -110,13 +128,13 @@ export function useDeleteEntityDsl() {
       }
 
       // Remove field total
-      if (parsedTotal && parsedTotal.size > 0 && table.totalCount > 0) {
+      if (parsedTotal && parsedTotal.size > 0 && table.totals.length > 0) {
         const fieldTotals = parsedTotal.getFieldTotal(targetFieldName);
 
         if (fieldTotals) {
           for (const [rowStr] of Object.entries(fieldTotals)) {
             const row = Number(rowStr);
-            const targetTotal = table.getTotal(row);
+            const targetTotal = table.getTotal(row - 1);
             targetTotal.removeField(targetFieldName);
           }
 
@@ -124,7 +142,62 @@ export function useDeleteEntityDsl() {
         }
       }
 
-      table.removeField(targetFieldName);
+      const isDynamicField = targetFieldName === dynamicFieldName;
+      const targetGroupFields = parsedTable.fields.filter(
+        (f) => f.fieldGroupIndex === targetParsedField.fieldGroupIndex
+      );
+      const targetExpression = targetParsedField.expression;
+      const isFieldReferenceFormula =
+        targetExpression instanceof FieldsReferenceExpression;
+      const targetFieldGroupIndex = targetGroupFields.findIndex(
+        (f) => f.key.fieldName === targetFieldName
+      );
+
+      const formulaFieldsCount =
+        isFieldReferenceFormula && targetExpression.fields
+          ? targetExpression.fields.length
+          : 0;
+
+      // Field is dynamic or only one in the field group
+      if (isDynamicField || targetGroupFields.length === 1) {
+        table.removeField(targetFieldName);
+      } else if (
+        isFieldReferenceFormula &&
+        formulaFieldsCount === targetGroupFields.length
+      ) {
+        // Formula is a FieldsReferenceExpression, so it is possible to remove the field from the formula
+        const { start, globalOffsetStart, fields } = targetExpression;
+        fields.splice(targetFieldGroupIndex, 1);
+        const fieldsReferencePart = fields.map((f) => f).join(', ');
+        const normalizedFieldsReferencePart =
+          fields.length > 1 ? `[${fieldsReferencePart}]` : fieldsReferencePart;
+        const fixedFormula =
+          sheetContent.substring(globalOffsetStart, start) +
+          normalizedFieldsReferencePart;
+        table.setFieldFormula(targetFieldName, fixedFormula);
+        table.removeField(targetFieldName);
+      } else {
+        // Otherwise, make dim schema request to create FieldsReference formula part
+        const formula = targetParsedField.expressionMetadata?.text || '';
+
+        const { schema, errorMessage } = await getFormulaSchema(
+          formula,
+          getProjectSheetsRecord(projectSheets)
+        );
+
+        if (!errorMessage && schema.length >= targetFieldGroupIndex) {
+          schema.splice(targetFieldGroupIndex, 1);
+          const fieldsReferencePart = schema.map((f) => `[${f}]`).join(', ');
+          const normalizedFieldsReferencePart =
+            schema.length > 1
+              ? `[${fieldsReferencePart}]`
+              : fieldsReferencePart;
+          const fixedFormula = formula + normalizedFieldsReferencePart;
+          table.setFieldFormula(targetFieldName, fixedFormula);
+        }
+
+        table.removeField(targetFieldName);
+      }
 
       const historyTitle = `Delete column [${fieldName}] from table "${tableName}"`;
       updateDSL({
@@ -136,7 +209,14 @@ export function useDeleteEntityDsl() {
 
       updateSelectionAfterDataChanged();
     },
-    [deleteTable, findEditContext, updateDSL, updateSelectionAfterDataChanged]
+    [
+      deleteTable,
+      findEditContext,
+      getFormulaSchema,
+      projectSheets,
+      updateDSL,
+      updateSelectionAfterDataChanged,
+    ]
   );
 
   const deleteSelectedFieldOrTable = useCallback(() => {
@@ -194,13 +274,8 @@ export function useDeleteEntityDsl() {
       let field = uniqueFields[0];
       if (!field) return;
 
-      if (field.isDynamic) {
-        field = findTableField(tableName, dynamicFieldName);
+      let { fieldName } = field.key;
 
-        if (!field) return;
-      }
-
-      const { fieldName } = field.key;
       const startCell = gridApi.getCell(startCol, startRow);
       const endCell = gridApi.getCell(startCol, endRow);
 
@@ -209,6 +284,14 @@ export function useDeleteEntityDsl() {
 
         return;
       }
+
+      if (field.isDynamic) {
+        field = findTableField(tableName, dynamicFieldName);
+
+        if (!field) return;
+      }
+
+      fieldName = field.key.fieldName;
 
       if (startCell?.isFieldHeader || endCell?.isFieldHeader) {
         deleteField(tableName, fieldName);

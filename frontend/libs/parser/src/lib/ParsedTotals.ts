@@ -1,6 +1,6 @@
 import { Expose } from 'class-transformer';
 
-import { ParsedField } from './ParsedField';
+import { ParsedFields } from './ParsedFields';
 import { Span } from './Span';
 
 export class ParsedTotals {
@@ -8,9 +8,9 @@ export class ParsedTotals {
   public span: Span | undefined;
 
   @Expose()
-  public fields: ParsedField[] | undefined;
+  public fields: ParsedFields[] | undefined;
 
-  constructor(span: Span | undefined, fields: ParsedField[] | undefined) {
+  constructor(span: Span | undefined, fields: ParsedFields[] | undefined) {
     this.span = span;
     this.fields = fields;
   }

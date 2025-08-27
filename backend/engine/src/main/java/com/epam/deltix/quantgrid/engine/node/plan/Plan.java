@@ -14,10 +14,14 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.concurrent.CancellationException;
 
 
 @NotSemantic
 public abstract class Plan extends Node {
+
+    private static final long CHECK_CANCEL_STEP = 4096;
+    private static final long CHECK_CANCEL_MASK = CHECK_CANCEL_STEP - 1;
 
     @Getter
     protected final int planCount;
@@ -161,6 +165,18 @@ public abstract class Plan extends Node {
     @Override
     public Plan copy(List<Node> inputs, boolean withIdentity) {
         return (Plan) super.copy(inputs, withIdentity);
+    }
+
+    protected void checkCancel(long row) {
+        if ((row & CHECK_CANCEL_MASK) == 0) {
+            checkCancel();
+        }
+    }
+
+    protected void checkCancel() {
+        if (Thread.interrupted()) {
+            throw new CancellationException("Plan: " + this + " has been canceled");
+        }
     }
 
     protected static Source sourceOf(Plan plan) {

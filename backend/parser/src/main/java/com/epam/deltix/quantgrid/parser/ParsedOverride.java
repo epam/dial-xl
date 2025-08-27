@@ -1,6 +1,7 @@
 package com.epam.deltix.quantgrid.parser;
 
 import com.epam.deltix.quantgrid.parser.ast.Formula;
+import com.epam.deltix.quantgrid.parser.ast.Missing;
 import com.google.gson.annotations.Expose;
 import lombok.Value;
 import lombok.experimental.Accessors;
@@ -23,7 +24,7 @@ public class ParsedOverride {
     @Expose
     List<ParsedText> headers;
     @Expose
-    List<List<ParsedFormula>> values;
+    List<List<Formula>> values;
     FieldKey rowKey;
     Map<FieldKey, List<Formula>> map;
     int size;
@@ -31,7 +32,7 @@ public class ParsedOverride {
     public ParsedOverride(
             Span span,
             List<ParsedText> headers,
-            List<List<ParsedFormula>> values,
+            List<List<Formula>> values,
             String tableName) {
         this.span = span;
         this.headers = headers;
@@ -43,14 +44,15 @@ public class ParsedOverride {
 
     private static Map<FieldKey, List<Formula>> buildMap(
             List<ParsedText> headers,
-            List<List<ParsedFormula>> values,
+            List<List<Formula>> values,
             String tableName) {
         Map<FieldKey, List<Formula>> map = new HashMap<>();
         for (int i = 0; i < headers.size(); i++) {
             ParsedText header = headers.get(i);
             List<Formula> formulas = new ArrayList<>(values.size());
-            for (List<ParsedFormula> line : values) {
-                formulas.add(line.get(i).formula());
+            for (List<Formula> line : values) {
+                Formula formula = line.get(i);
+                formulas.add(formula instanceof Missing ? null : formula);
             }
             map.put(new FieldKey(tableName, header.text()), formulas);
         }
@@ -94,7 +96,7 @@ public class ParsedOverride {
             }
         }
 
-        List<List<ParsedFormula>> lines = new ArrayList<>(numberOfRows);
+        List<List<Formula>> lines = new ArrayList<>(numberOfRows);
         for (int i = 0; i < numberOfRows; i++) {
             SheetParser.Override_rowContext row = context.override_row().get(i);
 
@@ -104,14 +106,12 @@ public class ParsedOverride {
                 return null;
             }
 
-            List<ParsedFormula> parsedFormulas = new ArrayList<>(headers.size());
+            List<Formula> parsedFormulas = new ArrayList<>(headers.size());
             for (int j = 0; j < headers.size(); j++) {
                 SheetParser.Override_valueContext value = row.override_value(j);
-                ParsedFormula parsedFormula = value.expression() == null
-                        ? new ParsedFormula(new Span(
-                                // For some reason stop token is behind if there is more than one empty override
-                                value.getStart().getStartIndex(), value.getStart().getStopIndex()), null, List.of())
-                        : ParsedFormula.from(value.expression());
+                Formula parsedFormula = value.expression() == null
+                        ? new Missing(Span.from(value))
+                        : ParsedFormula.buildFormula(value.expression());
                 parsedFormulas.add(parsedFormula);
             }
             lines.add(parsedFormulas);

@@ -147,8 +147,8 @@ export function Track({ direction }: Props) {
   return (
     <Graphics
       eventMode="static"
-      onmousedown={onMouseDown}
-      onmouseup={onMouseUp}
+      onpointerdown={onMouseDown}
+      onpointerup={onMouseUp}
       ref={graphicsRef}
     />
   );

@@ -35,20 +35,29 @@ export async function parseSSEResponse(
   const decoder = new TextDecoder();
 
   if (controller?.signal.aborted) return;
+
   // There is an issue in types
   // eslint-disable-next-line @typescript-eslint/ban-ts-comment
   // @ts-ignore
   const reader = response.body.getReader();
-  while (true) {
-    if (controller?.signal.aborted) return;
 
-    const { done, value } = await reader.read();
-    if (done) {
-      // Do something with last chunk of data then exit reader
-      return;
+  try {
+    while (true) {
+      if (controller?.signal.aborted) {
+        return;
+      }
+
+      const { done, value } = await reader.read();
+      if (done) {
+        return;
+      }
+
+      parser.feed(decoder.decode(value));
     }
-
-    parser.feed(decoder.decode(value));
-    // Otherwise do something here to process current chunk
+  } catch (error) {
+    reader.cancel('Error during stream processing').catch(() => {
+      // ignore, do not show console errors
+    });
+    throw error;
   }
 }

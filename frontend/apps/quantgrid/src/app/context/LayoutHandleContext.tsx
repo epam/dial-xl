@@ -23,14 +23,23 @@ export const HandleContext = createContext<HandleContextProps>(
 );
 
 export function HandleProvider(props: PropsWithChildren<HandleContextProps>) {
-  const { children, events, index, hasSplitter } = props;
-  const [state, setState] = useState({ events, index, hasSplitter });
+  const [state, setState] = useState({
+    events: props.events,
+    index: props.index,
+    hasSplitter: props.hasSplitter,
+  });
 
   useEffect(() => {
-    setState({ events, index, hasSplitter });
-  }, [events, index, hasSplitter]);
+    setState({
+      events: props.events,
+      index: props.index,
+      hasSplitter: props.hasSplitter,
+    });
+  }, [props.events, props.index, props.hasSplitter]);
 
   return (
-    <HandleContext.Provider value={state}>{children}</HandleContext.Provider>
+    <HandleContext.Provider value={state}>
+      {props.children}
+    </HandleContext.Provider>
   );
 }

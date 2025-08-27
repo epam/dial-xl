@@ -1,15 +1,10 @@
 package com.epam.deltix.quantgrid.type;
 
-import org.jetbrains.annotations.Nullable;
-
 public enum ColumnType {
-    DOUBLE, INTEGER, BOOLEAN, DATE, STRING, PERIOD_SERIES;
+    DOUBLE, STRING, PERIOD_SERIES, STRUCT;
 
     public boolean isDouble() {
-        return switch (this) {
-            case DOUBLE, INTEGER, BOOLEAN, DATE -> true;
-            default -> false;
-        };
+        return this == DOUBLE;
     }
 
     public boolean isString() {
@@ -20,19 +15,11 @@ public enum ColumnType {
         return this == PERIOD_SERIES;
     }
 
-    public static boolean isClose(ColumnType left, ColumnType right) {
-        return closest(left, right) != null;
+    public static boolean isCommon(ColumnType left, ColumnType right) {
+        return common(left, right) != null;
     }
 
-    /**
-     * Tries to find the closest type, returns null in case of failure.
-     */
-    @Nullable
-    public static ColumnType closest(ColumnType left, ColumnType right) {
-        if (left == right) {
-            return left;
-        }
-
+    public static ColumnType common(ColumnType left, ColumnType right) {
         if (left == null) {
             return right;
         }
@@ -41,14 +28,18 @@ public enum ColumnType {
             return left;
         }
 
-        if (left.isDouble() && right.isDouble()) {
-            return DOUBLE;
+        if (left == right) {
+            return left;
         }
 
-        return null;
-    }
+        if (left == PERIOD_SERIES || right == PERIOD_SERIES) {
+            return null;
+        }
 
-    public static ColumnType closest(double value) {
-        return Double.isFinite(value) && value == Math.rint(value) ? INTEGER : DOUBLE;
+        if (left == STRUCT || right == STRUCT) {
+            return null;
+        }
+
+        return STRING;
     }
 }

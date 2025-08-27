@@ -3,10 +3,10 @@ import { escapeTableName, unescapeTableName } from '../services';
 import { Apply } from './Apply';
 import { Decorator } from './Decorator';
 import { DocLine, DocString } from './DocString';
-import { Field } from './Field';
+import { Field, FieldGroup, FieldGroups } from './Field';
 import { DynamicField } from './Field/DynamicField';
 import { Overrides } from './Override';
-import { Total } from './Total';
+import { Total, Totals } from './Total';
 import { Event, notifyObserver, ObservableObserver, Reader } from './utils';
 
 /**
@@ -38,11 +38,14 @@ export class Table extends ObservableObserver {
   /** A string that appears after the table name. */
   private _afterName = lineBreak;
 
-  /** An array of fields or raw text strings. */
-  private _fields: Array<Field | string> = [];
+  /** FieldGroup objects.*/
+  private _fieldGroups: FieldGroups;
 
   /** An array of apply blocks or totals. */
   private _applyTotals: Array<Apply | Total> = [];
+
+  /** The totals object. */
+  private _totals: Totals;
 
   /** An optional override block associated with this table. */
   private _overrides: Overrides | null = null;
@@ -53,21 +56,16 @@ export class Table extends ObservableObserver {
   /** A mapping of dynamic fields by name (e.g., pivot-generated fields). */
   private _dynamicFields: Record<string, DynamicField> = {};
 
-  /**
-   * A name-to-index map of fields for quick lookup. Updated whenever fields are added or removed.
-   */
-  private _fieldIndices: Record<string, number> = {};
-
   /** The index of the apply block, if any. */
   private _applyIndex: number | null = null;
-
-  /** A flag indicating whether to add an empty line before the table. */
-  private _emptyLineBefore = false;
 
   /**
    * A name-to-index map of decorators for quick lookup. Updated whenever decorators are added or removed.
    */
   private _decoratorIndices: Record<string, number> = {};
+
+  /** A flag indicating whether to add an empty line before the table. */
+  private _emptyLineBefore = false;
 
   /**
    * Constructs a new Table with the given name, escaping it for DSL output.
@@ -79,10 +77,32 @@ export class Table extends ObservableObserver {
     super();
     this._name = escapeTableName(name);
     this._emptyLineBefore = emptyLineBefore;
+    this._docString = new DocString([], (txt) => new DocLine(txt));
+    this._fieldGroups = new FieldGroups();
+    this._fieldGroups.attach(this);
+    this._totals = new Totals();
+    this._totals.attach(this);
+  }
 
-    // Initialize the doc string with an empty array of lines
-    // and a factory that produces normal DocLine objects.
-    this._docString = new DocString([], (text) => new DocLine(text));
+  /**
+   * Converts this table and all its contents (doc string, decorators, fields, overrides, etc.)
+   * back into DSL text.
+   *
+   * @returns A DSL string representing this table.
+   */
+  public toDSL(): string {
+    return (
+      this._before +
+      this._docString.toDSL() +
+      this._decorators.map((dec) => dec.toDSL()).join('') +
+      this._prefix +
+      this._name +
+      this._afterName +
+      this._fieldGroups.toDSL() +
+      this._applyTotals.map((at) => at.toDSL()).join('') +
+      (this._overrides ? this._overrides.toDSL() : '') +
+      this._after
+    );
   }
 
   /**
@@ -125,45 +145,129 @@ export class Table extends ObservableObserver {
   }
 
   /**
-   * Retrieves a `Total` object by 1-based index.
+   * Retrieves a `Total` object by index.
    *
-   * @param index - 1-based index of the total to get.
-   * @throws If the index is out of range.
+   * @param index - index of the total to get.
    */
   public getTotal(index: number): Total {
-    return this._applyTotals[this._totalIndex(index - 1)] as Total;
+    return this._totals.getItem(index) as Total;
   }
 
   /**
-   * Adds a new `Total` at the end of `_applyTotals`.
+   * Get the totals of the table.
+   */
+  public get totals(): Totals {
+    return this._totals;
+  }
+
+  /**
+   * Set the totals of the table.
    *
-   * @param value - The new Total object to attach.
+   * @param value - The new Totals object to associate with this table.
+   * @throws {Error} If observer logic fails during reattachment.
    */
   @notifyObserver()
-  public addTotal(value: Total): void {
+  public set totals(value: Totals) {
+    // Attach the new Totals container to this table
     value.attach(this);
+
+    // If there's no Apply at `_applyIndex`, replace `_applyTotals` fully
+    if (this._applyIndex == null) {
+      const totalsArray = [];
+
+      for (let i = 0; i < value.length; i++) {
+        totalsArray.push(value.getItem(i));
+      }
+
+      this._applyTotals = [...totalsArray];
+    } else {
+      // If there's an Apply, keep only that apply in `_applyTotals` and set index to 0
+      const applyItem = this._applyTotals[this._applyIndex];
+      this._applyTotals = [applyItem];
+      this._applyIndex = 0;
+    }
+
+    // Detach the old Totals container, if any
+    this._totals.detach();
+    this._totals = value;
+  }
+
+  /**
+   * Gets the raw table name, as stored internally.
+   */
+  public get rawName(): string {
+    return this._name;
+  }
+
+  /**
+   * Sets the raw table name without escaping it.
+   *
+   * @param value - The new raw name to set.
+   */
+  @notifyObserver()
+  public set rawName(value: string) {
+    this._name = value;
+  }
+
+  /**
+   * Appends a new Total to the end of `_applyTotals`.
+   *
+   * @param value - The Total object to append.
+   */
+  private onTotalAppend(value: Total): void {
     this._applyTotals.push(value);
   }
 
   /**
-   * Removes and returns a `Total` from `_applyTotals` by 1-based index.
-   * Adjusts `_applyIndex` if needed.
+   * Replaces the Total at the given index, with a new Total value.
    *
-   * @param index - 1-based index of the total to remove.
-   * @returns The removed Total object.
+   * @param index - The zero-based index of the total, excluding any Apply offset.
+   * @param value - The new Total to set.
    */
-  @notifyObserver()
-  public removeTotal(index: number): Total {
-    const removeIndex = this._totalIndex(index - 1);
-    const total = this._applyTotals.splice(removeIndex, 1)[0] as Total;
-    total.detach();
+  private onTotalReplace(index: number, value: Total): void {
+    const realIndex = this.totalIndex(index);
+    this._applyTotals[realIndex] = value;
+  }
 
-    // If we removed a total before the apply index, adjust apply index
-    if (this._applyIndex !== null && removeIndex < this._applyIndex) {
+  /**
+   * Inserts a new Total at the given index.
+   *
+   * @param index - The zero-based index among totals.
+   * @param value - The Total to insert.
+   */
+  private onTotalInsert(index: number, value: Total): void {
+    const realIndex = this.totalIndex(index);
+    this._applyTotals.splice(realIndex, 0, value);
+
+    if (this._applyIndex !== null && realIndex < this._applyIndex) {
+      this._applyIndex++;
+    }
+  }
+
+  /**
+   * Removes the Total at the given index.
+   *
+   * @param index - The zero-based index among totals.
+   */
+  private onTotalRemove(index: number): void {
+    const realIndex = this.totalIndex(index);
+    this._applyTotals.splice(realIndex, 1);
+
+    if (this._applyIndex !== null && realIndex < this._applyIndex) {
       this._applyIndex--;
     }
+  }
 
-    return total;
+  /**
+   * Converts a zero-based total index (excluding any Apply) to the correct index in `_applyTotals`.
+   *
+   * @param index - The zero-based total index.
+   * @returns The actual index in `_applyTotals`.
+   */
+  private totalIndex(index: number): number {
+    return this._applyIndex === null || index < this._applyIndex
+      ? index
+      : index + 1;
   }
 
   /**
@@ -176,72 +280,21 @@ export class Table extends ObservableObserver {
     for (let i = 0; i < this._applyTotals.length; i++) {
       const item = this._applyTotals[i];
       if (item instanceof Total) {
-        const totalFieldCount = Array.from(item.fields).length;
-        if (totalFieldCount === 0) {
+        if (item.fieldGroups.length === 0) {
           indexesToRemove.push(i);
         }
       }
     }
 
     indexesToRemove.reverse().forEach((idx) => {
-      const removedItem = this._applyTotals.splice(idx, 1)[0];
+      const removed = this._applyTotals.splice(idx, 1)[0];
       if (this._applyIndex !== null && idx < this._applyIndex) {
-        this._applyIndex!--;
+        this._applyIndex--;
       }
-
-      if (removedItem.observer === this) {
-        removedItem.detach();
+      if (removed.observer === this) {
+        removed.detach();
       }
     });
-  }
-
-  /**
-   * Converts a 0-based `index` for totals into the correct position in `_applyTotals`
-   * (skipping the `_applyIndex` if it exists).
-   *
-   * @param index - 0-based total index (after subtracting 1 externally).
-   * @throws If `index` is negative, meaning the total index is out of bounds.
-   */
-  private _totalIndex(index: number): number {
-    if (index < 0) {
-      throw new Error(
-        `Total index ${
-          index + 1
-        } is out of bounds: valid indices start from 1, ` +
-          `but the current range is [1, ${this.totalCount}].`
-      );
-    }
-
-    // If there's no Apply set OR the total is before the Apply, index is the same.
-    // If the total is after the Apply, shift by 1.
-    return this._applyIndex === null || index < this._applyIndex
-      ? index
-      : index + 1;
-  }
-
-  /**
-   * Returns how many totals exist (excluding the single Apply).
-   */
-  public get totalCount(): number {
-    return this._applyIndex === null
-      ? this._applyTotals.length
-      : this._applyTotals.length - 1;
-  }
-
-  /**
-   * Iterates over all `Total` objects, skipping the `Apply` object if present.
-   */
-  public get totals(): Iterable<Total> {
-    // eslint-disable-next-line @typescript-eslint/no-this-alias
-    const self = this;
-
-    return (function* () {
-      for (let i = 0; i < self._applyTotals.length; i++) {
-        if (i !== self._applyIndex) {
-          yield self._applyTotals[i] as Total;
-        }
-      }
-    })();
   }
 
   /**
@@ -277,37 +330,10 @@ export class Table extends ObservableObserver {
   }
 
   /**
-   * Converts this table and all its contents (doc string, decorators, fields, overrides, etc.)
-   * back into DSL text.
-   *
-   * @returns A DSL string representing this table.
-   */
-  public toDSL(): string {
-    return (
-      `${this._before}` +
-      `${this._docString.toDSL()}` +
-      `${this._decorators.map((dec) => dec.toDSL()).join('')}` +
-      `${this._prefix}` +
-      `${this._name}` +
-      `${this._afterName}` +
-      `${this._fields
-        .map((f) => (typeof f === 'string' ? f : f.toDSL()))
-        .join('')}` +
-      `${
-        this._applyTotals
-          ? this._applyTotals.map((at) => at.toDSL()).join('')
-          : ''
-      }` +
-      `${this._overrides ? this._overrides.toDSL() : ''}` +
-      `${this._after}`
-    );
-  }
-
-  /**
    * Gets the current doc string text.
    */
   public get docString(): string | null {
-    return <string>this._docString.text;
+    return this._docString.text;
   }
 
   /**
@@ -318,92 +344,29 @@ export class Table extends ObservableObserver {
   }
 
   /**
-   * Finds a field by name.
-   *
-   * @param name - The field name to search for.
-   * @throws {Error} If the field does not exist in this table.
-   * @returns The matching Field object.
+   * Retrieves a FieldGroups.
    */
-  public getField(name: string): Field {
-    const index = this.findFieldIndex(name);
-    if (index === -1) {
-      throw new Error(`Field '${name}' not found`);
-    }
-
-    return this._fields[index] as Field;
+  public get fieldGroups(): FieldGroups {
+    return this._fieldGroups;
   }
 
   /**
-   * Adds a field to this table, attaching it for observer notifications.
-   *
-   * @param field - The field object to add.
+   * Sets the FieldGroups, detaching the old one and attaching the new one.
+   * @param value - The new FieldGroups object to set.
    */
   @notifyObserver()
-  public addField(field: Field): void {
-    if (field.name in this._fieldIndices) {
-      throw new Error(`Field '${field.name}' already exists`);
-    }
-    field.attach(this);
-    this._fields.push(field);
-    this._fieldIndices[field.name] = this._fields.length - 1;
+  public set fieldGroups(value: FieldGroups) {
+    value.attach(this);
+    this._fieldGroups.detach();
+    this._fieldGroups = value;
   }
 
   /**
-   * Removes a field from this table by name, detaching it from observer notifications.
+   * Moves a FieldGroup (or raw string snippet) before or after another FieldGroup.
    *
-   * @param name - The field name to remove.
-   * @returns The removed field instance.
-   */
-  @notifyObserver()
-  public removeField(name: string): Field {
-    const index = this.findFieldIndex(name);
-    if (index === -1) {
-      throw new Error(`Field '${name}' not found`);
-    }
-    const field = this._fields.splice(index, 1)[0] as Field;
-    field.detach();
-    this.updateFieldIndices();
-
-    return field;
-  }
-
-  /**
-   * Swaps the positions of two fields by name within the table's field array,
-   * updating the index mapping accordingly.
-   *
-   * @param name1 - The name of the first field.
-   * @param name2 - The name of the second field.
-   * @throws {Error} If either field does not exist.
-   */
-  @notifyObserver()
-  public swapFields(name1: string, name2: string): void {
-    const index1 = this.findFieldIndex(name1);
-    const index2 = this.findFieldIndex(name2);
-    if (index1 === -1) {
-      throw new Error(`Field '${name1}' not found`);
-    }
-    if (index2 === -1) {
-      throw new Error(`Field '${name2}' not found`);
-    }
-    // Swap in the array
-    [this._fields[index1], this._fields[index2]] = [
-      this._fields[index2],
-      this._fields[index1],
-    ];
-    // Swap in the index map
-    [this._fieldIndices[name1], this._fieldIndices[name2]] = [
-      this._fieldIndices[name2],
-      this._fieldIndices[name1],
-    ];
-  }
-
-  /**
-   * Move source field before or after target field.
-   *
-   * @param sourceFieldName - The name of the field to move.
-   * @param targetFieldName - The name of the field to move before, or `null` to move to the end.
-   * @param isBefore - Whether to move the field before the target field.
-   * @throws {Error} If either field does not exist.
+   * @param sourceFieldName - The name of the Field to move.
+   * @param targetFieldName - The name of the Field to move before or after.
+   * @param isBefore - Whether to move the source *before* the target (else after).
    */
   @notifyObserver()
   public moveFieldBeforeOrAfter(
@@ -411,51 +374,233 @@ export class Table extends ObservableObserver {
     targetFieldName: string | null,
     isBefore: boolean
   ): void {
-    const sourceIndex = this.findFieldIndex(sourceFieldName);
-    if (sourceIndex === -1) {
-      throw new Error(`Field '${sourceFieldName}' not found`);
+    // 1) Locate the source field (which group it's in, and the index inside that group).
+    const { groupIndex: srcGroupIndex } =
+      this.findFieldLocation(sourceFieldName);
+    const sourceGroup = this._fieldGroups.getItem(srcGroupIndex);
+
+    // 2) Retrieve the actual Field object and the group's formula.
+    const sourceField = sourceGroup.getField(sourceFieldName);
+    const oldFormula = sourceGroup.formula;
+
+    // 3) Remove this field from the old group.
+    sourceGroup.removeField(sourceFieldName);
+
+    // 4) If that group is now empty, remove the entire group.
+    if (sourceGroup.fieldCount === 0) {
+      this._fieldGroups.deleteItem(srcGroupIndex);
     }
 
-    const sourceField = this._fields.splice(sourceIndex, 1)[0];
+    // 5) Create a new FieldGroup with the same formula as the old group.
+    const newGroup = FieldGroup.fromField(sourceField, oldFormula ?? null);
 
-    if (targetFieldName === null) {
-      this._fields.push(sourceField);
+    // 6) If there's no target field name, just append this new group at the end.
+    if (!targetFieldName) {
+      this._fieldGroups.append(newGroup);
+
+      return;
+    }
+
+    // 7) Otherwise, find the group containing the target field.
+    const { groupIndex: tgtGroupIndex } =
+      this.findFieldLocation(targetFieldName);
+
+    // 8) Compute the insertion index for the new group: before or after the target group.
+    let insertIndex = tgtGroupIndex;
+    if (!isBefore) {
+      insertIndex++;
+    }
+
+    // 9) If insertion index is beyond the last, append instead.
+    if (insertIndex >= this._fieldGroups.length) {
+      this._fieldGroups.append(newGroup);
     } else {
-      let targetIndex = this.findFieldIndex(targetFieldName);
-      if (targetIndex === -1) {
-        throw new Error(`Target field '${targetFieldName}' not found`);
-      }
+      this._fieldGroups.insert(insertIndex, newGroup);
+    }
+  }
 
-      if (isBefore) {
-        if (sourceIndex < targetIndex) {
-          targetIndex--;
-        }
-      } else {
-        if (sourceIndex > targetIndex) {
-          targetIndex++;
-        }
+  /**
+   * Finds which FieldGroup contains the named field, and the index of that field within the group.
+   * @throws if not found
+   */
+  private findFieldLocation(fieldName: string): {
+    groupIndex: number;
+    fieldIndex: number;
+  } {
+    let groupIndex = 0;
+    for (const group of this._fieldGroups) {
+      const nameArray = Array.from(group.fieldNames);
+      const idx = nameArray.indexOf(fieldName);
+      if (idx !== -1) {
+        return {
+          groupIndex,
+          fieldIndex: idx,
+        };
       }
+      groupIndex += 1;
+    }
+    throw new Error(`Field '${fieldName}' not found in any FieldGroup.`);
+  }
 
-      this._fields.splice(targetIndex, 0, sourceField);
+  /**
+   * Adapter method.
+   * Adds a single new field (with an optional formula) to the table
+   * by creating a new FieldGroup containing exactly one Field.
+   */
+  public addField({
+    name,
+    formula,
+    isKey,
+    isDim,
+  }: {
+    name: string;
+    formula?: string | null;
+    isKey?: boolean;
+    isDim?: boolean;
+  }): void {
+    const field = new Field(name);
+
+    if (isKey) {
+      field.key = true;
     }
 
-    this.updateFieldIndices();
+    if (isDim) {
+      field.dim = true;
+    }
+
+    const group = FieldGroup.fromField(field, formula ?? null);
+    this._fieldGroups.append(group);
   }
 
   /**
-   * Looks up the index of a field by name in `_fieldIndices`.
+   * Adapter method.
+   * Finds and returns a Field by its name from among all FieldGroups.
+   * Throws an error if not found.
+   */
+  public getField(name: string): Field {
+    for (const group of this._fieldGroups) {
+      const foundField = group.hasField(name);
+      if (foundField) {
+        return group.getField(name);
+      }
+    }
+    throw new Error(`Field '${name}' not found in any FieldGroup.`);
+  }
+
+  /**
+   * Adapter method.
+   * Finds and returns the FieldGroup that contains a field with the given name.
+   */
+  public getFieldGroupByFieldName(name: string): FieldGroup | null {
+    for (const group of this._fieldGroups) {
+      if (group.hasField(name)) {
+        return group;
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Adapter method.
+   * Removes a Field by name from among all FieldGroups.
+   * If removing Field causes its group to become empty, the entire group is removed.
    *
-   * @param name - The field name to search for.
+   * @param name - The name of the field to remove.
    */
-  private findFieldIndex(name: string): number {
-    return this._fieldIndices[name] ?? -1;
+  public removeField(name: string): void {
+    let groupIndex = 0;
+    for (const group of this._fieldGroups) {
+      const index = Array.from(group.fieldNames).indexOf(name);
+      if (index !== -1) {
+        const targetField = group.getField(name);
+        const shouldAddDimAfterRemove = targetField.dim;
+
+        group.removeField(name);
+        if (group.fieldCount === 0) {
+          this._fieldGroups.deleteItem(groupIndex);
+        } else if (shouldAddDimAfterRemove) {
+          group.getFieldByIndex(0).dim = true;
+        }
+
+        return;
+      }
+
+      groupIndex += 1;
+    }
   }
 
   /**
-   * Enumerates all field objects (excluding raw string segments) in this table.
+   * Adapter method.
+   * Find FieldGroup for the field and set its formula.
+   * @param fieldName - The name of the field to set the formula for.
+   * @param formula - The new formula to set.
    */
-  public get fields(): Field[] {
-    return this._fields.filter((f): f is Field => f instanceof Field);
+  public setFieldFormula(fieldName: string, formula: string | null): void {
+    const { groupIndex } = this.findFieldLocation(fieldName);
+    const group = this._fieldGroups.getItem(groupIndex);
+    group.formula = formula;
+  }
+
+  @notifyObserver()
+  public swapFields(rightFieldName: string, leftFieldName: string): void {
+    // Locate each field's group and index
+    const { groupIndex: gRight, fieldIndex: iRight } =
+      this.findFieldLocation(rightFieldName);
+    const { groupIndex: gLeft, fieldIndex: iLeft } =
+      this.findFieldLocation(leftFieldName);
+
+    // If they're in different groups, swap entire groups
+    if (gRight !== gLeft) {
+      this.swapGroups(gRight, gLeft);
+
+      return;
+    }
+
+    // Otherwise, they're in the same group, so swap the fields by index
+    const group = this._fieldGroups.getItem(gRight);
+    group.swapFieldPositions(iRight, iLeft);
+  }
+
+  /**
+   * Swaps two entire FieldGroups in `_fieldGroups`, identified by their zero-based groupIndex.
+   */
+  private swapGroups(indexA: number, indexB: number): void {
+    if (indexA === indexB) return;
+
+    // Ensure indexA < indexB so we remove the higher index first
+    if (indexA > indexB) {
+      [indexA, indexB] = [indexB, indexA];
+    }
+
+    // Retrieve references
+    const groupA = this._fieldGroups.getItem(indexA);
+    const groupB = this._fieldGroups.getItem(indexB);
+
+    // We can remove groupB first, then remove groupA,
+    // and re-insert them in swapped order.
+    this._fieldGroups.deleteItem(indexB);
+    this._fieldGroups.deleteItem(indexA);
+
+    if (this._fieldGroups.length <= indexA) {
+      // Append groups if they were at the end
+      this._fieldGroups.append(groupB);
+      this._fieldGroups.append(groupA);
+    } else {
+      // Re-insert groups in swapped order
+      this._fieldGroups.insert(indexA, groupB);
+      this._fieldGroups.insert(indexB, groupA);
+    }
+  }
+
+  /**
+   * Checks whether this table has a decorator with the given name.
+   *
+   * @param name - The decorator name to search for.
+   * @returns True if a decorator with this name exists, otherwise false.
+   */
+  public hasDecorator(name: string): boolean {
+    return name in this._decoratorIndices;
   }
 
   /**
@@ -465,7 +610,7 @@ export class Table extends ObservableObserver {
    * @returns The matching Decorator.
    */
   public getDecorator(name: string): Decorator {
-    const index = this.findDecoratorIndex(name);
+    const index = this.findDecorator(name);
     if (index === -1) {
       throw new Error(`Decorator '${name}' not found`);
     }
@@ -485,8 +630,28 @@ export class Table extends ObservableObserver {
       throw new Error(`Decorator '${decorator.name}' already exists`);
     }
     decorator.attach(this);
+    this._decoratorIndices[decorator.name] = this._decorators.length;
     this._decorators.push(decorator);
-    this._decoratorIndices[decorator.name] = this._decorators.length - 1;
+  }
+
+  /**
+   * Inserts a decorator at a specified position in this table’s decorator list.
+   *
+   * @param index - The zero-based index at which to insert the new decorator.
+   * @param decorator - The decorator instance to insert.
+   * @throws {Error} If the index is out of bounds.
+   */
+  @notifyObserver()
+  public insertDecorator(index: number, decorator: Decorator): void {
+    if (index < 0 || index > this._decorators.length) {
+      throw new Error(
+        `Decorator index ${index} is out of bounds: valid indices range from 0 to ${this._decorators.length}.`
+      );
+    }
+
+    decorator.attach(this);
+    this._decorators.splice(index, 0, decorator);
+    this.updateDecoratorIndices();
   }
 
   /**
@@ -497,7 +662,7 @@ export class Table extends ObservableObserver {
    */
   @notifyObserver()
   public removeDecorator(name: string): Decorator {
-    const index = this.findDecoratorIndex(name);
+    const index = this.findDecorator(name);
     if (index === -1) {
       throw new Error(`Decorator '${name}' not found`);
     }
@@ -513,7 +678,7 @@ export class Table extends ObservableObserver {
    *
    * @param name - The name of the decorator to search for.
    */
-  private findDecoratorIndex(name: string): number {
+  private findDecorator(name: string): number {
     return this._decoratorIndices[name] ?? -1;
   }
 
@@ -546,78 +711,50 @@ export class Table extends ObservableObserver {
   }
 
   /**
-   * Enumerates the names of all dynamic fields attached to this table.
-   */
-  public get dynamicFieldNames(): string[] {
-    return Object.keys(this._dynamicFields);
-  }
-
-  /**
-   * Enumerates all dynamic fields attached to this table.
-   */
-  public get dynamicFields(): DynamicField[] {
-    return Object.values(this._dynamicFields);
-  }
-
-  /**
-   * Replaces all dynamic fields with a new set.
-   *
-   * @param dynamicFields - An array of new dynamic fields to store.
-   */
-  public setDynamicFields(dynamicFields: DynamicField[]): void {
-    this._dynamicFields = dynamicFields.reduce((acc, field) => {
-      acc[field.name] = field;
-
-      return acc;
-    }, {} as Record<string, DynamicField>);
-  }
-
-  /**
-   * Called before child modifications or property changes in this table.
-   * Notifies our own observer (e.g. a `Sheet`), then handles rename events for fields
-   * and decorators.
+   * Called before property changes or modifications in child elements (decorators, field groups).
+   *  Notifies this table's observer, then handles rename events for decorators.
    *
    * @param event - The event describing the pending change.
    */
   override notifyBefore(event: Event): void {
-    // Bubble up to our observer (the parent, e.g. a `Sheet`)
     if (this.observer) {
       this.observer.notifyBefore(event);
     }
-
-    const args = event.kwargs['args'];
-
-    if (args.length === 0) return;
 
     const sender = event.sender;
     if (
       sender instanceof Decorator &&
       event.methodName === 'name' &&
-      // If the decorator's observer is `this` table
       sender.observer === this
     ) {
-      this.onDecoratorRename(sender.name, args[0]);
-    } else if (sender instanceof Field && event.methodName === 'name') {
-      this.onFieldRename(sender.name, args[0]);
+      this.onDecoratorRename(sender.name, event.kwargs['value']);
     }
   }
 
-  /**
-   * Handles a field renaming event, updating `_fieldIndices` so the new name is recognized.
-   *
-   * @param oldName - The old field name.
-   * @param newName - The new field name.
-   */
-  private onFieldRename(oldName: string, newName: string): void {
-    const index = this.findFieldIndex(oldName);
-    if (index === -1) {
-      throw new Error(`Field '${oldName}' not found`);
+  override notifyAfter(event: Event): void {
+    if (this.observer) {
+      this.observer.notifyAfter(event);
     }
-    if (newName in this._fieldIndices) {
-      throw new Error(`Field '${newName}' already exists`);
+
+    if (event.sender instanceof Totals) {
+      switch (event.methodName) {
+        case 'append':
+          this.onTotalAppend(event.kwargs['args'][0]);
+          break;
+        case 'setItem':
+          this.onTotalReplace(event.kwargs['args'][0], event.kwargs['args'][1]);
+          break;
+        case 'insert':
+          this.onTotalInsert(event.kwargs['args'][0], event.kwargs['args'][1]);
+          break;
+        case 'deleteItem':
+        case 'pop':
+          this.onTotalRemove(event.kwargs['args'][0]);
+          break;
+        default:
+          break;
+      }
     }
-    this._fieldIndices[newName] = this._fieldIndices[oldName];
-    delete this._fieldIndices[oldName];
   }
 
   /**
@@ -627,8 +764,8 @@ export class Table extends ObservableObserver {
    * @param newName - The new decorator name.
    */
   private onDecoratorRename(oldName: string, newName: string): void {
-    const index = this.findDecoratorIndex(oldName);
-    if (index === -1) {
+    const idx = this.findDecorator(oldName);
+    if (idx === -1) {
       throw new Error(`Decorator '${oldName}' not found`);
     }
     if (newName in this._decoratorIndices) {
@@ -643,20 +780,8 @@ export class Table extends ObservableObserver {
    */
   private updateDecoratorIndices(): void {
     this._decoratorIndices = {};
-    this._decorators.forEach((decor, idx) => {
-      this._decoratorIndices[decor.name] = idx;
-    });
-  }
-
-  /**
-   * Rebuilds the `_fieldIndices` map by enumerating the current fields (ignoring raw string entries).
-   */
-  private updateFieldIndices(): void {
-    this._fieldIndices = {};
-    this._fields.forEach((f, idx) => {
-      if (f instanceof Field) {
-        this._fieldIndices[f.name] = idx;
-      }
+    this._decorators.forEach((decor, i) => {
+      this._decoratorIndices[decor.name] = i;
     });
   }
 
@@ -668,12 +793,10 @@ export class Table extends ObservableObserver {
    * @returns A fully reconstructed `Table` instance.
    */
   public static deserialize(reader: Reader): Table {
-    // Create a temporary table with an empty name, then fill in fields
     const result = new Table('');
-    // `_before`
     result._before = reader.next((d) => d.span.from);
 
-    // doc_string (docs)
+    // docs
     const docEntities = reader.entity?.docs ?? [];
     if (docEntities.length > 0) {
       const docs: DocLine[] = [];
@@ -696,45 +819,28 @@ export class Table extends ObservableObserver {
       reader.position = decoratorReader.position;
     }
 
-    // prefix, table name, after_name
+    // prefix + table name + after_name
     result._prefix = reader.next((d) => d.name.span.from);
     result._name = reader.next((d) => d.name.span.to);
     result._afterName = reader.tillLinebreak();
+    result.fieldGroups = FieldGroups.deserialize(reader);
 
-    // fields
-    const fieldEntities = reader.entity?.fields ?? [];
-    for (const fieldEntity of fieldEntities) {
-      const fieldReader = reader.withEntity(fieldEntity);
-      // Possibly a snippet before the field
-      const unparsed = fieldReader.nextUnparsed((d) => d.span.from);
-      if (unparsed) {
-        result._fields.push(unparsed + fieldReader.tillLinebreak());
-      }
-      // Now the actual field
-      const field = Field.deserialize(fieldReader);
-      result._fields.push(field);
-      field.attach(result);
-      reader.position = fieldReader.position;
-    }
-
-    // apply & totals
+    // apply + totals
     const applyTotalEntities: any[] = [];
-
     const applyEntity = reader.entity?.apply;
     if (applyEntity) {
       applyTotalEntities.push(applyEntity);
     }
-
     const totalsEntities = reader.entity?.totals ?? [];
     for (const totalEntity of totalsEntities) {
       applyTotalEntities.push(totalEntity);
     }
-
-    // apply and totals can be written in any order
+    // sort by position
     applyTotalEntities.sort((a, b) => a.span.from - b.span.from);
 
     for (const applyTotalEntity of applyTotalEntities) {
       if (applyTotalEntity === applyEntity) {
+        // parse apply
         const applyReader = reader.withEntity(applyEntity);
         const applyObj = Apply.deserialize(applyReader);
         result._applyIndex = result._applyTotals.length;
@@ -742,10 +848,10 @@ export class Table extends ObservableObserver {
         applyObj.attach(result);
         reader.position = applyReader.position;
       } else {
+        // parse total
         const totalReader = reader.withEntity(applyTotalEntity);
         const totalObj = Total.deserialize(totalReader);
-        result._applyTotals.push(totalObj);
-        totalObj.attach(result);
+        result._totals.append(totalObj);
         reader.position = totalReader.position;
       }
     }
@@ -760,12 +866,8 @@ export class Table extends ObservableObserver {
       reader.position = overridesReader.position;
     }
 
-    // after
     result._after = reader.next((d) => d.span.to);
-
-    // Rebuild indices
     result.updateDecoratorIndices();
-    result.updateFieldIndices();
 
     return result;
   }

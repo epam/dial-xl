@@ -20,14 +20,14 @@ async def async_report(
             if not len(report.queries):
                 continue
 
-            name = f"{report.status.upper()}-{report.name}"
-            hint_path = f"{report_data_folder}/{name}[{i}]/.hints.ai"
+            name = f"{report.status.upper()}-{report.name}[{report.index}]"
+            hint_path = f"{report_data_folder}/{name}/.hints.ai"
 
             if report.ai_hints_text:
                 await api.create_file(hint_path, ".hints.ai", report.ai_hints_text)
 
             project = await util.create_project_from_code(
-                f"{report_folder}/{name}[{i}].qg", report.queries[-1].sheets
+                f"{report_folder}/{name}.qg", report.queries[-1].sheets
             )
             await project.save()
 

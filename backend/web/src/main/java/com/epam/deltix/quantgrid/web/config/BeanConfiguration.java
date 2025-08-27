@@ -1,11 +1,17 @@
 package com.epam.deltix.quantgrid.web.config;
 
-import com.epam.deltix.quantgrid.engine.cache.Cache;
+import com.epam.deltix.quantgrid.engine.Engine;
+import com.epam.deltix.quantgrid.engine.GraphCallback;
 import com.epam.deltix.quantgrid.engine.cache.SoftCache;
 import com.epam.deltix.quantgrid.engine.executor.ExecutorUtil;
-import com.epam.deltix.quantgrid.engine.service.input.storage.DialInputProvider;
+import com.epam.deltix.quantgrid.engine.node.plan.local.EmbeddingIndexLocal;
 import com.epam.deltix.quantgrid.engine.service.input.storage.InputProvider;
-import com.epam.deltix.quantgrid.engine.service.input.storage.LocalInputProvider;
+import com.epam.deltix.quantgrid.engine.service.input.storage.dial.DialInputProvider;
+import com.epam.deltix.quantgrid.engine.service.input.storage.local.LocalInputProvider;
+import com.epam.deltix.quantgrid.engine.store.Store;
+import com.epam.deltix.quantgrid.engine.store.dial.DialLock;
+import com.epam.deltix.quantgrid.engine.store.dial.DialStore;
+import com.epam.deltix.quantgrid.engine.store.local.LocalStore;
 import com.epam.deltix.quantgrid.util.DialFileApi;
 import okhttp3.OkHttpClient;
 import org.redisson.Redisson;
@@ -22,6 +28,7 @@ import org.springframework.web.client.RestTemplate;
 
 import java.net.MalformedURLException;
 import java.nio.file.Path;
+import java.time.Clock;
 import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -44,8 +51,8 @@ public class BeanConfiguration {
 
     @Bean
     @ConditionalOnDialStorageEnabled
-    public DialFileApi dialFileApi(@Value("${web.storage.dial.baseUrl}") String dialBaseUrl) {
-        return new DialFileApi(dialBaseUrl);
+    public DialFileApi dialFileApi(@Value("${web.storage.dial.baseUrl}") String dialBaseUrl, OkHttpClient okHttpClient) {
+        return new DialFileApi(dialBaseUrl, okHttpClient);
     }
 
     @Bean
@@ -63,16 +70,11 @@ public class BeanConfiguration {
     }
 
     @Bean
-    public ExecutorService engineExecutorService() {
-        return ExecutorUtil.fixedThreadExecutor();
-    }
-
-    @Bean
     @ConditionalOnDialStorageEnabled
     public AuthenticationManager authenticationManager(
             @Value("${web.storage.dial.baseUrl}") String dialBaseUrl,
             OkHttpClient okHttpClient) throws MalformedURLException {
-        return new ProviderManager(List.of(new ApiKeyAuthenticationProvider(dialBaseUrl, okHttpClient)));
+        return new ProviderManager(List.of(new DialAuthProvider(dialBaseUrl, okHttpClient)));
     }
 
     @Bean
@@ -82,14 +84,53 @@ public class BeanConfiguration {
     }
 
     @Bean
-    public Cache engineCache() {
-        return new SoftCache();
+    public Engine engine(InputProvider provider, Store store) {
+        SoftCache cache = new SoftCache();
+        ExecutorService executor = ExecutorUtil.fixedThreadExecutor();
+        ExecutorService indexExecutor = ExecutorUtil.indexThreadExecutor();
+        GraphCallback callback = new GraphCallback() {
+        };
+        return new Engine(cache, executor, indexExecutor, callback, provider, store, EmbeddingIndexLocal.class::isInstance);
     }
 
     @Bean
-    public OkHttpClient okHttpClient(@Value("${web.heartbeatPeriodMillis}") long heartbeatPeriod) {
+    public OkHttpClient okHttpClient(
+            @Value("${web.client.connectTimeout:10000}") long connectTimeout,
+            @Value("${web.client.readTimeout:120000}") long readTimeout,
+            @Value("${web.client.writeTimeout:10000}") long writeTimeout,
+            @Value("${web.client.callTimeout:600000}") long callTimeout) {
         return new OkHttpClient.Builder()
-                .readTimeout(Duration.ofMillis(2 * heartbeatPeriod)) // Default is 10 seconds
+                .connectTimeout(Duration.ofMillis(connectTimeout))
+                .readTimeout(Duration.ofMillis(readTimeout))
+                .writeTimeout(Duration.ofMillis(writeTimeout))
+                .callTimeout(Duration.ofMillis(callTimeout))
                 .build();
+    }
+
+    @Bean
+    @ConditionalOnDialStorageEnabled
+    public DialStore dialResultStore(
+            Clock clock,
+            DialFileApi dialFileApi,
+            @Value("${web.storage.dial.appKey}") String key,
+            @Value("${web.storage.dial.results.path:.cache/}") String resultsPath,
+            @Value("${web.storage.dial.results.lock.accessTtl:300s}") Duration accessLockTtl,
+            @Value("${web.storage.dial.results.lock.accessRefreshInterval:150s}") Duration refreshInterval,
+            @Value("${web.storage.dial.results.lock.deleteTtlSec:60s}") Duration deleteLockTtl,
+            @Value("${web.storage.dial.results.cleanup.deleteAfter:7d}") Duration deleteAfter) {
+        DialToken dialToken = new DialToken("api-key", key);
+        DialLock lock = new DialLock(clock, dialFileApi, accessLockTtl, deleteLockTtl);
+        return new DialStore(clock, dialFileApi, lock, dialToken, resultsPath, refreshInterval, deleteAfter);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(Store.class)
+    public LocalStore localResultStore(@Value("${web.storage.local.resultsFolder}") String resultsFolder) {
+        return new LocalStore(Path.of(resultsFolder));
+    }
+
+    @Bean
+    public Clock clock() {
+        return Clock.systemUTC();
     }
 }

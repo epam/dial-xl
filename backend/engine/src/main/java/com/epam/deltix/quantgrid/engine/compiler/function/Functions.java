@@ -52,14 +52,15 @@ public class Functions {
             new Function("UNPIVOT", "Make a pivot longer table from a table",
                     List.of(CREATE_TABLE, TABLE),
                     new Argument("table", "the table to unpivot"),
-                    new Argument("new_name_field", "the name of the new field which contains original field names"),
-                    new Argument("new_value_field", "the name of the new field which contains original field values"),
-                    new Argument("field_condition", "the condition to filter the field names by", false, true)),
+                    new Argument("preserve_list", "the list of column names to leave and not to unpivot"),
+                    new Argument("include_list", "the list of column names to unpivot, cannot be specified with exclude_list", false, true),
+                    new Argument("exclude_list", "the list of column names not to unpivot, cannot be specified with include_list", false, true)),
             new Function("PIVOT", "Make a pivot wider table from a table",
                     List.of(CREATE_TABLE, TABLE),
-                    new Argument("table", "the table to pivot"),
-                    new Argument("field", "the expression from which make the pivoted fields"),
-                    new Argument("aggregation", "to aggregate the values for the pivoted fields")),
+                    new Argument("rows", "a table or array to make rows from"),
+                    new Argument("columns", "a table or array to make columns from"),
+                    new Argument("values", "a table or array to make aggregation values from"),
+                    new Argument("aggregation", "a aggregation function. Examples: \"SUM\" or \"COUNT\"")),
             new Function("COUNT", "Count rows of a table or elements of an array",
                     List.of(AGGREGATIONS),
                     new Argument("table_or_array", "to count")),
@@ -150,8 +151,7 @@ public class Functions {
                     new Argument("values", "the values to concatenate", true)),
             new Function("TEXT", "Convert a value to text",
                     List.of(TEXT),
-                    new Argument("value", "the value to convert"),
-                    new Argument("format", "the date format only for dates", false, true)),
+                    new Argument("value", "the value to convert")),
             new Function("VALUE", "Convert text to a number",
                     List.of(TEXT),
                     new Argument("text", "the text to convert")),
@@ -340,8 +340,35 @@ public class Functions {
             new Function("IN", "Check if an element is present in an array",
                     List.of(ARRAY, LOGICAL),
                     new Argument("element", "The element to check for presence"),
-                    new Argument("array", "The array to check within"))
-    );
+                    new Argument("array", "The array to check within")),
+            new Function("PERCENTILE", "Returns the k-th percentile of values in an array, where k is in the range [0, 1] (inclusive).",
+                    List.of(AGGREGATIONS),
+                    new Argument("array", "Array of numbers."),
+                    new Argument("percentile", "Percentile to compute, between 0 and 1 inclusive (e.g., 0.25 for the 25th percentile).")),
+            new Function("PERCENTILE_EXC", "Returns the k-th percentile of values in an array, where k is in the range (0, 1) (exclusive).",
+                    List.of(AGGREGATIONS),
+                    new Argument("array", "Array of numbers."),
+                    new Argument("percentile", "Percentile to compute, between 0 and 1 exclusive (e.g., 0.25 for the 25th percentile).")),
+            new Function("QUARTILE", "Returns the value at a specified quartile of a data set, using the inclusive method.",
+                    List.of(AGGREGATIONS),
+                    new Argument("array", "Array of numbers."),
+                    new Argument("quartile", """
+                        Quartile to return:
+                        0 - Minimum value
+                        1 - First quartile (25th percentile)
+                        2 - Second quartile (median, 50th percentile)
+                        3 - Third quartile (75th percentile)
+                        4 - Maximum value
+                        """)),
+            new Function("QUARTILE_EXC", "Returns the value at a specified quartile of a data set, using the exclusive method.",
+                    List.of(AGGREGATIONS),
+                    new Argument("array", "Array of numbers."),
+                    new Argument("quartile", """
+                        Quartile to return:
+                        1 - First quartile (25th percentile)
+                        2 - Second quartile (median, 50th percentile)
+                        3 - Third quartile (75th percentile)
+                        """)));
 
     private static final Map<String, Function> FUNCTION_MAP = FUNCTIONS.stream()
             .collect(Collectors.toUnmodifiableMap(Function::name, java.util.function.Function.identity()));

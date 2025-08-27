@@ -2,12 +2,13 @@ export const formulaEditorId = 'formulaEditor';
 export const formulaBarInput = 'formulaBarInput';
 export const codeEditorId = 'codeEditorId';
 export const projectTreeId = 'projectTree';
+export const projectPanelWrapperId = 'projectPanelWrapper';
+export const projectPanelSectionHeaderClass = 'project-panel-section-header';
+export const conversationsTreeId = 'conversationsTree';
 export const overrideKeyFieldMessage =
   'Override of the key column is not supported.';
 export const makeKeyFieldWithOverridesMessage =
   'Making a column a key column when it has overrides is not supported.';
-export const overrideComplexFieldMessage =
-  'Override of the column with complex type is not supported.';
 export const overrideFilteredOrSortedFieldMessage =
   'Changing sort/filter columns are not allowed for table without key. Please assign keys.';
 
@@ -16,17 +17,27 @@ export const defaultFieldName = 'Column1';
 
 export const formulaBarMenuClass = 'formula-bar-menu';
 
-export const filesEndpointPrefix = '/v1/files';
+export const filesEndpointType = 'files';
+export const conversationsEndpointType = 'conversations';
+
+export const filesEndpointPrefix = `/v1/${filesEndpointType}`;
+export const conversationsEndpointPrefix = `/v1/${conversationsEndpointType}`;
 export const dialProjectFileExtension = '.qg';
 export const dialAIHintsFileName = '.hints.ai';
 export const csvFileExtension = '.csv';
 export const schemaFileExtension = '.schema';
 export const emptyFileName = '.file';
+export const projectMetadataSettingsKey = 'projectMetadata';
+export const forkedProjectMetadataKey = 'forkedFrom';
 
-export const projectFoldersRootPrefix = 'appdata/xl';
+export const projectFolderAppdata = 'appdata';
+export const projectFolderXl = 'xl';
+export const projectFoldersRootPrefix =
+  projectFolderAppdata + '/' + projectFolderXl;
 export const csvTempFolder = '.temp';
 
 export const bindConversationsRootFolder = 'xl';
+export const bindConversationsSharedRootFolder = 'shared-xl';
 
 export const publicBucket = 'public';
 export const publicExamplesFolderRootPrefix = 'xl-examples';
@@ -54,6 +65,10 @@ export const apiMessages = {
     'Server error happened during getting shared with you files',
   getSharedWithMeFilesClient:
     'Client error happened during getting shared with you files',
+  getSharedWithMeConversationsServer:
+    'Server error happened during getting shared with you conversations',
+  getSharedWithMeConversationsClient:
+    'Client error happened during getting shared with you conversations',
   getBucketServer: 'Server error happened during receiving bucket.',
   getBucketClient: 'Client error happened during receiving bucket.',
   getProjectServer: 'Server error happened during getting project information.',
@@ -91,6 +106,8 @@ export const apiMessages = {
     'Client error happened during discard shared resource.',
   acceptShareProjectServer:
     'Server error happened during accepting share request project.',
+  acceptShareProjectNotFoundServer:
+    'The share link has expired or does not exist.',
   acceptShareProjectClient:
     'Client error happened during accepting share request project.',
   fileAlreadyExist: 'File already exist.',
@@ -114,6 +131,17 @@ export const apiMessages = {
   computationForbidden: 'Unauthorized computation request.',
   cloneFileServer: 'Server error happened during cloning files',
   cloneFileClient: 'Client error happened during cloning files',
+  getConversationsServer: 'Server error happened during getting conversations',
+  cloneConversationsServer:
+    'Server error happened during cloning conversations',
+  cloneConversationsClient:
+    'Client error happened during cloning conversations',
+  deleteConversationServer:
+    'Server error happened during deleting conversation',
+  deleteConversationClient:
+    'Client error happened during deleting conversation',
+  moveConversationServer: 'Server error happened during moving conversation',
+  moveConversationClient: 'Client error happened during moving conversation',
   cloneProjectServer: 'Server error happened during cloning project',
   cloneProjectClient: 'Client error happened during cloning project',
   renameFileServer: 'Server error happened during file rename',
@@ -122,6 +150,14 @@ export const apiMessages = {
   moveToFolderClient: 'Client error happened during moving files',
   createFolderServer: 'Server error happened during creating folder',
   createFolderClient: 'Client error happened during creating folder',
+  projectCancelServer:
+    'Server error happened during cancelling project long computation',
+  projectCancelClient:
+    'Client error happened during cancelling project long computation',
+  projectCalculateServer:
+    'Server error happened during starting project long computation',
+  projectCalculateClient:
+    'Client error happened during starting project long computation',
 };
 
 export const appMessages = {
@@ -136,7 +172,9 @@ export const appMessages = {
     'Error happened during getting spreadsheet data. Please refresh the page',
   parseSheetError: 'There was an error while parsing the sheet.',
   shareLinkCreateError:
-    'Error happened during gathering info about project to create share links.',
+    'Error happened during gathering info about resources to create share links.',
+  shareNotAllowedError:
+    'Some of the resources you are trying to share is not allowed to be shared. You can clone the project and share it instead',
   revokeAccessSuccess: 'Access to resource successfully revoked',
   discardAccessSuccess: 'Access to resource successfully discarded',
   renameFileSuccess: 'File successfully renamed',
@@ -144,8 +182,25 @@ export const appMessages = {
   projectMoveSuccess: 'Project successfully moved',
   fileMoveSuccess: 'File successfully moved',
   fileCloneSuccess: 'File successfully cloned',
+  resetProjectError: 'Error happened during resetting project',
+  resetProjectSuccess: 'Project successfully reset to the base project',
   projectCloneSuccess: (projectToClone: string, newClonedProject: string) =>
     `Project "${projectToClone}" successfully cloned to new project "${newClonedProject}"`,
   fileUploadSchemaError: (fileName: string, errorMessage: string) =>
     `Getting error for ${fileName}: "${errorMessage}".`,
+};
+
+export const disabledTooltips = {
+  notAllowedShare:
+    'You are not able to share this project because the author did not allow this.',
+  notAllowedDelete:
+    'You are not allowed to delete projects which are not yours',
+  notAllowedRename:
+    'You are not allowed to rename projects which are not yours',
+  noExplicitFormatToReset: `Column have only inherited format, but no explicit format. To apply general formatting just use dropdown value 'General'`,
+  pendingAIChanges:
+    'Please accept or discard pending AI change before continue working with project',
+  readonlyProject:
+    'You are not able to edit readonly project. Clone it to being able to edit.',
+  notAllowedChanges: 'You are not able to make changes in this project.',
 };

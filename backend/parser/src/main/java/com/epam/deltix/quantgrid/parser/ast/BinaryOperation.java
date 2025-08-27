@@ -11,28 +11,27 @@ import java.util.stream.Collectors;
 @Getter
 @AllArgsConstructor
 public enum BinaryOperation {
-    ADD("+", false, false),
-    SUB("-", false, false),
-    MUL("*", false, false),
-    DIV("/", false, false),
-    POW("^", false, false),
-    LT("<", true, true),
-    GT(">", true, true),
-    LTE("<=", true, true),
-    GTE(">=", true, true),
-    NEQ("<>", true, true),
-    EQ("=", true, true),
-    AND("AND", false, true),
-    OR("OR", false, true),
-    MOD("MOD", false, false),
-    CONCAT("&", true, false);
+    ADD("+", false),
+    SUB("-", false),
+    MUL("*", false),
+    DIV("/", false),
+    POW("^", false),
+    LT("<", true),
+    GT(">", true),
+    LTE("<=", true),
+    GTE(">=", true),
+    NEQ("<>", true),
+    EQ("=", true),
+    AND("AND", false),
+    OR("OR", false),
+    MOD("MOD", false),
+    CONCAT("&", true);
 
     private static final Map<String, BinaryOperation> OPERATIONS = Arrays.stream(BinaryOperation.values())
             .collect(Collectors.toUnmodifiableMap(BinaryOperation::getSymbol, Function.identity()));
 
     private final String symbol;
     private final boolean allowStrings;
-    private final boolean isLogical;
 
     public static BinaryOperation parse(String s) {
         BinaryOperation operation = OPERATIONS.get(s);

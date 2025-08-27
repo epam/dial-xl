@@ -1,51 +1,36 @@
 package com.epam.deltix.quantgrid.engine.embeddings;
 
-import ai.djl.MalformedModelException;
-import ai.djl.huggingface.translator.TextEmbeddingTranslatorFactory;
-import ai.djl.repository.zoo.Criteria;
-import ai.djl.repository.zoo.ModelNotFoundException;
-import ai.djl.repository.zoo.ZooModel;
-import ai.djl.training.util.ProgressBar;
 import lombok.Getter;
 
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 public class EmbeddingModels {
-    public final static List<String> MODEL_NAMES = List.of("bge-small-en-v1.5", "multilingual-e5-small");
+    public static final List<String> MODEL_NAMES = List.of("bge-small-en-v1.5", "multilingual-e5-small");
 
     @Getter
-    private final static Map<String, ZooModel<String, float[]>> models = new HashMap<>();
+    private static final Map<String, EmbeddingModel> models = new HashMap<>();
 
     static {
-        for (String modelName : MODEL_NAMES) {
-            Criteria<String, float[]> criteria =
-                    Criteria.builder()
-                            .setTypes(String.class, float[].class)
-                            .optModelUrls("jar:///%s.zip".formatted(modelName))
-                            .optEngine("PyTorch")
-                            .optTranslatorFactory(new TextEmbeddingTranslatorFactory())
-                            .optProgress(new ProgressBar())
-                            .build();
-
-            ZooModel<String, float[]> model;
-            try {
-                model = criteria.loadModel();
-
-                models.put(modelName, model);
-            } catch (IOException | ModelNotFoundException | MalformedModelException e) {
-                throw new RuntimeException(e);
+        String modelsFolder = System.getProperty("qg.embedding.models.path", "embedding_models");
+        String executionModeHint = System.getProperty("qg.embedding.execution.mode", "PERFORMANCE");
+        try {
+            for (String modelName : MODEL_NAMES) {
+                models.put(modelName, EmbeddingModel.load(Path.of(modelsFolder), modelName, executionModeHint));
             }
+        } catch (IOException e) {
+            throw new RuntimeException(e);
         }
     }
 
-    public static ZooModel<String, float[]> getModel(String name) {
-        return models.getOrDefault(name, null);
+    public static void load() {
+        MODEL_NAMES.size(); // preload
     }
 
-    public static String getQueryPrefix(String name) {
+    private static String getQueryPrefix(String name) {
         return switch (name) {
             case "bge-small-en-v1.5" -> "";
             case "multilingual-e5-small" -> "query: ";
@@ -53,7 +38,7 @@ public class EmbeddingModels {
         };
     }
 
-    public static String getDocumentPrefix(String name) {
+    private static String getDocumentPrefix(String name) {
         return switch (name) {
             case "bge-small-en-v1.5" -> "";
             case "multilingual-e5-small" -> "passage: ";

@@ -1,9 +1,10 @@
 from typing import List
 
 from aidial_sdk.chat_completion import Stage
+from dial_xl.project import Project
 
+from quantgrid.utils.project import FieldGroupUtil
 from quantgrid_1.models.action import Action
-from quantgrid_1.models.project import Project
 
 
 async def filter_errors(project: Project, actions: List[Action]) -> List[str]:
@@ -23,9 +24,15 @@ async def filter_errors(project: Project, actions: List[Action]) -> List[str]:
             if table.name not in changed_tables:
                 continue
 
-            for field in table.fields:
+            fields = FieldGroupUtil.get_table_fields(table)
+            for field in fields:
                 if isinstance(field.field_type, str):
                     filtered_errors.append(field.field_type)
+
+            for override in table.overrides or []:
+                for name in override.names:
+                    if (error := override.error(name)) is not None:
+                        filtered_errors.append(error)
 
     return filtered_errors
 

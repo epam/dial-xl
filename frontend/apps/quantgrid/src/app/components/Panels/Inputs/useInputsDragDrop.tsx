@@ -6,7 +6,7 @@ import { InputChildData } from './useInputsContextMenu';
 
 export const useInputsDragDrop = (childData: InputChildData) => {
   const { getDropCell, handleDragEnd, handleDragOver } = useDND();
-  const { createDimTableFromDimensionFormula } = useRequestDimTable();
+  const { requestDimSchemaForDimFormula } = useRequestDimTable();
 
   const [draggedPath, setDraggedPath] = useState<string>('');
 
@@ -19,18 +19,13 @@ export const useInputsDragDrop = (childData: InputChildData) => {
       e.preventDefault();
       const { col, row } = dropCell;
       const formula = `:INPUT("${draggedPath}")`;
-      createDimTableFromDimensionFormula(col, row, formula);
+      requestDimSchemaForDimFormula(col, row, formula);
 
       setDraggedPath('');
 
       handleDragEnd();
     },
-    [
-      createDimTableFromDimensionFormula,
-      draggedPath,
-      getDropCell,
-      handleDragEnd,
-    ]
+    [requestDimSchemaForDimFormula, draggedPath, getDropCell, handleDragEnd]
   );
 
   const onDragOver = useCallback(

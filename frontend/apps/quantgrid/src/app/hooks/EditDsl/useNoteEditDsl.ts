@@ -2,8 +2,8 @@ import { useCallback } from 'react';
 
 import { noteToComment } from '@frontend/common';
 
-import { useDSLUtils } from '../ManualEditDSL';
 import { useSafeCallback } from '../useSafeCallback';
+import { useDSLUtils } from './useDSLUtils';
 
 export function useNoteEditDsl() {
   const { updateDSL, findEditContext } = useDSLUtils();

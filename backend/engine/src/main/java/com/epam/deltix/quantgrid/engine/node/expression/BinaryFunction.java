@@ -1,5 +1,9 @@
 package com.epam.deltix.quantgrid.engine.node.expression;
 
+import com.epam.deltix.quantgrid.engine.compiler.result.format.BooleanFormat;
+import com.epam.deltix.quantgrid.engine.compiler.result.format.ColumnFormat;
+import com.epam.deltix.quantgrid.engine.compiler.result.format.DateFormat;
+import com.epam.deltix.quantgrid.engine.compiler.result.format.GeneralFormat;
 import com.epam.deltix.quantgrid.engine.node.expression.utils.DateFunctions;
 import com.epam.deltix.quantgrid.engine.node.expression.utils.DoubleFunctions;
 import com.epam.deltix.quantgrid.engine.node.expression.utils.StringFunctions;
@@ -12,7 +16,7 @@ import com.epam.deltix.quantgrid.engine.value.local.StringLambdaColumn;
 import com.epam.deltix.quantgrid.type.ColumnType;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
-import org.apache.commons.lang3.StringUtils;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.function.BinaryOperator;
 import java.util.function.DoubleBinaryOperator;
@@ -85,18 +89,20 @@ public class BinaryFunction extends Expression2<Column, Column, Column> {
     @Getter
     @AllArgsConstructor
     public enum Type {
-        CONTAINS(ColumnType.STRING, ColumnType.STRING, ColumnType.BOOLEAN),
-        LEFT(ColumnType.STRING, ColumnType.INTEGER, ColumnType.STRING),
-        LOG(ColumnType.DOUBLE, ColumnType.DOUBLE, ColumnType.DOUBLE),
-        RIGHT(ColumnType.STRING, ColumnType.INTEGER, ColumnType.STRING),
-        STRIP(ColumnType.STRING, ColumnType.STRING, ColumnType.STRING),
-        STRIP_END(ColumnType.STRING, ColumnType.STRING, ColumnType.STRING),
-        STRIP_START(ColumnType.STRING, ColumnType.STRING, ColumnType.STRING),
-        WORKDAY(ColumnType.DATE, ColumnType.INTEGER, ColumnType.DATE);
+        CONTAINS(ColumnType.STRING, ColumnType.STRING, ColumnType.DOUBLE, BooleanFormat.INSTANCE),
+        LEFT(ColumnType.STRING, ColumnType.DOUBLE, ColumnType.STRING, GeneralFormat.INSTANCE),
+        LOG(ColumnType.DOUBLE, ColumnType.DOUBLE, ColumnType.DOUBLE, GeneralFormat.INSTANCE),
+        RIGHT(ColumnType.STRING, ColumnType.DOUBLE, ColumnType.STRING, GeneralFormat.INSTANCE),
+        STRIP(ColumnType.STRING, ColumnType.STRING, ColumnType.STRING, GeneralFormat.INSTANCE),
+        STRIP_END(ColumnType.STRING, ColumnType.STRING, ColumnType.STRING, GeneralFormat.INSTANCE),
+        STRIP_START(ColumnType.STRING, ColumnType.STRING, ColumnType.STRING, GeneralFormat.INSTANCE),
+        WORKDAY(ColumnType.DOUBLE, ColumnType.DOUBLE, ColumnType.DOUBLE, DateFormat.DEFAULT_DATE_FORMAT);
 
         private final ColumnType argument1Type;
         private final ColumnType argument2Type;
         private final ColumnType resultType;
+        @Nullable
+        private final ColumnFormat resultFormat;
     }
 
     @FunctionalInterface

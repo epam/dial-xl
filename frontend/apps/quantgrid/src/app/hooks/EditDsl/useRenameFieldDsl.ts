@@ -4,7 +4,6 @@ import {
   ApplyFilter,
   ApplySort,
   escapeFieldName,
-  Field,
   findFieldNameInExpression,
   getLayoutParams,
   layoutDecoratorName,
@@ -12,8 +11,9 @@ import {
 } from '@frontend/parser';
 
 import { createUniqueName } from '../../services';
-import { useDSLUtils } from '../ManualEditDSL';
 import { useSafeCallback } from '../useSafeCallback';
+import { useDSLUtils } from './useDSLUtils';
+import { indexOffset } from './useTotalEditDsl';
 import { editLayoutDecorator } from './utils';
 
 export function useRenameFieldDsl() {
@@ -90,7 +90,7 @@ export function useRenameFieldDsl() {
       }
 
       // Rename field totals
-      if (parsedTotal && parsedTotal.size > 0 && table.totalCount > 0) {
+      if (parsedTotal && parsedTotal.size > 0 && table.totals.length > 0) {
         const fieldTotals = parsedTotal.getFieldTotal(oldFieldName);
 
         if (fieldTotals) {
@@ -121,11 +121,9 @@ export function useRenameFieldDsl() {
                   updatedExpression.substring(end + 1);
               }
 
-              const targetTotal = table.getTotal(row);
+              const targetTotal = table.getTotal(row - indexOffset);
               targetTotal.removeField(oldFieldName);
-              targetTotal.addField(
-                new Field(uniqueNewFieldName, updatedExpression)
-              );
+              targetTotal.addField(uniqueNewFieldName, updatedExpression);
             } catch (e) {
               // empty block
             }

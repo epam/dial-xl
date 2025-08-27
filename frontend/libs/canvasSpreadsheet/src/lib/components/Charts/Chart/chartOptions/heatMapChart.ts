@@ -12,7 +12,7 @@ export function organizeHeatMapChartData(
 ): OrganizedData | undefined {
   const data = chartData[chartConfig.tableName];
   const { gridChart } = chartConfig;
-  const { chartSections } = gridChart;
+  const { chartSections, chartOrientation } = gridChart;
 
   if (
     !data ||
@@ -27,26 +27,61 @@ export function organizeHeatMapChartData(
   if (!valueFieldNames.length) return;
 
   const firstField = valueFieldNames[0];
-  const firstFieldData = data[firstField];
-  if (!Array.isArray(firstFieldData)) {
-    return;
-  }
+  const firstFieldData = data[firstField]?.rawValues;
 
-  const xAxisData: string[] =
-    xAxisFieldName && Array.isArray(data[xAxisFieldName])
-      ? (data[xAxisFieldName] as string[])
+  if (!Array.isArray(firstFieldData)) return;
+
+  const rowLabels: string[] =
+    xAxisFieldName && Array.isArray(data[xAxisFieldName]?.rawValues)
+      ? (data[xAxisFieldName].rawValues as string[])
       : Array.from({ length: firstFieldData.length }, (_, i) =>
           (i + 1).toString()
         );
 
-  const yAxisData = [...valueFieldNames];
-  const seriesData: Array<[number, number, number | null]> = [];
+  const rowLabelsDisplay: string[] | undefined =
+    xAxisFieldName && Array.isArray(data[xAxisFieldName]?.displayValues)
+      ? (data[xAxisFieldName].displayValues as string[])
+      : undefined;
 
-  for (let i = 0; i < xAxisData.length; i++) {
-    for (let j = 0; j < valueFieldNames.length; j++) {
-      const valueFieldName = valueFieldNames[j];
-      const value = data[valueFieldName]?.[i] ?? null;
-      seriesData.push([i, j, Number(value)]);
+  const xDisplayByRaw = new Map<string, string>();
+  rowLabels.forEach((raw, i) => {
+    if (!xDisplayByRaw.has(raw)) {
+      xDisplayByRaw.set(raw, rowLabelsDisplay?.[i] ?? raw);
+    }
+  });
+
+  let xAxisData: string[];
+  let yAxisData: string[];
+  const seriesData: Array<[number, number, number | null, string]> = [];
+
+  if (chartOrientation === 'vertical') {
+    xAxisData = addLineBreaks([...valueFieldNames]);
+    yAxisData = addLineBreaks(
+      rowLabels.map((raw) => xDisplayByRaw.get(raw) ?? raw)
+    );
+
+    for (let rowIdx = 0; rowIdx < rowLabels.length; rowIdx++) {
+      for (let colIdx = 0; colIdx < valueFieldNames.length; colIdx++) {
+        const fieldName = valueFieldNames[colIdx];
+        const value = data[fieldName]?.rawValues[rowIdx] ?? null;
+        const displayValue = data[fieldName]?.displayValues?.[rowIdx] as string;
+        seriesData.push([colIdx, rowIdx, Number(value), displayValue]);
+      }
+    }
+  } else {
+    const sortedRowLabels = sortNumericOrText(rowLabels);
+    xAxisData = addLineBreaks(
+      sortedRowLabels.map((raw) => xDisplayByRaw.get(raw) ?? raw)
+    );
+    yAxisData = [...valueFieldNames];
+
+    for (let colIdx = 0; colIdx < rowLabels.length; colIdx++) {
+      for (let rowIdx = 0; rowIdx < valueFieldNames.length; rowIdx++) {
+        const fieldName = valueFieldNames[rowIdx];
+        const value = data[fieldName]?.rawValues[colIdx] ?? null;
+        const displayValue = data[fieldName]?.displayValues?.[colIdx] as string;
+        seriesData.push([colIdx, rowIdx, Number(value), displayValue]);
+      }
     }
   }
 
@@ -54,12 +89,7 @@ export function organizeHeatMapChartData(
 
   const visualMapMax = Math.max(...seriesData.map(([, , value]) => value ?? 0));
 
-  return {
-    xAxisData: addLineBreaks(sortNumericOrText(xAxisData)),
-    yAxisData,
-    seriesData,
-    visualMapMax,
-  };
+  return { xAxisData, yAxisData, seriesData, visualMapMax };
 }
 
 export function getHeatMapChartOption({
@@ -121,6 +151,7 @@ export function getHeatMapChartOption({
       left: 'center',
       height: getValue(20),
       bottom: getValue(2),
+      dimension: 2,
     },
     series: [
       {
@@ -132,12 +163,19 @@ export function getHeatMapChartOption({
           fontSize,
           width: getValue(50),
           overflow: 'truncate',
+          formatter: (p: any) => p.data?.[3] ?? p.data?.[2],
         },
         emphasis: {
           itemStyle: {
             shadowBlur: 10,
             shadowColor: 'rgba(0, 0, 0, 0.5)',
           },
+        },
+        encode: {
+          x: 0,
+          y: 1,
+          value: 2,
+          tooltip: 3,
         },
       },
     ],
@@ -148,6 +186,13 @@ export function getHeatMapChartOption({
       },
       backgroundColor: bgColor,
       borderColor: borderColor,
+      formatter: (params: any) => {
+        const { marker, data, name } = params;
+
+        return `${marker}${name}<span style="float: right; margin-left: 20px"><b>${
+          data?.[3] || data?.[2] || ''
+        }</b></span>`;
+      },
     },
   };
 }

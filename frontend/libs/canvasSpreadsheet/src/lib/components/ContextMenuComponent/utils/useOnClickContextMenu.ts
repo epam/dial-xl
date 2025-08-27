@@ -6,9 +6,6 @@ import {
   defaultFieldName,
   FormulasContextMenuKeyData,
   InsertChartContextMenuKeyData,
-  isComplexType,
-  overrideComplexFieldMessage,
-  overrideKeyFieldMessage,
   TableArrangeType,
 } from '@frontend/common';
 
@@ -61,7 +58,10 @@ export function useOnClickContextMenu({ api, gridCallbacks }: Props) {
       const data: ContextMenuKeyData = parsedKey.data;
       const action: string = parsedKey.action;
 
-      if ((data as any as FormulasContextMenuKeyData).insertFormula) {
+      if (
+        (data as any as FormulasContextMenuKeyData).insertFormula ||
+        (data as any as FormulasContextMenuKeyData).type === 'pivot'
+      ) {
         const formulaData = data as FormulasContextMenuKeyData;
         onClickFormulaContextItem(action, formulaData);
 
@@ -124,10 +124,14 @@ export function useOnClickContextMenu({ api, gridCallbacks }: Props) {
           }
           break;
         case menuKey.swapLeft:
-          callbacks.onSwapFields?.('left');
-          break;
         case menuKey.swapRight:
-          callbacks.onSwapFields?.('right');
+          if (currentTableName && currentFieldName) {
+            callbacks.onSwapFields?.(
+              currentTableName,
+              currentFieldName,
+              action === menuKey.swapLeft ? 'left' : 'right'
+            );
+          }
           break;
         case menuKey.increaseFieldWidth:
           if (currentTableName && currentFieldName) {
@@ -292,30 +296,6 @@ export function useOnClickContextMenu({ api, gridCallbacks }: Props) {
               action === menuKey.removeDimension
             );
           }
-          break;
-        case menuKey.addOverride:
-        case menuKey.editOverride:
-          if (currentCell?.field?.isKey) {
-            callbacks.onMessage?.(overrideKeyFieldMessage);
-
-            break;
-          }
-
-          if (isComplexType(currentCell?.field)) {
-            callbacks.onMessage?.(overrideComplexFieldMessage);
-
-            break;
-          }
-
-          api.cellEditorEvent$.next({
-            type:
-              action === menuKey.addOverride
-                ? GridCellEditorEventType.AddOverride
-                : GridCellEditorEventType.EditOverride,
-            col,
-            row,
-          });
-
           break;
         case menuKey.removeOverride:
           if (

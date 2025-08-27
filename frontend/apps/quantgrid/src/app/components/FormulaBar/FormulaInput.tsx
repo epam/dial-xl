@@ -18,10 +18,13 @@ import {
   SetCodeRefFunction,
   SetFocusRefFunction,
 } from '@frontend/code-editor';
-import { isFormulaBarMonacoInputFocused } from '@frontend/common';
+import {
+  disabledTooltips,
+  isFormulaBarMonacoInputFocused,
+} from '@frontend/common';
 
 import { SelectedCellType } from '../../common';
-import { AppContext, ProjectContext } from '../../context';
+import { AppContext, ChatOverlayContext, ProjectContext } from '../../context';
 import { useGridApi } from '../../hooks';
 import useEventBus from '../../hooks/useEventBus';
 import {
@@ -47,8 +50,15 @@ type Props = {
 
 export function FormulaInput({ fieldName, inputIndex = 0 }: Props) {
   const eventBus = useEventBus<EventBusMessages>();
-  const { selectedCell, functions, parsedSheets, sheetContent } =
-    useContext(ProjectContext);
+  const {
+    selectedCell,
+    functions,
+    parsedSheets,
+    sheetContent,
+    isProjectEditable,
+  } = useContext(ProjectContext);
+  const { isAIPendingChanges, isAIEditPendingChanges } =
+    useContext(ChatOverlayContext);
   const {
     editMode,
     formulaBarMode,
@@ -331,10 +341,30 @@ export function FormulaInput({ fieldName, inputIndex = 0 }: Props) {
 
   const isReadOnly = useMemo(() => {
     return (
-      formulaBarMode === 'value' &&
-      selectedCell?.type === SelectedCellType.Total
+      (formulaBarMode === 'value' &&
+        selectedCell?.type === SelectedCellType.Total) ||
+      (isAIPendingChanges && !isAIEditPendingChanges) ||
+      !isProjectEditable
     );
-  }, [formulaBarMode, selectedCell]);
+  }, [
+    formulaBarMode,
+    isAIEditPendingChanges,
+    isAIPendingChanges,
+    isProjectEditable,
+    selectedCell?.type,
+  ]);
+
+  const readonlyMessage = useMemo(() => {
+    if (isAIPendingChanges) {
+      return { value: disabledTooltips.pendingAIChanges };
+    }
+
+    if (!isProjectEditable) {
+      return { value: disabledTooltips.readonlyProject };
+    }
+
+    return undefined;
+  }, [isAIPendingChanges, isProjectEditable]);
 
   useEffect(() => {
     const cellEditorUpdateValueListener = eventBus.subscribe(
@@ -387,8 +417,8 @@ export function FormulaInput({ fieldName, inputIndex = 0 }: Props) {
             language="formula-bar"
             options={{
               ...formulaEditorOptions,
-              domReadOnly: isReadOnly,
               readOnly: isReadOnly,
+              readOnlyMessage: readonlyMessage,
               wordWrap: formulaBarExpanded ? 'on' : 'off',
             }}
             parsedSheets={parsedSheets}

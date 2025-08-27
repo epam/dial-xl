@@ -2,14 +2,22 @@ package com.epam.deltix.quantgrid.engine.node.plan.local;
 
 import com.epam.deltix.quantgrid.engine.meta.Meta;
 import com.epam.deltix.quantgrid.engine.meta.Schema;
+import com.epam.deltix.quantgrid.engine.node.Identity;
+import com.epam.deltix.quantgrid.engine.node.NotSemantic;
 import com.epam.deltix.quantgrid.engine.node.plan.Plan;
 import com.epam.deltix.quantgrid.engine.node.plan.Plan1;
-import com.epam.deltix.quantgrid.engine.value.Value;
+import com.epam.deltix.quantgrid.engine.store.Store;
+import com.epam.deltix.quantgrid.engine.value.Table;
+import lombok.extern.slf4j.Slf4j;
 
-public class StoreLocal extends Plan1<Value, Value> {
+@Slf4j
+@NotSemantic
+public class StoreLocal extends Plan1<Table, Table> {
+    private final Store store;
 
-    public StoreLocal(Plan source) {
+    public StoreLocal(Plan source, Store store) {
         super(source);
+        this.store = store;
     }
 
     @Override
@@ -25,7 +33,17 @@ public class StoreLocal extends Plan1<Value, Value> {
     }
 
     @Override
-    protected Value execute(Value source) {
-        return source;
+    protected Table execute(Table table) {
+        for (Identity id : getIdentities()) {
+            int[] columns = id.columns();
+            Table selected = table.select(columns);
+            try {
+                store.save(id, selected);
+            } catch (Throwable e) {
+                log.error("Failed to save result for identity {}: {}", id, e.getMessage(), e);
+            }
+        }
+
+        return table;
     }
 }

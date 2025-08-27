@@ -22,8 +22,12 @@
         "tsConfig": "apps/quantgrid/tsconfig.app.json",
         "assets": [
           "apps/quantgrid/src/favicon.ico",
-          "apps/quantgrid/src/assets/fonts/Inconsolata-Regular.ttf",
-          "apps/quantgrid/src/assets/fonts/Inconsolata-Bold.ttf",
+          "apps/quantgrid/src/assets/logo/800-600.png",
+          "apps/quantgrid/src/assets/logo/1080-1080.png",
+          "apps/quantgrid/src/assets/logo/1200-600.png",
+          "apps/quantgrid/src/assets/logo/1200-630.png",
+          "apps/quantgrid/src/assets/fonts/JetBrainsMono-Bold.ttf",
+          "apps/quantgrid/src/assets/fonts/JetBrainsMono-Regular.ttf",
           "apps/quantgrid/src/assets/icons/canvasGrid"
         ],
         "styles": ["apps/quantgrid/src/styles.scss"],

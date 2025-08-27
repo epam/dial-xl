@@ -8,6 +8,7 @@ from antlr4.InputStream import InputStream
 from dial_xl.project import Project
 from dial_xl.table import Table
 
+from quantgrid.utils.project import FieldGroupUtil
 from quantgrid_2a.models import FunctionInfo
 from quantgrid_2a.pseudo.errors import ConversionError
 from quantgrid_2a.pseudo.generated.FormulaLexer import FormulaLexer
@@ -176,7 +177,7 @@ class Converter(FormulaVisitor):
         return name in self._parametrized_by
 
     def _is_column_parameter(self, name: str) -> bool:
-        return name in self._table.field_names
+        return name in FieldGroupUtil.get_table_field_names(self._table)
 
     def _is_table_reference(self, name) -> bool:
         for sheet in self._project.sheets:

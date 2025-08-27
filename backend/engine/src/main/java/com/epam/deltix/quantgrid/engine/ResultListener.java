@@ -1,7 +1,7 @@
 package com.epam.deltix.quantgrid.engine;
 
-import com.epam.deltix.quantgrid.engine.compiler.CompileKey;
-import com.epam.deltix.quantgrid.engine.compiler.result.CompiledResult;
+import com.epam.deltix.quantgrid.engine.compiler.Compilation;
+import com.epam.deltix.quantgrid.engine.node.Trace;
 import com.epam.deltix.quantgrid.engine.value.Table;
 import com.epam.deltix.quantgrid.parser.FieldKey;
 import com.epam.deltix.quantgrid.parser.ParsedKey;
@@ -9,14 +9,13 @@ import com.epam.deltix.quantgrid.parser.ParsedSheet;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
-import java.util.Map;
 
 public interface ResultListener {
 
     default void onParsing(List<ParsedSheet> sheets) {
     }
 
-    default void onCompilation(Map<CompileKey, CompiledResult> results, Map<ParsedKey, String> errors) {
+    default void onCompilation(Compilation compilation) {
     }
 
     default void onSimilaritySearch(FieldKey key,
@@ -28,8 +27,15 @@ public interface ResultListener {
                           long start,
                           long end,
                           boolean content,
+                          boolean raw,
                           @Nullable Table value,
                           @Nullable String error,
                           @Nullable ResultType resultType) {
+    }
+
+    default void onProfile(Trace trace, long startedAt, long stoppedAt, boolean completed) {
+    }
+
+    default void onIndex(FieldKey key, @Nullable Table value, @Nullable String error) {
     }
 }

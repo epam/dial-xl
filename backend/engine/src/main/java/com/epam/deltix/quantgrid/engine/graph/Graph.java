@@ -7,8 +7,10 @@ import lombok.Getter;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -78,6 +80,7 @@ public class Graph {
             }
 
             replacement.getIdentities().addAll(original.getIdentities());
+            replacement.getTraces().addAll(original.getTraces());
 
             original.getOutputs().clear();
             original.getIdentities().clear();
@@ -186,4 +189,19 @@ public class Graph {
     public boolean isEmpty() {
         return nodes.isEmpty();
     }
+
+    public Graph copy() {
+        Graph graph = new Graph();
+        Map<Node, Node> map = new HashMap<>();
+
+        visitOut(node -> {
+            List<Node> ins = node.getInputs().stream().map(map::get).toList();
+            Node copy = node.copy(ins);
+            graph.add(copy);
+            map.put(node, copy);
+        });
+
+        return graph;
+    }
+
 }

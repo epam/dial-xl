@@ -14,7 +14,7 @@ import {
   GridCellEditorEventType,
 } from '@frontend/canvas-spreadsheet';
 
-import { useGridApi, useManualModifyTableDSL } from '../hooks';
+import { useGridApi, useTableModifyDsl } from '../hooks';
 import { ProjectContext } from './ProjectContext';
 import { ViewportContext } from './ViewportContext';
 
@@ -57,7 +57,7 @@ export function AppSpreadsheetInteractionContextProvider({
   const { viewGridData } = useContext(ViewportContext);
 
   const gridApi = useGridApi();
-  const { autoCleanUpTableDSL } = useManualModifyTableDSL();
+  const { autoCleanUpTableDSL } = useTableModifyDsl();
 
   const [tableToOpen, setTableToOpen] = useState<string | null>(null);
   const [fieldToOpen, setFieldToOpen] = useState<string | null>(null);
@@ -134,6 +134,7 @@ export function AppSpreadsheetInteractionContextProvider({
     if (!table) return;
 
     const [row, col] = table.getPlacement();
+    const isTableHorizontal = table.getIsTableDirectionHorizontal();
     let structure;
     let tableStructure;
 
@@ -173,12 +174,24 @@ export function AppSpreadsheetInteractionContextProvider({
       if (!fieldHeaderPlacement) return;
 
       const { startCol, startRow, endCol, endRow } = fieldHeaderPlacement;
+      structure = viewGridData.getGridTableStructure();
+      tableStructure = structure.find((t) => t.tableName === tableToOpen);
+      const fieldDataEndRow = tableStructure
+        ? isTableHorizontal
+          ? endRow
+          : tableStructure.endRow
+        : endRow;
+      const fieldDataEndCol = tableStructure
+        ? isTableHorizontal
+          ? tableStructure.endCol
+          : endCol
+        : endCol;
 
       gridApi.updateSelection({
         startCol,
         startRow,
-        endCol,
-        endRow,
+        endCol: fieldDataEndCol,
+        endRow: fieldDataEndRow,
       });
 
       gridApi.moveViewportToCell(startCol, startRow, true);
@@ -216,7 +229,7 @@ export function AppSpreadsheetInteractionContextProvider({
         startCol: col,
         startRow: row,
         endCol: tableStructure ? tableStructure.endCol : col,
-        endRow: row,
+        endRow: tableStructure ? tableStructure.endRow : row,
       });
     }
 

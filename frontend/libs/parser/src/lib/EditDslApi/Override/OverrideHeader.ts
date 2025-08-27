@@ -35,13 +35,6 @@ export class OverrideHeader {
   }
 
   /**
-   * Gets the text that appears before this header name.
-   */
-  public get before(): string {
-    return this._before;
-  }
-
-  /**
    * Gets the header name (e.g. `"row"`, `"[a]"`).
    */
   public get name(): string {

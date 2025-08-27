@@ -1,5 +1,6 @@
 from dial_xl.project import Project
 
+from quantgrid.utils.project import FieldGroupUtil
 from quantgrid.utils.string import pythonize
 
 
@@ -36,7 +37,7 @@ def get_field_name_mapping(project: Project) -> dict[str, dict[str, str]]:
             field_name_mapping: dict[str, str] = {}
             global_field_name_mapping[table.name] = field_name_mapping
 
-            for field in table.fields:
+            for field in FieldGroupUtil.get_table_fields(table):
                 var_name = pythonize(field.name) if field.name != "*" else "pivot"
                 ui_name = field.name
 

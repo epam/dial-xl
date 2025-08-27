@@ -30,6 +30,7 @@ export const chartSeparatorDecoratorName = 'separator';
 export const chartSeparatorDecorator = '!separator()';
 export const chartDotColorDecoratorName = 'dotcolor';
 export const chartDotSizeDecoratorName = 'dotsize';
+export const chartHorizontalDecoratorArg = 'column-wise';
 export const manualTableDecoratorName = 'manual';
 export const manualTableDecorator = '!manual()';
 export const formatDecoratorName = `format`;
@@ -106,9 +107,6 @@ export type TotalType =
 
 export type TotalItem = {
   expression: string;
-  expressionDslPlacement: ShortDSLPlacement | undefined;
-  fieldNameDslPlacement: ShortDSLPlacement | undefined;
-  totalDslPlacement: ShortDSLPlacement | undefined;
   type: TotalType | undefined;
 };
 export type TotalItems = Record<number, TotalItem>;

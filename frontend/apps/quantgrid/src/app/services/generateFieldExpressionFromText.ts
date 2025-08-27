@@ -1,4 +1,4 @@
-import { defaultFieldName, FunctionInfo } from '@frontend/common';
+import { FunctionInfo } from '@frontend/common';
 import { ParsedSheets, ParsedTable, SheetReader } from '@frontend/parser';
 
 import { autoFixSingleExpression } from './autoFixSingleExpression';
@@ -10,8 +10,7 @@ export const generateFieldExpressionFromText = (
   functions: FunctionInfo[],
   parsedSheets: ParsedSheets,
   currentTableName = ''
-) => {
-  let fieldName = '';
+): { fieldNames: string[]; expression: string | null } => {
   const parts = fieldText.trim().split('=');
   const existingFieldNames = targetTable
     ? targetTable.fields.map((f) => f.key.fieldName)
@@ -23,9 +22,7 @@ export const generateFieldExpressionFromText = (
   }
 
   if (parts.length === 2) {
-    const sourceFieldName = parts[0].trim();
-    const fieldNameInBrackets = /^\[.*]$/.test(sourceFieldName);
-    const sourceFieldNameWithKeywords = /key|dim/gi.test(sourceFieldName);
+    const lhs = parts[0].trim();
     const expression = parts[1].trim()
       ? autoFixSingleExpression(
           parts[1].trim(),
@@ -35,29 +32,33 @@ export const generateFieldExpressionFromText = (
         )
       : '';
 
-    if (!sourceFieldNameWithKeywords) {
-      fieldName = fieldNameInBrackets
-        ? SheetReader.stripQuotes(sourceFieldName) || defaultFieldName
-        : sourceFieldName || defaultFieldName;
-      const uniqueFieldName = createUniqueName(fieldName, existingFieldNames);
-      const fieldDsl = expression
-        ? `[${uniqueFieldName}] = ${expression}`
-        : `[${uniqueFieldName}]`;
+    const fieldNames = extractFieldNames(lhs, existingFieldNames);
 
-      return { fieldName: uniqueFieldName, fieldDsl, expression };
-    }
-
-    const fieldDsl = `${sourceFieldName} = ${expression}`;
-
-    return { fieldName, fieldDsl, expression };
+    return { fieldNames, expression };
   }
 
   if (parts.length === 1) {
-    fieldName = createUniqueName(parts[0], existingFieldNames);
-    const fieldDsl = `[${fieldName}]`;
+    const fieldNames = extractFieldNames(parts[0], existingFieldNames);
 
-    return { fieldName, fieldDsl, expression: null };
+    return { fieldNames, expression: null };
   }
 
-  return { fieldName, fieldDsl: fieldText, expression: null };
+  return { fieldNames: [], expression: null };
+};
+
+const extractFieldNames = (src: string, existing: string[]): string[] => {
+  const names: string[] = [];
+  const existingNames = new Set<string>(existing);
+
+  src.split(',').forEach((raw) => {
+    let name = raw.replace(/\b(key|dim)\b/gi, '').trim();
+    if (!name) return;
+
+    name = /^\[.*]$/.test(name) ? SheetReader.stripQuotes(name)! : name;
+    const unique = createUniqueName(name, [...existingNames]);
+    existingNames.add(unique);
+    names.push(unique);
+  });
+
+  return names;
 };

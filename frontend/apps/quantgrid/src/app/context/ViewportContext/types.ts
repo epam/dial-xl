@@ -31,3 +31,8 @@ export type ApplyBlockGridParams = {
   filter: ParsedConditionFilter | undefined;
   isFieldUsedInSort: boolean;
 };
+
+export type GroupInfo = {
+  start: number;
+  span: number;
+};

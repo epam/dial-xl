@@ -5,16 +5,20 @@ import { DimensionalSchemaResponse, isComplexType } from '@frontend/common';
 import { ProjectContext } from '../context';
 import { autoFixSingleExpression as fixExpression } from '../services';
 import { getProjectSheetsRecord } from '../utils';
-import { useCreateTableDsl } from './EditDsl';
-import { useDSLUtils } from './ManualEditDSL';
+import {
+  CreateExpandedTableParams,
+  TableVariant,
+  useCreateTableDsl,
+  useDSLUtils,
+} from './EditDsl';
 import { useApiRequests } from './useApiRequests';
 import { useFindTableKeys } from './useFindTableKeys';
 
 type DimSchemaRequestOptions = {
   action:
     | 'expandTable'
-    | 'createTableFromFormula'
-    | 'createTableFromDimFormula'
+    | 'requestDimSchemaForFormula'
+    | 'requestDimSchemaForDimFormula'
     | 'rowReference';
   projectName: string;
   formula: string;
@@ -32,12 +36,7 @@ export const useRequestDimTable = () => {
   const { projectName, functions, parsedSheets, projectSheets } =
     useContext(ProjectContext);
   const { findTable } = useDSLUtils();
-  const {
-    createSingleValueTable,
-    createDimensionalTableFromSchema,
-    createDimensionalTableFromFormula,
-    createRowReferenceTableFromSchema,
-  } = useCreateTableDsl();
+  const { createSingleValueTable, createExpandedTable } = useCreateTableDsl();
   const { findTableKeys } = useFindTableKeys();
 
   const handleDimSchemaResponse = useCallback(
@@ -65,30 +64,41 @@ export const useRequestDimTable = () => {
         initialFormula,
       } = requestOptions;
 
-      switch (action) {
-        case 'createTableFromDimFormula':
-          if (!expression || col === undefined || row === undefined) return;
+      if (col === undefined || row === undefined) return;
 
-          createDimensionalTableFromFormula(
-            col,
-            row,
-            tableName || '',
-            '',
-            requestOptions.formula,
-            schema,
-            keys,
-            true
-          );
+      const createExpandedTableOptions: Pick<
+        CreateExpandedTableParams,
+        'col' | 'row' | 'variant' | 'formula' | 'schema' | 'keys'
+      > = {
+        col,
+        row,
+        formula,
+        schema,
+        keys,
+        variant: actionToVariant[action],
+      };
+
+      switch (action) {
+        case 'requestDimSchemaForDimFormula':
+          if (!expression || !fieldInfo) return;
+
+          createExpandedTable({
+            ...createExpandedTableOptions,
+            tableName: tableName ?? '',
+            isSourceDimField: true,
+            type: fieldInfo.type,
+          });
+
           break;
-        case 'createTableFromFormula':
-          if (!expression || col === undefined || row === undefined) return;
+        case 'requestDimSchemaForFormula':
+          if (!expression) return;
 
           // Create a regular table if a formula error occurs or if the formula produces a primitive type
           // Display table headers only if the formula contains an error (to show something in the spreadsheet)
           if ((errorMessage || !isComplexType(fieldInfo)) && expression) {
             const value = initialFormula?.startsWith("'")
-              ? requestOptions.formula
-              : `=${requestOptions.formula}`;
+              ? formula
+              : `=${formula}`;
 
             return createSingleValueTable(
               col,
@@ -101,66 +111,31 @@ export const useRequestDimTable = () => {
 
           if (!fieldInfo) return;
 
-          createDimensionalTableFromFormula(
-            col,
-            row,
-            tableName || '',
-            '',
-            requestOptions.formula,
-            schema,
-            keys,
-            fieldInfo.isNested
-          );
+          createExpandedTable({
+            ...createExpandedTableOptions,
+            tableName: tableName ?? '',
+            isSourceDimField: fieldInfo.isNested,
+            type: fieldInfo.type,
+          });
+
           break;
         case 'expandTable':
-          if (
-            !tableName ||
-            !fieldName ||
-            !col ||
-            !row ||
-            keyValues === undefined
-          )
-            return;
-          createDimensionalTableFromSchema(
-            col,
-            row,
-            tableName,
-            fieldName,
-            keyValues,
-            formula,
-            schema,
-            keys
-          );
-          break;
         case 'rowReference':
-          if (
-            !tableName ||
-            !fieldName ||
-            !col ||
-            !row ||
-            keyValues === undefined
-          )
+          if (!tableName || !fieldName || !fieldInfo || keyValues === undefined)
             return;
-          createRowReferenceTableFromSchema(
-            col,
-            row,
+
+          createExpandedTable({
+            ...createExpandedTableOptions,
+            keyValues,
             tableName,
             fieldName,
-            keyValues,
-            formula,
-            schema,
-            keys
-          );
+            type: fieldInfo.type,
+          });
+
           break;
       }
     },
-    [
-      projectName,
-      createDimensionalTableFromFormula,
-      createDimensionalTableFromSchema,
-      createRowReferenceTableFromSchema,
-      createSingleValueTable,
-    ]
+    [projectName, createExpandedTable, createSingleValueTable]
   );
 
   const expandDimTable = useCallback(
@@ -204,7 +179,7 @@ export const useRequestDimTable = () => {
     ]
   );
 
-  const createDimTableFromDimensionFormula = useCallback(
+  const requestDimSchemaForDimFormula = useCallback(
     async (col: number, row: number, value: string) => {
       if (!projectName || !projectSheets) return;
 
@@ -217,7 +192,7 @@ export const useRequestDimTable = () => {
       const formula = fixExpression(expression, functions, parsedSheets);
 
       const requestOptions: DimSchemaRequestOptions = {
-        action: 'createTableFromDimFormula',
+        action: 'requestDimSchemaForDimFormula',
         formula,
         projectName,
         tableName,
@@ -245,7 +220,7 @@ export const useRequestDimTable = () => {
     ]
   );
 
-  const createDimTableFromFormula = useCallback(
+  const requestDimSchemaForFormula = useCallback(
     async (col: number, row: number, value: string) => {
       if (!projectName || !projectSheets) return;
 
@@ -258,7 +233,7 @@ export const useRequestDimTable = () => {
       const formula = fixExpression(expression, functions, parsedSheets);
 
       const requestOptions: DimSchemaRequestOptions = {
-        action: 'createTableFromFormula',
+        action: 'requestDimSchemaForFormula',
         initialFormula: value,
         formula,
         projectName,
@@ -330,8 +305,16 @@ export const useRequestDimTable = () => {
 
   return {
     expandDimTable,
-    createDimTableFromFormula,
-    createDimTableFromDimensionFormula,
+    requestDimSchemaForFormula,
+    requestDimSchemaForDimFormula,
     showRowReference,
   };
 };
+
+const actionToVariant: Record<DimSchemaRequestOptions['action'], TableVariant> =
+  {
+    requestDimSchemaForDimFormula: 'dimFormula',
+    requestDimSchemaForFormula: 'dimFormula',
+    expandTable: 'expand',
+    rowReference: 'rowReference',
+  };

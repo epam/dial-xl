@@ -55,7 +55,7 @@ public class SetOperationLocal extends Plan2<Table, Table, Table> {
     @Override
     protected Meta meta() {
         return isNested()
-                ? new Meta(Schema.of(ColumnType.INTEGER, expression(0, 1).getType()))
+                ? new Meta(Schema.of(ColumnType.DOUBLE, expression(0, 1).getType()))
                 : new Meta(Schema.of(expression(0, 0).getType()));
     }
 

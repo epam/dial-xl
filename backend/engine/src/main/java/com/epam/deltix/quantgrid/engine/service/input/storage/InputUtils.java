@@ -6,7 +6,7 @@ import com.epam.deltix.quantgrid.engine.value.Column;
 import com.epam.deltix.quantgrid.engine.value.local.DoubleDirectColumn;
 import com.epam.deltix.quantgrid.engine.value.local.LocalTable;
 import com.epam.deltix.quantgrid.engine.value.local.StringDirectColumn;
-import com.epam.deltix.quantgrid.type.ColumnType;
+import com.epam.deltix.quantgrid.type.InputColumnType;
 import com.epam.deltix.quantgrid.util.EtaggedStream;
 import com.epam.deltix.quantgrid.util.ParserException;
 import it.unimi.dsi.fastutil.doubles.DoubleArrayList;
@@ -52,7 +52,7 @@ public class InputUtils {
              Reader reader = new BufferedReader(new InputStreamReader(stream.stream()))) {
 
             try {
-                LinkedHashMap<String, ColumnType> columnTypes = switch (type) {
+                LinkedHashMap<String, InputColumnType> columnTypes = switch (type) {
                     case CSV -> CsvInputParser.inferSchema(reader);
                 };
 

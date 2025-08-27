@@ -17,6 +17,16 @@ public interface CompiledResult {
 
     boolean nested();
 
+    /**
+     * @return true if the result is reference and can be assigned as row reference.
+     */
+    boolean reference();
+
+    /**
+     * @return true if the result is assignable to column declaration.
+     */
+    boolean assignable();
+
     CompiledResult withDimensions(List<FieldKey> dimensions);
 
     default boolean scalar() {

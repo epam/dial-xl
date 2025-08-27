@@ -12,6 +12,9 @@ from dial_xl.model.api_pb2 import (
     FieldInfo,
     Request,
     Response,
+    FieldKey,
+    TotalKey,
+    OverrideKey,
 )
 from dial_xl.utils import ImmutableModel, _auth_header
 
@@ -27,15 +30,22 @@ class TableChunk(Chunk):
 PRIMITIVE_TYPE = Literal[
     "DOUBLE", "INTEGER", "BOOLEAN", "DATE", "STRING", "PERIOD_SERIES"
 ]
-TABLE_TYPE = Literal["INPUT", "PERIOD_SERIES_POINT", "TABLE"]
+TABLE_TYPE = Literal["TABLE_REFERENCE", "TABLE_VALUE"]
+EMPTY_FIELD_KEY = FieldKey()
+EMPTY_TOTAL_KEY = TotalKey()
+EMPTY_OVERRIDE_KEY = OverrideKey()
 
 
-class PrimitiveFieldType(ImmutableModel):
+class HashableFieldType(ImmutableModel):
+    hash: str
+
+
+class PrimitiveFieldType(HashableFieldType):
     name: PRIMITIVE_TYPE
     is_nested: bool
 
 
-class TableFieldType(ImmutableModel):
+class TableFieldType(HashableFieldType):
     name: TABLE_TYPE
     table_name: str | None
     is_nested: bool
@@ -47,12 +57,14 @@ FieldType = PrimitiveFieldType | TableFieldType
 def to_field_type(field: FieldInfo) -> FieldType:
     if field.reference_table_name:
         return TableFieldType(
+            hash = field.hash,
             name=ColumnDataType.Name(field.type),
             table_name=field.reference_table_name,
             is_nested=field.is_nested,
         )
 
     return PrimitiveFieldType(
+        hash=field.hash,
         name=ColumnDataType.Name(field.type),
         is_nested=field.is_nested,
     )
@@ -72,11 +84,20 @@ class ParsingError(ImmutableModel):
         )
 
 
+FIELD_TYPE_RESULTS = dict[str, FieldType | str]  # Field -> FieldType or error
+OVERRIDE_LINE_ERRORS = dict[str, str]  # Field -> error
+OVERRIDE_TABLE_ERRORS = dict[int, OVERRIDE_LINE_ERRORS]  # Override row -> errors
+
+
+class TableTypeResult(ImmutableModel):
+    fields: FIELD_TYPE_RESULTS
+    totals: dict[int, FIELD_TYPE_RESULTS]
+
+
 class CompileResult(ImmutableModel):
     parsing_errors: dict[str, list[ParsingError]]  # Parsing errors per sheet
-    field_types: dict[
-        str, dict[str, FieldType | str]
-    ]  # Table -> Field -> FieldType or error
+    override_errors: dict[str, OVERRIDE_TABLE_ERRORS]
+    types: dict[str, TableTypeResult]
 
 
 async def compile_project(
@@ -100,20 +121,35 @@ async def compile_project(
                 await response.text(), Response(), ignore_unknown_fields=True
             )
             compile_result = parsed_response.compile_result
-            field_types: dict[str, dict[str, FieldType | str]] = {}
+            fields: dict[str, FIELD_TYPE_RESULTS] = {}
+            totals: dict[str, dict[int, FIELD_TYPE_RESULTS]] = {}
+            override_errors: dict[str, OVERRIDE_TABLE_ERRORS] = {}
             for field in compile_result.field_info:
-                if field.fieldKey:
+                if field.fieldKey != EMPTY_FIELD_KEY:
                     field_key = field.fieldKey
-                    table_name = field_key.table
-                    table = field_types.setdefault(table_name, {})
+                    table = fields.setdefault(field_key.table, {})
                     table[field_key.field] = to_field_type(field)
+                elif field.totalKey != EMPTY_TOTAL_KEY:
+                    total_key = field.totalKey
+                    table = totals.setdefault(total_key.table, {})
+                    total = table.setdefault(total_key.number - 1, {})
+                    total[total_key.field] = to_field_type(field)
 
             for error in compile_result.compilation_errors:
-                if error.fieldKey:
+                if error.fieldKey != EMPTY_FIELD_KEY:
                     field_key = error.fieldKey
-                    table_name = field_key.table
-                    table = field_types.setdefault(table_name, {})
+                    table = fields.setdefault(field_key.table, {})
                     table[field_key.field] = error.message
+                elif error.totalKey != EMPTY_TOTAL_KEY:
+                    total_key = error.totalKey
+                    table = totals.setdefault(total_key.table, {})
+                    total = table.setdefault(total_key.number - 1, {})
+                    total[total_key.field] = error.message
+                elif error.overrideKey != EMPTY_OVERRIDE_KEY:
+                    override_key = error.overrideKey
+                    table_errors = override_errors.setdefault(override_key.table, {})
+                    row_errors = table_errors.setdefault(override_key.row, {})
+                    row_errors[override_key.field] = error.message
 
             parsing_errors: dict[str, list[ParsingError]] = {
                 sheet.name: [
@@ -126,4 +162,17 @@ async def compile_project(
                 ]
                 for sheet in compile_result.sheets
             }
-            return CompileResult(field_types=field_types, parsing_errors=parsing_errors)
+
+            types = {
+                table_name: TableTypeResult(
+                    fields=fields.get(table_name, {}),
+                    totals=totals.get(table_name, {}),
+                )
+                for table_name in fields.keys() | totals.keys()
+            }
+
+            return CompileResult(
+                types=types,
+                parsing_errors=parsing_errors,
+                override_errors=override_errors,
+            )

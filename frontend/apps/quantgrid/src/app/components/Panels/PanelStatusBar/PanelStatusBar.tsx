@@ -4,18 +4,23 @@ import { ForwardedRef, forwardRef, useCallback, useContext } from 'react';
 
 import Icon from '@ant-design/icons';
 
-import { MinimizedPanelProps, PanelName, PanelPosition } from '../../../common';
+import {
+  MinimizedPanelProps,
+  PanelName,
+  PanelPosition,
+  PanelTitle,
+} from '../../../common';
 import { LayoutContext } from '../../../context';
 import { usePanelSettings, usePanelStatusBar } from '../../../hooks';
 
 type Props = {
   panels?: MinimizedPanelProps[];
-  position: PanelPosition;
+  position?: PanelPosition;
   collapsedPanelsTextHidden: boolean;
 };
 
 export const PanelStatusBar = forwardRef(function PanelStatusBar(
-  { panels, position, collapsedPanelsTextHidden }: Props,
+  { panels, position = PanelPosition.Left, collapsedPanelsTextHidden }: Props,
   ref: ForwardedRef<HTMLDivElement>
 ) {
   const { togglePanel, openedPanels } = useContext(LayoutContext);
@@ -53,7 +58,14 @@ export const PanelStatusBar = forwardRef(function PanelStatusBar(
           <Dropdown
             className="cursor-pointer"
             key={p.name}
-            menu={{ items: getPanelSettingsItems(p.name, position, true) }}
+            menu={{
+              items: getPanelSettingsItems(
+                p.name,
+                PanelTitle[p.name],
+                position,
+                true
+              ),
+            }}
             trigger={['contextMenu']}
           >
             <Tooltip
@@ -98,7 +110,7 @@ export const PanelStatusBar = forwardRef(function PanelStatusBar(
                     )}
                     component={() => p.icon}
                   />
-                  {showErrorNotification(p.name) && (
+                  {!isBottomPanel && showErrorNotification(p.name) && (
                     <div className="absolute top-0 -right-1 bg-strokeError w-[6px] h-[6px] ml-2 rounded-full" />
                   )}
                 </div>

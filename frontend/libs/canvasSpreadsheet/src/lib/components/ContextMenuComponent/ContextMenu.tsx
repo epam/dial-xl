@@ -19,6 +19,7 @@ import {
   Shortcut,
   shortcutApi,
   useClickOutside,
+  useIsMobile,
 } from '@frontend/common';
 import { ParsedSheets } from '@frontend/parser';
 import { Application } from '@pixi/app';
@@ -68,6 +69,7 @@ export function ContextMenu({
   const [contextMenuItems, setContextMenuItems] = useState<MenuItem[]>([]);
   const [openContextMenuParams, setOpenContextMenuParams] =
     useState<OpenContextMenuParams>();
+  const isMobile = useIsMobile();
 
   const openedExplicitly = useRef(false);
   const explicitSource = useRef<'canvas-element' | 'html-element' | undefined>(
@@ -232,26 +234,39 @@ export function ContextMenu({
       // Delay opening the context menu (not to interfere with dragging by right mouse button)
       contextMenuTimeout.current = setTimeout(() => {
         if (didRightDrag.current) return;
+
         openContextMenu({ x, y, col, row });
       }, 150);
     },
     [api, openContextMenu]
   );
 
-  const onMouseDown = useCallback((e: MouseEvent) => {
-    if (e.button === mouseRightButton) {
-      isRightMouseDown.current = true;
-      lastMousePos.current = { x: e.clientX, y: e.clientY };
-      didRightDrag.current = false;
-    }
-  }, []);
+  const onMouseDown = useCallback(
+    (e: MouseEvent) => {
+      if (e.button === mouseRightButton || isMobile) {
+        isRightMouseDown.current = true;
+        lastMousePos.current = { x: e.clientX, y: e.clientY };
+        didRightDrag.current = false;
 
-  const onMouseUp = useCallback((e: MouseEvent) => {
-    if (e.button !== mouseRightButton) return;
+        onContextMenu(e);
+      }
+    },
+    [isMobile, onContextMenu]
+  );
 
-    isRightMouseDown.current = false;
-    lastMousePos.current = null;
-  }, []);
+  const onMouseUp = useCallback(
+    (e: MouseEvent) => {
+      if (e.button !== mouseRightButton && !isMobile) return;
+
+      isRightMouseDown.current = false;
+      lastMousePos.current = null;
+      if (contextMenuTimeout.current) {
+        clearTimeout(contextMenuTimeout.current);
+        contextMenuTimeout.current = null;
+      }
+    },
+    [isMobile]
+  );
 
   const onMouseMove = useCallback((e: MouseEvent) => {
     if (!isRightMouseDown.current || !lastMousePos.current) return;
@@ -353,18 +368,18 @@ export function ContextMenu({
     if (!app) return;
 
     app.view.addEventListener?.('contextmenu', onContextMenu);
-    app.view.addEventListener?.('mousedown', onMouseDown as EventListener);
-    window.addEventListener?.('mousemove', onMouseMove);
-    window.addEventListener?.('mouseup', onMouseUp);
+    app.view.addEventListener?.('pointerdown', onMouseDown as EventListener);
+    window.addEventListener?.('pointermove', onMouseMove);
+    window.addEventListener?.('pointerup', onMouseUp);
 
     return () => {
       app?.view?.removeEventListener?.('contextmenu', onContextMenu);
       app?.view?.removeEventListener?.(
-        'mousedown',
+        'pointerdown',
         onMouseDown as EventListener
       );
-      window.removeEventListener?.('mousemove', onMouseMove);
-      window.removeEventListener?.('mouseup', onMouseUp);
+      window.removeEventListener?.('pointermove', onMouseMove);
+      window.removeEventListener?.('pointerup', onMouseUp);
     };
   }, [app, onContextMenu, onMouseDown, onMouseMove, onMouseUp]);
 

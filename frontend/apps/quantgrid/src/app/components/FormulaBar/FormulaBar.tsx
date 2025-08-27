@@ -8,12 +8,11 @@ import { useFormulaInputHeight } from './utils';
 
 export function FormulaBar() {
   const containerRef = useRef<HTMLDivElement>(null);
-
   const { containerHeight } = useFormulaInputHeight(containerRef);
 
   return (
     <div
-      className="w-screen bg-bgLayer3 text-textPrimary border-b border-b-strokeTertiary"
+      className="hidden md:block w-screen bg-bgLayer3 text-textPrimary border-b border-b-strokeTertiary"
       style={{
         height: containerHeight,
         minHeight: containerHeight,

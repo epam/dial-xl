@@ -37,12 +37,7 @@ export function useNavigation() {
         const targetViewportX = cellCenterX - viewportWidth / 2;
         const targetViewportY = cellCenterY - viewportHeight / 2;
 
-        const maxViewportX = fullWidth - viewportWidth;
-        const maxViewportY = fullHeight - viewportHeight;
-        const moveViewportX = Math.min(targetViewportX, maxViewportX);
-        const moveViewportY = Math.min(targetViewportY, maxViewportY);
-
-        moveViewport(moveViewportX, moveViewportY);
+        moveViewport(targetViewportX, targetViewportY, true);
 
         return;
       }
@@ -51,26 +46,18 @@ export function useNavigation() {
       const cellHeightOffset = cell.height * 2;
 
       if (nextCellX - cellWidthOffset < 0) {
-        moveViewport(nextCellX - cellWidthOffset, 0);
+        moveViewport(nextCellX - cellWidthOffset, 0, true);
       } else if (nextCellX + cellWidthOffset > viewportWidth) {
-        moveViewport(nextCellX + cellWidthOffset - viewportWidth, 0);
+        moveViewport(nextCellX + cellWidthOffset - viewportWidth, 0, true);
       }
 
       if (nextCellY - cellHeightOffset < 0) {
-        moveViewport(0, nextCellY - cellHeightOffset);
+        moveViewport(0, nextCellY - cellHeightOffset, true);
       } else if (nextCellY + cellHeightOffset > viewportHeight) {
-        moveViewport(0, nextCellY + cellHeightOffset - viewportHeight);
+        moveViewport(0, nextCellY + cellHeightOffset - viewportHeight, true);
       }
     },
-    [
-      fullHeight,
-      fullWidth,
-      getCellX,
-      getCellY,
-      gridSizes,
-      moveViewport,
-      viewportCoords,
-    ]
+    [getCellX, getCellY, gridSizes, moveViewport, viewportCoords]
   );
 
   const moveTableSelection = useCallback(

@@ -8,6 +8,7 @@ from dial_xl.project import FieldKey, Project, Viewport
 from dial_xl.table import Table
 
 from quantgrid.utils.embedding import EmbeddingUtil, ScoreRecord
+from quantgrid.utils.project.field_group import FieldGroupUtil
 from quantgrid.utils.project.project import ProjectUtil
 from quantgrid.utils.string import markdown_table, unquote_forced
 
@@ -35,11 +36,12 @@ class ProjectCalculator:
             return {}
 
         dynamic_fields: set[str] = set(table.dynamic_field_names)
+        table_fields = FieldGroupUtil.get_table_fields(table)
         entries: dict[str, list[str]] = {
             field.name: []
             for field in cast(
                 Iterable[Field | DynamicField],
-                chain(table.fields, table.dynamic_fields),
+                chain(table_fields, table.dynamic_fields),
             )
             if field.name != "*"
         }
@@ -58,11 +60,8 @@ class ProjectCalculator:
                 continue
 
             field_entries = entries[field_name]
-            field = (
-                table.get_field(field_name)
-                if field_name in table.field_names
-                else table.get_dynamic_field(field_name)
-            )
+            found_field = FieldGroupUtil.get_field_by_name(table, field_name)
+            field = found_field if found_field else table.get_dynamic_field(field_name)
 
             if (
                 not isinstance(field.field_type, PrimitiveFieldType)
@@ -72,7 +71,7 @@ class ProjectCalculator:
 
             records.sort(key=lambda record: -record.score)
             field_entries.extend(
-                (ProjectCalculator._format_entry(record.data) for record in records)
+                (ProjectCalculator.format_entry(record.data) for record in records)
             )
 
         for field_name, values in headers.items():
@@ -119,18 +118,22 @@ class ProjectCalculator:
             for table in sheet.tables
         ]
 
-        return {name: markdown_table(name, entries) for name, entries in tables}
+        return {
+            name: markdown_table(name, entries, include_warning=False)
+            for name, entries in tables
+        }
 
     # region Private
 
     @staticmethod
-    def _format_entry(entry: str) -> str:
+    def format_entry(entry: str) -> str:
         return unquote_forced(entry)
 
     @staticmethod
     async def _calculate_header(
         project: Project, table: Table, rows: int
     ) -> dict[str, list[str]]:
+        table_fields = FieldGroupUtil.get_table_fields(table)
         viewports: list[Viewport] = [
             Viewport(
                 start_row=0,
@@ -139,7 +142,7 @@ class ProjectCalculator:
             )
             for field in cast(
                 Iterable[Field | DynamicField],
-                chain(table.fields, table.dynamic_fields),
+                chain(table_fields, table.dynamic_fields),
             )
         ]
 
@@ -149,12 +152,12 @@ class ProjectCalculator:
             field.name: []
             for field in cast(
                 Iterable[Field | DynamicField],
-                chain(table.fields, table.dynamic_fields),
+                chain(table_fields, table.dynamic_fields),
             )
         }
 
         for field in cast(
-            Iterable[Field | DynamicField], chain(table.fields, table.dynamic_fields)
+            Iterable[Field | DynamicField], chain(table_fields, table.dynamic_fields)
         ):
             if field.name not in entries:
                 continue
@@ -170,7 +173,7 @@ class ProjectCalculator:
 
             field_entries = entries[field.name]
             for entry in field.field_data.values:
-                field_entries.append(ProjectCalculator._format_entry(entry))
+                field_entries.append(ProjectCalculator.format_entry(entry))
 
         return {
             field_name: field_entries for field_name, field_entries in entries.items()

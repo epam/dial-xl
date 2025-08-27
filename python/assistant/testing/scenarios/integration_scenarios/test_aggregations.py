@@ -18,7 +18,9 @@ async def test_average(imdb_simple_project: FrameProject):
     def check(_, __, table: Table, ___):
         assert code_regex(table, "(?i).*AVERAGE.*")
 
-    answer.assertion(AddFieldOrTable(validator=check) & Text(substrings=["1988"]))
+    answer.assertion(
+        AddFieldOrTable(validator=check, is_focused=True) & Text(substrings=["1988"])
+    )
 
 
 async def test_sum(imdb_simple_project: FrameProject):
@@ -29,7 +31,9 @@ async def test_sum(imdb_simple_project: FrameProject):
     def check(_, __, table: Table, ___):
         assert code_regex(table, "(?i).*SUM.*")
 
-    answer.assertion(AddFieldOrTable(validator=check) & Text(substrings=["210"]))
+    answer.assertion(
+        AddFieldOrTable(validator=check, is_focused=True) & Text(substrings=["210"])
+    )
 
 
 async def test_min(imdb_simple_project: FrameProject):
@@ -40,7 +44,9 @@ async def test_min(imdb_simple_project: FrameProject):
     def check(_, __, table: Table, ___):
         assert code_regex(table, "(?i).*MIN.*")
 
-    answer.assertion(AddFieldOrTable(validator=check) & Text(substrings=["1954"]))
+    answer.assertion(
+        AddFieldOrTable(validator=check, is_focused=True) & Text(substrings=["1954"])
+    )
 
 
 async def test_max(imdb_simple_project: FrameProject):
@@ -51,7 +57,9 @@ async def test_max(imdb_simple_project: FrameProject):
     def check(_, __, table: Table, ___):
         assert code_regex(table, "(?i).*MAX.*")
 
-    answer.assertion(AddFieldOrTable(validator=check) & Text(substrings=["2010"]))
+    answer.assertion(
+        AddFieldOrTable(validator=check, is_focused=True) & Text(substrings=["2010"])
+    )
 
 
 async def test_rows_count(imdb_simple_project: FrameProject):
@@ -62,7 +70,9 @@ async def test_rows_count(imdb_simple_project: FrameProject):
     def check(_, __, table: Table, ___):
         assert code_regex(table, "(?i).*COUNT.*")
 
-    answer.assertion(AddFieldOrTable(validator=check) & Text(substrings=["20"]))
+    answer.assertion(
+        AddFieldOrTable(validator=check, is_focused=True) & Text(substrings=["20"])
+    )
 
 
 async def test_stdev(imdb_simple_project: FrameProject):
@@ -77,4 +87,4 @@ async def test_stdev(imdb_simple_project: FrameProject):
         assert code_regex(table, "(?i).*STDEVS.*")
         assert find_unsorted(table, ["16.52430426913483"])
 
-    answer.assertion(AddTable(validator=check))
+    answer.assertion(AddTable(validator=check, is_focused=True))

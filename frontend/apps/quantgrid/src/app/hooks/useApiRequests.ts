@@ -3,10 +3,13 @@ import { useCallback, useContext } from 'react';
 import { useAuth } from 'react-oidc-context';
 import { parse as yamlParse, stringify as yamlStringify } from 'yaml';
 
+import { OverlayConversation } from '@epam/ai-dial-overlay';
 import {
   AIHint,
   apiMessages,
   CompileRequest,
+  conversationsEndpointPrefix,
+  conversationsEndpointType,
   dialAIHintsFileName,
   dialProjectFileExtension,
   DimensionalSchemaRequest,
@@ -14,12 +17,19 @@ import {
   DownloadRequest,
   emptyFileName,
   filesEndpointPrefix,
+  filesEndpointType,
   FilesMetadata,
+  forkedProjectMetadataKey,
   FunctionInfo,
   FunctionsRequest,
   FunctionsResponse,
+  MetadataNodeType,
+  MetadataResourceType,
   NotificationRequest,
+  ProjectCalculateRequest,
+  ProjectCancelRequest,
   projectFoldersRootPrefix,
+  projectMetadataSettingsKey,
   ProjectState,
   QGDialProject,
   ResourcePermission,
@@ -34,14 +44,18 @@ import { createUniqueFileName, getApiUrl } from '../services';
 import {
   collectFilesFromProject,
   constructPath,
-  decodeApiUrl,
+  convertUrlToMetadata,
   displayToast,
   encodeApiUrl,
+  getConversationPath,
+  getLocalConversationsPath,
   mapProjectToQGDialProject,
   mapQGDialProjectToProject,
+  serialiseSetting,
   triggerDownload,
   updateFilesPathInputsInProject,
 } from '../utils';
+import { fetchWithProgress } from '../utils/fetch';
 
 type ApiRequestFunction<T, K> = (params: T) => Promise<K | undefined>;
 
@@ -87,6 +101,27 @@ export const useApiRequests = () => {
       const fullPath = window.externalEnv.dialBaseUrl + path;
 
       return fetch(fullPath, { ...params, headers });
+    },
+    [auth]
+  );
+
+  const sendDialRequestWithProgress = useCallback(
+    (
+      path: string,
+      params?: Omit<RequestInit, 'headers'> & {
+        headers?: Record<string, string>;
+      },
+      onProgress?: (progress: number, event: ProgressEvent<EventTarget>) => void
+    ) => {
+      const headers = params?.headers || {};
+
+      if (auth.user?.access_token) {
+        headers['Authorization'] = `Bearer ${auth.user?.access_token}`;
+      }
+
+      const fullPath = window.externalEnv.dialBaseUrl + path;
+
+      return fetchWithProgress(fullPath, { ...params, headers }, onProgress);
     },
     [auth]
   );
@@ -169,6 +204,7 @@ export const useApiRequests = () => {
   const getResourceMetadata = useCallback<
     ApiRequestFunction<
       {
+        resourceType?: FilesMetadata['resourceType'];
         path: string | null | undefined;
         isRecursive?: boolean;
         suppressErrors?: boolean;
@@ -182,11 +218,16 @@ export const useApiRequests = () => {
       isRecursive = false,
       suppressErrors = false,
       withPermissions = false,
+      resourceType = MetadataResourceType.FILE,
     }) => {
       try {
         let finalItems: FilesMetadata[] = [];
-        let filesMetadata: FilesMetadata | undefined;
+        let resourcesMetadata: FilesMetadata | undefined;
         let currentNextToken: string | undefined;
+        const resourceEndpointType =
+          resourceType === MetadataResourceType.CONVERSATION
+            ? conversationsEndpointType
+            : filesEndpointType;
 
         do {
           const searchParams = new URLSearchParams({
@@ -207,7 +248,7 @@ export const useApiRequests = () => {
                 }
               : undefined),
           });
-          const url = `/v1/metadata/files/${encodeApiUrl(
+          const url = `/v1/metadata/${resourceEndpointType}/${encodeApiUrl(
             path ?? ''
           )}?${searchParams.toString()}`;
           currentNextToken = undefined;
@@ -221,18 +262,18 @@ export const useApiRequests = () => {
             return undefined;
           }
 
-          filesMetadata = await res.json();
+          resourcesMetadata = await res.json();
 
-          if (filesMetadata) {
-            finalItems = finalItems.concat(filesMetadata.items ?? []);
-            currentNextToken = filesMetadata.nextToken;
+          if (resourcesMetadata) {
+            finalItems = finalItems.concat(resourcesMetadata.items ?? []);
+            currentNextToken = resourcesMetadata.nextToken;
           }
         } while (currentNextToken);
 
-        if (!filesMetadata) return;
+        if (!resourcesMetadata) return;
 
         return {
-          ...filesMetadata,
+          ...resourcesMetadata,
           items: finalItems,
         };
       } catch (e) {
@@ -261,6 +302,7 @@ export const useApiRequests = () => {
         path,
         isRecursive,
         suppressErrors: true,
+        withPermissions: true,
       });
 
       if (!fileMetadata && !suppressErrors) {
@@ -280,7 +322,7 @@ export const useApiRequests = () => {
       const res = await sendDialRequest(url, {
         method: 'POST',
         body: JSON.stringify({
-          resourceTypes: ['FILE'],
+          resourceTypes: [MetadataResourceType.FILE],
           with: 'others',
         }),
       });
@@ -309,7 +351,36 @@ export const useApiRequests = () => {
       const res = await sendDialRequest(url, {
         method: 'POST',
         body: JSON.stringify({
-          resourceTypes: ['FILE'],
+          resourceTypes: [MetadataResourceType.FILE],
+          with: 'me',
+        }),
+      });
+
+      if (!res.ok) {
+        displayToast('error', apiMessages.getSharedWithMeFilesServer);
+
+        return undefined;
+      }
+
+      const filesMetadata: { resources: FilesMetadata[] } = await res.json();
+
+      return filesMetadata.resources;
+    } catch (e) {
+      displayToast('error', apiMessages.getSharedWithMeFilesClient);
+
+      return;
+    }
+  }, [sendDialRequest]);
+
+  const getSharedWithMeConversations = useCallback<
+    ApiRequestFunction<void, FilesMetadata[]>
+  >(async () => {
+    try {
+      const url = `/v1/ops/resource/share/list`;
+      const res = await sendDialRequest(url, {
+        method: 'POST',
+        body: JSON.stringify({
+          resourceTypes: [MetadataResourceType.CONVERSATION],
           with: 'me',
         }),
       });
@@ -348,7 +419,7 @@ export const useApiRequests = () => {
     ): FilesMetadata[] =>
       files.reduce((acc, curr) => {
         if (
-          curr.nodeType === 'ITEM' &&
+          curr.nodeType === MetadataNodeType.ITEM &&
           curr.name.endsWith(dialProjectFileExtension)
         ) {
           acc.push(curr);
@@ -402,6 +473,10 @@ export const useApiRequests = () => {
         fileName: string;
         forceCreation?: boolean;
         fileBlob?: File;
+        onProgress?: (
+          progress: number,
+          event: ProgressEvent<EventTarget>
+        ) => void;
         fileType?: string; // Needed if file blob omitted
         fileData?: string; // Needed if file blob omitted
       },
@@ -414,6 +489,7 @@ export const useApiRequests = () => {
       fileName,
       forceCreation,
       fileBlob,
+      onProgress,
       fileType,
       fileData = '',
     }) => {
@@ -428,7 +504,7 @@ export const useApiRequests = () => {
         const formData = new FormData();
         formData.append('attachment', file);
 
-        const res = await sendDialRequest(
+        const res = await sendDialRequestWithProgress(
           encodeApiUrl(
             `${filesEndpointPrefix}/${bucket}/${
               path ? path + '/' : ''
@@ -442,7 +518,8 @@ export const useApiRequests = () => {
                   'If-None-Match': '*', // Needed to not override existing file if already exists
                 }
               : {},
-          }
+          },
+          onProgress
         );
 
         if (!res.ok) {
@@ -463,7 +540,7 @@ export const useApiRequests = () => {
         displayToast('error', apiMessages.createFileClient);
       }
     },
-    [sendDialRequest]
+    [sendDialRequestWithProgress]
   );
 
   const createFolder = useCallback<
@@ -498,11 +575,12 @@ export const useApiRequests = () => {
         bucket: string;
         path?: string | null;
         fileName: string;
+        suppressErrors?: boolean;
       },
       unknown
     >
   >(
-    async ({ bucket, path = '', fileName }) => {
+    async ({ bucket, path = '', fileName, suppressErrors }) => {
       try {
         const res = await sendDialRequest(
           encodeApiUrl(
@@ -516,10 +594,12 @@ export const useApiRequests = () => {
         );
 
         if (!res.ok) {
-          if (res.status === 403) {
-            displayToast('error', apiMessages.deleteFileForbidden);
-          } else {
-            displayToast('error', apiMessages.deleteFileServer);
+          if (!suppressErrors) {
+            if (res.status === 403) {
+              displayToast('error', apiMessages.deleteFileForbidden);
+            } else {
+              displayToast('error', apiMessages.deleteFileServer);
+            }
           }
 
           return;
@@ -527,7 +607,9 @@ export const useApiRequests = () => {
 
         return {};
       } catch {
-        displayToast('error', apiMessages.deleteFileClient);
+        if (!suppressErrors) {
+          displayToast('error', apiMessages.deleteFileClient);
+        }
       }
     },
     [sendDialRequest]
@@ -619,6 +701,7 @@ export const useApiRequests = () => {
         initialProjectData?: QGDialProject;
         skipFolderCreation?: boolean;
         forceCreation?: boolean;
+        settingsToAdd?: ProjectState['settings'];
       },
       ProjectState
     >
@@ -630,10 +713,18 @@ export const useApiRequests = () => {
       initialProjectData,
       skipFolderCreation,
       forceCreation,
+      settingsToAdd,
     }) => {
       const newProjectData: QGDialProject = initialProjectData ?? {
         [defaultSheetName]: '',
       };
+
+      if (settingsToAdd) {
+        for (const [rawKey, rawValue] of Object.entries(settingsToAdd)) {
+          const key = rawKey as keyof ProjectState['settings'];
+          newProjectData[`/${key}`] = serialiseSetting(key, rawValue);
+        }
+      }
 
       const data = await createFile({
         bucket,
@@ -776,6 +867,30 @@ export const useApiRequests = () => {
     [sendDialRequest]
   );
 
+  const checkProjectExists = useCallback<
+    ApiRequestFunction<FileReference, boolean>
+  >(
+    async ({ bucket, path = '', name }) => {
+      try {
+        const res = await sendDialRequest(
+          encodeApiUrl(
+            constructPath([
+              filesEndpointPrefix,
+              bucket,
+              path,
+              name + dialProjectFileExtension,
+            ])
+          )
+        );
+
+        return res.ok;
+      } catch {
+        return false;
+      }
+    },
+    [sendDialRequest]
+  );
+
   const getProject = useCallback<
     ApiRequestFunction<FileReference, ProjectState>
   >(
@@ -868,6 +983,93 @@ export const useApiRequests = () => {
     [sendDialRequest]
   );
 
+  const getConversations = useCallback<
+    ApiRequestFunction<
+      {
+        folder: string;
+        suppressErrors?: boolean;
+      },
+      OverlayConversation[]
+    >
+  >(
+    async ({ folder, suppressErrors }) => {
+      const fileMetadata = await getResourceMetadata({
+        resourceType: MetadataResourceType.CONVERSATION,
+        path: folder,
+        suppressErrors: true,
+        withPermissions: true,
+      });
+
+      if (!fileMetadata && !suppressErrors) {
+        displayToast('error', apiMessages.getConversationsServer);
+      }
+
+      return fileMetadata?.items as OverlayConversation[] | undefined;
+    },
+    [getResourceMetadata]
+  );
+
+  const deleteConversation = useCallback(
+    async (
+      bucket: string,
+      parentPath: string | null | undefined,
+      name: string
+    ) => {
+      const url = encodeApiUrl(
+        constructPath([conversationsEndpointPrefix, bucket, parentPath, name])
+      );
+
+      return await sendDialRequest(url, {
+        method: 'DELETE',
+      });
+    },
+    [sendDialRequest]
+  );
+
+  const deleteProjectConversations = useCallback<
+    ApiRequestFunction<
+      FileReference & {
+        projectName: string;
+      },
+      unknown
+    >
+  >(
+    async ({ bucket, path, projectName }) => {
+      try {
+        const conversationsFolder =
+          getConversationPath({
+            bucket,
+            path,
+            projectName,
+          }) + '/';
+
+        const conversations = await getConversations({
+          folder: conversationsFolder,
+          suppressErrors: true,
+        });
+
+        if (!conversations) return;
+
+        const deleteJobs: Promise<unknown>[] = [];
+
+        const queueDelete = (meta: OverlayConversation) => {
+          deleteJobs.push(
+            deleteConversation(meta.bucket, meta.parentPath, meta.name)
+          );
+        };
+
+        conversations.forEach(queueDelete);
+
+        await Promise.all(deleteJobs);
+      } catch (e) {
+        displayToast('error', apiMessages.deleteConversationClient);
+
+        return;
+      }
+    },
+    [deleteConversation, getConversations]
+  );
+
   const deleteProject = useCallback<
     ApiRequestFunction<FileReference, unknown | undefined>
   >(
@@ -906,12 +1108,19 @@ export const useApiRequests = () => {
 
         if (!deleteFolderRes) return;
 
+        deleteProjectConversations({
+          bucket,
+          path,
+          name,
+          projectName: name,
+        });
+
         return {};
       } catch {
         displayToast('error', apiMessages.deleteProjectClient);
       }
     },
-    [deleteFolder, sendDialRequest]
+    [deleteFolder, deleteProjectConversations, sendDialRequest]
   );
 
   const shareFiles = useCallback<
@@ -959,7 +1168,9 @@ export const useApiRequests = () => {
 
   const revokeResourcesAccess = useCallback<
     ApiRequestFunction<
-      (FileReference & { nodeType: 'FOLDER' | 'ITEM' })[],
+      (FileReference & {
+        nodeType: MetadataNodeType.FOLDER | MetadataNodeType.ITEM;
+      })[],
       boolean
     >
   >(
@@ -972,7 +1183,7 @@ export const useApiRequests = () => {
             resources: files.map(({ bucket, path, name, nodeType }) => ({
               url: encodeApiUrl(
                 constructPath(['files', bucket, path, name]) +
-                  (nodeType === 'FOLDER' ? '/' : '')
+                  (nodeType === MetadataNodeType.FOLDER ? '/' : '')
               ),
             })),
           }),
@@ -996,7 +1207,9 @@ export const useApiRequests = () => {
 
   const discardResourcesAccess = useCallback<
     ApiRequestFunction<
-      (FileReference & { nodeType: 'FOLDER' | 'ITEM' })[],
+      (FileReference & {
+        nodeType: MetadataNodeType.FOLDER | MetadataNodeType.ITEM;
+      })[],
       boolean
     >
   >(
@@ -1009,7 +1222,7 @@ export const useApiRequests = () => {
             resources: files.map(({ bucket, path, name, nodeType }) => ({
               url: encodeApiUrl(
                 constructPath(['files', bucket, path, name]) +
-                  (nodeType === 'FOLDER' ? '/' : '')
+                  (nodeType === MetadataNodeType.FOLDER ? '/' : '')
               ),
             })),
           }),
@@ -1042,7 +1255,11 @@ export const useApiRequests = () => {
         });
 
         if (!res.ok) {
-          displayToast('error', apiMessages.acceptShareProjectServer);
+          if (res.status === 404) {
+            displayToast('error', apiMessages.acceptShareProjectNotFoundServer);
+          } else {
+            displayToast('error', apiMessages.acceptShareProjectServer);
+          }
 
           return undefined;
         }
@@ -1084,9 +1301,29 @@ export const useApiRequests = () => {
           suppressErrors: true,
         });
 
-        const fileBlob = await getFileBlob({ name, bucket, path });
+        const fileNamesInDestination = (allFilesInDestination ?? [])
+          .filter((f) => f.nodeType !== MetadataNodeType.FOLDER)
+          .map((file) => file.name);
+        const targetFileName = fileNamesInDestination.includes(name)
+          ? createUniqueFileName(name, fileNamesInDestination)
+          : name;
 
-        if (!fileBlob) {
+        const sourceUrl = encodeApiUrl(
+          constructPath(['files', bucket, path, name])
+        );
+        const destinationUrl = encodeApiUrl(
+          constructPath(['files', targetBucket, targetPath, targetFileName])
+        );
+
+        const res = await sendDialRequest('/v1/ops/resource/copy', {
+          method: 'POST',
+          body: JSON.stringify({
+            sourceUrl,
+            destinationUrl,
+          }),
+        });
+
+        if (!res.ok) {
           if (!suppressErrors) {
             displayToast('error', apiMessages.cloneFileServer);
           }
@@ -1094,27 +1331,8 @@ export const useApiRequests = () => {
           return undefined;
         }
 
-        const file = new File([fileBlob], name);
-
-        const fileNamesInDestination = (allFilesInDestination ?? [])
-          .filter((f) => f.nodeType !== 'FOLDER')
-          .map((file) => file.name);
-        const targetFileName = fileNamesInDestination.includes(name)
-          ? createUniqueFileName(name, fileNamesInDestination)
-          : name;
-
-        const data = await createFile({
-          bucket: targetBucket,
-          path: targetPath,
-          fileName: targetFileName,
-          fileType: file.type,
-          fileBlob: file,
-        });
-
-        if (!data) return;
-
         return {};
-      } catch (e) {
+      } catch {
         if (!suppressErrors) {
           displayToast('error', apiMessages.cloneFileClient);
         }
@@ -1122,7 +1340,7 @@ export const useApiRequests = () => {
         return;
       }
     },
-    [createFile, getFileBlob, getFiles]
+    [getFiles, sendDialRequest]
   );
 
   const renameFile = useCallback<
@@ -1288,6 +1506,98 @@ export const useApiRequests = () => {
     [getFiles, moveFile]
   );
 
+  const moveConversation = useCallback(
+    async (
+      bucket: string,
+      parentPath: string | null | undefined,
+      name: string,
+      destinationFolder: string
+    ) => {
+      return await sendDialRequest('/v1/ops/resource/move', {
+        method: 'POST',
+        body: JSON.stringify({
+          sourceUrl: encodeApiUrl(
+            constructPath(['conversations', bucket, parentPath, name])
+          ),
+          destinationUrl: encodeApiUrl(`${destinationFolder}${name}`),
+        }),
+      });
+    },
+    [sendDialRequest]
+  );
+
+  const moveProjectConversations = useCallback<
+    ApiRequestFunction<
+      FileReference & {
+        suppressErrors?: boolean;
+        targetPath: string | null | undefined;
+        targetBucket: string;
+        projectName: string;
+        targetProjectName: string;
+      },
+      unknown
+    >
+  >(
+    async ({
+      bucket,
+      path,
+      suppressErrors,
+      targetPath,
+      targetBucket,
+      projectName,
+      targetProjectName,
+    }) => {
+      try {
+        const conversationsFolder =
+          getConversationPath({
+            bucket,
+            path,
+            projectName,
+          }) + '/';
+
+        const destConversationsPath =
+          constructPath([
+            conversationsEndpointType,
+            getConversationPath({
+              bucket: targetBucket,
+              path: targetPath,
+              projectName: targetProjectName,
+            }),
+          ]) + '/';
+
+        const conversations = await getConversations({
+          folder: conversationsFolder,
+          suppressErrors: true,
+        });
+
+        if (!conversations) return;
+
+        const copyJobs: Promise<unknown>[] = [];
+
+        const queueCopy = (meta: OverlayConversation) => {
+          copyJobs.push(
+            moveConversation(
+              meta.bucket,
+              meta.parentPath,
+              meta.name,
+              destConversationsPath
+            )
+          );
+        };
+
+        conversations.forEach(queueCopy);
+
+        await Promise.all(copyJobs);
+      } catch (e) {
+        if (!suppressErrors)
+          displayToast('error', apiMessages.moveConversationClient);
+
+        return;
+      }
+    },
+    [moveConversation, getConversations]
+  );
+
   const moveProject = useCallback<
     ApiRequestFunction<
       Pick<FileReference, 'name' | 'bucket' | 'path'> & {
@@ -1327,7 +1637,6 @@ export const useApiRequests = () => {
 
         const updatedProjectSheets = updateFilesPathInputsInProject(
           project.sheets,
-          constructPath([bucket, projectFoldersRootPrefix, path, projectName]),
           constructPath([
             targetBucket,
             projectFoldersRootPrefix,
@@ -1335,6 +1644,12 @@ export const useApiRequests = () => {
             newProjectName,
           ])
         );
+
+        const settingsToAdd: ProjectState['settings'] = {
+          [projectMetadataSettingsKey]: {
+            ...(project.settings?.[projectMetadataSettingsKey] ?? {}),
+          },
+        };
 
         // 2. Create project with updated content
         const createdProjectRes = await createProject({
@@ -1346,6 +1661,7 @@ export const useApiRequests = () => {
 
             return acc;
           }, {} as Record<string, string>),
+          settingsToAdd,
           skipFolderCreation: true,
         });
 
@@ -1387,12 +1703,29 @@ export const useApiRequests = () => {
           displayToast('error', apiMessages.moveToFolderServer);
         }
 
+        moveProjectConversations({
+          bucket,
+          path,
+          name,
+          targetPath,
+          targetBucket,
+          projectName,
+          targetProjectName: newProjectName,
+          suppressErrors,
+        });
+
         return {};
       } catch {
         displayToast('error', apiMessages.moveToFolderClient);
       }
     },
-    [createProject, deleteFile, getProject, moveFolder]
+    [
+      createProject,
+      deleteFile,
+      getProject,
+      moveFolder,
+      moveProjectConversations,
+    ]
   );
 
   const renameProject = useCallback<
@@ -1419,12 +1752,131 @@ export const useApiRequests = () => {
     [moveProject]
   );
 
+  const copyConversation = useCallback(
+    async (
+      bucket: string,
+      parentPath: string | null | undefined,
+      name: string,
+      destinationFolder: string
+    ) => {
+      return await sendDialRequest('/v1/ops/resource/copy', {
+        method: 'POST',
+        body: JSON.stringify({
+          sourceUrl: encodeApiUrl(
+            constructPath(['conversations', bucket, parentPath, name])
+          ),
+          destinationUrl: encodeApiUrl(`${destinationFolder}${name}`),
+        }),
+      });
+    },
+    [sendDialRequest]
+  );
+
+  const cloneProjectConversations = useCallback<
+    ApiRequestFunction<
+      FileReference & {
+        suppressErrors?: boolean;
+        targetPath: string | null;
+        targetBucket: string;
+        projectName: string;
+        targetProjectName: string;
+        isReadOnly: boolean;
+      },
+      unknown
+    >
+  >(
+    async ({
+      bucket,
+      path,
+      suppressErrors,
+      targetPath,
+      targetBucket,
+      projectName,
+      targetProjectName,
+      isReadOnly,
+    }) => {
+      try {
+        const conversationsFolder =
+          getConversationPath({
+            bucket,
+            path,
+            projectName,
+          }) + '/';
+
+        const destConversationsPath =
+          constructPath([
+            conversationsEndpointType,
+            getConversationPath({
+              bucket: targetBucket,
+              path: targetPath,
+              projectName: targetProjectName,
+            }),
+          ]) + '/';
+
+        const localConversationsFolder =
+          getLocalConversationsPath({
+            userBucket,
+            bucket,
+            path,
+            projectName,
+          }) + '/';
+
+        const conversations =
+          (await getConversations({
+            folder: conversationsFolder,
+            suppressErrors: true,
+          })) ?? [];
+        const localConversations = isReadOnly
+          ? (await getConversations({
+              folder: localConversationsFolder,
+              suppressErrors: true,
+            })) ?? []
+          : [];
+
+        if (!conversations) return;
+
+        const existingNames = new Set<string>();
+        const copyJobs: Promise<unknown>[] = [];
+
+        const queueCopy = (meta: OverlayConversation) => {
+          let finalName = meta.name;
+          if (existingNames.has(finalName)) {
+            finalName = createUniqueFileName(finalName, [...existingNames]);
+          }
+          existingNames.add(finalName);
+
+          copyJobs.push(
+            copyConversation(
+              meta.bucket,
+              meta.parentPath,
+              finalName,
+              destConversationsPath
+            )
+          );
+        };
+
+        conversations.forEach(queueCopy);
+        localConversations.forEach(queueCopy);
+
+        await Promise.all(copyJobs);
+      } catch (e) {
+        if (!suppressErrors)
+          displayToast('error', apiMessages.cloneConversationsClient);
+
+        return;
+      }
+    },
+    [copyConversation, getConversations, userBucket]
+  );
+
   const cloneProject = useCallback<
     ApiRequestFunction<
       FileReference & {
         suppressErrors?: boolean;
         targetPath: string | null;
         targetBucket: string;
+        sheetsOverride?: WorksheetState[] | null;
+        isReadOnly: boolean;
       },
       { newClonedProjectName: string }
     >
@@ -1436,6 +1888,8 @@ export const useApiRequests = () => {
       suppressErrors,
       targetPath,
       targetBucket,
+      sheetsOverride,
+      isReadOnly,
     }) => {
       try {
         const folderPath = `${targetBucket}/${
@@ -1456,7 +1910,7 @@ export const useApiRequests = () => {
         const targetProjectFileName = createUniqueFileName(
           name,
           allFiles
-            .filter((f) => f.nodeType !== 'FOLDER')
+            .filter((f) => f.nodeType !== MetadataNodeType.FOLDER)
             .map((file) => file.name)
         );
         const targetProjectName = targetProjectFileName.replace(
@@ -1464,9 +1918,9 @@ export const useApiRequests = () => {
           ''
         );
 
+        const projectSheets = sheetsOverride ?? project.sheets;
         const updatedProjectSheets = updateFilesPathInputsInProject(
-          project.sheets,
-          constructPath([bucket, projectFoldersRootPrefix, path, projectName]),
+          projectSheets,
           constructPath([
             targetBucket,
             projectFoldersRootPrefix,
@@ -1474,6 +1928,17 @@ export const useApiRequests = () => {
             targetProjectName,
           ])
         );
+
+        const settingsToAdd: ProjectState['settings'] = {
+          [projectMetadataSettingsKey]: {
+            ...(project.settings?.[projectMetadataSettingsKey] ?? {}),
+            [forkedProjectMetadataKey]: {
+              bucket,
+              path,
+              projectName,
+            },
+          },
+        };
 
         const createdProjectRes = await createProject({
           projectName: targetProjectName,
@@ -1485,6 +1950,7 @@ export const useApiRequests = () => {
             return acc;
           }, {} as Record<string, string>),
           skipFolderCreation: true,
+          settingsToAdd,
         });
 
         if (!createdProjectRes) {
@@ -1496,24 +1962,9 @@ export const useApiRequests = () => {
         }
 
         const projectFilesFromSheets = (collectFilesFromProject(
-          project.sheets.map((sheet) => sheet.content)
+          projectSheets.map((sheet) => sheet.content)
         )
-          ?.map((url) => {
-            const [filesPathSegment, bucket, ...pathWithName] =
-              decodeApiUrl(url).split('/');
-            const parentPath = pathWithName
-              .slice(0, pathWithName.length - 1)
-              .join('/');
-            const name = pathWithName[pathWithName.length - 1];
-
-            if (!name || !bucket || !filesPathSegment) return null;
-
-            return {
-              bucket,
-              parentPath,
-              name,
-            };
-          })
+          ?.map(convertUrlToMetadata)
           .filter(Boolean) ?? []) as Pick<
           FilesMetadata,
           'bucket' | 'parentPath' | 'name'
@@ -1569,8 +2020,21 @@ export const useApiRequests = () => {
               targetProjectName,
             ]),
             targetBucket,
+            suppressErrors: true,
           });
         }
+
+        await cloneProjectConversations({
+          bucket,
+          name,
+          path,
+          suppressErrors,
+          targetPath,
+          targetBucket,
+          projectName,
+          targetProjectName,
+          isReadOnly,
+        });
 
         return { newClonedProjectName: targetProjectName };
       } catch (e) {
@@ -1579,7 +2043,14 @@ export const useApiRequests = () => {
         return;
       }
     },
-    [cloneFile, createProject, getFiles, getProject, userBucket]
+    [
+      cloneProjectConversations,
+      cloneFile,
+      createProject,
+      getFiles,
+      getProject,
+      userBucket,
+    ]
   );
 
   const getViewport = useCallback<
@@ -1588,11 +2059,19 @@ export const useApiRequests = () => {
         projectPath: string;
         viewports: Viewport[];
         worksheets: Record<string, string>;
+        hasEditPermissions?: boolean;
+        controller?: AbortController;
       },
       Response
     >
   >(
-    async ({ projectPath, viewports, worksheets }) => {
+    async ({
+      projectPath,
+      viewports,
+      worksheets,
+      hasEditPermissions = false,
+      controller,
+    }) => {
       try {
         const body = JSON.stringify({
           calculateWorksheetsRequest: {
@@ -1600,6 +2079,9 @@ export const useApiRequests = () => {
             viewports,
             worksheets,
             includeCompilation: true,
+            includeProfile: true,
+            includeIndices: true,
+            shared: hasEditPermissions,
           },
         } as ViewportRequest);
 
@@ -1609,6 +2091,7 @@ export const useApiRequests = () => {
           headers: {
             'Content-Type': 'application/json',
           },
+          signal: controller?.signal,
         });
 
         if (res.status === 503) {
@@ -1624,7 +2107,11 @@ export const useApiRequests = () => {
         }
 
         return res;
-      } catch {
+      } catch (error) {
+        // Don't show error toast if request was aborted
+        if (error instanceof DOMException && error.name === 'AbortError') {
+          return;
+        }
         displayToast('error', apiMessages.computationClient);
       }
     },
@@ -1664,6 +2151,82 @@ export const useApiRequests = () => {
         return res;
       } catch {
         displayToast('error', apiMessages.compileClient);
+      }
+    },
+    [sendAuthorizedRequest]
+  );
+
+  const sendProjectCalculate = useCallback<
+    ApiRequestFunction<
+      {
+        projectPath: string;
+      },
+      Response
+    >
+  >(
+    async ({ projectPath }) => {
+      try {
+        const body = JSON.stringify({
+          projectCalculateRequest: {
+            project: projectPath,
+          },
+        } as ProjectCalculateRequest);
+
+        const res = await sendAuthorizedRequest(`/v1/project/calculate`, {
+          method: 'post',
+          body,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (!res.ok) {
+          displayToast('error', apiMessages.projectCalculateServer);
+
+          return;
+        }
+
+        return res;
+      } catch {
+        displayToast('error', apiMessages.projectCalculateClient);
+      }
+    },
+    [sendAuthorizedRequest]
+  );
+
+  const sendProjectCancel = useCallback<
+    ApiRequestFunction<
+      {
+        projectPath: string;
+      },
+      Response
+    >
+  >(
+    async ({ projectPath }) => {
+      try {
+        const body = JSON.stringify({
+          projectCancelRequest: {
+            project: projectPath,
+          },
+        } as ProjectCancelRequest);
+
+        const res = await sendAuthorizedRequest(`/v1/project/cancel`, {
+          method: 'post',
+          body,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (!res.ok) {
+          displayToast('error', apiMessages.projectCalculateServer);
+
+          return;
+        }
+
+        return res;
+      } catch {
+        displayToast('error', apiMessages.projectCancelClient);
       }
     },
     [sendAuthorizedRequest]
@@ -1797,7 +2360,7 @@ export const useApiRequests = () => {
         const body: NotificationRequest = {
           resources: [
             {
-              url: encodeApiUrl('files/' + projectUrl),
+              url: encodeApiUrl(`${filesEndpointType}/` + projectUrl),
             },
           ],
         };
@@ -1823,6 +2386,182 @@ export const useApiRequests = () => {
       }
     },
     [sendDialRequest]
+  );
+
+  /**
+   * Reset a project to the state of the source project without removing the project yaml.
+   */
+  const resetProject = useCallback<
+    ApiRequestFunction<
+      {
+        bucket: string;
+        path?: string | null;
+        projectName: string;
+        sourceBucket: string;
+        sourcePath: string;
+        sourceName: string;
+      },
+      ProjectState | undefined
+    >
+  >(
+    async ({
+      bucket,
+      path = '',
+      projectName,
+      sourceName,
+      sourcePath = '',
+      sourceBucket,
+    }) => {
+      const currentProject = await getProject({
+        bucket,
+        path,
+        name: projectName,
+      });
+      if (!currentProject) return;
+
+      /* Delete all files related to the current project */
+      await deleteFolder({
+        bucket,
+        parentPath: constructPath([
+          projectFoldersRootPrefix,
+          path,
+          projectName,
+        ]),
+        name: '',
+        suppressErrors: true,
+      });
+
+      /* Pull a source project, rewrite paths, overwrite YAML */
+      const sourceProject = await getProject({
+        bucket: sourceBucket,
+        path: sourcePath,
+        name: sourceName,
+      });
+      if (!sourceProject) return;
+
+      const updatedSheets = updateFilesPathInputsInProject(
+        sourceProject.sheets,
+        constructPath([bucket, projectFoldersRootPrefix, path, projectName])
+      );
+
+      const updatedProject = await putProject({
+        ...currentProject,
+        sheets: updatedSheets,
+        settings: {
+          ...currentProject.settings,
+          [projectMetadataSettingsKey]: {
+            [forkedProjectMetadataKey]: {
+              bucket: sourceBucket,
+              path: sourcePath,
+              projectName: sourceName,
+            },
+          },
+        },
+      });
+      if (!updatedProject) return;
+
+      /* Gather all files from source project and clone them */
+      const srcFolderFiles =
+        (await getFiles({
+          path:
+            constructPath([
+              sourceBucket,
+              projectFoldersRootPrefix,
+              sourcePath,
+              sourceName,
+            ]) + '/',
+          isRecursive: true,
+          suppressErrors: true,
+        })) ?? [];
+
+      const extraFiles =
+        (collectFilesFromProject(sourceProject.sheets.map((s) => s.content))
+          ?.map(convertUrlToMetadata)
+          .filter(Boolean) as Pick<
+          FilesMetadata,
+          'bucket' | 'parentPath' | 'name'
+        >[]) ?? [];
+
+      const filesToClone = [...srcFolderFiles, ...extraFiles];
+
+      for (const file of filesToClone) {
+        await cloneFile({
+          bucket: file.bucket,
+          name: file.name,
+          path: file.parentPath,
+          targetBucket: bucket,
+          targetPath: constructPath([
+            projectFoldersRootPrefix,
+            path,
+            projectName,
+          ]),
+          suppressErrors: true,
+        });
+      }
+
+      return updatedProject;
+    },
+    [getProject, deleteFolder, putProject, getFiles, cloneFile]
+  );
+
+  const updateForkedProjectMetadata = useCallback<
+    ApiRequestFunction<
+      {
+        bucket: string;
+        path?: string | null;
+        projectName: string;
+        forkBucket: string;
+        forkPath?: string | null;
+        forkProjectName: string;
+        suppressErrors?: boolean;
+      },
+      ProjectState | undefined
+    >
+  >(
+    async ({
+      bucket,
+      path = '',
+      projectName,
+      forkBucket,
+      forkPath = '',
+      forkProjectName,
+      suppressErrors = false,
+    }) => {
+      try {
+        const current = await getProject({ bucket, path, name: projectName });
+        if (!current) return;
+
+        const updatedSettings: ProjectState['settings'] = {
+          ...(current.settings ?? {}),
+          [projectMetadataSettingsKey]: {
+            ...(current.settings?.[projectMetadataSettingsKey] ?? {}),
+            [forkedProjectMetadataKey]: {
+              bucket: forkBucket,
+              path: forkPath,
+              projectName: forkProjectName,
+            },
+          },
+        };
+
+        const updated = await putProject({
+          ...current,
+          settings: updatedSettings,
+        });
+
+        if (!updated && !suppressErrors) {
+          displayToast('error', apiMessages.putProjectServer);
+        }
+
+        return updated;
+      } catch {
+        if (!suppressErrors) {
+          displayToast('error', apiMessages.putProjectClient);
+        }
+
+        return;
+      }
+    },
+    [getProject, putProject]
   );
 
   return {
@@ -1855,6 +2594,8 @@ export const useApiRequests = () => {
     getViewport,
     getCompileInfo,
 
+    getSharedWithMeConversations,
+
     moveFile,
     moveProject,
 
@@ -1862,6 +2603,9 @@ export const useApiRequests = () => {
 
     renameFile,
     renameProject,
+
+    resetProject,
+    updateForkedProjectMetadata,
 
     revokeResourcesAccess,
     discardResourcesAccess,
@@ -1871,5 +2615,10 @@ export const useApiRequests = () => {
 
     getAIHintsContent,
     putAIHintsContent,
+
+    checkProjectExists,
+
+    sendProjectCancel,
+    sendProjectCalculate,
   };
 };

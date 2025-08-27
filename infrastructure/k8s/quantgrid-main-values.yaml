@@ -17,8 +17,6 @@ backendControl:
     WEB_REDIS_ADDRESS: "[redis://quantgrid-redis-headless:6379]"
     WEB_NODE_TYPE: CONTROL
     WEB_SERVER_PORT: "8080"
-    PROJECTS_FOLDER: /deltix/data/projects
-    INPUTS_FOLDER: /deltix/data/inputs
     SECURITY_ENABLED: "true"
     JWKS_URI: https://dev-dial-keycloak.staging.deltixhub.io/realms/EPAM/protocol/openid-connect/certs
     WEB_STORAGE_DIAL_ENABLED: "true"
@@ -58,12 +56,20 @@ backendCompute:
     WEB_REDIS_ADDRESS: "[redis://quantgrid-redis-headless:6379]"
     WEB_NODE_TYPE: COMPUTE
     WEB_SERVER_PORT: "10001"
-    PROJECTS_FOLDER: /deltix/data/projects
-    INPUTS_FOLDER: /deltix/data/inputs
     SECURITY_ENABLED: "true"
     JWKS_URI: https://dev-dial-keycloak.staging.deltixhub.io/realms/EPAM/protocol/openid-connect/certs
     WEB_STORAGE_DIAL_ENABLED: "true"
     WEB_STORAGE_DIAL_BASE_URL: "https://dev-dial-core.staging.deltixhub.io"
+    JAVA_OPTS: |
+      -server
+      -Djava.awt.headless=true
+      -Xms1600m
+      -Xmx2g
+      -XX:+AlwaysActAsServerClassMachine
+      -XX:+AlwaysPreTouch
+      -XX:+PerfDisableSharedMem
+      -XX:MaxTenuringThreshold=1
+      -Dnetworkaddress.cache.ttl=60s
 
   secret:
     SOME_SECRET_ENV: secret_env
@@ -99,8 +105,9 @@ frontend:
     const authAuthority = 'https://dev-dial-keycloak.staging.deltixhub.io/realms/EPAM';
     const authClientId = 'quantgrid';
     const authProvider = 'keycloak';
+    const authScope = 'openid dial profile email offline_access';
     const dialBaseUrl = 'https://dev-dial-core.staging.deltixhub.io';
-    const qgBotDeploymentName = 'qg';
+    const qgBotDeploymentName = 'qgbot';
     const adminRoles = ['admin'];
     const featureFlags = [];
     const defaultPanelsSettings = {
@@ -109,10 +116,6 @@ frontend:
         position: 'left',
       },
       project: {
-        isActive: false,
-        position: 'right',
-      },
-      inputs: {
         isActive: false,
         position: 'right',
       },
@@ -125,10 +128,6 @@ frontend:
         position: 'right',
       },
       undoRedo: {
-        isActive: false,
-        position: 'left',
-      },
-      aiHints: {
         isActive: false,
         position: 'left',
       },

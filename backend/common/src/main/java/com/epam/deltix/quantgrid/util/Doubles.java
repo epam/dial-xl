@@ -1,5 +1,6 @@
 package com.epam.deltix.quantgrid.util;
 
+import ch.randelshofer.fastdoubleparser.JavaDoubleParser;
 import lombok.experimental.UtilityClass;
 
 @UtilityClass
@@ -47,9 +48,13 @@ public class Doubles {
         throw new IllegalArgumentException("Not an error: " + bits);
     }
 
-    public static String toString(double value) {
+    public String toString(double value) {
+        return toString(value, Formatter.LOSSLESS);
+    }
+
+    public String toString(double value, Formatter formatter) {
         if (isValue(value)) {
-            return Double.toString(value);
+            return formatter.apply(value);
         }
 
         if (isEmpty(value)) {
@@ -57,5 +62,95 @@ public class Doubles {
         }
 
         return toStringError(value);
+    }
+
+    public double parseDouble(String text) {
+        if (Strings.isError(text)) {
+            return Strings.toDoubleError(text);
+        }
+
+        if (Strings.isEmpty(text)) {
+            return Doubles.EMPTY;
+        }
+
+        try {
+            return parseDoubleWithSuffix(removeValidCommas(text));
+        } catch (NumberFormatException e) {
+            return Doubles.ERROR_NA;
+        }
+    }
+
+    private CharSequence removeValidCommas(String text) {
+        if (text.length() < 4) {
+            return text;
+        }
+
+        int position = 0;
+        char ch = text.charAt(position);
+        if (ch == '-' || ch == '+') {
+            if (text.length() < 5) {
+                return text;
+            }
+            ch = text.charAt(++position);
+        }
+
+        if (isNotDigit(ch)) {
+            return text;
+        }
+
+        for (int i = 0; i < 3; ++i) {
+            ch = text.charAt(++position);
+            if (isNotDigit(ch)) {
+                break;
+            }
+        }
+
+        if (ch != ',') {
+            return text;
+        }
+
+        StringBuilder result = new StringBuilder();
+        result.append(text, 0, position);
+        int digitCount = 0;
+        while (++position < text.length()) {
+            ch = text.charAt(position);
+            if (ch == ',') {
+                if (digitCount != 3) {
+                    return text;
+                }
+                digitCount = 0;
+            } else {
+                if (isNotDigit(ch)) {
+                    result.append(text, position, text.length());
+                    break;
+                }
+
+                result.append(ch);
+                ++digitCount;
+            }
+        }
+        if (digitCount != 3) {
+            return text;
+        }
+
+        return result;
+    }
+
+    private double parseDoubleWithSuffix(CharSequence number) {
+        if (number.length() < 2) {
+            return JavaDoubleParser.parseDouble(number);
+        }
+
+        int last = number.length() - 1;
+        return switch (number.charAt(last)) {
+            case 'K' -> JavaDoubleParser.parseDouble(number, 0, last) * 1_000;
+            case 'M' -> JavaDoubleParser.parseDouble(number, 0, last) * 1_000_000;
+            case 'B' -> JavaDoubleParser.parseDouble(number, 0, last) * 1_000_000_000;
+            default -> JavaDoubleParser.parseDouble(number);
+        };
+    }
+
+    private boolean isNotDigit(char ch) {
+        return '0' > ch || ch > '9';
     }
 }

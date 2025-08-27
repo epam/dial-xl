@@ -1,6 +1,7 @@
 package com.epam.deltix.quantgrid.engine.service.input.storage;
 
 import com.epam.deltix.quantgrid.engine.service.input.InputMetadata;
+import com.epam.deltix.quantgrid.engine.value.StringColumn;
 import com.epam.deltix.quantgrid.engine.value.Value;
 
 import java.security.Principal;
@@ -22,6 +23,8 @@ public interface InputProvider {
      * @return a table for provided read columns
      */
     Value readData(List<String> readColumns, InputMetadata metadata, Principal principal);
+
+    void writeData(String path, List<String> names, List<StringColumn> values, Principal principal);
 
     /**
      * Human-readable name of the provider.

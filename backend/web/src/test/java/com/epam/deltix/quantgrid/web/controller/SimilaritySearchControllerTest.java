@@ -23,7 +23,7 @@ class SimilaritySearchControllerTest {
     private MockMvc mockMvc;
 
     @Test
-    void testSearchAll() throws Exception {
+    void testSearchAllWithDescription() throws Exception {
         search(
                 """
                         {
@@ -40,7 +40,7 @@ class SimilaritySearchControllerTest {
                         """,
                 """
                         {
-                          "id": "",
+                          "id": "@ignore",
                           "status": "SUCCEED",
                           "similaritySearchResponse": {
                             "scores": [
@@ -72,6 +72,52 @@ class SimilaritySearchControllerTest {
     }
 
     @Test
+    void testSearchAllWithoutDescription() throws Exception {
+        search(
+                """
+                        {
+                          "similaritySearchRequest": {
+                            "project": "my_project",
+                            "sheets": {
+                              "Sheet": "table A\\n !index()\\n dim [x] = TEXT(RANGE(5))"
+                            },
+                            "query": "Find numbers",
+                            "n": 3,
+                            "searchInAll": true
+                          }
+                        }
+                        """,
+                """
+                        {
+                          "id": "@ignore",
+                          "status": "SUCCEED",
+                          "similaritySearchResponse": {
+                            "scores" : [
+                              {
+                                "table" : "A",
+                                "column" : "x",
+                                "value" : "1",
+                                "score" : 0.6431054566768258
+                              },
+                              {
+                                "table" : "A",
+                                "column" : "x",
+                                "value" : "5",
+                                "score" : 0.661662653136618
+                              },
+                              {
+                                "table" : "A",
+                                "column" : "x",
+                                "value" : "3",
+                                "score" : 0.65019651815638
+                              }
+                            ]
+                          }
+                        }
+                        """);
+    }
+
+    @Test
     void testSearchSpecific() throws Exception {
         search(
                 """
@@ -94,7 +140,7 @@ class SimilaritySearchControllerTest {
                         """,
                 """
                         {
-                          "id": "",
+                          "id": "@ignore",
                           "status": "SUCCEED",
                           "similaritySearchResponse": {
                             "scores": [
@@ -102,8 +148,7 @@ class SimilaritySearchControllerTest {
                                 "table": "A",
                                 "column": "x",
                                 "value": "N/A",
-                                "description": "N/A",
-                                "score": 0.5373028792657342
+                                "score": 0.5883627121054887
                               },
                               {
                                 "table": "A",
@@ -159,7 +204,7 @@ class SimilaritySearchControllerTest {
                     "query": "Find numbers"
                   }
                 }
-                """, 400, "column: A[y] is not a text column or does not have description");
+                """, 400, "Column A[y] does not have index.");
     }
 
     private void search(String request, String response) throws Exception {

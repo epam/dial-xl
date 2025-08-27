@@ -43,8 +43,9 @@ public class EvaluationUtils {
                                          Map<ParsedKey, Object> parsed,
                                          ParsedTable table) {
         boolean foundQuestionColumn = false;
+        List<ParsedField> allFields = table.fields().stream().flatMap(fields -> fields.fields().stream()).toList();
 
-        for (ParsedField field : table.fields()) {
+        for (ParsedField field : allFields) {
             if (CompileEvaluationUtils.isEvaluationQuestion(field)) {
                 if (foundQuestionColumn) {
                     compileErrors.put(new TableKey(table.tableName()), new CompileError("Evaluation table must have only one question field"));

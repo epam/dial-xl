@@ -196,10 +196,10 @@ export function Arrow({ place }: Props) {
     <Graphics
       cursor="pointer"
       eventMode="static"
-      onmousedown={onMouseDown}
-      onmouseout={onMouseOut}
-      onmouseover={onMouseOver}
-      onmouseup={onMouseUp}
+      onpointerdown={onMouseDown}
+      onpointerout={onMouseOut}
+      onpointerover={onMouseOver}
+      onpointerup={onMouseUp}
       ref={graphicsRef}
     />
   );

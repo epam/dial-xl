@@ -8,6 +8,7 @@ import {
   addLineBreaks,
   getColor,
   getThemeColors,
+  isHtmlColor,
   sortNumericOrText,
 } from '../common';
 
@@ -17,7 +18,8 @@ export function organizeStackedBarChartData(
 ): OrganizedData | undefined {
   const data = chartData[chartConfig.tableName];
   const { gridChart } = chartConfig;
-  const { chartSections, customSeriesColors, showLegend } = gridChart;
+  const { chartSections, customSeriesColors, showLegend, chartOrientation } =
+    gridChart;
 
   if (
     !data ||
@@ -29,81 +31,123 @@ export function organizeStackedBarChartData(
 
   const legendData: string[] = [];
   const xAxisData: string[] = [];
+  const xDisplayByRaw = new Map<string, string>();
   const series: EChartsOption['series'] = [];
 
   for (const section of chartSections) {
     const { xAxisFieldName, valueFieldNames } = section;
+    if (!valueFieldNames?.length) continue;
 
-    if (!Array.isArray(valueFieldNames) || valueFieldNames.length === 0) {
-      continue;
-    }
+    const rowCount = Array.isArray(data[valueFieldNames[0]]?.rawValues)
+      ? data[valueFieldNames[0]].rawValues.length
+      : 0;
 
-    const rowNumbers: string[] = [];
+    const rowNumbers = Array.from({ length: rowCount }, (_, i) =>
+      (i + 1).toString()
+    );
 
-    if (data[section.valueFieldNames[0]]) {
-      const sectionLength = data[section.valueFieldNames[0]].length;
-      Array.from({ length: sectionLength }, (_, i) =>
-        (i + 1).toString()
-      ).forEach((value) => rowNumbers.push(value));
-    }
+    const rowLabels: string[] =
+      xAxisFieldName && Array.isArray(data[xAxisFieldName]?.rawValues)
+        ? (data[xAxisFieldName].rawValues as string[])
+        : rowNumbers;
 
-    if (!rowNumbers.length) continue;
+    const rowLabelsDisplay: string[] | undefined =
+      xAxisFieldName && Array.isArray(data[xAxisFieldName]?.displayValues)
+        ? (data[xAxisFieldName].displayValues as string[])
+        : undefined;
 
-    if (xAxisFieldName) {
-      const xFieldValues = data[xAxisFieldName];
-      if (Array.isArray(xFieldValues)) {
-        xAxisData.push(...(xFieldValues as string[]));
+    rowLabels.forEach((raw, i) => {
+      if (!xDisplayByRaw.has(raw)) {
+        xDisplayByRaw.set(raw, rowLabelsDisplay?.[i] ?? raw);
       }
-    }
+    });
 
-    if (!xAxisData.length) {
-      xAxisData.push(...rowNumbers);
-    }
+    if (chartOrientation === 'vertical') {
+      if (!xAxisData.length) xAxisData.push(...rowLabels);
 
-    for (const valueFieldName of sortNumericOrText(valueFieldNames)) {
-      legendData.push(valueFieldName);
+      for (const fieldName of sortNumericOrText(valueFieldNames)) {
+        legendData.push(fieldName);
 
-      const fieldValues = data[valueFieldName];
-      if (!Array.isArray(fieldValues)) {
-        return;
+        const fieldValues = data[fieldName]?.rawValues;
+        const fieldValuesDisplay = data[fieldName]?.displayValues;
+        if (!Array.isArray(fieldValues)) return;
+
+        const values = rowNumbers.map((row) => {
+          const idx = Number(row) - 1;
+          const n = parseFloat(fieldValues[idx] as string);
+          const disp = fieldValuesDisplay[idx];
+
+          return isNaN(n) ? null : { value: n, displayValue: disp };
+        });
+
+        const cIdx = legendData.indexOf(fieldName);
+        series.push({
+          name: fieldName,
+          type: 'bar',
+          stack: 'stack',
+          data: values,
+          itemStyle: {
+            color:
+              customSeriesColors?.[fieldName] ||
+              getColor(cIdx === -1 ? 0 : cIdx, fieldName),
+          },
+        });
       }
+    } else {
+      const dotColorFieldName = section.dotColorFieldName;
+      const dotColors: string[] | undefined =
+        dotColorFieldName && Array.isArray(data[dotColorFieldName]?.rawValues)
+          ? (data[dotColorFieldName].rawValues as string[])
+          : undefined;
 
-      const seriesData = rowNumbers.map((row) => {
-        const rowIndex = parseInt(row, 10) - 1;
-        if (rowIndex < 0 || rowIndex >= fieldValues.length) {
-          return null;
-        }
+      xAxisData.push(...valueFieldNames);
 
-        const rawValue = fieldValues[rowIndex];
-        const numericValue = parseFloat(rawValue as string);
+      for (let r = 0; r < rowCount; r++) {
+        const rowName = rowLabels[r] ?? `Row ${r + 1}`;
+        legendData.push(rowName);
 
-        return isNaN(numericValue) ? null : numericValue;
-      });
+        const values = valueFieldNames.map((field) => {
+          const n = parseFloat(data[field]?.rawValues?.[r] as string);
+          const disp = data[field]?.displayValues?.[r];
 
-      const colorIndex = legendData.indexOf(valueFieldName);
-      series.push({
-        name: valueFieldName,
-        type: 'bar',
-        stack: 'stack',
-        data: seriesData,
-        itemStyle: {
-          color:
-            customSeriesColors?.[valueFieldName] ||
-            getColor(colorIndex === -1 ? 0 : colorIndex, valueFieldName),
-        },
-      });
+          return isNaN(n) ? null : { value: n, displayValue: disp };
+        });
+
+        const cIdx = legendData.indexOf(rowName);
+        const colorCandidate = dotColors?.[r];
+        const rowColor =
+          colorCandidate && isHtmlColor(colorCandidate)
+            ? colorCandidate
+            : customSeriesColors?.[rowName] ||
+              getColor(cIdx === -1 ? 0 : cIdx, rowName);
+
+        series.push({
+          name: rowName,
+          type: 'bar',
+          stack: 'stack',
+          data: values,
+          itemStyle: {
+            color: rowColor,
+          },
+        });
+      }
     }
   }
 
   const uniqueXAxisData = addLineBreaks(
-    sortNumericOrText(Array.from(new Set(xAxisData)).filter(Boolean))
+    chartOrientation === 'vertical'
+      ? sortNumericOrText([...new Set(xAxisData)]).map(
+          (raw) => xDisplayByRaw.get(raw) ?? raw
+        )
+      : [...new Set(xAxisData)]
   );
 
   return {
     showLegend,
-    legendData,
+    legendData: [...new Set(legendData)],
     series,
     xAxisData: uniqueXAxisData,
+    isHorizontal: chartOrientation === 'horizontal',
   };
 }
 
@@ -114,6 +158,7 @@ export function getStackedBarChartOption({
   zoom,
   theme,
   showLegend,
+  isHorizontal,
 }: GetOptionProps): EChartsOption {
   function getValue(value: number) {
     return value * zoom;
@@ -183,6 +228,18 @@ export function getStackedBarChartOption({
       },
       backgroundColor: bgColor,
       borderColor: borderColor,
+      formatter: (params: any) => {
+        return params
+          .map(
+            ({ marker, data, name, seriesName }: any) =>
+              `${marker}${
+                isHorizontal ? name : seriesName
+              }<span style="float: right; margin-left: 20px"><b>${
+                data?.displayValue || data?.value || ''
+              }</b></span>`
+          )
+          .join('<br/>');
+      },
     },
   };
 }

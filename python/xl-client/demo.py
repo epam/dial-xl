@@ -5,6 +5,7 @@ from dial_xl.client import Client
 from dial_xl.credentials import ApiKey
 from dial_xl.decorator import Decorator
 from dial_xl.field import Field
+from dial_xl.field_groups import FieldGroup
 from dial_xl.project import FieldKey, Viewport
 from dial_xl.table import Table
 
@@ -32,14 +33,17 @@ async def run():
 
     # Get a table
     table = sheet.get_table("A")
-    print(f"Table fields: {list(table.field_names)}")
+    print(
+        f"Table fields: {list(field_name for group in table.field_groups for field_name in group.field_names)}"
+    )
 
     # Rename table
     table.name = "Renamed A"
 
     # Change formula
-    field = table.get_field("a")
-    field.formula = "RANGE(4)"
+    group = table.field_groups[0]
+    group.formula = "RANGE(4)"
+    field = group.get_field("a")
 
     # Rename field
     field.name = "renamed a"
@@ -48,7 +52,7 @@ async def run():
     field.key = False
 
     # Remove a field
-    table.remove_field("b")
+    del table.field_groups[1]
 
     # Remove a table
     sheet.remove_table("B")
@@ -61,8 +65,8 @@ async def run():
     new_table.add_decorator(Decorator("placement", "(1, 5)"))
 
     # Add a field to the new table
-    new_field = Field("new field", "2")
-    new_table.add_field(new_field)
+    new_field = Field("new field")
+    new_table.field_groups.append(FieldGroup.from_field(new_field, "2"))
 
     # Add decorator to a field
     new_field.add_decorator(Decorator("size", "(2)"))
@@ -91,8 +95,8 @@ async def run():
     await project.compile()
     print(
         "Compile result:\n"
-        f"'Renamed A'[renamed a]: {json.dumps(field.field_type.dict(), indent=2)}\n"  # type: ignore
-        f"'New table'[new field]: {json.dumps(new_field.field_type.dict(), indent=2)}\n"  # type: ignore
+        f"'Renamed A'[renamed a]: {json.dumps(field.field_type.model_dump(), indent=2)}\n"  # type: ignore
+        f"'New table'[new field]: {json.dumps(new_field.field_type.model_dump(), indent=2)}\n"  # type: ignore
     )
 
     # Calculate
@@ -111,8 +115,8 @@ async def run():
     await project.calculate(viewports)
     print(
         "Calculate result:\n"
-        f"'Renamed A'[renamed a]: {json.dumps(field.field_data.dict(), indent=2)}\n"  # type: ignore
-        f"'New table'[new field]: {json.dumps(new_field.field_data.dict(), indent=2)}\n"  # type: ignore
+        f"'Renamed A'[renamed a]: {json.dumps(field.field_data.model_dump(), indent=2)}\n"  # type: ignore
+        f"'New table'[new field]: {json.dumps(new_field.field_data.model_dump(), indent=2)}\n"  # type: ignore
     )
 
     # Save

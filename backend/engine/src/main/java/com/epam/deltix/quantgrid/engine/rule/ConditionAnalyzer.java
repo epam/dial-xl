@@ -73,11 +73,8 @@ public class ConditionAnalyzer {
     }
 
     private ConditionKind classifyCondition(Expression condition, Plan join) {
+        condition = RuleUtil.reduceGet(condition);
         if (condition instanceof Get get) {
-            while (get.plan() instanceof SelectLocal select && select.getExpression(get.getColumn()) instanceof Get next) {
-                get = next;
-            }
-
             if (get.plan() != join) {
                 return ConditionKind.MIXED;
             }

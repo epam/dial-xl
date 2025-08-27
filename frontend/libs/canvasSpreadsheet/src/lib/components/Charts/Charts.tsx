@@ -37,6 +37,7 @@ export function Charts({
   const [resizingChart, setResizingChart] = useState<string | null>(null);
   const viewportNode = useRef<HTMLDivElement>(null);
   const containerNode = useRef<HTMLDivElement>(null);
+  const currentGridSizes = api?.gridSizes;
 
   const { hiddenCharts } = useHideCharts(
     api,
@@ -46,7 +47,7 @@ export function Charts({
   );
 
   const setupCharts = useCallback(() => {
-    if (charts?.length === 0 || !api) {
+    if (charts?.length === 0 || !api || !currentGridSizes) {
       setChartConfigs([]);
 
       return;
@@ -55,8 +56,7 @@ export function Charts({
     const newChartStyles: ChartConfig[] = [];
     const minRows = 8;
     const minCols = 7;
-    const gridSizes = api.getGridSizes();
-    const { rowNumber, colNumber } = gridSizes;
+    const { rowNumber, colNumber } = currentGridSizes;
     const xOffset = rowNumber.width;
     const yOffset = colNumber.height;
 
@@ -103,33 +103,36 @@ export function Charts({
     });
 
     setChartConfigs(newChartStyles);
-  }, [api, charts]);
+  }, [api, charts, currentGridSizes]);
 
   const setLayerPosition = useCallback(() => {
     if (!api) return;
 
     const dataContainer = document.getElementById(canvasId);
 
-    if (!dataContainer || !viewportNode.current || !containerNode.current)
+    if (
+      !dataContainer ||
+      !viewportNode.current ||
+      !containerNode.current ||
+      !currentGridSizes
+    )
       return;
 
     const { width, height, top, left } = dataContainer.getBoundingClientRect();
-    const gridSizes = api.getGridSizes();
-    const { scrollBar, rowNumber, colNumber } = gridSizes;
+    const { scrollBar, rowNumber, colNumber } = currentGridSizes;
     const { trackSize } = scrollBar;
-
     const containerWidth = round(width - rowNumber.width - trackSize);
     const containerHeight = round(height - colNumber.height - trackSize);
     const translateX = round(left + rowNumber.width);
     const translateY = round(top + rowNumber.height);
-    const transform = `translate(${getPx(translateX)}, ${getPx(translateY)})`;
-
-    viewportNode.current.style.transform = transform;
+    viewportNode.current.style.transform = `translate(${getPx(
+      translateX
+    )}, ${getPx(translateY)})`;
     viewportNode.current.style.width = getPx(containerWidth);
     viewportNode.current.style.height = getPx(containerHeight);
     containerNode.current.style.width = getPx(containerWidth);
     containerNode.current.style.height = getPx(containerHeight);
-  }, [api]);
+  }, [api, currentGridSizes]);
 
   const handleChartResize = useCallback(
     (tableName: string, cols: number, rows: number) => {
@@ -278,6 +281,20 @@ export function Charts({
       stopMoveModeSubscription.unsubscribe();
     };
   }, [api, setupCharts]);
+
+  useEffect(() => {
+    if (!api) return;
+
+    if (chartConfigs.length === 0) {
+      api.setHasCharts(false);
+    }
+
+    if (chartConfigs.some((c) => !hiddenCharts.includes(c.tableName))) {
+      api.setHasCharts(true);
+    } else {
+      api.setHasCharts(false);
+    }
+  }, [chartConfigs, hiddenCharts, api]);
 
   return (
     <div

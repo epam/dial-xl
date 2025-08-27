@@ -10,6 +10,7 @@ import {
   FilesMetadata,
   FormulaBarMode,
   FunctionInfo,
+  GPTFocusColumn,
   GPTSuggestion,
   GridCell,
   GridChart,
@@ -55,7 +56,7 @@ export type GridApi = {
   getCellFromCoords: (x: number, y: number) => CellPlacement;
   getCellX: GetCellX;
   getCellY: GetCellY;
-  getGridSizes: () => GridSizes;
+  gridSizes: GridSizes;
   getCanvasSymbolWidth: () => number;
   getColumnContentMaxSymbols: (
     col: number,
@@ -112,6 +113,9 @@ export type GridApi = {
 
   isPanModeEnabled: boolean;
 
+  hasCharts: boolean;
+  setHasCharts: (hasCharts: boolean) => void;
+
   events$: Observable<EventType>;
 
   event: any;
@@ -135,6 +139,7 @@ export type GridProps = {
   onScroll: GridCallbacks['onScroll'];
   onSelectionChange: GridCallbacks['onSelectionChange'];
 
+  isReadOnly: boolean;
   zoom?: number;
   functions: FunctionInfo[];
   parsedSheets: ParsedSheets;
@@ -168,7 +173,11 @@ export type GridCallbacks = {
       withSelection?: boolean;
     }
   ) => void;
-  onSwapFields?: (direction: HorizontalDirection) => void;
+  onSwapFields?: (
+    tableName: string,
+    fieldName: string,
+    direction: HorizontalDirection
+  ) => void;
   onIncreaseFieldColumnSize?: (tableName: string, fieldName: string) => void;
   onDecreaseFieldColumnSize?: (tableName: string, fieldName: string) => void;
   onChangeFieldColumnSize?: (
@@ -184,11 +193,6 @@ export type GridCallbacks = {
   ) => void;
   onFlipTable?: (tableName: string) => void;
   onDNDTable?: (tableName: string, row: number, col: number) => void;
-  onMoveTableToSheet?: (
-    tableName: string,
-    sourceSheetName: string,
-    destinationSheetName: string
-  ) => void;
   onChangeFieldDimension?: (
     tableName: string,
     fieldName: string,
@@ -344,10 +348,11 @@ export type GridCallbacks = {
   ) => void;
   onAutoFitFields?: (tableName: string) => void;
   onRemoveFieldSizes?: (tableName: string) => void;
-  onApplySuggestion?: (GPTSuggestions: GPTSuggestion[] | null) => void;
+  onApplySuggestion?: (
+    GPTSuggestions: GPTSuggestion[] | null,
+    GPTFocusColumn: GPTFocusColumn[]
+  ) => void;
   onUndo?: () => void;
-  onAIPendingChanges?: (isPending: boolean) => void;
-  onAIPendingBanner?: (isVisible: boolean) => void;
   onOpenSheet?: (args: { sheetName: string }) => void;
   onArrangeTable?: (tableName: string, arrangeType: TableArrangeType) => void;
   onAddAllFieldTotals?: (tableName: string, fieldName: string) => void;
@@ -414,11 +419,29 @@ export type Theme = {
     alpha: 1;
     alignment: 0;
   };
-  dottedSelection: { color: Color; alpha: number; alignment: number };
+  dottedSelection: {
+    color: Color;
+    alpha: number;
+    alignment: number;
+    rectangleAlpha: number;
+  };
   override: { borderColor: Color };
   error: { borderColor: Color };
   noteLabel: { bgColor: Color };
-  diff: { bgColor: Color };
+  highlight: {
+    dimmed: {
+      bgColor: Color;
+      negativeAlpha: number;
+      alpha: number;
+      textAlpha: number;
+    };
+    highlighted: {
+      bgColor: Color;
+      alpha: number;
+      negativeAlpha: number;
+      textAlpha: number;
+    };
+  };
   dndSelection: { borderColor: Color };
   hiddenCell: { fontColorName: FontColorName; fontFamily: FontFamilies };
   tableShadow: {
@@ -472,7 +495,11 @@ export type IconCell = {
 
 export type CellStyle = {
   bgColor?: Color;
-  diffColor?: Color;
+  highlight?: {
+    color: Color;
+    alpha: number;
+    textAlpha: number;
+  };
   border?: {
     borderTop?: PIXI.ILineStyleOptions;
     borderRight?: PIXI.ILineStyleOptions;

@@ -2,7 +2,7 @@ import { Override, Overrides } from '../Override';
 import { createEditableTestSheet } from './utils';
 
 describe('Override', () => {
-  it('should parse override block and verify structure', async () => {
+  it('should parse override block and verify structure', () => {
     // Arrange
     const dsl = [
       'table A\n',
@@ -37,7 +37,7 @@ describe('Override', () => {
     expect(row1?.getItem('b')).toBe('6');
   });
 
-  it('should add an override block to a table', async () => {
+  it('should add an override block to a table', () => {
     // Arrange
     const dsl = 'table A\n  [a] = NA\n';
     const sheet = createEditableTestSheet(dsl);
@@ -54,7 +54,7 @@ describe('Override', () => {
     expect(sheet.toDSL()).toBe('table A\n  [a] = NA\noverride\n[a]\n1\n');
   });
 
-  it('should add an override cell to an existing line', async () => {
+  it('should add an override cell to an existing line', () => {
     // Arrange
     const dsl = [
       'table A\n',
@@ -79,7 +79,7 @@ describe('Override', () => {
     );
   });
 
-  it('should add a new override line', async () => {
+  it('should add a new override line', () => {
     // Arrange
     const dsl = ['table A\n  [a] = NA\n  [b] = NA\noverride\n[a]\n1\n'].join(
       ''
@@ -99,7 +99,7 @@ describe('Override', () => {
     );
   });
 
-  it('should update an existing override cell value', async () => {
+  it('should update an existing override cell value', () => {
     // Arrange
     const dsl = 'table A\n  [a] = NA\noverride\n[a]\n1\n';
     const sheet = createEditableTestSheet(dsl);
@@ -115,7 +115,7 @@ describe('Override', () => {
     expect(sheet.toDSL()).toBe('table A\n  [a] = NA\noverride\n[a]\n2\n');
   });
 
-  it('should remove an override cell', async () => {
+  it('should remove an override cell', () => {
     // Arrange
     const dsl = [
       'table A\n  [a] = NA\n  [b] = NA\noverride\n[a],[b]\n1,2\n',
@@ -135,7 +135,7 @@ describe('Override', () => {
     );
   });
 
-  it('should add a row number to an override line', async () => {
+  it('should add a row number to an override line', () => {
     // Arrange
     const dsl = 'table A\n  [a] = NA\n';
     const sheet = createEditableTestSheet(dsl);
@@ -155,7 +155,7 @@ describe('Override', () => {
     expect(sheet.toDSL()).toBe('table A\n  [a] = NA\noverride\nrow,[a]\n1,2\n');
   });
 
-  it('should add a row number to an existing override line', async () => {
+  it('should add a row number to an existing override line', () => {
     // Arrange
     const dsl = 'table A\n  [a] = NA\noverride\n[a]\n2\n';
     const sheet = createEditableTestSheet(dsl);
@@ -172,7 +172,7 @@ describe('Override', () => {
     expect(sheet.toDSL()).toBe('table A\n  [a] = NA\noverride\n[a],row\n2,1\n');
   });
 
-  it('should remove a row number from an override line', async () => {
+  it('should remove a row number from an override line', () => {
     // Arrange
     const dsl = [
       'table A\n  [a] = NA\n  [b] = NA\noverride\n[a],row\n1,2\n',
@@ -193,7 +193,7 @@ describe('Override', () => {
     );
   });
 
-  it('should update an entire override line', async () => {
+  it('should update an entire override line', () => {
     // Arrange
     const dsl = 'table A\n  [a] = NA\noverride\n[a]\n1\n';
     const sheet = createEditableTestSheet(dsl);
@@ -207,7 +207,7 @@ describe('Override', () => {
     expect(sheet.toDSL()).toBe('table A\n  [a] = NA\noverride\n[a]\n2\n');
   });
 
-  it('should remove an entire override line', async () => {
+  it('should remove an entire override line', () => {
     // Arrange
     const dsl = 'table A\n  [a] = NA\noverride\n[a]\n1\n2\n';
     const sheet = createEditableTestSheet(dsl);
@@ -221,14 +221,14 @@ describe('Override', () => {
     expect(sheet.toDSL()).toBe('table A\n  [a] = NA\noverride\n[a]\n1\n');
   });
 
-  it('should rename override field', async () => {
+  it('should rename override field', () => {
     // Arrange
     const dsl = 'table A\n  [a] = NA\noverride\n[a]\n1\n';
     const sheet = createEditableTestSheet(dsl);
 
     // Act
     const table = sheet.getTable('A');
-    const field = table.getField('a');
+    const field = table.fieldGroups.getItem(0).getField('a');
     field.name = 'renamed a';
     table.overrides?.renameField('a', 'renamed a');
 
@@ -236,5 +236,21 @@ describe('Override', () => {
     expect(sheet.toDSL()).toBe(
       'table A\n  [renamed a] = NA\noverride\n[renamed a]\n1\n'
     );
+  });
+
+  it('should insert a new override line', () => {
+    // Arrange
+    const dsl = 'table A\n  [a] = NA\noverride\n[a]\n3\n';
+    const sheet = createEditableTestSheet(dsl);
+
+    // Act
+    const table = sheet.getTable('A');
+    const overrides = table.overrides!;
+    overrides.insert(0, new Override({ a: '1' }));
+    overrides.insert(1, new Override({ a: '2' }));
+
+    // Assert
+    expect(overrides.length).toBe(3);
+    expect(sheet.toDSL()).toBe('table A\n  [a] = NA\noverride\n[a]\n1\n2\n3\n');
   });
 });

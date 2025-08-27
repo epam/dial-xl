@@ -1,13 +1,23 @@
 # DIAL XL
 Here is the description of a new programming language called DIAL XL. DIAL XL is used to manipulate tabular data.  
 `Table` is a set of its `columns`. All tables' columns have the same number of `values`.  
-`Table` might also be seen as `array` of its `rows`. Each `row` contains `value` for all the Table `columns`.  
-Table is referenced by its name. E.g. `Table1` - this statement returns array of rows of the table `Table1`.  
-Columns of the table can be referenced as `Table1[a]` - this statement returns array of values of column `a` of table `Table1`.  
 Possible value types are: `text`, `number`, `row`, `boolean`, `date`,  also known as simple types.  
 Another possible value type is an `array` which contains values of the one simple type.
 
+`Table` might also be seen as `array` of its `rows`. Each `row` contains `value` for all the Table `columns`.  
+Table is referenced by its name. E.g. `Table1` - this statement returns array of rows of the table `Table1`.  
+Columns of the table can be referenced as `Table1[a]` - this statement returns array of values of column `a` of table `Table1`.  
+
 Any `value` can be of simple type, `array`, `N/A` or empty.
+
+`formula` is a code on the right side from `=`. Each formula is executed row-by-row. So, in expression 
+```
+table Table 
+  [column] = formula
+```
+formula is executed for each row of the table.  
+When a reference with table name, e.g. `Table1[a]`, it refers to table/column, and array is a returned type. When a reference starts with a column, e.g. `[column]`, it references the current row's value of the column and returns the same type. 
+
 ## Create table
 Here are examples of table creation:
 ### Create table with RANGE
@@ -37,34 +47,74 @@ The table is defined by collection of its column definitions. Each column can be
 
 ### Create table from INPUT
 ```
-table TableFromInput
-  dim [source] = INPUT("data_path/table.csv")
-  [a] = [source][col1]
-  [b] = 1
-  [c] = "1"
+table NewTableFromInput
+  dim [a], [b] = INPUT("data_path/table.csv")[[a], [b]]
+  [c] = 1
+  [d] = "1"
 ```
 Explanation:
-`table TableFromInput` - table definition and naming.  
-`dim [source] = INPUT("data_path/table.csv")` declares that column [source] of table `TableFromInput` consists of all rows of table stored by data_path. That will make `TableFromInput` to has the same number of rows as table in "data_path/table.csv".  
-`[a] = [source][col1]` references column `col1` from the row in [source]. Column [a] will store values from column `col1`.
+`table NewTableFromInput` - table definition and naming.  
+`dim [a], [b] = INPUT("data_path/table.csv")[[a], [b]]` declares that columns [a] and [b] are extracted from provided csv file. Such multi-column assignment is allowed only for mapping columns from input or other tables.
+Columns [a] and [b] of table `NewTableFromInput` are dimensional columns with `dim` keyword. It makes `TableFromInput` to have the same number of rows as table in "data_path/table.csv". Columns [a] and [b] will store all values from columns `a` and `b` from "data_path/table.csv". Only multi-assignment allows combined dimensional columns.
 
 ### Create table from another table
+When table is created from values of another table, you can store required information in your new table with a dimensional [source] column. Such column stores rows of another table as its values. This way you can access that table data row by row.  
+
+Example:
+```
+table TableASource 
+  dim [source] = NewTable
+  [column] = [source][a]
+```
+Explanation:  
+`dim [source] = NewTable` means that column [source] of table `TableASource` stores all rows of table `NewTable`. Each value of [source] is a row of `NewTable`. It's a dimensional column, so each value of the column contains only one row of `NewTable`. `TableASource` will have the same number of rows as `NewTable`.  
+`[column] = [source][a]` with row-by-row execution, `[source][a]` references current row of [source] column and gets the value of [a] column, as current row in [source] stores a whole row of `NewTable`.  
+
+Example:
+```
+table TableAColumn 
+  dim [column] = NewTable[a]
+```
+Explanation:  
+`dim [column] = NewTable[a]` means that values of column [a] of `NewTable` are expanded across all rows, because of `dim` keyword.  
+
+Example:
+```
+table TableAAllRows
+  [column] = NewTable[a] # one row with all values of column a
+```
+Explanation:  
+`[column] = NewTable[a]` as there is no `dim` keyword, this table has one row. For [column] this row contains an array of all values of `NewTable[a]`.  
+
+Example:
 ```
 table DerivedTable
   dim [source] = NewTable
-  [a] = [source][c]
-  [b] = [source][d]
-  [c] = "some constant text"
-  [d] = "another constant text"
-  [e] = [c] & " " & [d]
+  [col_NewTable_b_value] = [source][b] # each row is one value of [b]
+  [col_c] = [source][c]
+  [col_d] = [source][d]
+  [col_text1] = "some constant text"
+  [col_text2] = "another constant text"
+  [col_text_concat] = [col_text1] & " " & [col_text2]
 ```
 Explanation:  
 `table DerivedTable` - table definition and naming.  
-`dim [source] = NewTable` declares that column [source] of table `DerivedTable` stores all rows of table `NewTable`. `DerivedTable` will have the same number of rows as `NewTable`.  
-`[a] = [source][c]` for every row of column [a] we take a row of `NewTable` stored in [source] and extract column [c].  
-`[c] = "some constant text"` sets every row of column [c] to text "some constant text".  
-`[d] = "another constant text"` sets every row of column [d] to text "another constant text".  
-`[e] = [c] & " " & [d]` sets every row of column [e] equal to row-by-row concatenation of [c], whitespace and [d], making it being equal to "some constant text another constant text". 
+`dim [source] = NewTable` declares that column [source] of table `DerivedTable` stores all rows of table `NewTable`. It's a dimensional column, so each value of the column contains only one row of `NewTable`. `DerivedTable` will have the same number of rows as `NewTable`.   
+`[col_NewTable_b_value] = [source][b]` is a way of accessing column [b] of `NewTable`. Row-by-row each value is a value of column [b], because it's obtained from current row value of [source] column. There is one value in each row.
+`[col_c] = [source][c]` for every row of column [col_c] we take a row of `NewTable` stored in [source] and extract value of column [c].  
+`[col_d] = [source][d]` for every row of column [col_d] we take a row of `NewTable` stored in [source] and extract value of column [d].
+`[col_text1] = "some constant text"` sets every row of column [col_text1] to text "some constant text".  
+`[col_text2] = "another constant text"` sets every row of column [col_text2] to text "another constant text".  
+`[col_text_concat] = [col_text1] & " " & [col_text2]` sets every row of column [col5] equal to row-by-row concatenation of [col_text1], whitespace and [col_text2], making it being equal to "some constant text another constant text".
+
+Example:
+```
+table DerivedTableFromColumns
+  dim [col_с], [col_d] = NewTable[[c], [d]]
+```
+Explanation:  
+`table DerivedTableFromColumns` - table definition and naming. This table is the same as `DerivedTable` except for lack of column [source].  
+`dim [col_с], [col_d] = NewTable[[c], [d]]` declares that columns [col_с] and [col_d] are dimensional columns of table `DerivedTableFromColumns` and respectively store all values of columns [col_c] and [col_d] of table `NewTable` row-by row. `DerivedTableFromColumns` will have the same number of rows as `NewTable`.
 
 ### Manual table
 You can explicitly populate data into table like this:
@@ -87,7 +137,7 @@ Use double quotes for text values if it's not table column name.
 ## Simple functions
 DIAL XL allows to perform simple operations on text, numbers and dates. When such functions or operators are used on rows, it means that they're applied row-by-row.
 ### Numeric data
-Supported functions are `ROUND, ABS, SQRT, ROUND, FLOOR, CEIL, EXP, LOG, LN, LOG10, SIN, COS, TAN, ASIN, ACOS, ATAN`. These functions take number as an argument , e.g. `ROUND(number)`.  
+Supported functions are `ROUND, ABS, SQRT, FLOOR, CEIL, EXP, LOG, LN, LOG10, SIN, COS, TAN, ASIN, ACOS, ATAN`. These functions take number or array as an argument. E.g. `ROUND(number)` returns number, `ABS(array)` returns an array with function applied to each value.  
 Supported operators are `+, - (unary and binary), / , *, ^, AND/OR, NOT, MOD`.  
 Supported comparison operators are `<, >, <=, >=, =, <>`. They return boolean values TRUE/FALSE.
 
@@ -119,11 +169,9 @@ Functions can be applied to the whole column like this: `LEN(TableName[column_na
 Example:
 ```
 table ItemPrices
-  dim [source] = INPUT("path/prices.csv")
-  [id] = [source][item_id]
-  [region_code] = [source][region_code]
-  [item_name] = "Item: " & [source][item_name]
-  [price_with_currency] = [source][price_with_currency]
+  dim [item_id], [region_code], [item_name], [price_with_currency] = INPUT("path/prices.csv")[[item_id], [region_code], [item_name], [price_with_currency]]
+  [item_name] = "Item: " & [item_name]
+  [price_with_currency] = [price_with_currency]
   [item_name_len] = LEN([item_name])
   [item_region] = LEFT([region_code], 2)
   [item_currency] = RIGHT([price_with_currency], 1)
@@ -132,8 +180,8 @@ table ItemPrices
   [contains_gluten] = CONTAINS([item_name], "gluten")
 ```
 Explanation:  
-`dim [source] = INPUT("path/prices.csv")` loads table from file.  
-`[item_name] = "Item: " & [source][item_name]` concatenates text with a text column. Alternatively, `CONCAT("Item: ", [source][item_name])` or `CONCATENATE("Item: ", [source][item_name])` can be used for text concatenation.  
+`dim [item_id], [region_code], [item_name], [price_with_currency] = INPUT("path/prices.csv")[[item_id], [region_code], [item_name], [price_with_currency]]` loads table with 4 columns from csv file.  
+`[item_name] = "Item: " & [item_name]` concatenates text with a text column. Alternatively, `CONCAT("Item: ", [item_name])` or `CONCATENATE("Item: ", [item_name])` can be used for text concatenation.  
 `[item_name_len] = LEN([item_name])` - the column will store lengths of values in [item_name] row-by-row.  
 `[item_region] = LEFT([region_code], 2)`  - the column will store first 2 characters of values in [region_code] row-by-row.  
 `[item_currency] = RIGHT([price_with_currency], 1)`  - the column will store last 1 character of values in [price_with_currency] row-by-row.  
@@ -216,9 +264,7 @@ table T1
   [col1] = "some text"
   
 table T2
-  dim [source] = INPUT("path_to_data/table_file.csv")
-  [uuid] = [source][uuid]
-  [reference_col] = [source][reference_col]
+  dim [uuid], [reference_col]  = INPUT("path_to_data/table_file.csv")[[uuid], [reference_col]]
 ```
 ### Sorting
 `SORTBY(table_or_array, comma_separated_keys)` function can sort the table by any number of keys from that table and returns rows. It can be applied to array as well: `SORTBY(column_name, comma_separated_keys)`, then it returns sorted array. Alternative way is `table_or_array.SORTBY(comma_separated_keys)`.
@@ -240,15 +286,24 @@ table TSortedTable
 ```
 Explanation:  
 `TSortedTable` has column [source] that stores sorted rows of `T0` and has the same length. Rows of `T0` in [source] are sorted by [a] in ascending order and then by [b] in descending order.  
-Columns [a] and [b] store values of columns from sorted version of `T0` that we have in [source].
+`[a] = [source][a]` refers to a current row's value of column [a] of column [source].
+`[b] = [source][b]` refers to a current row's value of column [b] of column [source].
+
+Example:
+```
+table TSortedTableFlat
+  dim [a], [b] = SORTBY(T0, T0[a], -T0[b])[[a],[b]]
+```
+Explanation:  
+`TSortedTableFlat` has columns [a] and [b] from sorted table `T0`. Both of them are dimensional, which means each row of columns [a] and [b] contains values from columns [a] and [b] of sorted table.
 ### Unique
 `UNIQUE(array)` function can return all unique values from array.
 ```
 table TUnique
-  dim [source] = UNIQUE(T0[b])
+  dim [b_unique] = UNIQUE(T0[b])
 ```
 Explanation:  
-Table `TUnique` has one column [s] that contains unique values of `T0[b]`.
+Table `TUnique` has one column [b_unique] that contains unique values of `T0[b]`.
 ### Conditions
 Columns can be populated based on condition with `IF(condition, value_if_true, value_if_false)` and `IFNA(value, value_if_na)` functions.
 
@@ -273,8 +328,9 @@ table TSimpleFilter
   [b] = [source][b]
 ```
 Explanation:  
-`dim [source] = FILTER(T0, T0[b] <= 4)` here we filter table `T0`. `T0[b]` is an array of values from column [b] of table `T0` that we check to be less than 4. 
-`[a] = [source][a]` column [a] contains all values of column [a] from [source], where [source] stores filtered rows of `T0`.
+`dim [source] = FILTER(T0, T0[b] <= 4)` here we filter table `T0`. `T0[b]` is an array of values from column [b] of table `T0` that we check to be less than 4. Filtered values are stored in [source] column row-by-row because of the `dim` keyword.  
+`[a] = [source][a]` each column of [a] contains all values of column [a] of [source], where [source] stores filtered rows of `T0`.  
+`[b] = [source][b]` column [a] contains all values of column [a] from [source], where [source] stores filtered rows of `T0`.  
 
 Example:
 ```
@@ -313,12 +369,7 @@ override
   250, 5, "dress"
   
 table TPurchases
-  dim [source] = INPUT("path_to_data/purchases.csv")
-  [purchase_id] = [source][purchase_id]
-  [clothes_id] = [source][clothes_id]
-  [clothes_name] = [source][clothes_name]
-  [purchase_date] = [source][purchase_date]
-  [cost] = [source][cost]
+  dim [purchase_id], [clothes_id], [clothes_name], [purchase_date], [cost] = INPUT("path_to_data/purchases.csv")[[purchase_id], [clothes_id], [clothes_name], [purchase_date], [cost]]
 ```
 
 #### Sale items purchases:
@@ -330,7 +381,7 @@ table PurchasedSaleItems
   [purchase_date] = [source][purchase_date]
 ```
 Explanation:  
-`dim [source] = TPurchases.FILTER(IN(TPurchases[clothes_id], TSale[item_id]))` here [source] will store filtered rows of `TPurchases` table that satisfy the condition. `IN(value, array)` function checks if value on current row of `TPurchases[clothes_id]` is among values in `TSale[item_id]`. This way rows for sale items are extracted.
+`dim [source] = TPurchases.FILTER(IN(TPurchases[clothes_id], TSale[item_id]))` here [source] will row-by-row store filtered rows of `TPurchases` table that satisfy the condition. `IN(value, array)` function checks if value on current row of `TPurchases[clothes_id]` is among values in `TSale[item_id]`. This way rows for sale items are extracted.
 #### Top 3 example:
 Here we find top 3 cheapest items in manual table `TClothes`.
 ```
@@ -349,7 +400,7 @@ table TPurchasesFrequency
   [purchases_count] = TPurchases.FILTER(TPurchases[clothes_id] = [clothes_id]).COUNT()
   
 table MostFrequentTable
-  [source] = SORTBY(TPurchasesFrequency, -TPurchasesFrequency[purchases_count]).FIRST()
+  [most_frequent_clothes_id] = SORTBY(TPurchasesFrequency, -TPurchasesFrequency[purchases_count]).FIRST()
   
 table MostFrequentTableAlternative
   [most_frequent_clothes_id] = MODE(TPurchases[clothes_id])
@@ -358,7 +409,7 @@ Explanation:
 Helper table `TPurchasesFrequency` is created to gather clothes ids and number of times they were purchased.
 `dim [clothes_id] = UNIQUE(TPurchases[clothes_id])` [clothes_id] column is based on unique values of `TPurchases[clothes_id])`.  
 `[purchases_count] = TPurchases.FILTER(TPurchases[clothes_id] = [clothes_id]).COUNT()` here `TPurchases` is filtered based on condition and resulting number of rows is counted. Condition is `TPurchases[clothes_id] = [clothes_id]`, where `TPurchases[clothes_id]` is a value from the column of the table we're filtering. [clothes_id] is a value of column [clothes_id] from `TPurchasesFrequency` on the current row.  
-Resulting table `MostFrequentTable` has one column with a one value that contains first row from sorted `TPurchasesFrequency`.  
+Resulting table `MostFrequentTable` has one column with a one value that contains first row from sorted `TPurchasesFrequency`. Note, that there is no `dim` keyword, because there is one value for one row.  
 Additionally, `MostFrequentTableAlternative` table shows simpler way of getting one most frequently purchased item.
 
 Like in this example, `SORTBY` and `FILTER` should always be on separate lines.

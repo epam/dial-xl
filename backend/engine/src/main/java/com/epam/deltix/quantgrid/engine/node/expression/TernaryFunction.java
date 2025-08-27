@@ -1,5 +1,8 @@
 package com.epam.deltix.quantgrid.engine.node.expression;
 
+import com.epam.deltix.quantgrid.engine.compiler.result.format.ColumnFormat;
+import com.epam.deltix.quantgrid.engine.compiler.result.format.DateFormat;
+import com.epam.deltix.quantgrid.engine.compiler.result.format.GeneralFormat;
 import com.epam.deltix.quantgrid.engine.node.expression.utils.StringFunctions;
 import com.epam.deltix.quantgrid.engine.value.Column;
 import com.epam.deltix.quantgrid.engine.value.DoubleColumn;
@@ -10,6 +13,7 @@ import com.epam.deltix.quantgrid.type.ColumnType;
 import com.epam.deltix.quantgrid.util.Dates;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+import org.jetbrains.annotations.Nullable;
 
 public class TernaryFunction extends Expression3<Column, Column, Column, Column> {
     private final Type function;
@@ -73,14 +77,16 @@ public class TernaryFunction extends Expression3<Column, Column, Column, Column>
     @Getter
     @AllArgsConstructor
     public enum Type {
-        DATE(ColumnType.DOUBLE, ColumnType.DOUBLE, ColumnType.DOUBLE, ColumnType.DATE),
-        MID(ColumnType.STRING, ColumnType.DOUBLE, ColumnType.DOUBLE, ColumnType.STRING),
-        SUBSTITUTE(ColumnType.STRING, ColumnType.STRING, ColumnType.STRING, ColumnType.STRING);
+        DATE(ColumnType.DOUBLE, ColumnType.DOUBLE, ColumnType.DOUBLE, ColumnType.DOUBLE, DateFormat.DEFAULT_DATE_FORMAT),
+        MID(ColumnType.STRING, ColumnType.DOUBLE, ColumnType.DOUBLE, ColumnType.STRING, GeneralFormat.INSTANCE),
+        SUBSTITUTE(ColumnType.STRING, ColumnType.STRING, ColumnType.STRING, ColumnType.STRING, GeneralFormat.INSTANCE);
 
         private final ColumnType argument1Type;
         private final ColumnType argument2Type;
         private final ColumnType argument3Type;
         private final ColumnType resultType;
+        @Nullable
+        private final ColumnFormat resultFormat;
     }
 
     @FunctionalInterface

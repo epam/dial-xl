@@ -15,7 +15,14 @@ const DIR = path.dirname(path.dirname(path.dirname(__dirname)));
 const OUTPUT_ZIP_FILE = path.join(DIR, 'migrated_files.zip');
 const TEMP_DIR = path.join(DIR, 'migration_temp');
 const TEST_MIGRATION_DIR = path.join(TEMP_DIR, 'test_migration');
-const ALLOWED_FILE_KEY_PREFIXES = ['Users/', 'public/'];
+const ALLOWED_FILE_KEY_PREFIXES = [
+  // staging files have these prefixes
+  'Users/',
+  'public/',
+  // production files have these prefixes
+  'core/Users/',
+  'core/public/',
+];
 
 interface S3Instance {
   bucketName: string;
@@ -69,16 +76,28 @@ function saveFileContent(
   key: string,
   dirName: string
 ): string {
-  const localPath = path.join(dirName, bucketName, key);
-  const dir = path.dirname(localPath);
+  try {
+    const localPath = path.join(dirName, bucketName, key);
+    const dir = path.dirname(localPath);
 
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
+    // Note: Skip users with the auth0 prefix in the bucket name
+    // it causes issues (in Windows) that the "|" is not allowed in the file path
+    if (dir.includes('auth0|')) return;
+
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+
+    fs.writeFileSync(localPath, fileContent);
+
+    return localPath;
+  } catch (error) {
+    console.error(`Error saving file content for ${bucketName}/${key}:`, error);
+    console.error(
+      `Failed to create directory structure: ${dirName}/${bucketName}/${key}`
+    );
+    throw error;
   }
-
-  fs.writeFileSync(localPath, fileContent);
-
-  return localPath;
 }
 
 // Download file while preserving structure

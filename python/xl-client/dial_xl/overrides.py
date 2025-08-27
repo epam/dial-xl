@@ -1,8 +1,8 @@
-from typing import Iterable
+from typing import Iterator
 
 from dial_xl.events import Event, ObservableNode, ObservableObserver, notify_observer
 from dial_xl.reader import _Reader
-from dial_xl.utils import _escape_field_name, _unescape_field_name
+from dial_xl.utils import _escape_field_name, _unescape_field_name, _validate_index
 
 
 class _OverrideHeader:
@@ -14,28 +14,27 @@ class _OverrideHeader:
         self.__name = name
 
     @property
-    def before(self) -> str:
-        return self.__before
-
-    @property
     def name(self) -> str:
+        """Get the name of the override header."""
         return self.__name
 
     @name.setter
     def name(self, value: str):
+        """Set the name of the override header."""
         self.__name = value
 
     @property
     def after(self) -> str:
+        """Get separator or end of line."""
         return self.__after
 
     @after.setter
     def after(self, value: str):
+        """Set separator or end of line."""
         self.__after = value
 
     def to_dsl(self) -> str:
-        """Converts the override to DSL format."""
-
+        """Convert the override header to DSL format."""
         return f"{self.__before}{self.__name}{self.__after}"
 
     @classmethod
@@ -73,8 +72,7 @@ class _Override:
         self.__after = value
 
     def to_dsl(self) -> str:
-        """Converts the override to DSL format."""
-
+        """Convert the override to DSL format."""
         return f"{self.__before}{self.__value}{self.__after}"
 
     @classmethod
@@ -95,11 +93,11 @@ class _OverrideLine:
 
     @property
     def overrides(self) -> list[_Override]:
+        """Get the list of overrides."""
         return self.__overrides
 
     def to_dsl(self) -> str:
-        """Converts the override to DSL format."""
-
+        """Convert the override line to DSL format."""
         return f"{''.join(override.to_dsl() for override in self.__overrides)}"
 
     @classmethod
@@ -124,8 +122,7 @@ class _Overrides:
         self.__lines = []
 
     def to_dsl(self) -> str:
-        """Converts the override to DSL format."""
-
+        """Convert the overrides to DSL format."""
         return (
             f"{self.__before}"
             f"{self.__prefix}"
@@ -135,10 +132,12 @@ class _Overrides:
 
     @property
     def headers(self) -> list[_OverrideHeader]:
+        """Get the list of override headers."""
         return self.__headers
 
     @property
     def lines(self) -> list[_OverrideLine]:
+        """Get the list of override lines."""
         return self.__lines
 
     @classmethod
@@ -163,41 +162,54 @@ class _Overrides:
 
 class Override(ObservableNode):
     __values: dict[str, str]
+    __errors: dict[str, str]
     __row_number: str | None = None
 
     def __init__(
         self,
         values: dict[str, str] | None = None,
+        errors: dict[str, str] | None = None,
         row_number: str | None = None,
     ):
         self.__values = values or {}
+        self.__errors = errors or {}
         self.__row_number = row_number
 
     @property
-    def names(self) -> Iterable[str]:
-        return self.__values.keys()
+    def names(self) -> Iterator[str]:
+        """Get the names of the override values."""
+        return self.__values.keys().__iter__()
 
     @property
     def row_number(self) -> str | None:
+        """Get the row number of the override."""
         return self.__row_number
 
     @row_number.setter
     @notify_observer
     def row_number(self, value: str | None):
-        """Set the row number of the override and invalidates compilation/computation results and sheet parsing errors"""
-
+        """Set the row number of the override, which invalidates all compilation and computation results, as well as any sheet parsing errors."""
         self.__row_number = value
 
+    def error(self, key: str) -> str | None:
+        return self.__errors.get(key, None)
+
     def __getitem__(self, key: str) -> str:
+        """Get an override value by key."""
         return self.__values.get(key)
 
     @notify_observer
     def __setitem__(self, key: str, value: str):
+        """Set an override value by key, which invalidates all compilation and computation results, as well as any sheet parsing errors."""
         self.__values[key] = value
 
     @notify_observer
     def __delitem__(self, key: str):
+        """Delete an override value by key, which invalidates all compilation and computation results, as well as any sheet parsing errors."""
         del self.__values[key]
+
+    def _set_errors(self, errors: dict[str, str]):
+        self.__errors = errors
 
 
 class Overrides(ObservableObserver):
@@ -212,47 +224,71 @@ class Overrides(ObservableObserver):
         self.__lines = []
 
     @property
-    def field_names(self) -> Iterable[str]:
+    def field_names(self) -> Iterator[str]:
+        """Get the field names of the overrides."""
         return (
             _unescape_field_name(name) for name in self.__field_names if name != "row"
         )
 
     @property
     def row_position(self) -> int | None:
+        """Get the row position of the overrides."""
         return self.__row_position
 
+    def __iter__(self) -> Iterator[Override]:
+        """Iterate overrides line by line."""
+        return iter(self.__lines)
+
     def __len__(self):
+        """Get the number of override lines."""
         return len(self.__lines)
 
     def __getitem__(self, index: int) -> Override:
+        """Get an override line by index."""
         return self.__lines[index]
 
     @notify_observer
     def __setitem__(self, index: int, value: Override):
-        if index >= len(self.__lines):
-            raise IndexError("Override line index out of range")
+        """Set an override line at a specified index, which invalidates all compilation and computation results, as well as any sheet parsing errors."""
+        self.__validate_override_index(index)
 
         old = self.__lines[index]
-        old._detach()
-        self.__overrides.lines[index] = self._attach_override_line(value)
+        self.__overrides.lines[index] = self.__attach_override_line(value)
         self.__lines[index] = value
+        old._detach()
 
     @notify_observer
     def __delitem__(self, index: int):
+        """Delete an override line by index, which invalidates all compilation and computation results, as well as any sheet parsing errors."""
+        self.__validate_override_index(index)
+
         self.__overrides.lines.pop(index)
         override = self.__lines.pop(index)
         override._detach()
 
     @notify_observer
     def append(self, value: Override):
-        self.__overrides.lines.append(self._attach_override_line(value))
+        """Append an override line, which invalidates all compilation and computation results, as well as any sheet parsing errors."""
+        self.__overrides.lines.append(self.__attach_override_line(value))
         self.__lines.append(value)
 
-    def _attach_override_line(self, value: Override) -> _OverrideLine:
+    @notify_observer
+    def insert(self, index, value: Override):
+        """Insert an override line at a specified index, which invalidates all compilation and computation results, as well as any sheet parsing errors."""
+        self.__validate_override_index(index)
+
+        self.__overrides.lines.insert(index, self.__attach_override_line(value))
+        self.__lines.insert(index, value)
+
+    def __validate_override_index(self, index: int):
+        _validate_index(index, len(self.__lines), "Override line")
+
+    def __attach_override_line(self, value: Override) -> _OverrideLine:
+        value._attach(self)
         if value.row_number is not None:
-            self._add_empty_if_missing("row")
+            self.__add_empty_if_missing("row")
         for name in value.names:
-            self._add_empty_if_missing(_escape_field_name(name))
+            self.__add_empty_if_missing(_escape_field_name(name))
         values: list[_Override] = []
         for index, name in enumerate(self.__field_names):
             if index > 0:
@@ -263,11 +299,10 @@ class Overrides(ObservableObserver):
                 values.append(_Override(value.row_number or ""))
             else:
                 values.append(_Override(""))
-        value._attach(self)
 
         return _OverrideLine(values)
 
-    def _add_empty_if_missing(self, name):
+    def __add_empty_if_missing(self, name):
         if name not in self.__field_names:
             if name == "row":
                 self.__row_position = len(self.__field_names)
@@ -281,8 +316,7 @@ class Overrides(ObservableObserver):
                 line.overrides.append(_Override(""))
 
     def to_dsl(self) -> str:
-        """Converts the manual overrides to DSL format."""
-
+        """Convert the manual overrides to DSL format."""
         return self.__overrides.to_dsl()
 
     def _notify_before(self, event: Event):
@@ -291,26 +325,27 @@ class Overrides(ObservableObserver):
 
         sender = event.sender
         if isinstance(sender, Override):
-            if event.method_name == "__setitem__":
-                self._on_override_update(
-                    self.__lines.index(sender),
-                    _escape_field_name(event.kwargs["key"]),
-                    event.kwargs["value"],
-                )
-            elif event.method_name == "__delitem__":
-                self._on_override_remove(
-                    self.__lines.index(sender),
-                    _escape_field_name(event.kwargs["key"]),
-                )
-            elif event.method_name == "row_number":
-                if event.kwargs["value"] is None:
-                    self._on_override_remove(self.__lines.index(sender), "row")
-                else:
-                    self._on_override_update(
-                        self.__lines.index(sender), "row", event.kwargs["value"]
+            match event.method_name:
+                case sender.__setitem__.__name__:
+                    self.__on_override_update(
+                        self.__lines.index(sender),
+                        _escape_field_name(event.kwargs["key"]),
+                        event.kwargs["value"],
                     )
+                case sender.__delitem__.__name__:
+                    self.__on_override_remove(
+                        self.__lines.index(sender),
+                        _escape_field_name(event.kwargs["key"]),
+                    )
+                case "row_number":
+                    if event.kwargs["value"] is None:
+                        self.__on_override_remove(self.__lines.index(sender), "row")
+                    else:
+                        self.__on_override_update(
+                            self.__lines.index(sender), "row", event.kwargs["value"]
+                        )
 
-    def _set_overrides(self, overrides: _Overrides):
+    def __set_overrides(self, overrides: _Overrides):
         self.__field_names = [header.name for header in overrides.headers]
         self.__row_position = next(
             (
@@ -339,12 +374,12 @@ class Overrides(ObservableObserver):
             line._attach(self)
         self.__overrides = overrides
 
-    def _on_override_update(self, index: int, name: str, value: str):
-        self._add_empty_if_missing(name)
+    def __on_override_update(self, index: int, name: str, value: str):
+        self.__add_empty_if_missing(name)
         position = self.__field_names.index(name)
         self.__overrides.lines[index].overrides[position].override = value
 
-    def _on_override_remove(self, index: int, name: str):
+    def __on_override_remove(self, index: int, name: str):
         position = self.__field_names.index(name)
         self.__overrides.lines[index].overrides[position].override = ""
         last = True
@@ -365,5 +400,5 @@ class Overrides(ObservableObserver):
     @classmethod
     def _deserialize(cls, reader: _Reader) -> "Overrides":
         result = cls()
-        result._set_overrides(_Overrides._deserialize(reader))
+        result.__set_overrides(_Overrides._deserialize(reader))
         return result

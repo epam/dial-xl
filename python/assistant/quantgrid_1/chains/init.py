@@ -1,7 +1,5 @@
-import json
 import os
 
-from aidial_sdk import HTTPException
 from aidial_sdk.chat_completion import Role
 from dial_xl.client import Client
 from dial_xl.credentials import ApiKey, CredentialProvider, Jwt
@@ -9,11 +7,14 @@ from langchain_core.runnables import Runnable, RunnableLambda
 from langchain_openai import AzureChatOpenAI
 from pydantic import SecretStr
 
+from quantgrid.utils.dial import DIALApi
+from quantgrid.utils.string import code_snippet
 from quantgrid_1.chains.parameters import ChainParameters, URLParameters
 from quantgrid_1.models.application_state import ApplicationState
+from quantgrid_1.models.request_parameters import RequestParameters
 from quantgrid_1.utils.fetch_context_window import fetch_context_window
 from quantgrid_1.utils.jwt_validator import is_valid_jwt
-from quantgrid_1.utils.project_utils import create_project, load_project
+from quantgrid_1.utils.project_utils import create_project
 from quantgrid_1.utils.qg_api import QGApi
 
 DIAL_URL = os.getenv("DIAL_URL", "")
@@ -22,7 +23,6 @@ CLS_MODEL_NAME = os.getenv("CLASSIFICATION_MODEL") or "anthropic.claude-v3-5-son
 AI_HINT_MODEL_NAME = os.getenv("AI_HINT_MODEL") or "anthropic.claude-v3-5-sonnet-v2"
 QG_AUTHORIZATION = os.getenv("QG_AUTHORIZATION", "false").lower() == "true"
 QG_REST_URL = os.getenv("QG_URL", "")
-ACCEPT_MODEL_CHANGE_MESSAGE = "The model is changed."
 
 if QG_REST_URL == "":
     raise ValueError("QG_REST_URL env is not specified")
@@ -31,10 +31,17 @@ if DIAL_URL == "":
     raise ValueError("DIAL_URL env is not specified")
 
 
-def define_url_parameters(inputs: dict, credential: CredentialProvider):
-    inputs[ChainParameters.URL_PARAMETERS] = URLParameters(
-        qg_url=QG_REST_URL, dial_url=DIAL_URL, credential=credential
+def define_url_parameters(
+    inputs: dict, credential: CredentialProvider
+) -> URLParameters:
+    parameters = URLParameters(
+        qg_url=QG_REST_URL,
+        dial_url=DIAL_URL,
+        credential=credential,
     )
+
+    inputs[ChainParameters.URL_PARAMETERS] = parameters
+    return parameters
 
 
 async def init(inputs: dict) -> dict:
@@ -60,7 +67,13 @@ async def init(inputs: dict) -> dict:
             QG_REST_URL, DIAL_URL, credential
         )
 
-    define_url_parameters(inputs, credential)
+    url_parameters = define_url_parameters(inputs, credential)
+    inputs[ChainParameters.DIAL_API] = dial_api = DIALApi(
+        url_parameters.dial_url,
+        url_parameters.credential,
+    )
+
+    inputs[ChainParameters.BUCKET] = await dial_api.bucket()
 
     max_tokens = (
         int(os.environ["LLM_MAX_CONTEXT_TOKENS"])
@@ -115,50 +128,19 @@ async def init(inputs: dict) -> dict:
     max_fix_attempts = max_fix_attempts if max_fix_attempts else "3"
     inputs[ChainParameters.MAX_FIX_ATTEMPTS] = max_fix_attempts
 
-    state = None
-
-    for message in request.messages:
-        if message.role == Role.SYSTEM:
-            state = json.loads(str(message.content or ""))
-
     with choice.create_stage("Receiving the project state (0 s)") as stage:
-        if state is None:
-            if (
-                request.custom_fields is None
-                or request.custom_fields.configuration is None
-                or request.custom_fields.configuration.get("project") is None
-            ):
-                raise HTTPException(
-                    status_code=400,
-                    message="Failed to get the current project state",
-                    type="invalid_request_error",
-                    display_message="Failed to get the current project state",
-                )
+        parameters = RequestParameters.load_from(request)
+        stage.append_content(code_snippet("json", parameters.model_dump_json(indent=2)))
 
-            loaded_project = await load_project(
-                inputs, request.custom_fields.configuration["project"]
-            )
-
-            state = {
-                "sheets": {},
-                "currentProjectName": loaded_project.name,
-            }
-
-            for sheet in loaded_project.sheets:
-                state["sheets"][sheet.name] = sheet.to_dsl()
-
-        stage.append_content(f"```json\n{json.dumps(state, indent=2)}\n```\n")
-
-    inputs[ChainParameters.SELECTION] = state.get("selection")
-    inputs[ChainParameters.CURRENT_SHEET] = state.get("currentSheet", "")
+    inputs[ChainParameters.ORIGINAL_PROJECT_STATE] = parameters.project_state
     inputs[ChainParameters.ORIGINAL_PROJECT] = await create_project(
         ChainParameters.get_url_parameters(inputs),
         client,
-        state["currentProjectName"],
-        state["sheets"],
+        parameters.project_state.project_name,
+        parameters.project_state.sheets,
     )
 
-    inputs[ChainParameters.SUMMARIZE] = state.get("summarize", True)
+    inputs[ChainParameters.REQUEST_PARAMETERS] = parameters
 
     app_state = None
     broken_state_count = 0
@@ -166,14 +148,19 @@ async def init(inputs: dict) -> dict:
         if message.role != Role.ASSISTANT:
             continue
 
-        if message.custom_content:
-            row_application_state = message.custom_content.state
-            assert isinstance(row_application_state, dict)
-            app_state = ApplicationState.model_construct(**row_application_state)
-
-            break
-        else:
+        if message.custom_content is None or message.custom_content.state is None:
             broken_state_count += 1
+            continue
+
+        assert isinstance(message.custom_content.state, dict)
+        if "actions_history" not in message.custom_content.state:
+            broken_state_count += 1
+            continue
+
+        actions_history = message.custom_content.state["actions_history"]
+        app_state = ApplicationState(actions_history=actions_history)
+
+        break
 
     if app_state is None:
         app_state = ApplicationState.model_construct()

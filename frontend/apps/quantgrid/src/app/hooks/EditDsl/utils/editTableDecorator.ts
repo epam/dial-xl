@@ -18,7 +18,9 @@ export function editTableDecorator(
     return true;
   } catch (e) {
     try {
-      table.addDecorator(new Decorator(decoratorName, decoratorArgs));
+      if (!shouldRemove) {
+        table.addDecorator(new Decorator(decoratorName, decoratorArgs));
+      }
 
       return true;
     } catch (e) {

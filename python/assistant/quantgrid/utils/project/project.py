@@ -17,6 +17,7 @@ from quantgrid.models import (
 )
 from quantgrid.models.actions import ChangeTablePropertiesAction, OverrideAction
 from quantgrid.utils.project.collector import ProjectCollector
+from quantgrid.utils.project.field_group import FieldGroupUtil
 
 
 class ProjectUtil:
@@ -55,19 +56,16 @@ class ProjectUtil:
         return None
 
     @staticmethod
-    def find_field(table: Table, field: str) -> Field | None:
-        return None if field not in table.field_names else table.get_field(field)
-
-    @staticmethod
     async def compile_with_dynamic_fields(project: Project) -> None:
         viewports: list[Viewport] = []
         for sheet in project.sheets:
             for table in sheet.tables:
-                for field in table.fields:
-                    if field.name == "*":
+                table_field_names = FieldGroupUtil.get_table_field_names(table)
+                for field_name in table_field_names:
+                    if field_name == "*":
                         viewports.append(
                             Viewport(
-                                key=FieldKey(table=table.name, field=field.name),
+                                key=FieldKey(table=table.name, field=field_name),
                                 start_row=0,
                                 end_row=1000,
                             )
@@ -78,7 +76,8 @@ class ProjectUtil:
         viewports.clear()
         for sheet in project.sheets:
             for table in sheet.tables:
-                for field in table.fields:
+                table_fields = FieldGroupUtil.get_table_fields(table)
+                for field in table_fields:
                     if field.name == "*" and isinstance(field.field_data, FieldData):
                         for field_value in field.field_data.values:
                             viewports.append(
@@ -126,7 +125,7 @@ class ProjectUtil:
     ) -> list[str]:
         prev_table = ProjectUtil.find_table(prev_snapshot, table_name)
         prev_field = (
-            ProjectUtil.find_field(prev_table, field_name)
+            FieldGroupUtil.get_field_by_name(prev_table, field_name)
             if prev_table is not None
             else None
         )
@@ -138,7 +137,7 @@ class ProjectUtil:
 
         next_table = ProjectUtil.find_table(next_snapshot, table_name)
         next_field = (
-            ProjectUtil.find_field(next_table, field_name)
+            FieldGroupUtil.get_field_by_name(next_table, field_name)
             if next_table is not None
             else None
         )
@@ -202,12 +201,15 @@ class ProjectUtil:
                 )
 
                 for field in created_fields:
+                    field_group_dsl = FieldGroupUtil.get_field_group_by_name(
+                        next_table, field.name
+                    ).to_dsl()
                     actions.append(
                         AddFieldAction(
                             table_name=next_table.name,
                             sheet_name=next_sheet.name,
                             field_name=field.name,
-                            field_dsl=field.to_dsl(),
+                            field_dsl=field_group_dsl,
                         )
                     )
 
@@ -221,12 +223,15 @@ class ProjectUtil:
                     )
 
                 for _, next_field in edited_fields:
+                    next_field_group_dsl = FieldGroupUtil.get_field_group_by_name(
+                        next_table, next_field.name
+                    ).to_dsl()
                     actions.append(
                         EditFieldAction(
                             table_name=next_table.name,
                             sheet_name=next_sheet.name,
                             field_name=next_field.name,
-                            field_dsl=next_field.to_dsl(),
+                            field_dsl=next_field_group_dsl,
                         )
                     )
 
@@ -267,7 +272,7 @@ class ProjectUtil:
     @staticmethod
     def _extract_table_errors(table: Table) -> dict[str, list[str]]:
         errors: dict[str, list[str]] = {}
-        for field in table.fields:
+        for field in FieldGroupUtil.get_table_fields(table):
             field_errors = ProjectUtil._extract_field_errors(field)
             if len(field_errors):
                 errors[field.name] = field_errors

@@ -1,7 +1,7 @@
 import { useCallback, useContext } from 'react';
 import { toast } from 'react-toastify';
 
-import { dialProjectFileExtension } from '@frontend/common';
+import { dialProjectFileExtension, MetadataNodeType } from '@frontend/common';
 
 import { ProjectContext } from '../context';
 import { useApiRequests } from './useApiRequests';
@@ -114,7 +114,7 @@ export function useProjectActions() {
         name: projectFileName,
         bucket: projectBucket,
         parentPath: projectPath,
-        nodeType: 'ITEM',
+        nodeType: MetadataNodeType.ITEM,
       },
     ]);
   }, [projectBucket, projectName, projectPath, shareResources]);

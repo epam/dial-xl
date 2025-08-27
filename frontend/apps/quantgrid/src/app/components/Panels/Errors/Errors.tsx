@@ -3,6 +3,7 @@ import { useCallback, useContext } from 'react';
 import Icon from '@ant-design/icons';
 import {
   CodeEditorContext,
+  CompileErrorIcon,
   ParsingError,
   ParsingErrorIcon,
 } from '@frontend/common';
@@ -21,7 +22,7 @@ function getParsingErrorLink(error: ParsingError): string {
 }
 
 export function Errors() {
-  const { sheetErrors, compilationErrors, runtimeErrors } =
+  const { sheetErrors, compilationErrors, runtimeErrors, indexErrors } =
     useContext(ProjectContext);
   const { updateSelectedError } = useContext(CodeEditorContext);
   const { openPanel } = useContext(LayoutContext);
@@ -37,9 +38,17 @@ export function Errors() {
   const isSheetErrors = sheetErrors && sheetErrors.length > 0;
   const isCompilationErrors = compilationErrors && compilationErrors.length > 0;
   const isRuntimeErrors = runtimeErrors && runtimeErrors.length > 0;
+  const isIndexErrors = indexErrors && indexErrors.length > 0;
 
-  if (!isSheetErrors && !isCompilationErrors && !isRuntimeErrors) {
-    return <PanelEmptyMessage message="No errors" />;
+  if (
+    !isSheetErrors &&
+    !isCompilationErrors &&
+    !isRuntimeErrors &&
+    !isIndexErrors
+  ) {
+    return (
+      <PanelEmptyMessage icon={<CompileErrorIcon />} message="No errors" />
+    );
   }
 
   return (
@@ -73,6 +82,10 @@ export function Errors() {
 
       {runtimeErrors?.map((error, index) => (
         <CompileOrRuntimeError error={error} errorType="runtime" key={index} />
+      ))}
+
+      {indexErrors?.map((error, index) => (
+        <CompileOrRuntimeError error={error} errorType="index" key={index} />
       ))}
     </div>
   );

@@ -1,5 +1,6 @@
 package com.epam.deltix.quantgrid.engine.test;
 
+import com.epam.deltix.quantgrid.engine.Computation;
 import com.epam.deltix.quantgrid.engine.Engine;
 import com.epam.deltix.quantgrid.engine.GraphCallback;
 import com.epam.deltix.quantgrid.engine.cache.LocalCache;
@@ -8,25 +9,24 @@ import com.epam.deltix.quantgrid.engine.node.Node;
 import com.epam.deltix.quantgrid.engine.node.expression.Expression;
 import com.epam.deltix.quantgrid.engine.node.plan.Plan;
 import com.epam.deltix.quantgrid.engine.rule.ProjectionVerifier;
-import com.epam.deltix.quantgrid.engine.service.input.storage.LocalInputProvider;
+import com.epam.deltix.quantgrid.engine.service.input.storage.local.LocalInputProvider;
+import com.epam.deltix.quantgrid.engine.store.local.LocalStore;
 import com.epam.deltix.quantgrid.engine.value.Column;
 import com.epam.deltix.quantgrid.engine.value.Table;
 import com.epam.deltix.quantgrid.engine.value.local.LocalTable;
-import com.epam.deltix.quantgrid.parser.ParsedKey;
 import com.epam.deltix.quantgrid.parser.ParsedSheet;
 import com.epam.deltix.quantgrid.parser.ParsingError;
 import com.epam.deltix.quantgrid.parser.SheetReader;
+import lombok.SneakyThrows;
 import lombok.experimental.UtilityClass;
+import org.apache.commons.io.FileUtils;
 import org.junit.jupiter.api.Assertions;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -36,6 +36,8 @@ public class TestExecutor {
 
     static {
         System.setProperty("qg.python.timeout", "1000");
+        System.setProperty("qg.embedding.models.path", "../../embedding_models");
+        System.setProperty("qg.embedding.execution.mode", "ACCURACY");
     }
 
     @SuppressWarnings("unckecked")
@@ -48,15 +50,6 @@ public class TestExecutor {
         }
     }
 
-    public static Exception executeError(Node node) {
-        try {
-            execute(node);
-            return null;
-        } catch (Exception ex) {
-            return ex;
-        }
-    }
-
     public static ResultCollector executeWithoutErrors(String dsl) {
         return executeWithoutErrors(dsl, false);
     }
@@ -64,6 +57,7 @@ public class TestExecutor {
     public static ResultCollector executeWithoutErrors(String dsl, boolean withProjections) {
         ResultCollector collector = execute(dsl, withProjections);
         assertThat(collector.getErrors()).as("No errors are expected").isEmpty();
+        collector.verifyTraces();
         return collector;
     }
 
@@ -82,35 +76,26 @@ public class TestExecutor {
             validateSheet(dsl);
         }
 
-        CompletableFuture<Void> computationFuture = engine.compute(dsl, null);
-        Map<ParsedKey, String> compilationErrors = engine.getCompilationErrors();
-        compilationErrors.forEach(
-                (field, error) -> engine.getListener().onUpdate(field, -1, -1, true, null, error, null));
-        try {
-            computationFuture.get(2, TimeUnit.SECONDS);
-        } catch (InterruptedException | ExecutionException | TimeoutException e) {
-            throw new RuntimeException(e);
-        }
+        ResultCollector collector = new ResultCollector();
+        Computation computation = engine.compute(collector, dsl, null);
 
-        return (ResultCollector) engine.getListener();
+        computation.await(15, TimeUnit.SECONDS);
+        return collector;
     }
 
     public static ResultCollector execute(String dsl, boolean withProjections) {
         Engine engine = singleThreadEngine(withProjections);
 
         validateSheet(dsl);
-        CompletableFuture<Void> computationFuture = engine.compute(dsl, null);
-        Assertions.assertTrue(engine.getCompilationErrors().isEmpty(),
-                "No compilation errors expected: " + engine.getCompilationErrors().entrySet().stream()
+        ResultCollector collector = new ResultCollector();
+        Computation computation = engine.compute(collector, dsl, null);
+
+        Assertions.assertTrue(collector.getErrors().isEmpty(),
+                "No compilation errors expected: " + collector.getErrors().entrySet().stream()
                         .map(e -> e.getKey() + ": " + e.getValue()).collect(Collectors.joining(",")));
 
-        try {
-            computationFuture.get(2, TimeUnit.SECONDS);
-        } catch (InterruptedException | ExecutionException | TimeoutException e) {
-            throw new RuntimeException(e);
-        }
-
-        return (ResultCollector) engine.getListener();
+        computation.await(15, TimeUnit.SECONDS);
+        return collector;
     }
 
     public static Engine multiThreadEngine() {
@@ -118,7 +103,7 @@ public class TestExecutor {
     }
 
     public static Engine multiThreadEngine(GraphCallback graphCallback) {
-        return engine(ExecutorUtil.fixedThreadExecutor(), graphCallback);
+        return engine(ExecutorUtil.fixedThreadExecutor(), graphCallback, plan -> false);
     }
 
     public static Engine singleThreadEngine() {
@@ -134,13 +119,20 @@ public class TestExecutor {
     }
 
     public static Engine singleThreadEngine(GraphCallback graphCallback) {
-        return engine(ExecutorUtil.directExecutor(), graphCallback);
+        return singleThreadEngine(graphCallback, plan -> false);
     }
 
-    private static Engine engine(ExecutorService service, GraphCallback graphCallback) {
+    public static Engine singleThreadEngine(GraphCallback graphCallback, Predicate<Plan> toStore) {
+        return engine(ExecutorUtil.singleThreadExecutor(), graphCallback, toStore);
+    }
+
+    @SneakyThrows
+    private static Engine engine(ExecutorService service, GraphCallback graphCallback, Predicate<Plan> toStore) {
         LocalInputProvider inputProvider = new LocalInputProvider(TestInputs.INPUTS_PATH);
-        ResultCollector collector = new ResultCollector();
-        return new Engine(new LocalCache(), service, collector, graphCallback, inputProvider);
+        LocalStore resultStore = new LocalStore(TestInputs.RESULTS_PATH);
+        FileUtils.deleteQuietly(TestInputs.RESULTS_PATH.toFile());
+        resultStore.init();
+        return new Engine(new LocalCache(), service, service, graphCallback, inputProvider, resultStore, toStore);
     }
 
     private static void validateSheet(String dsl) {

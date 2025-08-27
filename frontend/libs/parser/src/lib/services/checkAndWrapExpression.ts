@@ -6,10 +6,25 @@ export function checkAndWrapExpression(expression: string): string {
   if (!expression) return expression;
 
   try {
-    const parsedExpression = SheetReader.parseFormula(expression);
+    let parsedExpression = SheetReader.parseFormula(expression);
 
     if (parsedExpression.errors.length > 0) {
-      return wrapErrorExpression(expression);
+      // Special case: try to sanitize the expression first (e.g., starting from the leading quote)
+      const hasLeadingQuote = expression.startsWith("'");
+
+      if (hasLeadingQuote) {
+        const sanitizedExpression = sanitizeExpressionOrOverride(expression);
+
+        parsedExpression = SheetReader.parseFormula(sanitizedExpression);
+
+        if (!parsedExpression.errors.length) {
+          return sanitizedExpression;
+        }
+      }
+
+      if (parsedExpression.errors.length > 0) {
+        return wrapErrorExpression(expression);
+      }
     }
   } catch (e) {
     return wrapErrorExpression(expression);

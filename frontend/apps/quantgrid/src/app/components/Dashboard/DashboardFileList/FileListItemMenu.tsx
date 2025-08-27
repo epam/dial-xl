@@ -1,4 +1,6 @@
 import { Dropdown, MenuProps } from 'antd';
+import { DropdownProps } from 'antd/es/dropdown/dropdown';
+import cx from 'classnames';
 import {
   PropsWithChildren,
   useCallback,
@@ -11,10 +13,14 @@ import { toast } from 'react-toastify';
 import Icon from '@ant-design/icons';
 import {
   CopyIcon,
+  disabledTooltips,
   DownloadIcon,
   EditIcon,
   getDropdownItem,
+  MetadataNodeType,
   MoveToIcon,
+  projectFolderAppdata,
+  projectFolderXl,
   publicBucket,
   ShareIcon,
   TrashIcon,
@@ -38,7 +44,7 @@ import {
 type Props = {
   item: DashboardItem;
   isFolder: boolean;
-  trigger: 'click' | 'contextMenu';
+  trigger: DropdownProps['trigger'];
   className?: string;
 };
 
@@ -63,9 +69,14 @@ export function FileListItemMenu({
 
   const isAbleToEdit =
     item.bucket === userBucket || (item.bucket === publicBucket && isAdmin);
-  const isAbleToShare = item.bucket === userBucket;
+  const isAbleToShare = item.permissions?.includes('SHARE');
   const isSharedWithMe =
     item.bucket !== userBucket && item.bucket !== publicBucket;
+  const disabledDelete =
+    item.nodeType === MetadataNodeType.FOLDER &&
+    ((item.name === projectFolderAppdata && item.parentPath === null) ||
+      (item.name === projectFolderXl &&
+        item.parentPath === projectFolderAppdata));
 
   const handleMoveToFolder = useCallback(
     async (path: string | null | undefined, bucket: string) => {
@@ -155,19 +166,22 @@ export function FileListItemMenu({
               },
             })
           : undefined,
-        isAbleToShare
-          ? getDropdownItem({
-              key: 'share',
-              label: 'Share',
-              icon: (
-                <Icon
-                  className="text-textSecondary w-[18px]"
-                  component={() => <ShareIcon />}
-                />
-              ),
-              onClick: () => shareResources([item]),
-            })
-          : undefined,
+
+        getDropdownItem({
+          key: 'share',
+          label: 'Share',
+          icon: (
+            <Icon
+              className="text-textSecondary group-disabled:text-controlsTextDisable w-[18px]"
+              component={() => <ShareIcon />}
+            />
+          ),
+          onClick: () => shareResources([item]),
+          disabled: !isAbleToShare,
+          tooltip: !isAbleToShare
+            ? disabledTooltips.notAllowedShare
+            : undefined,
+        }),
         item.isSharedByMe
           ? getDropdownItem({
               key: 'unshare',
@@ -220,10 +234,16 @@ export function FileListItemMenu({
               label: 'Delete',
               icon: (
                 <Icon
-                  className="text-textSecondary w-[18px]"
+                  className={cx(
+                    'w-[18px]',
+                    disabledDelete
+                      ? 'text-controlsTextDisable'
+                      : 'text-textSecondary'
+                  )}
                   component={() => <TrashIcon />}
                 />
               ),
+              disabled: disabledDelete,
               onClick: () => {
                 deleteResources([item], () => refetchData());
               },
@@ -243,6 +263,7 @@ export function FileListItemMenu({
       revokeResourceAccess,
       discardResourceAccess,
       deleteResources,
+      disabledDelete,
     ]
   );
 
@@ -252,7 +273,7 @@ export function FileListItemMenu({
         <Dropdown
           autoAdjustOverflow={true}
           menu={{ items: contextMenuItems }}
-          trigger={[trigger]}
+          trigger={trigger}
         >
           {children}
         </Dropdown>

@@ -1,18 +1,20 @@
 import { useCallback, useContext } from 'react';
 
-import { ProjectContext } from '../context';
+import { PanelName } from '../common';
+import { AppContext, LayoutContext, ProjectContext } from '../context';
 import { EventBusMessages } from '../services';
-import { useCreateTableDsl } from './EditDsl';
-import { useManualEditDSL } from './ManualEditDSL';
+import { useCreateTableDsl, useTableEditDsl } from './EditDsl';
 import useEventBus from './useEventBus';
 import { useGridApi } from './useGridApi';
 
 export function useCreateTableAction() {
   const eventBus = useEventBus<EventBusMessages>();
-  const { onCloneTable } = useManualEditDSL();
+  const { cloneTable } = useTableEditDsl();
   const { createDerivedTable } = useCreateTableDsl();
   const gridApi = useGridApi();
   const { selectedCell } = useContext(ProjectContext);
+  const { changePivotTableWizardMode } = useContext(AppContext);
+  const { openPanel } = useContext(LayoutContext);
 
   const onCreateTableAction = useCallback(
     (
@@ -36,13 +38,17 @@ export function useCreateTableAction() {
       if (action.startsWith('Action') && tableName && type) {
         switch (type) {
           case 'copy':
-            onCloneTable(tableName, {
+            cloneTable(tableName, {
               col: selectedCell?.col,
               row: selectedCell?.row,
             });
             break;
           case 'derived':
             createDerivedTable(tableName, selectedCell?.col, selectedCell?.row);
+            break;
+          case 'pivot':
+            changePivotTableWizardMode('create', tableName);
+            openPanel(PanelName.Details);
             break;
           case 'size':
           default:
@@ -54,7 +60,15 @@ export function useCreateTableAction() {
         }
       }
     },
-    [createDerivedTable, eventBus, gridApi, onCloneTable, selectedCell]
+    [
+      createDerivedTable,
+      eventBus,
+      gridApi,
+      cloneTable,
+      openPanel,
+      selectedCell,
+      changePivotTableWizardMode,
+    ]
   );
 
   return {

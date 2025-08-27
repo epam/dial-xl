@@ -128,7 +128,7 @@ test.describe('view menu', () => {
     await projectPage.expectPanelToBeHidden(Panels.EditorPanel);
   });
   //Inputs
-  test('show inputs', async () => {
+  /*test('show inputs', async () => {
     const projectPage = await ProjectPage.createCleanInstance(page);
     await projectPage.performMenuSubCommand(
       MenuItems.View,
@@ -170,7 +170,7 @@ test.describe('view menu', () => {
     await projectPage.expectPanelToBeVisible(Panels.InputsPanel);
     await page.keyboard.press('Alt+3');
     await projectPage.expectPanelToBeHidden(Panels.InputsPanel);
-  });
+  });*/
   //Error Panel
   test('show errors', async () => {
     const projectPage = await ProjectPage.createCleanInstance(page);
@@ -200,7 +200,7 @@ test.describe('view menu', () => {
   // Error hotkey
   test('show errors hotkey', async () => {
     const projectPage = await ProjectPage.createCleanInstance(page);
-    await page.keyboard.press('Alt+4');
+    await page.keyboard.press('Alt+3');
     await projectPage.expectPanelToBeVisible(Panels.ErrorsPanel);
   });
 
@@ -212,7 +212,7 @@ test.describe('view menu', () => {
       PanelsMenuItems.ErrorPanel
     );
     await projectPage.expectPanelToBeVisible(Panels.ErrorsPanel);
-    await page.keyboard.press('Alt+4');
+    await page.keyboard.press('Alt+3');
     await projectPage.expectPanelToBeHidden(Panels.ErrorsPanel);
   });
   //History Panel
@@ -244,7 +244,7 @@ test.describe('view menu', () => {
   // History hotkey
   test('show history hotkey', async () => {
     const projectPage = await ProjectPage.createCleanInstance(page);
-    await page.keyboard.press('Alt+5');
+    await page.keyboard.press('Alt+4');
     await projectPage.expectPanelToBeVisible(Panels.HistoryPanel);
   });
 
@@ -256,7 +256,7 @@ test.describe('view menu', () => {
       PanelsMenuItems.HistoryPanel
     );
     await projectPage.expectPanelToBeVisible(Panels.HistoryPanel);
-    await page.keyboard.press('Alt+5');
+    await page.keyboard.press('Alt+4');
     await projectPage.expectPanelToBeHidden(Panels.HistoryPanel);
   });
 });

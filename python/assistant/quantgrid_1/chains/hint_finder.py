@@ -8,24 +8,39 @@ from pydantic import TypeAdapter
 from quantgrid.exceptions import XLInvalidLLMOutput, XLLLMUnavailable
 from quantgrid.graph.output import HintRelevancyClass, HintSelectionResponse
 from quantgrid.models import ProjectHint
-from quantgrid.startup import load_hints, load_hints_human, load_hints_system
-from quantgrid.utils.dial import DIALApi
+from quantgrid.startup import load_hints_human, load_hints_system
+from quantgrid.startup.load_project import load_hints_from
 from quantgrid.utils.llm import LLMConsumer, ainvoke_model, parse_structured_output
 from quantgrid.utils.string import code_snippet
 from quantgrid_1.chains.parameters import ChainParameters
+from quantgrid_1.models.stage_generation_type import StageGenerationMethod
+from quantgrid_1.utils.stages import replicate_stages
+
+STAGE_NAME = "Finding Relevant Hint"
 
 
 async def hint_finder(inputs: dict):
     model = ChainParameters.get_ai_hint_model(inputs)
     choice = ChainParameters.get_choice(inputs)
-    request = ChainParameters.get_request(inputs)
+    input_folder = ChainParameters.get_input_folder(inputs)
     messages = ChainParameters.get_messages(inputs)
-    url_parameters = ChainParameters.get_url_parameters(inputs)
+    dial_api = ChainParameters.get_dial_api(inputs)
+    parameters = ChainParameters.get_request_parameters(inputs).generation_parameters
 
-    with choice.create_stage("Finding Relevant Hint") as stage:
-        project_hints = await load_hints(
-            DIALApi(url_parameters.dial_url, url_parameters.credential), request
-        )
+    actions_generation_method = parameters.actions_generation_method
+
+    if actions_generation_method == StageGenerationMethod.SKIP:
+        inputs[ChainParameters.HINT] = None
+        return inputs
+
+    if actions_generation_method == StageGenerationMethod.REPLICATE:
+        replicate_stages(choice, parameters.saved_stages, STAGE_NAME)
+        inputs[ChainParameters.HINT] = None
+        return inputs
+
+    with choice.create_stage(STAGE_NAME) as stage:
+        project_hints = await load_hints_from(dial_api, input_folder)
+
         if project_hints:
             stage.append_content("## Project Hints\n")
             ta = TypeAdapter(list[ProjectHint])

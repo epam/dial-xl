@@ -31,6 +31,7 @@ export function organizeScatterPlotChartData(
 
   const legendData: string[] = [];
   const xAxisValuesSet: Set<string> = new Set();
+  const xDisplayByRaw = new Map<string, string>();
   const series: EChartsOption['series'] = [];
 
   for (const section of chartSections) {
@@ -44,31 +45,53 @@ export function organizeScatterPlotChartData(
 
     const sectionXAxisData =
       xAxisFieldName && data[xAxisFieldName]
-        ? (data[xAxisFieldName] as string[])
-        : Array.from({ length: data[valueFieldNames[0]].length }, (_, i) =>
-            (i + 1).toString()
+        ? (data[xAxisFieldName].rawValues as string[])
+        : Array.from(
+            { length: data[valueFieldNames[0]]?.rawValues.length },
+            (_, i) => (i + 1).toString()
           );
 
-    sectionXAxisData.forEach((value) => xAxisValuesSet.add(value));
+    const sectionXAxisDisp: string[] | undefined =
+      xAxisFieldName && data[xAxisFieldName]
+        ? (data[xAxisFieldName].displayValues as string[])
+        : undefined;
+
+    sectionXAxisData.forEach((raw, i) => {
+      xAxisValuesSet.add(raw);
+
+      if (!xDisplayByRaw.has(raw)) {
+        xDisplayByRaw.set(raw, sectionXAxisDisp?.[i] ?? raw);
+      }
+    });
 
     for (const valueFieldName of sortNumericOrText(valueFieldNames)) {
-      const seriesYData = data[valueFieldName] as string[];
+      if (!data[valueFieldName] || !data[valueFieldName].rawValues) continue;
+
+      const seriesYData = data[valueFieldName].rawValues as string[];
+      const displaySeriesYData = data[valueFieldName].displayValues as string[];
       const dotSizeField = section.dotSizeFieldName
-        ? (data[section.dotSizeFieldName] as string[])
+        ? (data[section.dotSizeFieldName].rawValues as string[])
         : undefined;
       const dotColorField = section.dotColorFieldName
-        ? (data[section.dotColorFieldName] as string[])
+        ? (data[section.dotColorFieldName].rawValues as string[])
         : undefined;
 
       const legendIndex = legendData.indexOf(valueFieldName);
 
       if (!seriesYData || seriesYData.length < sectionXAxisData.length) return;
 
-      const scatterData = sectionXAxisData.map((xValue, index) => {
-        const xIndex = Array.from(xAxisValuesSet).indexOf(xValue);
+      const xAxisRawSorted = sortNumericOrText(Array.from(xAxisValuesSet));
+
+      const xIndexByRaw = new Map<string, number>(
+        xAxisRawSorted.map((r, idx) => [r, idx])
+      );
+
+      const scatterData = sectionXAxisData.map((xRaw, index) => {
+        const xIndex = xIndexByRaw.get(xRaw) ?? null;
 
         return {
           value: [xIndex, seriesYData[index]],
+          displayValue: [xIndex, displaySeriesYData[index]],
           symbolSize: dotSizeField
             ? parseFloat(dotSizeField[index]) || defaultDotSize
             : defaultDotSize,
@@ -94,9 +117,11 @@ export function organizeScatterPlotChartData(
     }
   }
 
-  const xAxisData = addLineBreaks(
-    sortNumericOrText(Array.from(xAxisValuesSet))
+  const xAxisRawSorted = sortNumericOrText(Array.from(xAxisValuesSet));
+  const xAxisDisplayData = xAxisRawSorted.map(
+    (raw) => xDisplayByRaw.get(raw) ?? raw
   );
+  const xAxisData = addLineBreaks(xAxisDisplayData);
 
   return {
     showLegend,
@@ -183,6 +208,22 @@ export function getScatterPlotChartOption({
       },
       backgroundColor: bgColor,
       borderColor: borderColor,
+      formatter: (params: any) => {
+        const axisLabel =
+          params.length > 0 ? params[0].axisValue + '</br>' : '';
+
+        return (
+          axisLabel +
+          params
+            .map(
+              ({ marker, data, seriesName }: any) =>
+                `${marker}${seriesName}<span style="float: right; margin-left: 20px"><b>${
+                  data?.displayValue?.[1] || data?.value?.[1] || ''
+                }</b></span>`
+            )
+            .join('<br/>')
+        );
+      },
     },
   };
 }

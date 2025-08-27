@@ -9,17 +9,13 @@ import {
 import Select, { SingleValue } from 'react-select';
 
 import { chartItems, SelectClasses, selectStyles } from '@frontend/common';
-import {
-  escapeValue,
-  ParsedTable,
-  visualizationDecoratorName,
-} from '@frontend/parser';
+import { ParsedTable } from '@frontend/parser';
 
 import {
   AppSpreadsheetInteractionContext,
   ProjectContext,
 } from '../../../../context';
-import { useTableEditDsl } from '../../../../hooks';
+import { useChartEditDsl } from '../../../../hooks';
 import {
   ChartPanelSelectClasses,
   CustomSingleValueWithIcon,
@@ -38,7 +34,7 @@ export function ChartTypeSection({
 }) {
   const { openTable } = useContext(AppSpreadsheetInteractionContext);
   const { sheetName } = useContext(ProjectContext);
-  const { updateTableDecoratorValue } = useTableEditDsl();
+  const { setChartType: changeChartType } = useChartEditDsl();
 
   const [chartType, setChartType] = useState(chartTypeOptions[0]);
 
@@ -54,17 +50,12 @@ export function ChartTypeSection({
 
       startTransition(() => {
         const { tableName } = parsedTable;
-        const historyTitle = `Change chart ${tableName} type to ${updatedChartTypeOption.value}`;
-        updateTableDecoratorValue(
-          tableName,
-          escapeValue(updatedChartTypeOption.value),
-          visualizationDecoratorName,
-          historyTitle
-        );
+
+        changeChartType(tableName, updatedChartTypeOption.value);
         openTable(sheetName, tableName);
       });
     },
-    [openTable, parsedTable, sheetName, updateTableDecoratorValue]
+    [openTable, parsedTable, sheetName, changeChartType]
   );
 
   useEffect(() => {

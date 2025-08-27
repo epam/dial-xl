@@ -299,7 +299,7 @@ describe('useTotalEditDsl', () => {
         getTableData: (tableName: string) => {
           return {
             types: {
-              f1: 'INTEGER',
+              f1: 'DOUBLE',
             },
             nestedColumnNames: new Set(),
           } as any;
@@ -334,7 +334,7 @@ describe('useTotalEditDsl', () => {
         getTableData: (tableName: string) => {
           return {
             types: {
-              f1: 'TABLE',
+              f1: 'TABLE_REFERENCE',
             },
             nestedColumnNames: new Set(),
           } as any;

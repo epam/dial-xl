@@ -2,12 +2,19 @@ import { useCallback, useContext } from 'react';
 
 import { HorizontalDirection } from '@frontend/canvas-spreadsheet';
 import {
+  ColumnDataType,
+  defaultFieldName,
+  isTableType,
+} from '@frontend/common';
+import {
   Decorator,
   descriptionDecoratorName,
   dynamicFieldName,
+  escapeFieldName,
   escapeValue,
   Field,
   fieldColSizeDecoratorName,
+  FieldGroup,
   FieldKey,
   formatDecoratorName,
   getFormatDecoratorArgs,
@@ -22,39 +29,54 @@ import {
 } from '../../context';
 import {
   autoFixSingleExpression,
+  createUniqueName,
   generateFieldExpressionFromText,
   sanitizeExpression,
 } from '../../services';
-import {
-  FormatKeys,
-  getExpandedTextSize,
-  getProjectSheetsRecord,
-} from '../../utils';
-import { useDSLUtils } from '../ManualEditDSL';
-import { useApiRequests } from '../useApiRequests';
+import { getExpandedTextSize, getProjectSheetsRecord } from '../../utils';
 import { useGridApi } from '../useGridApi';
 import { useSafeCallback } from '../useSafeCallback';
 import { useSpreadsheetSelection } from '../useSpreadsheetSelection';
-import { addOverridesToTable, editFieldDecorator } from './utils';
+import { useDSLUtils } from './useDSLUtils';
+import {
+  addOverridesToTable,
+  editFieldDecorator,
+  getParsedFormulaInfo,
+} from './utils';
 
 export function useFieldEditDsl() {
   const { parsedSheets, projectSheets, functions, sheetName, projectName } =
     useContext(ProjectContext);
   const { openCellEditor } = useContext(AppSpreadsheetInteractionContext);
-  const { updateDSL, findEditContext, findLastTableField } = useDSLUtils();
+  const { updateDSL, findEditContext, findLastTableField, getFormulaSchema } =
+    useDSLUtils();
   const { updateSelectionAfterDataChanged } = useSpreadsheetSelection();
-  const { getDimensionalSchema } = useApiRequests();
   const gridApi = useGridApi();
 
   const changeFieldDimension = useCallback(
     (tableName: string, fieldName: string, isRemove = false) => {
       const context = findEditContext(tableName, fieldName);
+      if (!context) return;
 
-      if (!context?.field || context?.parsedField?.isDim === !isRemove) return;
+      const { sheetName, sheet, table } = context;
 
-      const { sheetName, sheet, field } = context;
+      for (const fieldGroup of table.fieldGroups) {
+        if (!fieldGroup.hasField(fieldName)) continue;
 
-      field.dim = !isRemove;
+        if (fieldGroup.fieldCount > 1) {
+          const firstGroupField = fieldGroup.getFieldByIndex(0);
+
+          if (firstGroupField.dim === !isRemove) return;
+
+          firstGroupField.dim = !isRemove;
+        } else {
+          const targetField = fieldGroup.getField(fieldName);
+
+          if (targetField.dim === !isRemove) return;
+
+          targetField.dim = !isRemove;
+        }
+      }
 
       const historyTitle = isRemove
         ? `Remove dimension ${tableName}[${fieldName}]`
@@ -239,28 +261,35 @@ export function useFieldEditDsl() {
     (
       tableName: string,
       fieldName: string,
-      formatName: string,
+      formatName?: string,
       formatParams: (string | number | boolean)[] = []
     ) => {
       const context = findEditContext(tableName, fieldName);
       if (!context?.field) return;
 
       const { sheet, field } = context;
-      let success: boolean;
+      let success = false;
 
-      if (formatName === FormatKeys.General) {
-        success = editFieldDecorator(field, formatDecoratorName, '', true);
+      let decoratorArgs: string;
+      if (!formatName) {
+        decoratorArgs = getFormatDecoratorArgs([]);
       } else {
-        const decoratorArgs = getFormatDecoratorArgs([
-          formatName,
-          ...formatParams,
-        ]);
-        success = editFieldDecorator(field, formatDecoratorName, decoratorArgs);
+        decoratorArgs = getFormatDecoratorArgs([formatName, ...formatParams]);
       }
+
+      success = editFieldDecorator(
+        field,
+        formatDecoratorName,
+        decoratorArgs,
+        !formatName
+      );
 
       if (!success) return;
 
-      const historyTitle = `Set format "${formatName}" to column "${fieldName}" of table "${tableName}"`;
+      const historyTitle = formatName
+        ? `Set format "${formatName}" to column "${fieldName}" of table "${tableName}"`
+        : `Remove explicit format for column "${fieldName}" of table "${tableName}"`;
+
       updateDSL({
         updatedSheetContent: sheet.toDSL(),
         historyTitle,
@@ -270,19 +299,31 @@ export function useFieldEditDsl() {
     [findEditContext, updateDSL]
   );
 
-  const editExpression = useCallback(
-    async (tableName: string, fieldName: string, expression: string) => {
+  const editExpressionWithOverrideRemove = useCallback(
+    (
+      tableName: string,
+      fieldName: string,
+      expression: string,
+      overrideIndex: number
+    ) => {
       const context = findEditContext(tableName, fieldName);
 
-      if (!context?.field || !projectSheets) return;
-      const { sheet, parsedTable, parsedField, field } = context;
+      if (!context || !projectSheets) return;
+      const { sheet, parsedTable, parsedField, table } = context;
+      const { overrides: parsedOverrides } = parsedTable;
+      const overrides = table.overrides;
+      if (!overrides || !parsedOverrides) return;
+
       let parsedTargetField: ParsedField | undefined = parsedField;
+      let field: Field | undefined = context?.field;
 
       if (parsedField?.isDynamic) {
         parsedTargetField = parsedTable.getDynamicField();
+        field = table.getField(dynamicFieldName);
+        fieldName = dynamicFieldName;
       }
 
-      if (!parsedTargetField) return;
+      if (!parsedTargetField || !field) return;
 
       const { expressionMetadata } = parsedTargetField;
       const initialExpression = expressionMetadata?.text || '';
@@ -297,46 +338,28 @@ export function useFieldEditDsl() {
         tableName
       );
 
-      // Special case for simple table (not manual with a single non-dim field):
-      // check if a new formula results in a nested field - add 'dim' keyword to this field
-      const isSimpleTable =
-        !parsedTable.isManual() &&
-        parsedTable.fields.length === 1 &&
-        !parsedTargetField.isDim;
-      let requiresAddDim = false;
+      table.setFieldFormula(fieldName, fixedExpression);
 
-      if (isSimpleTable) {
-        const schemaResponse = await getDimensionalSchema({
-          worksheets: getProjectSheetsRecord(projectSheets),
-          formula: fixedExpression,
-        });
+      parsedOverrides.updateFieldValueByIndex(fieldName, overrideIndex, null);
+      table.overrides = parsedOverrides.applyOverrides();
 
-        if (schemaResponse?.dimensionalSchemaResponse) {
-          const { fieldInfo } = schemaResponse.dimensionalSchemaResponse;
-          requiresAddDim = !!fieldInfo?.isNested;
-        }
+      let historyTitle = `Update expression of field [${fieldName}] in table "${tableName}"`;
+
+      const overridesIsEmpty = !table.overrides || table.overrides.length === 0;
+      if (overridesIsEmpty && parsedTable.isManual()) {
+        sheet.removeTable(tableName);
+        historyTitle = `Delete table "${tableName}"`;
       }
 
-      field.formula = fixedExpression;
-      if (requiresAddDim) {
-        field.dim = true;
-      }
-
-      const historyTitle = `Update expression of column [${fieldName}] in table "${tableName}"`;
       updateDSL({
         updatedSheetContent: sheet.toDSL(),
         historyTitle,
         tableName,
       });
+
+      return true;
     },
-    [
-      findEditContext,
-      functions,
-      getDimensionalSchema,
-      parsedSheets,
-      projectSheets,
-      updateDSL,
-    ]
+    [findEditContext, functions, parsedSheets, projectSheets, updateDSL]
   );
 
   const removeFieldDecorator = useCallback(
@@ -457,11 +480,14 @@ export function useFieldEditDsl() {
 
       const { sheet, table, parsedTable } = context;
 
-      table.addField(new Field(newFieldName, null));
+      table.addField({ name: newFieldName, formula: null });
       parsedTable.fields.push(
         new ParsedField(
           new FieldKey(tableName, `[${newFieldName}]`, newFieldName),
-          false
+          false,
+          undefined,
+          undefined,
+          0
         )
       );
       const updatedParsedOverrides = addOverridesToTable({
@@ -487,7 +513,7 @@ export function useFieldEditDsl() {
   );
 
   const addField = useCallback(
-    (
+    async (
       tableName: string,
       fieldText: string,
       insertOptions: {
@@ -497,7 +523,7 @@ export function useFieldEditDsl() {
       } = {}
     ) => {
       const context = findEditContext(tableName);
-      if (!context) return;
+      if (!context || !projectSheets) return;
 
       const { sheet, table, parsedTable } = context;
       const { direction, insertFromFieldName, withSelection } = insertOptions;
@@ -516,22 +542,119 @@ export function useFieldEditDsl() {
         );
       }
 
-      const { fieldName, expression } = generateFieldExpressionFromText(
+      let fieldGroupAdded = false;
+      const { fieldNames, expression } = generateFieldExpressionFromText(
         fieldText,
         parsedTable,
         functions,
         parsedSheets,
         tableName
       );
+      const existingFieldNames = parsedTable.fields.map((f) => f.key.fieldName);
+      const singleDefaultFieldName =
+        fieldNames.length === 0
+          ? createUniqueName(defaultFieldName, existingFieldNames)
+          : fieldNames[0];
+      let historyTitle = '';
 
-      table.addField(new Field(fieldName, expression));
-      table.moveFieldBeforeOrAfter(
-        fieldName,
-        targetField?.key.fieldName || null,
-        direction === 'left'
-      );
+      // Try to request dim schema and add a field group if the resulting schema is a table
+      if (expression) {
+        const { schema, fieldInfo, keys, errorMessage } =
+          await getFormulaSchema(
+            expression,
+            getProjectSheetsRecord(projectSheets)
+          );
 
-      const historyTitle = `Add [${fieldName}] to table "${tableName}"`;
+        if (fieldInfo && !errorMessage && isTableType(fieldInfo.type)) {
+          let finalFormula = expression;
+          let customSchema = schema;
+
+          const { isInputFunction, isFieldReferenceFormula } =
+            getParsedFormulaInfo(expression);
+
+          if (isInputFunction && !isFieldReferenceFormula) {
+            const fieldsSelector =
+              schema.length > 1
+                ? schema
+                    .map((fieldName) => `[${escapeFieldName(fieldName)}]`)
+                    .join(',')
+                : escapeFieldName(schema[0]);
+            finalFormula = `${expression}[${fieldsSelector}]`;
+          }
+
+          if (fieldNames.length > 0) {
+            customSchema = fieldNames;
+
+            // Add missing fields from the schema to the customSchema
+            if (fieldNames.length < schema.length) {
+              for (let i = customSchema.length; i < schema.length; i++) {
+                customSchema.push(schema[i]);
+              }
+            }
+          }
+
+          if (fieldNames.length === 0 && schema.length === 0) {
+            customSchema = [singleDefaultFieldName];
+          }
+
+          if (
+            fieldNames.length === 0 &&
+            schema.length > 1 &&
+            !isFieldReferenceFormula &&
+            !isInputFunction
+          ) {
+            customSchema = [singleDefaultFieldName];
+          }
+
+          const fieldGroup = new FieldGroup(finalFormula);
+          customSchema.forEach((fieldName) => {
+            const uniqueFieldName = createUniqueName(
+              fieldName,
+              existingFieldNames
+            );
+            existingFieldNames.push(uniqueFieldName);
+            const field = new Field(uniqueFieldName);
+
+            if (keys.includes(fieldName)) {
+              field.key = true;
+            }
+
+            fieldGroup.addField(field);
+          });
+          table.fieldGroups.append(fieldGroup);
+
+          historyTitle = `Add group of ${customSchema.length} field${
+            customSchema.length > 1 ? 's' : ''
+          } to table "${tableName}"`;
+          fieldGroupAdded = true;
+        }
+      }
+
+      if (!fieldGroupAdded) {
+        // Add one single field if no field group was added
+        if (fieldNames.length <= 1) {
+          const name =
+            fieldNames.length === 0 ? singleDefaultFieldName : fieldNames[0];
+          table.addField({ name, formula: expression });
+          table.moveFieldBeforeOrAfter(
+            name,
+            targetField?.key.fieldName || null,
+            direction === 'left'
+          );
+          historyTitle = `Add [${name}] to table "${tableName}"`;
+        } else if (fieldNames.length > 1) {
+          // Add a field group if the user provides multiple field names
+          const fieldGroup = new FieldGroup(expression);
+          for (const fieldName of fieldNames) {
+            fieldGroup.addField(new Field(fieldName));
+          }
+          table.fieldGroups.append(fieldGroup);
+          historyTitle = `Add group of ${fieldNames.length} field${
+            fieldNames.length > 1 ? 's' : ''
+          } to table "${tableName}"`;
+        }
+      }
+
       updateDSL({
         updatedSheetContent: sheet.toDSL(),
         historyTitle,
@@ -541,7 +664,8 @@ export function useFieldEditDsl() {
       if (withSelection) {
         openCellEditor({
           tableName,
-          fieldName,
+          fieldName:
+            fieldNames.length === 0 ? singleDefaultFieldName : fieldNames[0],
           value: '=',
         });
       }
@@ -550,8 +674,10 @@ export function useFieldEditDsl() {
       findEditContext,
       findLastTableField,
       functions,
+      getFormulaSchema,
       openCellEditor,
       parsedSheets,
+      projectSheets,
       updateDSL,
     ]
   );
@@ -639,6 +765,194 @@ export function useFieldEditDsl() {
     [findEditContext, updateDSL, updateSelectionAfterDataChanged]
   );
 
+  const editExpression = useCallback(
+    async (tableName: string, fieldName: string, expression: string) => {
+      const context = findEditContext(tableName, fieldName);
+      if (!context || !projectSheets) return;
+
+      const { sheet, parsedTable, parsedField, table } = context;
+      let parsedTargetField: ParsedField | undefined = parsedField;
+      let field: Field | undefined = context?.field;
+
+      if (parsedField?.isDynamic) {
+        parsedTargetField = parsedTable.getDynamicField();
+        field = table.getField(dynamicFieldName);
+        fieldName = dynamicFieldName;
+      }
+
+      if (!parsedTargetField || !field) return;
+
+      const targetGroup = parsedTable.fields[0].fieldGroupIndex;
+      const shouldRecreateTable =
+        !parsedTable.isManual() &&
+        parsedTable.fields.every(
+          ({ fieldGroupIndex }) => fieldGroupIndex === targetGroup
+        );
+
+      /* Old (current) formula and schema */
+      const oldExpression = parsedTargetField.expressionMetadata?.text || '';
+      const oldLeftSchema = parsedTable.fields
+        .filter(
+          (f) =>
+            f.fieldGroupIndex === parsedField?.fieldGroupIndex && !f.isDynamic
+        )
+        .map((f) => f.key.fieldName);
+      const { isFieldReferenceFormula: oldHasAccessors } =
+        getParsedFormulaInfo(oldExpression);
+
+      /* New formula – auto-fix and schema */
+      const sanitizedExpression = sanitizeExpression(expression, oldExpression);
+      const fixedNewExpression = autoFixSingleExpression(
+        sanitizedExpression,
+        functions,
+        parsedSheets,
+        tableName
+      );
+      const { isInputFunction, isFieldReferenceFormula } =
+        getParsedFormulaInfo(fixedNewExpression);
+      let newHasAccessors = isFieldReferenceFormula;
+      let isPeriodSeries = false;
+
+      /* Request dimensional schema for the new formula */
+      let finalSchema: string[] = [];
+      let finalFormula = fixedNewExpression;
+
+      const { schema, fieldInfo, errorMessage } = await getFormulaSchema(
+        fixedNewExpression,
+        getProjectSheetsRecord(projectSheets)
+      );
+
+      if (fieldInfo && !errorMessage) {
+        finalSchema = schema;
+        isPeriodSeries = fieldInfo.type === ColumnDataType.PERIOD_SERIES;
+
+        if (isTableType(fieldInfo.type) || isPeriodSeries) {
+          /* Period series has a fixed schema */
+          if (isPeriodSeries && !isFieldReferenceFormula) {
+            finalSchema = ['date', 'value'];
+          }
+
+          /* Auto-append selectors */
+
+          // Do not append selectors if the schema has '*'
+          const schemaHasDynamic = finalSchema.some(
+            (f) => f === dynamicFieldName
+          );
+          const hasToAppendSelectors =
+            !schemaHasDynamic &&
+            ((!isFieldReferenceFormula &&
+              (isInputFunction || isPeriodSeries)) ||
+              shouldRecreateTable);
+
+          if (hasToAppendSelectors && !newHasAccessors && finalSchema.length) {
+            const selectors =
+              finalSchema.length > 1
+                ? finalSchema.map((c) => `[${escapeFieldName(c)}]`).join(',')
+                : escapeFieldName(finalSchema[0]);
+
+            finalFormula = `${fixedNewExpression}[${selectors}]`;
+            newHasAccessors = finalSchema.length > 1;
+          }
+        }
+      }
+
+      const existingFieldNames = new Set(
+        parsedTable.fields.map((f) => f.key.fieldName)
+      );
+
+      /* Manipulate columns */
+
+      /* both formulas have accessor lists */
+      if (oldHasAccessors && newHasAccessors && finalSchema.length) {
+        const oldSchemaLen = oldLeftSchema.length;
+        const newSchemaLen = finalSchema.length;
+
+        // Add new columns if the accessor list got longer
+        if (newSchemaLen > oldSchemaLen) {
+          const lastLeft = oldLeftSchema[oldSchemaLen - 1];
+          const targetFieldGroup = table.getFieldGroupByFieldName(lastLeft);
+
+          if (targetFieldGroup) {
+            for (let i = oldSchemaLen; i < newSchemaLen; i++) {
+              const uniqueFieldName = createUniqueName(finalSchema[i], [
+                ...existingFieldNames,
+              ]);
+              existingFieldNames.add(uniqueFieldName);
+              targetFieldGroup.addField(new Field(uniqueFieldName));
+            }
+          }
+        }
+
+        // Remove surplus columns if the accessor list got shorter
+        if (newSchemaLen < oldSchemaLen) {
+          for (let i = newSchemaLen; i < oldSchemaLen; i++) {
+            table.removeField(oldLeftSchema[i]);
+          }
+        }
+
+        table.setFieldFormula(oldLeftSchema[0], finalFormula);
+      } else if (oldHasAccessors && !newHasAccessors) {
+        /* Accessor list removed */
+        oldLeftSchema.slice(1).forEach((c) => table.removeField(c));
+        table.setFieldFormula(oldLeftSchema[0], finalFormula);
+      } else if (!oldHasAccessors && newHasAccessors && finalSchema.length) {
+        /* Accessor list added */
+        const firstColumn = oldLeftSchema[0];
+        const targetFieldGroup = table.getFieldGroupByFieldName(firstColumn);
+
+        if (targetFieldGroup) {
+          finalSchema.slice(1).forEach((acc) => {
+            const uniqueFieldName = createUniqueName(acc, [
+              ...existingFieldNames,
+            ]);
+            existingFieldNames.add(uniqueFieldName);
+            targetFieldGroup.addField(new Field(uniqueFieldName));
+          });
+        }
+
+        table.setFieldFormula(firstColumn, finalFormula);
+      } else {
+        /* No accessor lists before or after */
+        table.setFieldFormula(fieldName, finalFormula);
+      }
+
+      /* Adjust the `dim` flag if necessary */
+      const shouldAddDim =
+        shouldRecreateTable && (fieldInfo?.isNested || isPeriodSeries);
+
+      if ((parsedTargetField.isDim && shouldRecreateTable) || shouldAddDim) {
+        for (const fieldGroup of table.fieldGroups) {
+          if (!fieldGroup.hasField(fieldName)) continue;
+
+          if (fieldGroup.fieldCount > 1) {
+            const firstGroupField = fieldGroup.getFieldByIndex(0);
+
+            firstGroupField.dim = shouldAddDim;
+          } else {
+            const targetField = fieldGroup.getField(fieldName);
+
+            targetField.dim = shouldAddDim;
+          }
+        }
+      }
+
+      const historyTitle = `Update expression of column [${fieldName}] in table "${tableName}"`;
+      updateDSL({
+        updatedSheetContent: sheet.toDSL(),
+        historyTitle,
+        tableName,
+      });
+    },
+    [
+      findEditContext,
+      functions,
+      getFormulaSchema,
+      parsedSheets,
+      projectSheets,
+      updateDSL,
+    ]
+  );
+
   return {
     addField: useSafeCallback(addField),
     addFieldWithOverride: useSafeCallback(addFieldWithOverride),
@@ -648,6 +962,9 @@ export function useFieldEditDsl() {
     changeFieldKey: useSafeCallback(changeFieldKey),
     changeFieldDescription: useSafeCallback(changeFieldDescription),
     editExpression: useSafeCallback(editExpression),
+    editExpressionWithOverrideRemove: useSafeCallback(
+      editExpressionWithOverrideRemove
+    ),
     onChangeFieldColumnSize: useSafeCallback(handleChangeColumnSize),
     onDecreaseFieldColumnSize: useSafeCallback(onDecreaseFieldColumnSize),
     onIncreaseFieldColumnSize: useSafeCallback(onIncreaseFieldColumnSize),

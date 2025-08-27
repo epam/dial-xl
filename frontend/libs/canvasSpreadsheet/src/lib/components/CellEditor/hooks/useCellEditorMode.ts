@@ -1,9 +1,6 @@
 import { RefObject, useCallback } from 'react';
 
-import {
-  FormulaBarMode,
-  isOtherCellsInFieldDataHasOverrides,
-} from '@frontend/common';
+import { FormulaBarMode } from '@frontend/common';
 
 import { GridApi } from '../../../types';
 import { CurrentCell, GridCellEditorMode } from '../types';
@@ -54,9 +51,7 @@ export function useCellEditorMode({
       const isTypeChanged = isCellValueTypeChanged(newCodeValue, oldCodeValue);
       const isTableCell = !cell?.isTableHeader && !cell?.isFieldHeader;
       const isOverride = !!cell?.isOverride;
-      const otherCellsInFieldHasOverrides = cell
-        ? isOtherCellsInFieldDataHasOverrides(cell, api.getCell)
-        : false;
+      const otherCellsInFieldHasOverrides = !!cell?.field?.hasOverrides;
 
       // Handle renaming modes
       if (isRenaming) {

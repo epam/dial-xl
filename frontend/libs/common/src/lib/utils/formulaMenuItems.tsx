@@ -14,6 +14,7 @@ const menuKey = {
   derived: 'derived',
   input: 'input',
   filter: 'filter',
+  pivot: 'pivot',
   sortTable: 'sortTable',
   uniqueValues: 'uniqueValues',
 };
@@ -74,6 +75,23 @@ export const getCreateTableChildren = (
   }
 
   return [
+    getDropdownItem({
+      label: 'Pivot',
+      key: menuKey.pivot,
+      disabled: !tableNames?.length,
+      children: tableNames?.map((name) =>
+        getDropdownItem({
+          label: name,
+          key: getDropdownMenuKey<FormulasContextMenuKeyData>(
+            ['Action', 'Pivot', name].join('-'),
+            {
+              tableName: name,
+              type: 'pivot',
+            }
+          ),
+        })
+      ),
+    }),
     getDropdownItem({
       disabled: !rangeFunction,
       label: 'By row range',
