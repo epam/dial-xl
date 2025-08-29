@@ -1,0 +1,46 @@
+image:
+  pullPolicy: Always
+  registry: registry-dev.deltixhub.com
+  repository: deltix.docker/quantgrid/qgbot
+  tag: main
+  pullSecrets:
+    - epm-rtc-registry-dev
+
+fullnameOverride: "qgbot" # for fancy service name
+
+containerSecurityContext:
+  runAsUser: 1001
+
+podSecurityContext:
+  fsGroup: 1001
+
+podAnnotations:
+  autorestart: '{{ dateInZone "2006-01-02 15:04:05Z" (now) "UTC" }}'
+
+serviceAccount:
+  create: false
+
+env:
+  DIAL_URL: "http://core.dial-development.svc.cluster.local:80"
+  QG_REST_URL: "https://quantgrid-dev.staging.deltixhub.io"
+  QG_URL: "https://quantgrid-dev.staging.deltixhub.io"
+
+  BOT_VERSION: "1"
+  CORE_MODEL: "anthropic.claude-v3-5-sonnet-v2"
+  CLASSIFICATION_MODEL: "anthropic.claude-v3-5-sonnet-v2"
+  LLM_NAME: "anthropic.claude-v3-5-sonnet-v2"
+  MAX_FIX_ATTEMPTS: "5"
+  LLM_MAX_CONTEXT_TOKENS: "150000"
+
+  LOG_LEVEL: "DEBUG"
+
+  CONTEXT_ROWS: "10"
+  RECURSION_LIMIT: "75"
+
+  # UVICORN
+
+  WEB_CONCURRENCY: "4"
+  UVICORN_LIMIT_CONCURRENCY: "512"
+  UVICORN_TIMEOUT_KEEP_ALIVE: "600"
+  
+

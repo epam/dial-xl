@@ -1,5 +1,10 @@
 web:
   storage:
     local:
-      projectsFolder: build/test-projects
-      inputsFolder: build/resources/test/test-inputs
+      resultsFolder: build/tmp/test/.cache/
+      inputsFolder: build/resources/test/test-inputs/
+  heartbeatPeriodMillis: 60000
+
+spring:
+  security:
+    enabled: false

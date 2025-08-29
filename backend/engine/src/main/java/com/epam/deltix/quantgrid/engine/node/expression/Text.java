@@ -1,26 +1,27 @@
 package com.epam.deltix.quantgrid.engine.node.expression;
 
-import com.epam.deltix.quantgrid.engine.Util;
+import com.epam.deltix.quantgrid.engine.compiler.result.format.ColumnFormat;
+import com.epam.deltix.quantgrid.engine.value.Column;
 import com.epam.deltix.quantgrid.engine.value.DoubleColumn;
 import com.epam.deltix.quantgrid.engine.value.StringColumn;
+import com.epam.deltix.quantgrid.engine.value.Table;
+import com.epam.deltix.quantgrid.engine.value.local.LocalTable;
 import com.epam.deltix.quantgrid.engine.value.local.StringLambdaColumn;
+import com.epam.deltix.quantgrid.engine.value.local.StructColumn;
 import com.epam.deltix.quantgrid.type.ColumnType;
-import com.epam.deltix.quantgrid.util.ExcelDateTime;
+import com.epam.deltix.quantgrid.util.Doubles;
+import com.epam.deltix.quantgrid.util.Formatter;
 import org.jetbrains.annotations.Nullable;
 
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
+import java.util.Collections;
+import java.util.List;
 
-public class Text extends Expression1<DoubleColumn, StringColumn> {
+public class Text extends Expression1<Column, Column> {
+    private final ColumnFormat format;
 
-    @Nullable
-    private final String formatting;
-    private final ColumnType sourceType;
-
-    public Text(Expression source, ColumnType sourceType, @Nullable String formatting) {
+    public Text(Expression source, @Nullable ColumnFormat format) {
         super(source);
-        this.formatting = formatting;
-        this.sourceType = sourceType;
+        this.format = format;
     }
 
     @Override
@@ -29,63 +30,36 @@ public class Text extends Expression1<DoubleColumn, StringColumn> {
     }
 
     @Override
-    protected StringColumn evaluate(DoubleColumn source) {
-        return text(source, sourceType, formatting);
-    }
-
-    public static StringLambdaColumn text(DoubleColumn source, ColumnType type, String formatting) {
-        ToStringConverter convertor = getConverter(type);
-        return new StringLambdaColumn(i -> {
-            double value = source.get(i);
-            return Util.isNa(value) ? null : convertor.apply(value, formatting);
-        }, source.size());
-    }
-
-    private interface ToStringConverter {
-        @Nullable
-        String apply(double value, @Nullable String formatting);
-    }
-
-    private static ToStringConverter getConverter(ColumnType type) {
-        return switch (type) {
-            case DOUBLE -> Text::doubleToString;
-            case BOOLEAN -> Text::booleanToString;
-            case INTEGER -> Text::intToString;
-            case DATE -> Text::dateToString;
-            default -> throw new IllegalArgumentException("Unsupported type: " + type);
-        };
-    }
-
-    private static String booleanToString(double value, String formatting) {
-        return (int) value != 0 ? "TRUE" : "FALSE";
-    }
-
-    private static String doubleToString(double value, String formatting) {
-        if (formatting != null) {
-            return formatAsDate(value, formatting);
-        } else {
-            return Double.toString(value);
+    protected Column evaluate(Column source) {
+        if (source instanceof DoubleColumn numbers) {
+            return text(numbers, format);
         }
-    }
 
-    private static String intToString(double value, String formatting) {
-        if (formatting != null) {
-            return formatAsDate(value, formatting);
-        } else {
-            return Long.toString((long) value);
+        if (source instanceof StructColumn struct) {
+            Table table = struct.getTable();
+            List<String> names = struct.getNames();
+            List<ColumnType> types = Collections.nCopies(names.size(), ColumnType.STRING);
+            StringColumn[] columns = new StringColumn[names.size()];
+
+            for (int i = 0; i < columns.length; i++) {
+                DoubleColumn numbers = table.getDoubleColumn(i);
+                columns[i] = text(numbers, format);
+            }
+
+            return new StructColumn(names, types, new LocalTable(columns));
         }
+
+        throw new IllegalArgumentException("Not expected column type: " + source.getClass());
     }
 
-    private static String dateToString(double value, String formatting) {
-        LocalDateTime date = ExcelDateTime.getLocalDateTime(value);
-        if (formatting != null) {
-            return date.format(DateTimeFormatter.ofPattern(formatting));
-        } else {
-            return date.format(ExcelDateTime.EXCEL_DATE_TIME_FORMAT);
-        }
+    @Override
+    public String toString() {
+        return format == null ? "TEXT()" : ("TEXT(" + format + ")");
     }
 
-    private static String formatAsDate(double value, String formatting) {
-        return ExcelDateTime.getLocalDateTime(value).format(DateTimeFormatter.ofPattern(formatting));
+    public static StringLambdaColumn text(DoubleColumn source, @Nullable ColumnFormat format) {
+        // Lossless formatter is used for formatting raw value in viewport nodes
+        Formatter formatter = format == null ? Formatter.LOSSLESS : format.createFormatter();
+        return new StringLambdaColumn(i -> Doubles.toString(source.get(i), formatter), source.size());
     }
 }

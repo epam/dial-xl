@@ -1,0 +1,74 @@
+{
+  "name": "test",
+  "tables": [
+    {
+      "span": {
+        "sheet": "test",
+        "text": "table 't1'\n  [*] = 1\n  [*] = 2\n",
+        "from": 0,
+        "to": 31
+      },
+      "name": {
+        "span": {
+          "sheet": "test",
+          "text": "'t1'",
+          "from": 6,
+          "to": 10
+        },
+        "text": "t1"
+      },
+      "fields": [
+        {
+          "span": {
+            "sheet": "test",
+            "text": "[*] = 1",
+            "from": 13,
+            "to": 20
+          },
+          "fields": [
+            {
+              "span": {
+                "sheet": "test",
+                "text": "[*]",
+                "from": 13,
+                "to": 16
+              },
+              "name": {
+                "span": {
+                  "sheet": "test",
+                  "text": "[*]",
+                  "from": 13,
+                  "to": 16
+                },
+                "text": "*"
+              },
+              "decorators": [],
+              "docs": []
+            }
+          ],
+          "formula": {
+            "number": 1.0,
+            "span": {
+              "sheet": "test",
+              "text": "1",
+              "from": 19,
+              "to": 20
+            },
+            "arguments": []
+          }
+        }
+      ],
+      "decorators": [],
+      "docs": [],
+      "totals": []
+    }
+  ],
+  "pythons": [],
+  "errors": [
+    {
+      "line": 3,
+      "position": 3,
+      "message": "Duplicate column. Table: t1. Column: *"
+    }
+  ]
+}

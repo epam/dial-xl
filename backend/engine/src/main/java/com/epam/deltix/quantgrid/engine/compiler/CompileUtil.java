@@ -1,25 +1,40 @@
 package com.epam.deltix.quantgrid.engine.compiler;
 
 import com.epam.deltix.quantgrid.engine.compiler.result.CompiledColumn;
+import com.epam.deltix.quantgrid.engine.compiler.result.CompiledNestedColumn;
+import com.epam.deltix.quantgrid.engine.compiler.result.CompiledResult;
+import com.epam.deltix.quantgrid.engine.compiler.result.CompiledSimpleColumn;
 import com.epam.deltix.quantgrid.engine.compiler.result.CompiledTable;
+import com.epam.deltix.quantgrid.engine.compiler.result.format.ColumnFormat;
+import com.epam.deltix.quantgrid.engine.compiler.result.format.GeneralFormat;
 import com.epam.deltix.quantgrid.engine.meta.Schema;
+import com.epam.deltix.quantgrid.engine.node.Node;
+import com.epam.deltix.quantgrid.engine.node.expression.BinaryOperator;
+import com.epam.deltix.quantgrid.engine.node.expression.Constant;
+import com.epam.deltix.quantgrid.engine.node.expression.Expand;
 import com.epam.deltix.quantgrid.engine.node.expression.Expression;
 import com.epam.deltix.quantgrid.engine.node.expression.Get;
 import com.epam.deltix.quantgrid.engine.node.expression.RowNumber;
+import com.epam.deltix.quantgrid.engine.node.expression.Text;
 import com.epam.deltix.quantgrid.engine.node.plan.Plan;
 import com.epam.deltix.quantgrid.engine.node.plan.local.JoinAllLocal;
 import com.epam.deltix.quantgrid.engine.node.plan.local.Projection;
 import com.epam.deltix.quantgrid.engine.node.plan.local.SelectLocal;
 import com.epam.deltix.quantgrid.engine.value.Period;
 import com.epam.deltix.quantgrid.parser.FieldKey;
+import com.epam.deltix.quantgrid.parser.ast.BinaryOperation;
 import com.epam.deltix.quantgrid.parser.ast.CurrentField;
 import com.epam.deltix.quantgrid.parser.ast.Formula;
+import com.epam.deltix.quantgrid.parser.ast.Function;
+import com.epam.deltix.quantgrid.parser.ast.UnaryOperator;
+import com.epam.deltix.quantgrid.type.ColumnType;
 import lombok.experimental.UtilityClass;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.function.Consumer;
+import java.util.stream.Stream;
 
 @UtilityClass
 public class CompileUtil {
@@ -48,6 +63,15 @@ public class CompileUtil {
         }
     }
 
+    public void verifySameLayout(CompiledResult a, CompiledResult b) {
+        verify(a.hasSameLayout(b));
+    }
+
+    public void verifySameLayout(CompiledResult a, CompiledResult b, String errorFormat, Object... args) {
+        verify(a.hasSameLayout(b), errorFormat, args);
+    }
+
+
     public void verifyReferences(int currentRef, int queryRef) {
         CompileUtil.verify(currentRef <= queryRef, "currentRef(%s) > queryRef(%s)", currentRef, queryRef);
     }
@@ -61,9 +85,10 @@ public class CompileUtil {
         }
     }
 
-    public CompiledColumn projectColumn(Expression key, Expression column, List<FieldKey> dimensions) {
+    public CompiledSimpleColumn projectColumn(
+            Expression key, Expression column, List<FieldKey> dimensions, ColumnFormat format) {
         Expression projected = projectColumn(key, column);
-        return new CompiledColumn(projected, dimensions);
+        return new CompiledSimpleColumn(projected, dimensions, format);
     }
 
     public Expression projectColumn(Expression key, Expression column) {
@@ -106,10 +131,6 @@ public class CompileUtil {
         return new SelectLocal(columns);
     }
 
-    public SelectLocal selectColumns(Plan table) {
-        return selectColumns(table, 0);
-    }
-
     public SelectLocal selectColumns(Plan table, int from) {
         int size = table.getMeta().getSchema().size();
         List<Expression> columns = new ArrayList<>(size - from);
@@ -122,72 +143,14 @@ public class CompileUtil {
         return new SelectLocal(columns);
     }
 
-    public SelectLocal selectColumns(Get first, Plan last) {
+    public SelectLocal selectColumns(Expression first, Plan last) {
         List<Expression> expressions = new ArrayList<>();
         expressions.add(first);
         expressions.addAll(selectColumns(last, 0).getExpressions());
         return new SelectLocal(expressions);
     }
 
-    public List<CurrentField> collectCurrentFields(Formula formula) {
-        List<CurrentField> currentFields = new ArrayList<>();
-
-        collect(formula, f -> {
-            if (f instanceof CurrentField currentField) {
-                currentFields.add(currentField);
-            }
-        });
-
-        return currentFields;
-    }
-
-    private void collect(Formula formula, Consumer<Formula> collector) {
-        collector.accept(formula);
-        for (Formula argument : formula.arguments()) {
-            collect(argument, collector);
-        }
-    }
-
-    static boolean isContextNode(CompiledTable layout, CompiledTable table, CompiledTable source) {
-        verify(table != null);
-        verify(layout != null);
-
-        if (!source.hasCurrentReference()) {
-            return false;
-        }
-
-        Plan sourcePlan = source.node();
-        int currentRef = source.currentReference().getColumn();
-
-        // checks that source originates from the context table or layout
-        return isContextNode(layout.node(), table.node(), sourcePlan, currentRef);
-    }
-
-    private static boolean isContextNode(Plan layout, Plan table, Plan source, int currentRef) {
-        if (source == table) {
-            return true;
-        }
-
-        if (source instanceof SelectLocal select) {
-            Expression expression = select.getExpression(currentRef);
-
-            if (expression instanceof Get get) {
-                return isContextNode(layout, table, get.plan(), get.getColumn());
-            } else if (expression instanceof RowNumber rowNumber) {
-                return rowNumber.plan() == layout;
-            } else {
-                throw new CompileError("Unexpected row reference expression: %s".formatted(expression));
-            }
-        }
-
-        Schema schema = source.getMeta().getSchema();
-        verify(schema.hasInput(currentRef), "Current reference is not in the chain");
-        Plan plan = source.plan(schema.getInput(currentRef));
-        int column = schema.getColumn(currentRef);
-        return isContextNode(layout, table, plan, column);
-    }
-
-    private static boolean isRowNumber(Expression expression) {
+    private boolean isRowNumber(Expression expression) {
         while (true) {
             if (expression instanceof RowNumber) {
                 return true;
@@ -200,5 +163,93 @@ public class CompileUtil {
 
             return false;
         }
+    }
+
+    public <R extends CompiledResult> String getResultTypeDisplayName(Class<R> type) {
+        if (CompiledSimpleColumn.class.isAssignableFrom(type)) {
+            return "a text or a number";
+        }
+
+        if (CompiledNestedColumn.class.isAssignableFrom(type)) {
+            return "an array";
+        }
+
+        if (CompiledColumn.class.isAssignableFrom(type)) {
+            return "a text, a number or an array";
+        }
+
+        if (CompiledTable.class.isAssignableFrom(type)) {
+            return "a table";
+        }
+
+        return type.getSimpleName();
+    }
+
+    public <R extends CompiledResult> String getResultTypeDisplayName(R result) {
+        if (result instanceof CompiledSimpleColumn simpleColumn) {
+            return getColumnTypeDisplayName(simpleColumn.type());
+        }
+
+        if (result instanceof CompiledTable compiledTable && !compiledTable.nested()) {
+            return "a row";
+        }
+
+        return getResultTypeDisplayName(result.getClass());
+    }
+
+    public String getColumnTypeDisplayName(ColumnType type) {
+        return switch (type) {
+            case DOUBLE -> "a number";
+            case PERIOD_SERIES -> "period series";
+            case STRING -> "a text";
+            case STRUCT -> "a value";
+        };
+    }
+
+    public String getColumnTypeDisplayNamePlural(ColumnType type) {
+        return switch (type) {
+            case DOUBLE -> "texts";
+            case PERIOD_SERIES -> "period series";
+            case STRING -> "strings";
+            case STRUCT -> "values";
+        };
+    }
+
+    public CompiledSimpleColumn number(CompiledTable table, double number) {
+        return new CompiledSimpleColumn(
+                new Expand(table.node().getLayout(), new Constant(number)), table.dimensions(),
+                GeneralFormat.INSTANCE);
+    }
+
+    public BinaryOperator plus(Expression left, double number) {
+        verify(left.getType().isDouble(), "Cannot add %s to a non-numeric expression", left);
+        Expand right = new Expand(left.getLayout(), new Constant(number));
+        return new BinaryOperator(left, right, BinaryOperation.ADD);
+    }
+
+    public boolean isOperator(Function function) {
+        return function instanceof UnaryOperator
+                || function instanceof com.epam.deltix.quantgrid.parser.ast.BinaryOperator;
+    }
+
+    public CompiledColumn toStringColumn(CompiledColumn column) {
+        if (column.type().isString()) {
+            return column;
+        }
+
+        return column.transform(node -> new Text(node, column.format()), GeneralFormat.INSTANCE);
+    }
+
+    public List<Expression> toExpressionList(List<CompiledSimpleColumn> columns) {
+        return columns.stream()
+                .map(CompiledSimpleColumn::node)
+                .toList();
+    }
+
+    @SafeVarargs
+    public <T extends CompiledColumn> List<ColumnFormat> toFormatList(List<? extends CompiledColumn> columns, T... other) {
+        return Stream.concat(columns.stream(), Arrays.stream(other))
+                .map(CompiledColumn::format)
+                .toList();
     }
 }

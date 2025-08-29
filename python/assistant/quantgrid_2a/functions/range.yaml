@@ -1,0 +1,5 @@
+name: range
+description: Creates an integer array from 1 to specified integer
+signature: 'range(upper_bound: number) => array<number>'
+manual: >-
+  `range` function returns `array<number>` from 1 to specified upper bound `number` (right border inclusive).

@@ -1,6 +1,10 @@
 package com.epam.deltix.quantgrid.engine.node;
 
 import com.epam.deltix.quantgrid.engine.Util;
+import com.epam.deltix.quantgrid.engine.node.plan.Executed;
+import com.epam.deltix.quantgrid.engine.node.plan.Failed;
+import com.epam.deltix.quantgrid.engine.node.plan.Plan;
+import com.epam.deltix.quantgrid.engine.node.plan.Running;
 import com.epam.deltix.quantgrid.type.ColumnType;
 import lombok.SneakyThrows;
 import lombok.experimental.UtilityClass;
@@ -215,5 +219,25 @@ public class NodeUtil {
         Field field = clazz.getDeclaredField(name);
         field.setAccessible(true);
         return field;
+    }
+
+    public Plan unwrapOriginal(Node node) {
+        if (node instanceof Running running) {
+           return running.getOriginal();
+        }
+
+        if (node instanceof Executed executed) {
+            return executed.getOriginal();
+        }
+
+        if (node instanceof Failed failed) {
+            return failed.getOriginal();
+        }
+
+        if (node instanceof Plan plan) {
+            return plan;
+        }
+
+        return null;
     }
 }

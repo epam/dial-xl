@@ -7,6 +7,8 @@ export enum KeyboardCode {
   Four = 'Digit4',
   Five = 'Digit5',
   Six = 'Digit6',
+  Seven = 'Digit7',
+  Eight = 'Digit8',
   Zero = 'Digit0',
   Space = ' ',
   Shift = 'Shift',
@@ -15,6 +17,7 @@ export enum KeyboardCode {
   Alt = 'Alt',
   KeyP = 'KeyP',
   Delete = 'Delete',
+  Backspace = 'Backspace',
   ArrowDown = 'ArrowDown',
   ArrowUp = 'ArrowUp',
   ArrowRight = 'ArrowRight',
@@ -30,7 +33,9 @@ export enum KeyboardCode {
   V = 'KeyV',
   Y = 'KeyY',
   F = 'KeyF',
+  S = 'KeyS',
   F2 = 'F2',
+  F10 = 'F10',
   Escape = 'Escape',
   ContextMenu = 'ContextMenu',
   Tab = 'Tab',
@@ -41,4 +46,29 @@ export enum KeyboardCode {
 
 export function isCommandKey(event: KeyboardEvent | IMouseEvent) {
   return event.metaKey || event.ctrlKey;
+}
+
+export function shouldStopPropagation(
+  event: KeyboardEvent | React.KeyboardEvent
+) {
+  const stopKeys = [
+    KeyboardCode.Backspace,
+    KeyboardCode.Delete,
+    KeyboardCode.Enter,
+    KeyboardCode.Tab,
+    KeyboardCode.Home,
+    KeyboardCode.End,
+    KeyboardCode.ArrowUp,
+    KeyboardCode.ArrowDown,
+    KeyboardCode.ArrowLeft,
+    KeyboardCode.ArrowRight,
+  ];
+
+  return (
+    event.metaKey ||
+    event.ctrlKey ||
+    event.altKey ||
+    event.shiftKey ||
+    stopKeys.includes(event.key as KeyboardCode)
+  );
 }

@@ -1,0 +1,4 @@
+name: month
+description: Extract month number from date
+signature: 'date.month() => number'
+manual: Extract month number from date.

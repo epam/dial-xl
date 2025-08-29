@@ -16,11 +16,11 @@ export enum Shortcut {
   Paste = 'Paste',
   NewProject = 'NewProject',
   ToggleProjects = 'ToggleProjects',
-  ToggleInputs = 'ToggleInputs',
   ToggleCodeEditor = 'ToggleCodeEditor',
   ToggleErrors = 'ToggleErrors',
   ToggleHistory = 'ToggleHistory',
   ToggleChat = 'ToggleChat',
+  ToggleChart = 'ToggleChart',
   PageUp = 'PageUp',
   PageDown = 'PageDown',
   SelectAll = 'SelectAll',
@@ -41,6 +41,7 @@ export enum Shortcut {
   UndoAction = 'UndoAction',
   RedoAction = 'RedoAction',
   Delete = 'Delete',
+  Backspace = 'Backspace',
   ZoomIn = 'ZoomIn',
   ZoomOut = 'ZoomOut',
   ZoomReset = 'ZoomReset',
@@ -57,6 +58,11 @@ export enum Shortcut {
   MoveToSheetStart = 'MoveToSheetStart',
   MoveToSheetEnd = 'MoveToSheetEnd',
   MoveTabBackward = 'MoveTabBackward',
+  AddNote = 'AddNote',
+  Save = 'Save',
+  OpenAIPromptBox = 'OpenAIPromptBox',
+  AcceptAIPromptResult = 'AcceptAIPromptResult',
+  ChangeViewportInteractionMode = 'ChangeViewportInteractionMode',
 }
 
 const shortcutMap: ShortcutMap = {
@@ -65,10 +71,10 @@ const shortcutMap: ShortcutMap = {
   [Shortcut.NewProject]: [KeyboardCode.Alt, KeyboardCode.KeyP],
   [Shortcut.ToggleProjects]: [KeyboardCode.Alt, KeyboardCode.One],
   [Shortcut.ToggleCodeEditor]: [KeyboardCode.Alt, KeyboardCode.Two],
-  [Shortcut.ToggleInputs]: [KeyboardCode.Alt, KeyboardCode.Three],
-  [Shortcut.ToggleErrors]: [KeyboardCode.Alt, KeyboardCode.Four],
-  [Shortcut.ToggleHistory]: [KeyboardCode.Alt, KeyboardCode.Five],
-  [Shortcut.ToggleChat]: [KeyboardCode.Alt, KeyboardCode.Six],
+  [Shortcut.ToggleErrors]: [KeyboardCode.Alt, KeyboardCode.Three],
+  [Shortcut.ToggleHistory]: [KeyboardCode.Alt, KeyboardCode.Four],
+  [Shortcut.ToggleChat]: [KeyboardCode.Alt, KeyboardCode.Five],
+  [Shortcut.ToggleChart]: [KeyboardCode.Alt, KeyboardCode.Six],
   [Shortcut.UndoAction]: [KeyboardCode.Command, KeyboardCode.Z],
   [Shortcut.RedoAction]: [
     [KeyboardCode.Command, KeyboardCode.Shift, KeyboardCode.Z],
@@ -108,14 +114,15 @@ const shortcutMap: ShortcutMap = {
   [Shortcut.MoveLeft]: [KeyboardCode.ArrowLeft],
   [Shortcut.MoveRight]: [KeyboardCode.ArrowRight],
   [Shortcut.Delete]: [KeyboardCode.Delete],
+  [Shortcut.Backspace]: [KeyboardCode.Backspace],
   [Shortcut.ZoomIn]: [
     [KeyboardCode.Command, KeyboardCode.Equal],
     [KeyboardCode.Command, KeyboardCode.Plus],
   ],
   [Shortcut.ZoomOut]: [KeyboardCode.Command, KeyboardCode.Minus],
   [Shortcut.ZoomReset]: [KeyboardCode.Command, KeyboardCode.Zero],
-  [Shortcut.Rename]: [KeyboardCode.Alt, KeyboardCode.F2],
-  [Shortcut.EditExpression]: [KeyboardCode.F2],
+  [Shortcut.EditExpression]: [KeyboardCode.Alt, KeyboardCode.F2],
+  [Shortcut.Rename]: [KeyboardCode.F2],
   [Shortcut.SwapFieldsLeft]: [
     KeyboardCode.Shift,
     KeyboardCode.Alt,
@@ -126,7 +133,10 @@ const shortcutMap: ShortcutMap = {
     KeyboardCode.Alt,
     KeyboardCode.ArrowRight,
   ],
-  [Shortcut.ContextMenu]: [KeyboardCode.ContextMenu],
+  [Shortcut.ContextMenu]: [
+    [KeyboardCode.ContextMenu],
+    [KeyboardCode.Shift, KeyboardCode.F10],
+  ],
 
   [Shortcut.SearchWindow]: [
     KeyboardCode.Command,
@@ -152,6 +162,15 @@ const shortcutMap: ShortcutMap = {
   [Shortcut.MoveToSheetStart]: [KeyboardCode.Command, KeyboardCode.Home],
   [Shortcut.MoveToSheetEnd]: [KeyboardCode.Command, KeyboardCode.End],
   [Shortcut.MoveTabBackward]: [KeyboardCode.Shift, KeyboardCode.Tab],
+  [Shortcut.AddNote]: [KeyboardCode.Shift, KeyboardCode.F2],
+  [Shortcut.Save]: [KeyboardCode.Command, KeyboardCode.S],
+  [Shortcut.OpenAIPromptBox]: [KeyboardCode.Space],
+  [Shortcut.AcceptAIPromptResult]: [KeyboardCode.Enter],
+  [Shortcut.ChangeViewportInteractionMode]: [
+    KeyboardCode.Command,
+    KeyboardCode.Shift,
+    KeyboardCode.Space,
+  ],
 };
 
 const keyboardCodeToString = (key: KeyboardCode): string => {
@@ -159,7 +178,7 @@ const keyboardCodeToString = (key: KeyboardCode): string => {
     case KeyboardCode.Shift:
       return isMac() ? '⇧' : 'Shift';
     case KeyboardCode.Space:
-      return '␣';
+      return 'Space';
     case KeyboardCode.Ctrl:
       return 'Ctrl';
     case KeyboardCode.Command:
@@ -188,8 +207,16 @@ function getLabel(shortcut: Shortcut) {
   return keys.map(keyboardCodeToString).join('+');
 }
 
-function is(shortcut: Shortcut, event?: KeyboardEvent) {
+function is(
+  shortcut: Shortcut,
+  event?: KeyboardEvent,
+  checkShortcutEvent = true
+) {
   if (!event) return false;
+
+  const isShortcutEvent = event.ctrlKey || event.altKey || event.metaKey;
+
+  if (!checkShortcutEvent && isShortcutEvent) return false;
 
   const hasMultipleOptions = Array.isArray(shortcutMap[shortcut][0]);
 

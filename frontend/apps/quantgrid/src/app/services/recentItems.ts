@@ -1,25 +1,17 @@
 import { PanelRecord } from '../common';
 
-export const saveRecentProject = (projectName: string) => {
-  localStorage.setItem('recentProject', projectName);
-};
+export const loadPanelsEnvConfig = () => {
+  const panelsLayout = window.externalEnv.defaultPanelsSettings;
 
-export const saveRecentSheet = (sheetName: string) => {
-  localStorage.setItem('recentSheet', sheetName);
-};
+  if (!panelsLayout) return {};
 
-export const getRecentProject = () => {
-  return localStorage.getItem('recentProject');
-};
-
-export const getRecentSheet = () => {
-  return localStorage.getItem('recentSheet');
+  return panelsLayout;
 };
 
 export const loadPanels = () => {
   const panelsLayout = localStorage.getItem('panelsLayout');
 
-  if (!panelsLayout) return;
+  if (!panelsLayout) return {};
 
   return JSON.parse(panelsLayout);
 };

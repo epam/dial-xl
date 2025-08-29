@@ -21,18 +21,18 @@ class SparkInputProviderTest extends SharedLocalSparkTest {
         InputMetadata metadata = TestInputs.readMetadata(CPI_CSV);
         List<String> readColumns = List.copyOf(metadata.columnTypes().keySet());
 
-        SparkValue value = new SparkInputProvider().read(readColumns, metadata);
+        SparkValue value = new SparkInputProvider().readData(readColumns, metadata, null);
         Dataset<Row> dataset = value.getDataset();
 
         verifyWithHeader(dataset, """
                 +--------------+-----------+------------+-------------------+-------+-----------+---------+-------+
                 |DATA_DOMAIN.id|REF_AREA.id|INDICATOR.id|COUNTERPART_AREA.id|FREQ.id|TIME_PERIOD|OBS_VALUE|COMMENT|
                 +--------------+-----------+------------+-------------------+-------+-----------+---------+-------+
-                |CPI           |111.0      |GDP         |W1                 |A      |43101.0    |105.57   |null   |
-                |CPI           |111.0      |GDP         |W1                 |A      |43466.0    |104.67   |null   |
-                |CPI           |111.0      |GDP         |W1                 |A      |43831.0    |99.87    |null   |
-                |CPI           |111.0      |GDP         |W1                 |Q      |43101.0    |135.987  |null   |
-                |CPI           |111.0      |GDP         |W1                 |Q      |43191.0    |145.4    |null   |
+                |CPI           |111.0      |GDP         |W1                 |A      |43101.0    |105.57   |NaN    |
+                |CPI           |111.0      |GDP         |W1                 |A      |43466.0    |104.67   |NaN    |
+                |CPI           |111.0      |GDP         |W1                 |A      |43831.0    |99.87    |NaN    |
+                |CPI           |111.0      |GDP         |W1                 |Q      |43101.0    |135.987  |NaN    |
+                |CPI           |111.0      |GDP         |W1                 |Q      |43191.0    |145.4    |NaN    |
                 +--------------+-----------+------------+-------------------+-------+-----------+---------+-------+
                 """);
     }
@@ -42,7 +42,7 @@ class SparkInputProviderTest extends SharedLocalSparkTest {
         InputMetadata metadata = TestInputs.readMetadata(CPI_CSV);
 
         List<String> readColumns = List.of("TIME_PERIOD", "DATA_DOMAIN.id");
-        SparkValue value = new SparkInputProvider().read(readColumns, metadata);
+        SparkValue value = new SparkInputProvider().readData(readColumns, metadata, null);
 
         Dataset<Row> dataset = value.getDataset();
 
@@ -63,7 +63,7 @@ class SparkInputProviderTest extends SharedLocalSparkTest {
     void testReadAllTypesWithNull() {
         InputMetadata metadata = TestInputs.readMetadata(ALL_TYPES_CSV);
         List<String> readColumns = List.copyOf(metadata.columnTypes().keySet());
-        SparkValue value = new SparkInputProvider().read(readColumns, metadata);
+        SparkValue value = new SparkInputProvider().readData(readColumns, metadata, null);
 
         Dataset<Row> dataset = value.getDataset();
 

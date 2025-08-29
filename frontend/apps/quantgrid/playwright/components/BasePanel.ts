@@ -3,17 +3,16 @@ import { expect } from '@playwright/test';
 import { BaseComponent } from './BaseComponent';
 
 export class BasePanel extends BaseComponent {
-  private hideElement = 'div>[aria-label="vertical-align-bottom"]';
+  private hideElement = 'div>span.text-textSecondary.ml-2.cursor-pointer';
 
   protected panelName: string;
 
-  private panelItemsStart = 'div.items-start';
+  //private panelItemsStart = 'div.items-start';
 
-  private getPanelRootLocator() {
+  protected getPanelRootLocator() {
     return this.innerPage.locator(
-      `div.items-start:has-text('${this.panelName}')`
+      `#${this.panelName}-panel[data-panel-active='true']`
     );
-    //     return this.innerPage.locator(this.panelItemsStart).getByText(this.panelName, {exact: true});
   }
 
   public async closePanel() {

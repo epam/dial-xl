@@ -5,6 +5,6 @@ export abstract class CreationForm extends BaseComponent {
 
   public async fillForm(projectName: string) {
     await this.innerPage.locator(this.nameInput).fill(projectName);
-    await this.innerPage.getByText('OK').click();
+    await this.innerPage.getByText('OK', { exact: true }).click();
   }
 }

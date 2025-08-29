@@ -6,14 +6,11 @@ export function uniqueId(): string {
 }
 
 export function getApiUrl() {
-  const hostname = window.location.hostname;
-  const isProd = window.location.protocol === 'https:';
+  const { protocol, hostname } = window.location;
 
-  return isProd ? `wss://${hostname}/ws` : `ws://${hostname}:8080/ws`;
-}
+  const apiBaseUrl = window.externalEnv.apiBaseUrl;
 
-export function sort(list: string[], sortAsc: boolean) {
-  return [...list].sort((a, b) => {
-    return sortAsc ? a.localeCompare(b) : b.localeCompare(a);
-  });
+  if (apiBaseUrl) return apiBaseUrl;
+
+  return `${protocol}//${hostname}`;
 }

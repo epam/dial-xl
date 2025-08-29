@@ -3,7 +3,7 @@ package com.epam.deltix.quantgrid.engine.node.plan.spark;
 import com.epam.deltix.quantgrid.engine.node.ResultTestPlan;
 import com.epam.deltix.quantgrid.engine.node.expression.Constant;
 import com.epam.deltix.quantgrid.engine.node.expression.Get;
-import com.epam.deltix.quantgrid.engine.node.plan.local.AggregateFunction;
+import com.epam.deltix.quantgrid.engine.node.plan.local.aggregate.AggregateType;
 import com.epam.deltix.quantgrid.engine.test.SharedLocalSparkTest;
 import com.epam.deltix.quantgrid.engine.value.spark.SparkTable;
 import lombok.val;
@@ -29,11 +29,11 @@ class NestedAggregateSparkTest extends SharedLocalSparkTest {
         val cartesianExec = new ResultTestPlan(new CartesianSpark(range, range).execute().getDataset());
 
         val count = new NestedAggregateSpark(range, cartesianExec,
-                new Get(cartesianExec, 0), List.of(), AggregateFunction.COUNT);
+                new Get(cartesianExec, 0), List.of(), AggregateType.COUNT);
         val storeCount = new StoreTableSpark(count, basePath.resolve("count").toString());
 
         val sum = new NestedAggregateSpark(range, cartesianExec,
-                new Get(cartesianExec, 0), List.of(new Get(cartesianExec, 1)), AggregateFunction.SUM);
+                new Get(cartesianExec, 0), List.of(new Get(cartesianExec, 1)), AggregateType.SUM);
         val storeSum = new StoreTableSpark(sum, basePath.resolve("sum").toString());
 
         val select = new SelectSpark(
@@ -88,13 +88,13 @@ class NestedAggregateSparkTest extends SharedLocalSparkTest {
 
         // count(*)
         val count = new NestedAggregateSpark(r1StoredPlan, r12Plan,
-                new Get(r12Plan, 0), List.of(), AggregateFunction.COUNT);
+                new Get(r12Plan, 0), List.of(), AggregateType.COUNT);
         count.execute().getDataset().explain();
         val storeCount = new StoreTableSpark(count, basePath.resolve("count").toString());
 
         // sum("rn_r")
         val sum = new NestedAggregateSpark(r1StoredPlan, r12Plan,
-                new Get(r12Plan, 0), List.of(new Get(r12Plan, 1)), AggregateFunction.SUM);
+                new Get(r12Plan, 0), List.of(new Get(r12Plan, 1)), AggregateType.SUM);
         sum.execute().getDataset().explain();
         val storeSum = new StoreTableSpark(sum, basePath.resolve("sum").toString());
 

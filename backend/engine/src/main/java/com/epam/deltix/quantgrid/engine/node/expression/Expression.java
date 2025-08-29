@@ -2,6 +2,8 @@ package com.epam.deltix.quantgrid.engine.node.expression;
 
 import com.epam.deltix.quantgrid.engine.node.Node;
 import com.epam.deltix.quantgrid.engine.value.Column;
+import com.epam.deltix.quantgrid.engine.value.DoubleColumn;
+import com.epam.deltix.quantgrid.engine.value.StringColumn;
 import com.epam.deltix.quantgrid.type.ColumnType;
 
 import java.util.List;
@@ -46,5 +48,31 @@ public abstract class Expression extends Node {
     @Override
     public Expression copy(List<Node> inputs) {
         return (Expression) super.copy(inputs);
+    }
+
+    @Override
+    public Expression copy(List<Node> inputs, boolean withIdentity) {
+        return (Expression) super.copy(inputs, withIdentity);
+    }
+
+    protected static DoubleColumn requireDoubleColumn(Column source) {
+        return requireColumn(source, DoubleColumn.class);
+    }
+
+    protected static StringColumn requireStringColumn(Column source) {
+        return requireColumn(source, StringColumn.class);
+    }
+
+    private static <T> T requireColumn(Column source, Class<T> type) {
+        if (source == null) {
+            throw new IllegalArgumentException("Column is null");
+        }
+
+        if (!type.isInstance(source)) {
+            throw new IllegalArgumentException(
+                    "Unsupported type: " + source.getClass() + ", expected: " + type);
+        }
+
+        return type.cast(source);
     }
 }

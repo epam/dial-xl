@@ -1,6 +1,6 @@
 package com.epam.deltix.quantgrid.engine.service.input;
 
-import com.epam.deltix.quantgrid.type.ColumnType;
+import com.epam.deltix.quantgrid.type.InputColumnType;
 
 import java.util.LinkedHashMap;
 
@@ -15,7 +15,8 @@ import java.util.LinkedHashMap;
 public record InputMetadata(
         String name,
         String path,
+        String etag,
         InputType type,
-        LinkedHashMap<String, ColumnType> columnTypes
+        LinkedHashMap<String, InputColumnType> columnTypes
 ) {
 }

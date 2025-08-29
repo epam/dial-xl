@@ -1,0 +1,154 @@
+[tool.poetry]
+package-mode = false
+
+name = "QG"
+version = "0.0.1"
+authors = ["DELTIX"]
+license = "Proprietary"
+readme = "README.md"
+keywords = ["ai", "assistant", "DIAL XL"]
+description = "DIAL XL AI-powered assistant"
+repository = "https://gitlab.deltixhub.com/Deltix/openai-apps/qg"
+
+[tool.poetry.dependencies]
+python = ">= 3.12, < 3.13"
+
+aidial-rag-eval = "^0.2.0"
+aidial-sdk = "^0.22.0"
+antlr4-python3-runtime = "^4.13.2"
+dial-xl = { path = "../xl-client", develop = true }
+fastapi = "^0.115.0"
+jinja2 = "^3.1.4"
+langchain-core = "^0.3.7"
+langchain-community = "^0.3.1"
+langchain-openai = "^0.2.1"
+langchain-text-splitters = "^0.3.0"
+langgraph = "^0.2.45"
+libcst = "^1.5.0"
+openai = "1.65.5"
+pyhumps = "^3.8.0"
+PyYAML = "^6.0.2"
+rich = "^13.9.4"
+sqids = "^0.5.0"
+tabulate = "^0.9.0"
+tiktoken = "^0.8.0"
+uvicorn = "^0.32.0"
+
+[tool.poetry.group.test.dependencies]
+httpx = "^0.25.0"
+multiset = "^3.1.0"
+numpy = "^1.26.4"
+pytest = "^8.3.2"
+pytest-asyncio = "^0.21.1"
+pytest-dotenv = "^0.5.2"
+pytest-repeat = "^0.9.3"
+pytest-xdist="^3.6.1"
+requests = "^2.31.0"
+websockets = "^13.1.0"
+xlsxwriter = "^3.2.0"
+
+[tool.poetry.group.lint.dependencies]
+autoflake = "^2.3.1"
+black = { version = "^24.10.0", extras = ["jupyter"] }
+flake8 = "^7.1.1"
+isort = "^5.13.2"
+mypy = "^1.14.1"
+pyright = { version = "^1.1.392", extras = ["nodejs"] }
+
+types-protobuf = "3.20.*"
+types-PyYAML = "^6.0.2"
+types-tabulate = "^0.9.0"
+
+
+[tool.poetry.group.dev.dependencies]
+nox = "^2024.10.9"
+pydeps = "^3.0.0"
+python-dotenv = "^1.0.1"
+
+[tool.poetry.group.experiments.dependencies]
+jupyterlab = "^4.3.4"
+pandas = {extras = ["excel"], version = "^2.2.3"}
+
+[tool.mypy]
+python_version = "3.12"
+
+check_untyped_defs = true
+
+exclude = [".git", ".venv", ".nox", 'quantgrid/resources/api']
+plugins = ['pydantic.mypy']
+
+[[tool.mypy.overrides]]
+module = ["dial_xl.*", "aidial_sdk.*"]
+follow_untyped_imports = true
+
+[[tool.mypy.overrides]]
+module = ["xlsxwriter.*", "xdist.*", "ruamel.*", "dial_xl.model.*", "aidial_rag_eval.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["antlr4.*", "quantgrid.python.xl.antlr.*", "quantgrid_2a.pseudo.generated.*"]
+ignore_errors = true
+ignore_missing_imports = true
+
+[tool.pyright]
+typeCheckingMode = "basic"
+reportIncompatibleMethodOverride = "error"
+reportUnusedVariable = "error"
+
+exclude = [
+    ".git",
+    ".venv",
+    ".nox",
+    "**/__pycache__",
+    "quantgrid/python/xl/antlr/**",
+    "quantgrid/resources/**"
+]
+
+[tool.black]
+target-version = ['py312']
+exclude = '''
+/(
+    \.git
+  | \.venv
+  | \.nox
+  | \.__pycache__
+  | quantgrid/python/xl/antlr
+  | quantgrid_2a/pseudo/generated
+  | quantgrid/resources
+)/
+'''
+
+
+[tool.isort]
+py_version = 312
+
+lines_between_types = 1
+
+profile = "black"
+extend_skip = [
+    "quantgrid/python/xl/antlr",
+    "quantgrid_2a/pseudo/generated",
+    "quantgrid/resources"
+]
+
+
+[tool.autoflake]
+ignore_init_module_imports = true
+in_place = true
+recursive = true
+remove_all_unused_imports = true
+
+exclude = [
+    "\\.venv",
+    "\\.nox",
+    "**/quantgrid/python/xl/antlr",
+    "**/quantgrid_2a/pseudo/generated",
+    "**/quantgrid/resources"
+]
+
+[tool.pytest.ini_options]
+addopts = "--doctest-modules"
+
+[build-system]
+requires = ["poetry-core >= 1.0.0"]
+build-backend = "poetry.core.masonry.api"

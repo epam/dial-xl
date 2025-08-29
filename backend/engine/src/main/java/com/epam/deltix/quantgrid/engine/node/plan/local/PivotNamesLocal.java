@@ -27,7 +27,7 @@ public class PivotNamesLocal extends Plan1<Table, Table> {
     @Override
     protected Table execute(Table source) {
         if (source.size() > MAX_NAMES) {
-            throw new IllegalArgumentException("Too many distinct names in pivot: " + source.size());
+            throw new IllegalArgumentException("Too many unique names in pivot: " + source.size());
         }
 
         return source;

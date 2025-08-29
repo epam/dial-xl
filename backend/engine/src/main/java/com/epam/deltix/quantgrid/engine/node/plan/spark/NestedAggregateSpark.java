@@ -6,7 +6,7 @@ import com.epam.deltix.quantgrid.engine.meta.Schema;
 import com.epam.deltix.quantgrid.engine.node.expression.Expression;
 import com.epam.deltix.quantgrid.engine.node.plan.Plan;
 import com.epam.deltix.quantgrid.engine.node.plan.Plan2;
-import com.epam.deltix.quantgrid.engine.node.plan.local.AggregateFunction;
+import com.epam.deltix.quantgrid.engine.node.plan.local.aggregate.AggregateType;
 import com.epam.deltix.quantgrid.engine.spark.GapFillerTransform;
 import com.epam.deltix.quantgrid.engine.spark.PartitionUtil;
 import com.epam.deltix.quantgrid.engine.spark.partitioning.RowNumRepartition;
@@ -26,11 +26,11 @@ import java.util.List;
 
 public class NestedAggregateSpark extends Plan2<SparkTable, SparkValue, SparkDatasetTable> {
 
-    private final AggregateFunction function;
+    private final AggregateType function;
 
     public NestedAggregateSpark(Plan layout, Plan source,
                                 Expression key,
-                                List<Expression> values, AggregateFunction function) {
+                                List<Expression> values, AggregateType function) {
         super(sourceOf(layout), sourceOf(source, Util.listOf(key, values)));
         this.function = function;
     }
@@ -63,7 +63,7 @@ public class NestedAggregateSpark extends Plan2<SparkTable, SparkValue, SparkDat
         return new SparkDatasetTable(aligned);
     }
 
-    static Aggregation aggregate(List<Column> columns, AggregateFunction function) {
+    static Aggregation aggregate(List<Column> columns, AggregateType function) {
         return switch (function) {
             case COUNT -> countColumn(columns);
             case SUM -> sumColumn(columns);

@@ -1,0 +1,7 @@
+name: uniqueBy
+description: Extract unique array entries using lambdas to determine uniqueness.
+signature: 'array<T>.uniqueBy((element: T) => primitive, ...) => array<T>'
+manual: >-
+  `uniqueBy` creates new array with unique values of original array. To determine uniqueness, provided lambdas are used.
+  Variadic number of lambdas can be passed. Uniqueness will be determined by tuples of lambda results.
+  When there are several elements producing the same uniqueness values, the first one will be returned.

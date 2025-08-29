@@ -39,17 +39,21 @@
         "no-console": "error",
         "padding-line-between-statements": [
           "error",
-          { "blankLine": "always", "prev": "*", "next": "return" }
+          {
+            "blankLine": "always",
+            "prev": "*",
+            "next": "return"
+          }
         ],
         "simple-import-sort/imports": [
           "error",
           {
             "groups": [
-              ["^[a-z]"], // libraries
-              ["^@\\w"], // started from @
-              ["^[A-Z]"], // aliases
-              ["^\\.+(!?.scss)"], // not scss file
-              ["^\\."] // others file
+              ["^[a-z]"],
+              ["^@\\w"],
+              ["^[A-Z]"],
+              ["^\\.+(!?.scss)"],
+              ["^\\."]
             ]
           }
         ],
@@ -61,6 +65,8 @@
             "allow": ["arrowFunctions"]
           }
         ],
+        "@typescript-eslint/no-non-null-assertion": "off",
+        "@typescript-eslint/no-this-alias": "off",
         "react-hooks/exhaustive-deps": "error",
         "react/jsx-sort-props": [
           "error",
@@ -71,13 +77,19 @@
             "ignoreCase": true,
             "noSortAlphabetically": false
           }
-        ]
+        ],
+        "@typescript-eslint/no-extra-semi": "error",
+        "no-extra-semi": "off",
+        "no-constant-condition": ["error", { "checkLoops": false }]
       }
     },
     {
       "files": ["*.js", "*.jsx"],
       "extends": ["plugin:@nx/javascript"],
-      "rules": {}
+      "rules": {
+        "@typescript-eslint/no-extra-semi": "error",
+        "no-extra-semi": "off"
+      }
     },
     {
       "files": ["*.spec.ts", "*.spec.tsx", "*.spec.js", "*.spec.jsx"],

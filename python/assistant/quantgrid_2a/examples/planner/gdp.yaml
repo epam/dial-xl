@@ -1,0 +1,165 @@
+user_name: gdp_example_user
+ai_name: gdp_example_ai
+messages:
+  - HumanMessage:
+      content: |-
+        # User Request
+        
+        Can you give me GDP for the neighbors of France?
+        
+        # User Workspace
+        
+        table Indicators:
+          [unnested] source: ?
+          'COUNTRY.ID': number
+          'COUNTRY.Name' string
+          'COUNTRY.Description': string
+          'INDICATOR.ID': number
+          'INDICATOR.Name': string
+          'INDICATOR.Formula': string
+          'YEAR': number
+          'OBS_VALUE': number
+  - AIMessage:
+      content: >-
+        # Workspace Analysis
+        
+        Table Indicators contain data about various country indicators.
+        
+        1. Field 'COUNTRY.Name' contains country name.
+        
+        2. Field 'INDICATOR.Name' presumably contains names of indicators, such as GDP.
+        
+        3. Field 'OBS_VALUE' is abbreviation of "Observation Value".
+        
+        # Data Formatting Analysis
+        
+        There is no explicit information about countries neighbors code generator can utilize,
+        but France neighbors are generally known, and their names can be hard coded into field using explicit array.
+
+        Mainland France neighbors are Belgium, Luxembourg, Germany, Switzerland, Italy, Monaco, Spain and Andorra.
+        
+        # Solution Plan
+        
+        The solution plan is as follows:
+        
+        1. Create table with new field, containing all France neighbors: Belgium, Luxembourg, Germany, Switzerland, Italy, Monaco, Spain, Andorra. This formula will return array<string>, so it needs to be unnested to create new row for every neighboring country.
+        
+        2. For every neighboring country, filter out row_refs from Indicators table that conforms to the following condition:
+        'COUNTRY.Name' equals Neighbor value, and their 'INDICATOR.Name' field contains either "GDP" or gross domestic product case insensitive.
+        We also should unnest this field to create new row for every satisfying indicator.
+        Such way, for every neighboring country and for every GDP related country indicator, table will have separate row.
+      tool:
+        name: issue_next_instruction
+        args:
+          instruction: >-
+            Create new table FranceNeighborsGDP.
+            
+            1. Create new unnested field "Neighbor".
+            Initialize it with the following strings: Belgium, Luxembourg, Germany, Switzerland, Italy, Monaco, Spain, Andorra.
+            
+            2. Create new unnested field "Indicator".
+            Filter row_ref to Indicators table, where: 'Country.Name' value equals to Neighbor value and 'Indicator.Name' contains either "GDP" or "gross domestic product" case insensitive.
+  - ToolMessage:
+      content: |-
+        # Workspace Changes
+        
+        table FranceNeighborsGDP:
+          [unnested] Neighbor: string = { "Belgium", "Luxembourg", "Germany", "Switzerland", "Italy", "Monaco", "Spain", "Andorra" }
+          [unnested] Indicator: row_ref<Indicators> = Indicators.FILTER((row: row_ref<Indicators>) => { row.'COUNTRY.Name' == Neighbor and isSubString("gdp, gross domestic product", row.'INDICATOR.Name'.lower()) })
+  - AIMessage:
+      content: |-
+        Code generator successfully produced requested code.
+        
+        For every france neighbor, for every GDP related indicator, table contains row_ref to Indicator table.
+        Now, we need to unpack needed values from row_refs into separate field to provide direct access to requested values.
+      tool:
+        name: issue_next_instruction
+        args:
+          instruction: |-
+            Add two new fields into FranceNeighborsGDP.
+            1. Regular field "Name". Reference indicator name from Indicator field row_ref.
+            2. Regular field "Value". Reference OBS_VALUE from Indicator field row_ref.
+  - ToolMessage:
+      content: |-
+        # Workspace Changes
+        
+        table FranceNeighborsGDP:
+          Name: string = Indicator.'INDICATOR.Name'
+          Value: number = Indicator.'OBS_VALUE'
+  - AIMessage:
+      content: |-
+        We created table FranceNeighborsGDP, which contains both row_ref to relevant rows from Indicators table, as well as convenience fields to directly view indicator name and value.
+        User request is fully completed.
+  - HumanMessage:
+      content: |-
+        # User Request
+        
+        Create a table with highest indicator value for every country and year.
+        
+        # User Workspace
+        
+        table Indicators:
+          [unnested] source: ?
+          'COUNTRY.ID': number
+          'COUNTRY.Name' string
+          'COUNTRY.Description': string
+          'INDICATOR.ID': number
+          'INDICATOR.Name': string
+          'INDICATOR.Formula': string
+          'YEAR': number
+          'OBS_VALUE': number
+  - AIMessage:
+      content: |-
+        # Workspace Analysis
+        
+        Table Indicators contain data about various country indicators.
+        
+        1. Field 'COUNTRY.Name' contains country name.
+        
+        2. Field 'YEAR' contains numbers of years.
+        
+        3. Field 'OBS_VALUE' is abbreviation of "Observation Value".
+        
+        # Solution Plan
+        
+        I need to generate table, that contains data for all combinations of two fields values.
+        Therefore, I need to group table data by year and country.
+        So, I need to extract unique values of 'INDICATOR.Name' and 'COUNTRY.Name' to create all combinations of their values.
+      tool:
+        name: issue_next_instruction
+        args:
+          instruction: |-
+            Create new table CountryYearIndicator.
+            1. Unnested field "Country". Initialize it by unique names 'COUNTRY.Name' from Indicators.
+            2. Unnested field "Year". Initialize it by unique years 'YEAR' from Indicator.
+  - ToolMessage:
+      content: |-
+        # Workspace Changes
+        
+        table CountryYearIndicator:
+          [unnested] Country: string = Indicators.'COUNTRY.Name'.uniqueBy((val: string) => { val })
+          [unnested] Year: number = Indicators.'YEAR'.uniqueBy((val: number) => { val })
+  - AIMessage:
+      content: |-
+        Currently, table CountryYearIndicator contains all unique combinations of year and country.
+        Now I need for every country-year combination to find highest indicator value.
+      tool:
+        name: issue_next_instruction
+        args:
+          instruction: |-
+            Create the following fields in the table CountryYearIndicator:
+            1. Regular field "Indicator" (row_ref<Indicators>). Filter out entries that refer to year "Year" and country "Country", sort them in descending order by 'OBS_VALUE' and retrieve reference to the indicator with the highest OBS_VALUE.
+            2. Regular field "Name". Unpack 'INDICATOR.Name' from "Indicator".
+            3. Regular field "Value". Unpack 'OBS_VALUE' from "Indicator".
+  - ToolMessage:
+      content: |-
+        # Workspace Changes
+        
+        table CountryYearIndicator:
+          Indicator: row_ref<Indicators> = Indicators.FILTER((row: row_ref<Indicators>) => { row.'COUNTRY.Name' == Country and row.YEAR == Year }).sortBy((row: row_ref<Indicators>) => { -row.OBS_VALUE }).first()
+          Name: string = Indicator.'INDICATOR.Name'
+          Value: number = Indicator.'OBS_VALUE'
+  - AIMessage:
+      content: |-
+        We created table CountryYearIndicator, that for every unique combination of country and year, reference related indicator with the highest OBS_VALUE.
+        Also, for user experience, created table contains explicit fields with indicator name and indicator value.

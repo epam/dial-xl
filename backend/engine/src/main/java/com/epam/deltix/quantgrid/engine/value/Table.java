@@ -24,7 +24,9 @@ public interface Table extends Value {
     PeriodSeriesColumn getPeriodSeriesColumn(int index);
 
     default Table select(int[] columns) {
-        return new LocalTable(Arrays.stream(columns).mapToObj(this::getColumn).toList());
+        return (columns.length == 0)
+                ? new LocalTable(size())
+                : new LocalTable(Arrays.stream(columns).mapToObj(this::getColumn).toList());
     }
 
     default Table add(List<Column> columns) {

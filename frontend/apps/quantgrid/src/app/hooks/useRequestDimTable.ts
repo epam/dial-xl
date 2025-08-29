@@ -1,124 +1,55 @@
-import { useCallback, useContext, useEffect, useRef } from 'react';
+import { useCallback, useContext } from 'react';
 
-import { ColumnDataType, DimensionalSchemaResponse } from '@frontend/common';
+import { DimensionalSchemaResponse, isComplexType } from '@frontend/common';
 
-import { ProjectContext, SpreadsheetContext } from '../context';
-import { EventBusMessages } from '../services';
-import { useApi } from './useApi';
-import { useDSLUtils } from './useDSLUtils';
-import useEventBus from './useEventBus';
-import { useManualEditDSL } from './useManualEditDSL';
+import { ProjectContext } from '../context';
+import { autoFixSingleExpression as fixExpression } from '../services';
+import { getProjectSheetsRecord } from '../utils';
+import {
+  CreateExpandedTableParams,
+  TableVariant,
+  useCreateTableDsl,
+  useDSLUtils,
+} from './EditDsl';
+import { useApiRequests } from './useApiRequests';
+import { useFindTableKeys } from './useFindTableKeys';
 
-type SavedRequest = {
-  action: 'expandTable' | 'createTable';
+type DimSchemaRequestOptions = {
+  action:
+    | 'expandTable'
+    | 'requestDimSchemaForFormula'
+    | 'requestDimSchemaForDimFormula'
+    | 'rowReference';
   projectName: string;
   formula: string;
   col?: number;
   row?: number;
-  initialFormula?: string;
   tableName?: string;
   fieldName?: string;
-  keyValues?: string;
+  keyValues?: string | number;
+  expression?: string;
+  initialFormula?: string;
 };
 
 export const useRequestDimTable = () => {
-  const { gridService } = useContext(SpreadsheetContext);
-  const { projectName } = useContext(ProjectContext);
+  const { getDimensionalSchema } = useApiRequests();
+  const { projectName, functions, parsedSheets, projectSheets } =
+    useContext(ProjectContext);
   const { findTable } = useDSLUtils();
-  const {
-    createDimensionalTableFromSchema,
-    createDimensionalTableFromFormula,
-  } = useManualEditDSL();
-  const { getDimensionalSchema } = useApi();
-  const eventBus = useEventBus<EventBusMessages>();
+  const { createSingleValueTable, createExpandedTable } = useCreateTableDsl();
+  const { findTableKeys } = useFindTableKeys();
 
-  const requestRef = useRef<SavedRequest | null>(null);
-
-  const expandDimTable = useCallback(
-    (tableName: string, fieldName: string, col: number, row: number) => {
-      const table = findTable(tableName);
-
-      if (!table || !projectName) return;
-
-      const tableKeys = table.fields
-        .filter((f) => f.isKey)
-        .map((f) => f.key.fieldName);
-
-      const [, startCol] = table.getPlacement();
-      const keyValues: string[] = [];
-
-      tableKeys.forEach((key) => {
-        const tableFieldIndex = table.fields.findIndex(
-          (f) => f.key.fieldName === key
-        );
-        const sheetCol = tableFieldIndex + startCol;
-        const cell = gridService?.getCellValue(row, sheetCol);
-
-        if (key && cell?.value) {
-          const formattedValue =
-            cell?.field?.type === ColumnDataType.STRING
-              ? `"${cell.value}"`
-              : cell.value;
-          keyValues.push(formattedValue);
-        }
-      });
-
-      const values = keyValues.join(',');
-      const tableNameQuoted = table.isTableNameQuoted
-        ? `'${tableName}'`
-        : tableName;
-      const formula = `${tableNameQuoted}.FIND(${values})[${fieldName}]`;
-
-      requestRef.current = {
-        action: 'expandTable',
-        projectName,
-        tableName,
-        fieldName,
-        formula,
-        keyValues: values,
-        col,
-        row,
-      };
-
-      getDimensionalSchema(projectName, formula);
-    },
-    [findTable, getDimensionalSchema, gridService, projectName]
-  );
-
-  const createDimTableFromFormula = useCallback(
-    (col: number, row: number, value: string) => {
-      if (!projectName) return;
-
-      const formulaParts = value.split(':');
-
-      if (formulaParts.length !== 2) return;
-
-      const formula = formulaParts[1];
-
-      requestRef.current = {
-        action: 'createTable',
-        initialFormula: value,
-        formula,
-        projectName,
-        col,
-        row,
-      };
-
-      getDimensionalSchema(projectName, formula);
-    },
-    [getDimensionalSchema, projectName]
-  );
-
-  const handleResponse = useCallback(
-    (response: DimensionalSchemaResponse) => {
-      if (!requestRef.current) return;
-
-      const savedRequest = requestRef.current;
-      const { projectName, formula, schema, keys } = response;
+  const handleDimSchemaResponse = useCallback(
+    (
+      response: DimensionalSchemaResponse,
+      requestOptions: DimSchemaRequestOptions
+    ) => {
+      const { formula, schema, keys, errorMessage, fieldInfo } =
+        response.dimensionalSchemaResponse;
 
       if (
-        projectName !== savedRequest?.projectName ||
-        formula !== savedRequest?.formula
+        projectName !== requestOptions?.projectName ||
+        formula !== requestOptions?.formula
       )
         return;
 
@@ -127,53 +58,263 @@ export const useRequestDimTable = () => {
         fieldName,
         keyValues,
         action,
-        initialFormula,
+        expression,
         col,
         row,
-      } = savedRequest;
+        initialFormula,
+      } = requestOptions;
+
+      if (col === undefined || row === undefined) return;
+
+      const createExpandedTableOptions: Pick<
+        CreateExpandedTableParams,
+        'col' | 'row' | 'variant' | 'formula' | 'schema' | 'keys'
+      > = {
+        col,
+        row,
+        formula,
+        schema,
+        keys,
+        variant: actionToVariant[action],
+      };
 
       switch (action) {
-        case 'createTable':
-          if (!initialFormula || col === undefined || row === undefined) return;
-          createDimensionalTableFromFormula(
-            col,
-            row,
-            initialFormula,
-            schema,
-            keys
-          );
+        case 'requestDimSchemaForDimFormula':
+          if (!expression || !fieldInfo) return;
+
+          createExpandedTable({
+            ...createExpandedTableOptions,
+            tableName: tableName ?? '',
+            isSourceDimField: true,
+            type: fieldInfo.type,
+          });
+
+          break;
+        case 'requestDimSchemaForFormula':
+          if (!expression) return;
+
+          // Create a regular table if a formula error occurs or if the formula produces a primitive type
+          // Display table headers only if the formula contains an error (to show something in the spreadsheet)
+          if ((errorMessage || !isComplexType(fieldInfo)) && expression) {
+            const value = initialFormula?.startsWith("'")
+              ? formula
+              : `=${formula}`;
+
+            return createSingleValueTable(
+              col,
+              row,
+              value,
+              tableName,
+              !!errorMessage
+            );
+          }
+
+          if (!fieldInfo) return;
+
+          createExpandedTable({
+            ...createExpandedTableOptions,
+            tableName: tableName ?? '',
+            isSourceDimField: fieldInfo.isNested,
+            type: fieldInfo.type,
+          });
+
           break;
         case 'expandTable':
-          if (!tableName || !keyValues || !fieldName || !col || !row) return;
-          createDimensionalTableFromSchema(
-            col,
-            row,
+        case 'rowReference':
+          if (!tableName || !fieldName || !fieldInfo || keyValues === undefined)
+            return;
+
+          createExpandedTable({
+            ...createExpandedTableOptions,
+            keyValues,
             tableName,
             fieldName,
-            keyValues,
-            formula,
-            schema,
-            keys
-          );
+            type: fieldInfo.type,
+          });
+
           break;
       }
     },
-    [createDimensionalTableFromSchema, createDimensionalTableFromFormula]
+    [projectName, createExpandedTable, createSingleValueTable]
   );
 
-  useEffect(() => {
-    const apiResponseListener = eventBus.subscribe(
-      'DimensionalSchemaResponse',
-      handleResponse
-    );
+  const expandDimTable = useCallback(
+    async (tableName: string, fieldName: string, col: number, row: number) => {
+      const table = findTable(tableName);
 
-    return () => {
-      apiResponseListener.unsubscribe();
-    };
-  }, [eventBus, handleResponse]);
+      if (!table || !projectName || !projectSheets) return;
+
+      const tableNameQuoted = tableName;
+
+      const findKey = findTableKeys(table, col, row);
+      const formula = `${tableNameQuoted}.FIND(${findKey})[${fieldName}]`;
+
+      const requestOptions: DimSchemaRequestOptions = {
+        action: 'expandTable',
+        projectName,
+        tableName,
+        fieldName,
+        formula,
+        keyValues: findKey,
+        col,
+        row,
+      };
+
+      const response = await getDimensionalSchema({
+        worksheets: getProjectSheetsRecord(projectSheets),
+        formula,
+      });
+
+      if (!response) return;
+
+      handleDimSchemaResponse(response, requestOptions);
+    },
+    [
+      findTable,
+      findTableKeys,
+      getDimensionalSchema,
+      handleDimSchemaResponse,
+      projectName,
+      projectSheets,
+    ]
+  );
+
+  const requestDimSchemaForDimFormula = useCallback(
+    async (col: number, row: number, value: string) => {
+      if (!projectName || !projectSheets) return;
+
+      const formulaParts = value.split(':');
+
+      if (formulaParts.length !== 2) return;
+
+      const tableName = formulaParts[0].trim();
+      const expression = formulaParts[1].trim();
+      const formula = fixExpression(expression, functions, parsedSheets);
+
+      const requestOptions: DimSchemaRequestOptions = {
+        action: 'requestDimSchemaForDimFormula',
+        formula,
+        projectName,
+        tableName,
+        expression,
+        col,
+        row,
+      };
+
+      const response = await getDimensionalSchema({
+        worksheets: getProjectSheetsRecord(projectSheets),
+        formula,
+      });
+
+      if (!response) return;
+
+      handleDimSchemaResponse(response, requestOptions);
+    },
+    [
+      functions,
+      getDimensionalSchema,
+      handleDimSchemaResponse,
+      parsedSheets,
+      projectName,
+      projectSheets,
+    ]
+  );
+
+  const requestDimSchemaForFormula = useCallback(
+    async (col: number, row: number, value: string) => {
+      if (!projectName || !projectSheets) return;
+
+      const equalIndex = value.indexOf('=');
+
+      if (equalIndex === -1) return;
+
+      const tableName = value.slice(0, equalIndex).trim().replaceAll("'", '');
+      const expression = value.slice(equalIndex + 1).trim();
+      const formula = fixExpression(expression, functions, parsedSheets);
+
+      const requestOptions: DimSchemaRequestOptions = {
+        action: 'requestDimSchemaForFormula',
+        initialFormula: value,
+        formula,
+        projectName,
+        tableName,
+        expression,
+        col,
+        row,
+      };
+
+      const response = await getDimensionalSchema({
+        worksheets: getProjectSheetsRecord(projectSheets),
+        formula,
+      });
+
+      if (!response) return;
+
+      handleDimSchemaResponse(response, requestOptions);
+    },
+    [
+      functions,
+      getDimensionalSchema,
+      handleDimSchemaResponse,
+      parsedSheets,
+      projectName,
+      projectSheets,
+    ]
+  );
+
+  const showRowReference = useCallback(
+    async (tableName: string, fieldName: string, col: number, row: number) => {
+      const table = findTable(tableName);
+
+      if (!table || !projectName || !projectSheets) return;
+
+      const tableNameQuoted = tableName;
+
+      const findKey = findTableKeys(table, col, row);
+      const formula = `${tableNameQuoted}(${findKey})[${fieldName}]`;
+
+      const requestOptions: DimSchemaRequestOptions = {
+        action: 'rowReference',
+        projectName,
+        tableName,
+        fieldName,
+        formula,
+        keyValues: findKey,
+        col,
+        row,
+      };
+
+      const response = await getDimensionalSchema({
+        worksheets: getProjectSheetsRecord(projectSheets),
+        formula,
+      });
+
+      if (!response) return;
+
+      handleDimSchemaResponse(response, requestOptions);
+    },
+    [
+      findTable,
+      findTableKeys,
+      getDimensionalSchema,
+      handleDimSchemaResponse,
+      projectName,
+      projectSheets,
+    ]
+  );
 
   return {
     expandDimTable,
-    createDimTableFromFormula,
+    requestDimSchemaForFormula,
+    requestDimSchemaForDimFormula,
+    showRowReference,
   };
 };
+
+const actionToVariant: Record<DimSchemaRequestOptions['action'], TableVariant> =
+  {
+    requestDimSchemaForDimFormula: 'dimFormula',
+    requestDimSchemaForFormula: 'dimFormula',
+    expandTable: 'expand',
+    rowReference: 'rowReference',
+  };

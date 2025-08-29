@@ -1,0 +1,5 @@
+name: abs
+description: Calculates absolute value of number
+signature: 'number.abs() => number'
+manual: >-
+  `abs` calculates the absolute value of `number` value.

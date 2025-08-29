@@ -3,4 +3,6 @@ export enum GridMenuItem {
   Move = 'Move table',
   Delete = 'Delete table',
   CreateDerived = 'Create derived table',
+  AddKey = 'Make key column',
+  RemoveKey = 'Unmake a key column',
 }

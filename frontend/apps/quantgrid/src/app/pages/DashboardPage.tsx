@@ -1,34 +1,54 @@
 import { useContext, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
+
+import { projectFolderAppdata, projectFolderXl } from '@frontend/common';
 
 import { Dashboard } from '../components';
-import { AppContext, ProjectContext } from '../context';
-import { useApiResponse } from '../hooks/useApiResponse';
-import { getRecentProject } from '../services';
-
-import '../styles';
+import {
+  AppContext,
+  DashboardContextProvider,
+  ProjectContext,
+} from '../context';
+import { routes } from '../types';
 
 export function DashboardPage() {
-  useApiResponse();
-
+  const { hideLoading } = useContext(AppContext);
+  const { projectName, closeCurrentProject } = useContext(ProjectContext);
+  const { pathname, search } = useLocation();
   const navigate = useNavigate();
 
-  const { projectName } = useContext(ProjectContext);
-  const { hideLoading } = useContext(AppContext);
-
   useEffect(() => {
-    const recentProjectName = getRecentProject();
-
-    if (recentProjectName) {
-      navigate(`/${recentProjectName}`);
+    if (projectName) {
+      closeCurrentProject(true);
     }
-  }, [navigate]);
 
-  if (!projectName) {
     hideLoading();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-    return <Dashboard />;
-  }
+  // Do not allow direct access to "/appdata/" or "/appdata/xl" without a folder in the shared tabs
+  useEffect(() => {
+    const parts = pathname.split('/').filter(Boolean);
 
-  return null;
+    if (parts.length === 0) return;
+
+    const base = parts[0];
+    if (![routes.sharedByMe, routes.sharedWithMe].includes('/' + base)) return;
+
+    if (parts[1] !== projectFolderAppdata) return;
+    const hasXl = parts[2] === projectFolderXl;
+    const folderIndex = hasXl ? 3 : 2;
+
+    const isMissingFolder = parts.length <= folderIndex;
+
+    if (isMissingFolder) {
+      navigate(`/${base}${search}`, { replace: true });
+    }
+  }, [pathname, search, navigate]);
+
+  return (
+    <DashboardContextProvider>
+      <Dashboard />
+    </DashboardContextProvider>
+  );
 }

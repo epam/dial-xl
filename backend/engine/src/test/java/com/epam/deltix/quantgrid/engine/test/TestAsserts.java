@@ -6,7 +6,6 @@ import com.epam.deltix.quantgrid.engine.value.PeriodSeries;
 import com.epam.deltix.quantgrid.engine.value.PeriodSeriesColumn;
 import com.epam.deltix.quantgrid.engine.value.StringColumn;
 import com.epam.deltix.quantgrid.engine.value.local.DoubleDirectColumn;
-import com.epam.deltix.quantgrid.engine.value.local.StringDirectColumn;
 import com.epam.deltix.quantgrid.type.ColumnType;
 import lombok.experimental.UtilityClass;
 import org.apache.spark.sql.Dataset;
@@ -16,8 +15,8 @@ import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructField;
 import org.junit.jupiter.api.Assertions;
 
+import java.util.Arrays;
 import java.util.List;
-import java.util.stream.LongStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -29,21 +28,24 @@ public class TestAsserts {
     }
 
     private static void verify(DoubleColumn actual, DoubleColumn expected) {
-        Assertions.assertArrayEquals(
-                LongStream.range(0, expected.size()).mapToDouble(expected::get).toArray(),
-                LongStream.range(0, actual.size()).mapToDouble(actual::get).toArray()
+        double[] actualArray = actual.toArray();
+        double[] expectedArray = expected.toArray();
+        Assertions.assertArrayEquals(actualArray, expectedArray,
+                "Expected array %s, but got %s".formatted(Arrays.toString(expectedArray), Arrays.toString(actualArray))
         );
     }
 
     public static void verify(StringColumn column, String... expected) {
-        verify(column, new StringDirectColumn(expected));
+        verify("Expected array %s, but got %s", column, expected);
     }
 
-    public static void verify(StringColumn actual, StringColumn expected) {
-        Assertions.assertArrayEquals(
-                LongStream.range(0, expected.size()).mapToObj(expected::get).toArray(),
-                LongStream.range(0, actual.size()).mapToObj(actual::get).toArray()
-        );
+    public static void verify(String message, StringColumn column, String... expected) {
+        verify(message, column.toArray(), expected);
+    }
+
+    private static void verify(String message, String[] actual, String[] expected) {
+        Assertions.assertArrayEquals(expected, actual,
+                message.formatted(Arrays.toString(expected), Arrays.toString(actual)));
     }
 
     public static void verify(PeriodSeriesColumn column, PeriodSeries... expected) {

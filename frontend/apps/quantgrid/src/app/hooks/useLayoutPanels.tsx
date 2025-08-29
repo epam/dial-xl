@@ -1,101 +1,119 @@
-import { useMemo } from 'react';
+import { useContext, useMemo } from 'react';
 
 import {
-  CodeOutlined,
-  DatabaseOutlined,
-  ExclamationCircleOutlined,
-  FileTextOutlined,
-  HistoryOutlined,
-  WechatOutlined,
-} from '@ant-design/icons';
+  AdjustmentsIcon,
+  ChatIcon,
+  ExclamationCircleIcon,
+  HistoryIcon,
+  ListTreeIcon,
+  TagIcon,
+} from '@frontend/common';
 
-import { PanelName, PanelPosition, PanelSettings } from '../common';
+import {
+  PanelName,
+  PanelPosition,
+  PanelRecord,
+  PanelSettings,
+  PanelTitle,
+} from '../common';
 import {
   ChatPanel,
   CodeEditorPanel,
+  DetailsPanel,
   ErrorPanel,
-  InputsPanel,
-  ProjectTreePanel,
+  ProjectPanel,
   UndoRedoPanel,
 } from '../components';
-import { loadPanels } from '../services';
+import { AppContext } from '../context';
+import { loadPanels, loadPanelsEnvConfig } from '../services';
 
 export function useLayoutPanels() {
-  const initialPanels = useMemo(
-    () => ({
-      openedPanels: Object.assign(
-        {
-          [PanelName.ProjectTree]: {
-            isActive: true,
-            position: PanelPosition.Left,
-          },
-          [PanelName.Inputs]: {
-            isActive: false,
-            position: PanelPosition.Left,
-          },
-          [PanelName.Errors]: {
-            isActive: false,
-            position: PanelPosition.Right,
-          },
-          [PanelName.CodeEditor]: {
-            isActive: false,
-            position: PanelPosition.Right,
-          },
-          [PanelName.UndoRedo]: {
-            isActive: false,
-            position: PanelPosition.Right,
-          },
-          [PanelName.Chat]: {
-            isActive: false,
-            position: PanelPosition.Left,
-          },
-        },
-        loadPanels()
-      ),
-    }),
-    []
-  );
+  const { chatWindowPlacement } = useContext(AppContext);
+
+  const initialPanels = useMemo(() => {
+    const defaultAppPanelsConfig: PanelRecord = {
+      [PanelName.Chat]: {
+        isActive: true,
+        position: PanelPosition.Left,
+      },
+      [PanelName.Project]: {
+        isActive: false,
+        position: PanelPosition.Right,
+      },
+      [PanelName.Errors]: {
+        isActive: false,
+        position: PanelPosition.Right,
+      },
+      [PanelName.CodeEditor]: {
+        isActive: false,
+        position: PanelPosition.Right,
+      },
+      [PanelName.UndoRedo]: {
+        isActive: false,
+        position: PanelPosition.Left,
+      },
+      [PanelName.Details]: {
+        isActive: false,
+        position: PanelPosition.Right,
+      },
+    };
+
+    const defaultEnvPanelsConfig = loadPanelsEnvConfig();
+    const localStoragePanelsConfig = loadPanels();
+
+    const defaultPanelConfig = Object.assign(
+      defaultAppPanelsConfig,
+      defaultEnvPanelsConfig
+    );
+    const finalPanelConfig = Object.assign(
+      defaultPanelConfig,
+      localStoragePanelsConfig
+    );
+
+    return { openedPanels: finalPanelConfig };
+  }, []);
 
   const panels: PanelSettings = useMemo(
     () => ({
-      [PanelName.ProjectTree]: {
-        component: ProjectTreePanel,
-        icon: <DatabaseOutlined />,
-        title: 'Project',
+      [PanelName.Chat]: {
+        component: ChatPanel,
+        title: PanelTitle[PanelName.Chat],
         initialPosition: PanelPosition.Left,
+        icon: <ChatIcon />,
+        inactive: chatWindowPlacement === 'floating',
+      },
+      [PanelName.Project]: {
+        component: ProjectPanel,
+        title: PanelTitle[PanelName.Project],
+        initialPosition: PanelPosition.Right,
+        icon: <ListTreeIcon />,
       },
       [PanelName.Errors]: {
         component: ErrorPanel,
-        icon: <ExclamationCircleOutlined />,
-        title: 'Errors',
+        title: PanelTitle[PanelName.Errors],
         initialPosition: PanelPosition.Right,
-      },
-      [PanelName.Inputs]: {
-        component: InputsPanel,
-        icon: <FileTextOutlined />,
-        title: 'Inputs',
-        initialPosition: PanelPosition.Left,
-      },
-      [PanelName.Chat]: {
-        component: ChatPanel,
-        icon: <WechatOutlined />,
-        title: 'Chat',
-        initialPosition: PanelPosition.Left,
+        icon: <ExclamationCircleIcon />,
       },
       [PanelName.CodeEditor]: {
         component: CodeEditorPanel,
-        icon: <CodeOutlined />,
-        title: 'Editor',
+        title: PanelTitle[PanelName.CodeEditor],
         initialPosition: PanelPosition.Right,
+        icon: <TagIcon />,
       },
       [PanelName.UndoRedo]: {
         component: UndoRedoPanel,
-        icon: <HistoryOutlined />,
-        title: 'History',
+        title: PanelTitle[PanelName.UndoRedo],
+        initialPosition: PanelPosition.Left,
+        icon: <HistoryIcon />,
+      },
+      [PanelName.Details]: {
+        component: DetailsPanel,
+        title: PanelTitle[PanelName.Details],
         initialPosition: PanelPosition.Right,
+        icon: <AdjustmentsIcon />,
       },
     }),
-    []
+    [chatWindowPlacement]
   );
 
   return { initialPanels, panels };

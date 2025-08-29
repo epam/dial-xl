@@ -1,131 +1,165 @@
 package com.epam.deltix.quantgrid.engine.compiler;
 
+import com.epam.deltix.quantgrid.engine.Util;
 import com.epam.deltix.quantgrid.engine.compiler.result.CompiledColumn;
 import com.epam.deltix.quantgrid.engine.compiler.result.CompiledNestedColumn;
-import com.epam.deltix.quantgrid.engine.compiler.result.CompiledPivotTable;
+import com.epam.deltix.quantgrid.engine.compiler.result.CompiledPivotColumn;
 import com.epam.deltix.quantgrid.engine.compiler.result.CompiledResult;
 import com.epam.deltix.quantgrid.engine.compiler.result.CompiledTable;
 import com.epam.deltix.quantgrid.engine.compiler.result.CompiledUnpivotTable;
+import com.epam.deltix.quantgrid.engine.compiler.result.format.ColumnFormat;
+import com.epam.deltix.quantgrid.engine.compiler.result.validator.NestedColumnValidators;
+import com.epam.deltix.quantgrid.engine.compiler.result.validator.ResultValidator;
+import com.epam.deltix.quantgrid.engine.compiler.result.validator.TableValidators;
+import com.epam.deltix.quantgrid.engine.node.expression.Constant;
 import com.epam.deltix.quantgrid.engine.node.expression.Expression;
 import com.epam.deltix.quantgrid.engine.node.expression.Get;
+import com.epam.deltix.quantgrid.engine.node.expression.Text;
+import com.epam.deltix.quantgrid.engine.node.expression.UnaryOperator;
 import com.epam.deltix.quantgrid.engine.node.plan.Plan;
+import com.epam.deltix.quantgrid.engine.node.plan.local.DistinctByLocal;
 import com.epam.deltix.quantgrid.engine.node.plan.local.FilterLocal;
-import com.epam.deltix.quantgrid.engine.node.plan.local.UnpivotDynamicLocal;
+import com.epam.deltix.quantgrid.engine.node.plan.local.InLocal;
+import com.epam.deltix.quantgrid.engine.node.plan.local.ListLocal;
+import com.epam.deltix.quantgrid.engine.node.plan.local.OrderByLocal;
 import com.epam.deltix.quantgrid.engine.node.plan.local.UnpivotLocal;
-import com.epam.deltix.quantgrid.engine.value.Table;
-import com.epam.deltix.quantgrid.parser.ast.ConstText;
-import com.epam.deltix.quantgrid.parser.ast.Formula;
+import com.epam.deltix.quantgrid.parser.ast.UnaryOperation;
 import com.epam.deltix.quantgrid.type.ColumnType;
-import it.unimi.dsi.fastutil.Pair;
 import lombok.experimental.UtilityClass;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
-import javax.annotation.Nullable;
+import java.util.Set;
+import java.util.TreeSet;
 
 @UtilityClass
 class CompileUnpivot {
 
-    CompiledResult compile(CompileContext context, List<Formula> arguments) {
-        int args = arguments.size();
-        CompileUtil.verify(args == 3 || args == 4, "UNPIVOT has 4 args, but only %s supplied", args);
-        CompileUtil.verify(arguments.get(1) instanceof ConstText, "UNPIVOT supports only string in 2 arg");
-        CompileUtil.verify(arguments.get(2) instanceof ConstText, "UNPIVOT supports only string in 3 arg");
+    CompiledResult compile(CompileContext context) {
+        CompiledTable table = context.compileArgument(0, TableValidators.NESTED_TABLE);
+        List<String> all = table.fields(context);
+        List<String> leaves = compileListArgument(context, 1);
+        Set<String> includes = new TreeSet<>(all);
+        Set<String> excludes = new TreeSet<>(leaves);
 
-        CompiledTable source = context.compile(arguments.get(0)).cast(CompiledTable.class);
-        CompileUtil.verify(source.nested());
+        includes.removeAll(leaves);
+        includes.remove(CompiledPivotColumn.PIVOT_NAME);
 
-        String name = ((ConstText) arguments.get(1)).text();
-        String value = ((ConstText) arguments.get(2)).text();
-        Formula condition = (args == 4) ? arguments.get(3) : null;
-        String[] fields = filterFields(context, source, condition);
+        if (context.argumentCount() == 3) {
+            includes = new TreeSet<>(compileListArgument(context, 2));
+            excludes = null;  // not used
+        } else if (context.argumentCount() == 4) {
+            List<String> exclusion = compileListArgument(context, 3);
+            includes.removeAll(exclusion);
+            excludes.addAll(exclusion);
+        }
 
-        Pair<ColumnType, List<Expression>> values = compileValues(context, source, fields);
-        List<Expression> columns = values.right();
-        ColumnType type = values.left();
-
-        CompiledPivotTable pivot = source.fields(context).contains(CompilePivot.PIVOT_NAME)
-                ? source.field(context, CompilePivot.PIVOT_NAME).cast(CompiledPivotTable.class)
+        CompiledPivotColumn pivot = (excludes != null && all.contains(CompiledPivotColumn.PIVOT_NAME))
+                ? table.field(context, CompiledPivotColumn.PIVOT_NAME).cast(CompiledPivotColumn.class)
                 : null;
 
-        if (type == null) {
-            type = (pivot == null) ? ColumnType.DOUBLE : pivot.pivotType();
-        }
+        IncludeValues includeValues = compileIncludeValues(context, table, includes, pivot);
+        ColumnFormat format = includeValues.format();
+        ColumnType type = includeValues.type();
+        List<Expression> values = includeValues.values();
 
-        if (pivot != null && ColumnType.closest(pivot.pivotType(), type) == null) {
-            pivot = null;
-        }
-
-        Plan plan;
+        UnpivotLocal unpivot;
 
         if (pivot == null) {
-            plan = new UnpivotLocal(source.node(), columns, fields);
+            unpivot = new UnpivotLocal(table.node(), values, includes.toArray(String[]::new), type);
         } else {
-            CompiledNestedColumn allNames = CompileFunction.compileFields(context, source, true);
-            Plan allName = filterFields(allNames.node(), condition, 0);
-            Expression allNameKey = new Get(allName, 0);
-
-            Plan pivotValues = filterFields(pivot.node(), condition, pivot.pivotName().getColumn());
-            Expression pivotKey = pivot.hasCurrentReference() ? new Get(pivotValues, pivot.currentRef()) : null;
-            Expression pivotName = new Get(pivotValues, pivot.pivotName().getColumn());
-            Expression pivotValue = new Get(pivotValues, pivot.pivotValue().getColumn());
-
-            plan = new UnpivotDynamicLocal(
-                    source.node(), source.queryReference(), columns,
-                    allName, allNameKey,
-                    pivotValues, pivotKey, pivotName, pivotValue,
-                    fields);
+            Plan names = compileIncludeNames(context, table, excludes);
+            unpivot = new UnpivotLocal(table.node(), values, includes.toArray(String[]::new), type,
+                    names, new Get(names, 0));
         }
 
-        int shift = source.node().getMeta().getSchema().size();
-        CompiledTable newSource = source.withNode(plan, true);
-        return new CompiledUnpivotTable(newSource, name, shift, value, shift + 1);
+        int shift = table.node().getMeta().getSchema().size();
+        CompiledTable result = table.withNode(unpivot, true);
+
+        return new CompiledUnpivotTable(result, leaves,
+                uniqueName(leaves, "name"), shift,
+                uniqueName(leaves, "value"), shift + 1, format);
     }
 
-    private Pair<ColumnType, List<Expression>> compileValues(CompileContext context,
-                                                             CompiledTable table,
-                                                             String[] fields) {
-        CompiledTable flat = table.withNested(false);
-        List<Expression> columns = new ArrayList<>();
-        ColumnType type = null;
-
-        for (String field : fields) {
-            CompiledColumn column = flat.field(context, field).cast(CompiledColumn.class);
-            type = ColumnType.closest(type, column.type());
-            CompileUtil.verify(type != null, "UNPIVOT supports only fields with same type");
-            Expression expression = column.node();
-            columns.add(expression);
+    private List<String> compileListArgument(CompileContext context, int index) {
+        List<String> list = context.constStringListArgument(index);
+        if (list.contains(CompiledPivotColumn.PIVOT_NAME)) {
+            throw new CompileError("list of columns names must not contain *");
         }
-
-        return Pair.of(type, columns);
+        return list;
     }
 
-    private String[] filterFields(CompileContext context, CompiledTable table, @Nullable Formula condition) {
-        try {
-            CompiledNestedColumn column = CompileFunction.compileFields(context, table, false);
-            Plan filter = filterFields(column.node(), condition, 0);
-            Table result = (Table) filter.execute();
-            CompileUtil.verify(result.getColumnCount() == 1);
-            return result.getStringColumn(0).toArray();
-        } catch (Throwable e) {
-            throw new CompileError("UNPIVOT has bad 4 arg (field condition)", e);
+    private IncludeValues compileIncludeValues(CompileContext context,
+                                               CompiledTable table,
+                                               Collection<String> names,
+                                               CompiledPivotColumn pivot) {
+        if (names.isEmpty()) {
+            CompileUtil.verify(pivot != null, "No columns to unpivot");
+            return new IncludeValues(pivot.pivotFormat(), pivot.pivotType(), List.of(pivot.pivotColumn()));
+        }
+
+        List<CompiledColumn> columns = new ArrayList<>();
+        ColumnType type = (pivot == null) ? null : pivot.pivotType();
+
+        for (String field : names) {
+            CompiledColumn column = NestedColumnValidators.ANY.convert(table.field(context, field));
+            if (!ColumnType.isCommon(type, column.type())) {
+                throw new CompileError("Column: " + field + " has different type:" + column.type()
+                        + " with the other columns: " + type
+                        + ". Remove it from include_list or add it to exclude_list");
+            }
+
+            type = ColumnType.common(type, column.type());
+            columns.add(column);
+        }
+
+        ResultValidator<CompiledNestedColumn> converter = NestedColumnValidators.forType(type);
+        List<Expression> values = new ArrayList<>();
+        List<ColumnFormat> formats = new ArrayList<>();
+
+        for (CompiledColumn column : columns) {
+            CompiledNestedColumn result = converter.convert(column);
+            values.add(result.expression());
+            formats.add(result.format());
+        }
+
+        if (pivot != null) {
+            boolean convert = (pivot.pivotType() == type);
+            Get column = pivot.pivotColumn();
+            ColumnFormat format = pivot.pivotFormat();
+            formats.add(format);
+            values.add(convert ? column : new Text(column, format));
+        }
+
+        ColumnFormat format = FormatResolver.resolveListFormat(type, formats);
+        return new IncludeValues(format, type, values);
+    }
+
+    private Plan compileIncludeNames(CompileContext context, CompiledTable table, Set<String> excludes) {
+        CompiledNestedColumn names = CompileFunction.compileFields(context, table);
+        List<Expression> constants = excludes.stream().map(Constant::new)
+                .map(constant -> (Expression) constant).toList();
+
+        ListLocal list = new ListLocal(context.scalarLayout().node(), constants);
+        InLocal isExclude = new InLocal(List.of(names.expression()), List.of(new Get(list, 0)));
+        UnaryOperator isNotExclude = new UnaryOperator(isExclude, UnaryOperation.NOT);
+
+        FilterLocal filtered = new FilterLocal(names.node(), isNotExclude);
+        DistinctByLocal unique = new DistinctByLocal(filtered, List.of(new Get(filtered, 0)));
+        return new OrderByLocal(unique, List.of(new Get(unique, 0)), Util.boolArray(1, true));
+    }
+
+    private String uniqueName(List<String> names, String name) {
+        String unique = name;
+        for (int i = 1; ; i++) {
+            if (!names.contains(unique)) {
+                return unique;
+            }
+            unique = name + i;
         }
     }
 
-    private Plan filterFields(Plan fields, @Nullable Formula condition, int position) {
-        if (condition == null) {
-            return fields;
-        }
-
-        CompiledNestedColumn column = new CompiledNestedColumn(fields, position);
-
-        Compiler compiler = new Compiler(null);
-        CompileContext context = new CompileFormulaContext(compiler).with(column, false);
-
-        CompiledColumn predicate = context.compile(condition).cast(CompiledColumn.class);
-        predicate = context.promote(predicate, List.of()).cast(CompiledColumn.class);
-
-        CompileUtil.verify(predicate.type().isDouble());
-        return new FilterLocal(fields, predicate.node());
+    private record IncludeValues(ColumnFormat format, ColumnType type, List<Expression> values) {
     }
 }

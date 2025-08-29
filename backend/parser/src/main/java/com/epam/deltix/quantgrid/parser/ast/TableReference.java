@@ -1,12 +1,25 @@
 package com.epam.deltix.quantgrid.parser.ast;
 
-import lombok.EqualsAndHashCode;
-import lombok.Value;
+import com.epam.deltix.quantgrid.parser.Span;
+import lombok.Getter;
 import lombok.experimental.Accessors;
 
-@Value
+@Getter
 @Accessors(fluent = true)
-@EqualsAndHashCode(callSuper = false)
 public class TableReference extends Formula {
-    String table;
+    private final String table;
+
+    public TableReference(String table) {
+        this(null, table);
+    }
+
+    public TableReference(Span span, String table) {
+        super(span);
+        this.table = table;
+    }
+
+    @Override
+    public String toString() {
+        return "TableReference(span=" + span() + "table=" + table + ")";
+    }
 }

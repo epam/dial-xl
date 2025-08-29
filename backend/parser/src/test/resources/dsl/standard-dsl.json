@@ -1,0 +1,226 @@
+{
+  "name": "test",
+  "tables": [
+    {
+      "name": {
+        "text": "T1"
+      },
+      "fields": [
+        {
+          "fields": [
+            {
+              "key": {
+                "text": "key"
+              },
+              "name": {
+                "text": "a"
+              },
+              "decorators": [
+                {
+                  "name": {
+                    "text": "format"
+                  },
+                  "params": [
+                    {
+                      "value": "#.##"
+                    }
+                  ]
+                }
+              ],
+              "docs": []
+            }
+          ],
+          "formula": {
+            "number": -1.0,
+            "arguments": []
+          }
+        },
+        {
+          "fields": [
+            {
+              "dim": {
+                "text": "dim"
+              },
+              "name": {
+                "text": "b"
+              },
+              "decorators": [],
+              "docs": []
+            }
+          ],
+          "formula": {
+            "number": 2.5,
+            "arguments": []
+          }
+        },
+        {
+          "fields": [
+            {
+              "name": {
+                "text": "c"
+              },
+              "decorators": [],
+              "docs": []
+            }
+          ],
+          "formula": {
+            "number": 3.42,
+            "arguments": []
+          }
+        },
+        {
+          "fields": [
+            {
+              "key": {
+                "text": "key"
+              },
+              "dim": {
+                "text": "dim"
+              },
+              "name": {
+                "text": "d"
+              },
+              "decorators": [],
+              "docs": []
+            }
+          ],
+          "formula": {
+            "number": 5.0,
+            "arguments": []
+          }
+        }
+      ],
+      "decorators": [
+        {
+          "name": {
+            "text": "placement"
+          },
+          "params": [
+            {
+              "value": 1.0
+            },
+            {
+              "value": 1.0
+            }
+          ]
+        }
+      ],
+      "docs": [],
+      "totals": []
+    },
+    {
+      "name": {
+        "text": "T2"
+      },
+      "fields": [
+        {
+          "fields": [
+            {
+              "key": {
+                "text": "key"
+              },
+              "dim": {
+                "text": "dim"
+              },
+              "name": {
+                "text": "x"
+              },
+              "decorators": [],
+              "docs": []
+            }
+          ],
+          "formula": {
+            "table": "T1",
+            "arguments": []
+          }
+        },
+        {
+          "fields": [
+            {
+              "name": {
+                "text": "y"
+              },
+              "decorators": [],
+              "docs": []
+            }
+          ],
+          "formula": {
+            "table": "T2",
+            "arguments": []
+          }
+        },
+        {
+          "fields": [
+            {
+              "dim": {
+                "text": "dim"
+              },
+              "name": {
+                "text": "z"
+              },
+              "decorators": [],
+              "docs": []
+            }
+          ],
+          "formula": {
+            "table": {
+              "table": "T1",
+              "arguments": []
+            },
+            "field": "a",
+            "arguments": [
+              {
+                "arguments": []
+              }
+            ]
+          }
+        },
+        {
+          "fields": [
+            {
+              "key": {
+                "text": "key"
+              },
+              "name": {
+                "text": "w"
+              },
+              "decorators": [],
+              "docs": []
+            }
+          ],
+          "formula": {
+            "table": {
+              "field": "x",
+              "arguments": []
+            },
+            "field": "y",
+            "arguments": [
+              {
+                "arguments": []
+              }
+            ]
+          }
+        }
+      ],
+      "decorators": [
+        {
+          "name": {
+            "text": "placement"
+          },
+          "params": [
+            {
+              "value": 5.0
+            },
+            {
+              "value": 1.0
+            }
+          ]
+        }
+      ],
+      "docs": [],
+      "totals": []
+    }
+  ],
+  "pythons": [],
+  "errors": []
+}

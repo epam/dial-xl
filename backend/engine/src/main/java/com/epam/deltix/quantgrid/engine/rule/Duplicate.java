@@ -37,29 +37,44 @@ public class Duplicate implements Rule {
         }
 
         Plan plan = (Plan) node;
-        List<Node> inputs = new ArrayList<>();
-        Map<Node, Node> duplicates = new HashMap<>();
+        List<Plan.Source> sources = new ArrayList<>();
 
-        for (Node in : plan.getInputs()) {
-            Node duplicate = null;
-
-            if (in instanceof SelectLocal inSelect) {
-                duplicate = inSelect.copy();
-            } else if (in instanceof Plan inPlan) {
-                duplicate = inPlan;
-            } else if (in instanceof Expression inExpression) {
-                duplicate = duplicate(inExpression, duplicates);
-            }
+        for (Plan.Source source : plan.sources()) {
+            Plan.Source duplicate = duplicate(source);
 
             if (duplicate == null) {
                 return node;
             }
 
-            inputs.add(duplicate);
-            duplicates.put(in, duplicate);
+            sources.add(duplicate);
         }
 
-        return node.copy(inputs);
+        return plan.copyPlan(sources);
+    }
+
+    private static Plan.Source duplicate(Plan.Source source) {
+        if (source.plan() instanceof SelectLocal select) {
+            Map<Node, Node> duplicates = new HashMap<>();
+            List<Expression> expressions = new ArrayList<>();
+
+            Plan copy = select.copy();
+            duplicates.put(select, copy);
+
+            for (Expression expression : source.expressions()) {
+                Expression duplicate = (Expression) duplicate(expression, duplicates);
+
+                if (duplicate == null) {
+                    return null;
+                }
+
+                duplicates.put(expression, duplicate);
+                expressions.add(duplicate);
+            }
+
+            return new Plan.Source(copy, expressions);
+        }
+
+        return source;
     }
 
     private static Node duplicate(Node node, Map<Node, Node> duplicates) {

@@ -7,6 +7,7 @@ import com.epam.deltix.quantgrid.engine.spark.SchemaUtil;
 import com.epam.deltix.quantgrid.parser.ast.BinaryOperation;
 import com.epam.deltix.quantgrid.parser.ast.UnaryOperation;
 import com.epam.deltix.quantgrid.type.ColumnType;
+import com.epam.deltix.quantgrid.util.Doubles;
 import lombok.experimental.UtilityClass;
 import org.apache.spark.sql.Column;
 import org.apache.spark.sql.catalyst.expressions.objects.StaticInvoke;
@@ -46,6 +47,7 @@ public class SparkOperators {
             case AND -> left.and(right);
             case OR -> left.or(right);
             case MOD -> left.mod(right);
+            default -> throw new IllegalArgumentException("Invalid binary operation on doubles: " + operation);
         };
     }
 
@@ -85,6 +87,6 @@ public class SparkOperators {
 
     private static Column asDouble(Column column) {
         Column doubleColumn = column.cast(DataTypes.DoubleType);
-        return functions.coalesce(doubleColumn, functions.lit(Double.NaN)); // map null to Double.NaN
+        return functions.coalesce(doubleColumn, functions.lit(Doubles.ERROR_NA)); // map null to Double.NaN
     }
 }

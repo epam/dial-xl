@@ -6,13 +6,14 @@ import com.epam.deltix.quantgrid.engine.value.Table;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 public class LocalCache implements Cache {
 
-    private final Map<Identity, Entry> map = new HashMap<>();
+    private final ConcurrentMap<Identity, Entry> map = new ConcurrentHashMap<>();
     private long sequence;
 
     @Override
@@ -56,6 +57,18 @@ public class LocalCache implements Cache {
         Entry entry = new Entry(value, sequence);
         Entry prev = map.put(id, entry);
         Util.verify(prev == null);
+    }
+
+    @Override
+    public Cache copy() {
+        LocalCache cache = new LocalCache();
+        cache.map.putAll(map);
+        cache.sequence = sequence;
+        return cache;
+    }
+
+    public void clear() {
+        map.clear();
     }
 
     private static class Entry {

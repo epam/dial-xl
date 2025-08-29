@@ -8,11 +8,16 @@ import com.epam.deltix.quantgrid.engine.value.Value;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.IntStream;
 
 public abstract class ExpressionWithPlan<P extends Value, R extends Column> extends Expression {
 
     protected ExpressionWithPlan(Plan plan, Expression... expressions) {
         super(buildInput(plan, expressions));
+    }
+
+    protected ExpressionWithPlan(Plan plan, List<Expression> expressions) {
+        super(buildInput(plan, expressions.toArray(Expression[]::new)));
     }
 
     public final Plan plan() {
@@ -22,6 +27,10 @@ public abstract class ExpressionWithPlan<P extends Value, R extends Column> exte
     @Override
     public final Expression expression(int index) {
         return (Expression) inputs.get(index + 1);
+    }
+
+    public final List<Expression> expressions() {
+        return IntStream.range(0, inputs.size() - 1).mapToObj(this::expression).toList();
     }
 
     @Override

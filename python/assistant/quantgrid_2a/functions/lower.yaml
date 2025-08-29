@@ -1,0 +1,5 @@
+name: lower
+description: Return the lower case of text
+signature: 'string.lower() => string'
+manual: >-
+  Returns string as lower-cased.

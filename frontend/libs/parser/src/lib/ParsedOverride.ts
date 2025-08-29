@@ -1,43 +1,94 @@
-import { parse } from 'csv-parse/browser/esm/sync';
+import { Expose } from 'class-transformer';
 
+import { Override, Overrides } from './EditDslApi';
+import { Override_definitionContext } from './grammar/SheetParser';
+import { ParsedText } from './ParsedText';
 import {
   defaultRowKey,
   keyKeyword,
   newLine,
+  OverrideRow,
   OverrideRows,
   OverrideValue,
 } from './parser';
+import { escapeValue } from './services';
+import { Span } from './Span';
+
+type ParsedOverrideParams = {
+  overrideFields: string[];
+  overrideValues: string[][];
+  keyFields: string[];
+  isManual: boolean;
+};
+
+export type CachedOverrideRow = {
+  overrideRow: OverrideRow | null;
+  overrideIndex: number | null;
+  overrideSectionIndex?: number | null;
+};
 
 export class ParsedOverride {
+  @Expose()
+  public span: Span | null = null;
+
+  @Expose()
+  public headers: ParsedText[] = [];
+
+  @Expose()
+  public values: ParsedText[][] = [];
+
   public overrideRows: OverrideRows = null;
   public keys: Set<string>;
+  protected isManualTable: boolean;
 
-  constructor(textCSV: string) {
+  constructor(
+    ctx?: Override_definitionContext | undefined,
+    params?: ParsedOverrideParams
+  ) {
     this.keys = new Set();
-    this.parseOverrides(textCSV);
+    this.overrideRows = this.parseOverrides(params);
+    this.isManualTable = !!params?.isManual;
+    this.from(ctx);
   }
 
-  private parseOverrides(textCSV: string) {
-    try {
-      this.overrideRows = parse(textCSV, {
-        columns: (header) => {
-          return header.map((column: any) => this.getFieldNameFromCsv(column));
-        },
-        skip_empty_lines: true,
-        trim: true,
-      });
-    } catch (e) {
-      // eslint-disable-next-line no-console
-      console.error('Error while parsing overrides');
+  private parseOverrides(params?: ParsedOverrideParams): OverrideRows {
+    if (!params) {
+      return [];
     }
+
+    const { keyFields, overrideFields, overrideValues } = params;
+
+    keyFields.forEach((f) => this.keys.add(f));
+
+    const fieldNames = overrideFields.map((field) =>
+      this.getFieldNameFromCsv(field)
+    );
+
+    return overrideValues.map((valueRow) =>
+      valueRow.reduce((acc, curr, index) => {
+        acc[fieldNames[index]] = curr;
+
+        return acc;
+      }, <OverrideRow>{})
+    );
   }
 
   public hasKey(fieldName: string) {
     return this.keys.has(fieldName);
   }
 
-  public renameField(oldFieldName: string, newFieldName: string) {
+  public removeField(fieldName: string) {
     if (!this.overrideRows) return;
+
+    this.overrideRows.forEach((row) => {
+      delete row[fieldName];
+    });
+
+    this.keys.delete(fieldName);
+  }
+
+  public renameField(oldFieldName: string, newFieldName: string) {
+    if (!this.overrideRows || oldFieldName === newFieldName) return;
 
     this.overrideRows.forEach((row) => {
       if (Object.prototype.hasOwnProperty.call(row, oldFieldName)) {
@@ -66,64 +117,110 @@ export class ParsedOverride {
     return null;
   }
 
-  public getValueByKey(
-    key: string,
-    keyValue: number,
-    fieldName: string
-  ): { overrideValue: OverrideValue; overrideIndex: number } | null {
-    if (!this.overrideRows || !this.hasKey(key)) return null;
-
-    const rowIndex = this.overrideRows.findIndex(
-      (row) => row[key] === keyValue.toString()
-    );
-
-    if (rowIndex === -1) return null;
-
-    const overrideValue = this.getValueAtIndex(fieldName, rowIndex);
-
-    if (overrideValue === null) return null;
-
-    return { overrideValue, overrideIndex: rowIndex };
-  }
-
-  public findByKey(key: string, keyValue: number): number | null {
-    if (!this.overrideRows || !this.hasKey(key)) return null;
-
-    const rowIndex = this.overrideRows.findIndex(
-      (row) => row[key] === keyValue.toString()
-    );
-
-    return rowIndex === -1 ? null : rowIndex;
-  }
-
-  public getValueByKeys(keyData: Record<string, string>, fieldName: string) {
+  public getRowAtIndex(fieldName: string, index: number): OverrideRow | null {
     if (!this.overrideRows) return null;
+
+    if (
+      this.overrideRows.length >= index &&
+      this.overrideRows[index] &&
+      Object.prototype.hasOwnProperty.call(this.overrideRows[index], fieldName)
+    ) {
+      return this.overrideRows[index];
+    }
+
+    return null;
+  }
+
+  public getRowByKey(key: string, keyValue: number): CachedOverrideRow | null {
+    const defaultResult = { overrideRow: null, overrideIndex: null };
+
+    if (!this.overrideRows || !this.hasKey(key)) return defaultResult;
+
+    const rowIndex = this.findByKey(key, keyValue);
+
+    if (rowIndex === -1) return defaultResult;
+
+    return {
+      overrideRow: this.overrideRows[rowIndex],
+      overrideIndex: rowIndex,
+    };
+  }
+
+  public getAllRowValuesAtIndex(index: number): OverrideRow | null {
+    if (!this.overrideRows) return null;
+
+    if (this.overrideRows.length >= index && this.overrideRows[index]) {
+      return this.overrideRows[index];
+    }
+
+    return null;
+  }
+
+  public getRowByKeys(
+    keyData: Record<string, string>
+  ): CachedOverrideRow | null {
+    const defaultResult = { overrideRow: null, overrideIndex: null };
+
+    if (!this.overrideRows) return defaultResult;
+
+    const rowIndex = this.findByKeys(keyData);
+
+    if (rowIndex === -1) return defaultResult;
+
+    return {
+      overrideRow: this.overrideRows[rowIndex],
+      overrideIndex: rowIndex,
+    };
+  }
+
+  public getColumnValues(fieldName: string): OverrideValue[] {
+    if (!this.overrideRows) return [];
+
+    return this.overrideRows.map((row) => row[fieldName]);
+  }
+
+  public hasColumnOverrides(fieldName: string): boolean {
+    const columnValues = this.getColumnValues(fieldName);
+
+    return columnValues.some((v) => v !== null && v !== undefined && v !== '');
+  }
+
+  public findByKey(key: string, keyValue: number): number {
+    if (!this.overrideRows || !this.hasKey(key)) return -1;
+
+    const escapedKeyValue = escapeValue(keyValue, false, true);
+
+    const rowIndex = this.overrideRows.findIndex((row) =>
+      key !== defaultRowKey
+        ? row[key]?.toString() === escapedKeyValue
+        : row[key] === keyValue.toString()
+    );
+
+    return rowIndex === -1 ? -1 : rowIndex;
+  }
+
+  public findByKeys(keyData: Record<string, string>): number {
+    if (!this.overrideRows) return -1;
+
+    const escapedKeyData = Object.assign({}, keyData);
+
+    Object.keys(escapedKeyData).forEach((key) => {
+      escapedKeyData[key] = escapeValue(escapedKeyData[key], false, true);
+    });
 
     const rowIndex = this.overrideRows.findIndex((row) => {
       return Object.keys(keyData).every((key) => {
-        return row[key] === keyData[key] || !this.hasKey(key);
+        const keyStr = row[key]?.toString();
+
+        return (
+          (key === defaultRowKey
+            ? keyStr === keyData[key]
+            : keyStr === escapedKeyData[key]) || !this.hasKey(key)
+        );
       });
     });
 
-    if (rowIndex === -1) return null;
-
-    const overrideValue = this.getValueAtIndex(fieldName, rowIndex);
-
-    if (overrideValue === null) return null;
-
-    return { overrideValue, overrideIndex: rowIndex };
-  }
-
-  public findByKeys(keyData: Record<string, string>): number | null {
-    if (!this.overrideRows) return null;
-
-    const rowIndex = this.overrideRows.findIndex((row) => {
-      return Object.keys(keyData).every((key) => {
-        return row[key] === keyData[key] || !this.hasKey(key);
-      });
-    });
-
-    return rowIndex === -1 ? null : rowIndex;
+    return rowIndex === -1 ? -1 : rowIndex;
   }
 
   public updateFieldValueByIndex(
@@ -131,14 +228,23 @@ export class ParsedOverride {
     index: number,
     value: OverrideValue
   ) {
+    let overrideIndex = index;
+
     if (!this.overrideRows) return;
 
+    if (this.hasKey(defaultRowKey)) {
+      overrideIndex = this.findByKey(defaultRowKey, index);
+    }
+
     if (
-      this.overrideRows.length >= index &&
-      this.overrideRows[index] &&
-      Object.prototype.hasOwnProperty.call(this.overrideRows[index], fieldName)
+      this.overrideRows.length >= overrideIndex &&
+      this.overrideRows[overrideIndex] &&
+      Object.prototype.hasOwnProperty.call(
+        this.overrideRows[overrideIndex],
+        fieldName
+      )
     ) {
-      this.overrideRows[index][fieldName] = value;
+      this.overrideRows[overrideIndex][fieldName] = value;
     }
   }
 
@@ -170,11 +276,12 @@ export class ParsedOverride {
 
     const findOverrideIndex = this.findByKey(key, keyValue);
 
-    if (findOverrideIndex !== null) {
+    if (findOverrideIndex !== -1) {
       this.setFieldValueByIndex(fieldName, findOverrideIndex, value);
     } else {
       this.overrideRows.push({
-        [key]: keyValue,
+        [key]:
+          key !== defaultRowKey ? escapeValue(keyValue, false, true) : keyValue,
         [fieldName]: value,
       });
       this.keys.add(key);
@@ -192,18 +299,83 @@ export class ParsedOverride {
 
     const findOverrideIndex = this.findByKeys(keys);
 
-    if (findOverrideIndex !== null) {
+    if (findOverrideIndex !== -1) {
       this.setFieldValueByIndex(fieldName, findOverrideIndex, value);
     } else {
       const overrideRow = { [fieldName]: value };
 
       for (const [key, value] of Object.entries(keys)) {
-        overrideRow[key] = value;
+        overrideRow[key] =
+          key !== defaultRowKey ? escapeValue(value, false, true) : value;
         this.keys.add(key);
       }
 
       this.overrideRows.push(overrideRow);
     }
+  }
+
+  public removeRow(index: number) {
+    if (!this.overrideRows) return;
+
+    this.overrideRows.splice(index, 1);
+  }
+
+  // Insert row in place with moving other rows
+  public insertRow(index: number, value = '""') {
+    if (!this.overrideRows || index < 0 || index > this.overrideRows.length)
+      return;
+
+    const defaultValue = value;
+    const newRow = Object.keys(this.overrideRows[0]).reduce((acc, key) => {
+      acc[key] = defaultValue;
+
+      return acc;
+    }, <Record<string, string>>{});
+
+    this.overrideRows.splice(index, 0, newRow);
+  }
+
+  public getSize() {
+    return this.overrideRows ? this.overrideRows.length : 0;
+  }
+
+  public applyOverrides(): Overrides | null {
+    if (!this.overrideRows) return null;
+    this.cleanUpFields();
+
+    const headers: Set<string> = new Set();
+
+    this.overrideRows.forEach((row) => {
+      Object.keys(row).forEach(headers.add, headers);
+    });
+
+    const header = Array.from(headers);
+    let overrides: Overrides | null = null;
+
+    if (this.overrideRows.length > 0) {
+      overrides = new Overrides();
+    }
+
+    this.overrideRows.forEach((obj) => {
+      const row: Record<string, string> = {};
+      let rowNumber: string | null = null;
+
+      header.forEach((key) => {
+        const fieldName = this.getFieldNameFromCsv(key);
+        const value = obj[fieldName] || '';
+
+        if (fieldName === defaultRowKey) {
+          rowNumber = value.toString();
+        } else {
+          row[fieldName] = value.toString();
+        }
+      });
+
+      const override = new Override(row, rowNumber);
+      overrides!.append(override);
+    });
+
+    return overrides;
   }
 
   public convertToDsl() {
@@ -215,18 +387,15 @@ export class ParsedOverride {
 
     this.overrideRows.forEach((obj) => {
       Object.keys(obj).forEach((key) => {
-        const hasSymbolsOrSpaces = /\W/.test(key);
         if (this.keys.has(key)) {
           if (key === defaultRowKey) {
             headers.add(defaultRowKey);
           } else {
-            const formattedField = hasSymbolsOrSpaces
-              ? `"${keyKeyword} [${key}]"`
-              : `${keyKeyword} [${key}]`;
+            const formattedField = `${keyKeyword} [${key}]`;
             headers.add(formattedField);
           }
         } else {
-          const formattedField = hasSymbolsOrSpaces ? `"[${key}]"` : `[${key}]`;
+          const formattedField = `[${key}]`;
           headers.add(formattedField);
         }
       });
@@ -241,7 +410,8 @@ export class ParsedOverride {
       const row: any[] = [];
       header.forEach((key) => {
         const fieldName = this.getFieldNameFromCsv(key);
-        const convertedCsvValue = this.convertValueToCsv(obj[fieldName] || '');
+        const value = obj[fieldName];
+        const convertedCsvValue = value || '';
         row.push(convertedCsvValue);
       });
       output.push(row.join(','));
@@ -278,6 +448,8 @@ export class ParsedOverride {
       fieldsToRemove.forEach((field) => delete row[field]);
     });
 
+    if (this.isManualTable && this.keys.size > 0) return;
+
     // Remove rows with all null values (except key fields)
     const rowsToRemove: number[] = [];
     this.overrideRows.forEach((row, index) => {
@@ -301,17 +473,8 @@ export class ParsedOverride {
       );
   }
 
-  private isInsideQuotes(value: OverrideValue) {
-    if (!value) return false;
-
-    const firstChar = value.toString().charAt(0);
-    const lastChar = value.toString().charAt(value.toString().length - 1);
-
-    return firstChar === '"' && lastChar === '"';
-  }
-
   private getFieldNameFromCsv(field: string) {
-    const fieldMatch = field.match(/\["?([^"]+)"?]/);
+    const fieldMatch = field.match(/\[(.+)]/);
     const isRowKeyword = field.trim() === defaultRowKey;
 
     if (!isRowKeyword && (!fieldMatch || fieldMatch.length < 2)) return field;
@@ -324,13 +487,67 @@ export class ParsedOverride {
     return fieldMatch && fieldMatch[1] ? fieldMatch[1] : defaultRowKey;
   }
 
-  private convertValueToCsv(value: OverrideValue) {
-    if (value === null) return '';
+  private from(ctx: Override_definitionContext | undefined) {
+    if (!ctx) return;
 
-    if (!Number.isNaN(Number(value))) return value;
+    this.span = Span.fromParserRuleContext(ctx) || null;
 
-    if (this.isInsideQuotes(value)) return value;
+    let numberOfRows = 0;
+    const allRows = ctx.override_row_list();
+    for (let i = allRows.length - 1; i >= 0; i--) {
+      const rowCtx = allRows[i];
+      if (rowCtx?.children?.length !== 0) {
+        numberOfRows = i + 1;
+        break;
+      }
+    }
 
-    return `"${value}"`;
+    const headerList = ctx.override_fields().override_field_list();
+    const headers: ParsedText[] = [];
+    const fieldNames = new Set<string>();
+
+    for (const headerCtx of headerList) {
+      let fieldName: ParsedText | null = null;
+
+      if (headerCtx.ROW_KEYWORD()) {
+        const symbol = headerCtx.ROW_KEYWORD().symbol;
+        fieldName = new ParsedText(Span.fromToken(symbol), 'row');
+      } else {
+        fieldName = ParsedText.fromFieldName(headerCtx.field_name());
+        if (!fieldName) return;
+      }
+
+      if (fieldNames.has(fieldName.text)) return;
+
+      fieldNames.add(fieldName.text);
+
+      headers.push(fieldName);
+    }
+
+    const values: ParsedText[][] = [];
+    for (let i = 0; i < numberOfRows; i++) {
+      const rowCtx = allRows[i];
+      const rowValues = rowCtx.override_value_list();
+
+      if (rowValues.length !== headers.length) return;
+
+      const parsedRow: ParsedText[] = [];
+      for (let j = 0; j < headers.length; j++) {
+        const valueCtx = rowValues[j];
+        if (valueCtx.expression()) {
+          const exprSpan = Span.fromParserRuleContext(valueCtx.expression());
+          const exprText = valueCtx.expression().getText();
+          parsedRow.push(new ParsedText(exprSpan, exprText));
+        } else {
+          const { start, stop } = valueCtx.start;
+          const emptySpan = new Span(start, stop);
+          parsedRow.push(new ParsedText(emptySpan, ''));
+        }
+      }
+      values.push(parsedRow);
+    }
+
+    this.headers = headers;
+    this.values = values;
   }
 }

@@ -10,14 +10,19 @@ import com.epam.deltix.quantgrid.engine.value.local.DoubleDirectColumn;
 import com.epam.deltix.quantgrid.engine.value.local.PeriodSeriesDirectColumn;
 import com.epam.deltix.quantgrid.engine.value.local.StringDirectColumn;
 import com.epam.deltix.quantgrid.type.ColumnType;
+import com.epam.deltix.quantgrid.util.Doubles;
+import com.epam.deltix.quantgrid.util.Strings;
 import lombok.Getter;
 import org.apache.spark.sql.functions;
 
 @Getter
 public class Constant extends ExpressionWithPlan<Table, Column> {
-
     private final ColumnType type;
     private final Object constant;
+
+    public Constant(boolean value) {
+        this(new Scalar(), value ? 1.0 : 0.0, ColumnType.DOUBLE);
+    }
 
     public Constant(double number) {
         this(new Scalar(), number);
@@ -32,7 +37,7 @@ public class Constant extends ExpressionWithPlan<Table, Column> {
     }
 
     public Constant(Plan layout, double number) {
-        this(layout, number, ColumnType.closest(number));
+        this(layout, number, ColumnType.DOUBLE);
     }
 
     public Constant(Plan layout, String text) {
@@ -57,9 +62,10 @@ public class Constant extends ExpressionWithPlan<Table, Column> {
     @Override
     protected Column evaluate(Table arg) {
         return switch (type) {
-            case DOUBLE, INTEGER, BOOLEAN, DATE -> new DoubleDirectColumn((Double) constant);
+            case DOUBLE -> new DoubleDirectColumn((Double) constant);
             case STRING -> new StringDirectColumn((String) constant);
             case PERIOD_SERIES -> new PeriodSeriesDirectColumn((PeriodSeries) constant);
+            case STRUCT -> throw new IllegalArgumentException("Unsupported type: " + type);
         };
     }
 
@@ -72,9 +78,18 @@ public class Constant extends ExpressionWithPlan<Table, Column> {
     @Override
     public String toString() {
         String value = switch (type) {
-            case DOUBLE, INTEGER, BOOLEAN, DATE -> Double.toString((Double) constant);
-            case STRING -> (constant == null) ? "null, string" : ("\"" + constant + "\"");
-            case PERIOD_SERIES -> (constant == null) ? "null, series" : ("\"" + constant + "\"");
+            case DOUBLE -> {
+                String result = Doubles.toString((Double) constant);
+                yield type.name().toLowerCase() + ": " + result;
+            }
+            case STRING -> {
+                String string = (String) constant;
+                String result = Strings.toString(string);
+                String quote = Strings.isError(string) ? "" : "\"";
+                yield "string: " + quote + result + quote;
+              }
+            case PERIOD_SERIES -> (constant == null) ? "series: null" : ("\"" + constant + "\"");
+            default -> throw new IllegalArgumentException("Unsupported type: " + type);
         };
 
         return "Constant(" + value + ")";

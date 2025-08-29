@@ -1,0 +1,637 @@
+{
+  "name": "test",
+  "tables": [
+    {
+      "span": {
+        "sheet": "test",
+        "text": "table t1\ndim key [a] = RANGE(4)\ndim key [x] = RANGE(5)\n        [b] = NA\n        [c] = 5\n# missing trailing newline in override section\noverride\nkey [a], [b], key [x], [c]\n0, \"USA\", 1,\n0,, 2, 250\n2,\"Spain\", 3, 300\n2,\"Poland\", 4,\n",
+        "from": 0,
+        "to": 228
+      },
+      "name": {
+        "span": {
+          "sheet": "test",
+          "text": "t1",
+          "from": 6,
+          "to": 8
+        },
+        "text": "t1"
+      },
+      "fields": [
+        {
+          "span": {
+            "sheet": "test",
+            "text": "dim key [a] = RANGE(4)",
+            "from": 9,
+            "to": 31
+          },
+          "fields": [
+            {
+              "span": {
+                "sheet": "test",
+                "text": "dim",
+                "from": 9,
+                "to": 12
+              },
+              "key": {
+                "span": {
+                  "sheet": "test",
+                  "text": "key",
+                  "from": 13,
+                  "to": 16
+                },
+                "text": "key"
+              },
+              "dim": {
+                "span": {
+                  "sheet": "test",
+                  "text": "dim",
+                  "from": 9,
+                  "to": 12
+                },
+                "text": "dim"
+              },
+              "name": {
+                "span": {
+                  "sheet": "test",
+                  "text": "[a]",
+                  "from": 17,
+                  "to": 20
+                },
+                "text": "a"
+              },
+              "decorators": [],
+              "docs": []
+            }
+          ],
+          "formula": {
+            "name": "RANGE",
+            "span": {
+              "sheet": "test",
+              "text": "RANGE(4)",
+              "from": 23,
+              "to": 31
+            },
+            "arguments": [
+              {
+                "span": {
+                  "sheet": "test",
+                  "text": "4",
+                  "from": 29,
+                  "to": 30
+                },
+                "arguments": []
+              }
+            ]
+          }
+        },
+        {
+          "span": {
+            "sheet": "test",
+            "text": "dim key [x] = RANGE(5)",
+            "from": 32,
+            "to": 54
+          },
+          "fields": [
+            {
+              "span": {
+                "sheet": "test",
+                "text": "dim",
+                "from": 32,
+                "to": 35
+              },
+              "key": {
+                "span": {
+                  "sheet": "test",
+                  "text": "key",
+                  "from": 36,
+                  "to": 39
+                },
+                "text": "key"
+              },
+              "dim": {
+                "span": {
+                  "sheet": "test",
+                  "text": "dim",
+                  "from": 32,
+                  "to": 35
+                },
+                "text": "dim"
+              },
+              "name": {
+                "span": {
+                  "sheet": "test",
+                  "text": "[x]",
+                  "from": 40,
+                  "to": 43
+                },
+                "text": "x"
+              },
+              "decorators": [],
+              "docs": []
+            }
+          ],
+          "formula": {
+            "name": "RANGE",
+            "span": {
+              "sheet": "test",
+              "text": "RANGE(5)",
+              "from": 46,
+              "to": 54
+            },
+            "arguments": [
+              {
+                "span": {
+                  "sheet": "test",
+                  "text": "5",
+                  "from": 52,
+                  "to": 53
+                },
+                "arguments": []
+              }
+            ]
+          }
+        },
+        {
+          "span": {
+            "sheet": "test",
+            "text": "[b] = NA",
+            "from": 63,
+            "to": 71
+          },
+          "fields": [
+            {
+              "span": {
+                "sheet": "test",
+                "text": "[b]",
+                "from": 63,
+                "to": 66
+              },
+              "name": {
+                "span": {
+                  "sheet": "test",
+                  "text": "[b]",
+                  "from": 63,
+                  "to": 66
+                },
+                "text": "b"
+              },
+              "decorators": [],
+              "docs": []
+            }
+          ],
+          "formula": {
+            "number": NaN,
+            "span": {
+              "sheet": "test",
+              "text": "NA",
+              "from": 69,
+              "to": 71
+            },
+            "arguments": []
+          }
+        },
+        {
+          "span": {
+            "sheet": "test",
+            "text": "[c] = 5",
+            "from": 80,
+            "to": 87
+          },
+          "fields": [
+            {
+              "span": {
+                "sheet": "test",
+                "text": "[c]",
+                "from": 80,
+                "to": 83
+              },
+              "name": {
+                "span": {
+                  "sheet": "test",
+                  "text": "[c]",
+                  "from": 80,
+                  "to": 83
+                },
+                "text": "c"
+              },
+              "decorators": [],
+              "docs": []
+            }
+          ],
+          "formula": {
+            "number": 5.0,
+            "span": {
+              "sheet": "test",
+              "text": "5",
+              "from": 86,
+              "to": 87
+            },
+            "arguments": []
+          }
+        }
+      ],
+      "decorators": [],
+      "docs": [],
+      "totals": [],
+      "overrides": {
+        "span": {
+          "sheet": "test",
+          "text": "override\nkey [a], [b], key [x], [c]\n0, \"USA\", 1,\n0,, 2, 250\n2,\"Spain\", 3, 300\n2,\"Poland\", 4,\n",
+          "from": 135,
+          "to": 228
+        },
+        "headers": [
+          {
+            "span": {
+              "sheet": "test",
+              "text": "[a]",
+              "from": 148,
+              "to": 151
+            },
+            "text": "a"
+          },
+          {
+            "span": {
+              "sheet": "test",
+              "text": "[b]",
+              "from": 153,
+              "to": 156
+            },
+            "text": "b"
+          },
+          {
+            "span": {
+              "sheet": "test",
+              "text": "[x]",
+              "from": 162,
+              "to": 165
+            },
+            "text": "x"
+          },
+          {
+            "span": {
+              "sheet": "test",
+              "text": "[c]",
+              "from": 167,
+              "to": 170
+            },
+            "text": "c"
+          }
+        ],
+        "values": [
+          [
+            {
+              "span": {
+                "sheet": "test",
+                "text": "0",
+                "from": 171,
+                "to": 172
+              },
+              "arguments": []
+            },
+            {
+              "span": {
+                "sheet": "test",
+                "text": "\"USA\"",
+                "from": 174,
+                "to": 179
+              },
+              "arguments": []
+            },
+            {
+              "span": {
+                "sheet": "test",
+                "text": "1",
+                "from": 181,
+                "to": 182
+              },
+              "arguments": []
+            },
+            {
+              "span": {
+                "sheet": "test",
+                "text": "",
+                "from": 183,
+                "to": 183
+              },
+              "arguments": []
+            }
+          ],
+          [
+            {
+              "span": {
+                "sheet": "test",
+                "text": "0",
+                "from": 184,
+                "to": 185
+              },
+              "arguments": []
+            },
+            {
+              "span": {
+                "sheet": "test",
+                "text": "",
+                "from": 186,
+                "to": 186
+              },
+              "arguments": []
+            },
+            {
+              "span": {
+                "sheet": "test",
+                "text": "2",
+                "from": 188,
+                "to": 189
+              },
+              "arguments": []
+            },
+            {
+              "span": {
+                "sheet": "test",
+                "text": "250",
+                "from": 191,
+                "to": 194
+              },
+              "arguments": []
+            }
+          ],
+          [
+            {
+              "span": {
+                "sheet": "test",
+                "text": "2",
+                "from": 195,
+                "to": 196
+              },
+              "arguments": []
+            },
+            {
+              "span": {
+                "sheet": "test",
+                "text": "\"Spain\"",
+                "from": 197,
+                "to": 204
+              },
+              "arguments": []
+            },
+            {
+              "span": {
+                "sheet": "test",
+                "text": "3",
+                "from": 206,
+                "to": 207
+              },
+              "arguments": []
+            },
+            {
+              "span": {
+                "sheet": "test",
+                "text": "300",
+                "from": 209,
+                "to": 212
+              },
+              "arguments": []
+            }
+          ],
+          [
+            {
+              "span": {
+                "sheet": "test",
+                "text": "2",
+                "from": 213,
+                "to": 214
+              },
+              "arguments": []
+            },
+            {
+              "span": {
+                "sheet": "test",
+                "text": "\"Poland\"",
+                "from": 215,
+                "to": 223
+              },
+              "arguments": []
+            },
+            {
+              "span": {
+                "sheet": "test",
+                "text": "4",
+                "from": 225,
+                "to": 226
+              },
+              "arguments": []
+            },
+            {
+              "span": {
+                "sheet": "test",
+                "text": "",
+                "from": 227,
+                "to": 227
+              },
+              "arguments": []
+            }
+          ]
+        ],
+        "rowKey": {
+          "tableName": "t1",
+          "fieldName": "_row_20318401841084276546"
+        },
+        "map": {
+          "t1[x]": [
+            {
+              "span": {
+                "sheet": "test",
+                "text": "1",
+                "from": 181,
+                "to": 182
+              },
+              "arguments": []
+            },
+            {
+              "span": {
+                "sheet": "test",
+                "text": "2",
+                "from": 188,
+                "to": 189
+              },
+              "arguments": []
+            },
+            {
+              "span": {
+                "sheet": "test",
+                "text": "3",
+                "from": 206,
+                "to": 207
+              },
+              "arguments": []
+            },
+            {
+              "span": {
+                "sheet": "test",
+                "text": "4",
+                "from": 225,
+                "to": 226
+              },
+              "arguments": []
+            }
+          ],
+          "t1[a]": [
+            {
+              "span": {
+                "sheet": "test",
+                "text": "0",
+                "from": 171,
+                "to": 172
+              },
+              "arguments": []
+            },
+            {
+              "span": {
+                "sheet": "test",
+                "text": "0",
+                "from": 184,
+                "to": 185
+              },
+              "arguments": []
+            },
+            {
+              "span": {
+                "sheet": "test",
+                "text": "2",
+                "from": 195,
+                "to": 196
+              },
+              "arguments": []
+            },
+            {
+              "span": {
+                "sheet": "test",
+                "text": "2",
+                "from": 213,
+                "to": 214
+              },
+              "arguments": []
+            }
+          ],
+          "t1[c]": [
+            null,
+            {
+              "span": {
+                "sheet": "test",
+                "text": "250",
+                "from": 191,
+                "to": 194
+              },
+              "arguments": []
+            },
+            {
+              "span": {
+                "sheet": "test",
+                "text": "300",
+                "from": 209,
+                "to": 212
+              },
+              "arguments": []
+            },
+            null
+          ],
+          "t1[b]": [
+            {
+              "span": {
+                "sheet": "test",
+                "text": "\"USA\"",
+                "from": 174,
+                "to": 179
+              },
+              "arguments": []
+            },
+            null,
+            {
+              "span": {
+                "sheet": "test",
+                "text": "\"Spain\"",
+                "from": 197,
+                "to": 204
+              },
+              "arguments": []
+            },
+            {
+              "span": {
+                "sheet": "test",
+                "text": "\"Poland\"",
+                "from": 215,
+                "to": 223
+              },
+              "arguments": []
+            }
+          ]
+        },
+        "size": 4
+      }
+    },
+    {
+      "span": {
+        "sheet": "test",
+        "text": "table t2\n    [a] = 7\n",
+        "from": 228,
+        "to": 249
+      },
+      "name": {
+        "span": {
+          "sheet": "test",
+          "text": "t2",
+          "from": 234,
+          "to": 236
+        },
+        "text": "t2"
+      },
+      "fields": [
+        {
+          "span": {
+            "sheet": "test",
+            "text": "[a] = 7",
+            "from": 241,
+            "to": 248
+          },
+          "fields": [
+            {
+              "span": {
+                "sheet": "test",
+                "text": "[a]",
+                "from": 241,
+                "to": 244
+              },
+              "name": {
+                "span": {
+                  "sheet": "test",
+                  "text": "[a]",
+                  "from": 241,
+                  "to": 244
+                },
+                "text": "a"
+              },
+              "decorators": [],
+              "docs": []
+            }
+          ],
+          "formula": {
+            "number": 7.0,
+            "span": {
+              "sheet": "test",
+              "text": "7",
+              "from": 247,
+              "to": 248
+            },
+            "arguments": []
+          }
+        }
+      ],
+      "decorators": [],
+      "docs": [],
+      "totals": []
+    }
+  ],
+  "pythons": [],
+  "errors": []
+}

@@ -1,37 +1,44 @@
 package com.epam.deltix.quantgrid.engine.test;
 
+import com.epam.deltix.quantgrid.engine.Computation;
 import com.epam.deltix.quantgrid.engine.Engine;
 import com.epam.deltix.quantgrid.engine.GraphCallback;
+import com.epam.deltix.quantgrid.engine.cache.LocalCache;
 import com.epam.deltix.quantgrid.engine.executor.ExecutorUtil;
 import com.epam.deltix.quantgrid.engine.node.Node;
 import com.epam.deltix.quantgrid.engine.node.expression.Expression;
 import com.epam.deltix.quantgrid.engine.node.plan.Plan;
 import com.epam.deltix.quantgrid.engine.rule.ProjectionVerifier;
-import com.epam.deltix.quantgrid.engine.service.input.storage.LocalMetadataProvider;
+import com.epam.deltix.quantgrid.engine.service.input.storage.local.LocalInputProvider;
+import com.epam.deltix.quantgrid.engine.store.local.LocalStore;
 import com.epam.deltix.quantgrid.engine.value.Column;
 import com.epam.deltix.quantgrid.engine.value.Table;
 import com.epam.deltix.quantgrid.engine.value.local.LocalTable;
-import com.epam.deltix.quantgrid.parser.FieldKey;
 import com.epam.deltix.quantgrid.parser.ParsedSheet;
 import com.epam.deltix.quantgrid.parser.ParsingError;
 import com.epam.deltix.quantgrid.parser.SheetReader;
+import lombok.SneakyThrows;
 import lombok.experimental.UtilityClass;
+import org.apache.commons.io.FileUtils;
 import org.junit.jupiter.api.Assertions;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 @UtilityClass
 public class TestExecutor {
+
+    static {
+        System.setProperty("qg.python.timeout", "1000");
+        System.setProperty("qg.embedding.models.path", "../../embedding_models");
+        System.setProperty("qg.embedding.execution.mode", "ACCURACY");
+    }
 
     @SuppressWarnings("unckecked")
     public static <R extends Table> R execute(Node node) {
@@ -43,52 +50,52 @@ public class TestExecutor {
         }
     }
 
-    public static Exception executeError(Node node) {
-        try {
-            execute(node);
-            return null;
-        } catch (Exception ex) {
-            return ex;
-        }
+    public static ResultCollector executeWithoutErrors(String dsl) {
+        return executeWithoutErrors(dsl, false);
     }
 
-    public static ResultCollector executeWithoutErrors(String dsl) {
-        ResultCollector collector = executeWithoutProjections(dsl);
+    public static ResultCollector executeWithoutErrors(String dsl, boolean withProjections) {
+        ResultCollector collector = execute(dsl, withProjections);
         assertThat(collector.getErrors()).as("No errors are expected").isEmpty();
+        collector.verifyTraces();
         return collector;
     }
 
     public static ResultCollector executeWithErrors(String dsl) {
-        Engine engine = singleThreadEngine();
-
-        validateSheet(dsl);
-        CompletableFuture<Void> computationFuture = engine.compute(dsl, 1);
-        Map<FieldKey, String> compilationErrors = engine.getCompilationErrors();
-        compilationErrors.forEach((field, error) -> engine.getListener().onUpdate(field.tableName(),
-                field.fieldName(), -1, -1, true, 1, null, error, null));
-        try {
-            computationFuture.get(2, TimeUnit.SECONDS);
-        } catch (InterruptedException | ExecutionException | TimeoutException e) {
-            throw new RuntimeException(e);
-        }
-
-        return (ResultCollector) engine.getListener();
+        return executeWithErrors(dsl, false);
     }
 
-    public static ResultCollector executeWithoutProjections(String dsl) {
-        Engine engine = singleThreadEngine();
+    public static ResultCollector executeWithErrors(String dsl, boolean withParsingErrors) {
+        return executeWithErrors(dsl, withParsingErrors, false);
+    }
 
-        validateSheet(dsl);
-        CompletableFuture<Void> computationFuture = engine.compute(dsl, 1);
-        Assertions.assertTrue(engine.getCompilationErrors().isEmpty(), "No compilation errors expected");
+    public static ResultCollector executeWithErrors(String dsl, boolean withParsingErrors, boolean withProjections) {
+        Engine engine = singleThreadEngine(withProjections);
 
-        try {
-            computationFuture.get(2, TimeUnit.SECONDS);
-        } catch (InterruptedException | ExecutionException | TimeoutException e) {
-            throw new RuntimeException(e);
+        if (!withParsingErrors) {
+            validateSheet(dsl);
         }
 
-        return (ResultCollector) engine.getListener();
+        ResultCollector collector = new ResultCollector();
+        Computation computation = engine.compute(collector, dsl, null);
+
+        computation.await(15, TimeUnit.SECONDS);
+        return collector;
+    }
+
+    public static ResultCollector execute(String dsl, boolean withProjections) {
+        Engine engine = singleThreadEngine(withProjections);
+
+        validateSheet(dsl);
+        ResultCollector collector = new ResultCollector();
+        Computation computation = engine.compute(collector, dsl, null);
+
+        Assertions.assertTrue(collector.getErrors().isEmpty(),
+                "No compilation errors expected: " + collector.getErrors().entrySet().stream()
+                        .map(e -> e.getKey() + ": " + e.getValue()).collect(Collectors.joining(",")));
+
+        computation.await(15, TimeUnit.SECONDS);
+        return collector;
     }
 
     public static Engine multiThreadEngine() {
@@ -96,26 +103,41 @@ public class TestExecutor {
     }
 
     public static Engine multiThreadEngine(GraphCallback graphCallback) {
-        return engine(ExecutorUtil.fixedThreadExecutor(), graphCallback);
+        return engine(ExecutorUtil.fixedThreadExecutor(), graphCallback, plan -> false);
     }
 
     public static Engine singleThreadEngine() {
         return singleThreadEngine(new PostOptimizationCallback(new ProjectionVerifier()));
     }
 
-    public static Engine singleThreadEngine(GraphCallback graphCallback) {
-        return engine(ExecutorUtil.directExecutor(), graphCallback);
+    public static Engine singleThreadEngine(boolean withProjections) {
+        if (withProjections) {
+            return singleThreadEngine(new PostOptimizationCallback());
+        } else {
+            return singleThreadEngine(new PostOptimizationCallback(new ProjectionVerifier()));
+        }
     }
 
-    private static Engine engine(ExecutorService service, GraphCallback graphCallback) {
-        LocalMetadataProvider metadataProvider = new LocalMetadataProvider(TestInputs.INPUTS_PATH);
-        ResultCollector collector = new ResultCollector();
-        return new Engine(service, collector, graphCallback, metadataProvider);
+    public static Engine singleThreadEngine(GraphCallback graphCallback) {
+        return singleThreadEngine(graphCallback, plan -> false);
+    }
+
+    public static Engine singleThreadEngine(GraphCallback graphCallback, Predicate<Plan> toStore) {
+        return engine(ExecutorUtil.singleThreadExecutor(), graphCallback, toStore);
+    }
+
+    @SneakyThrows
+    private static Engine engine(ExecutorService service, GraphCallback graphCallback, Predicate<Plan> toStore) {
+        LocalInputProvider inputProvider = new LocalInputProvider(TestInputs.INPUTS_PATH);
+        LocalStore resultStore = new LocalStore(TestInputs.RESULTS_PATH);
+        FileUtils.deleteQuietly(TestInputs.RESULTS_PATH.toFile());
+        resultStore.init();
+        return new Engine(new LocalCache(), service, service, graphCallback, inputProvider, resultStore, toStore);
     }
 
     private static void validateSheet(String dsl) {
         ParsedSheet parsedSheet = SheetReader.parseSheet(dsl);
-        List<ParsingError> parsingErrors = parsedSheet.getErrors();
+        List<ParsingError> parsingErrors = parsedSheet.errors();
         if (!parsingErrors.isEmpty()) {
             String errors = parsingErrors.stream().map(Objects::toString)
                     .collect(Collectors.joining("\n", "Parsing failed:\n ", ""));

@@ -1,0 +1,6 @@
+name: average
+description: Calculates mean of the array
+signature: 'array<number>.average() => number'
+manual: >-
+  `average` calculates the mean value of array elements. Elements must be number primitives or be implicitly convertible
+  to them. Returned type depends on array elements type.

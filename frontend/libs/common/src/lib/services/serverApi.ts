@@ -1,110 +1,59 @@
-export interface ClientRequest {
-  id?: string;
-  project_list_request?: ProjectListRequest;
-  create_project_request?: CreateProjectRequest;
-  delete_project_request?: DeleteProjectRequest;
-  open_project_request?: OpenProjectRequest;
-  rename_project_request?: RenameProjectRequest;
-  close_project_request?: CloseProjectRequest;
-  put_worksheet_request?: PutWorksheetRequest;
-  open_worksheet_request?: OpenWorksheetRequest;
-  rename_worksheet_request?: RenameWorksheetRequest;
-  delete_worksheet_request?: DeleteWorksheetRequest;
-  close_worksheet_request?: CloseWorksheetRequest;
-  viewport_request?: ViewportRequest;
-  input_list_request?: InputListRequest;
-  dimensional_schema_request?: DimensionalSchemaRequest;
-  function_request?: FunctionRequest;
-  ping?: Ping;
+import {
+  forkedProjectMetadataKey,
+  projectMetadataSettingsKey,
+} from '../constants';
+
+interface TableKey {
+  table: string;
 }
 
-export interface ServerResponse {
-  status: Status;
-  id?: string;
-  errorMessage?: string;
-  pong?: Ping;
-  worksheetState?: WorksheetState;
-  projectState?: ProjectState;
-  renameProjectResponse?: RenameProjectState;
-  renameWorksheetResponse?: RenameWorksheetState;
-  projectList?: ProjectList;
-  inputList?: InputList;
-  viewportState?: ViewportState;
-  columnData?: ColumnData;
-  dimensionalSchemaResponse?: DimensionalSchemaResponse;
-  functionResponse?: FunctionResponse;
+export interface FieldKey {
+  table: string;
+  field: string;
 }
 
-interface ProjectList {
-  projects: string[];
+interface ApplyKey {
+  table: string;
+  function: string; // sort/filter
 }
 
-// eslint-disable-next-line @typescript-eslint/no-empty-interface
-interface ProjectListRequest {}
-
-interface CreateProjectRequest {
-  project_name: string;
+export interface TotalKey {
+  table: string;
+  field: string;
+  number: number; // starts from 1
 }
 
-interface DeleteProjectRequest {
-  project_name: string;
-  version: number;
+export interface OverrideKey {
+  table: string;
+  field: string;
+  row: number; // starts from 1
 }
 
-interface RenameProjectRequest {
-  project_name: string;
-  version: number;
-  new_project_name: string;
+export interface FieldInfo {
+  fieldKey?: FieldKey;
+  totalKey?: TotalKey;
+  overrideKey?: OverrideKey;
+  type: ColumnDataType;
+  isNested: boolean;
+  hash?: string;
+  referenceTableName?: string;
 }
 
-interface OpenProjectRequest {
-  project_name: string;
-}
-
-interface OpenWorksheetRequest {
-  project_name: string;
-  sheet_name: string;
-}
-
-interface DeleteWorksheetRequest {
-  project_name: string;
-  sheet_name: string;
-  version: number;
-}
-
-interface RenameWorksheetRequest {
-  project_name: string;
-  version: number;
-  old_sheet_name: string;
-  new_sheet_name: string;
-}
-
-interface CloseWorksheetRequest {
-  project_name: string;
-  sheet_name: string;
-}
-
-interface CloseProjectRequest {
-  project_name: string;
-}
-
-interface PutWorksheetRequest {
-  project_name: string;
-  sheet_name: string;
-  content?: string;
-  version: number;
-}
-
-interface ViewportRequest {
-  project_name: string;
-  viewports: Record<string, Viewport>;
+interface Source {
+  startLine?: number; // starts from 1
+  startColumn?: number; // starts from 1
+  sheet?: string;
+  startIndex?: number;
+  stopIndex?: number;
 }
 
 export interface Viewport {
-  fields: string[];
+  fieldKey?: FieldKey;
+  totalKey?: TotalKey;
   start_row: number;
   end_row: number;
   is_content?: boolean;
+  is_raw: boolean;
 }
 
 export enum Status {
@@ -116,89 +65,127 @@ export enum Status {
   Unrecognized = 'UNRECOGNIZED',
 }
 
+export interface ForkedFrom {
+  bucket: string;
+  path: string | null | undefined;
+  projectName: string;
+}
+
+export type ProjectAIResponseId = {
+  responseId: string;
+};
+
+export interface ProjectMetadataSetting {
+  [forkedProjectMetadataKey]?: ForkedFrom;
+  assistantResponseIds?: ProjectAIResponseId[];
+}
+
+export type ProjectSettings = {
+  [projectMetadataSettingsKey]?: ProjectMetadataSetting;
+} & {
+  [key: string]: unknown;
+};
+
 export interface ProjectState {
   projectName: string;
+  bucket: string;
+  path: string | null | undefined; // Path relative to project bucket
   sheets: WorksheetState[];
-  version: number;
-  isDeleted: boolean;
+  version: string;
+  settings: ProjectSettings;
 }
 
 export interface WorksheetState {
   projectName: string;
   sheetName: string;
   content: string;
-  version: number;
-  isDeleted: boolean;
   parsingErrors?: ParsingError[];
   compilationErrors?: CompilationError[];
 }
 
 export interface ParsingError {
-  line: number;
-  position: number;
+  tableKey?: TableKey;
+  fieldKey?: FieldKey;
+  applyKey?: ApplyKey;
+  totalKey?: TotalKey;
+  overrideKey?: OverrideKey;
   message: string;
-  tableName?: string;
-  fieldName?: string;
+  source: Source;
 }
 
 export interface CompilationError {
-  tableName: string;
-  fieldName: string;
+  tableKey?: TableKey;
+  fieldKey?: FieldKey;
+  applyKey?: ApplyKey;
+  totalKey?: TotalKey;
+  overrideKey?: OverrideKey;
   message: string;
-}
-
-export interface RenameWorksheetState {
-  projectName: string;
-  version: number;
-  oldSheetName: string;
-  newSheetName: string;
-}
-
-export interface RenameProjectState {
-  version: number;
-  oldProjectName: string;
-  newProjectName: string;
-}
-
-// eslint-disable-next-line @typescript-eslint/no-empty-interface
-export interface InputListRequest {}
-
-// eslint-disable-next-line @typescript-eslint/no-empty-interface
-export interface FunctionRequest {}
-
-export interface InputFile {
-  paths: string[] | undefined;
-  inputName: string;
-}
-
-export interface InputList {
-  inputs: InputFile[];
-}
-
-// eslint-disable-next-line @typescript-eslint/no-empty-interface
-export interface Ping {}
-
-export interface ViewportState {
-  columns: ColumnData[];
+  source?: Source;
 }
 
 export enum ColumnDataType {
   UNKNOWN = 'UNKNOWN',
-  STRING = 'STRING',
   DOUBLE = 'DOUBLE',
-  INTEGER = 'INTEGER',
-  BOOLEAN = 'BOOLEAN',
-  DATE = 'DATE',
+  STRING = 'STRING',
   PERIOD_SERIES = 'PERIOD_SERIES',
-  TABLE = 'TABLE',
+  TABLE_REFERENCE = 'TABLE_REFERENCE',
+  TABLE_VALUE = 'TABLE_VALUE',
+}
+
+export enum FormatType {
+  FORMAT_TYPE_GENERAL = 'FORMAT_TYPE_GENERAL',
+  FORMAT_TYPE_BOOLEAN = 'FORMAT_TYPE_BOOLEAN',
+  FORMAT_TYPE_CURRENCY = 'FORMAT_TYPE_CURRENCY',
+  FORMAT_TYPE_DATE = 'FORMAT_TYPE_DATE',
+  FORMAT_TYPE_NUMBER = 'FORMAT_TYPE_NUMBER',
+  FORMAT_TYPE_PERCENTAGE = 'FORMAT_TYPE_PERCENTAGE',
+  FORMAT_TYPE_SCIENTIFIC = 'FORMAT_TYPE_SCIENTIFIC',
+}
+
+// eslint-disable-next-line @typescript-eslint/no-empty-interface
+export interface BooleanFormatArgs {}
+
+export interface NumberFormatArgs {
+  format: number;
+  useThousandsSeparator: boolean;
+}
+
+export interface ScientificFormatArgs {
+  format: number;
+}
+
+export interface CurrencyFormatArgs {
+  format: number;
+  useThousandsSeparator: boolean;
+  symbol: string;
+}
+
+export interface DateFormatArgs {
+  pattern: string;
+}
+
+export interface PercentageFormatArgs {
+  format: number;
+}
+
+export interface ColumnFormat {
+  type: FormatType;
+
+  booleanArgs?: BooleanFormatArgs;
+  numberArgs?: NumberFormatArgs;
+  scientificArgs?: ScientificFormatArgs;
+  currencyArgs?: CurrencyFormatArgs;
+  dateArgs?: DateFormatArgs;
+  percentageArgs?: PercentageFormatArgs;
 }
 
 export interface ColumnData {
-  tableName: string;
-  columnName: string;
+  fieldKey?: FieldKey;
+  totalKey?: TotalKey;
 
   startRow: string;
   endRow: string;
+  totalRows: string;
 
   data: string[];
 
@@ -208,6 +195,7 @@ export interface ColumnData {
 
   isNested: boolean;
   type: ColumnDataType;
+  format?: ColumnFormat;
   referenceTableName?: string;
   periodSeries: PeriodSeries[];
 }
@@ -217,26 +205,54 @@ export interface PeriodSeries {
 }
 
 export interface DimensionalSchemaRequest {
-  project_name: string;
-  formula: string;
+  dimensionalSchemaRequest: {
+    formula: string;
+    worksheets: Record<string, string>;
+  };
 }
 
 export interface DimensionalSchemaResponse {
-  projectName: string;
-  formula: string;
-  errorMessage?: string;
-  schema: string[];
-  keys: string[];
+  dimensionalSchemaResponse: {
+    formula: string;
+    errorMessage?: string;
+    schema: string[];
+    keys: string[];
+    fieldInfo?: FieldInfo;
+  };
 }
 
-export interface FunctionResponse {
-  functions: FunctionInfo[];
+export interface FunctionsRequest {
+  functionRequest: {
+    worksheets: Record<string, string>;
+  };
+}
+
+export interface FunctionsResponse {
+  functionResponse: {
+    functions: FunctionInfo[];
+  };
+}
+
+export enum FunctionType {
+  CreateTable = 'CREATE_TABLE_FUNCTIONS',
+  Table = 'TABLE_FUNCTIONS',
+  Array = 'ARRAY_FUNCTIONS',
+  Lookup = 'LOOKUP_FUNCTIONS',
+  Aggregations = 'AGGREGATIONS_FUNCTIONS',
+  Math = 'MATH_FUNCTIONS',
+  PeriodSeries = 'PERIOD_SERIES_FUNCTIONS',
+  Date = 'DATE_FUNCTIONS',
+  Text = 'TEXT_FUNCTIONS',
+  Logical = 'LOGICAL_FUNCTIONS',
+  Python = 'PYTHON_FUNCTIONS',
 }
 
 export interface FunctionInfo {
   name: string;
+  shortDescription?: string;
   description: string;
   arguments: Argument[];
+  functionType?: FunctionType[];
 }
 
 export interface Argument {
@@ -244,4 +260,105 @@ export interface Argument {
   description: string;
   repeatable: boolean;
   optional: boolean;
+}
+
+export interface NotificationRequest {
+  resources: {
+    url: string;
+  }[];
+}
+
+export interface NotificationEvent {
+  url: string;
+  action: 'CREATE' | 'UPDATE' | 'DELETE';
+  timestamp: number;
+  etag?: string;
+}
+
+export interface ProjectCalculateRequest {
+  projectCalculateRequest: {
+    project: string;
+  };
+}
+
+export interface ProjectCancelRequest {
+  projectCancelRequest: {
+    project: string;
+  };
+}
+
+export interface ViewportRequest {
+  calculateWorksheetsRequest: {
+    project_name?: string;
+    viewports: Viewport[];
+    worksheets: Record<string, string>;
+    includeCompilation?: boolean;
+    includeProfile?: boolean;
+    includeIndices?: boolean;
+    shared?: boolean;
+  };
+}
+
+interface CompileResult {
+  compilationErrors?: CompilationError[];
+  sheets?: {
+    name: string;
+    parsingErrors: ParsingError[];
+  }[];
+  fieldInfo?: FieldInfo[];
+}
+
+export interface ViewportResponse {
+  columnData?: ColumnData;
+  compileResult?: CompileResult;
+  fieldInfo: FieldInfo[];
+  profile?: Profile;
+  index?: Index;
+}
+
+export interface Index {
+  key: FieldKey;
+  errorMessage?: string;
+}
+
+export interface Profile {
+  tableKey?: TableKey;
+  fieldKey?: FieldKey;
+  totalKey?: TotalKey;
+  overrideKey?: OverrideKey;
+  source: Source;
+  type: ExecutionType;
+  status: ExecutionStatus;
+  startedAt?: number;
+  stoppedAt?: number;
+  executionTime?: number;
+}
+
+export enum ExecutionStatus {
+  RUNNING = 'RUNNING',
+  COMPLETED = 'COMPLETED',
+}
+
+export enum ExecutionType {
+  COMPUTE = 'COMPUTE',
+  INDEX = 'INDEX',
+}
+
+export interface CompileRequest {
+  compileWorksheetsRequest: {
+    worksheets: Record<string, string>;
+  };
+}
+
+export interface CompileResponse {
+  compileResult: CompileResult;
+}
+
+export interface DownloadRequest {
+  downloadRequest: {
+    project: string;
+    sheets: Record<string, string>;
+    table: string;
+    columns: string[];
+  };
 }

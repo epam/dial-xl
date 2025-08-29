@@ -20,16 +20,11 @@ import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 
 import java.util.List;
-import java.util.stream.IntStream;
 
 public class Explode extends Plan1<Table, Table> {
 
     public Explode(Plan source, Get column) {
         super(source, List.of(column));
-    }
-
-    public Get getColumn() {
-        return (Get) expression(0, 0);
     }
 
     @Override
@@ -39,18 +34,15 @@ public class Explode extends Plan1<Table, Table> {
 
     @Override
     protected Meta meta() {
-        int position = getColumn().getColumn();
-        Schema left = Schema.inputs(this, 0).remove(position);
-        Schema right = Schema.of(ColumnType.STRING, ColumnType.DATE, ColumnType.DOUBLE);
+        Schema left = Schema.inputs(this, 0);
+        Schema right = Schema.of(ColumnType.STRING, ColumnType.DOUBLE, ColumnType.DOUBLE);
         Schema schema = Schema.of(left, right);
         return new Meta(schema);
     }
 
     @Override
     protected Table execute(Table table) {
-        PeriodSeriesColumn column = (PeriodSeriesColumn) getColumn().evaluate();
-        int position = getColumn().getColumn();
-
+        PeriodSeriesColumn column = expression(0, 0).evaluate();
         int size = Util.toIntSize(table);
         LongArrayList refs = new LongArrayList(size);
         ObjectArrayList<String> periods = new ObjectArrayList<>(size);
@@ -75,8 +67,7 @@ public class Explode extends Plan1<Table, Table> {
             }
         }
 
-        int[] positions = IntStream.range(0, table.getColumnCount()).filter(value -> value != position).toArray();
-        Table left = LocalTable.indirectOf(table, refs).select(positions);
+        Table left = LocalTable.indirectOf(table, refs);
         Table right = new LocalTable(
                 new StringDirectColumn(periods),
                 new DoubleDirectColumn(timestamps),

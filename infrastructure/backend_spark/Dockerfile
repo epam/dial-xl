@@ -69,6 +69,7 @@ RUN chmod a+x /opt/decom.sh
 # Copy spring boot jar and application yaml
 COPY backend/web/build/libs/server.jar /opt/quantgrid/server.jar
 COPY backend/web/src/main/resources/application.yaml /opt/quantgrid/application.yaml
+COPY embedding_models /opt/quantgrid/embedding_models
 
 ENTRYPOINT ["/opt/entrypoint.sh"]
 

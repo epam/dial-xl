@@ -1,48 +1,447 @@
 include:
   - project: Gitlab/ci
-    ref: 0.2.16
-    file: helm/helm-environment.gitlab-ci.yml
+    ref: 1.0.0
+    file: jobs/cloud-auth/aws.gitlab-ci.yml 
+
+.sed_template: &sed_template |
+  sed -i -E 's@^URIs:.+ubuntu\.com.+@URIs: http://ftp.uni-stuttgart.de/ubuntu/@' /etc/apt/sources.list.d/ubuntu.sources
+
+workflow:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "web"'    
+      allow_failure: true
+    - if: '$CI_PIPELINE_SOURCE  == "schedule"'
+      when: always
+      allow_failure: true
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      when: always
+      auto_cancel:
+        on_new_commit: interruptible
+    - if: $CI_COMMIT_BRANCH == "main"
+      when: always
+    - if: $CI_COMMIT_BRANCH == "stable" && $CI_COMMIT_MESSAGE !~ /^RobotBuild/
+      when: always
+    - if: $CI_COMMIT_TAG
 
 stages:
   - prepare # semver tag on stable branch
   - build # Application build
   - publish # publush docker images
   - deploy # deploy application to k8s
-  - e2e-test
+  - e2e-test # run e2e tests
+  - aggregate_results # combine test results from several runners and publish it
   - promote # copy docker image to public repo
-  - staging    # Stage name used in include. Not used. ToDo - delete this
-  - production # Stage name used in include. Not used. ToDo - delete this
 
 variables:
+  TOOLS_IMAGE: "registry.deltixhub.com/devops/kubernetes-tools-aws:1.32.0"
+  VERBOSE: ${VERBOSE:-false}
+  ATOMIC: "true" # Unset or use `null` to disable atomic option for helm upgrade, e.g. ATOMIC: "" in GitLab variables
+  SECRET: "true"
+  REPO: deltix
+  PRIVATE_HELM_REPO: "true"
+  DOCKER_REGISTRY_USER: ${NEXUS_USER}
+  DOCKER_REGISTRY_PASS: ${NEXUS_PASS}
+  HELM_REPO_USER: ${NEXUS_USER}
+  HELM_REPO_PASS: ${NEXUS_PASS}
+
   ARTIFACTORY_DOCKER_PATH_FRONTEND: "deltix.docker/quantgrid/frontend"
   ARTIFACTORY_DOCKER_PATH_BACKEND: "deltix.docker/quantgrid/backend"
+  ARTIFACTORY_DOCKER_PATH_QGBOT: "deltix.docker/quantgrid/qgbot"
+  TEST_IMAGE: "registry.deltixhub.com/thirdparty.docker/playwright-java-allure:0.0.13"
 
   DOCKER_REGISTRY_SERVER: "registry-dev.deltixhub.com"
   HELM_REPO: https://nexus.deltixhub.com/repository/epm-rtc-helm
+  HELM_EXTRA_ARGS: "-f ${HELM_SECRET_FILE}" # temporary remove --timeout=15m
   SECRET_NAME: "epm-rtc-registry-dev"
   CHART: "quantgrid" # Helm chart name, e.g. "gitlab-runner"
-  VERSION: "0.1.4" # Helm chart version
+  VERSION: "0.3.2" # Helm chart version!
+  RELEASE: ${CHART}
 
   development_AWS_ACCESS_KEY_ID: ${staging_AWS_ACCESS_KEY_ID}
   development_AWS_SECRET_ACCESS_KEY: ${staging_AWS_SECRET_ACCESS_KEY}
   development_ENV_ID: "staging"
-  development_HELM_VALUES_FILE: "infrastructure/k8s/main-values.yaml"
+  development_HELM_VALUES_FILE: "infrastructure/k8s/quantgrid-main-values.yaml"
   development_ENV_URL: "https://quantgrid-dev.staging.deltixhub.io"
   development_NAMESPACE: quantgrid-dev
-  development_HELM_CUSTOM_VALUES: "frontend.image.tag=main,backend.image.tag=main"
+  development_HELM_CUSTOM_VALUES: "frontend.image.tag=main,backendControl.image.tag=main,backendCompute.image.tag=main"
 
   staging_DEPLOY_ENV: "false" # now we need only dev, review and sales (deployed separately) environments
 
+
   review_DEPLOY_ENV: "true"
   review_ENV_ID: "staging"
-  review_HELM_VALUES_FILE: "infrastructure/k8s/review-values.yaml"
+  review_HELM_VALUES_FILE: "infrastructure/k8s/quantgrid-review-values.yaml"
   review_ENV_URL: "https://${CI_PROJECT_NAME}-${CI_COMMIT_REF_SLUG}.staging.deltixhub.io"
   review_NAMESPACE: quantgrid-review
-  review_HELM_CUSTOM_VALUES: "ingress.hosts[0]=${CI_PROJECT_NAME}-${CI_COMMIT_REF_SLUG}.staging.deltixhub.io,fullnameOverride=${CI_COMMIT_REF_SLUG},frontend.image.tag=${CI_COMMIT_REF_SLUG},backend.image.tag=${CI_COMMIT_REF_SLUG}"
+  review_HELM_CUSTOM_VALUES: "global.url=quantgrid-${CI_COMMIT_REF_SLUG}.staging.deltixhub.io,ingress.hosts[0]=${CI_PROJECT_NAME}-${CI_COMMIT_REF_SLUG}.staging.deltixhub.io,fullnameOverride=qg-${CI_COMMIT_REF_SLUG},frontend.image.tag=${CI_COMMIT_REF_SLUG},backendControl.image.tag=${CI_COMMIT_REF_SLUG},backendCompute.image.tag=${CI_COMMIT_REF_SLUG},backendControl.env.WEB_CLUSTER_NAMESPACE=branch-${CI_COMMIT_REF_SLUG},backendCompute.env.WEB_CLUSTER_NAMESPACE=branch-${CI_COMMIT_REF_SLUG}"
   review_RELEASE: ${CHART}-${CI_COMMIT_REF_SLUG}
   review_SECRET_NAME: "epm-rtc-registry-test"
   review_DOCKER_REGISTRY_SERVER: "registry-test.deltixhub.com"
 
+default:
+  retry:
+    max: 2
+    when: runner_system_failure
+
+# allows to use image form dev registry instead of building first image
+check_existing_branch_tag:
+  image: ${TOOLS_IMAGE}
+  stage: publish
+  script:
+    - 'TAG_EXISTS_QGBOT=$(curl -sSL -u $ARTIFACTORY_TEST_USER:$ARTIFACTORY_TEST_PASS "https://artifactory.epam.com:6155/artifactory/api/docker/epm-rtc-test-docker/v2/deltix.docker/quantgrid/qgbot/manifests/$CI_COMMIT_REF_SLUG" | jq -r .tag)'
+    - |
+      if [[ $TAG_EXISTS_QGBOT == $CI_COMMIT_REF_SLUG ]]; then
+        echo "Tag '$CI_COMMIT_REF_SLUG' exists for image '$ARTIFACTORY_DOCKER_PATH_QGBOT'."
+      else
+        echo "Tag '$CI_COMMIT_REF_SLUG' does NOT exist for image '$ARTIFACTORY_DOCKER_PATH_QGBOT'."
+        curl -X POST -sSf -u $ARTIFACTORY_USER:$ARTIFACTORY_PASS "https://artifactory.epam.com/artifactory/api/copy/epm-rtc-docker/deltix.docker/quantgrid/qgbot/main?to=/epm-rtc-test-docker/deltix.docker/quantgrid/qgbot/$CI_COMMIT_REF_SLUG"
+      fi
+    - 'TAG_EXISTS_FRONTEND=$(curl -sSL -u $ARTIFACTORY_TEST_USER:$ARTIFACTORY_TEST_PASS "https://artifactory.epam.com:6155/artifactory/api/docker/epm-rtc-test-docker/v2/deltix.docker/quantgrid/frontend/manifests/$CI_COMMIT_REF_SLUG" | jq -r .tag)'
+    - |
+      if [[ $TAG_EXISTS_FRONTEND == $CI_COMMIT_REF_SLUG ]]; then
+        echo "Tag '$CI_COMMIT_REF_SLUG' exists for image '$ARTIFACTORY_DOCKER_PATH_FRONTEND'."
+      else
+        echo "Tag '$CI_COMMIT_REF_SLUG' does NOT exist for image '$ARTIFACTORY_DOCKER_PATH_FRONTEND'."
+        curl -X POST -sSf -u $ARTIFACTORY_USER:$ARTIFACTORY_PASS "https://artifactory.epam.com/artifactory/api/copy/epm-rtc-docker/deltix.docker/quantgrid/frontend/main?to=/epm-rtc-test-docker/deltix.docker/quantgrid/frontend/$CI_COMMIT_REF_SLUG"
+      fi
+    - 'TAG_EXISTS_BACKEND=$(curl -sSL -u $ARTIFACTORY_TEST_USER:$ARTIFACTORY_TEST_PASS "https://artifactory.epam.com:6155/artifactory/api/docker/epm-rtc-test-docker/v2/deltix.docker/quantgrid/backend/manifests/$CI_COMMIT_REF_SLUG" | jq -r .tag)'
+    - |
+      if [[ $TAG_EXISTS_BACKEND == $CI_MERGE_REQUEST_SOURCE_BRANCH_NAME ]]; then
+        echo "Tag '$CI_COMMIT_REF_SLUG' exists for image '$ARTIFACTORY_DOCKER_PATH_BACKEND'."
+      else
+        echo "Tag '$CI_COMMIT_REF_SLUG' does NOT exist for image '$ARTIFACTORY_DOCKER_PATH_BACKEND'."
+        curl -X POST -sSf -u $ARTIFACTORY_USER:$ARTIFACTORY_PASS "https://artifactory.epam.com/artifactory/api/copy/epm-rtc-docker/deltix.docker/quantgrid/backend/main?to=/epm-rtc-test-docker/deltix.docker/quantgrid/backend/$CI_COMMIT_REF_SLUG"
+      fi
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"' 
+    - if: '$CI_PIPELINE_SOURCE == "web"'
+  interruptible: true
+  tags:
+    - epam
+
+.helm_diff:
+  cache: []
+  script:
+    - export ENV_PREFIX=${CI_ENVIRONMENT_NAME%%/*} # get env name or env group name as prefix
+    - eval 'for variable in "${!'"$ENV_PREFIX"_'@}"; do export "${variable#'"$ENV_PREFIX"_'}"="${!variable}" ; done' #replace $ENV_PREFIX_var to var
+    - if [[ "$PRIVATE_HELM_REPO" = "true" ]]; then helm repo add ${REPO} ${HELM_REPO} --username ${HELM_REPO_USER} --password ${HELM_REPO_PASS}; else helm repo add ${REPO} ${HELM_REPO}; fi
+    - echo $HELM_VALUES_FILE
+    - helm repo update
+    - aws eks update-kubeconfig --name ${ENV_ID}
+    - if [[ "$SECRET" = "true" ]]; then kubectl delete secret $SECRET_NAME --namespace=$NAMESPACE --ignore-not-found && kubectl create secret docker-registry $SECRET_NAME --docker-server=$DOCKER_REGISTRY_SERVER --docker-username=$DOCKER_REGISTRY_USER --docker-password=$DOCKER_REGISTRY_PASS --namespace=$NAMESPACE; fi
+    # - kubectl delete secret maintainer-${RELEASE} --namespace=$NAMESPACE --ignore-not-found && kubectl create secret generic maintainer-${RELEASE} --namespace=$NAMESPACE --from-literal=gitlabRepo="${CI_PROJECT_URL}" --from-literal=gitlabUser="${GITLAB_USER_LOGIN}"
+    - helm diff upgrade ${RELEASE} ${REPO}/${CHART} --version ${VERSION} -f ${HELM_VALUES_FILE} ${HELM_CUSTOM_VALUES:+--set "$HELM_CUSTOM_VALUES"} --namespace ${NAMESPACE} --color --allow-unreleased ${HELM_EXTRA_ARGS}
+  resource_group: $CI_ENVIRONMENT_NAME
+  interruptible: false
+  tags:
+    - kubernetes
+
+helm_diff_quantgrid:
+  image: ${TOOLS_IMAGE}
+  stage: deploy
+  extends: .helm_diff
+  needs:
+    - job: publish_frontend
+      optional: true
+    - job: publish_backend
+      optional: true
+    - job: check_existing_branch_tag
+  environment:
+    name: review/quantgrid-$CI_COMMIT_REF_SLUG
+  rules:
+    - if: '$CI_MERGE_REQUEST_ID && $review_DEPLOY_ENV == "true"'
+    - if: '$CI_PIPELINE_SOURCE == "web"'
+      
+helm_diff_qgbot:
+  image: ${TOOLS_IMAGE}
+  stage: deploy
+  extends: .helm_diff
+  needs:
+    - job: publish_qgbot
+      optional: true
+    - job: check_existing_branch_tag
+  variables:
+    PRIVATE_HELM_REPO: "false"
+    HELM_REPO: https://charts.epam-rail.com
+    ENV_ID: "staging"
+    CHART: "dial-extension"
+    VERSION: "1.2.0"
+    review_NAMESPACE: "quantgrid-review"
+    review_HELM_EXTRA_ARGS: "-f ${HELM_SECRET_FILE_QGBOT}"
+    review_HELM_CUSTOM_VALUES: "global.url=quantgrid-${CI_COMMIT_REF_SLUG}.staging.deltixhub.io,global.name=${review_RELEASE},global.mergeid=${CI_COMMIT_REF_SLUG},image.tag=${CI_COMMIT_REF_SLUG}"
+    review_HELM_VALUES_FILE: "infrastructure/k8s/qgbot-review-values.yaml"
+    review_RELEASE: "qgbot-${CI_COMMIT_REF_SLUG}"
+  before_script:
+    - echo $HELM_EXTRA_ARGS
+    - echo $review_HELM_VALUES_FILE
+  environment:
+    name: review/qgbot-$CI_COMMIT_REF_SLUG
+  rules:
+    - if: '$CI_MERGE_REQUEST_ID && $review_DEPLOY_ENV == "true"'
+    - if: '$CI_PIPELINE_SOURCE == "web"'
+
+helm_diff_dial:
+  image: ${TOOLS_IMAGE}
+  stage: deploy
+  extends: .helm_diff
+  needs:
+    - job: check_existing_branch_tag
+  variables:
+    PRIVATE_HELM_REPO: "false"
+    HELM_REPO: https://charts.epam-rail.com
+    ENV_ID: "staging"
+    CHART: "dial"
+    VERSION: "5.6.0"
+    review_NAMESPACE: "quantgrid-review"
+    SECRET: "false" # we rely on docker secret creation in main deploy job which runs in parallel
+    review_RELEASE: dial-${CI_COMMIT_REF_SLUG}
+    review_HELM_EXTRA_ARGS: "-f ${HELM_SECRET_FILE_DIAL}"
+    review_HELM_CUSTOM_VALUES: "global.url=quantgrid-${CI_COMMIT_REF_SLUG}.staging.deltixhub.io,global.name=${review_RELEASE},global.mergeid=${CI_COMMIT_REF_SLUG}"
+    review_HELM_VALUES_FILE: "infrastructure/k8s/dial-review-values.yaml"
+  environment:
+    name: review/dial-$CI_COMMIT_REF_SLUG
+  rules:
+    - if: '$CI_MERGE_REQUEST_ID && $review_DEPLOY_ENV == "true"'
+    - if: '$CI_PIPELINE_SOURCE == "web"'
+
+.deploy:
+  cache: []
+  script:
+    - export ENV_PREFIX=${CI_ENVIRONMENT_NAME%%/*} # get env name or env group name as prefix
+    - eval 'for variable in "${!'"$ENV_PREFIX"_'@}"; do export "${variable#'"$ENV_PREFIX"_'}"="${!variable}" ; done' #replace $ENV_PREFIX_var to var
+    - if [[ "$PRIVATE_HELM_REPO" = "true" ]]; then helm repo add ${REPO} ${HELM_REPO} --username ${HELM_REPO_USER} --password ${HELM_REPO_PASS}; else helm repo add ${REPO} ${HELM_REPO}; fi
+    - helm repo update
+    - aws eks update-kubeconfig --name ${ENV_ID}
+    - kubectl create namespace $NAMESPACE || echo "Namespace $NAMESPACE already exists"
+    - if [[ "$SECRET" = "true" ]]; then kubectl delete secret $SECRET_NAME --namespace=$NAMESPACE --ignore-not-found && kubectl create secret docker-registry $SECRET_NAME --docker-server=$DOCKER_REGISTRY_SERVER --docker-username=$DOCKER_REGISTRY_USER --docker-password=$DOCKER_REGISTRY_PASS --namespace=$NAMESPACE; fi
+    - kubectl delete secret maintainer-${RELEASE} --namespace=$NAMESPACE --ignore-not-found && kubectl create secret generic maintainer-${RELEASE} --namespace=$NAMESPACE --from-literal=gitlabRepo="${CI_PROJECT_URL}" --from-literal=gitlabUser="${GITLAB_USER_LOGIN}"
+    - helm upgrade ${RELEASE} ${REPO}/${CHART} --version ${VERSION} -f ${HELM_VALUES_FILE} --set "$HELM_CUSTOM_VALUES" --namespace ${NAMESPACE} --install --create-namespace ${ATOMIC:+ "--atomic"} ${HELM_EXTRA_ARGS} --disable-openapi-validation --stderrthreshold=ERROR || (echo -e "\e[91mERROR  ${CHART} deployment failed" && exit 1)
+    - if [[ "$VERBOSE" = "true" ]]; then helm list -a -n ${NAMESPACE}; fi
+  resource_group: $CI_ENVIRONMENT_NAME
+  interruptible: false
+  tags:
+    - kubernetes
+
+.destroy:
+  variables:
+    GIT_STRATEGY: none
+  cache: []
+  script:
+    - export ENV_PREFIX=${CI_ENVIRONMENT_NAME%%/*} # get env name or env group name as prefix
+    - eval 'for variable in "${!'"$ENV_PREFIX"_'@}"; do export "${variable#'"$ENV_PREFIX"_'}"="${!variable}" ; done' #replace $ENV_PREFIX_var to var
+    - aws eks update-kubeconfig --name ${ENV_ID}
+    - if [[ "$SECRET" = "true" ]]; then kubectl delete secret $SECRET_NAME --namespace=$NAMESPACE --ignore-not-found; fi
+    - kubectl delete secret maintainer-${RELEASE} --namespace=$NAMESPACE --ignore-not-found
+    - helm uninstall ${RELEASE} --namespace ${NAMESPACE}
+    - if [[ "$VERBOSE" = "true" ]]; then helm list -a -n ${NAMESPACE}; fi
+  resource_group: $CI_ENVIRONMENT_NAME
+  interruptible: false
+  environment:
+    action: stop
+  tags:
+    - kubernetes
+
+### deploy quantgrid app for review environment
+deploy_quantgrid_review:
+  image: ${TOOLS_IMAGE}
+  stage: deploy
+  extends: .deploy
+  needs:
+    - job: helm_diff_quantgrid
+  environment:
+    name: review/quantgrid-$CI_COMMIT_REF_SLUG
+    url: ${review_ENV_URL}
+    on_stop: destroy_quantgrid_review
+    auto_stop_in: 1 day
+  rules:
+    - if: '$CI_MERGE_REQUEST_ID && $review_DEPLOY_ENV == "true"'
+    - if: '$CI_PIPELINE_SOURCE == "web"'
+ 
+### destroy quantgrid app for review environment
+destroy_quantgrid_review:
+  image: ${TOOLS_IMAGE}
+  stage: deploy
+  extends: .destroy
+  needs:
+    - job: deploy_quantgrid_review
+      optional: true
+  environment:
+    name: review/quantgrid-$CI_COMMIT_REF_SLUG
+  rules:
+    - if: '$CI_MERGE_REQUEST_ID && $review_DEPLOY_ENV == "true"'
+      when: manual
+      allow_failure: true
+    - if: '$CI_PIPELINE_SOURCE == "web"'
+      when: manual
+      allow_failure: true
+
+### deploy qgbot for review environment
+deploy_qgbot_review:
+  image: ${TOOLS_IMAGE}
+  stage: deploy
+  extends: .deploy
+  needs:
+    - job: helm_diff_qgbot
+  variables:
+    PRIVATE_HELM_REPO: "false"
+    HELM_REPO: https://charts.epam-rail.com
+    ENV_ID: "staging"
+    CHART: "dial-extension"
+    VERSION: "1.2.0"
+    review_NAMESPACE: "quantgrid-review"
+    SECRET: "false" # we rely on docker secret creation in main deploy job which runs in parallel
+    review_HELM_EXTRA_ARGS: "-f ${HELM_SECRET_FILE_QGBOT}"
+    review_HELM_CUSTOM_VALUES: "global.url=quantgrid-${CI_COMMIT_REF_SLUG}.staging.deltixhub.io,global.name=${review_RELEASE},global.mergeid=${CI_COMMIT_REF_SLUG},image.tag=${CI_COMMIT_REF_SLUG}"
+    review_HELM_VALUES_FILE: "infrastructure/k8s/qgbot-review-values.yaml"
+    review_RELEASE: "qgbot-${CI_COMMIT_REF_SLUG}"
+  environment:
+    name: review/qgbot-$CI_COMMIT_REF_SLUG
+    url: ${review_ENV_URL}
+    on_stop: destroy_qgbot_review
+    auto_stop_in: 1 day
+  rules:
+    - if: '$CI_MERGE_REQUEST_ID && $review_DEPLOY_ENV == "true"'
+    - if: '$CI_PIPELINE_SOURCE == "web"'
+
+### destroy qgbot for review environment
+destroy_qgbot_review:
+  image: ${TOOLS_IMAGE}
+  stage: deploy
+  extends: .destroy
+  variables:
+    review_RELEASE: "qgbot-${CI_COMMIT_REF_SLUG}"
+  needs:
+    - job: deploy_qgbot_review
+      optional: true
+  environment:
+    name: review/qgbot-$CI_COMMIT_REF_SLUG
+  rules:
+    - if: '$CI_MERGE_REQUEST_ID && $review_DEPLOY_ENV == "true"'
+      when: manual
+      allow_failure: true
+    - if: '$CI_PIPELINE_SOURCE == "web"'
+      when: manual
+      allow_failure: true
+
+### deploy dial for review environment
+deploy_dial_review:
+  image: ${TOOLS_IMAGE}
+  stage: deploy
+  extends: .deploy
+  needs:
+    - job: helm_diff_dial
+  variables:
+    PRIVATE_HELM_REPO: "false"
+    HELM_REPO: https://charts.epam-rail.com
+    ENV_ID: "staging"
+    CHART: "dial"
+    VERSION: "5.13.1"
+    review_NAMESPACE: "quantgrid-review"
+    SECRET: "false" # we rely on docker secret creation in main deploy job which runs in parallel
+    review_HELM_EXTRA_ARGS: "-f ${HELM_SECRET_FILE_DIAL}"
+    review_HELM_CUSTOM_VALUES: "global.url=quantgrid-${CI_COMMIT_REF_SLUG}.staging.deltixhub.io,global.name=${review_RELEASE},global.mergeid=${CI_COMMIT_REF_SLUG}"
+    review_HELM_VALUES_FILE: "infrastructure/k8s/dial-review-values.yaml"
+    review_ENV_URL: "https://chat-${CI_PROJECT_NAME}-${CI_COMMIT_REF_SLUG}.staging.deltixhub.io"
+    review_RELEASE: dial-${CI_COMMIT_REF_SLUG}
+  environment:
+    name: review/dial-$CI_COMMIT_REF_SLUG
+    url: ${review_ENV_URL}
+    on_stop: destroy_dial_review
+    auto_stop_in: 1 day
+  rules:
+    - if: '$CI_MERGE_REQUEST_ID && $review_DEPLOY_ENV == "true"'
+    - if: '$CI_PIPELINE_SOURCE == "web"'
+
+destroy_dial_review:
+  image: ${TOOLS_IMAGE}
+  stage: deploy
+  extends: .destroy
+  variables:
+    review_RELEASE: dial-${CI_COMMIT_REF_SLUG}
+  needs:
+    - job: deploy_dial_review
+      optional: true
+  environment:
+    name: review/dial-$CI_COMMIT_REF_SLUG
+  rules:
+    - if: '$CI_MERGE_REQUEST_ID && $review_DEPLOY_ENV == "true"'
+      when: manual
+      allow_failure: true
+    - if: '$CI_PIPELINE_SOURCE == "web"'
+      when: manual
+      allow_failure: true
+
+### Deploy helm chart with docker tagged as "main" to k8s and namespace from development_NAMESPACE variable.
+deploy_quantgrid_development:
+  image: ${TOOLS_IMAGE}
+  stage: deploy
+  extends: .deploy
+  needs:
+    - publish_frontend
+    - publish_backend
+  environment:
+    name: development/quantgrid
+    url: ${development_ENV_URL}
+    on_stop: destroy_quantgrid_development
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+
+### Destroy helm chart from k8s and namespace from development_NAMESPACE variable
+destroy_quantgrid_development:
+  image: ${TOOLS_IMAGE}
+  stage: deploy
+  extends: .destroy
+  needs:
+    - job: deploy_quantgrid_development
+      optional: true
+  environment:
+    name: development/quantgrid
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+      when: manual
+      allow_failure: true
+
+### Deploy helm chart with docker tagged as "main" to k8s and namespace from development_NAMESPACE variable.
+deploy_qgbot_development:
+  image: ${TOOLS_IMAGE}
+  stage: deploy
+  extends: .deploy
+  variables:
+    PRIVATE_HELM_REPO: "false"
+    HELM_REPO: https://charts.epam-rail.com
+    ENV_ID: "staging"
+    CHART: "dial-extension"
+    VERSION: "1.3.1"
+    SECRET: "false" # we rely on docker secret creation in main deploy job which runs in parallel
+    development_NAMESPACE: "quantgrid-dev"
+    development_HELM_EXTRA_ARGS: "-f ${HELM_SECRET_FILE_QGBOT}"
+    development_HELM_CUSTOM_VALUES: "a=b"
+    development_HELM_VALUES_FILE: "infrastructure/k8s/qgbot-main-values.yaml"
+    development_RELEASE: "qgbot"
+  needs:
+    - job: publish_qgbot
+      optional: true
+  environment:
+    name: development/qgbot
+    on_stop: destroy_qgbot_development
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+
+### Destroy helm chart from k8s and namespace from development_NAMESPACE variable
+destroy_qgbot_development:
+  image: ${TOOLS_IMAGE}
+  stage: deploy
+  extends: .destroy
+  needs:
+    - job: deploy_qgbot_development
+      optional: true
+  environment:
+    name: development/qgbot
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+      when: manual
+      allow_failure: true
+    
 ### Increment patch version of previous tag. Run on commit to stable branch
 "Tag branch":
   image: alpine/git:v2.32.0
@@ -66,7 +465,7 @@ variables:
 ### Build backend application (jar). Run on commit to all tags or branches except stable
 build_backend:
   stage: build
-  image: eclipse-temurin:17-alpine
+  image: eclipse-temurin:17-jdk
   variables:
     GRADLE_CACHE_KEY: "1" # increase when bumping gradle/major dependency versions
   # Overwrite Gradle cache directory.
@@ -74,17 +473,27 @@ build_backend:
     - export GRADLE_USER_HOME=`pwd`/.gradle
   script:
     # Note: with "--continue" option Gradle will execute tests for all projects
+    - *sed_template
+    - apt update
+    - apt install -y python3-pip
+    - python3 --version
     - ./gradlew build
   artifacts:
     when: always
     paths:
+      - backend/engine/build/reports/
+      - backend/common/build/reports/
+      - backend/parser/build/reports/
+      - backend/proto/build/reports/
       - backend/web/build/libs/
       - backend/web/build/reports/
-      - backend/engine/build/reports/
     reports:
       junit:
-        - backend/web/build/test-results/test/**/TEST-*.xml
         - backend/engine/build/test-results/test/**/TEST-*.xml
+        - backend/common/build/test-results/test/**/TEST-*.xml
+        - backend/parser/build/test-results/test/**/TEST-*.xml
+        - backend/proto/build/test-results/test/**/TEST-*.xml
+        - backend/web/build/test-results/test/**/TEST-*.xml
   cache:
     key: "$GRADLE_CACHE_KEY"
     paths:
@@ -96,13 +505,18 @@ build_backend:
     - DockerExecutor
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes:
+        paths:
+          - backend/**/*
+          - infrastructure/**/*
     - if: $CI_COMMIT_TAG
     - if: $CI_COMMIT_BRANCH  == "main"
+  interruptible: true
 
 ### Build frontend application. Run on commit to all tags or branches except stable
 build_frontend:
   stage: build
-  image: timbru31/java-node:jdk-18-hydrogen
+  image: timbru31/java-node:11-jre-iron
   script:
     - cd frontend
     - yarn install
@@ -118,12 +532,39 @@ build_frontend:
     - DockerExecutor
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes:
+        paths:
+          - frontend/**/*
+          - backend/parser/src/main/antlr/com/epam/deltix/quantgrid/parser/**/*
+          - infrastructure/**/*
     - if: $CI_COMMIT_TAG
     - if: $CI_COMMIT_BRANCH  == "main"
+  interruptible: true
+
+# lint for qgbot
+lint_qgbot:
+  image: python:3.12-slim
+  stage: build
+  before_script:
+    - apt-get update && apt-get install -y make
+  script:
+    - pip install poetry==1.8.3
+    - cd ./python/assistant
+    - make lint
+  rules:
+    - if: "$CI_PIPELINE_SOURCE == 'merge_request_event'"
+      changes:
+        paths:
+          - python/**/*
+          - infrastructure/**/*
+    - if: $CI_COMMIT_BRANCH  == "main"
+    - if: $CI_COMMIT_TAG
+  tags:
+    - kubernetes
 
 ### CI template for build docker images
 .publish_template:
-  image: dockerhub.deltixhub.com/docker:23.0.6
+  image: public.ecr.aws/docker/library/docker:27.3-cli # change dockerhub.deltixhub.com/docker:23.0.6 to avoid limit hit
   stage: publish
   variables:
     DOCKER_HOST: tcp://docker:2375
@@ -154,15 +595,33 @@ build_frontend:
       variables:
         DOCKER_TAG: ${CI_COMMIT_REF_SLUG}
         REPOSITORY: ${ARTIFACTORY_DOCKER_DEV_REPOSITORY}
+  interruptible: true
 
-### Build backend docker and push to artifactory.
+### Build backend docker and push to artifactory. Extend ".publish_template" job
 publish_backend:
   extends: .publish_template
   variables:
     ARTIFACTORY_DOCKER_PATH: ${ARTIFACTORY_DOCKER_PATH_BACKEND}
-    DOCKERFILE_PATH: "infrastructure/backend/Dockerfile"
+    DOCKERFILE_PATH: "infrastructure/backend_cluster/Dockerfile"
   needs:
     - build_backend
+  rules:
+  - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    variables:
+      DOCKER_TAG: ${CI_COMMIT_REF_SLUG}
+      REPOSITORY: ${ARTIFACTORY_DOCKER_TEST_REPOSITORY}
+    changes:
+      paths:
+        - backend/**/*
+        - infrastructure/**/*
+  - if: $CI_COMMIT_TAG
+    variables:
+      DOCKER_TAG: ${CI_COMMIT_TAG}
+      REPOSITORY: ${ARTIFACTORY_DOCKER_DEV_REPOSITORY}
+  - if: $CI_COMMIT_BRANCH  == "main"
+    variables:
+      DOCKER_TAG: ${CI_COMMIT_REF_SLUG}
+      REPOSITORY: ${ARTIFACTORY_DOCKER_DEV_REPOSITORY}
 
 ### Build frontend docker and push to artifactory. Extend ".publish_template" job
 publish_frontend:
@@ -172,38 +631,77 @@ publish_frontend:
     DOCKERFILE_PATH: "infrastructure/frontend/Dockerfile"
   needs:
     - build_frontend
-
-### Deploy helm chart with docker tagged as "main" to k8s and namespace from development_NAMESPACE variable.
-### Source code https://gitlab.deltixhub.com/GitLab/ci/-/blob/0.2.14/helm/helm-environment.gitlab-ci.yml
-deploy_development:
-  image: "registry.deltixhub.com/deltix.docker/devops/kubernetes-tools:0.17.1"
-  stage: deploy
-  needs:
-    - publish_frontend
-    - publish_backend
   rules:
-    - if: $CI_COMMIT_BRANCH == "main"
+  - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    variables:
+      DOCKER_TAG: ${CI_COMMIT_REF_SLUG}
+      REPOSITORY: ${ARTIFACTORY_DOCKER_TEST_REPOSITORY}
+    changes:
+      paths:
+        - frontend/**/*
+        - infrastructure/**/*
+        - backend/parser/src/main/antlr/com/epam/deltix/quantgrid/parser/**/*
+  - if: $CI_COMMIT_TAG
+    variables:
+      DOCKER_TAG: ${CI_COMMIT_TAG}
+      REPOSITORY: ${ARTIFACTORY_DOCKER_DEV_REPOSITORY}
+  - if: $CI_COMMIT_BRANCH  == "main"
+    variables:
+      DOCKER_TAG: ${CI_COMMIT_REF_SLUG}
+      REPOSITORY: ${ARTIFACTORY_DOCKER_DEV_REPOSITORY}
 
-### Destroy helm chart from k8s and namespace from development_NAMESPACE variable
-### Source code https://gitlab.deltixhub.com/GitLab/ci/-/blob/0.2.14/helm/helm-environment.gitlab-ci.yml
-destroy_development:
-  image: "registry.deltixhub.com/deltix.docker/devops/kubernetes-tools:0.17.1"
-  stage: deploy
-  rules:
-    - if: $CI_COMMIT_BRANCH == "main"
-      when: manual
-      allow_failure: true
-
-deploy_review:
-  image: "registry.deltixhub.com/deltix.docker/devops/kubernetes-tools:0.17.1"
-  stage: deploy
+### Build qgbot docker and push to artifactory.
+publish_qgbot:
+  image: public.ecr.aws/docker/library/docker:27.3-cli # change dockerhub.deltixhub.com/docker:23.0.6 to avoid limit hit
+  stage: publish
   needs:
-    - publish_frontend
-    - publish_backend
-
-destroy_review:
-  image: "registry.deltixhub.com/deltix.docker/devops/kubernetes-tools:0.17.1"
-  stage: deploy
+  - job: lint_qgbot
+  variables:
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_TLS_CERTDIR: ""
+  cache: { }
+  services:
+    - docker:23.0.6-dind
+  before_script:
+    - mkdir -p $HOME/.docker
+    # Use DOCKER_AUTH_CONFIG for login to deltix repo
+    - echo $DOCKER_AUTH_CONFIG > $HOME/.docker/config.json
+  script:
+    - cp ./backend/proto/src/main/proto/api.proto ./python/
+    - imageUrl=$REPOSITORY/${DOCKER_PATH}
+    - docker build -t $imageUrl:${DOCKER_TAG} -t $imageUrl:${DOCKER_ADDITIONAL_TAG} -f ${DOCKERFILE_PATH} ./python/
+    - docker push $imageUrl:${DOCKER_TAG}
+    - docker push $imageUrl:${DOCKER_ADDITIONAL_TAG}
+  rules:
+    - if: $CI_COMMIT_TAG
+      variables:
+        DOCKER_PATH: ${ARTIFACTORY_DOCKER_PATH_QGBOT}
+        DOCKER_TAG: ${CI_COMMIT_TAG}
+        DOCKER_ADDITIONAL_TAG: latest
+        REPOSITORY: ${ARTIFACTORY_DOCKER_DEV_REPOSITORY}
+        DOCKERFILE_PATH: "python/Dockerfile"
+    - if: $CI_COMMIT_BRANCH  == "main"
+      variables:
+        DOCKER_PATH: ${ARTIFACTORY_DOCKER_PATH_QGBOT}
+        DOCKER_TAG: ${CI_COMMIT_REF_SLUG}
+        DOCKER_ADDITIONAL_TAG: alpha
+        REPOSITORY: ${ARTIFACTORY_DOCKER_DEV_REPOSITORY}
+        DOCKERFILE_PATH: "python/Dockerfile"
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"' 
+      variables:
+        DOCKER_PATH: ${ARTIFACTORY_DOCKER_PATH_QGBOT}
+        DOCKER_TAG: ${CI_COMMIT_REF_SLUG}
+        DOCKER_ADDITIONAL_TAG: mr-${CI_MERGE_REQUEST_IID}
+        REPOSITORY: ${ARTIFACTORY_DOCKER_TEST_REPOSITORY}
+        DOCKERFILE_PATH: "python/Dockerfile"
+      changes:
+        paths:
+          - python/**/*
+          - infrastructure/**/*
+  interruptible: true
+  tags:
+    - Linux
+    - DockerExecutor
 
 ### CI template for scan docker images via trivy tool
 .scan_template:
@@ -237,18 +735,46 @@ destroy_review:
   tags:
     - AWS
     - DockerExecutor
+  interruptible: true
 
 ### Scan frontend docker images. Run on git tag
 container_scanning_frontend:
   extends: .scan_template
   variables:
     CS_IMAGE: $REPOSITORY/${ARTIFACTORY_DOCKER_PATH_FRONTEND}:$DOCKER_TAG
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes:
+          paths:
+            - frontend/**/*
+            - backend/parser/src/main/antlr/com/epam/deltix/quantgrid/parser/**/*
+            - infrastructure/**/*
+      variables:
+        DOCKER_TAG: ${CI_COMMIT_REF_SLUG}
+        REPOSITORY: ${ARTIFACTORY_DOCKER_TEST_REPOSITORY}
+    - if: $CI_COMMIT_TAG
+      variables:
+        DOCKER_TAG: ${CI_COMMIT_TAG}
+        REPOSITORY: ${ARTIFACTORY_DOCKER_DEV_REPOSITORY}
 
 ### Scan backend docker images. Run on git tag
 container_scanning_backend:
   extends: .scan_template
   variables:
     CS_IMAGE: $REPOSITORY/${ARTIFACTORY_DOCKER_PATH_BACKEND}:$DOCKER_TAG
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes:
+          paths:
+            - backend/**/*
+            - infrastructure/**/*
+      variables:
+        DOCKER_TAG: ${CI_COMMIT_REF_SLUG}
+        REPOSITORY: ${ARTIFACTORY_DOCKER_TEST_REPOSITORY}
+    - if: $CI_COMMIT_TAG
+      variables:
+        DOCKER_TAG: ${CI_COMMIT_TAG}
+        REPOSITORY: ${ARTIFACTORY_DOCKER_DEV_REPOSITORY}
 
 ### Copy frontend and backend docker images to public repository. Run on git tag manually
 promote:
@@ -259,39 +785,290 @@ promote:
   script:
     - 'curl --retry 6 --retry-all-errors --no-progress-meter --fail -X POST "${ARTIFACTORY_URL}/api/docker/epm-rtc-docker/v2/promote" -H "Content-Type: application/json" -u${ARTIFACTORY_USER}:${ARTIFACTORY_PASS} -d ''{ "targetRepo": "epm-rtc-public-docker", "dockerRepository": "''"${ARTIFACTORY_DOCKER_PATH_FRONTEND}"''", "tag" : "''"$CI_COMMIT_TAG"''", "copy": true }'''
     - 'curl --retry 6 --retry-all-errors --no-progress-meter --fail -X POST "${ARTIFACTORY_URL}/api/docker/epm-rtc-docker/v2/promote" -H "Content-Type: application/json" -u${ARTIFACTORY_USER}:${ARTIFACTORY_PASS} -d ''{ "targetRepo": "epm-rtc-public-docker", "dockerRepository": "''"${ARTIFACTORY_DOCKER_PATH_BACKEND}"''", "tag" : "''"$CI_COMMIT_TAG"''", "copy": true }'''
+    - 'curl --retry 6 --retry-all-errors --no-progress-meter --fail -X POST "${ARTIFACTORY_URL}/api/docker/epm-rtc-docker/v2/promote" -H "Content-Type: application/json" -u${ARTIFACTORY_USER}:${ARTIFACTORY_PASS} -d ''{ "targetRepo": "epm-rtc-public-docker", "dockerRepository": "''"${ARTIFACTORY_DOCKER_PATH_QGBOT}"''", "tag" : "''"$CI_COMMIT_TAG"''", "copy": true }'''
   dependencies: []
   rules:
     - if: $CI_COMMIT_TAG
       when: manual
+  interruptible: true
   tags:
     - AWS
     - DockerExecutor
 
-run_fronted_e2e_tests:
-  image: registry.deltixhub.com/thirdparty.docker/playwright-java-allure:0.0.2
-  stage: e2e-test
+.run_fronted_e2e_tests_template:
+  image: ${TEST_IMAGE}
   before_script:
     - wget -q --tries=60 --wait=5 --retry-on-host-error --spider ${BASE_URL}
   script:
     - cd frontend
     - yarn add --dev @playwright/test
     - yarn add @playwright/test allure-playwright --dev
-    - npx nx e2e quantgrid
-  after_script:
-    - /allure/allure-2.23.1/bin/allure generate ./frontend/allure-results -o ./frontend/allure-report --clean
+    - if [ -z "$TEST_TAG" ]; then if [ -z "$TEST_FEATURES" ]; then npm run e2e:ci; else npm run e2e:ci -- --grep $TEST_FEATURES; fi; else for tag in $TEST_TAG; do DATA_TYPE=${tag:1} npm run e2e:ci -- --grep $tag; done; fi
   artifacts:
     name: "${CI_JOB_ID}_${CI_JOB_NAME}"
     when: always
-    expire_in: 30 day
+    expire_in: 1 day
     paths:
-      - frontend/allure-report
+      - frontend/allure-results
+      - frontend/test-results/videos
   tags:
+#    - gpu
     - AWS
     - DockerExecutor
-  rules:  
+    - aws-2xlarge
+  rules:
     - if: $CI_COMMIT_BRANCH == "main"
       variables:
         BASE_URL: ${development_ENV_URL}
+        QUANTGRID_TEST_USERNAME: ${QUANTGRID_KEYCLOAK_USERNAME}
+        QUANTGRID_TEST_PASSWORD: ${QUANTGRID_KEYCLOAK_PASSWORD}
+        AUTH_TYPE: "keycloak"
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
       variables:
         BASE_URL: ${review_ENV_URL}
+        QUANTGRID_TEST_USERNAME: ${QUANTGRID_AUTH0_USERNAME}
+        QUANTGRID_TEST_PASSWORD: ${QUANTGRID_AUTH0_PASSWORD}
+        AUTH_TYPE: "auth0"
+      changes:
+        paths:
+          - frontend/**/*
+          - backend/**/*
+          - infrastructure/**/*
+  interruptible: true
+
+run_fronted_e2e_tests_default_1:
+  stage: e2e-test
+  extends: .run_fronted_e2e_tests_template
+  variables:
+    TEST_FEATURES: "(.*)tests.grid(.*)|(.*)tests.editor(.*)"
+
+run_fronted_e2e_tests_default_2:
+  stage: e2e-test
+  extends: .run_fronted_e2e_tests_template
+  variables:
+    TEST_FEATURES: "(.*)tests.panels(.*)"
+
+run_fronted_e2e_tests_default_3:
+  stage: e2e-test
+  extends: .run_fronted_e2e_tests_template
+  variables:
+    TEST_FEATURES: "(.*)tests.multiusers(.*)|(.*)tests.popup_forms(.*)|(.*)tests.topmenu(.*)"
+
+run_fronted_e2e_tests_hidden:
+  stage: e2e-test
+  extends: .run_fronted_e2e_tests_template
+  variables:
+    TEST_TAG: "@hiddenTable @hiddenAll @horizontal"
+    
+run_fronted_e2e_tests_chat:
+  stage: e2e-test
+  extends: .run_fronted_e2e_tests_template
+  variables:
+    TEST_FEATURES: "(.*)tests.bot(.*)"    
+    
+run_fronted_e2e_tests_flaky:
+  stage: e2e-test
+  extends: .run_fronted_e2e_tests_template
+  variables:
+    TEST_TAG: "@flaky"    
+
+### step required to copy qgbot test files from directory in root to dial review prefix folder
+copy_integration_test_files_qgbot:
+  image: ${TOOLS_IMAGE}
+  stage: deploy
+  extends: .cloud-auth
+  variables:
+    DIAL_PREFIX: "dial-${CI_COMMIT_REF_SLUG}"
+    AWS_DEFAULT_REGION: us-east-1
+    AWS_ROLE_ARN: arn:aws:iam::725751206603:role/GitLab-CI-project-1542-role
+  script:
+    - aws s3 cp s3://deltix-staging-quantgrid-review-core/qgbot-tests s3://deltix-staging-quantgrid-review-core/${DIAL_PREFIX}/Keys/quantgrid/files/test-resources --recursive
+  rules:
+    - if: "$CI_PIPELINE_SOURCE == 'merge_request_event'"
+      allow_failure: true
+      changes:
+        paths:
+          - python/**/*
+          - infrastructure/**/*
+          - backend/**/*
+    - if: '$CI_PIPELINE_SOURCE == "web"'
+  interruptible: true
+  tags:
+    - kubernetes
+    - staging
+
+integration_test_qgbot:
+  image: "python:3.12-slim"
+  stage: e2e-test
+  before_script:
+    - apt-get update && apt-get install -y make && apt-get install -y protobuf-compiler && apt-get install -y wget
+  script:
+    - echo "Bot version " $BOT_VERSION
+    - echo "LLM name " $LLM_NAME
+    - echo "Core model " $CORE_MODEL
+    - echo "Classification model " $CLASSIFICATION_MODEL
+    - echo "AI hint model " $AI_HINT_MODEL
+    - echo "Max fix attempts " $MAX_FIX_ATTEMPTS
+
+    - pip install poetry==1.8.3
+    - cd ./python/
+    - make build_client_package
+    - cd ./assistant/
+    - poetry install
+    - poetry run python -m run_local &> qg.log &
+    - |
+      if poetry run python -m scripts.healthcheck --addr http://localhost:5000; then
+        poetry run nox -s integration_tests
+      else
+        echo "QG server failed to start"
+        exit 1
+      fi
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "web"'
+      variables: 
+        AGENT_DIAL_URL: http://localhost:5000 
+        QG_URL: https://quantgrid-${CI_COMMIT_REF_SLUG}.staging.deltixhub.io
+        DIAL_URL: https://core-quantgrid-${CI_COMMIT_REF_SLUG}.staging.deltixhub.io
+      allow_failure: true
+    - if: '$CI_PIPELINE_SOURCE  == "schedule"'
+      variables:
+        AGENT_DIAL_URL: http://localhost:5000
+        QG_URL: https://quantgrid-dev.staging.deltixhub.io
+        DIAL_URL: https://dev-dial-core.staging.deltixhub.io
+      when: always
+      allow_failure: true
+    - if: '$CI_COMMIT_BRANCH  == "main"'
+      variables:
+        AGENT_DIAL_URL: http://qgbot.quantgrid-dev
+        QG_URL: https://quantgrid-dev.staging.deltixhub.io
+        DIAL_URL: https://dev-dial-core.staging.deltixhub.io
+      allow_failure: true
+    - if: "$CI_PIPELINE_SOURCE == 'merge_request_event'"
+      variables:
+        AGENT_DIAL_URL: http://localhost:5000
+        QG_URL: https://quantgrid-${CI_COMMIT_REF_SLUG}.staging.deltixhub.io
+        DIAL_URL: https://core-quantgrid-${CI_COMMIT_REF_SLUG}.staging.deltixhub.io
+      allow_failure: true
+      changes:
+        paths:
+          - python/**/*
+          - backend/**/*
+          - infrastructure/**/*
+  interruptible: true
+  tags:
+    - kubernetes
+    - staging
+  artifacts:
+    paths:
+      - python/assistant/report.xlsx
+      - python/assistant/qg.log
+    expire_in: 3 month
+    when: always
+
+business_test_qgbot:
+  image: "python:3.12-slim"
+  stage: e2e-test
+  before_script:
+    - apt-get update && apt-get install -y make && apt-get install -y protobuf-compiler && apt-get install -y wget
+  script:
+    - echo "Bot version " $BOT_VERSION
+    - echo "LLM name " $LLM_NAME
+    - echo "Core model " $CORE_MODEL
+    - echo "Classification model " $CLASSIFICATION_MODEL
+    - echo "AI hint model " $AI_HINT_MODEL
+    - echo "Max fix attempts " $MAX_FIX_ATTEMPTS
+
+    - pip install poetry==1.8.3
+    - cd ./python/
+    - make build_client_package
+    - cd ./assistant/
+    - poetry install
+    - poetry run python -m run_local &> qg.log &
+    - |
+      if poetry run python -m scripts.healthcheck --addr http://localhost:5000; then
+        poetry run nox -s business_tests
+      else
+        echo "QG server failed to start"
+        exit 1
+      fi
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "web"'
+      variables: 
+        AGENT_DIAL_URL: http://localhost:5000 
+        QG_URL: https://quantgrid-${CI_COMMIT_REF_SLUG}.staging.deltixhub.io
+        DIAL_URL: https://core-quantgrid-${CI_COMMIT_REF_SLUG}.staging.deltixhub.io
+      allow_failure: true
+      when: manual
+    - if: '$CI_PIPELINE_SOURCE  == "schedule"'
+      variables:
+        AGENT_DIAL_URL: http://localhost:5000
+        QG_URL: https://quantgrid-dev.staging.deltixhub.io
+        DIAL_URL: https://dev-dial-core.staging.deltixhub.io
+      when: always
+      allow_failure: true
+    - if: '$CI_COMMIT_BRANCH  == "main"'
+      variables:
+        AGENT_DIAL_URL: http://qgbot.quantgrid-dev
+        QG_URL: https://quantgrid-dev.staging.deltixhub.io
+        DIAL_URL: https://dev-dial-core.staging.deltixhub.io
+        QG_HEALTHCHECK_URL: http://qgbot.quantgrid-dev
+      when: manual
+      allow_failure: true
+    - if: "$CI_PIPELINE_SOURCE == 'merge_request_event'"
+      variables:
+        AGENT_DIAL_URL: http://localhost:5000 
+        QG_URL: https://quantgrid-${CI_COMMIT_REF_SLUG}.staging.deltixhub.io
+        DIAL_URL: https://core-quantgrid-${CI_COMMIT_REF_SLUG}.staging.deltixhub.io
+      when: manual 
+      allow_failure: true  
+      changes:
+        paths:
+          - python/**/*
+          - backend/**/*
+          - infrastructure/**/*
+  interruptible: true
+  tags:
+    - kubernetes
+    - staging
+  artifacts:
+    paths:
+      - python/assistant/report.xlsx
+      - python/assistant/qg.log
+    expire_in: 3 month
+    when: always
+
+prepare_report:
+  image: ${TEST_IMAGE}
+  stage: aggregate_results
+  script:
+    - /allure/allure-2.27.0/bin/allure generate ./frontend/allure-results -o ./frontend/allure-report-s3 --clean
+    - export AWS_ACCESS_KEY_ID=${nightlytest_AWS_ACCESS_KEY_ID} # No problem with inheritance; easily copy the example to another project
+    - export AWS_SECRET_ACCESS_KEY=${nightlytest_AWS_SECRET_ACCESS_KEY}
+    - export AWS_DEFAULT_REGION=${nightlytest_AWS_DEFAULT_REGION}
+    - aws s3 sync ./frontend/allure-report-s3 s3://new-reports.deltixhub.net/Deltix/Quantgrid/$CI_PIPELINE_ID
+    - echo "The report is available at the adress:"
+    - echo "http://new-reports.deltixhub.net.s3-website-us-west-2.amazonaws.com/Deltix/Quantgrid/$CI_PIPELINE_ID"
+    - expected_test_count=324
+    - line_count=$(grep "chromium" ./frontend/allure-report-s3/data/suites.csv | wc -l)
+    - '[ "$line_count" -eq "$expected_test_count" ] || { echo "Error: test count mistatch. Expected $expected_test_count, executed $line_count ."; exit 1; }'
+    - echo "Test count is correct"
+  artifacts:
+    name: "${CI_JOB_ID}_${CI_JOB_NAME}"
+    when: always
+    expire_in: 3 day
+    paths:
+      - frontend/allure-report-s3
+  tags:
+    - AWS
+    - DockerExecutor
+  when: always
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes:
+        paths:
+          - frontend/**/*
+          - backend/**/*
+          - infrastructure/**/*
+    - if: $CI_COMMIT_BRANCH  == "main"
+  interruptible: true
+

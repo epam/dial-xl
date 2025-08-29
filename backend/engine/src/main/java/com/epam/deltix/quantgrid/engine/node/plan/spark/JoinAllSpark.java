@@ -9,6 +9,7 @@ import com.epam.deltix.quantgrid.engine.node.plan.Plan2;
 import com.epam.deltix.quantgrid.engine.node.plan.spark.util.DatasetUtil;
 import com.epam.deltix.quantgrid.engine.value.spark.SparkDatasetTable;
 import com.epam.deltix.quantgrid.engine.value.spark.SparkValue;
+import com.epam.deltix.quantgrid.util.Doubles;
 import org.apache.hadoop.shaded.com.google.common.collect.Streams;
 import org.apache.spark.sql.Column;
 import org.apache.spark.sql.Dataset;
@@ -82,7 +83,7 @@ public class JoinAllSpark extends Plan2<SparkValue, SparkValue, SparkDatasetTabl
             Column col = dataset.col(field.name());
 
             if ((from <= i && i < to) && field.dataType() == DataTypes.DoubleType) {
-                newColumns[i] = functions.coalesce(col, functions.lit(Double.NaN)).as(field.name());
+                newColumns[i] = functions.coalesce(col, functions.lit(Doubles.ERROR_NA)).as(field.name());
                 isDatasetModified = true;
             } else {
                 newColumns[i] = col;

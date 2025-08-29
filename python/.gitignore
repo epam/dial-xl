@@ -1,0 +1,14 @@
+.venv/
+dist/
+.env
+.history
+.tmp*
+*.ans
+*.log
+.nox
+~*
+
+# Specific files
+assistant/Report.xlsx
+assistant/~$Report.xlsx
+assistant/.vscode/launch.json

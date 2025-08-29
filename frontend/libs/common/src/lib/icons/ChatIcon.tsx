@@ -1,0 +1,19 @@
+export const ChatIcon = () => {
+  return (
+    <svg
+      fill="none"
+      viewBox="0 0 18 19"
+      width="100%"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path
+        d="M6 7.25H12M6 10.25H10.5M6.75 14H4.5C3.90326 14 3.33097 13.7629 2.90901 13.341C2.48705 12.919 2.25 12.3467 2.25 11.75V5.75C2.25 5.15326 2.48705 4.58097 2.90901 4.15901C3.33097 3.73705 3.90326 3.5 4.5 3.5H13.5C14.0967 3.5 14.669 3.73705 15.091 4.15901C15.5129 4.58097 15.75 5.15326 15.75 5.75V11.75C15.75 12.3467 15.5129 12.919 15.091 13.341C14.669 13.7629 14.0967 14 13.5 14H11.25L9 16.25L6.75 14Z"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.5"
+        vectorEffect="non-scaling-stroke"
+      />
+    </svg>
+  );
+};

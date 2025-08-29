@@ -1,7 +1,12 @@
-const storageKey = 'recentProjects';
+import { dialProjectFileExtension, FilesMetadata } from '@frontend/common';
+
+const storageKey = 'recentProjectsItems';
 
 export type RecentProjects = {
-  [projectName: string]: {
+  [projectFullPath: string]: {
+    projectName: string;
+    projectBucket: string;
+    projectPath: string | null | undefined;
     sheetName: string;
     timestamp: number;
   };
@@ -9,49 +14,103 @@ export type RecentProjects = {
 
 export type RecentProject = {
   projectName: string;
+  projectBucket: string;
+  projectPath: string | null | undefined;
   sheetName: string;
   timestamp: number;
 };
 
-export const cleanUpRecentProjects = (projectList: string[]) => {
+export const cleanUpRecentProjects = (projectList: FilesMetadata[]) => {
   const recentProjects = getRecentProjectsData();
 
-  Object.keys(recentProjects).forEach((projectName) => {
-    if (!projectList.includes(projectName)) {
-      delete recentProjects[projectName];
+  Object.keys(recentProjects).forEach((fullProjectPath) => {
+    const recentProjectInStorage = projectList.find((project) => {
+      const fullItemPrePath = `${project.bucket}/${
+        project.parentPath ? project.parentPath + '/' : ''
+      }`;
+      const projectFullPath = fullItemPrePath + project.name;
+
+      return projectFullPath === fullProjectPath + dialProjectFileExtension;
+    });
+
+    if (!recentProjectInStorage) {
+      delete recentProjects[fullProjectPath];
     }
   });
 
   saveRecentProjects(recentProjects);
 };
 
-export const renameRecentProject = (
-  oldProjectName: string,
-  newProjectName: string
+export const deleteRecentProjectFromRecentProjects = (
+  projectName: string,
+  projectBucket: string,
+  projectPath: string | null | undefined
 ) => {
   const recentProjects = getRecentProjectsData();
+  const fullItemPrePath = `${projectBucket}/${
+    projectPath ? projectPath + '/' : ''
+  }`;
 
-  if (recentProjects[oldProjectName]) {
-    recentProjects[newProjectName] = recentProjects[oldProjectName];
-    recentProjects[newProjectName].timestamp = Date.now();
-    delete recentProjects[oldProjectName];
+  if (recentProjects[fullItemPrePath + projectName]) {
+    delete recentProjects[fullItemPrePath + projectName];
+  }
+
+  for (const key in recentProjects) {
+    const item = recentProjects[key];
+    if (
+      item?.projectName === projectName &&
+      item?.projectBucket === projectBucket &&
+      (item?.projectPath ?? null) === (projectPath ?? null)
+    ) {
+      delete recentProjects[key];
+    }
   }
 
   saveRecentProjects(recentProjects);
 };
 
-export const addRecentProject = (projectName: string, sheetName: string) => {
+export const renameRecentProject = (
+  oldProjectName: string,
+  newProjectName: string,
+  bucket: string,
+  path?: string | null
+) => {
   const recentProjects = getRecentProjectsData();
-  recentProjects[projectName] = {
+  const fullItemPrePath = `${bucket}/${path ? path + '/' : ''}`;
+
+  if (recentProjects[fullItemPrePath + oldProjectName]) {
+    recentProjects[fullItemPrePath + newProjectName] =
+      recentProjects[fullItemPrePath + oldProjectName];
+    recentProjects[fullItemPrePath + newProjectName].timestamp = Date.now();
+    delete recentProjects[fullItemPrePath + oldProjectName];
+  }
+
+  saveRecentProjects(recentProjects);
+};
+
+export const addRecentProject = (
+  sheetName: string,
+  projectName: string,
+  projectBucket: string,
+  projectPath: string | null | undefined
+) => {
+  const recentProjects = getRecentProjectsData();
+  const fullItemPrePath = `${projectBucket}/${
+    projectPath ? projectPath + '/' : ''
+  }`;
+  recentProjects[fullItemPrePath + projectName] = {
     sheetName,
     timestamp: Date.now(),
+    projectName,
+    projectBucket,
+    projectPath,
   };
 
   const sortedProjects = Object.keys(recentProjects).sort((a, b) => {
     return recentProjects[b].timestamp - recentProjects[a].timestamp;
   });
 
-  sortedProjects.slice(5).forEach((projectName) => {
+  sortedProjects.slice(10).forEach((projectName) => {
     delete recentProjects[projectName];
   });
 
@@ -65,11 +124,13 @@ export const getRecentProjects = (): RecentProject[] => {
     .sort((a, b) => {
       return recentProjects[b].timestamp - recentProjects[a].timestamp;
     })
-    .map((projectName) => {
-      const item = recentProjects[projectName];
+    .map((projectFullPath) => {
+      const item = recentProjects[projectFullPath];
 
       return {
-        projectName,
+        projectName: item.projectName,
+        projectBucket: item.projectBucket,
+        projectPath: item.projectPath,
         sheetName: item.sheetName,
         timestamp: item.timestamp,
       };
@@ -77,9 +138,13 @@ export const getRecentProjects = (): RecentProject[] => {
 };
 
 export const getRecentProjectsData = (): RecentProjects => {
-  const recentProjects = localStorage.getItem(storageKey);
+  try {
+    const recentProjects = localStorage.getItem(storageKey);
 
-  return recentProjects ? JSON.parse(recentProjects) : {};
+    return recentProjects ? JSON.parse(recentProjects) : {};
+  } catch {
+    return {};
+  }
 };
 
 const saveRecentProjects = (recentProjects: RecentProjects) => {

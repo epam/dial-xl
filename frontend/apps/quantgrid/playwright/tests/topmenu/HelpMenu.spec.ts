@@ -1,21 +1,36 @@
 /* eslint-disable playwright/expect-expect */
-import { expect, test } from '@playwright/test';
+import { BrowserContext, expect, Page, test } from '@playwright/test';
 
 import { ProjectPage } from '../../pages/ProjectPage';
 import { TestFixtures } from '../TestFixtures';
 
-const projectName = 'autotest_helpmenu';
+const projectName = TestFixtures.addGuid('autotest_helpmenu');
+
+let browserContext: BrowserContext;
+
+let page: Page;
+
+const storagePath = `playwright/${projectName}.json`;
 
 test.beforeAll(async ({ browser }) => {
-  await TestFixtures.createEmptyProject(browser, projectName);
+  await TestFixtures.createEmptyProject(storagePath, browser, projectName);
+  browserContext = await browser.newContext({ storageState: storagePath });
 });
 
-test.beforeEach(async ({ page }) => {
+test.beforeEach(async () => {
+  page = await browserContext.newPage();
   await TestFixtures.openProject(page, projectName);
 });
 
+test.afterEach(async () => {
+  await page.close();
+});
+
 test.afterAll(async ({ browser }) => {
+  await browserContext.close();
   await TestFixtures.deleteProject(browser, projectName);
 });
 
-test('check keyboard shortcuts in help menu', async ({ page }) => {});
+test.describe('help menu', () => {
+  test('check keyboard shortcuts in help menu', async () => {});
+});

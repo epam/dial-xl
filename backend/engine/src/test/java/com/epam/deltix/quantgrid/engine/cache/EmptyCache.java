@@ -33,4 +33,9 @@ public class EmptyCache implements Cache {
     @Override
     public void save(Identity id, Table value) {
     }
+
+    @Override
+    public Cache copy() {
+        return this;
+    }
 }

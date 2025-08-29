@@ -1,0 +1,4 @@
+name: date
+description: Constructs date from year, month and day numbers
+signature: 'date(year: number, month: number, day: number) => date'
+manual: Constructs date type from year, month and day `numbers`.

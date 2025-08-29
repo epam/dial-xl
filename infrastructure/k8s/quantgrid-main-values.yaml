@@ -1,0 +1,170 @@
+global:
+  imagePullSecrets:
+    - epm-rtc-registry-dev
+
+backendControl:
+  enabled: true
+  image:
+    registry: registry-dev.deltixhub.com
+    tag: main # Used tag from CI
+    pullPolicy: Always
+  args:
+    - server
+
+  podAnnotations:
+    autorestart: '{{ dateInZone "2023-01-02 15:04:05Z" (now) "UTC" }}'
+  env:
+    WEB_REDIS_ADDRESS: "[redis://quantgrid-redis-headless:6379]"
+    WEB_NODE_TYPE: CONTROL
+    WEB_SERVER_PORT: "8080"
+    SECURITY_ENABLED: "true"
+    JWKS_URI: https://dev-dial-keycloak.staging.deltixhub.io/realms/EPAM/protocol/openid-connect/certs
+    WEB_STORAGE_DIAL_ENABLED: "true"
+    WEB_STORAGE_DIAL_BASE_URL: "https://dev-dial-core.staging.deltixhub.io"
+
+  secret:
+    SOME_SECRET_ENV: secret_env
+
+  resources:
+    requests:
+      cpu: 1
+      memory: 1Gi
+    limits:
+      cpu: 2
+      memory: 2Gi
+
+  hpa:
+    enabled: true
+    minReplicas: 1
+    maxReplicas: 1
+
+  persistence:
+    size: 50Gi
+
+backendCompute:
+  enabled: true
+  image:
+    registry: registry-dev.deltixhub.com
+    tag: main # Used tag from CI
+    pullPolicy: Always
+  args:
+    - server
+
+  podAnnotations:
+    autorestart: '{{ dateInZone "2023-01-02 15:04:05Z" (now) "UTC" }}'
+  env:
+    WEB_REDIS_ADDRESS: "[redis://quantgrid-redis-headless:6379]"
+    WEB_NODE_TYPE: COMPUTE
+    WEB_SERVER_PORT: "10001"
+    SECURITY_ENABLED: "true"
+    JWKS_URI: https://dev-dial-keycloak.staging.deltixhub.io/realms/EPAM/protocol/openid-connect/certs
+    WEB_STORAGE_DIAL_ENABLED: "true"
+    WEB_STORAGE_DIAL_BASE_URL: "https://dev-dial-core.staging.deltixhub.io"
+    JAVA_OPTS: |
+      -server
+      -Djava.awt.headless=true
+      -Xms1600m
+      -Xmx2g
+      -XX:+AlwaysActAsServerClassMachine
+      -XX:+AlwaysPreTouch
+      -XX:+PerfDisableSharedMem
+      -XX:MaxTenuringThreshold=1
+      -Dnetworkaddress.cache.ttl=60s
+
+  secret:
+    SOME_SECRET_ENV: secret_env
+
+  resources:
+    requests:
+      cpu: 4
+      memory: 8Gi
+    limits:
+      cpu: 4
+      memory: 8Gi
+
+  hpa:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 3
+
+  persistence:
+    size: 50Gi
+
+frontend:
+  enabled: true
+  image:
+    registry: registry-dev.deltixhub.com
+    tag: main # Used tag from CI
+    pullPolicy: Always
+
+  podAnnotations:
+    autorestart: '{{ dateInZone "2023-01-02 15:04:05Z" (now) "UTC" }}'
+
+  config: |
+    const dialOverlayUrl = 'https://dev-dial-chat-overlay.staging.deltixhub.io/';
+    const authAuthority = 'https://dev-dial-keycloak.staging.deltixhub.io/realms/EPAM';
+    const authClientId = 'quantgrid';
+    const authProvider = 'keycloak';
+    const authScope = 'openid dial profile email offline_access';
+    const dialBaseUrl = 'https://dev-dial-core.staging.deltixhub.io';
+    const qgBotDeploymentName = 'qgbot';
+    const adminRoles = ['admin'];
+    const featureFlags = [];
+    const defaultPanelsSettings = {
+      chat: {
+        isActive: true,
+        position: 'left',
+      },
+      project: {
+        isActive: false,
+        position: 'right',
+      },
+      error: {
+        isActive: false,
+        position: 'right',
+      },
+      editor: {
+        isActive: false,
+        position: 'right',
+      },
+      undoRedo: {
+        isActive: false,
+        position: 'left',
+      },
+      details: {
+        isActive: false,
+        position: 'right',
+      },
+    };
+
+    const defaultLeftPanelSize = 550;
+    const defaultRightPanelSize = 550;
+
+ingress:
+  enabled: true
+  pathType: "Prefix"
+  path: "/"
+  ingressClassName: alb
+  annotations:
+    alb.ingress.kubernetes.io/scheme: "internet-facing"
+    alb.ingress.kubernetes.io/target-type: "ip"
+    alb.ingress.kubernetes.io/backend-protocol: "HTTP"
+    alb.ingress.kubernetes.io/healthcheck-path: "/health"
+    alb.ingress.kubernetes.io/healthcheck-protocol: "HTTP"
+    alb.ingress.kubernetes.io/healthcheck-timeout-seconds: "5"
+    alb.ingress.kubernetes.io/healthy-threshold-count: "2"
+    alb.ingress.kubernetes.io/target-group-attributes: "stickiness.enabled=true,stickiness.lb_cookie.duration_seconds=86400"
+    alb.ingress.kubernetes.io/load-balancer-attributes: "routing.http2.enabled=true,idle_timeout.timeout_seconds=600"
+    alb.ingress.kubernetes.io/listen-ports: '[{ "HTTP" : 80, "HTTPS" : 443 }]'
+    alb.ingress.kubernetes.io/ssl-policy: "ELBSecurityPolicy-TLS-1-2-Ext-2018-06"
+    alb.ingress.kubernetes.io/certificate-arn: "arn:aws:acm:eu-north-1:725751206603:certificate/373e8fd1-088e-4022-adf1-5f3e7820fb4a"
+    alb.ingress.kubernetes.io/ssl-redirect: "443"
+    alb.ingress.kubernetes.io/group.name: "allow-all-with-extended-timeout" # should be public as discussed with @AV
+  hosts:
+    - quantgrid-dev.staging.deltixhub.io
+
+redis:
+  image:
+    registry: public.ecr.aws
+    repository: bitnami/redis-cluster
+    tag: 7.4.2-debian-12-r4

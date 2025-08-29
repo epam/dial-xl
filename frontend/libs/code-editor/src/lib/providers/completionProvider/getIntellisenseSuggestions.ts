@@ -1,38 +1,158 @@
-import { CharStreams, ConsoleErrorListener } from 'antlr4ts';
+import { Token } from 'antlr4';
 
-import { FunctionInfo, ParsedSheets } from '@frontend/common';
-import { ParsedSheet, SheetLexer, SheetReader } from '@frontend/parser';
+import { compareTableNames, FunctionInfo } from '@frontend/common';
+import {
+  getTokens,
+  ParsedSheet,
+  ParsedSheets,
+  ParsedTable,
+  SheetReader,
+} from '@frontend/parser';
 
 import { editor, languages, Position } from '../../monaco';
-import { Suggestion } from '../../types';
+import { SortText, Suggestion } from '../../types';
 import {
   getAllTables,
+  getCurrentExpressionField,
   getCurrentExpressionTable,
   getCurrentInlineExpressionTable,
   getCurrentWord,
   getFieldAtExpression,
   getFields,
-  getFunctions,
+  getFunctionsSuggestions,
+  getPreviousCharacter,
   getTableAtPosition,
   getTables,
 } from './utils';
 
-export function getCodeEditorIntellisenseSuggestions(
-  model: editor.ITextModel,
-  position: Position,
-  context: languages.CompletionContext,
-  functions: FunctionInfo[],
-  parsedSheets: ParsedSheets
-): Suggestion[] {
+const sortSuggestions = ({
+  tables,
+  fields,
+  functions,
+  currentTableExpressionName,
+  currentFieldExpressionName,
+  cellTableName,
+  currentToken,
+}: {
+  tables: Suggestion[];
+  fields: Suggestion[];
+  functions: Suggestion[];
+  currentTableExpressionName?: string;
+  currentFieldExpressionName?: string;
+  cellTableName?: string;
+  currentToken?: Token | undefined;
+}): Suggestion[] => {
+  let isProbableDisplaying = false;
+  const mostUsedFunctionNames = [
+    'FILTER',
+    'SORT',
+    'SORTBY',
+    'UNIQUE',
+    'UNIQUEBY',
+  ];
+  let tableSuggestionsPriority = SortText.priority1;
+  let fieldSuggestionsPriority = SortText.priority2;
+  let functionsSuggestionsPriority = SortText.priority3;
+
+  if (currentTableExpressionName) {
+    if (
+      currentToken?.text === '.' ||
+      (currentToken && currentFieldExpressionName)
+    ) {
+      functionsSuggestionsPriority = SortText.priority1;
+      tableSuggestionsPriority = SortText.priority2;
+      fieldSuggestionsPriority = SortText.priority3;
+    }
+  } else {
+    isProbableDisplaying = true;
+
+    if (cellTableName) {
+      isProbableDisplaying = true;
+      fieldSuggestionsPriority = SortText.priority1;
+      functionsSuggestionsPriority = SortText.priority2;
+      tableSuggestionsPriority = SortText.priority3;
+    }
+  }
+
+  return [
+    isProbableDisplaying
+      ? [
+          fields.slice(0, 4).map((val) => ({
+            ...val,
+            sortText: SortText.priority1Probable,
+          })),
+          tables.slice(0, 4).map((val) => ({
+            ...val,
+            sortText: SortText.priority2Probable,
+          })),
+          functions
+            .filter((func) =>
+              mostUsedFunctionNames.includes(func.label.toString())
+            )
+            .map((val) => ({
+              ...val,
+              sortText: SortText.priority3Probable,
+            })),
+        ].flat()
+      : [],
+
+    tables.slice(isProbableDisplaying ? 4 : 0).map((val) => ({
+      ...val,
+      sortText:
+        val.sortText !== SortText.special
+          ? tableSuggestionsPriority
+          : SortText.special,
+    })),
+    functions
+      .filter(
+        (func) =>
+          !isProbableDisplaying ||
+          !mostUsedFunctionNames.includes(func.label.toString())
+      )
+      .map((val) => ({
+        ...val,
+        sortText:
+          val.sortText !== SortText.special
+            ? functionsSuggestionsPriority
+            : SortText.special,
+      })),
+    fields.slice(isProbableDisplaying ? 4 : 0).map((val) => ({
+      ...val,
+      sortText:
+        val.sortText !== SortText.special
+          ? fieldSuggestionsPriority
+          : SortText.special,
+    })),
+  ].flatMap((i) => i);
+};
+
+export function getCodeEditorIntellisenseSuggestions({
+  model,
+  position,
+  context,
+  functions,
+  parsedSheets,
+}: {
+  model: editor.ITextModel;
+  position: Position;
+  context: languages.CompletionContext;
+  functions: FunctionInfo[];
+  parsedSheets: ParsedSheets;
+}): Suggestion[] {
   const caretOffset = model.getOffsetAt(position);
   const currentWord = getCurrentWord(model, position, context.triggerCharacter);
-  const tokens = getTokens(model);
+  const tokens = getTokens(model.getValue());
   let parsedSheet: ParsedSheet | undefined;
+  const lineTokens = getTokens(model.getLineContent(position.lineNumber));
+  const currentToken = lineTokens.find(
+    (token) =>
+      token.start + 1 < position.column && token.stop + 1 >= position.column - 1
+  );
 
   try {
     parsedSheet = SheetReader.parseSheet(model.getValue());
   } catch (error) {
-    return [getFunctions('', functions)].flatMap((i) => i);
+    return [getFunctionsSuggestions('', model.id, functions)].flatMap((i) => i);
   }
 
   const previousCharacter = getPreviousCharacter(
@@ -66,26 +186,69 @@ export function getCodeEditorIntellisenseSuggestions(
     caretOffset,
     position.lineNumber
   );
+  const currentExpressionField = getCurrentExpressionField(
+    tokens,
+    currentExpressionTable
+  );
 
-  return currentField
-    ? [
-        getFunctions(previousCharacter, functions),
-        getTables(previousCharacter, parsedSheet, parsedSheets, currentTable),
-        getFields(previousCharacter, currentExpressionTable),
-      ].flatMap((i) => i)
-    : [getFunctions('', functions)].flatMap((i) => i);
+  const resultTables = currentField
+    ? getTables({
+        previousCharacter,
+        model,
+        position,
+        lastToken: currentToken,
+        parsedSheet,
+        parsedSheets,
+        currentTable,
+        currentExpressionTable,
+        currentExpressionField: currentField,
+      })
+    : [];
+  const resultFields = currentField
+    ? getFields({
+        model,
+        position,
+        lastToken: currentToken,
+        currentTable,
+        currentExpressionTable,
+      })
+    : [];
+  const resultFunctions = currentField
+    ? getFunctionsSuggestions(previousCharacter, model.id, functions)
+    : getFunctionsSuggestions('', model.id, functions);
+
+  return sortSuggestions({
+    tables: resultTables,
+    functions: resultFunctions,
+    fields: resultFields,
+    currentTableExpressionName: currentExpressionTable?.tableName,
+    currentFieldExpressionName: currentExpressionField?.key.fieldName,
+    currentToken,
+  });
 }
 
-export function getInlineIntellisenseSuggestions(
-  model: editor.ITextModel,
-  position: Position,
-  context: languages.CompletionContext,
-  functions: FunctionInfo[],
-  parsedSheets: ParsedSheets
-): Suggestion[] {
+export function getInlineIntellisenseSuggestions({
+  model,
+  position,
+  context,
+  functions,
+  parsedSheets,
+  currentTableName,
+}: {
+  model: editor.ITextModel;
+  position: Position;
+  context: languages.CompletionContext;
+  functions: FunctionInfo[];
+  parsedSheets: ParsedSheets;
+  currentTableName?: string;
+  currentFieldName?: string;
+}): Suggestion[] {
   const currentWord = getCurrentWord(model, position, context.triggerCharacter);
-  const tokens = getTokens(model);
-
+  const tokens = getTokens(model.getLineContent(position.lineNumber));
+  const currentToken = tokens.find(
+    (token) =>
+      token.start + 1 < position.column && token.stop + 1 >= position.column - 1
+  );
   const previousCharacter = getPreviousCharacter(
     model,
     position,
@@ -97,34 +260,60 @@ export function getInlineIntellisenseSuggestions(
     tokens,
     parsedSheets
   );
+  const currentExpressionField = getCurrentExpressionField(
+    tokens,
+    currentExpressionTable
+  );
 
-  return [
-    getFunctions(previousCharacter, functions),
-    getAllTables(previousCharacter, parsedSheets),
-    getFields(previousCharacter, currentExpressionTable),
-  ].flatMap((i) => i);
-}
+  let currentTable: ParsedTable | null = null;
 
-function getTokens(model: editor.ITextModel) {
-  const sheet = model.getValue();
-  const lexer = new SheetLexer(CharStreams.fromString(sheet));
-  lexer.removeErrorListener(ConsoleErrorListener.INSTANCE);
+  if (currentTableName) {
+    for (const sheet of Object.values(parsedSheets)) {
+      const table = sheet.tables.find((t) =>
+        compareTableNames(t.tableName, currentTableName)
+      );
 
-  return lexer.getAllTokens();
-}
+      if (table) {
+        currentTable = table;
+        break;
+      }
+    }
+  }
 
-function getPreviousCharacter(
-  model: editor.ITextModel,
-  position: Position,
-  context: languages.CompletionContext,
-  currentWord: editor.IWordAtPosition
-) {
-  return !context.triggerCharacter ||
-    (currentWord.word === '' && context.triggerCharacter === ' ')
-    ? model
-        .getValue()
-        .substring(0, model.getOffsetAt(position))
-        .trimEnd()
-        .slice(-1)
-    : context.triggerCharacter;
+  const resultFunctions = getFunctionsSuggestions(
+    previousCharacter,
+    model.id,
+    functions
+  );
+  const resultTables = getAllTables({
+    model,
+    position,
+    parsedSheets,
+    currentExpressionTable,
+    currentExpressionField,
+    lastToken: currentToken,
+  });
+  const resultFields = getFields({
+    currentTable,
+    currentExpressionTable,
+    isInlineEditor: true,
+    model,
+    position,
+    lastToken: currentToken,
+  });
+
+  const value = model.getValue();
+  if (!value.includes(':') && !value.includes('=')) {
+    return [];
+  }
+
+  return sortSuggestions({
+    tables: resultTables,
+    functions: resultFunctions,
+    fields: resultFields,
+    currentTableExpressionName: currentExpressionTable?.tableName,
+    currentFieldExpressionName: currentExpressionField?.key.fieldName,
+    cellTableName: currentTableName,
+    currentToken,
+  });
 }

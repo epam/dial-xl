@@ -1,0 +1,664 @@
+{
+  "name": "test",
+  "tables": [
+    {
+      "span": {
+        "sheet": "test",
+        "text": "table T1\n  [a] = 1\n\n\n  [b] = T1.SORTBY([b], [a]).UNIQUEBY([a], [b])     .FILTER(SUM([b]) MOD T1.COUNT() <> $[a])[f][g]\n  [c] = 2\n  [d] = 42\n",
+        "from": 0,
+        "to": 140
+      },
+      "name": {
+        "span": {
+          "sheet": "test",
+          "text": "T1",
+          "from": 6,
+          "to": 8
+        },
+        "text": "T1"
+      },
+      "fields": [
+        {
+          "span": {
+            "sheet": "test",
+            "text": "[a] = 1",
+            "from": 11,
+            "to": 18
+          },
+          "fields": [
+            {
+              "span": {
+                "sheet": "test",
+                "text": "[a]",
+                "from": 11,
+                "to": 14
+              },
+              "name": {
+                "span": {
+                  "sheet": "test",
+                  "text": "[a]",
+                  "from": 11,
+                  "to": 14
+                },
+                "text": "a"
+              },
+              "decorators": [],
+              "docs": []
+            }
+          ],
+          "formula": {
+            "number": 1.0,
+            "span": {
+              "sheet": "test",
+              "text": "1",
+              "from": 17,
+              "to": 18
+            },
+            "arguments": []
+          }
+        },
+        {
+          "span": {
+            "sheet": "test",
+            "text": "[b] = T1.SORTBY([b], [a]).UNIQUEBY([a], [b])     .FILTER(SUM([b]) MOD T1.COUNT() <> $[a])[f][g]",
+            "from": 23,
+            "to": 118
+          },
+          "fields": [
+            {
+              "span": {
+                "sheet": "test",
+                "text": "[b]",
+                "from": 23,
+                "to": 26
+              },
+              "name": {
+                "span": {
+                  "sheet": "test",
+                  "text": "[b]",
+                  "from": 23,
+                  "to": 26
+                },
+                "text": "b"
+              },
+              "decorators": [],
+              "docs": []
+            }
+          ],
+          "formula": {
+            "table": {
+              "table": {
+                "name": "FILTER",
+                "span": {
+                  "sheet": "test",
+                  "text": "T1.SORTBY([b], [a]).UNIQUEBY([a], [b])     .FILTER(SUM([b]) MOD T1.COUNT() <> $[a])",
+                  "from": 29,
+                  "to": 112
+                },
+                "arguments": [
+                  {
+                    "span": {
+                      "sheet": "test",
+                      "text": "T1.SORTBY([b], [a]).UNIQUEBY([a], [b])",
+                      "from": 29,
+                      "to": 67
+                    },
+                    "arguments": [
+                      {
+                        "span": {
+                          "sheet": "test",
+                          "text": "T1.SORTBY([b], [a])",
+                          "from": 29,
+                          "to": 48
+                        },
+                        "arguments": [
+                          {
+                            "span": {
+                              "sheet": "test",
+                              "text": "T1",
+                              "from": 29,
+                              "to": 31
+                            },
+                            "arguments": []
+                          },
+                          {
+                            "span": {
+                              "sheet": "test",
+                              "text": "[b]",
+                              "from": 39,
+                              "to": 42
+                            },
+                            "arguments": []
+                          },
+                          {
+                            "span": {
+                              "sheet": "test",
+                              "text": "[a]",
+                              "from": 44,
+                              "to": 47
+                            },
+                            "arguments": []
+                          }
+                        ]
+                      },
+                      {
+                        "span": {
+                          "sheet": "test",
+                          "text": "[a]",
+                          "from": 58,
+                          "to": 61
+                        },
+                        "arguments": []
+                      },
+                      {
+                        "span": {
+                          "sheet": "test",
+                          "text": "[b]",
+                          "from": 63,
+                          "to": 66
+                        },
+                        "arguments": []
+                      }
+                    ]
+                  },
+                  {
+                    "span": {
+                      "sheet": "test",
+                      "text": "SUM([b]) MOD T1.COUNT() <> $[a]",
+                      "from": 80,
+                      "to": 111
+                    },
+                    "arguments": [
+                      {
+                        "span": {
+                          "sheet": "test",
+                          "text": "SUM([b]) MOD T1.COUNT()",
+                          "from": 80,
+                          "to": 103
+                        },
+                        "arguments": [
+                          {
+                            "span": {
+                              "sheet": "test",
+                              "text": "SUM([b])",
+                              "from": 80,
+                              "to": 88
+                            },
+                            "arguments": [
+                              {
+                                "span": {
+                                  "sheet": "test",
+                                  "text": "[b]",
+                                  "from": 84,
+                                  "to": 87
+                                },
+                                "arguments": []
+                              }
+                            ]
+                          },
+                          {
+                            "span": {
+                              "sheet": "test",
+                              "text": "T1.COUNT()",
+                              "from": 93,
+                              "to": 103
+                            },
+                            "arguments": [
+                              {
+                                "span": {
+                                  "sheet": "test",
+                                  "text": "T1",
+                                  "from": 93,
+                                  "to": 95
+                                },
+                                "arguments": []
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "span": {
+                          "sheet": "test",
+                          "text": "$[a]",
+                          "from": 107,
+                          "to": 111
+                        },
+                        "arguments": [
+                          {
+                            "span": {
+                              "sheet": "test",
+                              "text": "$",
+                              "from": 107,
+                              "to": 108
+                            },
+                            "arguments": []
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              "field": "f",
+              "span": {
+                "sheet": "test",
+                "text": "T1.SORTBY([b], [a]).UNIQUEBY([a], [b])     .FILTER(SUM([b]) MOD T1.COUNT() <> $[a])[f]",
+                "from": 29,
+                "to": 115
+              },
+              "arguments": [
+                {
+                  "span": {
+                    "sheet": "test",
+                    "text": "T1.SORTBY([b], [a]).UNIQUEBY([a], [b])     .FILTER(SUM([b]) MOD T1.COUNT() <> $[a])",
+                    "from": 29,
+                    "to": 112
+                  },
+                  "arguments": [
+                    {
+                      "span": {
+                        "sheet": "test",
+                        "text": "T1.SORTBY([b], [a]).UNIQUEBY([a], [b])",
+                        "from": 29,
+                        "to": 67
+                      },
+                      "arguments": [
+                        {
+                          "span": {
+                            "sheet": "test",
+                            "text": "T1.SORTBY([b], [a])",
+                            "from": 29,
+                            "to": 48
+                          },
+                          "arguments": [
+                            {
+                              "span": {
+                                "sheet": "test",
+                                "text": "T1",
+                                "from": 29,
+                                "to": 31
+                              },
+                              "arguments": []
+                            },
+                            {
+                              "span": {
+                                "sheet": "test",
+                                "text": "[b]",
+                                "from": 39,
+                                "to": 42
+                              },
+                              "arguments": []
+                            },
+                            {
+                              "span": {
+                                "sheet": "test",
+                                "text": "[a]",
+                                "from": 44,
+                                "to": 47
+                              },
+                              "arguments": []
+                            }
+                          ]
+                        },
+                        {
+                          "span": {
+                            "sheet": "test",
+                            "text": "[a]",
+                            "from": 58,
+                            "to": 61
+                          },
+                          "arguments": []
+                        },
+                        {
+                          "span": {
+                            "sheet": "test",
+                            "text": "[b]",
+                            "from": 63,
+                            "to": 66
+                          },
+                          "arguments": []
+                        }
+                      ]
+                    },
+                    {
+                      "span": {
+                        "sheet": "test",
+                        "text": "SUM([b]) MOD T1.COUNT() <> $[a]",
+                        "from": 80,
+                        "to": 111
+                      },
+                      "arguments": [
+                        {
+                          "span": {
+                            "sheet": "test",
+                            "text": "SUM([b]) MOD T1.COUNT()",
+                            "from": 80,
+                            "to": 103
+                          },
+                          "arguments": [
+                            {
+                              "span": {
+                                "sheet": "test",
+                                "text": "SUM([b])",
+                                "from": 80,
+                                "to": 88
+                              },
+                              "arguments": [
+                                {
+                                  "span": {
+                                    "sheet": "test",
+                                    "text": "[b]",
+                                    "from": 84,
+                                    "to": 87
+                                  },
+                                  "arguments": []
+                                }
+                              ]
+                            },
+                            {
+                              "span": {
+                                "sheet": "test",
+                                "text": "T1.COUNT()",
+                                "from": 93,
+                                "to": 103
+                              },
+                              "arguments": [
+                                {
+                                  "span": {
+                                    "sheet": "test",
+                                    "text": "T1",
+                                    "from": 93,
+                                    "to": 95
+                                  },
+                                  "arguments": []
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "span": {
+                            "sheet": "test",
+                            "text": "$[a]",
+                            "from": 107,
+                            "to": 111
+                          },
+                          "arguments": [
+                            {
+                              "span": {
+                                "sheet": "test",
+                                "text": "$",
+                                "from": 107,
+                                "to": 108
+                              },
+                              "arguments": []
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            "field": "g",
+            "span": {
+              "sheet": "test",
+              "text": "T1.SORTBY([b], [a]).UNIQUEBY([a], [b])     .FILTER(SUM([b]) MOD T1.COUNT() <> $[a])[f][g]",
+              "from": 29,
+              "to": 118
+            },
+            "arguments": [
+              {
+                "span": {
+                  "sheet": "test",
+                  "text": "T1.SORTBY([b], [a]).UNIQUEBY([a], [b])     .FILTER(SUM([b]) MOD T1.COUNT() <> $[a])[f]",
+                  "from": 29,
+                  "to": 115
+                },
+                "arguments": [
+                  {
+                    "span": {
+                      "sheet": "test",
+                      "text": "T1.SORTBY([b], [a]).UNIQUEBY([a], [b])     .FILTER(SUM([b]) MOD T1.COUNT() <> $[a])",
+                      "from": 29,
+                      "to": 112
+                    },
+                    "arguments": [
+                      {
+                        "span": {
+                          "sheet": "test",
+                          "text": "T1.SORTBY([b], [a]).UNIQUEBY([a], [b])",
+                          "from": 29,
+                          "to": 67
+                        },
+                        "arguments": [
+                          {
+                            "span": {
+                              "sheet": "test",
+                              "text": "T1.SORTBY([b], [a])",
+                              "from": 29,
+                              "to": 48
+                            },
+                            "arguments": [
+                              {
+                                "span": {
+                                  "sheet": "test",
+                                  "text": "T1",
+                                  "from": 29,
+                                  "to": 31
+                                },
+                                "arguments": []
+                              },
+                              {
+                                "span": {
+                                  "sheet": "test",
+                                  "text": "[b]",
+                                  "from": 39,
+                                  "to": 42
+                                },
+                                "arguments": []
+                              },
+                              {
+                                "span": {
+                                  "sheet": "test",
+                                  "text": "[a]",
+                                  "from": 44,
+                                  "to": 47
+                                },
+                                "arguments": []
+                              }
+                            ]
+                          },
+                          {
+                            "span": {
+                              "sheet": "test",
+                              "text": "[a]",
+                              "from": 58,
+                              "to": 61
+                            },
+                            "arguments": []
+                          },
+                          {
+                            "span": {
+                              "sheet": "test",
+                              "text": "[b]",
+                              "from": 63,
+                              "to": 66
+                            },
+                            "arguments": []
+                          }
+                        ]
+                      },
+                      {
+                        "span": {
+                          "sheet": "test",
+                          "text": "SUM([b]) MOD T1.COUNT() <> $[a]",
+                          "from": 80,
+                          "to": 111
+                        },
+                        "arguments": [
+                          {
+                            "span": {
+                              "sheet": "test",
+                              "text": "SUM([b]) MOD T1.COUNT()",
+                              "from": 80,
+                              "to": 103
+                            },
+                            "arguments": [
+                              {
+                                "span": {
+                                  "sheet": "test",
+                                  "text": "SUM([b])",
+                                  "from": 80,
+                                  "to": 88
+                                },
+                                "arguments": [
+                                  {
+                                    "span": {
+                                      "sheet": "test",
+                                      "text": "[b]",
+                                      "from": 84,
+                                      "to": 87
+                                    },
+                                    "arguments": []
+                                  }
+                                ]
+                              },
+                              {
+                                "span": {
+                                  "sheet": "test",
+                                  "text": "T1.COUNT()",
+                                  "from": 93,
+                                  "to": 103
+                                },
+                                "arguments": [
+                                  {
+                                    "span": {
+                                      "sheet": "test",
+                                      "text": "T1",
+                                      "from": 93,
+                                      "to": 95
+                                    },
+                                    "arguments": []
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "span": {
+                              "sheet": "test",
+                              "text": "$[a]",
+                              "from": 107,
+                              "to": 111
+                            },
+                            "arguments": [
+                              {
+                                "span": {
+                                  "sheet": "test",
+                                  "text": "$",
+                                  "from": 107,
+                                  "to": 108
+                                },
+                                "arguments": []
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "span": {
+            "sheet": "test",
+            "text": "[c] = 2",
+            "from": 121,
+            "to": 128
+          },
+          "fields": [
+            {
+              "span": {
+                "sheet": "test",
+                "text": "[c]",
+                "from": 121,
+                "to": 124
+              },
+              "name": {
+                "span": {
+                  "sheet": "test",
+                  "text": "[c]",
+                  "from": 121,
+                  "to": 124
+                },
+                "text": "c"
+              },
+              "decorators": [],
+              "docs": []
+            }
+          ],
+          "formula": {
+            "number": 2.0,
+            "span": {
+              "sheet": "test",
+              "text": "2",
+              "from": 127,
+              "to": 128
+            },
+            "arguments": []
+          }
+        },
+        {
+          "span": {
+            "sheet": "test",
+            "text": "[d] = 42",
+            "from": 131,
+            "to": 139
+          },
+          "fields": [
+            {
+              "span": {
+                "sheet": "test",
+                "text": "[d]",
+                "from": 131,
+                "to": 134
+              },
+              "name": {
+                "span": {
+                  "sheet": "test",
+                  "text": "[d]",
+                  "from": 131,
+                  "to": 134
+                },
+                "text": "d"
+              },
+              "decorators": [],
+              "docs": []
+            }
+          ],
+          "formula": {
+            "number": 42.0,
+            "span": {
+              "sheet": "test",
+              "text": "42",
+              "from": 137,
+              "to": 139
+            },
+            "arguments": []
+          }
+        }
+      ],
+      "decorators": [],
+      "docs": [],
+      "totals": []
+    }
+  ],
+  "pythons": [],
+  "errors": []
+}

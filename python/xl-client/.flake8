@@ -1,0 +1,19 @@
+[flake8]
+# E501 string literal is too long
+# W503 line break before binary operator
+# E203 whitespace before ':' (triggered on list slices like xs[i : i + 5])
+# E701 / E704 (https://black.readthedocs.io/en/stable/guides/using_black_with_other_tools.html#e701-e704)
+ignore = E501, W503, E203, E701, E704
+max-line-length = 88
+exclude =
+    .git,
+    .tmp,
+    .venv,
+    .conda,
+    .nox,
+    __pycache__,
+    __init__.py,
+    temporary,
+    quantgrid/python/xl/antlr,
+    quantgrid_2a/pseudo/generated,
+    quantgrid/resources

@@ -4,6 +4,8 @@ import com.epam.deltix.quantgrid.engine.node.expression.Expression;
 import com.epam.deltix.quantgrid.engine.value.Column;
 import com.epam.deltix.quantgrid.engine.value.DoubleColumn;
 import com.epam.deltix.quantgrid.engine.value.StringColumn;
+import com.epam.deltix.quantgrid.util.Doubles;
+import com.epam.deltix.quantgrid.util.Strings;
 import it.unimi.dsi.fastutil.longs.LongComparator;
 
 import java.util.List;
@@ -42,20 +44,29 @@ public class TableComparator implements LongComparator {
         return 0;
     }
 
-    private static int compare(double left, double right, boolean ascending) {
-        boolean isLeftNa = Double.isNaN(left);
-        boolean isRightNa = Double.isNaN(right);
+    public static int compare(double left, double right, boolean ascending) {
+        if (Doubles.isError(left)) {
+            return Doubles.isError(right) ? 0 : 1;
+        }
 
-        if (isLeftNa && isRightNa) {
+        if (Doubles.isError(right) /*&& !Doubles.isError(left)*/) {
+            return -1;
+        }
+
+        if (Doubles.isEmpty(left) && Doubles.isEmpty(right)) {
             return 0;
         }
 
-        if (isLeftNa) {
+        if (Doubles.isEmpty(left) /*&& !Doubles.isEmpty(right)*/) {
             return 1;
         }
 
-        if (isRightNa) {
+        if (/*!Doubles.isEmpty(left) &&*/ Doubles.isEmpty(right)) {
             return -1;
+        }
+
+        if (left == right) {
+            return 0; // -0.0 == 0.0 -> true
         }
 
         int result = Double.compare(left, right);
@@ -63,11 +74,11 @@ public class TableComparator implements LongComparator {
     }
 
     private static int compare(String left, String right, boolean ascending) {
-        if (left == null) {
-            return 1;
+        if (Strings.isError(left)) {
+            return Strings.isError(right) ? 0 : 1;
         }
 
-        if (right == null) {
+        if (Strings.isError(right)) {
             return -1;
         }
 

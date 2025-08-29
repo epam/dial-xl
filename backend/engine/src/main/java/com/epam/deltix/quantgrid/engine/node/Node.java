@@ -30,6 +30,8 @@ public abstract class Node implements Cloneable {
     protected Set<Node> outputs = new LinkedHashSet<>();
     @Getter
     protected Set<Identity> identities = new HashSet<>();
+    @Getter
+    protected Set<Trace> traces = new HashSet<>();
 
     protected Node(Node... inputs) {
         this.inputs = new ArrayList<>(inputs.length);
@@ -47,6 +49,7 @@ public abstract class Node implements Cloneable {
     public final Plan getLayout() {
         if (layout == null) {
             layout = Objects.requireNonNull(layout());
+            Util.verify(layout == layout.getLayout());
         }
 
         return layout;
@@ -107,7 +110,11 @@ public abstract class Node implements Cloneable {
     }
 
     public Node copy(List<Node> inputs) {
-        return clone(inputs, true);
+        return copy(inputs, true);
+    }
+
+    public Node copy(List<Node> inputs, boolean withIdentity) {
+        return clone(inputs, withIdentity);
     }
 
     /**
@@ -125,6 +132,7 @@ public abstract class Node implements Cloneable {
             clone.inputs = new ArrayList<>(inputs);
             clone.outputs = new LinkedHashSet<>();
             clone.identities = withIdentity ? new HashSet<>(identities) : new HashSet<>();
+            clone.traces = new HashSet<>(traces);
             clone.invalidate();
 
             return clone;

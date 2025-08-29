@@ -1,4 +1,11 @@
+import { Button } from 'antd';
 import cx from 'classnames';
+
+import {
+  defaultTabClasses,
+  notSelectedTabClasses,
+  selectedTabClasses,
+} from '@frontend/common';
 
 type Props = {
   selected?: boolean;
@@ -8,16 +15,15 @@ type Props = {
 
 export function SearchFilter({ selected, filterName, onClick }: Props) {
   return (
-    <div
+    <Button
       className={cx(
-        'px-2 py-1 select-none hover:bg-slate-200 cursor-pointer rounded-lg mr-2',
-        {
-          'bg-slate-300': selected,
-        }
+        'h-[30px] text-[13px] px-3 mr-2',
+        defaultTabClasses,
+        selected ? selectedTabClasses : notSelectedTabClasses
       )}
       onClick={onClick}
     >
       {filterName}
-    </div>
+    </Button>
   );
 }

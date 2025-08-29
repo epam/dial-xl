@@ -1,7 +1,7 @@
 {
   "extends": [
     "plugin:playwright/recommended",
-    "plugin:@nrwl/nx/react",
+    "plugin:@nx/react",
     "../../.eslintrc.json"
   ],
   "ignorePatterns": ["!**/*", "external-env.js"],
@@ -20,7 +20,10 @@
     },
     {
       "files": ["playwright/**/*.{ts,js,tsx,jsx}"],
-      "rules": {}
+      "rules": {
+        "@typescript-eslint/no-unused-vars": "off",
+        "playwright/no-conditional-in-test": "off"
+      }
     }
   ]
 }

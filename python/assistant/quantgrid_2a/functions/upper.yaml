@@ -1,0 +1,5 @@
+name: upper
+description: Return the upper case of text
+signature: 'string.upper() => string'
+manual: >-
+  Returns string as upper-cased.

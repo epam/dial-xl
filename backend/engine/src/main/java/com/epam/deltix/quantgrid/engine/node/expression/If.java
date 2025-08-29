@@ -8,6 +8,7 @@ import com.epam.deltix.quantgrid.engine.value.local.DoubleLambdaColumn;
 import com.epam.deltix.quantgrid.engine.value.local.PeriodSeriesLambdaColumn;
 import com.epam.deltix.quantgrid.engine.value.local.StringLambdaColumn;
 import com.epam.deltix.quantgrid.type.ColumnType;
+import com.epam.deltix.quantgrid.util.Doubles;
 
 public class If extends Expression3<DoubleColumn, Column, Column, Column> {
 
@@ -17,26 +18,50 @@ public class If extends Expression3<DoubleColumn, Column, Column, Column> {
 
     @Override
     public ColumnType getType() {
-        return ColumnType.closest(expression(1).getType(), expression(2).getType());
+        return expression(1).getType();
     }
 
     @Override
     protected Column evaluate(DoubleColumn condition, Column left, Column right) {
         if (left instanceof DoubleColumn lefts && right instanceof DoubleColumn rights) {
             return new DoubleLambdaColumn(
-                    index -> isTrue(condition.get(index)) ? lefts.get(index) : rights.get(index),
+                    index -> {
+                        double value = condition.get(index);
+
+                        if (Doubles.isError(value)) {
+                            return value;
+                        }
+
+                        return isTrue(value) ? lefts.get(index) : rights.get(index);
+                    },
                     left.size());
         }
 
         if (left instanceof StringColumn lefts && right instanceof StringColumn rights) {
             return new StringLambdaColumn(
-                    index -> isTrue(condition.get(index)) ? lefts.get(index) : rights.get(index),
+                    index -> {
+                        double value = condition.get(index);
+
+                        if (Doubles.isError(value)) {
+                            return Doubles.toStringError(value);
+                        }
+
+                        return isTrue(value) ? lefts.get(index) : rights.get(index);
+                    },
                     left.size());
         }
 
         if (left instanceof PeriodSeriesColumn lefts && right instanceof PeriodSeriesColumn rights) {
             return new PeriodSeriesLambdaColumn(
-                    index -> isTrue(condition.get(index)) ? lefts.get(index) : rights.get(index),
+                    index -> {
+                        double value = condition.get(index);
+
+                        if (Doubles.isError(value)) {
+                            return null;
+                        }
+
+                        return isTrue(value) ? lefts.get(index) : rights.get(index);
+                    },
                     left.size());
         }
 
@@ -44,6 +69,6 @@ public class If extends Expression3<DoubleColumn, Column, Column, Column> {
     }
 
     public static boolean isTrue(double value) {
-        return !Double.isNaN(value) && value != 0.0;
+        return Doubles.isValue(value) && value != 0.0;
     }
 }

@@ -3,15 +3,20 @@ import { useContext, useEffect, useState } from 'react';
 import {
   EventTypeColumnResize,
   EventTypeColumnResizeDbClick,
+  EventTypeResetCurrentColumnSizes,
   filterByTypeAndCast,
   GridEvent,
-} from '@frontend/spreadsheet';
+} from '@frontend/canvas-spreadsheet';
+import { CachedViewport } from '@frontend/common';
 
-import { CachedViewport } from '../common';
-import { AppContext, ProjectContext, SpreadsheetContext } from '../context';
+import { AppContext, ProjectContext } from '../context';
+import { useGridApi } from './useGridApi';
+
+const maxColumnAutoWidth = 1000;
+const minColumnAutoWidth = 50;
 
 export function useColumnSizes(viewport: CachedViewport) {
-  const { gridApi, gridService } = useContext(SpreadsheetContext);
+  const gridApi = useGridApi();
   const { projectName, sheetName } = useContext(ProjectContext);
   const { zoom } = useContext(AppContext);
 
@@ -33,10 +38,12 @@ export function useColumnSizes(viewport: CachedViewport) {
         const sheetColumnWidths =
           columnWidths[projectName + '/' + sheetName] || {};
 
-        sheetColumnWidths[column.id] = Math.floor(width / zoom);
+        sheetColumnWidths[column] = Math.floor(width / zoom);
         columnWidths[projectName + '/' + sheetName] = sheetColumnWidths;
 
         localStorage.setItem('columnWidths', JSON.stringify(columnWidths));
+
+        setColumnSizes(sheetColumnWidths);
       });
 
     return () => {
@@ -54,17 +61,15 @@ export function useColumnSizes(viewport: CachedViewport) {
         )
       )
       .subscribe((event) => {
-        if (!gridService) return;
-
         gridApi.clearSelection();
 
         const { column } = event;
 
-        const col = +column.id;
+        const col = +column;
 
         const { startRow, endRow } = viewport;
 
-        const maxSymbols = gridService.getColumnContentMaxSymbols(
+        const maxSymbols = gridApi.getColumnContentMaxSymbols(
           col,
           startRow,
           endRow
@@ -77,7 +82,13 @@ export function useColumnSizes(viewport: CachedViewport) {
         const sheetColumnWidths =
           columnWidths[projectName + '/' + sheetName] || {};
 
-        sheetColumnWidths[column.id] = maxSymbols * 8;
+        const symbolWidth = gridApi.getCanvasSymbolWidth();
+        const paddingOffset = 2 * symbolWidth;
+
+        sheetColumnWidths[column] = Math.max(
+          minColumnAutoWidth,
+          Math.min(maxColumnAutoWidth, maxSymbols * symbolWidth + paddingOffset)
+        );
 
         columnWidths[projectName + '/' + sheetName] = sheetColumnWidths;
 
@@ -89,7 +100,34 @@ export function useColumnSizes(viewport: CachedViewport) {
     return () => {
       columnResizeDbClickSubscription.unsubscribe();
     };
-  }, [gridApi, gridService, projectName, sheetName, viewport, zoom]);
+  }, [gridApi, projectName, sheetName, viewport, zoom]);
+
+  useEffect(() => {
+    if (!gridApi || !projectName || !sheetName) return;
+
+    const resetColumnSizesSubscription = gridApi.events$
+      .pipe(
+        filterByTypeAndCast<EventTypeResetCurrentColumnSizes>(
+          GridEvent.resetCurrentColumnSizes
+        )
+      )
+      .subscribe(() => {
+        gridApi.clearSelection();
+
+        const columnWidths: Record<string, Record<string, number>> = JSON.parse(
+          localStorage.getItem('columnWidths') || '{}'
+        );
+
+        columnWidths[projectName + '/' + sheetName] = {};
+
+        localStorage.setItem('columnWidths', JSON.stringify(columnWidths));
+        setColumnSizes({});
+      });
+
+    return () => {
+      resetColumnSizesSubscription.unsubscribe();
+    };
+  }, [gridApi, projectName, sheetName, viewport, zoom]);
 
   useEffect(() => {
     if (!projectName || !sheetName) {

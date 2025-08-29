@@ -14,10 +14,14 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.concurrent.CancellationException;
 
 
 @NotSemantic
 public abstract class Plan extends Node {
+
+    private static final long CHECK_CANCEL_STEP = 4096;
+    private static final long CHECK_CANCEL_MASK = CHECK_CANCEL_STEP - 1;
 
     @Getter
     protected final int planCount;
@@ -70,6 +74,10 @@ public abstract class Plan extends Node {
         return inputs.size() - planCount;
     }
 
+    public final int expressionCount(int sourceIndex) {
+        return groupCount[sourceIndex];
+    }
+
     protected final Expression expression(int sourceIndex) {
         int start = groupStart[sourceIndex];
         int size = groupCount[sourceIndex];
@@ -77,7 +85,7 @@ public abstract class Plan extends Node {
         return (Expression) inputs.get(start);
     }
 
-    protected final Expression expression(int sourceIndex, int elementIndex) {
+    public final Expression expression(int sourceIndex, int elementIndex) {
         int start = groupStart[sourceIndex];
         int size = groupCount[sourceIndex];
         Util.verify(size > 0 && elementIndex < size);
@@ -154,15 +162,32 @@ public abstract class Plan extends Node {
         return (Plan) super.copy(inputs);
     }
 
+    @Override
+    public Plan copy(List<Node> inputs, boolean withIdentity) {
+        return (Plan) super.copy(inputs, withIdentity);
+    }
+
+    protected void checkCancel(long row) {
+        if ((row & CHECK_CANCEL_MASK) == 0) {
+            checkCancel();
+        }
+    }
+
+    protected void checkCancel() {
+        if (Thread.interrupted()) {
+            throw new CancellationException("Plan: " + this + " has been canceled");
+        }
+    }
+
     protected static Source sourceOf(Plan plan) {
         return new Source(plan, List.of());
     }
 
-    protected static Source sourceOf(Plan plan, Expression... expressions) {
+    public static Source sourceOf(Plan plan, Expression... expressions) {
         return new Source(plan, List.of(expressions));
     }
 
-    protected static Source sourceOf(Plan plan, List<Expression> expressions) {
+    public static Source sourceOf(Plan plan, List<Expression> expressions) {
         return new Source(plan, expressions);
     }
 

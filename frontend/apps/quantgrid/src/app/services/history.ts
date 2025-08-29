@@ -1,5 +1,10 @@
-const maxHistoryDepth = 100;
-const storageKey = 'projectHistory';
+import { FilesMetadata } from '@frontend/common';
+
+export const maxHistoryDepth = 50;
+
+const storageKey = 'projectHistoryItems';
+
+export const initialHistoryTitle = 'Local history starts here';
 
 export type UndoRedoHistory = {
   [projectName: string]: UndoRedoHistoryState[];
@@ -7,24 +12,38 @@ export type UndoRedoHistory = {
 
 export type UndoRedoHistoryState = {
   title: string;
-  sheetName: string;
   time: number;
-  dsl: string;
+  sheetsState: Record<string, string>;
 };
+
+// We migrated to another key with another structure, so we need to clear old key
+function cleanOldProjectHistory() {
+  const oldStorageKey = 'projectHistory';
+
+  localStorage.removeItem(oldStorageKey);
+}
 
 export function clearProjectHistory(
   projectName: string,
-  sheetName: string,
-  dsl?: string
+  bucket: string,
+  path: string | null | undefined,
+  newSheetsState?: Record<string, string>
 ) {
-  const history = getHistory();
+  cleanOldProjectHistory();
 
-  if (projectName in history) {
-    if (!dsl) {
-      delete history[projectName];
+  const history = getHistory();
+  const fullItemPrePath = `${bucket}/${path ? path + '/' : ''}`;
+
+  if (fullItemPrePath + projectName in history) {
+    if (!newSheetsState) {
+      delete history[fullItemPrePath + projectName];
     } else {
-      history[projectName] = [
-        { title: 'Initial', time: Date.now(), dsl, sheetName },
+      history[fullItemPrePath + projectName] = [
+        {
+          title: initialHistoryTitle,
+          time: Date.now(),
+          sheetsState: newSheetsState,
+        },
       ];
     }
 
@@ -35,6 +54,8 @@ export function clearProjectHistory(
 }
 
 export function getHistory() {
+  cleanOldProjectHistory();
+
   const historyStr = localStorage.getItem(storageKey);
 
   if (!historyStr) {
@@ -48,75 +69,72 @@ export function getHistory() {
   return history;
 }
 
-export function getProjectHistory(projectName: string): UndoRedoHistoryState[] {
-  const history: UndoRedoHistory = getHistory();
+export function getProjectHistory(
+  projectName: string,
+  bucket: string,
+  path: string | undefined | null
+): UndoRedoHistoryState[] {
+  cleanOldProjectHistory();
 
-  if (!(projectName in history)) {
-    history[projectName] = [];
+  const history: UndoRedoHistory = getHistory();
+  const fullItemPrePath = `${bucket}/${path ? path + '/' : ''}`;
+
+  if (!(fullItemPrePath + projectName in history)) {
+    history[fullItemPrePath + projectName] = [];
 
     localStorage.setItem(storageKey, JSON.stringify(history));
 
     return [];
   }
 
-  return history[projectName];
+  return history[fullItemPrePath + projectName];
 }
 
 export function renameProjectHistory(
   oldProjectName: string,
-  newProjectName: string
+  newProjectName: string,
+  bucket: string,
+  path: string | null | undefined
 ) {
+  cleanOldProjectHistory();
+
   const history = getHistory();
-  history[newProjectName] = history[oldProjectName];
-  delete history[oldProjectName];
+  const fullItemPrePath = `${bucket}/${path ? path + '/' : ''}`;
+
+  history[fullItemPrePath + newProjectName] =
+    history[fullItemPrePath + oldProjectName];
+  delete history[fullItemPrePath + oldProjectName];
   localStorage.setItem(storageKey, JSON.stringify(history));
 }
 
-export function deleteProjectHistory(projectName: string) {
-  const history = getHistory();
-  delete history[projectName];
-  localStorage.setItem(storageKey, JSON.stringify(history));
-}
-
-export function renameSheetHistory(
+export function deleteProjectHistory(
   projectName: string,
-  oldSheetName: string,
-  newSheetName: string
+  bucket: string,
+  path: string | null | undefined
 ) {
-  const history = getProjectHistory(projectName);
+  cleanOldProjectHistory();
 
-  history.forEach((historyItem) => {
-    if (historyItem.sheetName === oldSheetName) {
-      historyItem.sheetName = newSheetName;
-    }
-  });
-
-  saveProjectHistory(projectName, history);
-}
-
-export function deleteSheetHistory(projectName: string, sheetName: string) {
-  let history = getProjectHistory(projectName);
-
-  history = history.filter(
-    (historyItem) => historyItem.sheetName !== sheetName
-  );
-
-  saveProjectHistory(projectName, history);
-
-  return;
+  const fullItemPrePath = `${bucket}/${path ? path + '/' : ''}`;
+  const history = getHistory();
+  delete history[fullItemPrePath + projectName];
+  localStorage.setItem(storageKey, JSON.stringify(history));
 }
 
 export function saveProjectHistory(
+  history: UndoRedoHistoryState[],
   projectName: string,
-  history: UndoRedoHistoryState[]
+  bucket: string,
+  path: string | undefined | null
 ) {
+  cleanOldProjectHistory();
   const historyStr = localStorage.getItem(storageKey);
+  const fullItemPrePath = `${bucket}/${path ? path + '/' : ''}`;
 
   if (!historyStr) {
     localStorage.setItem(
       storageKey,
       JSON.stringify({
-        [projectName]: history,
+        [fullItemPrePath + projectName]: history,
       })
     );
 
@@ -125,53 +143,183 @@ export function saveProjectHistory(
 
   const historyObj: UndoRedoHistory = JSON.parse(historyStr);
 
-  historyObj[projectName] = history;
+  historyObj[fullItemPrePath + projectName] = history;
 
-  localStorage.setItem(storageKey, JSON.stringify(historyObj));
+  try {
+    localStorage.setItem(storageKey, JSON.stringify(historyObj));
+  } catch (error) {
+    if (isQuotaExceededError(error)) {
+      let attempts = 0;
+      const maxAttempts = 10;
+      let success = false;
+
+      while (attempts < maxAttempts) {
+        removeOldestHistoryItems(historyObj);
+
+        try {
+          localStorage.setItem(storageKey, JSON.stringify(historyObj));
+          success = true;
+          break;
+        } catch (anotherAttemptError) {
+          if (!isQuotaExceededError(anotherAttemptError)) {
+            break;
+          }
+        }
+        attempts++;
+      }
+
+      if (!success) {
+        // eslint-disable-next-line
+        console.error(`Could not save history after ${attempts} attempts.`);
+      }
+    } else {
+      // eslint-disable-next-line
+      console.error(error);
+    }
+  }
 
   return;
 }
 
-export function appendToProjectHistory(
-  projectName: string,
-  sheetName: string,
-  title: string,
-  dsl: string,
-  isUpdate = false
-) {
-  let history = getProjectHistory(projectName);
+export function cleanUpProjectHistory(projectList?: FilesMetadata[]) {
+  cleanOldProjectHistory();
+
+  const history = getHistory();
+  const currentDate = new Date();
+  const days15 = 1296000000;
+  const oneMonthAgo = currentDate.setMonth(currentDate.getMonth() - 1) + days15;
+
+  Object.keys(history).forEach((fullProjectPath) => {
+    if (projectList) {
+      const isInProjectList = projectList.some((project) => {
+        const fullItemPrePath = `${project.bucket}/${
+          project.parentPath ? project.parentPath + '/' : ''
+        }`;
+        const projectFullPath = fullItemPrePath + project.name;
+
+        return projectFullPath === fullProjectPath;
+      });
+
+      if (!isInProjectList) {
+        delete history[fullProjectPath];
+
+        return;
+      }
+    }
+
+    const latestItem = history[fullProjectPath].at(-1);
+    if (latestItem && latestItem.time < oneMonthAgo) {
+      delete history[fullProjectPath];
+    }
+  });
+
+  localStorage.setItem(storageKey, JSON.stringify(history));
+}
+
+export function appendToProjectHistory({
+  title,
+  sheetsState,
+  projectName,
+  bucket,
+  path,
+  isUpdate = false,
+}: {
+  title: string;
+  sheetsState: Record<string, string>;
+  projectName: string;
+  bucket: string;
+  path: string | undefined | null;
+  isUpdate?: boolean;
+  isTemporary?: boolean;
+}) {
+  cleanOldProjectHistory();
+
+  let history = getProjectHistory(projectName, bucket, path);
 
   if (isUpdate) {
-    history[history.length - 1] = { title, time: Date.now(), dsl, sheetName };
+    history[history.length - 1] = {
+      title,
+      time: Date.now(),
+      sheetsState,
+    };
 
-    saveProjectHistory(projectName, history);
+    saveProjectHistory(history, projectName, bucket, path);
 
     return;
   }
 
-  history.push({ title, time: Date.now(), dsl, sheetName });
+  history.push({ title, time: Date.now(), sheetsState });
 
   if (history.length > maxHistoryDepth) {
     history = history.slice(history.length - maxHistoryDepth);
   }
 
-  saveProjectHistory(projectName, history);
+  saveProjectHistory(history, projectName, bucket, path);
 
   return;
 }
 
-export function removeLastProjectHistoryElement(projectName: string) {
-  const history = getProjectHistory(projectName);
+export function removeLastProjectHistoryElement(
+  projectName: string,
+  bucket: string,
+  path: string | undefined | null
+) {
+  cleanOldProjectHistory();
+
+  const history = getProjectHistory(projectName, bucket, path);
 
   history.pop();
 
-  saveProjectHistory(projectName, history);
+  saveProjectHistory(history, projectName, bucket, path);
 
-  return history.length && history[history.length - 1];
+  if (!history.length) return undefined;
+
+  return history[history.length - 1];
 }
 
-export function getLastProjectHistoryDsl(projectName: string) {
-  const history = getProjectHistory(projectName);
+export function removeOldestHistoryItems(
+  historyObj: UndoRedoHistory,
+  count = 5
+) {
+  const allEntries: Array<{ fullProjectPath: string; time: number }> = [];
 
-  return history.length && history[history.length - 1].dsl;
+  for (const fullProjectPath in historyObj) {
+    const entries = historyObj[fullProjectPath];
+    if (Array.isArray(entries)) {
+      for (const entry of entries) {
+        if (entry && entry.time !== undefined) {
+          allEntries.push({ fullProjectPath, time: entry.time });
+        }
+      }
+    }
+  }
+
+  allEntries.sort((a, b) => a.time - b.time);
+
+  const toRemove = allEntries.slice(0, count);
+
+  for (const item of toRemove) {
+    const projectEntries = historyObj[item.fullProjectPath];
+    if (!projectEntries) continue;
+
+    const index = projectEntries.findIndex((e) => e.time === item.time);
+    if (index !== -1) {
+      projectEntries.splice(index, 1);
+
+      if (projectEntries.length === 0) {
+        delete historyObj[item.fullProjectPath];
+      }
+    }
+  }
+}
+
+function isQuotaExceededError(error: unknown): boolean {
+  if (error instanceof DOMException) {
+    return (
+      error.name === 'QuotaExceededError' ||
+      error.name === 'NS_ERROR_DOM_QUOTA_REACHED'
+    );
+  }
+
+  return false;
 }

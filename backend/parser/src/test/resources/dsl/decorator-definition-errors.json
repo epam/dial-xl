@@ -1,0 +1,253 @@
+{
+  "name": "test",
+  "tables": [
+    {
+      "span": {
+        "sheet": "test",
+        "text": "!placement(1,\n!placement(2,2)\ntable t1\n",
+        "from": 0,
+        "to": 39
+      },
+      "name": {
+        "span": {
+          "sheet": "test",
+          "text": "t1",
+          "from": 36,
+          "to": 38
+        },
+        "text": "t1"
+      },
+      "fields": [],
+      "decorators": [
+        {
+          "span": {
+            "sheet": "test",
+            "text": "!placement(2,2)\n",
+            "from": 14,
+            "to": 30
+          },
+          "name": {
+            "span": {
+              "sheet": "test",
+              "text": "placement",
+              "from": 15,
+              "to": 24
+            },
+            "text": "placement"
+          },
+          "params": [
+            {
+              "span": {
+                "sheet": "test",
+                "text": "2",
+                "from": 25,
+                "to": 26
+              },
+              "value": 2.0
+            },
+            {
+              "span": {
+                "sheet": "test",
+                "text": "2",
+                "from": 27,
+                "to": 28
+              },
+              "value": 2.0
+            }
+          ]
+        }
+      ],
+      "docs": [],
+      "totals": []
+    },
+    {
+      "span": {
+        "sheet": "test",
+        "text": "!asd\n  key [a] = 1 + 2\n  !format(\"#.##\")\n  dim [c] = 5\n\n!placement(1,1)\ntable t2\n    !format(\"number\")\n    [x] = 5\n",
+        "from": 41,
+        "to": 156
+      },
+      "name": {
+        "span": {
+          "sheet": "test",
+          "text": "t2",
+          "from": 119,
+          "to": 121
+        },
+        "text": "t2"
+      },
+      "fields": [
+        {
+          "span": {
+            "sheet": "test",
+            "text": "!format(\"number\")\n    [x] = 5",
+            "from": 126,
+            "to": 155
+          },
+          "fields": [
+            {
+              "span": {
+                "sheet": "test",
+                "text": "!",
+                "from": 126,
+                "to": 127
+              },
+              "name": {
+                "span": {
+                  "sheet": "test",
+                  "text": "[x]",
+                  "from": 148,
+                  "to": 151
+                },
+                "text": "x"
+              },
+              "decorators": [
+                {
+                  "span": {
+                    "sheet": "test",
+                    "text": "!format(\"number\")\n",
+                    "from": 126,
+                    "to": 144
+                  },
+                  "name": {
+                    "span": {
+                      "sheet": "test",
+                      "text": "format",
+                      "from": 127,
+                      "to": 133
+                    },
+                    "text": "format"
+                  },
+                  "params": [
+                    {
+                      "span": {
+                        "sheet": "test",
+                        "text": "\"number\"",
+                        "from": 134,
+                        "to": 142
+                      },
+                      "value": "number"
+                    }
+                  ]
+                }
+              ],
+              "docs": []
+            }
+          ],
+          "formula": {
+            "number": 5.0,
+            "span": {
+              "sheet": "test",
+              "text": "5",
+              "from": 154,
+              "to": 155
+            },
+            "arguments": []
+          }
+        }
+      ],
+      "decorators": [
+        {
+          "span": {
+            "sheet": "test",
+            "text": "\n  !format(\"#.##\")\n",
+            "from": 63,
+            "to": 82
+          },
+          "name": {
+            "span": {
+              "sheet": "test",
+              "text": "format",
+              "from": 67,
+              "to": 73
+            },
+            "text": "format"
+          },
+          "params": [
+            {
+              "span": {
+                "sheet": "test",
+                "text": "\"#.##\"",
+                "from": 74,
+                "to": 80
+              },
+              "value": "#.##"
+            }
+          ]
+        },
+        {
+          "span": {
+            "sheet": "test",
+            "text": "\n\n!placement(1,1)\n",
+            "from": 95,
+            "to": 113
+          },
+          "name": {
+            "span": {
+              "sheet": "test",
+              "text": "placement",
+              "from": 98,
+              "to": 107
+            },
+            "text": "placement"
+          },
+          "params": [
+            {
+              "span": {
+                "sheet": "test",
+                "text": "1",
+                "from": 108,
+                "to": 109
+              },
+              "value": 1.0
+            },
+            {
+              "span": {
+                "sheet": "test",
+                "text": "1",
+                "from": 110,
+                "to": 111
+              },
+              "value": 1.0
+            }
+          ]
+        }
+      ],
+      "docs": [],
+      "totals": []
+    }
+  ],
+  "pythons": [],
+  "errors": [
+    {
+      "line": 2,
+      "position": 1,
+      "message": "mismatched input '!' expecting {'-', FLOAT, STRING_LITERAL}"
+    },
+    {
+      "line": 5,
+      "position": 3,
+      "message": "mismatched input 'key' expecting {'(', LINE_BREAK}"
+    },
+    {
+      "line": 7,
+      "position": 3,
+      "message": "extraneous input 'dim' expecting {'!', 'table', LINE_BREAK}"
+    },
+    {
+      "line": 14,
+      "position": 5,
+      "message": "mismatched input '[c]' expecting {'(', LINE_BREAK}"
+    },
+    {
+      "line": 15,
+      "position": 1,
+      "message": "mismatched input '<EOF>' expecting {'(', LINE_BREAK}"
+    },
+    {
+      "line": 13,
+      "position": 5,
+      "message": "Missing table name"
+    }
+  ]
+}

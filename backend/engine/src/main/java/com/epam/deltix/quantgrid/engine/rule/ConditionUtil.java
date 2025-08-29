@@ -5,7 +5,10 @@ import com.epam.deltix.quantgrid.engine.node.expression.BinaryOperator;
 import com.epam.deltix.quantgrid.engine.node.expression.Expand;
 import com.epam.deltix.quantgrid.engine.node.expression.Expression;
 import com.epam.deltix.quantgrid.engine.node.expression.Get;
+import com.epam.deltix.quantgrid.engine.node.expression.RowNumber;
 import com.epam.deltix.quantgrid.engine.node.plan.Plan;
+import com.epam.deltix.quantgrid.engine.node.plan.local.Projection;
+import com.epam.deltix.quantgrid.engine.node.plan.local.SelectLocal;
 import com.epam.deltix.quantgrid.parser.ast.BinaryOperation;
 import it.unimi.dsi.fastutil.ints.Int2IntFunction;
 import lombok.experimental.UtilityClass;
@@ -35,83 +38,97 @@ public class ConditionUtil {
             int m = (l + r) / 2;
             Expression a = assembleCondition(conditions, l, m);
             Expression b = assembleCondition(conditions, m + 1, r);
-            return new BinaryOperator(a, b, BinaryOperation.ADD);
+            return new BinaryOperator(a, b, BinaryOperation.AND);
         }
     }
 
     /**
      * Clone expression providing initial mapping from the original to the new source,
-     * e.g. {@code Get(originalSource, 4) -> Get(newSource, 1)}
+     * e.g. {@code Get(original, 4) -> Get(replacement, 1)}
      */
-    public Expression cloneExpressionAndConnectToSource(
-            Expression currentNode,
-            Plan originalSource,
-            Plan newSource,
-            Map<Node, Node> clonedExpressions) {
-        return (Expression) cloneExpressionAndConnectToSource(
-                currentNode, originalSource, newSource, clonedExpressions, Int2IntFunction.identity());
+    public Expression reconnectExpressions(
+            Expression node,
+            Plan original,
+            Plan replacement,
+            Map<Node, Node> expressions) {
+        return (Expression) reconnectExpressions(node, original, replacement, expressions, Int2IntFunction.identity());
     }
 
     /**
      * Clone expression providing {@link Get} mapping from an original to a new index in the source,
-     * e.g. Map(4 -> 1) means that Get(originalSource, 4) will be replaced with Get(newSource, 1).
+     * e.g. Map(4 -> 1) means that Get(original, 4) will be replaced with Get(newSource, 1).
      */
-    public Expression cloneExpressionAndConnectToSource(
-            Expression currentNode,
-            Plan originalSource,
-            Plan newSource,
+    public Expression reconnectExpressions(
+            Expression node,
+            Plan original,
+            Plan replacement,
             Int2IntFunction mapping) {
-        return (Expression) cloneExpressionAndConnectToSource(
-                currentNode, originalSource, newSource, new HashMap<>(), mapping);
+        return (Expression) reconnectExpressions(node, original, replacement, new HashMap<>(), mapping);
     }
 
     /**
-     * Clones expression subgraph starting at {@code currentNode} by reconnecting all its inputs from
-     * an {@code originalSource} to a {@code newSource} plan.
+     * Clones expression subgraph starting at {@code node} by reconnecting all its inputs from
+     * an {@code original} to a {@code replacement} plan.
      *
-     * @param currentNode expression root
-     * @param originalSource source node to reconnect from
-     * @param newSource target node to reconnect to
-     * @param clonedExpressions output map of cloned nodes used to avoid cloning same node twice
+     * @param node expression root
+     * @param original source node to reconnect from
+     * @param replacement target node to reconnect to
+     * @param expressions output map of cloned nodes used to avoid cloning same node twice
      * @param mapping might be used to remap Get expressions from original to new source
-     * @return cloned expression root, or original {@code currentNode} if there is nothing to reconnect
+     * @return cloned expression root, or original {@code node} if there is nothing to reconnect
      */
-    private Node cloneExpressionAndConnectToSource(
-            Node currentNode,
-            Plan originalSource,
-            Plan newSource,
-            Map<Node, Node> clonedExpressions,
+    private Node reconnectExpressions(
+            Node node,
+            Plan original,
+            Plan replacement,
+            Map<Node, Node> expressions,
             Int2IntFunction mapping) {
 
-        Node currentClone = clonedExpressions.get(currentNode);
-        if (currentClone != null) {
-            return currentClone;
+        Node clone = expressions.get(node);
+        if (clone != null) {
+            return clone;
         }
 
-        if (currentNode == originalSource) {
-            currentClone = newSource;
-        } else if (currentNode instanceof Plan) {
-            return currentNode;
-        } else if (currentNode instanceof Get get && get.plan() == originalSource) {
-            int newSourceColumn = mapping.get(get.getColumn());
-            currentClone = new Get(newSource, newSourceColumn);
-        } else if (currentNode instanceof Expand expand) {
-            currentClone = new Expand(newSource, expand.getScalar());
-        } else {
-            boolean isSame = true;
-            List<Node> clonedFanIns = new ArrayList<>(currentNode.getInputs().size());
-            for (Node in : currentNode.getInputs()) {
-                Node clone = cloneExpressionAndConnectToSource(
-                        in, originalSource, newSource, clonedExpressions, mapping);
+        if (node == original) {
+            clone = replacement;
+        } else if (node instanceof Plan) {
+            return node;
+        } else if (node instanceof Get get) {
+            while (true) {
+                if (get.plan() == original) {
+                    int newSourceColumn = mapping.get(get.getColumn());
+                    clone = new Get(replacement, newSourceColumn);
+                    break;
+                }
 
-                isSame &= (clone == in);
-                clonedFanIns.add(clone);
+                if (get.plan() instanceof SelectLocal select && select.getExpression(get.getColumn()) instanceof Get next) {
+                    get = next;
+                    continue;
+                }
+
+                throw new IllegalStateException("Cannot reconnect: Get");
             }
-
-            currentClone = isSame ? currentNode : currentNode.copy(clonedFanIns);
+        } else if (node instanceof Expand expand) {
+            clone = new Expand(replacement, expand.getScalar());
+        } else if (node instanceof Projection projection) {
+             Expression key = (Expression) reconnectExpressions(projection.getKey() ,original, replacement,
+                     expressions, mapping);
+            clone = new Projection(key, projection.getValue());
+        } else if (node instanceof RowNumber){
+            throw new IllegalArgumentException("Cannot reconnect: RowNumber");
+        } else {
+            List<Node> clonedIns = new ArrayList<>(node.getInputs().size());
+            for (Node in : node.getInputs()) {
+                Node copy = reconnectExpressions(in, original, replacement, expressions, mapping);
+                if (in == copy) {
+                    throw new IllegalStateException("Cannot reconnect: " + in.getClass().getSimpleName());
+                }
+                clonedIns.add(copy);
+            }
+            clone = node.copy(clonedIns, false);
         }
 
-        clonedExpressions.put(currentNode, currentClone);
-        return currentClone;
+        expressions.put(node, clone);
+        return clone;
     }
 }

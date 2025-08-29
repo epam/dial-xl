@@ -17,3 +17,9 @@
 *.bat   text eol=crlf
 gradlew text eol=lf
 *.service text eol=lf
+
+# DIAL XL
+python/assistant/dial_xl/* filter=lfs diff=lfs merge=lfs -text
+
+# Embeddings models
+embedding_models/** filter=lfs diff=lfs merge=lfs -text

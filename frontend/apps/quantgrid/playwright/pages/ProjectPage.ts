@@ -1,5 +1,8 @@
 import { expect, Page } from '@playwright/test';
 
+import { WorkArea } from '../components/abstractions/WorkArea';
+import { Chat } from '../components/Chat';
+import { ChatPanel } from '../components/ChatPanel';
 import { Editor } from '../components/Editor';
 import { EditorPanel } from '../components/EditorPanel';
 import { ErrorsPanel } from '../components/ErrorsPanel';
@@ -9,22 +12,47 @@ import { InputsPanel } from '../components/InputsPanel';
 import { ProjectTree } from '../components/ProjectTree';
 import { TopMenu } from '../components/TopMenu';
 import { Panels } from '../enums/Panels';
+import { TestFixtures } from '../tests/TestFixtures';
+
+const authType = process.env['AUTH_TYPE'];
 
 export class ProjectPage {
   // private dslEditors = 'div[data-mode-id="quant-dsl"]>div';
 
-  private codeEditor = 'div[data-mode-id="code-editor"]>div';
+  //private codeEditor = 'div[data-mode-id="code-editor"]>div';
 
   private editorText = 'Editor';
 
+  private openEditorPanel =
+    '[data-panel="editor"][data-qa="collapsed-panel-button"]';
+
   private monacoEditor = 'div.monaco-editor';
 
-  private formulaValue = '[data-uri*="model/1"] .view-lines span>span';
+  private chatButton = '#toggleDialChatButton';
+
+  private formulaValue =
+    'div[data-mode-id="formula-bar"] .view-lines>.view-line';
 
   private projectInProjectsTree = (projectName: string) =>
     `span[title="${projectName}"]`;
 
-  private projectTitle = 'div.project-title>span.font-bold';
+  private projectTitle = '#projectNameTitle';
+
+  private formulaMenu = ".formula-bar-menu [role='img']";
+
+  private formulaEditorLocator =
+    '[data-mode-id="formula-bar"]>div.monaco-editor';
+
+  private formatSelector = 'div.ant-dropdown-trigger:has(span.text-sm)';
+
+  private formatLabel = (formatLabel: string) =>
+    `button[data-label='${formatLabel}']`;
+
+  private formulaEditorMode = 'div#formula+div>div>span[role="img"]';
+
+  private formulaMode = '[data-label="Formula mode"]';
+
+  private valueMode = '[data-label="Value mode"]';
 
   private innerPage: Page;
 
@@ -32,7 +60,7 @@ export class ProjectPage {
 
   private formulaBar: Editor;
 
-  private grid: Grid;
+  private grid: WorkArea;
 
   private menu: TopMenu;
 
@@ -46,12 +74,20 @@ export class ProjectPage {
 
   private errors: ErrorsPanel;
 
-  public getGrid() {
+  private chatPanel: ChatPanel;
+
+  private chat: Chat;
+
+  public getVisualization() {
     return this.grid;
   }
 
   public getEditor() {
     return this.editor.getEditor();
+  }
+
+  public getFormulaEditor() {
+    return this.formulaBar;
   }
 
   constructor(page: Page) {
@@ -64,18 +100,22 @@ export class ProjectPage {
 
   public static async createInstance(page: Page) {
     const projectPage = new ProjectPage(page);
-    await projectPage.openEditor();
     projectPage.formulaBar = new Editor(
       page,
-      page.locator(projectPage.monacoEditor).first()
+      page.locator(projectPage.formulaEditorLocator)
     );
-    projectPage.grid = new Grid(page);
+    projectPage.grid = TestFixtures.getVisualComponent(page);
     projectPage.menu = new TopMenu(page);
     projectPage.projectTree = new ProjectTree(page);
     projectPage.inputs = new InputsPanel(page);
     projectPage.errors = new ErrorsPanel(page);
     projectPage.history = new HistoryPanel(page);
     projectPage.editor = new EditorPanel(page);
+    projectPage.chat = new Chat(page);
+    projectPage.chatPanel = new ChatPanel(page);
+    // await projectPage.chat.waitForChat();
+    await projectPage.openEditor();
+    await projectPage.getEditor().focus();
 
     return projectPage;
   }
@@ -84,72 +124,92 @@ export class ProjectPage {
     const projectPage = new ProjectPage(page);
     projectPage.formulaBar = new Editor(
       page,
-      page.locator(projectPage.monacoEditor).first()
+      page.locator(projectPage.formulaEditorLocator)
     );
-    projectPage.grid = new Grid(page);
+    projectPage.grid = TestFixtures.getVisualComponent(page);
     projectPage.menu = new TopMenu(page);
     projectPage.projectTree = new ProjectTree(page);
     projectPage.inputs = new InputsPanel(page);
     projectPage.errors = new ErrorsPanel(page);
     projectPage.history = new HistoryPanel(page);
     projectPage.editor = new EditorPanel(page);
-    await projectPage.grid.waitGridVisible();
+    projectPage.chat = new Chat(page);
+    projectPage.chatPanel = new ChatPanel(page);
+    await projectPage.grid.waitForComponentLoaded();
 
     return projectPage;
   }
 
+  public async selectFormat(formatName: string) {
+    await this.innerPage.locator(this.formatSelector).click();
+    await this.innerPage.locator(this.formatLabel(formatName)).click();
+  }
+
+  public async selectFormatWithSubItem(formatName: string, itemName: string) {
+    await this.innerPage.locator(this.formatSelector).click();
+    await expect(
+      this.innerPage.locator(this.formatLabel(formatName))
+    ).toBeVisible();
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    await this.innerPage.locator(this.formatLabel(formatName)).hover();
+    await expect(
+      this.innerPage.locator(this.formatLabel(itemName))
+    ).toBeVisible();
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    await this.innerPage.locator(this.formatLabel(itemName)).click();
+  }
+
   public async openEditor() {
-    let visible = false,
-      i = 0;
-    const retries = 20,
-      interval = 200;
-    while (i < retries && !visible) {
-      visible = await this.innerPage.locator(this.codeEditor).isVisible();
-      new Promise((resolve) => setTimeout(resolve, interval));
-      i++;
-    }
-    if (!visible) {
-      await this.innerPage.getByText(this.editorText, { exact: true }).click();
+    /*  await expect(
+      this.innerPage.getByText(this.editorText, { exact: true })
+    ).toBeVisible();*/
+    await expect(this.innerPage.locator(this.openEditorPanel)).toBeVisible();
+    if (!(await this.editor.isVisible())) {
+      await this.innerPage.locator(this.openEditorPanel).click();
     }
   }
 
-  public addDSL = async (dsl: string) => this.getEditor().applyDSL(dsl);
+  public addDSL = async (dsl: string) => await this.getEditor().applyDSL(dsl);
 
   public getFormula() {
     return this.innerPage.locator(this.formulaValue);
   }
 
   public sendKeysFormulaValue = async (formula: string) =>
-    this.formulaBar.setValueWithoutClean(formula);
+    await this.formulaBar.setValueWithoutClean(formula);
 
-  public setFormula = async (formula: string, count: number) => {
-    this.formulaBar.setValue(formula, count);
-  };
+  public async setFormula(formula: string, count: number) {
+    await this.formulaBar.setValue(formula, count);
+  }
 
-  public cancelFormulaChange = async (formula: string) =>
-    this.formulaBar.setValueAndCancel(formula);
+  public async cancelFormulaChange(formula: string) {
+    await this.formulaBar.setValueAndCancel(formula);
+  }
 
-  public typeInFormulaBar = async (formula: string) => {
-    this.formulaBar.typeValue(formula);
-  };
+  public async typeInFormulaBar(formula: string) {
+    await this.formulaBar.typeValue(formula);
+  }
 
-  public getCellText = (row: number, column: number) =>
-    this.grid.getCellTableText(row, column);
+  public async getCellText(row: number, column: number) {
+    return await this.grid.getCellTableText(row, column);
+  }
 
-  public projectShouldBeInProjectsTree = async (projectName: string) =>
-    expect(this.projectTree.getTreeNode(projectName)).toBeVisible();
+  public async projectShouldBeInProjectsTree(projectName: string) {
+    await expect(this.projectTree.getTreeNode(projectName)).toBeVisible();
+  }
 
-  public projectShouldNotBeInProjectsTree = async (projectName: string) =>
-    expect(this.projectTree.getTreeNode(projectName)).toBeHidden();
+  public async projectShouldNotBeInProjectsTree(projectName: string) {
+    await expect(this.projectTree.getTreeNode(projectName)).toBeHidden();
+  }
 
-  public clickOnItemInProjectsTree = async (projectName: string) => {
-    this.projectTree.getTreeNode(projectName).click();
-  };
+  public async clickOnItemInProjectsTree(projectName: string) {
+    await this.projectTree.getTreeNode(projectName).click();
+  }
 
   public titleShouldContainProjectName = async (projectName: string) =>
-    expect(this.innerPage.locator(this.projectTitle).first()).toContainText(
-      projectName
-    );
+    await expect(
+      this.innerPage.locator(this.projectTitle).first()
+    ).toContainText(projectName);
 
   public assertGridDimensions = async (
     expectedRowsCount: number,
@@ -186,6 +246,11 @@ export class ProjectPage {
     await this.editor.closePanel();
     await this.history.closePanel();
     await this.errors.closePanel();
+    await this.chatPanel.closePanel();
+  }
+
+  public async showProjectPanel() {
+    await this.projectTree.showPanel();
   }
 
   private getPanelByName(panelName: Panels) {
@@ -200,6 +265,8 @@ export class ProjectPage {
         return this.history;
       case Panels.InputsPanel:
         return this.inputs;
+      case Panels.ChatPanel:
+        return this.chatPanel;
       default:
         return null;
     }
@@ -207,9 +274,41 @@ export class ProjectPage {
 
   public async expectPanelToBeVisible(panelName: Panels) {
     await this.getPanelByName(panelName)?.shouldBeVisible();
+    await new Promise((resolve) => setTimeout(resolve, 200));
   }
 
   public async expectPanelToBeHidden(panelName: Panels) {
     await this.getPanelByName(panelName)?.shouldBeHidden();
+    await new Promise((resolve) => setTimeout(resolve, 200));
+  }
+
+  public async expectLastHistoryRecord(text: string) {
+    const exp = new RegExp(text, 'g');
+    await expect(this.history.getHistoryItems().first()).toHaveAttribute(
+      'title',
+      exp
+    );
+  }
+
+  public async openFormulasList() {
+    await this.innerPage.locator(this.formulaMenu).click();
+  }
+
+  public async openChat() {
+    await this.hideAllPanels();
+    await this.innerPage.keyboard.press('Alt+5');
+    if (authType === 'auth0') {
+      await this.chat.asyncLoginAuth0();
+    }
+  }
+
+  public async switchToFormulaMode() {
+    await this.innerPage.locator(this.formulaEditorMode).click();
+    await this.innerPage.locator(this.formulaMode).click();
+  }
+
+  public async switchToValueMode() {
+    await this.innerPage.locator(this.formulaEditorMode).click();
+    await this.innerPage.locator(this.valueMode).click();
   }
 }

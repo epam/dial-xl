@@ -2,32 +2,51 @@ import { Argument, FunctionInfo } from '@frontend/common';
 
 import { languages } from '../../monaco';
 
-const getFunctionDefinition = (name: string, args: Argument[]): string => {
+const getFunctionDefinition = (
+  name: string,
+  args: Argument[],
+  isMethodInvocation: boolean
+): string => {
+  if (isMethodInvocation && args.length > 0) {
+    const [firstArg, ...restArgs] = args;
+
+    return `${firstArg.name}.${name}(${restArgs
+      .map((arg) => arg.name)
+      .join(', ')})`;
+  }
+
   return `${name}(${args.map((arg) => arg.name).join(', ')})`;
 };
 
 const getFunctionDescription = (description: string): string => {
-  return `**Function Description**\n${description}`;
+  return `${description}`;
 };
 
 const getArgumentDocs = (arg: Argument): string => {
-  const optional = arg.optional ? '*Optional*\n' : '';
-  const repeatable = arg.repeatable ? '*Repeatable*\n' : '';
-  const title = '**Parameter Description**\n';
+  const optional = arg.optional ? '*Optional*' : '';
+  const repeatable = arg.repeatable ? '*Repeatable*' : '';
 
-  return `${optional}${repeatable}${title}${arg.description}`;
+  const modificators = [optional, repeatable].filter(Boolean).join(', ');
+
+  const description = `**${arg.name}**\n${arg.description}`;
+
+  return `${modificators ? `${modificators}\n` : ''}${description}`;
 };
 
 export const getFunctionSignature = (
-  functionInfo: FunctionInfo
+  functionInfo: FunctionInfo,
+  isMethodInvocation = false
 ): languages.SignatureInformation => {
   const replaceNewlines = (content: string): string =>
     content.replaceAll('\n', '\\\n');
 
-  const { arguments: args, description, name } = functionInfo;
+  const { arguments: allArgs, description, name } = functionInfo;
+  const args = isMethodInvocation ? allArgs.slice(1) : allArgs;
 
   return {
-    label: replaceNewlines(getFunctionDefinition(name, args)),
+    label: replaceNewlines(
+      getFunctionDefinition(name, allArgs, isMethodInvocation)
+    ),
     documentation: {
       value: replaceNewlines(getFunctionDescription(description)),
     },

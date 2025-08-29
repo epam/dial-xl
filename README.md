@@ -1,4 +1,4 @@
-# DAIL-XL
+# QuantGrid
 
 ## Documentation
 

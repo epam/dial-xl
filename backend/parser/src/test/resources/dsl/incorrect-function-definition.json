@@ -1,0 +1,36 @@
+{
+  "name": "test",
+  "tables": [
+    {
+      "span": {
+        "sheet": "test",
+        "text": "table T2\n  [a] = FUNC(T1 T1 T1)\n",
+        "from": 0,
+        "to": 32
+      },
+      "name": {
+        "span": {
+          "sheet": "test",
+          "text": "T2",
+          "from": 6,
+          "to": 8
+        },
+        "text": "T2"
+      },
+      "fields": [],
+      "decorators": [],
+      "docs": [],
+      "totals": []
+    }
+  ],
+  "pythons": [],
+  "errors": [
+    {
+      "line": 2,
+      "position": 17,
+      "message": "mismatched input 'T1' expecting {',', ')'}",
+      "tableName": "T2",
+      "fieldName": "a"
+    }
+  ]
+}

@@ -1,0 +1,40 @@
+image:
+  pullPolicy: Always
+  registry: registry-test.deltixhub.com
+  repository: deltix.docker/quantgrid/qgbot
+  # tag: development # should be specified in .gitlab-ci.yml as --set variable
+  pullSecrets:
+    - epm-rtc-registry-test
+
+podAnnotations:
+  autorestart: '{{ dateInZone "2006-01-02 15:04:05Z" (now) "UTC" }}'
+
+containerSecurityContext:
+  runAsUser: 1001
+
+podSecurityContext:
+  fsGroup: 1001
+
+serviceAccount:
+  create: false
+
+env:
+  DIAL_URL: "http://dial-{{ .Values.global.mergeid }}-core"
+  QG_URL: "https://{{ .Values.global.url }}" 
+  QG_REST_URL: "https://{{ .Values.global.url }}" 
+
+  BOT_VERSION: "1"
+  CORE_MODEL: "anthropic.claude-v3-5-sonnet-v2"
+  CLASSIFICATION_MODEL: "anthropic.claude-v3-5-sonnet-v2"
+  LLM_NAME: "anthropic.claude-v3-5-sonnet-v2"
+  MAX_FIX_ATTEMPTS: "5"
+  LLM_MAX_CONTEXT_TOKENS: "150000"
+
+  LOG_LEVEL: "DEBUG"
+
+  CONTEXT_ROWS: "10"
+  RECURSION_LIMIT: "75"
+
+  WEB_CONCURRENCY: "4"
+  UVICORN_LIMIT_CONCURRENCY: "512"
+  UVICORN_TIMEOUT_KEEP_ALIVE: "600"

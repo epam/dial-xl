@@ -1,0 +1,34 @@
+{
+  "name": "test",
+  "tables": [
+    {
+      "span": {
+        "sheet": "test",
+        "text": "table t1\n",
+        "from": 0,
+        "to": 9
+      },
+      "name": {
+        "span": {
+          "sheet": "test",
+          "text": "t1",
+          "from": 6,
+          "to": 8
+        },
+        "text": "t1"
+      },
+      "fields": [],
+      "decorators": [],
+      "docs": [],
+      "totals": []
+    }
+  ],
+  "pythons": [],
+  "errors": [
+    {
+      "line": 2,
+      "position": 3,
+      "message": "extraneous input '[' expecting {<EOF>, '!', 'table', PYTHON_BLOCK, LINE_BREAK, DOC_COMMENT}"
+    }
+  ]
+}

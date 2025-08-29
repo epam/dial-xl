@@ -3,7 +3,7 @@ export enum ViewMenuItems {
 }
 
 export enum PanelsMenuItems {
-  ProjectTree = 'Toggle Project Tree',
+  ProjectTree = 'Toggle Project',
   CodeEditor = 'Toggle Code Editor',
   Inputs = 'Toggle Inputs',
   ErrorPanel = 'Toggle Error Panel',

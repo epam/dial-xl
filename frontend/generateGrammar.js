@@ -15,6 +15,13 @@ fs.copyFile(sourceFilePath, destinationFilePath, (err) => {
   if (err) throw err;
 
   exec(
-    `antlr4ts -visitor ${__dirname}/libs/parser/src/lib/grammar/Sheet.g4 -o ${__dirname}/libs/parser/src/lib/grammar/`
+    `java -jar antlr-4.13.1-complete.jar -Dlanguage=TypeScript -visitor ${__dirname}/libs/parser/src/lib/grammar/Sheet.g4 -o ${__dirname}/libs/parser/src/lib/grammar/`,
+    (error) => {
+      if (error) {
+        console.error(`exec error: ${error}`);
+
+        return;
+      }
+    }
   );
 });

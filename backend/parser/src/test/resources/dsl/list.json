@@ -1,0 +1,126 @@
+{
+  "name": "test",
+  "tables": [
+    {
+      "span": {
+        "sheet": "test",
+        "text": "table t1\n  [a] = {}\n  [b] = {1, \"2\"}\n",
+        "from": 0,
+        "to": 37
+      },
+      "name": {
+        "span": {
+          "sheet": "test",
+          "text": "t1",
+          "from": 6,
+          "to": 8
+        },
+        "text": "t1"
+      },
+      "fields": [
+        {
+          "span": {
+            "sheet": "test",
+            "text": "[a] = {}",
+            "from": 11,
+            "to": 19
+          },
+          "fields": [
+            {
+              "span": {
+                "sheet": "test",
+                "text": "[a]",
+                "from": 11,
+                "to": 14
+              },
+              "name": {
+                "span": {
+                  "sheet": "test",
+                  "text": "[a]",
+                  "from": 11,
+                  "to": 14
+                },
+                "text": "a"
+              },
+              "decorators": [],
+              "docs": []
+            }
+          ],
+          "formula": {
+            "name": "LIST",
+            "span": {
+              "sheet": "test",
+              "text": "{}",
+              "from": 17,
+              "to": 19
+            },
+            "arguments": []
+          }
+        },
+        {
+          "span": {
+            "sheet": "test",
+            "text": "[b] = {1, \"2\"}",
+            "from": 22,
+            "to": 36
+          },
+          "fields": [
+            {
+              "span": {
+                "sheet": "test",
+                "text": "[b]",
+                "from": 22,
+                "to": 25
+              },
+              "name": {
+                "span": {
+                  "sheet": "test",
+                  "text": "[b]",
+                  "from": 22,
+                  "to": 25
+                },
+                "text": "b"
+              },
+              "decorators": [],
+              "docs": []
+            }
+          ],
+          "formula": {
+            "name": "LIST",
+            "span": {
+              "sheet": "test",
+              "text": "{1, \"2\"}",
+              "from": 28,
+              "to": 36
+            },
+            "arguments": [
+              {
+                "span": {
+                  "sheet": "test",
+                  "text": "1",
+                  "from": 29,
+                  "to": 30
+                },
+                "arguments": []
+              },
+              {
+                "span": {
+                  "sheet": "test",
+                  "text": "\"2\"",
+                  "from": 32,
+                  "to": 35
+                },
+                "arguments": []
+              }
+            ]
+          }
+        }
+      ],
+      "decorators": [],
+      "docs": [],
+      "totals": []
+    }
+  ],
+  "pythons": [],
+  "errors": []
+}

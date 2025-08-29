@@ -1,0 +1,110 @@
+user_name: gdp_example_user
+ai_name: gdp_example_ai
+messages:
+  - HumanMessage:
+      content: |-
+        # Instruction
+        
+        Create new table FranceNeighborsGDP.
+
+        1. Create new unnested field "Neighbor". It must contain the following strings: Belgium, Luxembourg, Germany, Switzerland, Italy, Monaco, Spain, Andorra.
+        2. Create new unnested field "Indicator". Every entry must contain row_ref to row in Indicator table, where: 'Country.Name' value equals to Neighbor value and 'Indicator.Name' contains either "GDP" or "gross domestic product" case insensitive.
+        
+        # Workspace
+        
+        table Indicators:
+          [unnested] source: ?
+          'COUNTRY.ID': number
+          'COUNTRY.Name' string
+          'COUNTRY.Description': string
+          'INDICATOR.ID': number
+          'INDICATOR.Name': string
+          'INDICATOR.Formula': string
+          'TIME_PERIOD': string
+          'OBS_VALUE': number
+  - AIMessage:
+      content: |-
+        Firstly, I need to generate unnested field Neighbors.
+        Explicit entries are specified in instruction, so I can use explicit array creation syntax for that.
+      tool:
+        name: create_field
+        args:
+          table_name: FranceNeighborsGDP
+          create_table: true
+          field_name: Neighbor
+          field_formula: '{"Belgium", "Luxembourg", "Germany", "Switzerland", "Italy", "Monaco", "Spain", "Andorra"}'
+          unnest_formula: true
+          parametrize_by: [ ]
+          expected_value_type: string
+  - ToolMessage:
+      content: |-
+        Field Neighbor created. Field value type: string.
+        Field values snippet: ["Belgium", "Luxembourg", "Germany", "Switzerland", "Italy", "Monaco", "Spain", "Andorra"].
+  - AIMessage:
+      content: |-
+        Now, I need to create unnested field Indicator.
+        Such way, for every France neighboring country, there will be as many rows with indicator, as many GDP related indicators for that country is present in Indicators table. 
+        
+        I need to use "filter" function to filter out entries.
+        I need to use "isSubString" to check "GDP" or "gross domestic product" substring.
+        I need to use "lower" to check substrings case-insensitive, as required in instructions.
+        
+        This field is required to hold row_ref to Indicators table, so I'll just leave filter results as is.
+      tool:
+        name: create_field
+        args:
+          table_name: FranceNeighborsGDP
+          create_table: false
+          field_name: Indicator
+          field_formula: "Indicators.filter((row: row_ref<Indicators>) => { Neighbor == row.'COUNTRY.Name' and (isSubString(row.'INDICATOR.Name'.lower(), \"gdp\") or isSubString(row.'INDICATOR.Name'.lower(), \"gross domestic product\")) })"
+          unnest_formula: true
+          parametrize_by: [ Neighbor ]
+          expected_value_type: row_ref<Indicators>
+  - ToolMessage:
+      content: |-
+        Field Indicator created. Field value type: row_ref<Indicators>.
+  - AIMessage:
+      content: |-
+        Done.
+  - HumanMessage:
+      content: |-
+        # Instruction
+
+        Add two new fields into FranceNeighborsGDP.
+        1. Regular field "Name". It should reference indicator name from Indicator field row_ref.
+        2. Regular field "Value". It should reference OBS_VALUE from Indicator field row_ref.
+  - AIMessage:
+      content: |-
+        I need to reference required value from row_refs in both fields.
+      tool:
+        name: create_field
+        args:
+          table_name: FranceNeighborsGDP
+          create_table: false
+          field_name: Name
+          field_formula: "Indicator.'INDICATOR.Name'"
+          unnest_formula: false
+          parametrize_by: [ Indicator ]
+          expected_value_type: string
+  - ToolMessage:
+      content: |-
+        Field Name created. Field value type: string.
+        Field values snippet: ["GDP", "Gross Domestic Product", "GDP (U.S. Dollars)"].
+  - AIMessage:
+      content: ""
+      tool:
+        name: create_field
+        args:
+          table_name: FranceNeighborsGDP
+          create_table: false
+          field_name: Value
+          field_formula: "Indicator.'OBS_VALUE'"
+          unnest_formula: false
+          parametrize_by: [ Indicator ]
+          expected_value_type: number
+  - ToolMessage:
+      content: |-
+        Field Value created. Field value type: number.
+  - AIMessage:
+      content: |-
+        Done.

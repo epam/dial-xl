@@ -1,0 +1,856 @@
+chat:
+  enabled: true
+  image:
+    registry: ghcr.io
+    tag: development
+  env:
+    NEXTAUTH_URL: "https://chat-{{ .Values.global.url }}"
+    KEEP_ALIVE_TIMEOUT: "61000"
+    DIAL_API_HOST: "http://{{ .Values.global.name }}-core"
+    DEFAULT_MODEL: "gpt-4o-mini-2024-07-18"
+    DIAL_API_VERSION: "2024-02-15-preview"
+    NEXT_PUBLIC_DEFAULT_SYSTEM_PROMPT: ""
+    ENABLED_FEATURES: "conversations-section,prompts-section,top-settings,top-clear-conversation,top-chat-info,top-chat-model-settings,empty-chat-settings,header,footer,request-api-key,report-an-issue,likes,conversations-sharing,prompts-sharing,input-files,attachments-manager,conversations-publishing,prompts-publishing,custom-logo,input-links,custom-applications,message-templates,marketplace,quick-apps,code-apps,applications-sharing"
+    NEXT_PUBLIC_APP_NAME: "EPAM AI DIAL - QUANTGRID REVIEW"
+    THEMES_CONFIG_HOST: "http://dial-{{ .Values.global.mergeid }}-themes.quantgrid-review"
+    RECENT_MODELS_IDS: "gpt-4o-mini-2024-07-18,gpt-4o-2024-05-13"
+    AUTH_AUTH0_HOST: "https://chatbot-ui-staging.eu.auth0.com"
+    AUTH_AUTH0_NAME: "Auth0 SSO"
+    AUTH_AUTH0_AUDIENCE: "chat"
+    ANNOUNCEMENT_HTML_MESSAGE: 'Welcome to <a href="about:blank" target="_blank">AI Dial</a>! Unified AI Access for Enterprises. Secure, scalable and customizable enterprise-grade AI ecosystem that seamlessly integrates with your data and workflows, tailored to achieve your unique business objectives.'
+    FOOTER_HTML_MESSAGE: '<a href="https://kb.epam.com/display/EPMGPT/EPAM+AI+Chat" target="_blank" rel="noreferrer"> <u><strong>EPAM AI Chat</strong></u> </a>&nbsp;can be used <u>any work-related activity</u>. Rest assured, information you share here is&nbsp;<u> not disclosed to third-party companies </u>. However, we <u>anonymize and log</u> all interactions for research purposes. <br/>For API access please fill&nbsp;<a href="#requestApiKey"><u><strong>this form</strong></u></a>.&nbsp;If you have a problem please&nbsp;<a href="#reportAnIssue"><u><strong>report an issue</strong></u></a>. Version %%VERSION%%'
+    TRACES_URL: "http://grafana-agent-otel.monitoring.svc.cluster.local.:4318/v1/traces"
+    IS_IFRAME: "true"
+    ALLOWED_IFRAME_ORIGINS: >-
+      https://{{ .Values.global.url }}
+
+  ingress:
+    enabled: true
+    ingressClassName: allow-all
+    annotations:
+      alb.ingress.kubernetes.io/target-type: "ip"
+      alb.ingress.kubernetes.io/healthcheck-path: "/api/health"
+      alb.ingress.kubernetes.io/target-group-attributes: "stickiness.enabled=true,stickiness.lb_cookie.duration_seconds=86400"
+      alb.ingress.kubernetes.io/listen-ports: '[{ "HTTP" : 80, "HTTPS" : 443 }]'
+      alb.ingress.kubernetes.io/certificate-arn: "arn:aws:acm:eu-north-1:725751206603:certificate/373e8fd1-088e-4022-adf1-5f3e7820fb4a"
+      alb.ingress.kubernetes.io/ssl-redirect: "443"
+    hosts:
+      - "chat-{{ .Values.global.url }}" 
+
+core:
+  image:
+    registry: ghcr.io
+    tag: development
+
+  env:
+    AIDIAL_LOG_LEVEL: "DEBUG"
+    aidial.config.files: '["/mnt/secrets-store/aidial.config.json","/mnt/secrets-store/aidial.secret.config.json"]'
+    aidial.identityProviders.auth0.jwksUrl: "https://chatbot-ui-staging.eu.auth0.com/.well-known/jwks.json"
+    aidial.identityProviders.auth0.issuerPattern: '^https:\/\/chatbot-ui-staging\.eu\.auth0\.com.+$'
+    aidial.identityProviders.auth0.rolePath: "dial_roles"
+    aidial.applications.includeCustomApps: "true"
+    # Redis cluster address; password in GitLab CI/CD variables
+    aidial.redis.clusterServersConfig.nodeAddresses: '["redis://redis-cluster.quantgrid-review.svc.cluster.local.:6379"]'
+    aidial.storage.provider: "aws-s3"
+    aidial.storage.bucket: "deltix-staging-quantgrid-review-core"
+    aidial.storage.prefix: "{{ .Release.Name }}"
+    aidail.access.admin.rules: '[{"source": "dial_roles", "function": "EQUAL", "targets": ["admin"]}]'
+
+  # add prompt loggin into release directory
+
+  logger:
+    enabled: true
+
+    image:
+      tag: 0.45.0-alpine
+
+    # Original vector image allows only root user to write to /var/lib/vector directory.
+    # Create a different directory to run vector without root privileges.
+    command:
+      - /bin/sh
+    args:
+      - "-c"
+      - "mkdir -p /var/tmp/vector && exec vector --config /etc/vector/vector.yaml"
+
+    containerSecurityContext:
+      enabled: true
+      runAsUser: 1001
+      runAsGroup: 1001
+      runAsNonRoot: true
+
+    # env:
+    #   VECTOR_LOG: debug
+    
+    config: |
+      data_dir: "/var/tmp/vector"
+
+      sources:
+        aidial_logs:
+          type: "file"
+          max_line_bytes: 100000000
+          oldest_first: true
+          include:
+            - /app/log/*.log
+
+      sinks:
+        console:
+          inputs:
+            - aidial_logs
+          type: console
+          target: "stdout"
+          encoding:
+            codec: "text"
+        s3:
+          inputs:
+            - aidial_logs
+          type: aws_s3
+          bucket: deltix-staging-quantgrid-review-core
+          compression: gzip
+          content_encoding: gzip
+          content_type: application/gzip
+          key_prefix: {{ .Release.Name }}/logs/
+          filename_time_format: "%s"
+          batch:
+            max_bytes: 200000000
+            timeout_secs: 600
+          encoding:
+            codec: "text"
+
+  secrets:
+    aidial.config.json: |
+      {
+        "routes": {
+          "route-rate": {
+            "paths": [
+              "/+v1/rate"
+            ],
+            "methods": [
+              "POST"
+            ],
+            "response": {
+              "status": 200
+            }
+          }
+        },
+        "assistant": {
+          "endpoint": "http://{{ .Values.global.name }}-assistant/openai/deployments/assistant/chat/completions",
+          "assistants": {}
+        },
+        "applications": {
+          "qg": {
+            "endpoint": "http://qgbot-{{ .Values.global.mergeid }}-dial-extension/openai/deployments/qg/chat/completions",
+            "description": "Application-proxy for QG project",
+            "descriptionKeywords": ["SDLC"],
+            "displayName": "qg",
+            "forwardAuthToken": true,
+            "iconUrl": "QuantGrid.svg",
+            "inputAttachmentTypes": ["text/csv", "application/csv"],
+            "features": {
+                "configurationEndpoint": "http://qgbot-{{ .Values.global.mergeid }}-dial-extension/openai/deployments/qg/configuration" 
+            }
+          }
+        },
+        "models": {
+          "text-embedding-3-large": {
+            "type": "embedding",
+            "descriptionKeywords": ["Continue Supported"],
+            "endpoint": "http://{{ .Values.global.name }}-openai/openai/deployments/text-embedding-3-large/embeddings",
+            "limits": {
+                "maxPromptTokens": 8192
+            },
+            "pricing": {
+                "unit": "token",
+                "prompt": "0.00000013"
+            },
+            "upstreams": [
+              {
+                  "endpoint": "https://dial-sales-francecentral.openai.azure.com/openai/deployments/text-embedding-3-large/embeddings"
+              },
+              {
+                  "endpoint": "https://dial-sales-japaneast.openai.azure.com/openai/deployments/text-embedding-3-large/embeddings"
+              },
+              {
+                  "endpoint": "https://dial-sales-westus3.openai.azure.com/openai/deployments/text-embedding-3-large/embeddings"
+              }
+            ]
+          },
+          "text-embedding-3-small": {
+            "type": "embedding",
+            "descriptionKeywords": ["Continue Supported"],
+            "endpoint": "http://{{ .Values.global.name }}-openai/openai/deployments/text-embedding-3-small/embeddings",
+            "limits": {
+                "maxPromptTokens": 8192
+            },
+            "pricing": {
+                "unit": "token",
+                "prompt": "0.00000002"
+            },
+            "upstreams": [
+              {
+                  "endpoint": "https://dial-sales-canadaeast.openai.azure.com/openai/deployments/text-embedding-3-small/embeddings"
+              },
+              {
+                  "endpoint": "https://dial-sales-eastus.openai.azure.com/openai/deployments/text-embedding-3-small/embeddings"
+              },
+              {
+                  "endpoint": "https://dial-sales-eastus2.openai.azure.com/openai/deployments/text-embedding-3-small/embeddings"
+              }
+            ]
+          },
+          "gpt-4-turbo-2024-04-09": {
+            "type": "chat",
+            "endpoint": "http://{{ .Values.global.name }}-openai/openai/deployments/gpt-4-turbo-2024-04-09/chat/completions",
+            "displayName": "GPT-4 Turbo",
+            "displayVersion": "2024-04-09",
+            "tokenizerModel": "gpt-4-0314",
+            "description": "GPT-4 Turbo is an advanced version of the GPT-4 language model developed by OpenAI.\n\nIt was released as a major refinement of the existing model, with improvements in efficiency and speed [1]. GPT-4 Turbo introduced several new features, including faster responses, support for longer inputs up to 128K tokens in length, and improved knowledge of recent events [2]. It also has a larger context window compared to its predecessor, which allows it to analyze and remember more information",
+            "descriptionKeywords": ["Text Generation", "Continue Supported"],
+            "iconUrl": "gpt4.svg",
+            "inputAttachmentTypes": [
+                "*/*"
+            ],
+            "limits": {
+                "maxTotalTokens": 8192
+            },
+            "pricing": {
+                "unit": "token",
+                "prompt": "0.00001",
+                "completion": "0.00003"
+            },
+            "upstreams": [
+              {
+                  "endpoint": "https://dial-sales-swedencentral.openai.azure.com/openai/deployments/gpt-4-turbo-2024-04-09/chat/completions"
+              },
+              {
+                  "endpoint": "https://dial-sales-eastus2.openai.azure.com/openai/deployments/gpt-4-turbo-2024-04-09/chat/completions"
+              }
+            ]
+          },
+          "gpt-4o-2024-05-13": {
+            "type": "chat",
+            "displayName": "GPT-4o (Omni)",
+            "displayVersion": "2024-05-13",
+            "tokenizerModel": "gpt-4-0314",
+            "iconUrl": "gpt4.svg",
+            "endpoint": "http://{{ .Values.global.name }}-openai/openai/deployments/gpt-4o-2024-05-13/chat/completions",
+            "description": "GPT-4o is a multimodal generative pre-trained transformer developed by OpenAI and released in May 2024.\n\nIt is OpenAI new flagship model that integrates text, vision, and audio capabilities, setting a new standard for generative and conversational AI experiences [2]. It is engineered for speed and efficiency, with an advanced ability to handle complex queries with minimal resources [3]",
+            "descriptionKeywords": ["Text Generation", "Continue Supported"],
+            "inputAttachmentTypes": [
+              "*/*"
+            ],
+            "limits": {
+              "maxTotalTokens": 8192
+            },
+            "pricing": {
+              "unit": "token",
+              "prompt": "0.00001",
+              "completion": "0.00003"
+            },
+            "upstreams": [
+              {
+                  "endpoint": "https://dial-sales-eastus.openai.azure.com/openai/deployments/gpt-4o-2024-05-13/chat/completions"
+              },
+              {
+                  "endpoint": "https://dial-sales-eastus2.openai.azure.com/openai/deployments/gpt-4o-2024-05-13/chat/completions"
+              },
+              {
+                  "endpoint": "https://dial-sales-northcentralus.openai.azure.com/openai/deployments/gpt-4o-2024-05-13/chat/completions"
+              },
+              {
+                  "endpoint": "https://dial-sales-southcentralus.openai.azure.com/openai/deployments/gpt-4o-2024-05-13/chat/completions"
+              },
+              {
+                  "endpoint": "https://dial-sales-swedencentral.openai.azure.com/openai/deployments/gpt-4o-2024-05-13/chat/completions"
+              },
+              {
+                  "endpoint": "https://dial-sales-westus.openai.azure.com/openai/deployments/gpt-4o-2024-05-13/chat/completions"
+              },
+              {
+                  "endpoint": "https://dial-sales-westus3.openai.azure.com/openai/deployments/gpt-4o-2024-05-13/chat/completions"
+              }
+            ]
+          },
+          "gpt-4o-2024-08-06": {
+            "type": "chat",
+            "displayName": "GPT-4o (Omni)",
+            "displayVersion": "2024-08-06",
+            "tokenizerModel": "gpt-4-0314",
+            "iconUrl": "https://themes-{{ .Values.global.url }}/gpt4.svg",
+            "endpoint": "http://{{ .Values.global.name }}-openai/openai/deployments/gpt-4o-2024-08-06/chat/completions",
+            "description": "GPT-4o is a multimodal generative pre-trained transformer developed by OpenAI and released in May 2024.\n\nIt is OpenAI new flagship model that integrates text, vision, and audio capabilities, setting a new standard for generative and conversational AI experiences [2]. It is engineered for speed and efficiency, with an advanced ability to handle complex queries with minimal resources [3]",
+            "descriptionKeywords": ["Text Generation", "Continue Supported"],
+            "inputAttachmentTypes": [
+              "*/*"
+            ],
+            "limits": {
+              "maxTotalTokens": 8192
+            },
+            "pricing": {
+              "unit": "token",
+              "prompt": "0.000005",
+              "completion": "0.000015"
+            },
+            "upstreams": [
+              {
+                  "endpoint": "https://dial-sales-eastus.openai.azure.com/openai/deployments/gpt-4o-2024-08-06/chat/completions"
+              },
+              {
+                  "endpoint": "https://dial-sales-eastus2.openai.azure.com/openai/deployments/gpt-4o-2024-08-06/chat/completions"
+              },
+              {
+                  "endpoint": "https://dial-sales-northcentralus.openai.azure.com/openai/deployments/gpt-4o-2024-08-06/chat/completions"
+              },
+              {
+                  "endpoint": "https://dial-sales-southcentralus.openai.azure.com/openai/deployments/gpt-4o-2024-08-06/chat/completions"
+              },
+              {
+                  "endpoint": "https://dial-sales-swedencentral.openai.azure.com/openai/deployments/gpt-4o-2024-08-06/chat/completions"
+              },
+              {
+                  "endpoint": "https://dial-sales-westus.openai.azure.com/openai/deployments/gpt-4o-2024-08-06/chat/completions"
+              },
+              {
+                  "endpoint": "https://dial-sales-westus3.openai.azure.com/openai/deployments/gpt-4o-2024-08-06/chat/completions"
+              }
+            ]
+          },
+          "gpt-4o-mini-2024-07-18": {
+            "type": "chat",
+            "displayName": "GPT-4o mini",
+            "displayVersion": "2024-07-18",
+            "tokenizerModel": "gpt-4-0314",
+            "iconUrl": "https://themes-{{ .Values.global.url }}/gpt4.svg",
+            "endpoint": "http://{{ .Values.global.name }}-openai/openai/deployments/gpt-4o-mini-2024-07-18/chat/completions",
+            "description": "The GPT-4o mini model is a smaller, faster, and cheaper version of the GPT-4o AI model developed by OpenAI.\n\nIt is designed to replace the GPT-3.5 Turbo model, which was the default for free ChatGPT users and the cheapest option for developers building applications on OpenAI technology",
+            "descriptionKeywords": ["Text Generation", "Continue Supported"],
+            "inputAttachmentTypes": [
+              "*/*"
+            ],
+            "limits": {
+              "maxTotalTokens": 8192
+            },
+            "pricing": {
+              "unit": "token",
+              "prompt": "0.000165",
+              "completion": "0.00066"
+            },
+            "upstreams": [
+              {
+                  "endpoint": "https://dial-sales-eastus.openai.azure.com/openai/deployments/gpt-4o-mini-2024-07-18/chat/completions"
+              }
+            ]
+          },
+          "gemini-1.5-pro-001": {
+            "type": "chat",
+            "displayName": "Gemini 1.5 Pro",
+            "displayVersion": "001",
+            "iconUrl": "Gemini-Pro-Vision.svg",
+            "endpoint": "http://{{ .Values.global.name }}-vertexai/openai/deployments/gemini-1.5-pro-001/chat/completions",
+            "description": "Gemini 1.5 Pro is a multimodal AI model developed by Google DeepMind. It is a follow-up release to the initial debut of Google's Gemini 1.0 and provides an upgrade over the 1.0 models with better performance and longer context length.\n\nThe model uses a multimodal mixture-of-experts (MoE) approach, which allows it to optimize the most relevant expert pathways in its neural network for results. It can handle a large context window of up to 1 million tokens, enabling it to reason and understand larger volumes of data than other models with lower token limits. Gemini 1.5 Pro can process text, images, audio, and video, and can be used for various tasks such as building conversational AI assistants, analyzing and generating code, and more",
+            "descriptionKeywords": ["Text Generation", "Image Recognition", "Continue Supported"],
+
+            "inputAttachmentTypes": [
+                "*/*"
+            ],
+            "limits": {
+                "maxTotalTokens": 999000,
+                "maxCompletionTokens": 2048
+            },
+            "pricing": {
+                "unit": "char_without_whitespace",
+                "prompt": "0.0000025",
+                "completion": "0.0000075"
+            }
+          },
+          "gemini-1.5-pro-002": {
+            "type": "chat",
+            "displayName": "Gemini 1.5 Pro",
+            "displayVersion": "002",
+            "iconUrl": "Gemini-Pro-Vision.svg",
+            "endpoint": "http://{{ .Values.global.name }}-vertexai/openai/deployments/gemini-1.5-pro-002/chat/completions",
+            "description": "Gemini 1.5 Pro is a multimodal AI model developed by Google DeepMind. It is a follow-up release to the initial debut of Google's Gemini 1.0 and provides an upgrade over the 1.0 models with better performance and longer context length.\n\nThe model uses a multimodal mixture-of-experts (MoE) approach, which allows it to optimize the most relevant expert pathways in its neural network for results. It can handle a large context window of up to 1 million tokens, enabling it to reason and understand larger volumes of data than other models with lower token limits. Gemini 1.5 Pro can process text, images, audio, and video, and can be used for various tasks such as building conversational AI assistants, analyzing and generating code, and more",
+            "descriptionKeywords": ["Text Generation", "Image Recognition", "Continue Supported"],
+
+            "inputAttachmentTypes": [
+                "*/*"
+            ],
+            "limits": {
+                "maxTotalTokens": 999000,
+                "maxCompletionTokens": 2048
+            },
+            "pricing": {
+                "unit": "char_without_whitespace",
+                "prompt": "0.0000025",
+                "completion": "0.0000075"
+            }
+          },
+          "gemini-1.5-flash-001": {
+            "type": "chat",
+            "displayName": "Gemini 1.5 Flash",
+            "displayVersion": "001",
+            "iconUrl": "https://chat-{{ .Values.global.url }}/api/themes/image/Gemini-Pro-Vision.svg",
+            "endpoint": "http://{{ .Values.global.name }}-vertexai/openai/deployments/gemini-1.5-flash-001/chat/completions",
+            "description": "Gemini 1.5 Flash is a fast and versatile multimodal model designed for scaling across diverse tasks.\n\nIt was purpose-built as the fastest, most cost-efficient model yet for high volume tasks, at scale, to address developers feedback asking for lower latency and cost. It has a higher rate limit of 1000 requests per minute (RPM) and there is no limit on the number of requests per day",
+            "descriptionKeywords": ["Text Generation", "Image Recognition", "Continue Supported"],
+            "inputAttachmentTypes": ["*/*"],
+            "limits": {
+              "maxTotalTokens": 999000,
+              "maxCompletionTokens": 2048
+            },
+            "pricing": {
+              "unit": "char_without_whitespace",
+              "prompt": "0.0000025",
+              "completion": "0.0000075"
+            }
+          },
+          "gemini-1.5-flash-002": {
+            "type": "chat",
+            "displayName": "Gemini 1.5 Flash",
+            "displayVersion": "002",
+            "iconUrl": "Gemini-Pro-Vision.svg",
+            "endpoint": "http://{{ .Values.global.name }}-vertexai/openai/deployments/gemini-1.5-flash-002/chat/completions",
+            "description": "Gemini 1.5 Flash is a fast and versatile multimodal model designed for scaling across diverse tasks.\n\nIt was purpose-built as the fastest, most cost-efficient model yet for high volume tasks, at scale, to address developers feedback asking for lower latency and cost. It has a higher rate limit of 1000 requests per minute (RPM) and there is no limit on the number of requests per day",
+            "descriptionKeywords": ["Text Generation", "Image Recognition", "Continue Supported"],
+
+            "inputAttachmentTypes": [
+                "*/*"
+            ],
+            "limits": {
+                "maxTotalTokens": 999000,
+                "maxCompletionTokens": 2048
+            },
+            "pricing": {
+                "unit": "char_without_whitespace",
+                "prompt": "0.00000025",
+                "completion": "0.00000075"
+            }
+          },
+          "gemini-2.0-flash-lite-001": {
+            "type": "chat",
+            "displayName": "Gemini 2.0 Flash Lite",
+            "displayVersion": "001",
+            "iconUrl": "Gemini-Pro-Vision.svg",
+            "endpoint": "http://{{ .Values.global.name }}-vertexai/openai/deployments/gemini-2.0-flash-lite-001/chat/completions",
+            "description": "Gemini 2.0 Flash-Lite is fastest and most cost efficient Flash model. It's an upgrade path for 1.5 Flash users who want better quality for the same price and speed.",
+            "descriptionKeywords": ["Text Generation", "Image Recognition", "Continue Supported"],
+
+            "inputAttachmentTypes": [
+                "*/*"
+            ],
+            "limits": {
+                "maxTotalTokens": 1048576,
+                "maxCompletionTokens": 8192
+            },
+            "pricing": {
+                "unit": "char_without_whitespace",
+                "prompt": "0.000000075",
+                "completion": "0.0000003"
+            },
+            "upstreams": [
+                {
+                    "extraData": {
+                        "region": "global"
+                    }
+                }
+            ]
+          },
+          "anthropic.claude-v3-sonnet": {
+            "type": "chat",
+            "displayName": "Anthropic Claude 3 Sonnet",
+            "iconUrl": "anthropic.svg",
+            "endpoint": "http://{{ .Values.global.name }}-bedrock/openai/deployments/anthropic.claude-3-sonnet-20240229-v1:0/chat/completions",
+            "description": "Anthropic's Claude Sonnet is a model that offers a combination of performance and speed for efficient, high-throughput tasks.\n\nIt sets new industry benchmarks for graduate-level reasoning, undergraduate-level knowledge, and coding proficiency. It shows marked improvement in grasping nuance, humor, and complex instructions, and is exceptional at writing high-quality content with a natural, relatable tone [2]",
+            "descriptionKeywords": ["Text Generation", "Continue Supported"],
+            "inputAttachmentTypes": [
+                "image/*"
+            ],
+            "limits": {
+              "maxPromptTokens": 200000
+            },
+            "pricing": {
+              "unit": "token",
+              "prompt": "0.00000300",
+              "completion": "0.00001500"
+            }
+          },
+          "anthropic.claude-v3-5-sonnet-v1": {
+            "type": "chat",
+            "displayName": "Anthropic Claude 3.5 Sonnet",
+            "displayVersion": "V1",
+            "iconUrl": "anthropic.svg",
+            "description": "Anthropic's Claude 3.5 Sonnet is a significant advancement in the field of generative AI and large language models (LLMs).\n\nIt is known for its unprecedented intelligence, enhanced speed, and advanced capabilities across various domains. The model sets a new standard for what AI can achieve, with sophisticated reasoning and coding abilities, a commitment to safety, and a focus on user-driven development",
+            "descriptionKeywords": ["Text Generation", "Image Recognition", "Continue Supported"],
+            "endpoint": "http://{{ .Values.global.name }}-bedrock/openai/deployments/anthropic.claude-3-5-sonnet-20240620-v1:0/chat/completions",
+            "defaults": {
+                "max_tokens": 4000
+            },
+            "inputAttachmentTypes": [
+                "image/*"
+            ],
+            "features": {
+                "toolsSupported": false
+            },
+            "limits": {
+                "maxPromptTokens": 200000
+            },
+            "pricing": {
+                "unit": "token",
+                "prompt": "0.00000300",
+                "completion": "0.00001500"
+            }
+          },
+          "anthropic.claude-v3-5-sonnet-v2": {
+            "type": "chat",
+            "displayName": "Anthropic Claude 3.5 Sonnet",
+            "displayVersion": "V2",
+            "iconUrl": "anthropic.svg",
+            "description": "Anthropic's Claude 3.5 Sonnet is a significant advancement in the field of generative AI and large language models (LLMs).\n\nIt is known for its unprecedented intelligence, enhanced speed, and advanced capabilities across various domains. The model sets a new standard for what AI can achieve, with sophisticated reasoning and coding abilities, a commitment to safety, and a focus on user-driven development",
+            "descriptionKeywords": ["Text Generation", "Image Recognition", "Continue Supported"],
+            "endpoint": "http://{{ .Values.global.name }}-bedrock/openai/deployments/us.anthropic.claude-3-5-sonnet-20241022-v2:0/chat/completions",
+            "defaults": {
+                "max_tokens": 4000
+            },
+            "inputAttachmentTypes": [
+                "image/*"
+            ],
+            "features": {
+                "toolsSupported": false
+            },
+            "limits": {
+                "maxPromptTokens": 200000
+            },
+            "pricing": {
+                "unit": "token",
+                "prompt": "0.00000300",
+                "completion": "0.00001500"
+            }
+          },
+          "us.anthropic.claude-3-7-sonnet-20250219-v1": {
+            "type": "chat",
+            "displayName": "Anthropic Claude 3.7 Sonnet",
+            "displayVersion": "V1",
+            "iconUrl": "anthropic.svg",
+            "description": "Anthropic's Claude 3.7 Sonnet is a significant advancement in the field of generative AI and large language models (LLMs).\n\nIt is known for its unprecedented intelligence, enhanced speed, and advanced capabilities across various domains. The model sets a new standard for what AI can achieve, with sophisticated reasoning and coding abilities, a commitment to safety, and a focus on user-driven development",            "descriptionKeywords": ["Text Generation", "Image Recognition", "Continue Supported"],
+            "endpoint": "http://{{ .Values.global.name }}-bedrock/openai/deployments/us.anthropic.claude-3-7-sonnet-20250219-v1:0/chat/completions",
+            "defaults": {
+                "max_tokens": 4000
+            },
+            "inputAttachmentTypes": [
+                "image/*"
+            ],
+            "features": {
+                "toolsSupported": true,
+                "configurationEndpoint": "http://{{ .Values.global.name }}-bedrock/openai/deployments/us.anthropic.claude-3-7-sonnet-20250219-v1:0/configuration"
+            },
+            "limits": {
+                "maxPromptTokens": 128000
+            },
+            "pricing": {
+                "unit": "token",
+                "prompt": "0.000003",
+                "completion": "0.000015"
+            },
+            "upstreams": [
+                {
+                    "extraData": {
+                        "region": "us-east-1"
+                    }
+                },
+                {
+                    "extraData": {
+                        "region": "us-west-2"
+                    }
+                }
+            ]
+          },
+          "anthropic.claude-sonnet-4-20250514-v1": {
+            "type": "chat",
+            "displayName": "Anthropic Claude 4 Sonnet",
+            "displayVersion": "V1",
+            "iconUrl": "anthropic.svg",
+            "description": "Claude Sonnet 4 balances impressive performance for coding with the right speed and cost for high-volume use cases: Coding: Handle everyday development tasks with enhanced performance-power code reviews, bug fixes, API integrations, and feature development with immediate feedback loops",
+            "endpoint": "http://{{ .Values.global.name }}-bedrock/openai/deployments/us.anthropic.claude-sonnet-4-20250514-v1:0/chat/completions",
+            "defaults": {
+                "max_tokens": 4000
+            },
+            "inputAttachmentTypes": [
+                "image/*"
+            ],
+            "features": {
+                "toolsSupported": true,
+                "configurationEndpoint": "http://{{ .Values.global.name }}-bedrock/openai/deployments/us.anthropic.claude-sonnet-4-20250514-v1:0/configuration"
+            },
+            "limits": {
+                "maxPromptTokens": 128000
+            },
+            "pricing": {
+                "unit": "token",
+                "prompt": "0.000003",
+                "completion": "0.000015"
+            },
+            "upstreams": [
+                {
+                    "extraData": {
+                        "region": "us-east-1"
+                    }
+                }
+            ]
+          },
+          "claude-3-5-sonnet-v2@20241022": {
+            "type": "chat",
+            "displayName": "Claude 3.5 Sonnet (VertexAI)",
+            "displayVersion": "V2",
+            "iconUrl": "anthropic.svg",
+            "endpoint": "http://{{ .Values.global.name }}-vertexai/openai/deployments/claude-3-5-sonnet-v2@20241022/chat/completions",
+            "description": "Anthropic's Claude 3.5 Sonnet is a significant advancement in the field of generative AI and large language models (LLMs).\n\nIt is known for its unprecedented intelligence, enhanced speed, and advanced capabilities across various domains. The model sets a new standard for what AI can achieve, with sophisticated reasoning and coding abilities, a commitment to safety, and a focus on user-driven development",
+            "descriptionKeywords": [
+                "Text Generation",
+                "Image Recognition",
+                "Continue Supported"
+            ],
+            "inputAttachmentTypes": [
+                "image/*"
+            ],
+            "limits": {
+                "maxPromptTokens": 200000
+            },
+            "pricing": {
+                "unit": "token",
+                "prompt": "0.00000300",
+                "completion": "0.00001500"
+            },
+            "upstreams": [
+                {
+                    "extraData": {
+                        "region": "us-east5"
+                    }
+                },
+                {
+                    "extraData": {
+                        "region": "europe-west1"
+                    }
+                }
+            ]
+          }
+        },
+        "roles": {
+          "default": {
+            "limits": {
+              "qg": {},
+              "text-embedding-3-large": {
+                  "minute": "6400000",
+                  "day": "100000000"
+              },
+              "text-embedding-3-small": {
+                  "minute": "6400000",
+                  "day": "100000000"
+              },
+              "gpt-4-turbo-2024-04-09": {
+                "minute": "160000000",
+                "day": "10000000000"
+              },
+              "gpt-4o-2024-05-13": {
+                "minute": "16000000",
+                "day": "10000000000"
+              },
+              "gpt-4o-2024-08-06": {
+                "minute": "1600000",
+                "day": "10000000000"
+              },
+              "gpt-4o-mini-2024-07-18": {
+                "minute": "160000000",
+                "day": "10000000000"
+              },
+              "gemini-1.5-pro-001": {
+                "minute": "640000000",
+                "day": "10000000000"
+              },
+              "gemini-1.5-pro-002": {
+                "minute": "640000000",
+                "day": "10000000000"
+              },
+              "gemini-1.5-flash-001": {
+                "minute": "640000000",
+                "day": "10000000000"
+              },
+              "gemini-1.5-flash-002": {
+                "minute": "640000000",
+                "day": "10000000000"
+              },
+              "gemini-2.0-flash-lite-001": {
+                "minute": "640000000",
+                "day": "10000000000"
+              },
+              "anthropic.claude-v3-sonnet": {
+                  "minute": "640000000",
+                  "day": "10000000000"
+              },
+              "anthropic.claude-v3-5-sonnet-v1": {
+                  "minute": "640000000",
+                  "day": "10000000000"
+              },
+              "anthropic.claude-v3-5-sonnet-v2": {
+                  "minute": "64000000000",
+                  "day": "1000000000000"
+              },
+              "us.anthropic.claude-3-7-sonnet-20250219-v1": {
+                  "minute": "64000000000",
+                  "day": "1000000000000"
+              },
+              "anthropic.claude-sonnet-4-20250514-v1": {
+                  "minute": "64000000000",
+                  "day": "1000000000000"
+              },
+              "claude-3-5-sonnet-v2@20241022": {
+                  "minute": "64000000000",
+                  "day": "1000000000000"
+              }
+            }
+          }
+        }
+      }
+  extraVolumes:
+    - name: config
+      secret:
+        secretName: '{{ template "dialCore.names.fullname" . }}'
+        items:
+          - key: aidial.config.json
+            path: aidial.config.json
+          - key: aidial.secret.config.json
+            path: aidial.secret.config.json
+  extraVolumeMounts:
+    - name: config
+      mountPath: "/mnt/secrets-store/aidial.config.json"
+      subPath: aidial.config.json
+      readOnly: true
+    - name: config
+      mountPath: "/mnt/secrets-store/aidial.secret.config.json"
+      subPath: aidial.secret.config.json
+      readOnly: true
+  serviceAccount:
+    create: false
+    name: quantgrid-review-core
+    annotations:
+      eks.amazonaws.com/role-arn: "arn:aws:iam::725751206603:role/deltix-staging-quantgrid-review-core-s3-bucket"
+
+  redis:
+    enabled: false
+
+  ingress:
+    enabled: true
+    ingressClassName: allow-all
+    annotations:
+      alb.ingress.kubernetes.io/target-type: "ip"
+      alb.ingress.kubernetes.io/healthcheck-path: "/health"
+      alb.ingress.kubernetes.io/target-group-attributes: "stickiness.enabled=true,stickiness.lb_cookie.duration_seconds=86400"
+      alb.ingress.kubernetes.io/listen-ports: '[{ "HTTP" : 80, "HTTPS" : 443 }]'
+      alb.ingress.kubernetes.io/certificate-arn: "arn:aws:acm:eu-north-1:725751206603:certificate/373e8fd1-088e-4022-adf1-5f3e7820fb4a"
+      alb.ingress.kubernetes.io/ssl-redirect: "443"
+    hosts:
+      - "core-{{ .Values.global.url }}"
+
+bedrock:
+  enabled: true
+  image:
+    registry: ghcr.io
+    tag: development
+
+  serviceAccount:
+    create: false
+    name: quantgrid-review-bedrock
+    annotations:
+      eks.amazonaws.com/role-arn: "arn:aws:iam::725751206603:role/deltix-staging-dial-bedrock"
+
+  env:
+    AWS_DEFAULT_REGION: "us-east-1"
+    DIAL_URL: "http://{{ .Values.global.name }}-core"
+
+vertexai:
+  enabled: true
+  image:
+    pullPolicy: Always
+    registry: ghcr.io
+    repository: epam/ai-dial-adapter-vertexai
+    tag: development
+  env:
+    DIAL_URL: "http://{{ .Values.global.name }}-core"
+    GOOGLE_APPLICATION_CREDENTIALS: "/etc/workload-identity/credential-configuration.json"
+    GCP_PROJECT_ID: "or2-msq-epm-rtc-t1iylu"
+    DEFAULT_REGION: "us-central1"
+    LOG_LEVEL: "DEBUG"
+
+  serviceAccount:
+    create: false
+    name: quantgrid-review-vertex
+
+  extraDeploy:
+    - apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: gcp-cred-{{ .Values.global.mergeid }}
+      data:
+        credential-configuration.json: |
+          {
+            "type": "external_account",
+            "audience": "//iam.googleapis.com/projects/295044297419/locations/global/workloadIdentityPools/aws-eks-staging/providers/aws-eks-staging",
+            "subject_token_type": "urn:ietf:params:oauth:token-type:jwt",
+            "token_url": "https://sts.googleapis.com/v1/token",
+            "service_account_impersonation_url": "https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/dial-staging-vertex@or2-msq-epm-rtc-t1iylu.iam.gserviceaccount.com:generateAccessToken",
+            "credential_source": {
+              "file": "/var/run/service-account/token",
+              "format": {
+                "type": "text"
+              }
+            }
+          }
+
+  extraVolumes:
+    - name: token
+      projected:
+        sources:
+          - serviceAccountToken:
+              audience: https://iam.googleapis.com/projects/295044297419/locations/global/workloadIdentityPools/aws-eks-staging/providers/aws-eks-staging
+              expirationSeconds: 3600
+              path: token
+    - name: workload-identity-credential-configuration
+      configMap:
+        name: gcp-cred-{{ .Values.global.mergeid }}
+  extraVolumeMounts:
+    - name: token
+      mountPath: "/var/run/service-account"
+      readOnly: true
+    - name: workload-identity-credential-configuration
+      mountPath: "/etc/workload-identity"
+      readOnly: true
+
+openai:
+  enabled: true
+  image:
+    pullPolicy: Always
+    registry: ghcr.io
+    repository: epam/ai-dial-adapter-openai
+    tag: development
+
+  podLabels:
+    azure.workload.identity/use: "true"
+
+  serviceAccount:
+    create: false
+    name: quantgrid-review-openai
+    annotations:
+      azure.workload.identity/client-id: bf137482-ad10-44fe-82aa-244f7a10dba8
+
+  env:
+    DIAL_USE_FILE_STORAGE: "true"
+    DIAL_URL: "http://{{ .Values.global.name }}-core"
+    GPT4_VISION_DEPLOYMENTS: "gpt-4-vision-preview"
+    GPT4O_DEPLOYMENTS: "gpt-4o-2024-05-13,gpt-4o-mini-2024-07-18,gpt-4o-2024-08-06"
+    DALLE3_DEPLOYMENTS: "dall-e-3"
+    TIMEOUT_KEEP_ALIVE: "61" # HACK
+    ELIMINATE_EMPTY_CHOICES: "true"
+    MISTRAL_DEPLOYMENTS: "mistral-large-azure"
+
+themes:
+  enabled: true
+  image:
+    registry: ghcr.io

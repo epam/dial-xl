@@ -1,13 +1,26 @@
 package com.epam.deltix.quantgrid.parser.ast;
 
-import lombok.EqualsAndHashCode;
-import lombok.Value;
+import com.epam.deltix.quantgrid.parser.Span;
+import lombok.Getter;
 import lombok.experimental.Accessors;
 
-@Value
+@Getter
 @Accessors(fluent = true)
-@EqualsAndHashCode(callSuper = false)
 public class ConstNumber extends Formula {
-    double number;
+    private final double number;
+
+    public ConstNumber(double number) {
+        this(null, number);
+    }
+
+    public ConstNumber(Span span, double number) {
+        super(span);
+        this.number = number;
+    }
+
+    @Override
+    public String toString() {
+        return "ConstNumber(span=" + span() + ", number=" + number + ")";
+    }
 }
 

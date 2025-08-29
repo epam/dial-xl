@@ -10,11 +10,11 @@ import com.epam.deltix.quantgrid.engine.node.expression.Expression;
 import com.epam.deltix.quantgrid.engine.node.expression.Get;
 import com.epam.deltix.quantgrid.engine.node.expression.RowNumber;
 import com.epam.deltix.quantgrid.engine.node.plan.Plan;
-import com.epam.deltix.quantgrid.engine.node.plan.local.AggregateFunction;
+import com.epam.deltix.quantgrid.engine.node.plan.local.aggregate.AggregateType;
 import com.epam.deltix.quantgrid.engine.node.plan.local.DistinctByLocal;
 import com.epam.deltix.quantgrid.engine.node.plan.local.FilterLocal;
 import com.epam.deltix.quantgrid.engine.node.plan.local.JoinAllLocal;
-import com.epam.deltix.quantgrid.engine.node.plan.local.NestedAggregateLocal;
+import com.epam.deltix.quantgrid.engine.node.plan.local.AggregateLocal;
 import com.epam.deltix.quantgrid.engine.node.plan.local.OrderByLocal;
 import com.epam.deltix.quantgrid.engine.node.plan.local.RangeLocal;
 import com.epam.deltix.quantgrid.engine.node.plan.local.SelectLocal;
@@ -108,7 +108,7 @@ public class CarryTest {
         val join = new JoinAllLocal(select, select,
                 List.of(column(select, layout, a)),
                 List.of(column(select, layout, a)));
-        val agg = new NestedAggregateLocal(AggregateFunction.COUNT, layout, join, new Get(join, 1));
+        val agg = new AggregateLocal(AggregateType.COUNT, layout, join, new Get(join, 0), new Get(join, 1));
         val b = new Get(agg, 0);
 
         val distinct = new DistinctByLocal(select, List.of(column(select, layout, b)));
@@ -124,10 +124,10 @@ public class CarryTest {
                 List.of(column(select, layout, a)),
                 List.of(column(select, layout, a)));
 
-        val agg1 = new NestedAggregateLocal(AggregateFunction.COUNT, layout, join, new Get(join, 1));
+        val agg1 = new AggregateLocal(AggregateType.COUNT, layout, join, new Get(join, 0), new Get(join, 1));
         val b = new Get(agg1, 0);
 
-        val agg2 = new NestedAggregateLocal(AggregateFunction.SUM, layout, join, new Get(join, 1),
+        val agg2 = new AggregateLocal(AggregateType.SUM, layout, join, new Get(join, 1),
                 column(join, layout, b, 1));
         val c = new Get(agg2, 0);
 
@@ -146,7 +146,7 @@ public class CarryTest {
         GraphPrinter.print(graph);
 
         new Duplicate().apply(graph);
-        new Carry(EmptyCache.INSTANCE).apply(graph);
+        new Carry(EmptyCache.INSTANCE, null).apply(graph);
         new Deduplicate().apply(graph);
         GraphPrinter.print(graph);
 

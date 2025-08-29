@@ -1,0 +1,76 @@
+{
+  "name": "test",
+  "tables": [
+    {
+      "span": {
+        "sheet": "test",
+        "text": "table T2\n     [x] = FUNC(T1 T1 T1)\n     [y] = 42\n",
+        "from": 1,
+        "to": 50
+      },
+      "name": {
+        "span": {
+          "sheet": "test",
+          "text": "T2",
+          "from": 7,
+          "to": 9
+        },
+        "text": "T2"
+      },
+      "fields": [
+        {
+          "span": {
+            "sheet": "test",
+            "text": "[y] = 42",
+            "from": 41,
+            "to": 49
+          },
+          "fields": [
+            {
+              "span": {
+                "sheet": "test",
+                "text": "[y]",
+                "from": 41,
+                "to": 44
+              },
+              "name": {
+                "span": {
+                  "sheet": "test",
+                  "text": "[y]",
+                  "from": 41,
+                  "to": 44
+                },
+                "text": "y"
+              },
+              "decorators": [],
+              "docs": []
+            }
+          ],
+          "formula": {
+            "number": 42.0,
+            "span": {
+              "sheet": "test",
+              "text": "42",
+              "from": 47,
+              "to": 49
+            },
+            "arguments": []
+          }
+        }
+      ],
+      "decorators": [],
+      "docs": [],
+      "totals": []
+    }
+  ],
+  "pythons": [],
+  "errors": [
+    {
+      "line": 2,
+      "position": 20,
+      "message": "mismatched input 'T1' expecting {',', ')'}",
+      "tableName": "T2",
+      "fieldName": "x"
+    }
+  ]
+}

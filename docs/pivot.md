@@ -12,7 +12,7 @@ table A
        [value]  := [a][value]
 
 table B
-   dim [a] := A.DISTINCTBY($[country], $[date])
+   dim [a] := A.UNIQUEBY($[country], $[date])
        [country] := [a][country]
        [date] := [a][date]
        [row] := A.FILTER([country] = $[country] AND [date] = $[date])
@@ -30,7 +30,7 @@ Table A: INPUT
 | 2 | USA     | 2022 | IR        | 4     |
 | 3 | China   | 2021 | GDP       | 121   |
 
-DISTINCTBY(INPUT, [Country], [Date])
+UNIQUEBY(INPUT, [Country], [Date])
 
 | # | qref | Country | Date |
 |---|------|---------|------|
@@ -51,7 +51,7 @@ DISTINCTBY(INPUT, [Country], [Date])
 
 PIVOT consists of several nodes:
 
-a) Another DISTINCTBY(cref, [Indicator]), layout of the long table.
+a) Another UNIQUEBY(cref, [Indicator]), layout of the long table.
 Rows with the same cref represent data for a single wide row.
 
 | rn | cref | Indicator |

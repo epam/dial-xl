@@ -1,6 +1,11 @@
 package com.epam.deltix.quantgrid.parser;
 
-public record FieldKey(String tableName, String fieldName) {
+public record FieldKey(String tableName, String fieldName) implements ParsedKey {
+
+    @Override
+    public String table() {
+        return tableName;
+    }
 
     @Override
     public String toString() {
@@ -12,5 +17,10 @@ public record FieldKey(String tableName, String fieldName) {
 
     public boolean isTable() {
         return fieldName == null;
+    }
+
+    @Override
+    public int hashCode() {
+        return tableName.hashCode() ^ fieldName.hashCode();
     }
 }

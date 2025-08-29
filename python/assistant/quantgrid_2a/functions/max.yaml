@@ -1,0 +1,6 @@
+name: max
+description: Calculates max of the array
+signature: 'array<number>.max() => number'
+manual: >-
+  `max` calculates the maximal value of array elements. Elements must be number primitives or be implicitly convertible
+  to them. Returned type depends on array elements type.

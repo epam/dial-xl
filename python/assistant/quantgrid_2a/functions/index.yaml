@@ -1,0 +1,6 @@
+name: get
+description: Get element of array by index (one-based numeration).
+signature: 'array<T>.get(i: number) => T'
+manual: >-
+  `get` returns element of array by index (one-based numeration).
+original_name: index

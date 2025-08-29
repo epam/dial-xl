@@ -1,12 +1,8 @@
 import cx from 'classnames';
 import Fuse from 'fuse.js';
 
-import {
-  DatabaseOutlined,
-  FileOutlined,
-  FolderOutlined,
-  TableOutlined,
-} from '@ant-design/icons';
+import Icon from '@ant-design/icons';
+import { ColumnsIcon, FileIcon, QGLogo, TableIcon } from '@frontend/common';
 
 import { ISearchResult, path2str } from './search';
 
@@ -35,16 +31,23 @@ export function SearchResult({ className, result, onClick }: Props) {
   const icon = () => {
     switch (result.item.type) {
       case 'project': {
-        return <FolderOutlined />;
+        return (
+          <Icon
+            className="size-[18px] stroke-transparent"
+            component={() => <QGLogo />}
+          />
+        );
       }
       case 'sheet': {
-        return <FileOutlined />;
+        return <Icon className="w-[18px]" component={() => <FileIcon />} />;
       }
       case 'table': {
-        return <TableOutlined />;
+        return <Icon className="w-[18px]" component={() => <TableIcon />} />;
       }
       case 'field': {
-        return <DatabaseOutlined />;
+        return (
+          <Icon className="size-[18px]" component={() => <ColumnsIcon />} />
+        );
       }
     }
   };
@@ -53,6 +56,7 @@ export function SearchResult({ className, result, onClick }: Props) {
     <div className={cx('flex items-center', className)} onClick={onClick}>
       <div className={'mr-2 h-full flex items-center'}>{icon()}</div>
       <div
+        className="text-textPrimary text-[13px] mr-2"
         dangerouslySetInnerHTML={{
           __html: getBoldStr(
             result.item.name,
@@ -61,7 +65,11 @@ export function SearchResult({ className, result, onClick }: Props) {
         }}
       ></div>
       {result.item.path && (
-        <span className={'ml-auto text-xs opacity-20'}>
+        <span
+          className={
+            'ml-auto text-[11px] text-textSecondary overflow-hidden break-words'
+          }
+        >
           {path2str(result.item.path)}
         </span>
       )}

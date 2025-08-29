@@ -1,0 +1,5 @@
+name: text
+description: Converts primitive to string without any implicit formatting (as-is).
+signature: 'primitive.text() => string'
+manual: >-
+  Converts primitive to `string` value.

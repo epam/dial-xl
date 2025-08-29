@@ -2,14 +2,19 @@ import { Modal } from 'antd';
 import { createContext, PropsWithChildren, useCallback, useState } from 'react';
 
 import { SearchWindow } from '../components';
+import { ISearchFilter } from '../components/SearchWindow/search';
 
 type SearchWindowFunctions = {
   openSearchWindow: () => void;
   closeSearchWindow: () => void;
+  setFilter: (filter: ISearchFilter | null) => void;
+  setSearchQuery: (query: string) => void;
 };
 
 type SearchWindowValues = {
   isOpen: boolean;
+  filter: ISearchFilter | null;
+  searchQuery: string;
 };
 
 export const SearchWindowContext = createContext<
@@ -18,6 +23,8 @@ export const SearchWindowContext = createContext<
 
 export function SearchWindowContextProvider({ children }: PropsWithChildren) {
   const [isOpen, setIsOpen] = useState(false);
+  const [filter, setFilter] = useState<ISearchFilter | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const openSearchWindow = useCallback(() => {
     setIsOpen(true);
@@ -33,9 +40,21 @@ export function SearchWindowContextProvider({ children }: PropsWithChildren) {
         openSearchWindow,
         isOpen,
         closeSearchWindow,
+        filter,
+        setFilter,
+        searchQuery,
+        setSearchQuery,
       }}
     >
-      <Modal footer={null} open={isOpen} onCancel={() => setIsOpen(false)}>
+      <Modal
+        closeIcon={null}
+        destroyOnClose={true}
+        footer={null}
+        open={isOpen}
+        style={{ top: 12 }}
+        title={null}
+        onCancel={() => setIsOpen(false)}
+      >
         <SearchWindow />
       </Modal>
       {children}

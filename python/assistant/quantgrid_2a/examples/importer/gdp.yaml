@@ -1,0 +1,39 @@
+user_name: gdp_example_user
+ai_name: gdp_example_ai
+messages:
+  - HumanMessage:
+      content: |-
+        # Instructions
+        
+        Create new table FranceNeighborsGDP.
+        
+        1. Create new unnested field "Neighbor". It must contain the following strings: Belgium, Luxembourg, Germany, Switzerland, Italy, Monaco, Spain, Andorra.
+        2. Create new unnested field "Indicator". Every entry must contain row_ref to row in Indicator table, where 'Country.Name' value equals to Neighbor value and 'Indicator.Name' contains either "GDP" or "gross domestic product" case insensitive.
+        
+        # Workspace
+        
+        table Indicators:
+          [unnested] source: ?
+          'COUNTRY.ID': number
+          'COUNTRY.Name' string
+          'COUNTRY.Description': string
+          'INDICATOR.ID': number
+          'INDICATOR.Name': string
+          'INDICATOR.Formula': string
+          'TIME_PERIOD': string
+          'OBS_VALUE': number
+  - AIMessage:
+      content: |-
+        For field "Neighbor" no special formula functions should be imported, as QuantGrid explicit array creation syntax is only needed.
+        For field "Indicator", several formula function must be used:
+        1. "filter" to filter suitable rows.
+        2. "isSubString" to check if 'INDICATOR.Name' contains substring.
+        3. "lower" or "upper" to find substrings case-insensitive.
+      tool:
+        name: ImportFunctions
+        args:
+          required_functions: [ filter, isSubString, lower ]
+  - ToolMessage:
+      content: ''
+  - AIMessage:
+      content: 'Done.'

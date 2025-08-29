@@ -1,16 +1,19 @@
 package com.epam.deltix.quantgrid.engine.node.plan.local.util;
 
+import java.util.Arrays;
+import java.util.List;
+import java.util.Objects;
+
 import com.epam.deltix.quantgrid.engine.node.expression.Expression;
 import com.epam.deltix.quantgrid.engine.value.Column;
 import com.epam.deltix.quantgrid.engine.value.DoubleColumn;
 import com.epam.deltix.quantgrid.engine.value.StringColumn;
+import com.epam.deltix.quantgrid.util.Doubles;
+import com.epam.deltix.quantgrid.util.Strings;
 import it.unimi.dsi.fastutil.Pair;
 import it.unimi.dsi.fastutil.longs.LongHash;
 import it.unimi.dsi.fastutil.objects.ObjectObjectImmutablePair;
-
-import java.util.Arrays;
-import java.util.List;
-import java.util.Objects;
+import lombok.Getter;
 
 public class TableHashStrategy implements LongHash.Strategy {
     private static final int SEED = 42;
@@ -20,18 +23,19 @@ public class TableHashStrategy implements LongHash.Strategy {
     private final DoubleColumn[] dataDoubleColumns;
     private final StringColumn[] dataStringColumns;
 
-    public TableHashStrategy(Pair<DoubleColumn[], StringColumn[]> columns, TableHashStrategy dataStrategy) {
-        searchDoubleColumns = columns.first();
-        searchStringColumns = columns.second();
-        dataDoubleColumns = dataStrategy.dataDoubleColumns;
-        dataStringColumns = dataStrategy.dataStringColumns;
+    private TableHashStrategy(Pair<DoubleColumn[], StringColumn[]> columns,
+                             TableHashStrategy dataStrategy) {
+        this.searchDoubleColumns = columns.first();
+        this.searchStringColumns = columns.second();
+        this.dataDoubleColumns = dataStrategy.dataDoubleColumns;
+        this.dataStringColumns = dataStrategy.dataStringColumns;
     }
 
-    public TableHashStrategy(Pair<DoubleColumn[], StringColumn[]> columns) {
-        searchDoubleColumns = columns.first();
-        searchStringColumns = columns.second();
-        dataDoubleColumns = searchDoubleColumns;
-        dataStringColumns = searchStringColumns;
+    private TableHashStrategy(Pair<DoubleColumn[], StringColumn[]> columns) {
+        this.searchDoubleColumns = columns.first();
+        this.searchStringColumns = columns.second();
+        this.dataDoubleColumns = searchDoubleColumns;
+        this.dataStringColumns = searchStringColumns;
     }
 
     public TableHashStrategy(List<Expression> searchKeys, TableHashStrategy dataStrategy) {
@@ -48,6 +52,7 @@ public class TableHashStrategy implements LongHash.Strategy {
 
         for (DoubleColumn column : searchDoubleColumns) {
             double value = column.get(index);
+            value = (value == -0.0) ? 0.0 : value;
             hash = 31 * hash + Double.hashCode(value);
         }
 
@@ -65,7 +70,11 @@ public class TableHashStrategy implements LongHash.Strategy {
             double leftValue = searchDoubleColumns[i].get(left);
             double rightValue = dataDoubleColumns[i].get(right);
 
-            if (Double.doubleToLongBits(leftValue) != Double.doubleToLongBits(rightValue)) {
+            if (leftValue == rightValue) {
+                continue; // special case -0.0 == 0.0 -> true
+            }
+
+            if (Double.doubleToRawLongBits(leftValue) != Double.doubleToRawLongBits(rightValue)) {
                 return false;
             }
         }
@@ -82,15 +91,33 @@ public class TableHashStrategy implements LongHash.Strategy {
         return true;
     }
 
+    public boolean hasError(long index) {
+        for (DoubleColumn column : searchDoubleColumns) {
+            double value = column.get(index);
+
+            if (Doubles.isError(value)) {
+                return true;
+            }
+        }
+
+        for (StringColumn column : searchStringColumns) {
+            String value = column.get(index);
+
+            if (Strings.isError(value)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public static TableHashStrategy fromColumns(List<Column> columns) {
         Pair<DoubleColumn[], StringColumn[]> pair = selectFromColumns(columns);
-
         return new TableHashStrategy(pair);
     }
 
     public static TableHashStrategy fromColumns(List<Column> columns, TableHashStrategy dataStrategy) {
         Pair<DoubleColumn[], StringColumn[]> pair = selectFromColumns(columns);
-
         return new TableHashStrategy(pair, dataStrategy);
     }
 

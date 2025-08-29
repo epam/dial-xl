@@ -40,7 +40,7 @@ public class Get extends ExpressionWithPlan<Table, Column> {
 
     @Override
     protected Column evaluate(Table table) {
-        return table.getColumn(column);
+        return Util.throwIfError(table.getColumn(column));
     }
 
     @Override

@@ -1,0 +1,5 @@
+name: sqrt
+description: Calculates square root value of number
+signature: 'primitive.sqrt() => number'
+manual: >-
+  `sqrt` calculates the square root value of `number` value.

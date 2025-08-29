@@ -1,11 +1,21 @@
 package com.epam.deltix.quantgrid.parser.ast;
 
-import lombok.EqualsAndHashCode;
-import lombok.ToString;
-import lombok.Value;
-import lombok.experimental.Accessors;
+import com.epam.deltix.quantgrid.parser.Span;
+import lombok.Getter;
 
-@Value
-@EqualsAndHashCode(callSuper = false)
+@Getter
 public class QueryRow extends Formula {
+
+    public QueryRow() {
+        this(null);
+    }
+
+    public QueryRow(Span span) {
+        super(span);
+    }
+
+    @Override
+    public String toString() {
+        return "QueryRow";
+    }
 }

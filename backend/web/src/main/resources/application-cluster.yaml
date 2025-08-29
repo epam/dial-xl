@@ -1,0 +1,31 @@
+logging:
+  level:
+    root: info
+    com.epam.deltix.quantgrid: debug
+
+server.port: ${WEB_SERVER_PORT}
+
+web:
+  cluster:
+    namespace: ${WEB_CLUSTER_NAMESPACE:qg_cluster}
+    nodeType: ${WEB_NODE_TYPE}
+  redis: |
+    clusterServersConfig:
+        nodeAddresses: ${WEB_REDIS_ADDRESS}
+        password: ${WEB_REDIS_PASSWORD}
+  storage:
+    local:
+      resultsFolder: ${RESULTS_FOLDER:tmp/.cache}
+      inputsFolder: ${INPUTS_FOLDER:tmp/inputs}
+    dial:
+      enabled: ${WEB_STORAGE_DIAL_INPUT_ENABLED:false}
+      baseUrl: ${WEB_STORAGE_DIAL_BASE_URL}
+      appKey: ${WEB_STORAGE_DIAL_APP_KEY}
+  heartbeatPeriodMillis: 5000
+
+server:
+  max-http-request-header-size: 40KB
+
+spring:
+  security:
+    enabled: ${SECURITY_ENABLED:false}

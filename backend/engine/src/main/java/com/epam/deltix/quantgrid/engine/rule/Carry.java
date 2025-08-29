@@ -13,12 +13,15 @@ import com.epam.deltix.quantgrid.engine.node.expression.RowNumber;
 import com.epam.deltix.quantgrid.engine.node.plan.Executed;
 import com.epam.deltix.quantgrid.engine.node.plan.Plan;
 import com.epam.deltix.quantgrid.engine.node.plan.Running;
+import com.epam.deltix.quantgrid.engine.node.plan.local.LoadLocal;
 import com.epam.deltix.quantgrid.engine.node.plan.local.Projection;
 import com.epam.deltix.quantgrid.engine.node.plan.local.SelectLocal;
+import com.epam.deltix.quantgrid.engine.store.Store;
 import com.epam.deltix.quantgrid.engine.value.Column;
 import com.epam.deltix.quantgrid.engine.value.Table;
 import com.epam.deltix.quantgrid.type.ColumnType;
 import com.google.common.primitives.Ints;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -28,12 +31,15 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.IntStream;
 
+@Slf4j
 public class Carry implements Rule {
 
     private final Cache cache;
+    private final Store store;
 
-    public Carry(Cache cache) {
+    public Carry(Cache cache, Store store) {
         this.cache = cache;
+        this.store = store;
     }
 
     @Override
@@ -71,6 +77,10 @@ public class Carry implements Rule {
 
         if (node instanceof Executed executed) {
             collectCached(chain, executed);
+        }
+
+        if (node instanceof LoadLocal stored) {
+            collectStored(chain, stored);
         }
 
         for (Entry<?> entry : chain) {
@@ -154,6 +164,28 @@ public class Carry implements Rule {
         }
     }
 
+    private void collectStored(List<Entry<?>> chains, Plan plan) {
+        int position = plan.getMeta().getSchema().size();
+
+        for (Entry<?> entry : chains) {
+            Branch branch = (Branch) entry;
+
+            if (!branch.replaceable) {
+                List<Identity> ids = identify(plan, List.of(branch));
+
+                for (Identity id : ids) {
+                    Util.verify(id.columns().length == 1, "Carried identity must have exactly one column: %s", id);
+                    if (store.lock(id)) {
+                        branch.replaceable = true;
+                        branch.column = position++;
+                        branch.stored = id;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
     private static void verify(Node node, List<Entry<?>> chain) {
         if (node instanceof Projection project) {
             int leafCount = 0;
@@ -213,7 +245,7 @@ public class Carry implements Rule {
         }
     }
 
-    private static Node replace(Map<Node, List<Entry<?>>> chains, Map<Plan, Mapping> mappings, Node node) {
+    private Node replace(Map<Node, List<Entry<?>>> chains, Map<Plan, Mapping> mappings, Node node) {
         List<Entry<?>> chain = get(chains, node);
 
         if (node instanceof Projection projection) {
@@ -246,7 +278,7 @@ public class Carry implements Rule {
         }
 
         if (node instanceof Executed executed) {
-            if (chains.isEmpty()) {
+            if (chain.isEmpty()) {
                 return executed; // remove when Value becomes Table
             }
 
@@ -268,8 +300,7 @@ public class Carry implements Rule {
             }
 
             Schema schema = Schema.of(executed.getMeta().getSchema(), Schema.of(types.toArray(ColumnType[]::new)));
-            Executed replacement = new Executed(executed.isLayout() ? null : executed.getLayout(),
-                    new Meta(schema), existing.add(columns));
+            Executed replacement = new Executed(executed, new Meta(schema), existing.add(columns));
 
             Mapping mapping = mappings.remove(executed);
             mappings.put(replacement, mapping);
@@ -278,6 +309,36 @@ public class Carry implements Rule {
             replacement.getIdentities().addAll(identities);
 
             return replace(chains, executed, replacement);
+        }
+
+        if (node instanceof LoadLocal load) {
+            if (chain.isEmpty()) {
+                return load; // remove when Value becomes Table ???
+            }
+
+            List<Identity> ids = new ArrayList<>();
+            List<Meta> metas = new ArrayList<>();
+
+            for (Entry<?> entry : chain) {
+                Branch branch = (Branch) entry;
+
+                Util.verify(branch.column != -1);
+                Util.verify(branch.replaceable);
+
+                if (branch.stored != null) {
+                    ids.add(branch.stored);
+                    metas.add(new Meta(Schema.of(branch.data.node.getType())));
+                }
+            }
+
+            LoadLocal replacement = load.append(ids, metas);
+            Mapping mapping = mappings.remove(load);
+            mappings.put(replacement, mapping);
+
+            List<Identity> identities = identify(load, chain);
+            replacement.getIdentities().addAll(identities);
+
+            return replace(chains, load, replacement);
         }
 
         if (node instanceof SelectLocal select) {
@@ -455,6 +516,7 @@ public class Carry implements Rule {
 
         Branch from;
         Column cached;
+        Identity stored;
         int ref;
         int input = -1;
         int column = -1;

@@ -5,121 +5,45 @@ message Request {
     // correlation id, optional only for ping requests
     optional string id = 1;
     oneof request {
-        // project level
-        ProjectListRequest project_list_request = 2; // -> ProjectList
-        CreateProjectRequest create_project_request = 3; // -> ProjectState
-        DeleteProjectRequest delete_project_request = 4; // -> ProjectState
-        OpenProjectRequest open_project_request = 5; // -> ProjectState
-        RenameProjectRequest rename_project_request = 6; // -> RenameProjectResponse
-        CloseProjectRequest close_project_request = 7; // -> ProjectState
-        // worksheet level
-        PutWorksheetRequest put_worksheet_request = 8; // -> WorksheetState
-        OpenWorksheetRequest open_worksheet_request = 9; // -> WorksheetState
-        RenameWorksheetRequest rename_worksheet_request = 10; // -> RenameWorksheetResponse
-        DeleteWorksheetRequest delete_worksheet_request = 11; // -> WorksheetState
-        CloseWorksheetRequest close_worksheet_request = 12; // -> WorksheetState
-        // viewport
-        ViewportRequest viewport_request = 13; // -> ViewportState
-        // inputs
-        InputListRequest input_list_request = 14; // InputList
-        //
-        Ping ping = 15; // Pong
-        InputMetadataRequest input_metadata_request = 16; // InputMetadataResponse
-        DimensionalSchemaRequest dimensional_schema_request = 17; // DimensionalSchemaResponse
-        FunctionRequest function_request = 18;
+        DimensionalSchemaRequest dimensional_schema_request = 2;
+        FunctionRequest function_request = 3;
+        CalculateWorksheetsRequest calculate_worksheets_request = 4;
+        CompileWorksheetsRequest compile_worksheets_request = 5;
+        SimilaritySearchRequest similarity_search_request = 6;
+        DownloadRequest download_request = 7;
+        ExportRequest export_request = 8;
+        CancelRequest cancel_request = 9;
+        ProjectCalculateRequest project_calculate_request = 10;
+        ProjectCancelRequest project_cancel_request = 11;
     }
 }
 
-message InputListRequest {
-}
-
-message ProjectListRequest {
-}
-
-message CreateProjectRequest {
-    string project_name = 1;
-}
-
-message DeleteProjectRequest {
-    string project_name = 1;
-    sint64 version = 2;
-}
-
-message RenameProjectRequest {
-    string project_name = 1;
-    sint64 version = 2;
-    string new_project_name = 3;
-}
-
-// updates previous subscription state if any
-message OpenProjectRequest {
-    string project_name = 1;
-}
-
-// updates previous subscription state if any
-message OpenWorksheetRequest {
-    string project_name = 1;
-    string sheet_name = 2;
-}
-
-message DeleteWorksheetRequest {
-    string project_name = 1;
-    string sheet_name = 2;
-    // current project version; used for handling concurrent requests (CAS)
-    sint64 version = 3;
-}
-
-message RenameWorksheetRequest {
-    string project_name = 1;
-    // current project version; used for handling concurrent requests (CAS)
-    sint64 version = 2;
-    string old_sheet_name = 3;
-    string new_sheet_name = 4;
-}
-
-message CloseWorksheetRequest {
-    string project_name = 1;
-    string sheet_name = 2;
-}
-
-
-message CloseProjectRequest {
-    string project_name = 1;
-}
-
-message PutWorksheetRequest {
-    string project_name = 1;
-    string sheet_name = 2;
-    // empty for new worksheet
-    optional string content = 3;
-    // current project version; used for handling concurrent requests (CAS)
-    sint64 version = 4;
-}
-
-message InputMetadataRequest {
-    InputFile input = 1;
-}
-
-// updates previous subscription state if any
-message ViewportRequest {
-    string project_name = 1;
-    // <table_name, Viewport>
-    map<string, Viewport> viewports = 2;
-}
-
 message Viewport {
-    repeated string fields = 1;
-    sint64 start_row = 2;
-    sint64 end_row = 3;
-    bool is_content = 4;
+    oneof key {
+        FieldKey fieldKey = 1;
+        TotalKey totalKey = 2;
+    }
+    sint64 start_row = 3;
+    sint64 end_row = 4;
+    bool is_content = 5;
+    optional bool is_raw = 6;
 }
 
 message DimensionalSchemaRequest {
-    string project_name = 1;
-    string formula = 2;
+    // Project name should only be specified for the WebSocket interface.
+    optional string project_name = 1;
+    // Table in the context of which to compile this formula.
+    optional string table = 2;
+    string formula = 3;
+    // The sheets are supported by the HTTP endpoint only.
+    map<string, string> worksheets = 4;
 }
 
 message FunctionRequest {
+    // Project name should only be specified for the WebSocket interface.
+    optional string project_name = 1;
+    // The sheets are supported by the HTTP endpoint only.
+    map<string, string> worksheets = 2;
 }
 
 message Response {
@@ -130,18 +54,13 @@ message Response {
     // optional error message for failed requests
     optional string error_message = 3;
     oneof response {
-        ProjectList project_list = 4;
-        ProjectState project_state = 5;
-        WorksheetState worksheet_state = 6;
-        ViewportState viewport_state = 7;
-        ColumnData column_data = 8;
-        RenameWorksheetResponse rename_worksheet_response = 9;
-        RenameProjectResponse rename_project_response = 10;
-        InputList input_list = 11;
-        Pong pong = 12;
-        InputMetadataResponse input_metadata_response = 13;
-        DimensionalSchemaResponse dimensional_schema_response = 14;
-        FunctionResponse function_response = 15;
+        ColumnData column_data = 4;
+        DimensionalSchemaResponse dimensional_schema_response = 5;
+        FunctionResponse function_response = 6;
+        CompileResult compile_result = 7;
+        SimilaritySearchResponse similarity_search_response = 8;
+        Profile profile = 9;
+        Index index = 10;
     }
 }
 
@@ -153,145 +72,166 @@ enum Status {
     INVALID_PROTOCOL = 4;
 }
 
-// part of response message
-message ProjectList {
-    repeated string projects = 1;
-}
 
-message ProjectState {
-    string project_name = 1;
-    repeated WorksheetState sheets = 2;
-    // current project state version
-    sint64 version = 3;
-    // true - if project was successfully deleted, otherwise- false
-    bool is_deleted = 4;
-}
-
-message RenameWorksheetResponse {
-    string project_name = 1;
-    sint64 version = 2;
-    string old_sheet_name = 3;
-    string new_sheet_name = 4;
-}
-
-message RenameProjectResponse {
-    sint64 version = 1;
-    string old_project_name = 2;
-    string new_project_name = 3;
-}
-
-message WorksheetState {
-    string project_name = 1;
-    string sheet_name = 2;
-    string content = 3;
-    sint64 version = 4;
-    bool is_deleted = 5;
-    repeated ParsingError parsing_errors = 6;
-    repeated CompilationError compilation_errors = 7;
-}
-
+// For csv inputs:
+// If the header (first line) is longer than any of the rows, the rows will be
+// extended with empty values to match the header size.
+// If the header is shorter than any of the rows, the header will be extended with
+// autogenerated names ("Column<position>").
+// If all values in an autogenerated column are empty or null, the column type will be set to `null`.
+// Returns an error message in the following cases:
+// * The document is empty
+// * There are columns with identical names.
+// * User does not have permissions to the file.
+// * File read error.
+// * Max number of columns (currently 512) is exceeded.
+// * Max value length (currently 1,048,576) is exceeded.
+// Note: The CSV document should not have mixed line endings; the line ending symbol is determined during header parsing.
 message DimensionalSchemaResponse {
-    string project_name = 1;
+    optional string project_name = 1;
     string formula = 2;
     optional string error_message = 3;
     // list of fields for tables/inputs, or empty list for columns
     repeated string schema = 4;
     // list of key fields
     repeated string keys = 5;
+    FieldInfo field_info = 6;
 }
 
 message FunctionResponse {
     repeated Function functions = 1;
 }
 
+message TableKey {
+    string table = 1;
+}
+
+message FieldKey {
+    string table = 1;
+    string field = 2;
+}
+
+message ApplyKey {
+    string table = 1;
+    string function = 2; // sort/filter
+}
+
+message TotalKey {
+    string table = 1;
+    string field = 2;
+    uint32 number = 3; // starts from 1
+}
+
+message OverrideKey {
+    string table = 1;
+    string field = 2;
+    uint32 row = 3; // starts from 1
+}
+
+message Source {
+    optional uint32 start_line = 1;   // starts from 1, deprecated
+    optional uint32 start_column = 2; // starts from 1, deprecated
+    optional string sheet = 3;
+    optional uint32 start_index = 4;
+    optional uint32 stop_index = 5;
+}
+
 message ParsingError {
-    // line number in provided DSL, starting from 1
-    sint32 line = 1;
-    // char position in a line, starting from 0
-    sint32 position = 2;
-    string message = 3;
-    // specified if and only if we have enough information from parsing context to identify
-    optional string table_name = 4;
-    optional string field_name = 5;
+    oneof key {
+        TableKey tableKey = 1;
+        FieldKey fieldKey = 2;
+        ApplyKey applyKey = 3;
+        TotalKey totalKey = 4;
+        OverrideKey overrideKey = 5;
+    }
+
+    string message = 6;
+    optional Source source = 7;
 }
 
 message CompilationError {
-    string table_name = 1;
-    // if absent - error message is related to the whole table
-    optional string field_name = 2;
-    string message = 3;
-}
+    oneof key {
+        TableKey tableKey = 1;
+        FieldKey fieldKey = 2;
+        ApplyKey applyKey = 3;
+        TotalKey totalKey = 4;
+        OverrideKey overrideKey = 5;
+    }
 
-message ViewportState {
-    repeated ColumnData columns = 1;
+    string message = 6;
+    optional Source source = 7;
 }
 
 message ColumnData {
-    string table_name = 1;
-    // regular (static) column name or * for dynamic fields
-    string column_name = 2;
-    // current project version associated with data
-    // When applying to the state, higher version wins. If multiple messages for the same version, pending=false wins
-    sint64 version = 3;
-    // true if calculation is not finished yet
-    bool is_pending = 4;
-    optional string error_message = 5;
-    repeated string data = 6;
-    sint64 start_row = 7;
-    sint64 end_row = 8;
-    ColumnDataType type = 9;
+    oneof key {
+        FieldKey fieldKey = 1;
+        TotalKey totalKey = 2;
+    }
+    optional string error_message = 3;
+    repeated string data = 4;
+    sint64 start_row = 5;
+    sint64 end_row = 6;
+    sint64 total_rows = 7;
+    ColumnDataType type = 8;
     // true if cell represented as collection of data (N strings, N rows)
-    bool isNested = 10;
+    bool isNested = 9;
     // name of the table in case ColumnDataType.TABLE
-    optional string reference_table_name = 11;
-    repeated PeriodSeries period_series = 12;
+    optional string reference_table_name = 10;
+    repeated PeriodSeries period_series = 11;
+    optional ColumnFormat format = 12;
+    optional bool is_raw = 13;
+}
+
+message Index {
+    FieldKey key = 1;
+    optional string error_message = 2;
 }
 
 message PeriodSeries {
    map<string, string> points = 1;
 }
 
-message InputList {
-    repeated InputFile inputs = 1;
-}
-
-message InputFile {
-    // sub folder from InputFolder "root" till input file
-    repeated string paths = 1;
-    string input_name = 2;
-}
-
-message Ping {
-}
-
-message Pong {
-}
-
-message InputMetadataResponse {
-    InputFile input = 1;
-    repeated ColumnMetadata columns = 2;
-}
-
-message ColumnMetadata {
-    string column_name = 1;
-    ColumnDataType type = 2;
-}
-
 enum ColumnDataType {
     UNKNOWN = 0;
     STRING = 1;
     DOUBLE = 2;
-    INTEGER = 3;
-    BOOLEAN = 4;
-    DATE = 5;
     PERIOD_SERIES = 6;
-    TABLE = 7;
+    TABLE_REFERENCE = 7;
+    TABLE_VALUE = 8;
+}
+
+enum FunctionType {
+    // Functions that usually used to create new tables
+    CREATE_TABLE_FUNCTIONS = 0;
+    // Functions that aggregate array of values / row references into single value / row reference
+    AGGREGATIONS_FUNCTIONS = 1;
+    // Simple math and arithmetic: PI, Log, Sqrt etc
+    MATH_FUNCTIONS = 2;
+    // Logical operations, IF, IFNA etc.
+    LOGICAL_FUNCTIONS = 3;
+    // Miscellaneous functions that accept or create table (array of row reference)
+    TABLE_FUNCTIONS = 4;
+    // Miscellaneous functions that accept or create array
+    ARRAY_FUNCTIONS = 5;
+    // Functions that help look up value in array or table
+    LOOKUP_FUNCTIONS = 6;
+    // Functions that creates or operates with dates/timestamps
+    DATE_FUNCTIONS = 7;
+    // Functions that creates or operates with strings/texts
+    TEXT_FUNCTIONS = 8;
+    // Functions that creates or operates with period series
+    PERIOD_SERIES_FUNCTIONS = 9;
+    // Custom functions declared in python
+    PYTHON_FUNCTIONS = 10;
+    // Functions that useful for evaluation
+    EVALUATION_FUNCTIONS = 11;
 }
 
 message Function {
     string name = 1;
     string description = 2;
     repeated Argument arguments = 3;
+    repeated FunctionType function_type = 4;
 }
 
 message Argument {
@@ -299,4 +239,190 @@ message Argument {
     string description = 2;
     bool repeatable = 3;
     bool optional = 4;
+}
+
+// A request to calculate the provided worksheets.
+// If a project name is provided, the calculation may reuse the project cache, if available.
+// An empty worksheets map will result in an empty calculation.
+// The response to this request will be followed by column data messages for the requested viewports.
+message CalculateWorksheetsRequest {
+    optional string project_name = 1;
+    map<string, string> worksheets = 2;
+    repeated Viewport viewports = 3;
+    optional bool includeCompilation = 4;
+    optional bool includeProfile = 5;
+    optional bool includeIndices = 6;
+    optional bool shared = 7;
+}
+
+message CompileWorksheetsRequest {
+    map<string, string> worksheets = 1;
+}
+
+message FieldInfo {
+    oneof key {
+        FieldKey fieldKey = 1;
+        TotalKey totalKey = 2;
+        OverrideKey overrideKey = 3;
+    }
+    ColumnDataType type = 4;
+    // true if cell represented as collection of data (N strings, N rows)
+    bool is_nested = 5;
+    // name of the table in case ColumnDataType.TABLE
+    optional string reference_table_name = 6;
+    optional string hash = 7;
+}
+
+message ParsedSheet {
+    string name = 1;
+    repeated ParsingError parsing_errors = 2;
+}
+
+message CompileResult {
+    repeated ParsedSheet sheets = 1;
+    repeated CompilationError compilation_errors = 2;
+    repeated FieldInfo field_info = 3;
+    repeated FieldKey indices = 4;
+}
+
+message DownloadRequest {
+    string project = 1;
+    map<string, string> sheets = 2;
+    string table = 3;
+    repeated string columns = 4;
+}
+
+message ExportRequest {
+    string project = 1;
+    map<string, string> sheets = 2;
+    string table = 3;
+    repeated string columns = 4;
+    string path = 5;
+}
+
+message SimilaritySearchRequest {
+    string project = 1;
+    map<string, string> sheets = 2;
+    repeated SimilaritySearchColumn columns = 3;
+    string query = 4;
+    sint32 n = 5;
+    bool search_in_all = 6;
+    bool use_evaluation = 7;
+}
+
+message SimilaritySearchResponse {
+    repeated SimilaritySearchScore scores = 1;
+}
+
+message SimilaritySearchColumn {
+    string table = 1;
+    string column = 2;
+    sint32 n = 3;
+}
+
+message SimilaritySearchScore {
+    string table = 1;
+    string column = 2;
+    string value = 3;
+    optional string description = 4;
+    double score = 5;
+}
+
+enum FormatType {
+    FORMAT_TYPE_GENERAL = 0;
+    FORMAT_TYPE_BOOLEAN = 1;
+    FORMAT_TYPE_CURRENCY = 2;
+    FORMAT_TYPE_DATE = 3;
+    FORMAT_TYPE_NUMBER = 4;
+    FORMAT_TYPE_PERCENTAGE = 5;
+    FORMAT_TYPE_SCIENTIFIC = 6;
+}
+
+message GeneralFormatArgs {
+}
+
+message BooleanFormatArgs {
+}
+
+message NumberFormatArgs {
+    string format = 1;
+    bool useThousandsSeparator = 2;
+}
+
+message ScientificFormatArgs {
+    int32 format = 1;
+}
+
+message CurrencyFormatArgs {
+    string format = 1;
+    bool useThousandsSeparator = 2;
+    string symbol = 3;
+}
+
+message DateFormatArgs {
+    string pattern = 1;
+}
+
+message PercentageFormatArgs {
+    string format = 1;
+    bool useThousandsSeparator = 2;
+}
+
+message ColumnFormat {
+    FormatType type = 1;
+    oneof args {
+        GeneralFormatArgs general_args = 2;
+        BooleanFormatArgs boolean_args = 3;
+        NumberFormatArgs number_args = 4;
+        ScientificFormatArgs scientific_args = 5;
+        CurrencyFormatArgs currency_args = 6;
+        DateFormatArgs date_args = 7;
+        PercentageFormatArgs percentage_args = 8;
+    };
+}
+
+enum ExecutionStatus {
+    RUNNING = 0;
+    COMPLETED = 1;
+}
+
+enum ExecutionType {
+    COMPUTE = 0;
+    INDEX = 1;
+}
+
+message Profile {
+    oneof key {
+        TableKey tableKey = 1;
+        FieldKey fieldKey = 2;
+        TotalKey totalKey = 3;
+        OverrideKey overrideKey = 4;
+    }
+
+    Source source = 5;
+    ExecutionType type = 6;
+    ExecutionStatus status = 7;
+    optional int64 startedAt = 8;
+    optional int64 stoppedAt = 9;
+    optional int64 executionTime = 10;
+}
+
+message CancelRequest {
+    string calculationId = 1;
+    repeated CancelKey cancellationKeys = 2;
+}
+
+message CancelKey {
+    oneof key {
+        FieldKey fieldKey = 1;
+        TotalKey totalKey = 2;
+    }
+}
+
+message ProjectCalculateRequest {
+    string project = 1;
+}
+
+message ProjectCancelRequest {
+    string project = 1;
 }

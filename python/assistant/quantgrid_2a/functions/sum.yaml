@@ -1,0 +1,6 @@
+name: sum
+description: Calculates sum of the array
+signature: 'array<number>.sum() => number'
+manual: >-
+  `sum` calculates the aggregate sum of array elements. Elements must be number primitives or be implicitly convertible
+  to them. Returned type depends on array elements type.

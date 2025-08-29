@@ -1,22 +1,49 @@
 plugins {
-    id("org.springframework.boot") version "3.0.4"
-    id("io.freefair.lombok") version "8.0.1"
+    id "org.springframework.boot" version "3.4.5"
+    id "io.freefair.lombok" version "8.0.1"
+}
+
+configurations.configureEach {
+    resolutionStrategy {
+        force 'com.google.code.gson:gson:2.8.9'
+    }
+}
+
+configurations.configureEach {
+    // disable extra dependencies and auto configuration
+    exclude group: "org.springframework.boot", module: "spring-boot-starter-logging"
+    exclude group: "org.springframework.boot", module:"spring-boot-starter-tomcat"
 }
 
 dependencies {
+    implementation 'com.epam.deltix:gflog-jul:3.0.6'
     implementation project(':backend:proto')
     implementation project(':backend:engine')
     implementation project(':backend:parser')
     implementation project(':backend:common')
-    implementation "org.springframework.boot:spring-boot-starter-websocket:3.0.4"
-    implementation "org.slf4j:slf4j-api:2.0.6"
+    implementation "org.springframework.boot:spring-boot-starter-web:3.4.5"
+    implementation 'org.springframework.boot:spring-boot-starter-undertow:3.4.5'
+    implementation "org.springframework.boot:spring-boot-starter-security:3.4.5"
+    implementation "org.slf4j:slf4j-api:2.0.17"
     implementation "com.google.protobuf:protobuf-java-util:3.22.2"
     implementation 'it.unimi.dsi:fastutil-core:8.5.12'
     implementation 'org.jetbrains:annotations:20.1.0'
-    implementation 'commons-lang:commons-lang:2.6'
+    implementation 'com.google.code.gson:gson:2.8.9'
+    implementation 'org.apache.commons:commons-lang3:3.12.0'
     implementation 'commons-codec:commons-codec:1.15'
+    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
+    implementation 'com.squareup.okhttp3:okhttp-sse:4.12.0'
+    implementation 'org.redisson:redisson:3.32.0'
+    implementation 'javax.annotation:javax.annotation-api:1.2'
 
-    testImplementation 'org.springframework.boot:spring-boot-starter-test:3.0.4'
+    testImplementation 'org.springframework.boot:spring-boot-starter-test:3.4.5'
+    testImplementation "org.springframework.boot:spring-boot-starter-oauth2-resource-server:3.4.5"
+    testImplementation 'org.springframework.security:spring-security-test:6.4.5'
+    testImplementation 'javax.xml.bind:jaxb-api:2.3.1'
+    testImplementation 'com.squareup.okhttp3:mockwebserver:4.12.0'
+    testImplementation('com.github.lansheng228:embedded-redis:7.0.9') {
+        exclude group: 'org.slf4j', module: 'slf4j-simple'
+    }
 }
 
 bootJar {
@@ -26,4 +53,9 @@ bootJar {
 
 bootRun {
     systemProperties = System.properties
+}
+
+test {
+    systemProperty "qg.embedding.models.path", "../../embedding_models"
+    systemProperty "qg.embedding.execution.mode", "ACCURACY"
 }

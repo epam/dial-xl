@@ -1,9 +1,4 @@
-import {
-  CharStreams,
-  CommonToken,
-  ConsoleErrorListener,
-  Lexer,
-} from 'antlr4ts';
+import { CharStreams, CommonToken, Lexer } from 'antlr4';
 
 import { SheetLexer } from '@frontend/parser';
 
@@ -30,7 +25,7 @@ export class SheetSemanticProvider
   provideDocumentSemanticTokens(model: editor.ITextModel) {
     const sheet = model.getValue();
     const lexer = new SheetLexer(CharStreams.fromString(sheet));
-    lexer.removeErrorListener(ConsoleErrorListener.INSTANCE);
+    lexer.removeErrorListeners();
 
     this.tokens = [];
     this.previousTokenLine = 0;
@@ -44,8 +39,7 @@ export class SheetSemanticProvider
       if (token == null || token.type === EOF) {
         done = true;
       } else {
-        const { line, charPositionInLine, type, text, startIndex, stopIndex } =
-          token;
+        const { line, column, type, text, start, stop } = token;
         if (!text) continue;
 
         const typeName = this.getTokenNameByTypeId(lexer, type);
@@ -57,14 +51,14 @@ export class SheetSemanticProvider
         this.addToken(
           currentLine - this.previousTokenLine,
           this.previousTokenLine === currentLine
-            ? charPositionInLine - this.previousTokenColumn
-            : charPositionInLine,
-          stopIndex - startIndex + 1,
+            ? column - this.previousTokenColumn
+            : column,
+          stop - start + 1,
           typeName
         );
 
         this.previousTokenLine = currentLine;
-        this.previousTokenColumn = charPositionInLine;
+        this.previousTokenColumn = column;
       }
     }
 
@@ -97,10 +91,14 @@ export class SheetSemanticProvider
   }
 
   private getTokenNameByTypeId(lexer: Lexer, typeId: number) {
-    return (
-      lexer.vocabulary.getSymbolicName(typeId) ??
-      lexer.vocabulary.getDisplayName(typeId) ??
-      ''
-    );
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    const symbolicNames = lexer.getSymbolicNames();
+
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    const tokenNames = lexer.getTokenNames();
+
+    return symbolicNames[typeId] ?? tokenNames[typeId] ?? '';
   }
 }

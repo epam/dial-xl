@@ -2,7 +2,7 @@ import { Monaco } from '@monaco-editor/react';
 
 import { editor, IDisposable, languages, Position } from '../../monaco';
 import signatureItem = languages.SignatureHelpResult;
-import { CharStreams } from 'antlr4ts';
+import { CharStreams } from 'antlr4';
 
 import { FunctionInfo } from '@frontend/common';
 import { SheetLexer } from '@frontend/parser';
@@ -35,21 +35,25 @@ export function registerFunctionSignatureProvider(
       // For more complex cases, like nested functions, we need to implement a proper parser for formula
       let commasCount = 0;
       let functionName = '';
+      let previousCharacter = '';
       for (let i = tokens.length - 1; i >= 0; i--) {
         const { text } = tokens[i];
 
         if (!text) continue;
         if (text === ')') break;
         if (text === ',') commasCount++;
+        if (functionName && !previousCharacter && text) {
+          previousCharacter = text;
+          break;
+        }
 
         const isFunctionName = functions.find(
           (f) => f.name.toLowerCase() === text.toLowerCase()
         );
         const isFunctionNameWithParenthesis =
           i !== tokens.length - 1 && tokens[i + 1].text === '(';
-        if (isFunctionName && isFunctionNameWithParenthesis) {
+        if (isFunctionName && isFunctionNameWithParenthesis && !functionName) {
           functionName = text;
-          break;
         }
       }
 
@@ -59,8 +63,9 @@ export function registerFunctionSignatureProvider(
         (f) => f.name.toLowerCase() === functionName.toLowerCase()
       );
 
+      const isMethodInvocation = previousCharacter === '.';
       const signature = findFunction
-        ? getFunctionSignature(findFunction)
+        ? getFunctionSignature(findFunction, isMethodInvocation)
         : missingSignature;
 
       return {

@@ -1,67 +1,126 @@
+// eslint-disable-next-line simple-import-sort/imports
+import 'reflect-metadata';
+
+import { ConfigProvider } from 'antd';
+import Bowser from 'bowser';
+import { WebStorageStateStore } from 'oidc-client-ts';
 import * as ReactDOM from 'react-dom/client';
-import { BrowserRouter, Route, Routes } from 'react-router-dom';
+import { AuthProvider, AuthProviderProps } from 'react-oidc-context';
+import { BrowserRouter } from 'react-router-dom';
 import { ToastContainer } from 'react-toastify';
 
 import { CodeEditorContextProvider } from '@frontend/common';
 
 import {
+  AIHintsContextProvider,
   ApiContextProvider,
-  App,
   AppContextProvider,
-  DashboardPage,
-  ErrorPage,
+  AppSpreadsheetInteractionContextProvider,
+  CanvasSpreadsheetContextProvider,
+  ChatOverlayContextProvider,
+  CommonProvider,
   InputsContextProvider,
   Loader,
   ProjectContextProvider,
   SearchWindowContextProvider,
-  SpreadsheetContextProvider,
   UndoRedoProvider,
   ViewportContextProvider,
 } from './app';
+import { AppRoutes } from './AppRoutes';
+
+import { Log } from 'oidc-client-ts';
+Log.setLevel(Log.ERROR);
+Log.setLogger(console);
 
 const root = ReactDOM.createRoot(
   document.getElementById('root') as HTMLElement
 );
 
-root.render(
-  <BrowserRouter>
-    <div className="flex flex-col h-screen overflow-hidden">
-      <AppContextProvider>
-        <ApiContextProvider>
-          <ViewportContextProvider>
-            <ProjectContextProvider>
-              <UndoRedoProvider>
-                <InputsContextProvider>
-                  <SpreadsheetContextProvider>
-                    <SearchWindowContextProvider>
-                      <CodeEditorContextProvider>
-                        <Routes>
-                          <Route element={<DashboardPage />} path="/" />
-                          <Route
-                            element={<App />}
-                            path="/:projectName/:sheetName?"
-                          />
-                          <Route element={<ErrorPage />} path="*" />
-                        </Routes>
+const browser = Bowser.getParser(window.navigator.userAgent);
+const isAuth0 = window.externalEnv.authAuthority?.includes('auth0');
+const extraQueryParams = isAuth0
+  ? {
+      extraQueryParams: {
+        audience: 'chat',
+      },
+    }
+  : undefined;
+const scope =
+  window.externalEnv.authScope || 'openid profile email offline_access';
 
-                        <ToastContainer
-                          autoClose={10000}
-                          hideProgressBar={true}
-                          limit={5}
-                          position="bottom-right"
-                          theme="colored"
-                          closeOnClick
-                        />
-                        <Loader />
-                      </CodeEditorContextProvider>
-                    </SearchWindowContextProvider>
-                  </SpreadsheetContextProvider>
-                </InputsContextProvider>
-              </UndoRedoProvider>
-            </ProjectContextProvider>
-          </ViewportContextProvider>
-        </ApiContextProvider>
-      </AppContextProvider>
-    </div>
-  </BrowserRouter>
+// Clear url params from auth params
+const search = new URLSearchParams(window.location.search);
+search.delete('state');
+search.delete('session_state');
+search.delete('code');
+const finalSearchParams = search.size > 0 ? '?' + search.toString() : '';
+//
+
+const oidcConfig: AuthProviderProps = {
+  authority: window.externalEnv.authAuthority || '',
+  client_id: window.externalEnv.authClientId || '',
+  redirect_uri: encodeURI(
+    window.location.origin + window.location.pathname + finalSearchParams
+  ),
+  automaticSilentRenew: true,
+  // monitorSession: true causing 'error=login_required' in Firefox with infinite loop
+  monitorSession: !['Firefox', 'Safari'].includes(browser.getBrowserName()),
+  userStore: new WebStorageStateStore({ store: window.localStorage }),
+  onSigninCallback: () => {
+    window.history.replaceState({}, document.title, window.location.pathname);
+  },
+  scope,
+  ...extraQueryParams,
+};
+
+root.render(
+  <AuthProvider {...oidcConfig}>
+    <BrowserRouter>
+      <div className="flex flex-col h-dvh overflow-hidden">
+        <CommonProvider>
+          <ConfigProvider wave={{ disabled: true }}>
+            <AppContextProvider>
+              <ApiContextProvider>
+                <ViewportContextProvider>
+                  <ProjectContextProvider>
+                    <CanvasSpreadsheetContextProvider>
+                      <UndoRedoProvider>
+                        <InputsContextProvider>
+                          <AIHintsContextProvider>
+                            <AppSpreadsheetInteractionContextProvider>
+                              <ChatOverlayContextProvider>
+                                <SearchWindowContextProvider>
+                                  <CodeEditorContextProvider
+                                    dialBaseUrl={
+                                      window.externalEnv.dialBaseUrl || ''
+                                    }
+                                  >
+                                    <AppRoutes />
+
+                                    <ToastContainer
+                                      autoClose={10000}
+                                      hideProgressBar={true}
+                                      limit={5}
+                                      position="bottom-right"
+                                      theme="colored"
+                                      closeOnClick
+                                    />
+                                    <Loader />
+                                  </CodeEditorContextProvider>
+                                </SearchWindowContextProvider>
+                              </ChatOverlayContextProvider>
+                            </AppSpreadsheetInteractionContextProvider>
+                          </AIHintsContextProvider>
+                        </InputsContextProvider>
+                      </UndoRedoProvider>
+                    </CanvasSpreadsheetContextProvider>
+                  </ProjectContextProvider>
+                </ViewportContextProvider>
+              </ApiContextProvider>
+            </AppContextProvider>
+          </ConfigProvider>
+        </CommonProvider>
+      </div>
+    </BrowserRouter>
+  </AuthProvider>
 );

@@ -1,0 +1,121 @@
+{
+  "name": "test",
+  "tables": [
+    {
+      "span": {
+        "sheet": "test",
+        "text": "!decorator1(4 4 4)\n!decorator2(1, 2, 2)\ntable T1\n  [a] = 1\n",
+        "from": 0,
+        "to": 59
+      },
+      "name": {
+        "span": {
+          "sheet": "test",
+          "text": "T1",
+          "from": 46,
+          "to": 48
+        },
+        "text": "T1"
+      },
+      "fields": [
+        {
+          "span": {
+            "sheet": "test",
+            "text": "[a] = 1",
+            "from": 51,
+            "to": 58
+          },
+          "fields": [
+            {
+              "span": {
+                "sheet": "test",
+                "text": "[a]",
+                "from": 51,
+                "to": 54
+              },
+              "name": {
+                "span": {
+                  "sheet": "test",
+                  "text": "[a]",
+                  "from": 51,
+                  "to": 54
+                },
+                "text": "a"
+              },
+              "decorators": [],
+              "docs": []
+            }
+          ],
+          "formula": {
+            "number": 1.0,
+            "span": {
+              "sheet": "test",
+              "text": "1",
+              "from": 57,
+              "to": 58
+            },
+            "arguments": []
+          }
+        }
+      ],
+      "decorators": [
+        {
+          "span": {
+            "sheet": "test",
+            "text": "\n!decorator2(1, 2, 2)\n",
+            "from": 18,
+            "to": 40
+          },
+          "name": {
+            "span": {
+              "sheet": "test",
+              "text": "decorator2",
+              "from": 20,
+              "to": 30
+            },
+            "text": "decorator2"
+          },
+          "params": [
+            {
+              "span": {
+                "sheet": "test",
+                "text": "1",
+                "from": 31,
+                "to": 32
+              },
+              "value": 1.0
+            },
+            {
+              "span": {
+                "sheet": "test",
+                "text": "2",
+                "from": 34,
+                "to": 35
+              },
+              "value": 2.0
+            },
+            {
+              "span": {
+                "sheet": "test",
+                "text": "2",
+                "from": 37,
+                "to": 38
+              },
+              "value": 2.0
+            }
+          ]
+        }
+      ],
+      "docs": [],
+      "totals": []
+    }
+  ],
+  "pythons": [],
+  "errors": [
+    {
+      "line": 1,
+      "position": 15,
+      "message": "mismatched input '4' expecting {',', ')', LINE_BREAK}"
+    }
+  ]
+}

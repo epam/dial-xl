@@ -1,153 +1,53 @@
 package com.epam.deltix.quantgrid.parser;
 
-import com.epam.deltix.quantgrid.parser.ast.BinaryOperation;
-import com.epam.deltix.quantgrid.parser.ast.BinaryOperator;
-import com.epam.deltix.quantgrid.parser.ast.ConstNumber;
-import com.epam.deltix.quantgrid.parser.ast.ConstText;
-import com.epam.deltix.quantgrid.parser.ast.CurrentField;
-import com.epam.deltix.quantgrid.parser.ast.FieldReference;
-import com.epam.deltix.quantgrid.parser.ast.Function;
-import com.epam.deltix.quantgrid.parser.ast.QueryRow;
-import com.epam.deltix.quantgrid.parser.ast.TableReference;
-import com.epam.deltix.quantgrid.parser.ast.UnaryOperation;
-import com.epam.deltix.quantgrid.parser.ast.UnaryOperator;
-import com.epam.deltix.quantgrid.service.parser.OverrideValue;
-import com.epam.deltix.quantgrid.type.ColumnType;
-import it.unimi.dsi.fastutil.objects.ObjectArrayList;
-import org.junit.jupiter.api.Assertions;
+import com.google.gson.ExclusionStrategy;
+import com.google.gson.FieldAttributes;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import lombok.SneakyThrows;
 import org.junit.jupiter.api.Test;
 
-import java.util.List;
-import java.util.Map;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
-import static com.epam.deltix.quantgrid.service.parser.OverrideValue.MISSING;
+import static org.assertj.core.api.Assertions.assertThat;
 
 class SheetParserTest {
+    private static final Gson GSON = new GsonBuilder()
+            .setPrettyPrinting()
+            .serializeSpecialFloatingPointValues()
+            .disableHtmlEscaping()
+            .create();
+    private static final Gson GSON_NO_SPAN = GSON.newBuilder()
+            .setExclusionStrategies(new ExclusionStrategy() {
+                @Override
+                public boolean shouldSkipField(FieldAttributes fieldAttributes) {
+                    return "span".equals(fieldAttributes.getName());
+                }
 
-    private FieldKey key(String tableName, String fieldName) {
-        return new FieldKey(tableName, fieldName);
+                @Override
+                public boolean shouldSkipClass(Class<?> aClass) {
+                    return false;
+                }
+            })
+            .create();
+
+    @SneakyThrows
+    private static String readTestJson(String expectedJsonName) {
+        return Files.readString(
+                Path.of(SheetParserTest.class.getClassLoader()
+                        .getResource("dsl/%s.json".formatted(expectedJsonName))
+                        .toURI()));
     }
 
-    private static void assertOverridesEquals(ParsedOverride expected, ParsedOverride actual) {
-        if (expected != null && actual != null) {
-            Map<FieldKey, ParsedOverride.TypedValue> expectedKeys = expected.keys();
-            Map<FieldKey, ParsedOverride.TypedValue> actualKeys = actual.keys();
-
-            Assertions.assertEquals(expected.rowNumberKey(), actual.rowNumberKey());
-
-            Assertions.assertEquals(expectedKeys.size(), actualKeys.size(), "Override keys size do not match");
-            expectedKeys.forEach((k, v) -> {
-                ParsedOverride.TypedValue actualTypedValue = actualKeys.get(k);
-                Assertions.assertNotNull(actualTypedValue, "Missing expected override key: " + k);
-                Assertions.assertEquals(v.type(), actualTypedValue.type(), "Override key type doesn't match");
-                Assertions.assertIterableEquals(
-                        v.value(),
-                        actualTypedValue.value(),
-                        "Override key values do not match");
-            });
-
-            Map<FieldKey, ParsedOverride.TypedValue> expectedFields = expected.fields();
-            Map<FieldKey, ParsedOverride.TypedValue> actualFields = actual.fields();
-
-            Assertions.assertEquals(expectedFields.size(), actualFields.size(), "Override fields size do not match");
-            expectedFields.forEach((k, v) -> {
-                ParsedOverride.TypedValue actualTypedValue = actualFields.get(k);
-                Assertions.assertNotNull(actualTypedValue, "Missing expected override field: " + k);
-                Assertions.assertEquals(v.type(), actualTypedValue.type(), "Override field type doesn't match");
-                Assertions.assertIterableEquals(
-                        v.value(),
-                        actualTypedValue.value(),
-                        "Override field values do not match");
-            });
-        } else {
-            Assertions.assertEquals(expected, actual);
-        }
+    private static void assertJsonEquals(String expectedJsonName, ParsedSheet actual) {
+        String expectedJson = readTestJson(expectedJsonName);
+        assertThat(GSON.toJson(actual)).isEqualToNormalizingNewlines(expectedJson);
     }
 
-    private static void assertDecoratorEquals(ParsedDecorator a, ParsedDecorator b) {
-        Assertions.assertEquals(a.decoratorName(), b.decoratorName(),
-                "Decorator names do not match");
-        for (int i = 0; i < a.params().length; ++i) {
-            Assertions.assertEquals(a.params()[i], b.params()[i], "Decorator params do not match");
-        }
-    }
-
-    private static void assertFieldEquals(ParsedField a, ParsedField b) {
-        Assertions.assertEquals(a.getKey(), b.getKey(),
-                "Field names do not match");
-        Assertions.assertEquals(a.isKey(), b.isKey(),
-                "Field key flags do not match");
-        Assertions.assertEquals(a.isDim(), b.isDim(),
-                "Field dim flags do not match");
-
-        Assertions.assertEquals(a.getFormula(), b.getFormula(),
-                "Fields formula do not match");
-
-        Assertions.assertEquals(a.getDecorators().size(), b.getDecorators().size(),
-                "Decorators lists sizes do not match");
-        for (int i = 0; i < a.getDecorators().size(); ++i) {
-            assertDecoratorEquals(a.getDecorators().get(i), b.getDecorators().get(i));
-        }
-    }
-
-    private static void assertTableEquals(ParsedTable a, ParsedTable b) {
-        Assertions.assertEquals(a.getTableName(), b.getTableName(),
-                "Table names do not match");
-
-        Assertions.assertEquals(a.getFields().size(), b.getFields().size(),
-                "Fields lists sizes do not match");
-        for (int i = 0; i < a.getFields().size(); ++i) {
-            assertFieldEquals(a.getFields().get(i), b.getFields().get(i));
-        }
-
-        Assertions.assertEquals(a.getDecorators().size(), b.getDecorators().size(),
-                "Decorators lists sizes do not match");
-        for (int i = 0; i < a.getDecorators().size(); ++i) {
-            assertDecoratorEquals(a.getDecorators().get(i), b.getDecorators().get(i));
-        }
-        assertOverridesEquals(a.getOverrides(), b.getOverrides());
-    }
-
-    private static void assertSheetEquals(ParsedSheet a, ParsedSheet b) {
-        Assertions.assertEquals(a.getErrors().size(), b.getErrors().size(),
-                "Error lists sizes do not match");
-        for (int i = 0; i < a.getErrors().size(); ++i) {
-            Assertions.assertEquals(a.getErrors().get(i), b.getErrors().get(i), "Error do not match");
-        }
-        Assertions.assertEquals(a.getTables().size(), b.getTables().size(),
-                "Table lists sizes do not match");
-        for (int i = 0; i < a.getTables().size(); ++i) {
-            assertTableEquals(a.getTables().get(i), b.getTables().get(i));
-        }
-    }
-
-    public void assertStandardDsl(ParsedSheet parseSheet) {
-        assertSheetEquals(
-                new ParsedSheet(List.of(
-                        new ParsedTable("T1", List.of(
-                                new ParsedField(true, false, key("T1", "a"),
-                                        new UnaryOperator(new ConstNumber(1), UnaryOperation.NEG),
-                                        List.of(new ParsedDecorator("format", "#.##"))),
-                                new ParsedField(false, true, key("T1", "b"),
-                                        new ConstNumber(2.5), List.of()),
-                                new ParsedField(false, false, key("T1", "c"),
-                                        new ConstNumber(3.42), List.of()),
-                                new ParsedField(true, true, key("T1", "d"),
-                                        new ConstNumber(5), List.of())
-                        ), List.of(new ParsedDecorator("placement", 1.0, 1.0))),
-                        new ParsedTable("T2", List.of(
-                                new ParsedField(true, true, key("T2", "x"),
-                                        new TableReference("T1"), List.of()),
-                                new ParsedField(false, false, key("T2", "y"),
-                                        new TableReference("T2"), List.of()),
-                                new ParsedField(false, true, key("T2", "z"),
-                                        new FieldReference(new TableReference("T1"), "a"),
-                                        List.of()),
-                                new ParsedField(true, false, key("T2", "w"),
-                                        new FieldReference(new CurrentField("x"), "y"), List.of())
-                        ), List.of(new ParsedDecorator("placement", 5.0, 1.0)))
-                ), List.of(/*No errors*/)
-                ), parseSheet);
+    private static void assertStandardJson(ParsedSheet actual) {
+        String expectedJson = readTestJson("standard-dsl");
+        assertThat(GSON_NO_SPAN.toJson(actual)).isEqualToNormalizingNewlines(expectedJson);
     }
 
     @Test
@@ -162,50 +62,61 @@ class SheetParserTest {
                 table T1
                   # test comment5
                   !format("#.##")
-                  key # test comment6
-                   [a] = -1
+                  key [a] = -1
                   # test comment7
                   # test comment8
                   dim [b] = 2.5
                   # test field
                   [c] = 3.42
-                  key dim [d] = 5.00
+                  dim key [d] = 5.00
                   # test comment9
                   # test comment10
 
                 !placement(5, 1)
                 table T2
-                  key dim [x] = T1
+                  dim key [x] = T1
                   [y] = T2
                   dim [z] = T1[a]
                   key [w] = [x][y]
                  # test comment11
                 """;
-        assertStandardDsl(SheetReader.parseSheet(sheet));
+        assertStandardJson(SheetReader.parseSheet(sheet));
     }
 
     @Test
     void testFlatFields() {
         String sheet = """
-                !placement(1, 1)
-                table T1
-                  !format("#.##") key [a] = -1 dim [b] = 2.5 [c] = 3.42 key dim [d] = 5.00
+                !placement(1, 1) table T1
+                  !format("#.##") key [a] = -1 
+                  dim [b] = 2.5 
+                  [c] = 3.42 
+                  dim key [d] = 5.00
 
-                !placement(5, 1)
-                table T2
-                  key dim [x] = T1 [y] = T2 dim [z] = T1[a] key [w] = [x][y]
+                !placement(5, 1) table T2
+                  dim key [x] = T1
+                  [y] = T2
+                  dim [z] = T1[a]
+                  key [w] = [x][y]
                 """;
-        assertStandardDsl(SheetReader.parseSheet(sheet));
+        assertStandardJson(SheetReader.parseSheet(sheet));
     }
 
     @Test
     void testFlatTables() {
         String sheet = """
-                !placement(1, 1) table T1 !format("#.##") key [a] = -1 dim [b] = 2.5 [c] = 3.42 key dim [d] = 5.00
+                !placement(1, 1) table T1 
+                !format("#.##") key [a] = -1 
+                dim [b] = 2.5 
+                [c] = 3.42 
+                dim key [d] = 5.00
 
-                !placement(5, 1) table T2 key dim [x] = T1 [y] = T2 dim [z] = T1[a] key [w] = [x][y]
+                !placement(5, 1) table T2
+                dim key [x] = T1 
+                [y] = T2 
+                dim [z] = T1[a] 
+                key [w] = [x][y]
                 """;
-        assertStandardDsl(SheetReader.parseSheet(sheet));
+        assertStandardJson(SheetReader.parseSheet(sheet));
     }
 
     @Test
@@ -214,30 +125,11 @@ class SheetParserTest {
                 table T1
                   [a] = 1
                   [b] = 2
-                  [c] = [a] == [b]
-                  [d] = [b] == [a]
+                  [c] = [a] = [b]
+                  [d] = [b] = [a]
                 """;
 
-        assertSheetEquals(
-                new ParsedSheet(List.of(
-                        new ParsedTable("T1", List.of(
-                                new ParsedField(false, false, key("T1", "a"),
-                                        new ConstNumber(1), List.of()),
-                                new ParsedField(false, false, key("T1", "b"),
-                                        new ConstNumber(2), List.of()),
-                                new ParsedField(false, false, key("T1", "c"),
-                                        new BinaryOperator(
-                                                new CurrentField("a"),
-                                                new CurrentField("b"),
-                                                BinaryOperation.EQ), List.of()),
-                                new ParsedField(false, false, key("T1", "d"),
-                                        new BinaryOperator(
-                                                new CurrentField("b"),
-                                                new CurrentField("a"),
-                                                BinaryOperation.EQ), List.of())
-                        ), List.of())
-                ), List.of(/*No errors*/)
-                ), SheetReader.parseSheet(sheet));
+        assertJsonEquals("equal-checks", SheetReader.parseSheet(sheet));
     }
 
     @Test
@@ -247,53 +139,13 @@ class SheetParserTest {
                   [a] = 1
 
 
-                  [b] = T1.ORDERBY([b], [a]).DISTINCTBY([a], [b])
+                  [b] = T1.SORTBY([b], [a]).UNIQUEBY([a], [b]) \
                     .FILTER(SUM([b]) MOD T1.COUNT() <> $[a])[f][g]
                   [c] = 2
                   [d] = 42
                 """;
 
-        assertSheetEquals(
-                new ParsedSheet(List.of(
-                        new ParsedTable("T1", List.of(
-                                new ParsedField(false, false, key("T1", "a"),
-                                        new ConstNumber(1), List.of()),
-                                new ParsedField(false, false, key("T1", "b"),
-                                        new FieldReference(
-                                                new FieldReference(
-                                                        new Function("FILTER",
-                                                                new Function(
-                                                                        "DISTINCTBY",
-                                                                        new Function(
-                                                                                "ORDERBY",
-                                                                                new TableReference("T1"),
-                                                                                new CurrentField("b"),
-                                                                                new CurrentField("a")
-                                                                        ),
-                                                                        new CurrentField("a"),
-                                                                        new CurrentField("b")),
-                                                                new BinaryOperator(
-                                                                        new BinaryOperator(
-                                                                                new Function("SUM",
-                                                                                        new CurrentField("b")),
-                                                                                new Function("COUNT",
-                                                                                        new TableReference(
-                                                                                                "T1")),
-                                                                                BinaryOperation.MOD),
-                                                                        new FieldReference(
-                                                                                new QueryRow(),
-                                                                                "a"),
-                                                                        BinaryOperation.NEQ
-                                                                )),
-                                                        "f"),
-                                                "g"),
-                                        List.of()),
-                                new ParsedField(false, false, key("T1", "c"),
-                                        new ConstNumber(2), List.of()),
-                                new ParsedField(false, false, key("T1", "d"),
-                                        new ConstNumber(42), List.of())), List.of())
-                ), List.of(/*No errors*/)
-                ), SheetReader.parseSheet(sheet));
+        assertJsonEquals("complex-field", SheetReader.parseSheet(sheet));
     }
 
     @Test
@@ -304,27 +156,7 @@ class SheetParserTest {
                   [a_2] = "This is data for T1[a]"
                 """;
 
-        assertSheetEquals(
-                new ParsedSheet(
-                        List.of(new ParsedTable(
-                                "table t 1",
-                                List.of(new ParsedField(
-                                                false,
-                                                false,
-                                                key("table t 1", "some field name"),
-                                                new ConstNumber(1),
-                                                List.of()),
-                                        new ParsedField(
-                                                false,
-                                                false,
-                                                key("table t 1", "a_2"),
-                                                new ConstText("This is data for T1[a]"),
-                                                List.of())
-                                ),
-                                List.of()
-                        )),
-                        List.of()),
-                SheetReader.parseSheet(sheet));
+        assertJsonEquals("multi-word-identifiers", SheetReader.parseSheet(sheet));
     }
 
     @Test
@@ -335,27 +167,7 @@ class SheetParserTest {
                   [*] = 2
                 """;
 
-        assertSheetEquals(
-                new ParsedSheet(
-                        List.of(new ParsedTable(
-                                "t1",
-                                List.of(new ParsedField(
-                                                false,
-                                                false,
-                                                key("t1", "*"),
-                                                new ConstNumber(1),
-                                                List.of()),
-                                        new ParsedField(
-                                                false,
-                                                false,
-                                                key("t1", "*"),
-                                                new ConstNumber(2),
-                                                List.of())
-                                ),
-                                List.of()
-                        )),
-                        List.of()),
-                SheetReader.parseSheet(sheet));
+        assertJsonEquals("start-fields", SheetReader.parseSheet(sheet));
     }
 
     @Test
@@ -372,38 +184,7 @@ class SheetParserTest {
                 table ' '
                 """;
 
-        assertSheetEquals(
-                ParsedSheet.builder()
-                        .tables(List.of(
-                                ParsedTable.builder()
-                                        .decorators(List.of())
-                                        .tableName("t1")
-                                        .fields(List.of(
-                                                ParsedField.builder()
-                                                        .decorators(List.of())
-                                                        .key(key("t1", "b"))
-                                                        .formula(new ConstNumber(3))
-                                                        .build()))
-                                        .build()))
-                        .errors(List.of(
-                                ParsingError.builder()
-                                        .message("missing {UPPER_CASE_IDENTIFIER, LOWER_CASE_IDENTIFIER, IDENTIFIER,"
-                                                + " MULTI_WORD_TABLE_IDENTIFIER} at '[a]'")
-                                        .line(3)
-                                        .position(4)
-                                        .build(),
-                                ParsingError.builder()
-                                        .message("Missing table name")
-                                        .line(3)
-                                        .position(4)
-                                        .build(),
-                                ParsingError.builder()
-                                        .message("Missing table name")
-                                        .line(9)
-                                        .position(6)
-                                        .build()))
-                        .build(),
-                SheetReader.parseSheet(sheet));
+        assertJsonEquals("table-definition-errors", SheetReader.parseSheet(sheet));
     }
 
     @Test
@@ -423,58 +204,7 @@ class SheetParserTest {
                     [a] = 1
                     = 7
                 """;
-        assertSheetEquals(
-                ParsedSheet.builder()
-                        .tables(List.of(
-                                ParsedTable.builder()
-                                        .tableName("t1")
-                                        .fields(List.of(
-                                                ParsedField.builder()
-                                                        .decorators(List.of())
-                                                        .key(key("t1", "b"))
-                                                        .formula(new ConstNumber(5))
-                                                        .build()))
-                                        .decorators(List.of())
-                                        .build(),
-                                ParsedTable.builder()
-                                        .tableName("t2")
-                                        .fields(List.of(
-                                                ParsedField.builder()
-                                                        .decorators(List.of())
-                                                        .key(key("t2", "c"))
-                                                        .formula(new ConstNumber(6))
-                                                        .build()))
-                                        .decorators(List.of())
-                                        .build(),
-                                ParsedTable.builder()
-                                        .tableName("t3")
-                                        .fields(List.of(
-                                                ParsedField.builder()
-                                                        .decorators(List.of())
-                                                        .key(key("t3", "a"))
-                                                        .formula(new ConstNumber(1))
-                                                        .build()))
-                                        .decorators(List.of())
-                                        .build()))
-                        .errors(List.of(
-                                ParsingError.builder()
-                                        .message("token recognition error at: '[a\\n'")
-                                        .line(2)
-                                        .position(2)
-                                        .build(),
-                                ParsingError.builder()
-                                        .message("extraneous input '=' expecting {<EOF>, '!', 'table'}")
-                                        .line(11)
-                                        .position(4)
-                                        .build(),
-                                ParsingError.builder()
-                                        .message("Missing field name")
-                                        .line(6)
-                                        .position(3)
-                                        .tableName("t2")
-                                        .build()))
-                        .build(),
-                SheetReader.parseSheet(sheet));
+        assertJsonEquals("field-definition-errors", SheetReader.parseSheet(sheet));
     }
 
     @Test
@@ -498,55 +228,7 @@ class SheetParserTest {
                     [c] = 3
                 """;
 
-        assertSheetEquals(
-                ParsedSheet.builder()
-                        .tables(List.of(
-                                ParsedTable.builder()
-                                        .tableName("t1")
-                                        .fields(List.of())
-                                        .decorators(List.of(new ParsedDecorator("placement", 2d, 2d)))
-                                        .build(),
-                                ParsedTable.builder()
-                                        .tableName("t2")
-                                        .fields(List.of(
-                                                ParsedField.builder()
-                                                        .decorators(List.of(new ParsedDecorator("format", "number")))
-                                                        .key(key("t2", "x"))
-                                                        .formula(new ConstNumber(5))
-                                                        .build()))
-                                        .decorators(List.of(
-                                                new ParsedDecorator("format", "#.##"),
-                                                new ParsedDecorator("placement", 1d, 1d)
-                                        ))
-                                        .build()))
-                        .errors(List.of(
-                                ParsingError.builder()
-                                        .message("mismatched input '!' expecting {FLOAT, STRING_LITERAL}")
-                                        .line(2)
-                                        .position(0)
-                                        .build(),
-                                ParsingError.builder()
-                                        .message("mismatched input 'key' expecting '('")
-                                        .line(5)
-                                        .position(2)
-                                        .build(),
-                                ParsingError.builder()
-                                        .message("extraneous input 'dim' expecting {'!', 'table'}")
-                                        .line(7)
-                                        .position(2)
-                                        .build(),
-                                ParsingError.builder()
-                                        .message("mismatched input '[c]' expecting '('")
-                                        .line(14)
-                                        .position(4)
-                                        .build(),
-                                ParsingError.builder()
-                                        .message("Missing table name")
-                                        .line(13)
-                                        .position(4)
-                                        .build()))
-                        .build(),
-                SheetReader.parseSheet(sheet));
+        assertJsonEquals("decorator-definition-errors", SheetReader.parseSheet(sheet));
     }
 
     @Test
@@ -564,63 +246,7 @@ class SheetParserTest {
                     [c] = 3
                 """;
 
-        assertSheetEquals(
-                ParsedSheet.builder()
-                        .tables(List.of(
-                                ParsedTable.builder()
-                                        .tableName("t1")
-                                        .fields(List.of(
-                                                ParsedField.builder()
-                                                        .decorators(List.of())
-                                                        .key(key("t1", "a"))
-                                                        .isKey(true)
-                                                        .formula(new BinaryOperator(
-                                                                new ConstNumber(1),
-                                                                new ConstNumber(2),
-                                                                BinaryOperation.ADD))
-                                                        .build(),
-                                                ParsedField.builder()
-                                                        .decorators(List.of())
-                                                        .key(key("t1", "c"))
-                                                        .formula(new BinaryOperator(
-                                                                new CurrentField("a"),
-                                                                new CurrentField("d"),
-                                                                BinaryOperation.ADD))
-                                                        .build()))
-                                        .decorators(List.of())
-                                        .build(),
-                                ParsedTable.builder()
-                                        .tableName("t2")
-                                        .fields(List.of(
-                                                ParsedField.builder()
-                                                        .decorators(List.of())
-                                                        .key(key("t2", "x"))
-                                                        .formula(new ConstNumber(5))
-                                                        .build(),
-                                                ParsedField.builder()
-                                                        .decorators(List.of())
-                                                        .key(key("t2", "c"))
-                                                        .formula(new ConstNumber(3))
-                                                        .build()))
-                                        .decorators(List.of())
-                                        .build()))
-                        .errors(List.of(
-                                ParsingError.builder()
-                                        .message("extraneous input 'dim' expecting {'-', 'NOT', '$', 'NA', '(',"
-                                                + " FLOAT, UPPER_CASE_IDENTIFIER, LOWER_CASE_IDENTIFIER, IDENTIFIER,"
-                                                + " STRING_LITERAL, FIELD_NAME, MULTI_WORD_TABLE_IDENTIFIER}")
-                                        .line(5)
-                                        .position(2)
-                                        .tableName("t1")
-                                        .fieldName("c")
-                                        .build(),
-                                ParsingError.builder()
-                                        .message("extraneous input '=' expecting {<EOF>, '!', 'table'}")
-                                        .line(5)
-                                        .position(10)
-                                        .build()))
-                        .build(),
-                SheetReader.parseSheet(sheet));
+        assertJsonEquals("field-expression-definition-error", SheetReader.parseSheet(sheet));
     }
 
     @Test
@@ -630,24 +256,7 @@ class SheetParserTest {
                   [a] = FUNC(T1 T1 T1)
                 """;
 
-        assertSheetEquals(
-                ParsedSheet.builder()
-                        .tables(List.of(
-                                ParsedTable.builder()
-                                        .tableName("T2")
-                                        .decorators(List.of())
-                                        .fields(List.of())
-                                        .build()))
-                        .errors(List.of(
-                                ParsingError.builder()
-                                        .message("mismatched input 'T1' expecting {',', ')'}")
-                                        .line(2)
-                                        .position(16)
-                                        .tableName("T2")
-                                        .fieldName("a")
-                                        .build()))
-                        .build(),
-                SheetReader.parseSheet(sheet));
+        assertJsonEquals("incorrect-function-definition", SheetReader.parseSheet(sheet));
     }
 
     @Test
@@ -658,29 +267,7 @@ class SheetParserTest {
                      [y] = 42
                 """;
 
-        assertSheetEquals(
-                ParsedSheet.builder()
-                        .tables(List.of(
-                                ParsedTable.builder()
-                                        .tableName("T2")
-                                        .fields(List.of(
-                                                ParsedField.builder()
-                                                        .decorators(List.of())
-                                                        .key(key("T2", "y"))
-                                                        .formula(new ConstNumber(42))
-                                                        .build()))
-                                        .decorators(List.of())
-                                        .build()))
-                        .errors(List.of(
-                                ParsingError.builder()
-                                        .message("mismatched input 'T1' expecting {',', ')'}")
-                                        .line(2)
-                                        .position(19)
-                                        .tableName("T2")
-                                        .fieldName("x")
-                                        .build()))
-                        .build(),
-                SheetReader.parseSheet(sheet));
+        assertJsonEquals("incorrect-definition-2", SheetReader.parseSheet(sheet));
     }
 
     @Test
@@ -692,34 +279,14 @@ class SheetParserTest {
                   [a] = 1
                 """;
 
-        assertSheetEquals(
-                ParsedSheet.builder()
-                        .tables(List.of(
-                                ParsedTable.builder()
-                                        .tableName("T1")
-                                        .fields(List.of(
-                                                ParsedField.builder()
-                                                        .decorators(List.of())
-                                                        .key(key("T1", "a"))
-                                                        .formula(new ConstNumber(1))
-                                                        .build()))
-                                        .decorators(List.of(new ParsedDecorator("decorator2", 1.0, 2.0, 2.0)))
-                                        .build()))
-                        .errors(List.of(
-                                ParsingError.builder()
-                                        .message("mismatched input '4' expecting {',', ')'}")
-                                        .line(1)
-                                        .position(14)
-                                        .build()))
-                        .build(),
-                SheetReader.parseSheet(sheet));
+        assertJsonEquals("incorrect-decorator-definition", SheetReader.parseSheet(sheet));
     }
 
     @Test
     void testOverrides() {
         String sheet = """
                 table t1
-                key dim [a] = RANGE(4)
+                dim key [a] = RANGE(4)
                         [b] = NA
                         [c] = 5
                 override
@@ -730,58 +297,14 @@ class SheetParserTest {
                 3, "Poland"
                 """;
 
-        assertSheetEquals(
-                ParsedSheet.builder()
-                        .tables(List.of(
-                                ParsedTable.builder()
-                                        .tableName("t1")
-                                        .fields(List.of(
-                                                ParsedField.builder()
-                                                        .decorators(List.of())
-                                                        .key(key("t1", "a"))
-                                                        .isDim(true)
-                                                        .isKey(true)
-                                                        .formula(new Function("RANGE",
-                                                                new ConstNumber(4)))
-                                                        .build(),
-                                                ParsedField.builder()
-                                                        .decorators(List.of())
-                                                        .key(key("t1", "b"))
-                                                        .formula(new ConstNumber(Double.NaN))
-                                                        .build(),
-                                                ParsedField.builder()
-                                                        .decorators(List.of())
-                                                        .key(key("t1", "c"))
-                                                        .formula(new ConstNumber(5))
-                                                        .build()
-                                        ))
-                                        .decorators(List.of())
-                                        .overrides(new ParsedOverride(null,
-                                                Map.of(new FieldKey("t1", "a"),
-                                                        new ParsedOverride.TypedValue(
-                                                                ColumnType.DOUBLE,
-                                                                ObjectArrayList.of(new OverrideValue(0),
-                                                                        new OverrideValue(1),
-                                                                        new OverrideValue(2), new OverrideValue(3)))),
-                                                Map.of(new FieldKey("t1", "b"),
-                                                        new ParsedOverride.TypedValue(
-                                                                ColumnType.STRING,
-                                                                ObjectArrayList.of(new OverrideValue("USA"),
-                                                                        new OverrideValue("UK"),
-                                                                        new OverrideValue("Spain"),
-                                                                        new OverrideValue("Poland")))),
-                                                4))
-                                        .build()))
-                        .errors(List.of())
-                        .build(),
-                SheetReader.parseSheet(sheet));
+        assertJsonEquals("overrides", SheetReader.parseSheet(sheet));
     }
 
     @Test
     void testOverridesWithRowNumberKey() {
         String sheet = """
                 table t1
-                key dim [a] = RANGE(4)
+                dim key [a] = RANGE(4)
                         [b] = NA
                 override
                 row, [b]
@@ -791,51 +314,14 @@ class SheetParserTest {
                 3, "Poland"
                 """;
 
-        assertSheetEquals(
-                ParsedSheet.builder()
-                        .tables(List.of(
-                                ParsedTable.builder()
-                                        .tableName("t1")
-                                        .fields(List.of(
-                                                ParsedField.builder()
-                                                        .decorators(List.of())
-                                                        .key(key("t1", "a"))
-                                                        .isDim(true)
-                                                        .isKey(true)
-                                                        .formula(new Function("RANGE",
-                                                                new ConstNumber(4)))
-                                                        .build(),
-                                                ParsedField.builder()
-                                                        .decorators(List.of())
-                                                        .key(key("t1", "b"))
-                                                        .formula(new ConstNumber(Double.NaN))
-                                                        .build()
-                                        ))
-                                        .decorators(List.of())
-                                        .overrides(new ParsedOverride(
-                                                new ParsedOverride.TypedValue(ColumnType.DOUBLE,
-                                                        ObjectArrayList.of(new OverrideValue(0), new OverrideValue(1),
-                                                                new OverrideValue(2), new OverrideValue(3))),
-                                                Map.of(),
-                                                Map.of(new FieldKey("t1", "b"),
-                                                        new ParsedOverride.TypedValue(
-                                                                ColumnType.STRING,
-                                                                ObjectArrayList.of(new OverrideValue("USA"),
-                                                                        new OverrideValue("UK"),
-                                                                        new OverrideValue("Spain"),
-                                                                        new OverrideValue("Poland")))),
-                                                4))
-                                        .build()))
-                        .errors(List.of())
-                        .build(),
-                SheetReader.parseSheet(sheet));
+        assertJsonEquals("overrides-with-row-number-key", SheetReader.parseSheet(sheet));
     }
 
     @Test
     void testOverrideWithGaps() {
         String sheet = """
                 table t1
-                key dim [a] = RANGE(4)
+                dim key [a] = RANGE(4)
                         [b] = NA
                         [c] = 5
                 override
@@ -846,64 +332,15 @@ class SheetParserTest {
                 "Poland",,3
                 """;
 
-        assertSheetEquals(
-                ParsedSheet.builder()
-                        .tables(List.of(
-                                ParsedTable.builder()
-                                        .tableName("t1")
-                                        .fields(List.of(
-                                                ParsedField.builder()
-                                                        .decorators(List.of())
-                                                        .key(key("t1", "a"))
-                                                        .isDim(true)
-                                                        .isKey(true)
-                                                        .formula(new Function("RANGE",
-                                                                new ConstNumber(4)))
-                                                        .build(),
-                                                ParsedField.builder()
-                                                        .decorators(List.of())
-                                                        .key(key("t1", "b"))
-                                                        .formula(new ConstNumber(Double.NaN))
-                                                        .build(),
-                                                ParsedField.builder()
-                                                        .decorators(List.of())
-                                                        .key(key("t1", "c"))
-                                                        .formula(new ConstNumber(5))
-                                                        .build()
-                                        ))
-                                        .decorators(List.of())
-                                        .overrides(new ParsedOverride(null,
-                                                Map.of(new FieldKey("t1", "a"),
-                                                        new ParsedOverride.TypedValue(
-                                                                ColumnType.DOUBLE,
-                                                                ObjectArrayList.of(new OverrideValue(0),
-                                                                        new OverrideValue(1),
-                                                                        new OverrideValue(2), new OverrideValue(3)))),
-                                                Map.of(new FieldKey("t1", "b"),
-                                                        new ParsedOverride.TypedValue(
-                                                                ColumnType.STRING,
-                                                                ObjectArrayList.of(new OverrideValue("USA"),
-                                                                        new OverrideValue("UK"),
-                                                                        MISSING,
-                                                                        new OverrideValue("Poland"))),
-                                                        new FieldKey("t1", "c"),
-                                                        new ParsedOverride.TypedValue(
-                                                                ColumnType.DOUBLE,
-                                                                ObjectArrayList.of(MISSING, new OverrideValue(250),
-                                                                        MISSING, MISSING))),
-                                                4))
-                                        .build()))
-                        .errors(List.of())
-                        .build(),
-                SheetReader.parseSheet(sheet));
+        assertJsonEquals("override-with-gaps", SheetReader.parseSheet(sheet));
     }
 
     @Test
     void testOverrideWithMultipleKeys() {
         String sheet = """
                 table t1
-                key dim [a] = RANGE(4)
-                key dim [x] = RANGE(5)
+                dim key [a] = RANGE(4)
+                dim key [x] = RANGE(5)
                         [b] = NA
                         [c] = 5
                 override
@@ -917,77 +354,14 @@ class SheetParserTest {
         // add spaces between terminal newlines
         sheet = sheet + "      \n";
 
-        assertSheetEquals(
-                ParsedSheet.builder()
-                        .tables(List.of(
-                                ParsedTable.builder()
-                                        .tableName("t1")
-                                        .fields(List.of(
-                                                ParsedField.builder()
-                                                        .decorators(List.of())
-                                                        .key(key("t1", "a"))
-                                                        .isDim(true)
-                                                        .isKey(true)
-                                                        .formula(new Function("RANGE",
-                                                                new ConstNumber(4)))
-                                                        .build(),
-                                                ParsedField.builder()
-                                                        .decorators(List.of())
-                                                        .key(key("t1", "x"))
-                                                        .isDim(true)
-                                                        .isKey(true)
-                                                        .formula(new Function("RANGE",
-                                                                new ConstNumber(5)))
-                                                        .build(),
-                                                ParsedField.builder()
-                                                        .decorators(List.of())
-                                                        .key(key("t1", "b"))
-                                                        .formula(new ConstNumber(Double.NaN))
-                                                        .build(),
-                                                ParsedField.builder()
-                                                        .decorators(List.of())
-                                                        .key(key("t1", "c"))
-                                                        .formula(new ConstNumber(5))
-                                                        .build()
-                                        ))
-                                        .decorators(List.of())
-                                        .overrides(new ParsedOverride(null,
-                                                Map.of(new FieldKey("t1", "a"),
-                                                        new ParsedOverride.TypedValue(
-                                                                ColumnType.DOUBLE,
-                                                                ObjectArrayList.of(new OverrideValue(0),
-                                                                        new OverrideValue(0),
-                                                                        new OverrideValue(2), new OverrideValue(2))),
-                                                        new FieldKey("t1", "x"),
-                                                        new ParsedOverride.TypedValue(
-                                                                ColumnType.DOUBLE,
-                                                                ObjectArrayList.of(new OverrideValue(1),
-                                                                        new OverrideValue(2),
-                                                                        new OverrideValue(3), new OverrideValue(4)))),
-                                                Map.of(new FieldKey("t1", "b"),
-                                                        new ParsedOverride.TypedValue(
-                                                                ColumnType.STRING,
-                                                                ObjectArrayList.of(new OverrideValue("USA"),
-                                                                        MISSING,
-                                                                        new OverrideValue("Spain"),
-                                                                        new OverrideValue("Poland"))),
-                                                        new FieldKey("t1", "c"),
-                                                        new ParsedOverride.TypedValue(
-                                                                ColumnType.DOUBLE,
-                                                                ObjectArrayList.of(MISSING, new OverrideValue(250),
-                                                                        new OverrideValue(300), MISSING))),
-                                                4))
-                                        .build()))
-                        .errors(List.of())
-                        .build(),
-                SheetReader.parseSheet(sheet));
+        assertJsonEquals("override-with-multiple-keys", SheetReader.parseSheet(sheet));
     }
 
     @Test
     void testOverrideWithMultipleKeys2() {
         String sheet = "table t1\n"
-                + "key dim [a] = RANGE(4)\n"
-                + "key dim [x] = RANGE(5)\n"
+                + "dim key [a] = RANGE(4)\n"
+                + "dim key [x] = RANGE(5)\n"
                 + "        [b] = NA\n"
                 + "        [c] = 5\n"
                 + "override\n"
@@ -997,78 +371,15 @@ class SheetParserTest {
                 + "2,\"Spain\", 3, 300\n"
                 + "2,\"Poland\", 4,";
 
-        assertSheetEquals(
-                ParsedSheet.builder()
-                        .tables(List.of(
-                                ParsedTable.builder()
-                                        .tableName("t1")
-                                        .fields(List.of(
-                                                ParsedField.builder()
-                                                        .decorators(List.of())
-                                                        .key(key("t1", "a"))
-                                                        .isDim(true)
-                                                        .isKey(true)
-                                                        .formula(new Function("RANGE",
-                                                                new ConstNumber(4)))
-                                                        .build(),
-                                                ParsedField.builder()
-                                                        .decorators(List.of())
-                                                        .key(key("t1", "x"))
-                                                        .isDim(true)
-                                                        .isKey(true)
-                                                        .formula(new Function("RANGE",
-                                                                new ConstNumber(5)))
-                                                        .build(),
-                                                ParsedField.builder()
-                                                        .decorators(List.of())
-                                                        .key(key("t1", "b"))
-                                                        .formula(new ConstNumber(Double.NaN))
-                                                        .build(),
-                                                ParsedField.builder()
-                                                        .decorators(List.of())
-                                                        .key(key("t1", "c"))
-                                                        .formula(new ConstNumber(5))
-                                                        .build()
-                                        ))
-                                        .decorators(List.of())
-                                        .overrides(new ParsedOverride(null,
-                                                Map.of(new FieldKey("t1", "a"),
-                                                        new ParsedOverride.TypedValue(
-                                                                ColumnType.DOUBLE,
-                                                                ObjectArrayList.of(new OverrideValue(0),
-                                                                        new OverrideValue(0),
-                                                                        new OverrideValue(2), new OverrideValue(2))),
-                                                        new FieldKey("t1", "x"),
-                                                        new ParsedOverride.TypedValue(
-                                                                ColumnType.DOUBLE,
-                                                                ObjectArrayList.of(new OverrideValue(1),
-                                                                        new OverrideValue(2),
-                                                                        new OverrideValue(3), new OverrideValue(4)))),
-                                                Map.of(new FieldKey("t1", "b"),
-                                                        new ParsedOverride.TypedValue(
-                                                                ColumnType.STRING,
-                                                                ObjectArrayList.of(new OverrideValue("USA"),
-                                                                        MISSING,
-                                                                        new OverrideValue("Spain"),
-                                                                        new OverrideValue("Poland"))),
-                                                        new FieldKey("t1", "c"),
-                                                        new ParsedOverride.TypedValue(
-                                                                ColumnType.DOUBLE,
-                                                                ObjectArrayList.of(MISSING, new OverrideValue(250),
-                                                                        new OverrideValue(300), MISSING))),
-                                                4))
-                                        .build()))
-                        .errors(List.of())
-                        .build(),
-                SheetReader.parseSheet(sheet));
+        assertJsonEquals("override-with-multiple-keys-2", SheetReader.parseSheet(sheet));
     }
 
     @Test
-    void testIncorrectOverrideDefinition() {
+    void testOverrideDefinitionWithTableAfter() {
         String sheet = """
                 table t1
-                key dim [a] = RANGE(4)
-                key dim [x] = RANGE(5)
+                dim key [a] = RANGE(4)
+                dim key [x] = RANGE(5)
                         [b] = NA
                         [c] = 5
                 # missing trailing newline in override section
@@ -1082,50 +393,7 @@ class SheetParserTest {
                     [a] = 7
                 """;
 
-        assertSheetEquals(
-                ParsedSheet.builder()
-                        .tables(List.of(
-                                ParsedTable.builder()
-                                        .tableName("t1")
-                                        .fields(List.of(
-                                                ParsedField.builder()
-                                                        .decorators(List.of())
-                                                        .key(key("t1", "a"))
-                                                        .isDim(true)
-                                                        .isKey(true)
-                                                        .formula(new Function("RANGE",
-                                                                new ConstNumber(4)))
-                                                        .build(),
-                                                ParsedField.builder()
-                                                        .decorators(List.of())
-                                                        .key(key("t1", "x"))
-                                                        .isDim(true)
-                                                        .isKey(true)
-                                                        .formula(new Function("RANGE",
-                                                                new ConstNumber(5)))
-                                                        .build(),
-                                                ParsedField.builder()
-                                                        .decorators(List.of())
-                                                        .key(key("t1", "b"))
-                                                        .formula(new ConstNumber(Double.NaN))
-                                                        .build(),
-                                                ParsedField.builder()
-                                                        .decorators(List.of())
-                                                        .key(key("t1", "c"))
-                                                        .formula(new ConstNumber(5))
-                                                        .build()
-                                        ))
-                                        .decorators(List.of())
-                                        .build()))
-                        .errors(List.of(
-                                ParsingError.builder()
-                                        .message("Override section seems to be incorrect. Please, check definition")
-                                        .line(7)
-                                        .position(0)
-                                        .tableName("t1")
-                                        .build()))
-                        .build(),
-                SheetReader.parseSheet(sheet));
+        assertJsonEquals("override-definition-with-table-after", SheetReader.parseSheet(sheet));
     }
 
 
@@ -1133,8 +401,8 @@ class SheetParserTest {
     void testIncorrectOverrideDefinition2() {
         String sheet = """
                 table t1
-                key dim [a] = RANGE(4)
-                key dim [x] = RANGE(5)
+                dim key [a] = RANGE(4)
+                dim key [x] = RANGE(5)
                         [b] = NA
                         [c] = 5
                 # wrong values number in some rows
@@ -1147,49 +415,86 @@ class SheetParserTest {
 
                 """;
 
-        assertSheetEquals(
-                ParsedSheet.builder()
-                        .tables(List.of(
-                                ParsedTable.builder()
-                                        .tableName("t1")
-                                        .fields(List.of(
-                                                ParsedField.builder()
-                                                        .decorators(List.of())
-                                                        .key(key("t1", "a"))
-                                                        .isDim(true)
-                                                        .isKey(true)
-                                                        .formula(new Function("RANGE",
-                                                                new ConstNumber(4)))
-                                                        .build(),
-                                                ParsedField.builder()
-                                                        .decorators(List.of())
-                                                        .key(key("t1", "x"))
-                                                        .isDim(true)
-                                                        .isKey(true)
-                                                        .formula(new Function("RANGE",
-                                                                new ConstNumber(5)))
-                                                        .build(),
-                                                ParsedField.builder()
-                                                        .decorators(List.of())
-                                                        .key(key("t1", "b"))
-                                                        .formula(new ConstNumber(Double.NaN))
-                                                        .build(),
-                                                ParsedField.builder()
-                                                        .decorators(List.of())
-                                                        .key(key("t1", "c"))
-                                                        .formula(new ConstNumber(5))
-                                                        .build()
-                                        ))
-                                        .decorators(List.of())
-                                        .build()))
-                        .errors(List.of(
-                                ParsingError.builder()
-                                        .message("Override section seems to be incorrect. Please, check definition")
-                                        .line(7)
-                                        .position(0)
-                                        .tableName("t1")
-                                        .build()))
-                        .build(),
-                SheetReader.parseSheet(sheet));
+        assertJsonEquals("incorrect-override-definition-2", SheetReader.parseSheet(sheet));
+    }
+
+    @Test
+    void testList() {
+        String dsl = """
+                table t1
+                  [a] = {}
+                  [b] = {1, "2"}
+                """;
+
+        assertJsonEquals("list", SheetReader.parseSheet(dsl));
+    }
+
+    @Test
+    void testEscaping() {
+        String sheet = """
+                table t1
+                dim key [a''] = RANGE(4)
+                        [b] = NA
+                        [c] = 5
+                override
+                key [a''], [b]
+                0, "USA'""
+                1, "UK"
+                2, "Spain"
+                3, "Poland"
+                """;
+
+        assertJsonEquals("escaping", SheetReader.parseSheet(sheet));
+    }
+
+    @Test
+    void testApplyAndTotalWithoutOrder() {
+        String dsl = """
+                table A
+                  [a] = NA
+                total
+                  [a] = 1
+                apply
+                  filter [a]
+                total
+                  [a] = 2
+                apply
+                  sort [a]
+                """;
+
+        ParsedSheet sheet = SheetReader.parseSheet(dsl);
+
+        assertJsonEquals("apply-and-total-without-order", sheet);
+    }
+
+    @Test
+    void testKeyAndDimWithoutOrder() {
+        String dsl = """
+                table A
+                  dim key [a] = 1
+                  dim key [b] = 2
+                """;
+
+        ParsedSheet sheet = SheetReader.parseSheet(dsl);
+
+        assertJsonEquals("key-and-dim-without-order", sheet);
+    }
+
+    @Test
+    void testMultilineFormulaError() {
+        String dsl = """
+                table A
+                  [a] = 1 +
+                    12
+                  [b] = (
+                    1 + 1
+                  )
+                  [c] = RANGE(10)
+                    .FILTER(RANGE(10) > 5)
+                """;
+
+        ParsedSheet sheet = SheetReader.parseSheet(dsl);
+
+        assertJsonEquals("multiline-formula-error", sheet);
     }
 }

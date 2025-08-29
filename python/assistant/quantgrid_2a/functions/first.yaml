@@ -1,0 +1,7 @@
+name: first
+description: Returns first element(s) of array
+signature: 'array<T>.first() => T` or `array<T>.first(count: number) => array<T>'
+manual: >-
+  `first` returns either the first element of array of the new array from first few entries.
+  When `count` is not specified, returns element type. When count is specified, returns array of first few entries.
+  If array is empty, returns `NA`.
