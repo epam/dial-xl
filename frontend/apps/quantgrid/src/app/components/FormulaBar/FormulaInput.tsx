@@ -24,7 +24,12 @@ import {
 } from '@frontend/common';
 
 import { SelectedCellType } from '../../common';
-import { AppContext, ChatOverlayContext, ProjectContext } from '../../context';
+import {
+  AppContext,
+  ChatOverlayContext,
+  InputsContext,
+  ProjectContext,
+} from '../../context';
 import { useGridApi } from '../../hooks';
 import useEventBus from '../../hooks/useEventBus';
 import {
@@ -67,6 +72,7 @@ export function FormulaInput({ fieldName, inputIndex = 0 }: Props) {
     switchPointClickMode,
     isPointClickMode,
   } = useContext(AppContext);
+  const { inputList } = useContext(InputsContext);
   const gridApi = useGridApi();
 
   const [codeEditor, setCodeEditor] = useState<
@@ -414,6 +420,7 @@ export function FormulaInput({ fieldName, inputIndex = 0 }: Props) {
             currentFieldName={selectedCell?.fieldName}
             currentTableName={selectedCell?.tableName}
             functions={functions}
+            inputFiles={inputList}
             language="formula-bar"
             options={{
               ...formulaEditorOptions,

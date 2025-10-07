@@ -6,12 +6,14 @@ import { toast } from 'react-toastify';
 
 import Icon from '@ant-design/icons';
 import {
+  CommonMetadata,
   CopyIcon,
+  csvFileExtension,
   DownloadIcon,
   EditIcon,
-  FilesMetadata,
   getDropdownDivider,
   getDropdownItem,
+  makeCopy,
   MetadataNodeType,
   MoveToIcon,
   publicBucket,
@@ -22,7 +24,6 @@ import {
 import { ApiContext, InputsContext, ProjectContext } from '../../../context';
 import {
   useApiRequests,
-  useCloneResources,
   useDeleteResources,
   useRequestDimTable,
 } from '../../../hooks';
@@ -35,20 +36,21 @@ const contextMenuActionKeys = {
   moveTo: 'moveTo',
   share: 'share',
   delete: 'delete',
+  copyPath: 'copyPath',
 };
 
 export type InputChildData = {
-  [keyIndex: string]: FilesMetadata;
+  [keyIndex: string]: CommonMetadata;
 };
 
 function parseContextMenuKey(key: string): {
   action: string;
-  childData: FilesMetadata;
+  childData: CommonMetadata;
 } {
   return JSON.parse(key);
 }
 
-function getContextMenuKey(action: string, childData: FilesMetadata): string {
+function getContextMenuKey(action: string, childData: CommonMetadata): string {
   return JSON.stringify({
     action,
     childData,
@@ -58,9 +60,11 @@ function getContextMenuKey(action: string, childData: FilesMetadata): string {
 export const useInputsContextMenu = ({
   onRename,
   onMove,
+  onClone,
 }: {
-  onRename: (item: FilesMetadata) => void;
-  onMove: (item: FilesMetadata) => void;
+  onRename: (item: CommonMetadata) => void;
+  onMove: (item: CommonMetadata) => void;
+  onClone: (item: CommonMetadata) => void;
 }) => {
   const { userBucket, isAdmin } = useContext(ApiContext);
   const { getInputs } = useContext(InputsContext);
@@ -69,7 +73,6 @@ export const useInputsContextMenu = ({
   const { requestDimSchemaForDimFormula } = useRequestDimTable();
   const { downloadFiles } = useApiRequests();
   const { deleteResources } = useDeleteResources();
-  const { cloneResources } = useCloneResources();
   const [items, setItems] = useState<MenuProps['items']>([]);
 
   const createContextMenuItems = useCallback(
@@ -107,7 +110,7 @@ export const useInputsContextMenu = ({
               label: 'Download',
               icon: (
                 <Icon
-                  className="text-textSecondary w-[18px]"
+                  className="text-text-secondary w-[18px]"
                   component={() => <DownloadIcon />}
                 />
               ),
@@ -119,7 +122,7 @@ export const useInputsContextMenu = ({
               label: 'Rename',
               icon: (
                 <Icon
-                  className="text-textSecondary w-[18px]"
+                  className="text-text-secondary w-[18px]"
                   component={() => <EditIcon />}
                 />
               ),
@@ -131,7 +134,7 @@ export const useInputsContextMenu = ({
               label: 'Clone',
               icon: (
                 <Icon
-                  className="text-textSecondary w-[18px]"
+                  className="text-text-secondary w-[18px]"
                   component={() => <CopyIcon />}
                 />
               ),
@@ -143,7 +146,7 @@ export const useInputsContextMenu = ({
               label: 'Move to',
               icon: (
                 <Icon
-                  className="text-textSecondary w-[18px]"
+                  className="text-text-secondary w-[18px]"
                   component={() => <MoveToIcon />}
                 />
               ),
@@ -155,7 +158,7 @@ export const useInputsContextMenu = ({
               label: 'Share',
               icon: (
                 <Icon
-                  className="text-textSecondary w-[18px]"
+                  className="text-text-secondary w-[18px]"
                   component={() => <ShareIcon />}
                 />
               ),
@@ -167,8 +170,20 @@ export const useInputsContextMenu = ({
               label: 'Delete',
               icon: (
                 <Icon
-                  className="text-textSecondary w-[18px]"
+                  className="text-text-secondary w-[18px]"
                   component={() => <TrashIcon />}
+                />
+              ),
+            })
+          : undefined,
+        !isFolder
+          ? getDropdownItem({
+              key: getContextMenuKey(contextMenuActionKeys.copyPath, file),
+              label: 'Copy path',
+              icon: (
+                <Icon
+                  className="text-text-secondary w-[18px]"
+                  component={() => <CopyIcon />}
                 />
               ),
             })
@@ -189,7 +204,8 @@ export const useInputsContextMenu = ({
       switch (action) {
         case contextMenuActionKeys.createTable: {
           const formula = `:INPUT("${file.url}")`;
-          requestDimSchemaForDimFormula(0, 0, formula);
+          const tableName = file.name.replaceAll(csvFileExtension, '');
+          requestDimSchemaForDimFormula(0, 0, formula, tableName);
 
           break;
         }
@@ -200,7 +216,7 @@ export const useInputsContextMenu = ({
               {
                 bucket: file.bucket,
                 name: file.name,
-                path: file.parentPath,
+                parentPath: file.parentPath,
               },
             ],
           });
@@ -228,8 +244,7 @@ export const useInputsContextMenu = ({
           break;
         }
         case contextMenuActionKeys.clone: {
-          await cloneResources({ items: [file] });
-          getInputs();
+          onClone(file);
 
           break;
         }
@@ -238,18 +253,23 @@ export const useInputsContextMenu = ({
 
           break;
         }
+        case contextMenuActionKeys.copyPath: {
+          makeCopy(file.url);
+          toast.info('Input path copied to clipboard');
+          break;
+        }
         default:
           break;
       }
     },
     [
-      cloneResources,
       requestDimSchemaForDimFormula,
       deleteResources,
       downloadFiles,
       getInputs,
       onMove,
       onRename,
+      onClone,
       shareResources,
     ]
   );

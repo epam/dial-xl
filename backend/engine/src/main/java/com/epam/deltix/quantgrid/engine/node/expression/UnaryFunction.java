@@ -62,7 +62,7 @@ public class UnaryFunction extends Expression1<Column, Column> {
             case SQRT -> applyDoubleUnaryFunction(source, DoubleFunctions::sqrt);
             case TAN -> applyDoubleUnaryFunction(source, DoubleFunctions::tan);
             case TRIM -> applyStringUnaryFunction(source, StringUtils::trim);
-            case VALUE -> applyString2DoubleFunction(source, Doubles::parseDouble);
+            case VALUE -> applyString2DoubleFunction(source, DoubleFunctions::value);
             case UNICHAR -> applyDouble2StringFunction(source, StringFunctions::fromCharCode);
             case UPPER -> applyStringUnaryFunction(source, StringUtils::upperCase);
             case YEAR -> applyDoubleUnaryFunction(source, Dates::getYear);

@@ -19,7 +19,7 @@ import {
 } from '../../../../context';
 import { useFieldEditDsl } from '../../../../hooks';
 import { uniqueId } from '../../../../services';
-import { ChartPanelSelectClasses } from './SelectUtils';
+import { ChartPanelSelectClasses } from '../ChartPanelSelectClasses';
 
 type Section = {
   title: string;
@@ -141,7 +141,7 @@ export function ChartXAxisSection({
         return (
           <div className="flex flex-col mb-2" key={section.title}>
             {sections.length > 1 && (
-              <div className="text-[12px] text-textSecondary mb-1">
+              <div className="text-[12px] text-text-secondary mb-1">
                 {section.title}
               </div>
             )}
@@ -150,7 +150,7 @@ export function ChartXAxisSection({
               classNames={{
                 ...SelectClasses,
                 ...ChartPanelSelectClasses,
-                clearIndicator: () => '!p-0',
+                clearIndicator: () => 'p-0!',
               }}
               components={{
                 IndicatorSeparator: null,

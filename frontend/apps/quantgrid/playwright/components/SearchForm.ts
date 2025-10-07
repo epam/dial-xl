@@ -15,7 +15,7 @@ export class SearchForm extends BaseComponent {
 
   private searchField = 'input[type="text"]';
 
-  private searchResultText = ' div.text-textPrimary';
+  private searchResultText = ' div.text-text-primary';
 
   private selectedTab = 'button.border-b-2';
 

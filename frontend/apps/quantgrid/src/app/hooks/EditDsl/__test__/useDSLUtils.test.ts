@@ -2,39 +2,35 @@ import { newLine } from '@frontend/parser';
 import { act, RenderHookResult } from '@testing-library/react';
 
 import { useDSLUtils } from '../useDSLUtils';
+import { createWrapper, initialProps } from './createWrapper';
 import { hookTestSetup } from './hookTestSetup';
 import { RenderProps, TestWrapperProps } from './types';
 
-const initialProps: TestWrapperProps = {
-  appendToFn: jest.fn(),
-  manuallyUpdateSheetContent: jest.fn(() => Promise.resolve(true)),
-  projectName: 'project1',
-  sheetName: 'sheet1',
-};
-
 describe('useDSLUtils', () => {
-  let props: TestWrapperProps;
+  const props: TestWrapperProps = { ...initialProps };
   let hook: RenderHookResult<
     ReturnType<typeof useDSLUtils>,
     { dsl: string }
   >['result'];
-  let rerender: (props?: RenderProps) => void;
+  let setDsl: (dsl: string) => void;
+  let Wrapper: React.FC<React.PropsWithChildren>;
+
+  beforeAll(() => {
+    Wrapper = createWrapper(props);
+  });
 
   beforeEach(() => {
-    props = { ...initialProps };
     jest.clearAllMocks();
-
-    const hookRender = hookTestSetup(useDSLUtils, props);
-
+    const hookRender = hookTestSetup(useDSLUtils, Wrapper);
     hook = hookRender.result;
-    rerender = hookRender.rerender;
+    setDsl = hookRender.setDsl;
   });
 
   describe('findTable', () => {
     it('should find table by table name', () => {
       // Arrange
       const dsl = 'table t1 key [f1]=1\n [f2]=2\n table t2 [f1]=1';
-      rerender({ dsl });
+      setDsl(dsl);
       let result;
 
       // Act
@@ -53,7 +49,7 @@ describe('useDSLUtils', () => {
     it('should find table by table name in quotes', () => {
       // Arrange
       const dsl = `table t1 key [f1]=1\n [f2]=2\n table 'some table' [f1]=1`;
-      rerender({ dsl });
+      setDsl(dsl);
       let result;
 
       // Act
@@ -72,7 +68,7 @@ describe('useDSLUtils', () => {
     it('should return undefined if table not found', () => {
       // Arrange
       const dsl = 'table t1 key [f1]=1\n [f2]=2\n table t2 [f1]=1';
-      rerender({ dsl });
+      setDsl(dsl);
       let result;
 
       // Act
@@ -88,9 +84,8 @@ describe('useDSLUtils', () => {
   describe('findLastTableField', () => {
     it('should find last field in table', () => {
       // Arrange
-      const dsl =
-        'table t1 key [f1]=1\n [f2]=2\n [f3]=3\n [f4]=4\n table t2 [f1]=1';
-      rerender({ dsl });
+      const dsl = 'table t1 key [f1]=1\n [f2]=2\n table t2 [f1]=1';
+      setDsl(dsl);
       let result;
 
       // Act
@@ -102,8 +97,8 @@ describe('useDSLUtils', () => {
       expect(result).toEqual(
         expect.objectContaining({
           key: {
-            fieldName: 'f4',
-            fullFieldName: '[f4]',
+            fieldName: 'f2',
+            fullFieldName: '[f2]',
             tableName: 't1',
           },
         })
@@ -112,9 +107,8 @@ describe('useDSLUtils', () => {
 
     it('should return null if table not found', () => {
       // Arrange
-      const dsl =
-        'table t1 key [f1]=1\n [f2]=2\n [f3]=3\n [f4]=4\n table t2 [f1]=1';
-      rerender({ dsl });
+      const dsl = 'table t1 key [f1]=1\n [f2]=2\n table t2 [f1]=1';
+      setDsl(dsl);
       let result;
 
       // Act
@@ -128,8 +122,8 @@ describe('useDSLUtils', () => {
 
     it('should return null if no fields in table', () => {
       // Arrange
-      const dsl = 'table t1 key [f1]=1\n [f2]=2\n [f3]=3\n [f4]=4\n table t2';
-      rerender({ dsl });
+      const dsl = 'table t1 key [f1]=1\n [f2]=2\n table t2';
+      setDsl(dsl);
       let result;
 
       // Act
@@ -146,7 +140,7 @@ describe('useDSLUtils', () => {
     it('should find field in table', () => {
       // Arrange
       const dsl = 'table t1 key [f1]=1\n [f2]=2\n table t2 [f1]=1';
-      rerender({ dsl });
+      setDsl(dsl);
       let result;
 
       // Act
@@ -169,7 +163,7 @@ describe('useDSLUtils', () => {
     it('should return null in no table found', () => {
       // Arrange
       const dsl = 'table t1 key [f1]=1\n [f2]=2\n table t2 [f1]=1';
-      rerender({ dsl });
+      setDsl(dsl);
       let result;
 
       // Act
@@ -183,8 +177,8 @@ describe('useDSLUtils', () => {
 
     it('should return null in no field found', () => {
       // Arrange
-      const dsl = 'table t1 key [f1]=1\n [f2]=2\n table t2 [f3]=3';
-      rerender({ dsl });
+      const dsl = 'table t1 key [f1]=1\n [f2]=2\n table t2 [f1]=1';
+      setDsl(dsl);
       let result;
 
       // Act
@@ -200,8 +194,8 @@ describe('useDSLUtils', () => {
   describe('updateDSL', () => {
     it('should update sheet', async () => {
       // Arrange
-      const dsl = 'table t1 key [f1]=1\n [f2]=2';
-      rerender({ dsl });
+      const dsl = 'table t1 key [f1]=1\n [f2]=2\n table t2 [f1]=1';
+      setDsl(dsl);
 
       // Act
       await act(() =>
@@ -219,9 +213,9 @@ describe('useDSLUtils', () => {
 
     it('should add item to the history', async () => {
       // Arrange
-      const dsl = 'table t1 key [f1]=1\n [f2]=2';
+      const dsl = 'table t1 key [f1]=1\n [f2]=2\n table t2 [f1]=1';
       const historyTitle = 'DSL change';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       await act(() =>
@@ -242,11 +236,11 @@ describe('useDSLUtils', () => {
 
     it('should add different dsl changes for different sheets under same history item when having same title', async () => {
       // Arrange
-      const dsl = 'table t1 key [f1]=1\n [f2]=2';
+      const dsl = 'table t1 key [f1]=1\n [f2]=2\n table t2 [f1]=1';
       const sheetName1 = 'Sheet1';
       const sheetName2 = 'Sheet2';
       const historyTitle = 'DSL change';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       await act(() =>
@@ -283,12 +277,12 @@ describe('useDSLUtils', () => {
 
     it('should add different dsl changes for different sheets under different history item when having different title', async () => {
       // Arrange
-      const dsl = 'table t1 key [f1]=1\n [f2]=2';
+      const dsl = 'table t1 key [f1]=1\n [f2]=2\n table t2 [f1]=1';
       const sheetName1 = 'Sheet1';
       const sheetName2 = 'Sheet2';
       const historyTitle1 = 'DSL change1';
       const historyTitle2 = 'DSL change2';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       await act(() =>

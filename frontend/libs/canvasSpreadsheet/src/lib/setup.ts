@@ -67,39 +67,43 @@ function fontFaceSetIteratorToArray(fonts: FontFaceSet): FontFace[] {
 }
 
 export async function loadFonts() {
-  const fontRegular = new FontFace(
-    FontFamilies.JetBrainsMonoRegular,
-    'url(./assets/fonts/JetBrainsMono-Regular.ttf)',
-    {
-      style: 'normal',
-      unicodeRange: 'U+000-5FF,U+2026',
-      weight: '400',
-    }
-  );
-  await fontRegular.load();
+  try {
+    const fontRegular = new FontFace(
+      FontFamilies.JetBrainsMonoRegular,
+      'url(./fonts/JetBrainsMono-Regular.ttf)',
+      {
+        style: 'normal',
+        unicodeRange: 'U+000-5FF,U+2026',
+        weight: '400',
+      }
+    );
+    await fontRegular.load();
 
-  const fontBold = new FontFace(
-    FontFamilies.JetBrainsMonoBold,
-    'url(./assets/fonts/JetBrainsMono-Bold.ttf)',
-    {
-      style: 'normal',
-      unicodeRange: 'U+000-5FF,U+2026',
-      weight: '700',
-    }
-  );
-  await fontBold.load();
+    const fontBold = new FontFace(
+      FontFamilies.JetBrainsMonoBold,
+      'url(./fonts/JetBrainsMono-Bold.ttf)',
+      {
+        style: 'normal',
+        unicodeRange: 'U+000-5FF,U+2026',
+        weight: '700',
+      }
+    );
+    await fontBold.load();
 
-  const fonts = Object.keys(FontFamilies);
-  for (const font of fontFaceSetIteratorToArray(document.fonts)) {
-    // Firefox returns a string in quotes, Chrome does not
-    const browserFontFamily = font.family.replace(/^["']|["']$/g, '');
+    const fonts = Object.keys(FontFamilies);
+    for (const font of fontFaceSetIteratorToArray(document.fonts)) {
+      // Firefox returns a string in quotes, Chrome does not
+      const browserFontFamily = font.family.replace(/^["']|["']$/g, '');
 
-    if (fonts.includes(browserFontFamily)) {
-      document.fonts.delete(font);
+      if (fonts.includes(browserFontFamily)) {
+        document.fonts.delete(font);
+      }
     }
+    document.fonts.add(fontRegular);
+    document.fonts.add(fontBold);
+  } catch (error) {
+    // empty block
   }
-  document.fonts.add(fontRegular);
-  document.fonts.add(fontBold);
 }
 
 const fontColors: {

@@ -15,3 +15,7 @@ def unquote_forced(name: str) -> str:
         name = name[:-1]
 
     return name
+
+
+def add_double_quotes(value: str) -> str:
+    return '"' + value + '"'

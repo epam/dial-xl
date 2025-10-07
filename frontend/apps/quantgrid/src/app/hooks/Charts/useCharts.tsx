@@ -102,16 +102,17 @@ export function useCharts() {
       setChartData(viewGridData.getChartsData());
     };
 
-    // init data update call, if component had unmounted
-    setChartData(viewGridData.getChartsData());
-
     const dataUpdateSubscription =
       viewGridData.chartUpdate.subscribe(handleDataUpdate);
 
     return () => {
       dataUpdateSubscription.unsubscribe();
     };
-  }, [charts, projectName, sheetName, viewGridData]);
+  }, [projectName, sheetName, viewGridData]);
+
+  useEffect(() => {
+    setChartData(viewGridData.getChartsData());
+  }, [charts, viewGridData]);
 
   useEffect(() => {
     if (!projectName || !sheetName || !projectBucket) return;

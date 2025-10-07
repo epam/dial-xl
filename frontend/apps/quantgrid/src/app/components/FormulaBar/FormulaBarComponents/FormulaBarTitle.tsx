@@ -19,7 +19,7 @@ export function FormulaBarTitle({ text }: Prop) {
     >
       <span
         className={cx(
-          'text-[13px] px-2 select-none text-textSecondary text-ellipsis inline-block overflow-hidden whitespace-nowrap',
+          'text-[13px] px-2 select-none text-text-secondary text-ellipsis inline-block overflow-hidden whitespace-nowrap',
           {
             'pt-2 leading-none': formulaBarExpanded,
             'leading-6': !formulaBarExpanded,

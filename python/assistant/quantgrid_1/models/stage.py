@@ -7,6 +7,7 @@ from pydantic import BaseModel
 class Attachment(BaseModel):
     title: str = ""
     data: str = ""
+    url: str = ""
 
 
 class Stage(BaseModel):

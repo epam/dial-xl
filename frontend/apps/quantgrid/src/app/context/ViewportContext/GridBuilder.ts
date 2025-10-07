@@ -1,4 +1,10 @@
-import { ViewportEdges } from '@frontend/canvas-spreadsheet';
+import {
+  GridCell,
+  GridData,
+  GridField,
+  GridTable,
+  ViewportEdges,
+} from '@frontend/canvas-spreadsheet';
 import {
   ColumnChunk,
   ColumnDataType,
@@ -7,15 +13,9 @@ import {
   defaultChartRows,
   FormatType,
   formatValue,
-  GridCell,
-  GridData,
-  GridField,
-  GridFieldCache,
-  GridTable,
   isNumericType,
   isTextType,
   isValidUrl,
-  TableData,
 } from '@frontend/common';
 import {
   CachedOverrideRow,
@@ -25,13 +25,16 @@ import {
   ParsedTable,
 } from '@frontend/parser';
 
+import { isInputFormula } from '../../hooks';
+import { getFieldErrors, getOverrideErrors, getTotalErrors } from '../../utils';
 import { getOverrideRow } from './getOverrideRow';
 import {
-  getFieldErrors,
-  getOverrideErrors,
-  getTotalErrors,
-} from './gridErrors';
-import { ApplyBlockGridParams, GroupInfo, TableDimensions } from './types';
+  ApplyBlockGridParams,
+  GridFieldCache,
+  GroupInfo,
+  TableData,
+  TableDimensions,
+} from './types';
 import { chunkSize, ViewGridData } from './ViewGridData';
 
 /**
@@ -331,6 +334,7 @@ export class GridBuilder {
         isDescription: field.isDescription(),
         descriptionField: field.getDescriptionFieldName(),
         dataLength: totalRows,
+        isInput: isInputFormula(expression),
       };
 
       // These iterations needed for case when table is NOT horizontal and fields sizes not 1
@@ -532,6 +536,7 @@ export class GridBuilder {
       const hasOverrides = table.overrides
         ? table.overrides.hasColumnOverrides(fieldName)
         : false;
+      const expression = field.expressionMetadata?.text || '';
 
       const cellField: GridField = {
         fieldName,
@@ -539,8 +544,8 @@ export class GridBuilder {
         type,
         format,
         hasOverrides,
+        expression,
         note: field.note?.text || '',
-        expression: field.expressionMetadata?.text || '',
         isPeriodSeries: type === ColumnDataType.PERIOD_SERIES,
         isKey: field.isKey,
         isDim: field.isDim,
@@ -559,6 +564,7 @@ export class GridBuilder {
         isDescription: field.isDescription(),
         descriptionField: field.getDescriptionFieldName(),
         dataLength: totalRows,
+        isInput: isInputFormula(expression),
       };
 
       fieldMap.set(fieldName, {

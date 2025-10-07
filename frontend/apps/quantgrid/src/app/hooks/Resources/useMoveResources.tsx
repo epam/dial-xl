@@ -7,10 +7,10 @@ import {
   appMessages,
   csvFileExtension,
   dialProjectFileExtension,
-  FilesMetadata,
   MetadataNodeType,
   modalFooterButtonClasses,
   primaryButtonClasses,
+  ResourceMetadata,
   schemaFileExtension,
   secondaryButtonClasses,
 } from '@frontend/common';
@@ -23,7 +23,7 @@ export function useMoveResources() {
 
   const handleMoveProject = useCallback(
     async (
-      item: Pick<FilesMetadata, 'bucket' | 'name' | 'parentPath'>,
+      item: Pick<ResourceMetadata, 'bucket' | 'name' | 'parentPath'>,
       targetPath: string | null | undefined,
       targetBucket: string
     ) => {
@@ -32,7 +32,7 @@ export function useMoveResources() {
       const res = await moveProject({
         bucket: bucket,
         name: name,
-        path: parentPath,
+        parentPath,
         targetPath,
         targetBucket,
         suppressErrors: true,
@@ -47,7 +47,7 @@ export function useMoveResources() {
 
   const handleMoveFile = useCallback(
     async (
-      item: Pick<FilesMetadata, 'bucket' | 'name' | 'parentPath'>,
+      item: Pick<ResourceMetadata, 'bucket' | 'name' | 'parentPath'>,
       targetPath: string | null | undefined,
       targetBucket: string
     ) => {
@@ -56,7 +56,7 @@ export function useMoveResources() {
       const res = await moveFile({
         bucket: item.bucket,
         name: item.name,
-        path: item.parentPath,
+        parentPath: item.parentPath,
         targetPath,
         targetBucket,
       });
@@ -66,7 +66,7 @@ export function useMoveResources() {
       await moveFile({
         bucket: item.bucket,
         name: '.' + item.name.replaceAll(csvFileExtension, schemaFileExtension),
-        path: item.parentPath,
+        parentPath: item.parentPath,
         targetPath,
         targetBucket,
         suppressErrors: true,
@@ -81,7 +81,10 @@ export function useMoveResources() {
 
   const handleMoveResource = useCallback(
     async (
-      item: Pick<FilesMetadata, 'bucket' | 'name' | 'parentPath' | 'nodeType'>,
+      item: Pick<
+        ResourceMetadata,
+        'bucket' | 'name' | 'parentPath' | 'nodeType'
+      >,
       targetPath: string | null | undefined,
       targetBucket: string
     ) => {
@@ -118,7 +121,7 @@ export function useMoveResources() {
   const handleMoveFiles = useCallback(
     async (
       items: Pick<
-        FilesMetadata,
+        ResourceMetadata,
         'bucket' | 'name' | 'parentPath' | 'nodeType'
       >[],
       targetPath: string | null | undefined,
@@ -141,7 +144,7 @@ export function useMoveResources() {
   const moveResources = useCallback(
     async (
       items: (Pick<
-        FilesMetadata,
+        ResourceMetadata,
         'bucket' | 'name' | 'parentPath' | 'nodeType'
       > & {
         isSharedByMe?: boolean;

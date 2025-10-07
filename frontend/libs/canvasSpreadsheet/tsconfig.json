@@ -1,15 +1,16 @@
 {
-  "compilerOptions": {
-    "jsx": "react-jsx",
-    "allowJs": false,
-    "esModuleInterop": false,
-    "allowSyntheticDefaultImports": true,
-    "strict": true,
-    "lib": ["dom", "dom.iterable", "es2021"]
-  },
   "files": [],
   "include": [],
   "references": [
+    {
+      "path": "../parser"
+    },
+    {
+      "path": "../code-editor"
+    },
+    {
+      "path": "../common"
+    },
     {
       "path": "./tsconfig.lib.json"
     },

@@ -12,7 +12,6 @@ import { Application } from '@pixi/app';
 import { initDevtools } from '@pixi/devtools';
 import { Stage } from '@pixi/react';
 
-import styles from './CanvasSpreadsheet.module.scss';
 import {
   AIPrompt,
   CellEditor,
@@ -123,6 +122,8 @@ export const CanvasSpreadsheet = (
     onAutoFitFields,
     onRemoveFieldSizes,
     onDownloadTable,
+    onGridExpand,
+    onSwitchInput,
   } = props;
 
   const [app, setApp] = useState<Application | null>(null);
@@ -229,6 +230,8 @@ export const CanvasSpreadsheet = (
     gridCallbacksRef.current.onChangeFieldIndex = onChangeFieldIndex;
     gridCallbacksRef.current.onChangeDescription = onChangeDescription;
     gridCallbacksRef.current.onDownloadTable = onDownloadTable;
+    gridCallbacksRef.current.onGridExpand = onGridExpand;
+    gridCallbacksRef.current.onSwitchInput = onSwitchInput;
   }, [
     onAddAllFieldTotals,
     onAddAllTableTotals,
@@ -294,11 +297,13 @@ export const CanvasSpreadsheet = (
     onAutoFitFields,
     onRemoveFieldSizes,
     onDownloadTable,
+    onGridExpand,
+    onSwitchInput,
   ]);
 
   return (
     <div
-      className={styles.canvasSpreadsheet}
+      className="h-full w-full relative overflow-hidden select-none"
       id={canvasId}
       ref={gridContainerRef}
     >
@@ -351,6 +356,7 @@ export const CanvasSpreadsheet = (
               formulaBarMode={formulaBarMode}
               functions={functions}
               gridCallbacksRef={gridCallbacksRef}
+              inputList={inputFiles}
               isPointClickMode={isPointClickMode}
               parsedSheets={parsedSheets}
               sheetContent={sheetContent}

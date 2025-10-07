@@ -30,8 +30,8 @@ import {
   ViewportContext,
 } from '../../../../context';
 import { useFieldEditDsl } from '../../../../hooks';
+import { ChartPanelSelectClasses } from '../ChartPanelSelectClasses';
 import { ChartEmptySection } from './ChartEmptySection';
-import { ChartPanelSelectClasses } from './SelectUtils';
 
 type Props = {
   parsedTable: ParsedTable;
@@ -146,7 +146,7 @@ export function ChartSelectorsSection({
       {selectors.map((selector) => (
         <div className="flex items-center mb-2" key={selector.key.fieldName}>
           <Input
-            className={cx('h-7 text-[13px] !text-textPrimary', inputClasses)}
+            className={cx('h-7 text-[13px] text-text-primary!', inputClasses)}
             id="selectorFieldName"
             value={selector.key.fieldName}
             disabled
@@ -192,10 +192,10 @@ function RemoveButton({
   onClick: MouseEventHandler<HTMLButtonElement>;
 }) {
   return (
-    <Tooltip placement="top" title="Remove Selector">
+    <Tooltip placement="top" title="Remove Selector" destroyOnHidden>
       <button className="flex items-center" onClick={onClick}>
         <Icon
-          className="w-[18px] ml-2 text-textSecondary hover:text-textAccentPrimary"
+          className="w-[18px] ml-2 text-text-secondary hover:text-text-accent-primary"
           component={() => <TrashIcon />}
         />
       </button>

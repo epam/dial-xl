@@ -22,7 +22,7 @@ export const AIHints = () => {
   const { isProjectEditable } = useContext(ProjectContext);
 
   return (
-    <div className="flex flex-col w-full h-full bg-bgLayer3 text-textPrimary overflow-hidden">
+    <div className="flex flex-col w-full h-full bg-bg-layer-3 text-text-primary overflow-hidden">
       <div className="flex flex-col grow overflow-auto thin-scrollbar">
         {isHintsLoading ? (
           <div className="flex grow items-center justify-center">
@@ -34,7 +34,7 @@ export const AIHints = () => {
           <div className="px-2">
             {hints.map((hint, index) => (
               <div
-                className="flex gap-1 overflow-hidden justify-between rounded-[3px] max-w-full truncate group items-center py-1 px-2 hover:bg-bgAccentPrimaryAlpha hover:cursor-pointer"
+                className="flex gap-1 overflow-hidden justify-between rounded-[3px] max-w-full truncate group items-center py-1 px-2 hover:bg-bg-accent-primary-alpha hover:cursor-pointer"
                 key={hint.name || index}
                 onClick={() => editHintModal(index)}
               >
@@ -43,7 +43,7 @@ export const AIHints = () => {
                     <span className={classNames('flex items-center h-full')}>
                       <Icon
                         className={classNames(
-                          'group-hover:hidden w-[18px] text-textSecondary',
+                          'group-hover:hidden w-[18px] text-text-secondary',
                           selectedHintsIndexes.includes(index) && 'hidden'
                         )}
                         component={() => <HintStarIcon />}
@@ -66,9 +66,9 @@ export const AIHints = () => {
                     className={classNames(
                       'truncate text-[13px] leading-none shrink select-none',
                       hint.isDisabled
-                        ? 'text-textSecondary'
+                        ? 'text-text-secondary'
                         : !hintsValidationResult[index]
-                        ? 'text-textError'
+                        ? 'text-text-error'
                         : ''
                     )}
                   >
@@ -79,6 +79,7 @@ export const AIHints = () => {
                   <div className="shrink-0 hidden group-hover:flex gap-1 items-center h-[18px]">
                     <Tooltip
                       title={hint.isDisabled ? 'Enable hint' : 'Disable hint'}
+                      destroyOnHidden
                     >
                       <button
                         onClick={(e) => {
@@ -89,14 +90,14 @@ export const AIHints = () => {
                         }}
                       >
                         <Icon
-                          className="w-[18px] text-textSecondary hover:text-textAccentPrimary"
+                          className="w-[18px] text-text-secondary hover:text-text-accent-primary"
                           component={() =>
                             hint.isDisabled ? <EyeOffIcon /> : <EyeIcon />
                           }
                         />
                       </button>
                     </Tooltip>
-                    <Tooltip title="Remove hint">
+                    <Tooltip title="Remove hint" destroyOnHidden>
                       <button
                         onClick={(e) => {
                           e.preventDefault();
@@ -106,7 +107,7 @@ export const AIHints = () => {
                         }}
                       >
                         <Icon
-                          className="w-[18px] text-textSecondary hover:text-textAccentPrimary"
+                          className="w-[18px] text-text-secondary hover:text-text-accent-primary"
                           component={() => <TrashIcon />}
                         />
                       </button>

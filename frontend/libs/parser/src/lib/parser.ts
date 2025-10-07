@@ -34,7 +34,6 @@ export const chartHorizontalDecoratorArg = 'column-wise';
 export const manualTableDecoratorName = 'manual';
 export const manualTableDecorator = '!manual()';
 export const formatDecoratorName = `format`;
-export const sourceFieldName = 'source';
 export const indexDecoratorName = 'index';
 export const descriptionDecoratorName = 'description';
 
@@ -103,6 +102,7 @@ export type TotalType =
   | 'mode'
   | 'max'
   | 'min'
+  | 'countUnique'
   | 'custom';
 
 export type TotalItem = {

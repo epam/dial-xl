@@ -3,7 +3,7 @@ import { expect } from '@playwright/test';
 import { BaseComponent } from './BaseComponent';
 
 export class BasePanel extends BaseComponent {
-  private hideElement = 'div>span.text-textSecondary.ml-2.cursor-pointer';
+  private hideElement = '[data-qa="panel-hide-button"]';
 
   protected panelName: string;
 

@@ -1,14 +1,14 @@
 import Icon from '@ant-design/icons';
 import {
   ColumnsIcon,
+  CommonMetadata,
   CSVFileIcon,
-  FilesMetadata,
   FolderIcon,
   MetadataNodeType,
 } from '@frontend/common';
 
 export function getNode(
-  inputFile: FilesMetadata,
+  inputFile: CommonMetadata,
   fields: string[],
   key: string
 ) {
@@ -16,12 +16,12 @@ export function getNode(
   const LeafIcon =
     nodeType === MetadataNodeType.FOLDER ? (
       <Icon
-        className="text-strokeAccentSecondary w-[18px]"
+        className="text-stroke-accent-secondary w-[18px]"
         component={() => <FolderIcon />}
       />
     ) : (
       <Icon
-        className="text-strokeAccentSecondary w-[18px]"
+        className="text-stroke-accent-secondary w-[18px]"
         component={() => <CSVFileIcon />}
         id={`dragged-image-${key}`}
       />
@@ -38,7 +38,7 @@ export function getNode(
       isLeaf: true,
       icon: (
         <Icon
-          className="size-[18px] text-textSecondary"
+          className="size-[18px] text-text-secondary"
           component={() => <ColumnsIcon />}
         />
       ),

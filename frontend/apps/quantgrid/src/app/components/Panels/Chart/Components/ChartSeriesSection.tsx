@@ -27,11 +27,8 @@ import {
   ViewportContext,
 } from '../../../../context';
 import { useFieldEditDsl } from '../../../../hooks';
-import {
-  ChartPanelSelectClasses,
-  CustomColorOption,
-  CustomSingleColorValue,
-} from './SelectUtils';
+import { ChartPanelSelectClasses } from '../ChartPanelSelectClasses';
+import { CustomColorOption, CustomSingleColorValue } from './SelectUtils';
 import { SeriesColumnAttributesSection } from './SeriesColumnAttributesSection';
 
 type FieldOption = {
@@ -213,7 +210,7 @@ export function ChartSeriesSection({
                     className={cx(
                       secondaryButtonClasses,
                       secondaryDisabledButtonClasses,
-                      'text-[13px] font-semibold h-5 w-full !rounded-none'
+                      'text-[13px] font-semibold h-5 w-full rounded-none!'
                     )}
                     onClick={handleApplyColor}
                   >
@@ -225,16 +222,16 @@ export function ChartSeriesSection({
             showText={() => (
               <div className="flex items-center">
                 {selectedColor && (
-                  <Tooltip title="Remove series color">
+                  <Tooltip title="Remove series color" destroyOnHidden>
                     <Icon
-                      className="w-[18px] text-textPrimary mr-1"
+                      className="w-[18px] text-text-primary mr-1"
                       component={() => <CloseIcon />}
                       onClick={handleRemoveColor}
                     />
                   </Tooltip>
                 )}
                 <Icon
-                  className={cx('w-[18px] text-textPrimary', {
+                  className={cx('w-[18px] text-text-primary', {
                     'rotate-180': colorPickerOpen,
                     'rotate-0': !colorPickerOpen,
                   })}

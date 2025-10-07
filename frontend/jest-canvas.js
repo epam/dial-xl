@@ -1,3 +1,9 @@
+import { enableFetchMocks } from 'jest-fetch-mock';
+
+import 'reflect-metadata';
+
+enableFetchMocks();
+
 global.FontFace = function FontFace() {
   this.load = () => ({
     then: () => {},

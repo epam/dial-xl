@@ -31,4 +31,3 @@ class DynamicField:
     def field_data(self) -> FieldData | str | None:
         """Get the field data of the dynamic field."""
         return self.__field_data
-

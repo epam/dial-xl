@@ -1,3 +1,5 @@
+import { AppTheme } from './types';
+
 export const formulaEditorId = 'formulaEditor';
 export const formulaBarInput = 'formulaBarInput';
 export const codeEditorId = 'codeEditorId';
@@ -19,6 +21,11 @@ export const formulaBarMenuClass = 'formula-bar-menu';
 
 export const filesEndpointType = 'files';
 export const conversationsEndpointType = 'conversations';
+
+export const defaultSheetName = 'Sheet1';
+export const defaultProjectName = 'Project1';
+export const defaultTableName = 'Table1';
+export const defaultChartName = 'Chart1';
 
 export const filesEndpointPrefix = `/v1/${filesEndpointType}`;
 export const conversationsEndpointPrefix = `/v1/${conversationsEndpointType}`;
@@ -48,6 +55,9 @@ export const defaultChartRows = 15;
 export const chartRowNumberSelector = 'rowNumber';
 export const histogramChartSeriesSelector = 'histogramSeries';
 
+export const zoomValues = [0.5, 0.75, 1, 1.25, 1.5, 2];
+export const defaultTheme: AppTheme = AppTheme.ThemeLight;
+
 export const apiMessages = {
   generalError:
     'Something happened during request. Please refresh the page and try again.',
@@ -73,12 +83,22 @@ export const apiMessages = {
   getBucketClient: 'Client error happened during receiving bucket.',
   getProjectServer: 'Server error happened during getting project information.',
   getProjectClient: 'Client error happened during getting project information.',
+  getConversationServer:
+    'Server error happened during getting conversation information.',
+  getConversationClient:
+    'Client error happened during getting conversation information.',
+  updateConversationServer:
+    'Server error happened during updating conversation information.',
+  updateConversationClient:
+    'Client error happened during updating conversation information.',
   getAIHintsServer: 'Server error happened during getting ai hints.',
   getAIHintsClient: 'Client error happened during getting ai hints.',
   putProjectServer:
     'Server error happened during updating project information.',
   putProjectClient:
     'Client error happened during updating project information.',
+  putConversationServer: 'Server error happened during updating conversation.',
+  putConversationClient: 'Client error happened during updating conversation.',
   putProjectVersion: 'Version of project on server is ahead of yours.',
   putProjectForbidden: 'You are not allowed to edit this project.',
   putAIHintsServer: 'Server error happened during updating ai hints.',

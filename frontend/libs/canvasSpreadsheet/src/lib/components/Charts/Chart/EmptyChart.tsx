@@ -60,15 +60,15 @@ export function EmptyChart({
   }, [gridCallbacksRef, selectedTableName, tableName]);
 
   return (
-    <div className="flex flex-col items-center justify-center h-full text-textSecondary">
+    <div className="flex flex-col items-center justify-center h-full text-text-secondary">
       <Icon
-        className="w-[50px] text-textSecondary"
+        className="w-[50px] text-text-secondary"
         component={() => (
           <TableHeaderIcon secondaryAccentCssVar="text-accent-primary" />
         )}
       />
 
-      <span className="text-[13px] text-textPrimary my-4">
+      <span className="text-[13px] text-text-primary my-4">
         Select table for visualization
       </span>
 
@@ -78,14 +78,14 @@ export function EmptyChart({
             ...SelectClasses,
             control: ({ menuIsOpen }) =>
               cx(
-                '!min-h-7 !w-full !bg-bgLayer3 !text-textPrimary hover:!border-strokeAccentPrimary !shadow-none text-[13px]',
+                'min-h-7! w-full! bg-bg-layer-3! text-text-primary! hover:border-stroke-accent-primary! shadow-none! text-[13px]',
                 menuIsOpen
-                  ? '!border-strokeAccentPrimary'
-                  : '!border-strokeTertiary'
+                  ? 'border-stroke-accent-primary!'
+                  : 'border-stroke-tertiary!'
               ),
-            valueContainer: () => '!pr-0',
-            dropdownIndicator: () => 'hover:!text-strokeHover !pl-0 !py-0',
-            container: () => '!max-w-[200px] !w-full',
+            valueContainer: () => 'pr-0!',
+            dropdownIndicator: () => 'hover:text-stroke-hover! pl-0! py-0!',
+            container: () => 'max-w-[200px]! w-full!',
           }}
           components={{
             IndicatorSeparator: null,

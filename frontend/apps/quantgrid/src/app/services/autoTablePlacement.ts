@@ -1,9 +1,9 @@
-import { defaultGridSizes, GridApi } from '@frontend/canvas-spreadsheet';
 import {
-  defaultChartCols,
-  defaultChartRows,
+  defaultGridSizes,
+  GridApi,
   GridTable,
-} from '@frontend/common';
+} from '@frontend/canvas-spreadsheet';
+import { defaultChartCols, defaultChartRows } from '@frontend/common';
 import {
   minTablePlacement,
   ParsedField,
@@ -14,7 +14,7 @@ import {
   unescapeTableName,
 } from '@frontend/parser';
 
-import { editLayoutDecorator } from '../hooks/EditDsl/utils';
+import { editLayoutDecorator } from '../hooks';
 import { fieldNameSizeLimit, getExpandedTextSize } from '../utils';
 
 interface ExistingRect {

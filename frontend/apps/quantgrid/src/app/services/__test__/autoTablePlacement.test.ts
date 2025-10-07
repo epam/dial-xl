@@ -1,5 +1,4 @@
-import { GridApi } from '@frontend/canvas-spreadsheet';
-import { GridTable } from '@frontend/common';
+import { GridApi, GridTable } from '@frontend/canvas-spreadsheet';
 
 import { autoTablePlacement } from '../autoTablePlacement';
 

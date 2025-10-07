@@ -1,4 +1,4 @@
-import { AppTheme, FunctionInfo } from '@frontend/common';
+import { AppTheme, CommonMetadata, FunctionInfo } from '@frontend/common';
 import { ParsedSheets } from '@frontend/parser';
 
 import { Language } from './codeEditorConfig';
@@ -12,12 +12,6 @@ export enum SortText {
   priority1 = '1',
   priority2 = '2',
   priority3 = '3',
-}
-
-export enum SuggestionType {
-  field = 'field',
-  table = 'table',
-  function = 'function',
 }
 
 export type Suggestion = Pick<
@@ -82,6 +76,7 @@ export interface CodeEditorProps {
   setCode?: { current: SetCodeRefFunction };
   setFocus?: { current: SetFocusRefFunction };
   functions?: FunctionInfo[];
+  inputFiles?: CommonMetadata[] | null;
   parsedSheets?: ParsedSheets;
   disableHelpers?: boolean;
   currentTableName?: string;

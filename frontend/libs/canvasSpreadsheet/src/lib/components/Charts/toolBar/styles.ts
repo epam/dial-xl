@@ -69,14 +69,14 @@ export function getSingleSelectOptionStyles(
   if (isNoDataKey) {
     return cx(
       isSelected
-        ? '!bg-bgAccentPrimaryAlpha !text-textSecondary'
-        : '!bg-bgLayer0 !text-textSecondary hover:!bg-bgAccentPrimaryAlpha'
+        ? 'bg-bg-accent-primary-alpha! text-text-secondary!'
+        : 'bg-bg-layer-0! text-text-secondary! hover:bg-bg-accent-primary-alpha!'
     );
   }
 
   return cx(
     isSelected
-      ? '!bg-bgAccentPrimaryAlpha !text-textAccentPrimary'
-      : '!bg-bgLayer0 !text-textPrimary hover:!bg-bgAccentPrimaryAlpha'
+      ? 'bg-bg-accent-primary-alpha! text-text-accent-primary!'
+      : 'bg-bg-layer-0! text-text-primary! hover:bg-bg-accent-primary-alpha!'
   );
 }

@@ -2093,11 +2093,15 @@ class CompilerTest {
                 "10.2B"
                 "12,345,678,912.34"
                 1e-5
+                "TrUe"
+                "FaLsE"
+                "8/26/2024"
                 """;
 
         ResultCollector collector = executeWithErrors(dsl);
 
-        collector.verify("A", "b", Doubles.EMPTY, Doubles.ERROR_NA, -1, 5, 10.2e9, 12.3e9, 1e-5);
+        collector.verify("A", "b",
+                Doubles.EMPTY, Doubles.ERROR_NA, -1, 5, 10.2e9, 12.3e9, 1e-5, 1, 0, 45530);
     }
 
     @Test
@@ -4871,9 +4875,31 @@ class CompilerTest {
         collector.verify("A", "number1", "1,234.568");
         collector.verify("A", "number2", "1235");
         collector.verify("A", "percentage", "23.40%");
-        collector.verify("A", "scientific", "1.23E+4");
+        collector.verify("A", "scientific", "1.23E4");
         // not really testing the type
         collector.verify("A", "text", "12,345");
+    }
+
+    @Test
+    void testCompactFormat() {
+        String dsl = """
+                table A
+                  [a] = 123456
+                  !format("currency", -4, "BTC")
+                  [currency] = [a]
+                  !format("number", -4)
+                  [number] = [a]
+                  !format("percentage", -4)
+                  [percentage] = [a]
+                  !format("scientific", -4)
+                  [scientific] = [a]
+                """;
+
+        ResultCollector collector = executeWithoutErrors(dsl);
+        collector.verify("A", "currency", "BTC 123.5K");
+        collector.verify("A", "number", "123.5K");
+        collector.verify("A", "percentage", "12.35M%");
+        collector.verify("A", "scientific", "1.23E5");
     }
 
     @Test
@@ -4979,7 +5005,7 @@ class CompilerTest {
         collector.verify("General", "gen-plus-date", "08/06/1967");
         collector.verify("General", "gen-plus-number", "13,580.238");
         collector.verify("General", "gen-plus-percentage", "1234590.40%");
-        collector.verify("General", "gen-plus-scientific", "2.47E+4");
+        collector.verify("General", "gen-plus-scientific", "2.47E4");
 
         collector.verify("Boolean", "bool-plus-gen", "12,346.67");
         collector.verify("Boolean", "bool-plus-bool", "2");
@@ -4987,7 +5013,7 @@ class CompilerTest {
         collector.verify("Boolean", "bool-plus-date", "10/19/1933");
         collector.verify("Boolean", "bool-plus-number", "1,235.568");
         collector.verify("Boolean", "bool-plus-percentage", "123.40%");
-        collector.verify("Boolean", "bool-plus-scientific", "1.23E+4");
+        collector.verify("Boolean", "bool-plus-scientific", "1.23E4");
 
         collector.verify("Currency", "ccy-plus-gen", "BTC 24,691.35");
         collector.verify("Currency", "ccy-plus-bool", "BTC 12,346.68");
@@ -5024,14 +5050,14 @@ class CompilerTest {
         collector.verify("Percentage", "percentage-plus-percentage2", "46.80%");
         collector.verify("Percentage", "percentage-plus-scientific", "1234590.40%");
 
-        collector.verify("Scientific", "scientific-plus-gen", "2.47E+4");
-        collector.verify("Scientific", "scientific-plus-bool", "1.23E+4");
-        collector.verify("Scientific", "scientific-plus-ccy", "2.47E+4");
-        collector.verify("Scientific", "scientific-plus-date", "2.47E+4");
-        collector.verify("Scientific", "scientific-plus-number", "1.36E+4");
-        collector.verify("Scientific", "scientific-plus-percentage", "1.23E+4");
-        collector.verify("Scientific", "scientific-plus-scientific1", "2.47E+4");
-        collector.verify("Scientific", "scientific-plus-scientific2", "2.47E+4");
+        collector.verify("Scientific", "scientific-plus-gen", "2.47E4");
+        collector.verify("Scientific", "scientific-plus-bool", "1.23E4");
+        collector.verify("Scientific", "scientific-plus-ccy", "2.47E4");
+        collector.verify("Scientific", "scientific-plus-date", "2.47E4");
+        collector.verify("Scientific", "scientific-plus-number", "1.36E4");
+        collector.verify("Scientific", "scientific-plus-percentage", "1.23E4");
+        collector.verify("Scientific", "scientific-plus-scientific1", "2.47E4");
+        collector.verify("Scientific", "scientific-plus-scientific2", "2.47E4");
     }
 
     @Test
@@ -5137,7 +5163,7 @@ class CompilerTest {
         collector.verify("General", "gen-mul-date", "12/31/+419176");
         collector.verify("General", "gen-mul-number", "15,241,566.65");
         collector.verify("General", "gen-mul-percentage", "2,888.88678");
-        collector.verify("General", "gen-mul-scientific", "1.52E+8");
+        collector.verify("General", "gen-mul-scientific", "1.52E8");
 
         collector.verify("Boolean", "bool-mul-gen", "12,345.67");
         collector.verify("Boolean", "bool-mul-bool", "1");
@@ -5145,7 +5171,7 @@ class CompilerTest {
         collector.verify("Boolean", "bool-mul-date", "10/18/1933");
         collector.verify("Boolean", "bool-mul-number", "1,234.5678");
         collector.verify("Boolean", "bool-mul-percentage", "0.234");
-        collector.verify("Boolean", "bool-mul-scientific", "1.23E+4");
+        collector.verify("Boolean", "bool-mul-scientific", "1.23E4");
 
         collector.verify("Currency", "ccy-mul-gen", "BTC 152,415,666.51");
         collector.verify("Currency", "ccy-mul-bool", "BTC 12,345.68");
@@ -5171,7 +5197,7 @@ class CompilerTest {
         collector.verify("Number", "number-mul-number1", "1,524,157.653");
         collector.verify("Number", "number-mul-number2", "1,524,157.653");
         collector.verify("Number", "number-mul-percentage", "288.8888652");
-        collector.verify("Number", "number-mul-scientific", "1.52E+7");
+        collector.verify("Number", "number-mul-scientific", "1.52E7");
 
         collector.verify("Percentage", "percentage-mul-gen", "2,888.88678");
         collector.verify("Percentage", "percentage-mul-bool", "0.234");
@@ -5180,16 +5206,16 @@ class CompilerTest {
         collector.verify("Percentage", "percentage-mul-number", "288.8888652");
         collector.verify("Percentage", "percentage-mul-percentage1", "5.48%");
         collector.verify("Percentage", "percentage-mul-percentage2", "5.48%");
-        collector.verify("Percentage", "percentage-mul-scientific", "2.89E+3");
+        collector.verify("Percentage", "percentage-mul-scientific", "2.89E3");
 
-        collector.verify("Scientific", "scientific-mul-gen", "1.52E+8");
-        collector.verify("Scientific", "scientific-mul-bool", "1.23E+4");
+        collector.verify("Scientific", "scientific-mul-gen", "1.52E8");
+        collector.verify("Scientific", "scientific-mul-bool", "1.23E4");
         collector.verify("Scientific", "scientific-mul-ccy", "BTC 152,415,666.51");
         collector.verify("Scientific", "scientific-mul-date", "12/31/+419176");
-        collector.verify("Scientific", "scientific-mul-number", "1.52E+7");
-        collector.verify("Scientific", "scientific-mul-percentage", "2.89E+3");
-        collector.verify("Scientific", "scientific-mul-scientific1", "1.52E+8");
-        collector.verify("Scientific", "scientific-mul-scientific2", "1.52E+8");
+        collector.verify("Scientific", "scientific-mul-number", "1.52E7");
+        collector.verify("Scientific", "scientific-mul-percentage", "2.89E3");
+        collector.verify("Scientific", "scientific-mul-scientific1", "1.52E8");
+        collector.verify("Scientific", "scientific-mul-scientific2", "1.52E8");
     }
 
     @Test
@@ -6062,11 +6088,11 @@ class CompilerTest {
 
         ResultCollector data = executeWithoutErrors(dsl);
 
-        data.verify("A", "a", "1.00E+0", "4.00E+0");
+        data.verify("A", "a", "1.00E0", "4.00E0");
         data.verify("A", "b", "2.00", "2.00");
         data.verify("A", "c", "3.00", "2.00");
         data.verify("A", "d", "4/24/2025", "4/24/2025");
-        data.verify("B", "a", "1.00E+0");
+        data.verify("B", "a", "1.00E0");
         data.verify("B", "b", "2.00");
     }
 
@@ -6282,4 +6308,167 @@ class CompilerTest {
         assertThat(data.getIndices())
                 .containsExactlyInAnyOrder(new FieldKey("A", "a"), new FieldKey("A", "b"));
     }
+
+    @Test
+    void testFunctionsWithOptionalArguments() {
+        String dsl = """
+                table A
+                  dim [a] = RANGE(1)
+                      [b] = FILTER(A,)
+                      [c] = SORTBY(A, A[a],)
+                """;
+
+        ResultCollector data = executeWithErrors(dsl);
+        data.verify("""
+                Table: A
+                +---+
+                | a |
+                +---+
+                | 1 |
+                +---+
+                ERR >> A[b] - Invalid argument "condition" for function FILTER: missing
+                ERR >> A[c] - Invalid argument "keys" for function SORTBY: missing
+                """);
+    }
+
+    @Test
+    void testPivotWithOptionalArguments() {
+        String dsl = """
+                table A
+                  dim [val] = RANGE(10)
+                      [company] = "company" & ([val] MOD 3)
+                      [indicator] = "indicator" & ([val] MOD 2)
+                      [index] = [val] MOD 3
+               
+                table B
+                  dim [*] = PIVOT(, A[indicator], A[val], "SUM")
+                      [result0] = [indicator0]
+                      [result1] = [indicator1]
+                
+                table C
+                  dim [company], [sum] = PIVOT(A[company], , A[val], "SUM")
+                
+                table D
+                  dim [company], [*] = PIVOT(A[company], A[indicator],,)
+                      [result0] = [indicator0]
+                      [result1] = [indicator1]
+               
+                table E
+                  dim [company] = PIVOT(A[company],,,)
+                
+                table F
+                  dim [*] = PIVOT(,A[indicator],,)
+                      [result0] = [indicator0]
+                      [result1] = [indicator1]
+                
+                table G
+                  dim [sum] = PIVOT(,,A[val], "SUM")[val]
+                
+                table H
+                  dim [sum] = PIVOT(,,A[val] + 1, "SUM")[value]
+                """;
+
+        ResultCollector data = executeWithoutErrors(dsl);
+        data.verify("""
+                Table: A
+                +-----+----------+------------+-------+
+                | val |  company |  indicator | index |
+                +-----+----------+------------+-------+
+                |   1 | company1 | indicator1 |     1 |
+                |   2 | company2 | indicator0 |     2 |
+                |   3 | company0 | indicator1 |     0 |
+                |   4 | company1 | indicator0 |     1 |
+                |   5 | company2 | indicator1 |     2 |
+                |   6 | company0 | indicator0 |     0 |
+                |   7 | company1 | indicator1 |     1 |
+                |   8 | company2 | indicator0 |     2 |
+                |   9 | company0 | indicator1 |     0 |
+                |  10 | company1 | indicator0 |     1 |
+                +-----+----------+------------+-------+
+                
+                Table: B
+                +------------+---------+---------+
+                |          * | result0 | result1 |
+                +------------+---------+---------+
+                | indicator0 |      30 |      25 |
+                | indicator1 |       - |       - |
+                +------------+---------+---------+
+                
+                Table: C
+                +----------+-----+
+                |  company | sum |
+                +----------+-----+
+                | company0 |  18 |
+                | company1 |  22 |
+                | company2 |  15 |
+                +----------+-----+
+                
+                Table: D
+                +----------+------------+---------+---------+
+                |  company |          * | result0 | result1 |
+                +----------+------------+---------+---------+
+                | company0 | indicator0 |         |         |
+                | company1 | indicator1 |         |         |
+                | company2 |          - |         |         |
+                +----------+------------+---------+---------+
+                
+                Table: E
+                +----------+
+                |  company |
+                +----------+
+                | company0 |
+                | company1 |
+                | company2 |
+                +----------+
+                
+                Table: F
+                +------------+---------+---------+
+                |          * | result0 | result1 |
+                +------------+---------+---------+
+                | indicator0 |         |         |
+                | indicator1 |       - |       - |
+                +------------+---------+---------+
+                
+                Table: G
+                +-----+
+                | sum |
+                +-----+
+                |  55 |
+                +-----+
+                
+                Table: H
+                +-----+
+                | sum |
+                +-----+
+                |  65 |
+                +-----+
+                """);
+    }
+
+    @Test
+    void testInvalidOverrideFormula() {
+        String dsl = """
+                !manual()
+                table A
+                  [a] = 1
+                  [b] = 2
+                override
+                [a],[b]
+                3,4
+                4,5+
+                """;
+
+        ResultCollector data = executeWithErrors(dsl, true);
+        data.verify("""
+                Table: A
+                +---+----+
+                | a |  b |
+                +---+----+
+                | 3 |  4 |
+                | 4 | NA |
+                +---+----+
+                ERR >> A - mismatched input '\\n' expecting {'-', 'TRUE', 'FALSE', 'NA', '$', 'NOT', '{', '(', FLOAT, IDENTIFIER, STRING_LITERAL, FIELD_NAME, MULTI_WORD_TABLE_IDENTIFIER}
+                """);
+    }
+
 }

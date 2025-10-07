@@ -45,7 +45,7 @@ export function Selection() {
     });
   }, [theme]);
 
-  const getSelectionCoords = useCallback(() => {
+  const getSelectionCoords = useCallback((): null | void => {
     if (!selectionEdges) return null;
 
     const { startRow, endRow, endCol, startCol } = selectionEdges;
@@ -73,7 +73,7 @@ export function Selection() {
     getSelectionCoords();
   }, [getSelectionCoords]);
 
-  const draw = useCallback(() => {
+  const draw = useCallback((): undefined | null | void => {
     if (!graphicsRef.current) return;
 
     const graphics = graphicsRef.current;

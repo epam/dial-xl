@@ -14,7 +14,6 @@ import {
   UnselectAllIcon,
 } from '@frontend/common';
 
-import { DashboardTab } from '../../../common';
 import { ApiContext, DashboardContext, ProjectContext } from '../../../context';
 import {
   useApiRequests,
@@ -22,7 +21,8 @@ import {
   useDeleteResources,
   useMoveResources,
 } from '../../../hooks';
-import { SelectFolder } from '../../Modals';
+import { DashboardTab } from '../../../types/dashboard';
+import { CloneFile, SelectFolder } from '../../Modals';
 
 export function DashboardFileListSelectionToolbar() {
   const {
@@ -40,6 +40,7 @@ export function DashboardFileListSelectionToolbar() {
   const { moveResources } = useMoveResources();
   const { downloadFiles } = useApiRequests();
   const [selectFolderModalOpen, setSelectFolderModalOpen] = useState(false);
+  const [cloneModalOpen, setCloneModalOpen] = useState(false);
 
   const isCloneDisplayed = useMemo(() => {
     const tabs: DashboardTab[] = ['home', 'examples'];
@@ -122,11 +123,7 @@ export function DashboardFileListSelectionToolbar() {
   const onDownload = useCallback(async () => {
     toast.loading(`Downloading ${selectedItems.length} files...`);
     const result = await downloadFiles({
-      files: selectedItems.map(({ bucket, name, parentPath: path }) => ({
-        bucket,
-        name,
-        path,
-      })),
+      files: selectedItems,
     });
 
     toast.dismiss();
@@ -136,10 +133,14 @@ export function DashboardFileListSelectionToolbar() {
   }, [downloadFiles, selectedItems]);
 
   const onClone = useCallback(async () => {
-    await cloneResources({
-      items: selectedItems,
-    });
-    refetchData();
+    if (selectedItems.length === 1) {
+      setCloneModalOpen(true);
+    } else {
+      await cloneResources({
+        items: selectedItems,
+      });
+      refetchData();
+    }
   }, [cloneResources, refetchData, selectedItems]);
 
   const onShare = useCallback(() => {
@@ -149,6 +150,7 @@ export function DashboardFileListSelectionToolbar() {
         bucket,
         parentPath,
         nodeType,
+        items: [],
       }))
     );
   }, [selectedItems, shareResources]);
@@ -158,7 +160,7 @@ export function DashboardFileListSelectionToolbar() {
   }, []);
 
   const handleMoveToFolder = useCallback(
-    async (path: string | null | undefined, bucket: string) => {
+    async (bucket: string, path: string | null | undefined) => {
       setSelectFolderModalOpen(false);
 
       await moveResources(selectedItems, path, bucket, () => refetchData());
@@ -179,7 +181,7 @@ export function DashboardFileListSelectionToolbar() {
         onClick={clearSelection}
       />
 
-      <div className="h-[18px] bg-strokeSecondary w-[1px] mr-4" />
+      <div className="h-[18px] bg-stroke-secondary w-px mr-4" />
 
       {isCloneDisplayed && (
         <SelectionToolbarButton
@@ -224,6 +226,16 @@ export function DashboardFileListSelectionToolbar() {
           onOk={handleMoveToFolder}
         />
       )}
+      {cloneModalOpen && (
+        <CloneFile
+          item={selectedItems[0]}
+          onModalClose={() => {
+            refetchData();
+
+            setCloneModalOpen(false);
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -240,10 +252,10 @@ const SelectionToolbarButton = ({
   IconComponent,
 }: SelectionToolbarButtonProps) => {
   return (
-    <Tooltip placement="bottom" title={title}>
+    <Tooltip placement="bottom" title={title} destroyOnHidden>
       <button className="flex items-center mr-4" onClick={onClick}>
         <Icon
-          className="w-[18px] text-textSecondary hover:text-textAccentPrimary"
+          className="w-[18px] text-text-secondary hover:text-text-accent-primary"
           component={IconComponent}
         />
       </button>

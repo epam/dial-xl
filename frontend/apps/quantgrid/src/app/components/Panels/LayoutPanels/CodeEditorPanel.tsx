@@ -38,7 +38,7 @@ export function CodeEditorPanel({
         secondaryTitle={hasUnsavedChanges ? changesText : undefined}
         title={title}
       >
-        <Tooltip placement="bottom" title="Format document">
+        <Tooltip placement="bottom" title="Format document" destroyOnHidden>
           <Icon
             className={cx(iconClasses, 'w-4')}
             component={() => <CurlyBracesIcon />}
@@ -46,7 +46,7 @@ export function CodeEditorPanel({
           />
         </Tooltip>
         {hasUnsavedChanges && (
-          <Tooltip placement="bottom" title="Save changes">
+          <Tooltip placement="bottom" title="Save changes" destroyOnHidden>
             <Icon
               className={cx(iconClasses, 'ml-2 w-[16px]')}
               component={() => <SaveIcon />}

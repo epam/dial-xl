@@ -52,14 +52,11 @@ export function Track({ direction }: Props) {
     [gridSize, gridSizes]
   );
 
-  const onMouseDown = useCallback(
-    (e: PIXI.FederatedPointerEvent) => {
-      if (isPanModeEnabled) return;
+  const onMouseDown = useCallback(() => {
+    if (isPanModeEnabled) return;
 
-      isTrackClicked.current = true;
-    },
-    [isPanModeEnabled]
-  );
+    isTrackClicked.current = true;
+  }, [isPanModeEnabled]);
 
   const onMouseUp = useCallback(
     (e: PIXI.FederatedPointerEvent) => {

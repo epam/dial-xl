@@ -35,7 +35,7 @@ export const MobilePanelStatusBar = forwardRef(function PanelStatusBar(
   const activePanels = useMemo(
     () =>
       Object.entries(openedPanels)
-        .filter(([key, value]) => value.isActive)
+        .filter(([, value]) => value.isActive)
         .map((item) => ({
           name: item[0],
           ...item[1],
@@ -66,7 +66,7 @@ export const MobilePanelStatusBar = forwardRef(function PanelStatusBar(
       const mappeditem = getDropdownItem({
         label: (
           <span
-            className={classNames(isPanelOpened && 'text-textAccentPrimary')}
+            className={classNames(isPanelOpened && 'text-text-accent-primary')}
           >
             {item.title}
           </span>
@@ -74,7 +74,7 @@ export const MobilePanelStatusBar = forwardRef(function PanelStatusBar(
         icon: (
           <Icon
             className={classNames(
-              isPanelOpened ? 'text-textAccentPrimary' : 'text-textSecondary'
+              isPanelOpened ? 'text-text-accent-primary' : 'text-text-secondary'
             )}
             component={() => item.icon}
           />
@@ -93,7 +93,7 @@ export const MobilePanelStatusBar = forwardRef(function PanelStatusBar(
   return (
     <div
       className={
-        'bg-bgLayer2 text-[11px] tracking-normal leading-none h-12 shrink-0 w-full border-strokeTertiary border-t'
+        'bg-bg-layer-2 text-[11px] tracking-normal leading-none h-12 shrink-0 w-full border-stroke-tertiary border-t'
       }
       ref={ref}
     >
@@ -102,8 +102,8 @@ export const MobilePanelStatusBar = forwardRef(function PanelStatusBar(
           className={cx(
             'flex flex-col h-full gap-1 px-0.5 py-1.5 items-center justify-center text-nowrap cursor-pointer select-none',
             activePanels.length === 0
-              ? 'text-textAccentPrimary'
-              : 'text-textSecondary'
+              ? 'text-text-accent-primary'
+              : 'text-text-secondary'
           )}
           data-panel="additional-mobile-panels"
           data-qa="collapsed-panel-button"
@@ -129,8 +129,8 @@ export const MobilePanelStatusBar = forwardRef(function PanelStatusBar(
             className={cx(
               'flex flex-col h-full gap-1 px-0.5 py-1.5 items-center justify-center text-nowrap cursor-pointer select-none',
               {
-                'text-textAccentPrimary': isPanelOpen(p.name),
-                'text-textSecondary': !isPanelOpen(p.name),
+                'text-text-accent-primary': isPanelOpen(p.name),
+                'text-text-secondary': !isPanelOpen(p.name),
               }
             )}
             data-panel={p.name}
@@ -141,7 +141,7 @@ export const MobilePanelStatusBar = forwardRef(function PanelStatusBar(
             <div className={cx('relative size-[18px] shrink-0')}>
               <Icon className="size-[18px] shrink-0" component={() => p.icon} />
               {showErrorNotification(p.name) && (
-                <div className="absolute top-0 -right-1 bg-strokeError w-[6px] h-[6px] ml-2 rounded-full" />
+                <div className="absolute top-0 -right-1 bg-stroke-error w-[6px] h-[6px] ml-2 rounded-full" />
               )}
             </div>
 
@@ -157,8 +157,8 @@ export const MobilePanelStatusBar = forwardRef(function PanelStatusBar(
               className={cx(
                 'flex flex-col h-full gap-1 px-0.5 py-1.5 items-center justify-center text-nowrap cursor-pointer select-none',
                 isItemsSelected
-                  ? 'text-textAccentPrimary'
-                  : 'text-textSecondary'
+                  ? 'text-text-accent-primary'
+                  : 'text-text-secondary'
               )}
               data-panel="additional-mobile-panels"
               data-qa="collapsed-panel-button"

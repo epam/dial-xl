@@ -1,6 +1,10 @@
 import { Token } from 'antlr4';
 
-import { compareTableNames, FunctionInfo } from '@frontend/common';
+import {
+  CommonMetadata,
+  compareTableNames,
+  FunctionInfo,
+} from '@frontend/common';
 import {
   getTokens,
   ParsedSheet,
@@ -20,6 +24,7 @@ import {
   getFieldAtExpression,
   getFields,
   getFunctionsSuggestions,
+  getInputSuggestions,
   getPreviousCharacter,
   getTableAtPosition,
   getTables,
@@ -29,6 +34,7 @@ const sortSuggestions = ({
   tables,
   fields,
   functions,
+  inputs,
   currentTableExpressionName,
   currentFieldExpressionName,
   cellTableName,
@@ -37,6 +43,7 @@ const sortSuggestions = ({
   tables: Suggestion[];
   fields: Suggestion[];
   functions: Suggestion[];
+  inputs: Suggestion[];
   currentTableExpressionName?: string;
   currentFieldExpressionName?: string;
   cellTableName?: string;
@@ -103,6 +110,10 @@ const sortSuggestions = ({
           ? tableSuggestionsPriority
           : SortText.special,
     })),
+    inputs.map((val) => ({
+      ...val,
+      sortText: SortText.priority3,
+    })),
     functions
       .filter(
         (func) =>
@@ -131,12 +142,14 @@ export function getCodeEditorIntellisenseSuggestions({
   position,
   context,
   functions,
+  inputFiles,
   parsedSheets,
 }: {
   model: editor.ITextModel;
   position: Position;
   context: languages.CompletionContext;
   functions: FunctionInfo[];
+  inputFiles: CommonMetadata[];
   parsedSheets: ParsedSheets;
 }): Suggestion[] {
   const caretOffset = model.getOffsetAt(position);
@@ -152,7 +165,10 @@ export function getCodeEditorIntellisenseSuggestions({
   try {
     parsedSheet = SheetReader.parseSheet(model.getValue());
   } catch (error) {
-    return [getFunctionsSuggestions('', model.id, functions)].flatMap((i) => i);
+    return [
+      getFunctionsSuggestions('', model.id, functions),
+      getInputSuggestions(inputFiles),
+    ].flatMap((i) => i);
   }
 
   const previousCharacter = getPreviousCharacter(
@@ -200,8 +216,6 @@ export function getCodeEditorIntellisenseSuggestions({
         parsedSheet,
         parsedSheets,
         currentTable,
-        currentExpressionTable,
-        currentExpressionField: currentField,
       })
     : [];
   const resultFields = currentField
@@ -217,10 +231,13 @@ export function getCodeEditorIntellisenseSuggestions({
     ? getFunctionsSuggestions(previousCharacter, model.id, functions)
     : getFunctionsSuggestions('', model.id, functions);
 
+  const inputs = getInputSuggestions(inputFiles);
+
   return sortSuggestions({
     tables: resultTables,
     functions: resultFunctions,
     fields: resultFields,
+    inputs,
     currentTableExpressionName: currentExpressionTable?.tableName,
     currentFieldExpressionName: currentExpressionField?.key.fieldName,
     currentToken,
@@ -232,6 +249,7 @@ export function getInlineIntellisenseSuggestions({
   position,
   context,
   functions,
+  inputFiles,
   parsedSheets,
   currentTableName,
 }: {
@@ -239,6 +257,7 @@ export function getInlineIntellisenseSuggestions({
   position: Position;
   context: languages.CompletionContext;
   functions: FunctionInfo[];
+  inputFiles: CommonMetadata[];
   parsedSheets: ParsedSheets;
   currentTableName?: string;
   currentFieldName?: string;
@@ -289,8 +308,6 @@ export function getInlineIntellisenseSuggestions({
     model,
     position,
     parsedSheets,
-    currentExpressionTable,
-    currentExpressionField,
     lastToken: currentToken,
   });
   const resultFields = getFields({
@@ -307,9 +324,12 @@ export function getInlineIntellisenseSuggestions({
     return [];
   }
 
+  const inputs = getInputSuggestions(inputFiles);
+
   return sortSuggestions({
     tables: resultTables,
     functions: resultFunctions,
+    inputs,
     fields: resultFields,
     currentTableExpressionName: currentExpressionTable?.tableName,
     currentFieldExpressionName: currentExpressionField?.key.fieldName,

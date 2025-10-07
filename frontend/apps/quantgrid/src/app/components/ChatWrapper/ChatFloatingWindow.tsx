@@ -50,7 +50,7 @@ export function ChatFloatingWindow() {
   const toggleExpanded = useCallback(() => {
     const { height, width } = defaultChatWindowOptions;
 
-    setRndOptions((prev) => ({
+    setRndOptions(() => ({
       x: expanded ? getChatPositionX(width) : 0,
       y: expanded ? getChatPositionY(height) : 0,
       width: expanded ? width : maximizedChatSize,
@@ -151,7 +151,7 @@ export function ChatFloatingWindow() {
   return (
     <Rnd
       bounds="body"
-      className={cx('!fixed z-[1000]', {
+      className={cx('fixed! z-1000', {
         hidden: isChatHidden,
         'pointer-events-none': !isChatOpen,
       })}
@@ -169,27 +169,27 @@ export function ChatFloatingWindow() {
     >
       <div
         className={cx(
-          'z-[1001] flex flex-col h-full w-full border border-strokePrimary shadow-[0_2px_4px_1px_rgba(9,13,19,0.25)] bg-bgLayer2',
+          'z-1001 flex flex-col h-full w-full border border-stroke-primary shadow-[0_2px_4px_1px_rgba(9,13,19,0.25)] bg-bg-layer-2',
           {
             hidden: isChatHidden,
           }
         )}
         id="dialChatWindow"
       >
-        <div className="flex items-center justify-between h-5 w-full bg-bgLayer2 border-b border-b-strokeTertiary">
+        <div className="flex items-center justify-between h-5 w-full bg-bg-layer-2 border-b border-b-stroke-tertiary">
           <div
             className={cx(
               'flex items-center h-full w-full cursor-move pl-2 chat-window-drag-handle',
               chatWindowDragHandleClass
             )}
           >
-            <span className="text-[10px] leading-[10px] text-textSecondary tracking-[0.6px] font-bold uppercase">
+            <span className="text-[10px] leading-[10px] text-text-secondary tracking-[0.6px] font-bold uppercase">
               DIAL Chat
             </span>
           </div>
-          <Tooltip placement="top" title="Move Chat to Panel">
+          <Tooltip placement="top" title="Move Chat to Panel" destroyOnHidden>
             <Icon
-              className="shrink-0 w-4 text-textSecondary mr-2"
+              className="shrink-0 w-4 text-text-secondary mr-2"
               component={() => <DialChatLogoIcon />}
               onClick={toggleChatWindowPlacement}
             />
@@ -197,10 +197,11 @@ export function ChatFloatingWindow() {
           <Tooltip
             placement="top"
             title={expanded ? 'Restore Chat' : 'Expand Chat'}
+            destroyOnHidden
           >
             <Icon
-              className={cx('shrink-0 w-[14px] text-textSecondary mr-2', {
-                'transform rotate-[225deg]': expanded,
+              className={cx('shrink-0 w-[14px] text-text-secondary mr-2', {
+                'transform rotate-225': expanded,
                 'transform rotate-45': !expanded,
               })}
               component={() =>
@@ -209,9 +210,9 @@ export function ChatFloatingWindow() {
               onClick={toggleExpanded}
             />
           </Tooltip>
-          <Tooltip placement="top" title="Close Chat">
+          <Tooltip placement="top" title="Close Chat" destroyOnHidden>
             <Icon
-              className="shrink-0 w-[14px] text-textSecondary mr-2"
+              className="shrink-0 w-[14px] text-text-secondary mr-2"
               component={() => <CloseIcon />}
               onClick={toggleChat}
             />

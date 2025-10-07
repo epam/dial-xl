@@ -14,12 +14,12 @@ export function FormulaBarExpandButton() {
     <div>
       <Button
         className={cx(
-          'h-full flex items-center justify-center bg-transparent hover:!bg-transparent border-none focus-visible:!outline-none !w-auto',
+          'h-full flex items-center justify-center bg-transparent hover:bg-transparent! border-none focus-visible:outline-hidden! w-auto!',
           formulaBarExpanded && 'transform rotate-180'
         )}
         icon={
           <Icon
-            className="text-textPrimary hover:text-textAccentPrimary w-[18px]"
+            className="text-text-primary hover:text-text-accent-primary w-[18px]"
             component={() => <ChevronDown />}
           />
         }

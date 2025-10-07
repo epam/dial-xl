@@ -5,10 +5,12 @@ import { debounce } from 'ts-debounce';
 import {
   CanvasSpreadsheet,
   GridCellEditorMode,
+  GridData,
+  GridTable,
   SelectionEdges,
   ViewportEdges,
 } from '@frontend/canvas-spreadsheet';
-import { CachedViewport, GridData, GridTable } from '@frontend/common';
+import { CachedViewport } from '@frontend/common';
 
 import { PanelName } from '../../common';
 import {
@@ -56,9 +58,9 @@ import { SpreadsheetHighlight } from '../Project/SpreadsheetHighlight';
 
 export function SpreadsheetWrapper() {
   const { viewGridData } = useContext(ViewportContext);
-  const { inputList } = useContext(InputsContext);
+  const { inputList, onSwitchInput } = useContext(InputsContext);
   const { undo } = useContext(UndoRedoContext);
-  const { openPanel } = useContext(LayoutContext);
+  const { openPanel, closeAllPanels } = useContext(LayoutContext);
 
   const {
     zoom,
@@ -334,7 +336,7 @@ export function SpreadsheetWrapper() {
 
     const gridApi = gridApiRef.current;
 
-    const onViewportChange = debounce((deltaX: number, deltaY: number) => {
+    const onViewportChange = debounce(() => {
       triggerOnScroll(firstViewportChange.current);
 
       if (firstViewportChange.current) {
@@ -344,7 +346,7 @@ export function SpreadsheetWrapper() {
 
     const unsubscribe = gridApi.gridViewportSubscription(onViewportChange);
 
-    onViewportChange(0, 0);
+    onViewportChange();
 
     return () => {
       unsubscribe?.();
@@ -487,6 +489,7 @@ export function SpreadsheetWrapper() {
           onExpandDimTable={expandDimTable}
           onFlipTable={flipTable}
           onGetMoreChartKeys={getMoreChartKeys}
+          onGridExpand={closeAllPanels}
           onIncreaseFieldColumnSize={onIncreaseFieldColumnSize}
           onInsertChart={createEmptyChartTable}
           onMessage={onMessage}
@@ -510,6 +513,7 @@ export function SpreadsheetWrapper() {
           onStartPointClick={onStartPointClick}
           onStopPointClick={onStopPointClick}
           onSwapFields={swapFieldsByDirection}
+          onSwitchInput={onSwitchInput}
           onToggleTableTitleOrHeaderVisibility={
             toggleTableTitleOrHeaderVisibility
           }

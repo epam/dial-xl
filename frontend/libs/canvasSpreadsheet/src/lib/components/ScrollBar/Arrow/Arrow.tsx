@@ -105,54 +105,45 @@ export function Arrow({ place }: Props) {
     return arrowWrapperRect;
   }, [gridHeight, gridSizes, gridWidth, isHorizontal, place]);
 
-  const onMouseOver = useCallback(
-    (e: PIXI.FederatedPointerEvent) => {
-      if (isPanModeEnabled) return;
+  const onMouseOver = useCallback(() => {
+    if (isPanModeEnabled) return;
 
-      setIsArrowHovered(true);
-    },
-    [isPanModeEnabled]
-  );
+    setIsArrowHovered(true);
+  }, [isPanModeEnabled]);
 
-  const onMouseOut = useCallback(
-    (e: PIXI.FederatedPointerEvent) => {
-      if (isPanModeEnabled) return;
-      setIsArrowHovered(false);
-    },
-    [isPanModeEnabled]
-  );
+  const onMouseOut = useCallback(() => {
+    if (isPanModeEnabled) return;
+    setIsArrowHovered(false);
+  }, [isPanModeEnabled]);
 
-  const onMouseDown = useCallback(
-    (e: PIXI.FederatedPointerEvent) => {
-      if (isPanModeEnabled) return;
+  const onMouseDown = useCallback(() => {
+    if (isPanModeEnabled) return;
 
-      const moveX = isHorizontal
-        ? place === 'left'
-          ? -gridSizes.cell.width
-          : gridSizes.cell.width
-        : 0;
-      const moveY = isHorizontal
-        ? 0
-        : place === 'up'
-        ? -gridSizes.cell.height
-        : gridSizes.cell.height;
+    const moveX = isHorizontal
+      ? place === 'left'
+        ? -gridSizes.cell.width
+        : gridSizes.cell.width
+      : 0;
+    const moveY = isHorizontal
+      ? 0
+      : place === 'up'
+      ? -gridSizes.cell.height
+      : gridSizes.cell.height;
 
+    moveViewport(moveX, moveY);
+    mouseDownInterval.current = setInterval(() => {
       moveViewport(moveX, moveY);
-      mouseDownInterval.current = setInterval(() => {
-        moveViewport(moveX, moveY);
-      }, 200);
-    },
-    [
-      gridSizes.cell.height,
-      gridSizes.cell.width,
-      isHorizontal,
-      moveViewport,
-      place,
-      isPanModeEnabled,
-    ]
-  );
+    }, 200);
+  }, [
+    gridSizes.cell.height,
+    gridSizes.cell.width,
+    isHorizontal,
+    moveViewport,
+    place,
+    isPanModeEnabled,
+  ]);
 
-  const onMouseUp = useCallback((e: PIXI.FederatedPointerEvent) => {
+  const onMouseUp = useCallback(() => {
     clearInterval(mouseDownInterval.current);
   }, []);
 

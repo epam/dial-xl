@@ -1,7 +1,11 @@
 package com.epam.deltix.quantgrid.web.controller;
 
-import com.epam.deltix.quantgrid.engine.service.input.storage.dial.DialInputProvider;
 import com.epam.deltix.quantgrid.engine.service.input.storage.InputProvider;
+import com.epam.deltix.quantgrid.engine.service.input.storage.dial.DialInputProvider;
+import com.epam.deltix.quantgrid.parser.FieldKey;
+import com.epam.deltix.quantgrid.parser.OverrideKey;
+import com.epam.deltix.quantgrid.parser.ParsedKey;
+import com.epam.deltix.quantgrid.parser.TotalKey;
 import com.epam.deltix.quantgrid.util.DialFileApi;
 import com.epam.deltix.quantgrid.util.EtaggedStream;
 import com.epam.deltix.quantgrid.web.utils.ApiMessageMapper;
@@ -22,9 +26,12 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.io.FileNotFoundException;
 import java.io.InputStream;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -91,7 +98,10 @@ class CompileControllerTest {
                                         .setTable("A")
                                         .setField("a"))
                                 .setType(Api.ColumnDataType.DOUBLE)
-                                .setHash("667668fa41db37f4e12d14309f1712a49f3e1bf7e24fbb9433f842fbdb5453ca"))
+                                .setHash("667668fa41db37f4e12d14309f1712a49f3e1bf7e24fbb9433f842fbdb5453ca")
+                                .setFormat(Api.ColumnFormat.newBuilder()
+                                        .setGeneralArgs(Api.GeneralFormatArgs.getDefaultInstance())
+                                        .build()))
                         .addCompilationErrors(Api.CompilationError.newBuilder()
                                 .setFieldKey(Api.FieldKey.newBuilder()
                                         .setTable("A")
@@ -128,7 +138,8 @@ class CompileControllerTest {
                                         .setField("__formula"))
                                 .setType(Api.ColumnDataType.TABLE_REFERENCE)
                                 .setIsNested(true)
-                                .setReferenceTableName("A")))
+                                .setReferenceTableName("A")
+                                .addReferences(tableReference("A"))))
                 .build();
 
         Api.Response actual = sendRequest("/v1/schema", request);
@@ -219,5 +230,138 @@ class CompileControllerTest {
                 .getContentAsString();
 
         return ApiMessageMapper.toApiResponse(response);
+    }
+
+    @Test
+    void testReferences() throws Exception {
+        Api.Request request = Api.Request.newBuilder()
+                .setId(TEST_ID)
+                .setCompileWorksheetsRequest(Api.CompileWorksheetsRequest.newBuilder()
+                        .putAllWorksheets(Map.of("Test", """
+                                table A
+                                  [f1a] = 1
+                                  [f2a] = 2
+                                
+                                table B
+                                  [f1b] = A
+                                  [f2b] = [f1b][f1a]
+                                  [f3b] = A[f1a]
+                                  [f4b] = A.FILTER(A[f1a] = 1)
+                                  [f5b] = A(1)[f1a]
+                                  [f6b] = 1
+                                total
+                                  [f6b] = A.COUNT()
+                                
+                                table C
+                                  dim [f1c] = RANGE(3)
+                                  [f2c] = 1
+                                override
+                                row,[f2c]
+                                1,A.COUNT()
+                                2,C(1)[f2c]
+                                3,B.TOTAL(1)[f6b]
+                                
+                                table D
+                                  [f1d], [f2d] = A[[f1a], [f2a]]
+                                """)))
+                .build();
+        Map<ParsedKey, List<Api.Reference>> expected = new LinkedHashMap<>();
+        expected.put(new FieldKey("A", "f1a"), List.of());
+        expected.put(new FieldKey("A", "f2a"), List.of());
+        expected.put(new FieldKey("B", "f1b"), List.of(
+                        tableReference("A")));
+        expected.put(new FieldKey("B", "f2b"), List.of(
+                        fieldReference("A", "f1a"),
+                        fieldReference("B", "f1b")));
+        expected.put(new FieldKey("B", "f3b"), List.of(
+                        fieldReference("A", "f1a"),
+                        tableReference("A")));
+        expected.put(new FieldKey("B", "f4b"), List.of(
+                        tableReference("A"),
+                        fieldReference("A", "f1a")));
+        expected.put(new FieldKey("B", "f5b"), List.of(
+                        fieldReference("A", "f1a"),
+                        tableReference("A")));
+        expected.put(new FieldKey("B", "f6b"), List.of());
+        expected.put(new FieldKey("C", "f1c"), List.of());
+        expected.put(new FieldKey("C", "f2c"), List.of());
+        expected.put(new OverrideKey("C", "f2c", 1), List.of(
+                        tableReference("A")));
+        expected.put(new OverrideKey("C", "f2c", 2), List.of(
+                        fieldReference("C", "f2c"),
+                        tableReference("C")));
+        expected.put(new OverrideKey("C", "f2c", 3), List.of(
+                        totalReference("B", "f6b", 1)));
+        expected.put(new FieldKey("D", "f1d"), List.of(
+                        fieldReference("A", "f1a"),
+                        fieldReference("A", "f2a"),
+                        tableReference("A")));
+        expected.put(new FieldKey("D", "f2d"), List.of(
+                        fieldReference("A", "f1a"),
+                        fieldReference("A", "f2a"),
+                        tableReference("A")));
+        expected.put(new TotalKey("B", "f6b", 1), List.of(
+                tableReference("A")));
+
+        Api.Response response = sendRequest("/v1/compile", request);
+
+        Map<ParsedKey, List<Api.Reference>> references = response.getCompileResult().getFieldInfoList().stream()
+                .sorted(Comparator.comparing(fieldInfo -> toParsedKey(fieldInfo).toString()))
+                .collect(Collectors.toMap(
+                        CompileControllerTest::toParsedKey,
+                        Api.FieldInfo::getReferencesList,
+                        (a, b) -> {
+                            throw new IllegalStateException("Duplicate key");
+                        },
+                        LinkedHashMap::new));
+
+        assertThat(response.getCompileResult().getCompilationErrorsList()).isEmpty();
+        assertThat(references).isEqualTo(expected);
+    }
+
+    private static Api.Reference tableReference(String table) {
+        return Api.Reference.newBuilder()
+                .setTableKey(Api.TableKey.newBuilder()
+                        .setTable(table)
+                        .build())
+                .build();
+    }
+
+    private static Api.Reference fieldReference(String table, String field) {
+        return Api.Reference.newBuilder()
+                .setFieldKey(Api.FieldKey.newBuilder()
+                        .setTable(table)
+                        .setField(field)
+                        .build())
+                .build();
+    }
+
+    private static Api.Reference totalReference(String table, String field, int number) {
+        return Api.Reference.newBuilder()
+                .setTotalKey(Api.TotalKey.newBuilder()
+                        .setTable(table)
+                        .setField(field)
+                        .setNumber(number)
+                        .build())
+                .build();
+    }
+
+    private static ParsedKey toParsedKey(Api.FieldInfo fieldInfo) {
+        if (fieldInfo.hasFieldKey()) {
+            Api.FieldKey fieldKey = fieldInfo.getFieldKey();
+            return new FieldKey(fieldKey.getTable(), fieldKey.getField());
+        }
+
+        if (fieldInfo.hasTotalKey()) {
+            Api.TotalKey totalKey = fieldInfo.getTotalKey();
+            return new TotalKey(totalKey.getTable(), totalKey.getField(), totalKey.getNumber());
+        }
+
+        if (fieldInfo.hasOverrideKey()) {
+            Api.OverrideKey overrideKey = fieldInfo.getOverrideKey();
+            return new OverrideKey(overrideKey.getTable(), overrideKey.getField(), overrideKey.getRow());
+        }
+
+        throw new IllegalArgumentException("Unsupported key type: " + fieldInfo);
     }
 }

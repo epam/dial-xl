@@ -8,13 +8,12 @@ import {
 
 import {
   commentToNote,
-  GridCell,
   shouldStopPropagation,
   useClickOutside,
 } from '@frontend/common';
 
 import { noteTextAreaId } from '../../constants';
-import { GridApi, GridCallbacks } from '../../types';
+import { GridApi, GridCallbacks, GridCell } from '../../types';
 import { filterByTypeAndCast, focusSpreadsheet, getPx } from '../../utils';
 import {
   EventTypeOpenNote,
@@ -204,7 +203,7 @@ export function Notes({ gridCallbacksRef, api, zoom = 1 }: Props) {
       id="notesContainer"
     >
       <div
-        className="rounded-md break-words z-[600] absolute transition-opacity"
+        className="rounded-md break-words z-600 absolute transition-opacity"
         ref={clickRef}
         style={{
           top: notePosition.y,

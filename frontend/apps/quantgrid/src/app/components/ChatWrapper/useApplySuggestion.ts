@@ -50,61 +50,69 @@ export function useApplySuggestions() {
 
   const getDslWithExpandedSizes = useCallback(
     (sheetChange: string, existingTableNames: string[]) => {
-      const parsedSheet = SheetReader.parseSheet(sheetChange);
-      const editableSheet = createEditableSheet(
-        'EditableSheet',
-        sheetChange,
-        parsedSheet.tables
-      );
-      editableSheet.tables.forEach((table) => {
-        table.emptyLineBefore = true;
-        if (existingTableNames.includes(table.name)) return;
-
-        const parsedTable = parsedSheet.tables.find(
-          (parsedTable) =>
-            unescapeTableName(parsedTable.tableName) === table.name
+      try {
+        const parsedSheet = SheetReader.parseSheet(sheetChange);
+        const editableSheet = createEditableSheet(
+          'EditableSheet',
+          sheetChange,
+          parsedSheet.tables
         );
-        const col = parsedTable?.getLayoutDecorator()?.params[0][1];
-        let offset = 0;
+        editableSheet.tables.forEach((table) => {
+          table.emptyLineBefore = true;
+          if (existingTableNames.includes(table.name)) return;
 
-        parsedTable?.fields.forEach((parsedField) => {
-          const fieldName = parsedField.key.fieldName;
-          const field = table.getField(fieldName);
-
-          if (!field) return;
-
-          const fieldSizeDecorator = parsedField.decorators?.find(
-            (decor) => decor.decoratorName === fieldColSizeDecoratorName
+          const parsedTable = parsedSheet.tables.find(
+            (parsedTable) =>
+              unescapeTableName(parsedTable.tableName) === table.name
           );
+          const col = parsedTable?.getLayoutDecorator()?.params[0][1];
+          let offset = 0;
 
-          if (fieldSizeDecorator) {
-            const fieldSize = fieldSizeDecorator.params?.[0]?.[0] ?? 1;
-            offset += fieldSize;
+          parsedTable?.fields.forEach((parsedField) => {
+            const fieldName = parsedField.key.fieldName;
+            const field = table.getField(fieldName);
 
-            return;
-          }
+            if (!field) return;
 
-          const fieldSize = getExpandedTextSize({
-            text: field.name,
-            col: col + offset,
-            grid,
-            projectName,
-            sheetName,
+            const fieldSizeDecorator = parsedField.decorators?.find(
+              (decor) => decor.decoratorName === fieldColSizeDecoratorName
+            );
+
+            if (
+              fieldSizeDecorator ||
+              field.hasDecorator(fieldColSizeDecoratorName)
+            ) {
+              const fieldSize = fieldSizeDecorator?.params?.[0]?.[0] ?? 1;
+              offset += fieldSize;
+
+              return;
+            }
+
+            const fieldSize = getExpandedTextSize({
+              text: field.name,
+              col: col + offset,
+              grid,
+              projectName,
+              sheetName,
+            });
+
+            if (fieldSize && fieldSize > 1) {
+              field.addDecorator(
+                new Decorator(fieldColSizeDecoratorName, `(${fieldSize})`)
+              );
+            }
+
+            offset += fieldSize ?? 1;
           });
 
-          if (fieldSize && fieldSize > 1) {
-            field.addDecorator(
-              new Decorator(fieldColSizeDecoratorName, `(${fieldSize})`)
-            );
-          }
-
-          offset += fieldSize ?? 1;
+          autoSizeTableHeader(table, col, grid, projectName, sheetName);
         });
 
-        autoSizeTableHeader(table, col, grid, projectName, sheetName);
-      });
-
-      return editableSheet.toDSL();
+        return editableSheet.toDSL();
+      } catch {
+        // Just return initial sheet change
+        return sheetChange;
+      }
     },
     [grid, projectName, sheetName]
   );

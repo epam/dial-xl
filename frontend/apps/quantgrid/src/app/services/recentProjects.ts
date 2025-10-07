@@ -1,4 +1,4 @@
-import { dialProjectFileExtension, FilesMetadata } from '@frontend/common';
+import { dialProjectFileExtension, ResourceMetadata } from '@frontend/common';
 
 const storageKey = 'recentProjectsItems';
 
@@ -20,7 +20,7 @@ export type RecentProject = {
   timestamp: number;
 };
 
-export const cleanUpRecentProjects = (projectList: FilesMetadata[]) => {
+export const cleanUpRecentProjects = (projectList: ResourceMetadata[]) => {
   const recentProjects = getRecentProjectsData();
 
   Object.keys(recentProjects).forEach((fullProjectPath) => {

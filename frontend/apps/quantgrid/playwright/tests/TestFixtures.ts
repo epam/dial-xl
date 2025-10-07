@@ -1,5 +1,7 @@
 import * as fs from 'fs';
+import * as path from 'path';
 
+import { workspaceRoot } from '@nx/devkit';
 import { Browser, expect, Page } from '@playwright/test';
 
 import { WorkArea } from '../components/abstractions/WorkArea';
@@ -29,7 +31,14 @@ export class TestFixtures {
   }
 
   public static getFolderName() {
-    return fs.readFileSync('./folderName.txt', 'utf-8').split('\n');
+    const folderNameFile = path.join(
+      workspaceRoot,
+      'playwright',
+      'run-state',
+      'folderName.txt'
+    );
+
+    return fs.readFileSync(folderNameFile, 'utf-8').trim().split('\n');
   }
 
   public static async createProjectNew(

@@ -22,7 +22,7 @@ import {
 import { NewProjectModalRefFunction } from '../../../common';
 import { ProjectContext } from '../../../context';
 import { isEntityNameInvalid } from '../../../utils';
-import { SelectFolderInput } from '../../SelectFolderInput';
+import { SelectResourceInput } from '../../SelectResourceInput';
 
 const inputFieldKey = 'projectName';
 
@@ -127,7 +127,7 @@ export function NewProject({ newProjectModal }: Props) {
   );
 
   const handleSelectFolder = useCallback(
-    (parentPath: string | null | undefined, bucket: string) => {
+    (bucket: string, parentPath: string | null | undefined) => {
       setProjectPath(parentPath);
       setProjectBucket(bucket);
     },
@@ -145,6 +145,7 @@ export function NewProject({ newProjectModal }: Props) {
       inputRef.current.focus({
         cursor: 'start',
       });
+      inputRef.current.select();
     }, 0);
   }, [isModalOpen]);
 
@@ -161,7 +162,7 @@ export function NewProject({ newProjectModal }: Props) {
       cancelButtonProps={{
         className: cx(modalFooterButtonClasses, secondaryButtonClasses),
       }}
-      destroyOnClose={true}
+      destroyOnHidden={true}
       okButtonProps={{
         className: cx(
           modalFooterButtonClasses,
@@ -176,16 +177,16 @@ export function NewProject({ newProjectModal }: Props) {
     >
       <div className="flex flex-col gap-3">
         {projectBucket && (
-          <SelectFolderInput
+          <SelectResourceInput
             bucket={projectBucket}
             inputLabel="Create in"
             path={projectPath}
-            onSelectFolder={handleSelectFolder}
+            onSelect={handleSelectFolder}
           />
         )}
 
         <div className="flex flex-col gap-1">
-          <label className="text-xs text-textSecondary" htmlFor="projectName">
+          <label className="text-xs text-text-secondary" htmlFor="projectName">
             Project Name
           </label>
 

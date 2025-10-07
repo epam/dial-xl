@@ -15,9 +15,10 @@ import {
   chartXAxisDecoratorName,
   Decorator,
   escapeValue,
+  Field,
+  FieldGroup,
   lineBreak,
   ParsedTable,
-  sourceFieldName,
   unescapeFieldName,
   unescapeTableName,
   visualizationDecoratorName,
@@ -26,13 +27,13 @@ import {
 import { ChartOrientationValues } from '../../components/Panels/Chart/Components';
 import { chartsWithRowNumber } from '../../components/Panels/Chart/utils';
 import { ProjectContext, ViewportContext } from '../../context';
-import { createUniqueName } from '../../services';
 import { useSafeCallback } from '../useSafeCallback';
 import { useDSLUtils } from './useDSLUtils';
 import {
   createAndPlaceTable,
   editFieldDecorator,
   editTableDecorator,
+  getFormulaFromSourceTable,
 } from './utils';
 
 export function useChartEditDsl() {
@@ -153,7 +154,6 @@ export function useChartEditDsl() {
 
       const { parsedTable, sheet, sheetName } = context;
       const { fields } = parsedTable;
-
       const initialOrientation = viewGridData.getChartInitialOrientation(
         parsedTable,
         chartType
@@ -185,29 +185,27 @@ export function useChartEditDsl() {
         ],
       });
 
-      const uniqueSourceFieldName = createUniqueName(
-        sourceFieldName,
-        fields.map((f) => f.key.fieldName)
-      );
-      table.addField({
-        name: uniqueSourceFieldName,
-        formula: tableName,
-        isDim: true,
-      });
+      const { formula, shouldAddDim } = getFormulaFromSourceTable(parsedTable);
+      const fieldGroup = new FieldGroup(formula);
 
       fields
-        .map((f) => f.key)
-        .forEach(({ fullFieldName, fieldName }) => {
-          table.addField({
-            name: fullFieldName,
-            formula: `[${uniqueSourceFieldName}]${fullFieldName}`,
-          });
+        .filter((f) => !f.isDynamic)
+        .forEach((parsedField, index) => {
+          const { fieldName } = parsedField.key;
+          const field = new Field(fieldName);
+
+          if (index === 0 && shouldAddDim) {
+            field.dim = true;
+          }
+
+          fieldGroup.addField(field);
 
           if (fieldName === textFieldNameWithAllUnique) {
-            const field = table.getField(fieldName);
+            const field = fieldGroup.getField(fieldName);
             editFieldDecorator(field, chartXAxisDecoratorName, '()');
           }
         });
+      table.fieldGroups.append(fieldGroup);
 
       const isRowNumber = chartsWithRowNumber.includes(chartType);
 
@@ -243,24 +241,23 @@ export function useChartEditDsl() {
       const { table, sheet } = targetContext;
       const { fields } = sourceParsedTable;
 
-      const uniqueSourceFieldName = createUniqueName(
-        sourceFieldName,
-        fields.map((f) => f.key.fieldName)
-      );
-      table.addField({
-        name: uniqueSourceFieldName,
-        formula: sourceTableName,
-        isDim: true,
-      });
+      const { formula, shouldAddDim } =
+        getFormulaFromSourceTable(sourceParsedTable);
+      const fieldGroup = new FieldGroup(formula);
 
       fields
-        .map((f) => f.key.fullFieldName)
-        .forEach((fullName) => {
-          table.addField({
-            name: fullName,
-            formula: `[${uniqueSourceFieldName}]${fullName}`,
-          });
+        .filter((f) => !f.isDynamic)
+        .forEach((parsedField, index) => {
+          const { fieldName } = parsedField.key;
+          const field = new Field(fieldName);
+
+          if (index === 0 && shouldAddDim) {
+            field.dim = true;
+          }
+
+          fieldGroup.addField(field);
         });
+      table.fieldGroups.append(fieldGroup);
 
       const historyTitle = `Select table "${sourceTableName}" for chart "${targetTableName}"`;
       updateDSL({

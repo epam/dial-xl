@@ -27,8 +27,11 @@ import {
   ViewportContextProvider,
 } from './app';
 import { AppRoutes } from './AppRoutes';
-
+import { StyleProvider } from '@ant-design/cssinjs';
 import { Log } from 'oidc-client-ts';
+
+import './styles.css';
+
 Log.setLevel(Log.ERROR);
 Log.setLogger(console);
 
@@ -78,47 +81,49 @@ root.render(
     <BrowserRouter>
       <div className="flex flex-col h-dvh overflow-hidden">
         <CommonProvider>
-          <ConfigProvider wave={{ disabled: true }}>
-            <AppContextProvider>
-              <ApiContextProvider>
-                <ViewportContextProvider>
-                  <ProjectContextProvider>
-                    <CanvasSpreadsheetContextProvider>
-                      <UndoRedoProvider>
-                        <InputsContextProvider>
+          <StyleProvider layer>
+            <ConfigProvider wave={{ disabled: true }}>
+              <AppContextProvider>
+                <ApiContextProvider>
+                  <ViewportContextProvider>
+                    <ProjectContextProvider>
+                      <CanvasSpreadsheetContextProvider>
+                        <UndoRedoProvider>
                           <AIHintsContextProvider>
                             <AppSpreadsheetInteractionContextProvider>
-                              <ChatOverlayContextProvider>
-                                <SearchWindowContextProvider>
-                                  <CodeEditorContextProvider
-                                    dialBaseUrl={
-                                      window.externalEnv.dialBaseUrl || ''
-                                    }
-                                  >
-                                    <AppRoutes />
+                              <InputsContextProvider>
+                                <ChatOverlayContextProvider>
+                                  <SearchWindowContextProvider>
+                                    <CodeEditorContextProvider
+                                      dialBaseUrl={
+                                        window.externalEnv.dialBaseUrl || ''
+                                      }
+                                    >
+                                      <AppRoutes />
 
-                                    <ToastContainer
-                                      autoClose={10000}
-                                      hideProgressBar={true}
-                                      limit={5}
-                                      position="bottom-right"
-                                      theme="colored"
-                                      closeOnClick
-                                    />
-                                    <Loader />
-                                  </CodeEditorContextProvider>
-                                </SearchWindowContextProvider>
-                              </ChatOverlayContextProvider>
+                                      <ToastContainer
+                                        autoClose={10000}
+                                        hideProgressBar={true}
+                                        limit={5}
+                                        position="bottom-right"
+                                        theme="colored"
+                                        closeOnClick
+                                      />
+                                      <Loader />
+                                    </CodeEditorContextProvider>
+                                  </SearchWindowContextProvider>
+                                </ChatOverlayContextProvider>
+                              </InputsContextProvider>
                             </AppSpreadsheetInteractionContextProvider>
                           </AIHintsContextProvider>
-                        </InputsContextProvider>
-                      </UndoRedoProvider>
-                    </CanvasSpreadsheetContextProvider>
-                  </ProjectContextProvider>
-                </ViewportContextProvider>
-              </ApiContextProvider>
-            </AppContextProvider>
-          </ConfigProvider>
+                        </UndoRedoProvider>
+                      </CanvasSpreadsheetContextProvider>
+                    </ProjectContextProvider>
+                  </ViewportContextProvider>
+                </ApiContextProvider>
+              </AppContextProvider>
+            </ConfigProvider>
+          </StyleProvider>
         </CommonProvider>
       </div>
     </BrowserRouter>

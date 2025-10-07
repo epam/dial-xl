@@ -3,6 +3,7 @@ import cx from 'classnames';
 import { useCallback, useContext, useEffect, useRef, useState } from 'react';
 
 import {
+  defaultSheetName,
   inputClasses,
   KeyboardCode,
   modalFooterButtonClasses,
@@ -13,7 +14,7 @@ import {
 } from '@frontend/common';
 
 import { ModalRefFunction } from '../../../common';
-import { defaultSheetName, ProjectContext } from '../../../context';
+import { ProjectContext } from '../../../context';
 import { createUniqueName } from '../../../services';
 
 const inputFieldKey = 'newSheetName';
@@ -88,6 +89,7 @@ export function NewSheet({ newSheetModal }: Props) {
       inputRef.current.focus({
         cursor: 'end',
       });
+      inputRef.current.select();
     }, 0);
   }, [isModalOpen]);
 
@@ -104,7 +106,7 @@ export function NewSheet({ newSheetModal }: Props) {
       cancelButtonProps={{
         className: cx(modalFooterButtonClasses, secondaryButtonClasses),
       }}
-      destroyOnClose={true}
+      destroyOnHidden={true}
       okButtonProps={{
         className: cx(
           modalFooterButtonClasses,

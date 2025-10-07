@@ -9,17 +9,16 @@ import {
 } from 'react';
 import isEqual from 'react-fast-compare';
 
-import {
-  GridCell,
-  GridTable,
-  isHiddenFieldCell,
-  isHiddenTableHeaderCell,
-  useIsMobile,
-} from '@frontend/common';
+import { useIsMobile } from '@frontend/common';
 
 import { GridStateContext, GridViewportContext } from '../../context';
-import { Cell, Edges, SelectionEdges } from '../../types';
-import { cropText, getSymbolWidth } from '../../utils';
+import { Cell, Edges, GridCell, GridTable, SelectionEdges } from '../../types';
+import {
+  cropText,
+  getSymbolWidth,
+  isHiddenFieldCell,
+  isHiddenTableHeaderCell,
+} from '../../utils';
 
 export function useHiddenCells(
   graphicsRef: RefObject<PIXI.Graphics> | null,

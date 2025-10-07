@@ -2,32 +2,29 @@ import { act, RenderHookResult } from '@testing-library/react';
 
 import { ViewGridData } from '../../../context';
 import { useTotalEditDsl } from '../useTotalEditDsl';
+import { createWrapper, initialProps } from './createWrapper';
 import { hookTestSetup } from './hookTestSetup';
 import { RenderProps, TestWrapperProps } from './types';
 
-const initialProps: TestWrapperProps = {
-  appendToFn: jest.fn(),
-  manuallyUpdateSheetContent: jest.fn(() => Promise.resolve(true)),
-  projectName: 'project1',
-  sheetName: 'sheet1',
-};
-
 describe('useTotalEditDsl', () => {
-  let props: TestWrapperProps;
+  let props: TestWrapperProps = { ...initialProps };
   let hook: RenderHookResult<
     ReturnType<typeof useTotalEditDsl>,
     { dsl: string }
   >['result'];
-  let rerender: (props?: RenderProps) => void;
+  let setDsl: (dsl: string) => void;
+  let Wrapper: React.FC<React.PropsWithChildren>;
+
+  beforeAll(() => {
+    Wrapper = createWrapper(props);
+  });
 
   beforeEach(() => {
-    props = { ...initialProps };
     jest.clearAllMocks();
 
-    const hookRender = hookTestSetup(useTotalEditDsl, props);
-
+    const hookRender = hookTestSetup(useTotalEditDsl, Wrapper);
     hook = hookRender.result;
-    rerender = hookRender.rerender;
+    setDsl = hookRender.setDsl;
   });
 
   describe('removeTotalByIndex', () => {
@@ -37,7 +34,7 @@ describe('useTotalEditDsl', () => {
         'table t1 [f1]=1 [f2]=2\ntotal\n[f1] = SUM(t1[f1])\n[f2] = AVERAGE(t1[f2])\ntotal\n[f1] = SUM(t1[f1])\n[f2] = MAX(t1[f2])';
       const expectedDsl =
         'table t1 [f1]=1 [f2]=2\ntotal\n[f1] = SUM(t1[f1])\n[f2] = AVERAGE(t1[f2])\ntotal\n[f2] = MAX(t1[f2])\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => hook.current.removeTotalByIndex('t1', 'f1', 2));
@@ -52,7 +49,7 @@ describe('useTotalEditDsl', () => {
       // Arrange
       const dsl = 'table t1 [f1]=1\ntotal\n[f1] = SUM(t1[f1])';
       const expectedDsl = 'table t1 [f1]=1\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => hook.current.removeTotalByIndex('t1', 'f1', 1));
@@ -71,7 +68,7 @@ describe('useTotalEditDsl', () => {
         'table t1 [f1]=1\n[f2]=2\ntotal\n[f1] = SUM(t1[f1])\n[f2] = AVERAGE(t1[f2])\ntotal\n[f1] = MODE(t1[f1])';
       const expectedDsl =
         'table t1 [f1]=1\n[f2]=2\ntotal\n[f1] = SUM(t1[f1])\n[f2] = AVERAGE(t1[f2])\ntotal\n[f1] = MODE(t1[f1])\r\n  [f2] = SUM(t1[f2])\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => hook.current.addTotalExpression('t1', 'f2', 2, 'SUM(t1[f2])'));
@@ -90,7 +87,7 @@ describe('useTotalEditDsl', () => {
         'table t1 [f1]=1\n[f2]=2\ntotal\n[f1] = SUM(t1[f1])\n[f2] = AVERAGE(t1[f2])\ntotal\n[f1] = MODE(t1[f1])\n[f2] = SUM(t1[f2])';
       const expectedDsl =
         'table t1 [f1]=1\n[f2]=2\ntotal\n[f1] = SUM(t1[f1])\n[f2] = AVERAGE(t1[f2])\ntotal\n[f1] = MODE(t1[f1])\n[f2] = MAX(t1[f2])\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => hook.current.editTotalExpression('t1', 'f2', 2, 'MAX(t1[f2])'));
@@ -107,7 +104,7 @@ describe('useTotalEditDsl', () => {
       // Arrange
       const dsl = 'table t1 [f1]=1';
       const expectedDsl = 'table t1 [f1]=1\r\ntotal\n  [f1] = SUM(t1[f1])\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => hook.current.toggleTotalByType('t1', 'f1', 'sum'));
@@ -124,7 +121,7 @@ describe('useTotalEditDsl', () => {
         'table t1 [f1]=1\n[f2]=2\ntotal\n[f1] = SUM(t1[f1])\n[f2] = AVERAGE(t1[f2])\ntotal\n[f2] = MAX(t1[f2])';
       const expectedDsl =
         'table t1 [f1]=1\n[f2]=2\ntotal\n[f1] = SUM(t1[f1])\n[f2] = AVERAGE(t1[f2])\ntotal\n[f2] = MAX(t1[f2])\r\n  [f1] = MODE(t1[f1])\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => hook.current.toggleTotalByType('t1', 'f1', 'mode'));
@@ -141,7 +138,7 @@ describe('useTotalEditDsl', () => {
         'table t1 [f1]=1\n[f2]=2\ntotal\n[f1] = SUM(t1[f1])\n[f2] = AVERAGE(t1[f2])\ntotal\n[f2] = MAX(t1[f2])\n[f1] = MODE(t1[f1])';
       const expectedDsl =
         'table t1 [f1]=1\n[f2]=2\ntotal\n[f1] = SUM(t1[f1])\n[f2] = AVERAGE(t1[f2])\ntotal\n[f2] = MAX(t1[f2])\n[f1] = MODE(t1[f1])\r\ntotal\n  [f2] = MIN(t1[f2])\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => hook.current.toggleTotalByType('t1', 'f2', 'min'));
@@ -158,7 +155,7 @@ describe('useTotalEditDsl', () => {
         'table t1 [f1]=1\n[f2]=2\ntotal\n[f1] = SUM(t1[f1])\n[f2] = SUM(t1[f2]) + 1\ntotal\n[f2] = MAX(t1[f2])\n[f1] = MODE(t1[f1])';
       const expectedDsl =
         'table t1 [f1]=1\n[f2]=2\ntotal\n[f1] = SUM(t1[f1])\n[f2] = SUM(t1[f2]) + 1\ntotal\n[f2] = MAX(t1[f2])\n[f1] = MODE(t1[f1])\r\ntotal\n  [f2] = NA\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => hook.current.toggleTotalByType('t1', 'f2', 'custom'));
@@ -177,7 +174,7 @@ describe('useTotalEditDsl', () => {
         'table t1 [f1]=1 [f2]=2\ntotal\n[f1] = SUM(t1[f1])\n[f2] = AVERAGE(t1[f2])\ntotal\n[f1] = MODE(t1[f1])\n[f2] = MAX(t1[f2])';
       const expectedDsl =
         'table t1 [f1]=1 [f2]=2\ntotal\n[f2] = AVERAGE(t1[f2])\ntotal\n[f1] = MODE(t1[f1])\n[f2] = MAX(t1[f2])\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => hook.current.removeTotalByType('t1', 'f1', 'sum'));
@@ -194,7 +191,7 @@ describe('useTotalEditDsl', () => {
         'table t1 [f1]=1 [f2]=2\ntotal\n[f1] = SUM(t1[f1])\n[f2] = AVERAGE(t1[f2])\ntotal\n[f1] = SUM(t1[f1])\n[f2] = MAX(t1[f2])';
       const expectedDsl =
         'table t1 [f1]=1 [f2]=2\ntotal\n[f2] = AVERAGE(t1[f2])\ntotal\n[f2] = MAX(t1[f2])\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => hook.current.removeTotalByType('t1', 'f1', 'sum'));
@@ -209,7 +206,7 @@ describe('useTotalEditDsl', () => {
       // Arrange
       const dsl = 'table t1 [f1]=1\ntotal\n[f1] = SUM(t1[f1])';
       const expectedDsl = 'table t1 [f1]=1\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => hook.current.removeTotalByType('t1', 'f1', 'sum'));
@@ -234,14 +231,15 @@ describe('useTotalEditDsl', () => {
           } as any;
         },
       } as ViewGridData;
-      const hookRender = hookTestSetup(useTotalEditDsl, props);
+      Wrapper = createWrapper(props);
+      const hookRender = hookTestSetup(useTotalEditDsl, Wrapper);
       hook = hookRender.result;
-      rerender = hookRender.rerender;
+      setDsl = hookRender.setDsl;
 
       // Arrange
       const dsl = '!layout(1,1)\ntable t1\n[f1]="text"';
       const expectedDsl = `!layout(1,1)\ntable t1\n[f1]="text"\r\ntotal\n  [f1] = COUNT(t1[f1])\ntotal\n  [f1] = MIN(t1[f1])\ntotal\n  [f1] = MAX(t1[f1])\r\n`;
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => hook.current.addAllFieldTotals('t1', 'f1'));
@@ -269,15 +267,16 @@ describe('useTotalEditDsl', () => {
           } as any;
         },
       } as ViewGridData;
-      const hookRender = hookTestSetup(useTotalEditDsl, props);
+      Wrapper = createWrapper(props);
+      const hookRender = hookTestSetup(useTotalEditDsl, Wrapper);
       hook = hookRender.result;
-      rerender = hookRender.rerender;
+      setDsl = hookRender.setDsl;
 
       // Arrange
       const dsl =
         '!layout(1,1)\ntable t1\n[f1]="text"\ntotal\n[f1] = MIN(t1[f1])';
       const expectedDsl = `!layout(1,1)\ntable t1\n[f1]="text"\ntotal\n[f1] = MIN(t1[f1])\r\ntotal\n  [f1] = COUNT(t1[f1])\ntotal\n  [f1] = MAX(t1[f1])\r\n`;
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => hook.current.addAllFieldTotals('t1', 'f1'));
@@ -305,14 +304,15 @@ describe('useTotalEditDsl', () => {
           } as any;
         },
       } as ViewGridData;
-      const hookRender = hookTestSetup(useTotalEditDsl, props);
+      Wrapper = createWrapper(props);
+      const hookRender = hookTestSetup(useTotalEditDsl, Wrapper);
       hook = hookRender.result;
-      rerender = hookRender.rerender;
+      setDsl = hookRender.setDsl;
 
       // Arrange
       const dsl = '!layout(1,1)\ntable t1\n[f1]=1';
       const expectedDsl = `!layout(1,1)\ntable t1\n[f1]=1\r\ntotal\n  [f1] = COUNT(t1[f1])\ntotal\n  [f1] = MIN(t1[f1])\ntotal\n  [f1] = MAX(t1[f1])\ntotal\n  [f1] = AVERAGE(t1[f1])\ntotal\n  [f1] = STDEVS(t1[f1])\r\n`;
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => hook.current.addAllFieldTotals('t1', 'f1'));
@@ -340,14 +340,15 @@ describe('useTotalEditDsl', () => {
           } as any;
         },
       } as ViewGridData;
-      const hookRender = hookTestSetup(useTotalEditDsl, props);
+      Wrapper = createWrapper(props);
+      const hookRender = hookTestSetup(useTotalEditDsl, Wrapper);
       hook = hookRender.result;
-      rerender = hookRender.rerender;
+      setDsl = hookRender.setDsl;
 
       // Arrange
       const dsl = '!layout(1,1)\ntable t1\n[f1]=RANGE(10)';
       const expectedDsl = `!layout(1,1)\ntable t1\n[f1]=RANGE(10)\r\ntotal\n  [f1] = COUNT(t1[f1])\r\n`;
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => hook.current.addAllFieldTotals('t1', 'f1'));

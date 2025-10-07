@@ -11,6 +11,7 @@ from testing.models.query_stages import (
     IndexStage,
     RouteStage,
     SheetsStage,
+    StandaloneQuestionStage,
 )
 from testing.models.verdict import Verdict
 
@@ -26,6 +27,7 @@ __all__ = [
     "SheetsStage",
     "FocusStage",
     "GenericStage",
+    "StandaloneQuestionStage",
     "AnyStage",
     "Verdict",
 ]

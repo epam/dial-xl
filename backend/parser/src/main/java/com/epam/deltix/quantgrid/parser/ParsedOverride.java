@@ -1,10 +1,14 @@
 package com.epam.deltix.quantgrid.parser;
 
+import com.epam.deltix.quantgrid.parser.ast.ConstNumber;
 import com.epam.deltix.quantgrid.parser.ast.Formula;
 import com.epam.deltix.quantgrid.parser.ast.Missing;
+import com.epam.deltix.quantgrid.util.Doubles;
 import com.google.gson.annotations.Expose;
 import lombok.Value;
 import lombok.experimental.Accessors;
+import lombok.extern.slf4j.Slf4j;
+import org.antlr.v4.runtime.RecognitionException;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -14,6 +18,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+@Slf4j
 @Value
 @Accessors(fluent = true)
 public class ParsedOverride {
@@ -109,14 +114,29 @@ public class ParsedOverride {
             List<Formula> parsedFormulas = new ArrayList<>(headers.size());
             for (int j = 0; j < headers.size(); j++) {
                 SheetParser.Override_valueContext value = row.override_value(j);
-                Formula parsedFormula = value.expression() == null
-                        ? new Missing(Span.from(value))
-                        : ParsedFormula.buildFormula(value.expression());
+                Formula parsedFormula = buildFormula(value);
                 parsedFormulas.add(parsedFormula);
             }
             lines.add(parsedFormulas);
         }
 
         return new ParsedOverride(Span.from(context), headers, lines, tableName);
+    }
+
+    private static Formula buildFormula(SheetParser.Override_valueContext value) {
+        SheetParser.ExpressionContext expression = value.expression();
+        if (expression == null) {
+            return new Missing(Span.from(value));
+        }
+
+        try {
+            return ParsedFormula.buildFormula(value.expression());
+        } catch (RecognitionException ex) {
+            // goes into error listener
+        } catch (Throwable ex) {
+            log.error("Failed to parse override formula", ex);
+        }
+
+        return new ConstNumber(Span.from(value.expression()), Doubles.ERROR_NA);
     }
 }

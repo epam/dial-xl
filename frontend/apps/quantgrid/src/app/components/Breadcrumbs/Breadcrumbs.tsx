@@ -34,8 +34,8 @@ const BreadcrumbTemplate = ({
         'flex gap-1 items-center shrink',
         isLast && 'min-w-[120px] overflow-hidden',
         (!isLast || breadcrumb.dropdownItems) &&
-          'hover:text-textPrimary cursor-pointer',
-        !isLast ? 'text-textSecondary' : 'text-textPrimary'
+          'hover:text-text-primary cursor-pointer',
+        !isLast ? 'text-text-secondary' : 'text-text-primary'
       )}
       onClick={() =>
         !isLast && !breadcrumb.dropdownItems && onSelectBreadcrumb()
@@ -62,7 +62,7 @@ const BreadcrumbTemplate = ({
 
               {isSingle && (
                 <Icon
-                  className="w-[14px] text-textSecondary leading-none"
+                  className="w-[14px] text-text-secondary leading-none"
                   component={() => <ChevronDown />}
                 />
               )}
@@ -174,7 +174,7 @@ export const Breadcrumbs = ({
             />
             {index !== breadcrumbs.length - 1 && (
               <Icon
-                className="w-[14px] text-textSecondary leading-none -rotate-90"
+                className="w-[14px] text-text-secondary leading-none -rotate-90"
                 component={() => <ChevronDown />}
               />
             )}
@@ -196,12 +196,12 @@ export const Breadcrumbs = ({
                       menu={{ items: dropdownItems }}
                       trigger={['click']}
                     >
-                      <span className="cursor-pointer text-textSecondary hover:text-textPrimary">
+                      <span className="cursor-pointer text-text-secondary hover:text-text-primary">
                         ...
                       </span>
                     </Dropdown>
                     <Icon
-                      className="w-[14px] text-textSecondary leading-none -rotate-90"
+                      className="w-[14px] text-text-secondary leading-none -rotate-90"
                       component={() => <ChevronDown />}
                     />
                   </>
@@ -221,7 +221,7 @@ export const Breadcrumbs = ({
                   />
                   {index !== breadcrumbs.length - 1 && (
                     <Icon
-                      className="w-[14px] text-textSecondary leading-none -rotate-90"
+                      className="w-[14px] text-text-secondary leading-none -rotate-90"
                       component={() => <ChevronDown />}
                     />
                   )}

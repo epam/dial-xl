@@ -1,6 +1,6 @@
-import { GridCell } from '@frontend/common';
 import { naExpression } from '@frontend/parser';
 
+import { GridCell } from '../../../../types';
 import { GridCellEditorMode, GridCellEditorOpenOptions } from '../..';
 import { getCellEditorParams } from '../getCellEditorParams';
 

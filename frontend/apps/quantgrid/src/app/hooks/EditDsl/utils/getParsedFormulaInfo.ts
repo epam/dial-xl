@@ -31,3 +31,11 @@ export const getParsedFormulaInfo = (formula: string): ParsedFormulaInfo => {
     };
   }
 };
+
+// Lightweight check to see if the formula contains INPUT("files/...
+// For usage in places like GridBuilder to avoid parsing and search for function expressions
+export const isInputFormula = (formula: string): boolean => {
+  if (!formula) return false;
+
+  return /\bINPUT\s*\(\s*"files\//.test(formula);
+};

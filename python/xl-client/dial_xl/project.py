@@ -110,7 +110,6 @@ class Project(Observer):
             sheet = self.get_sheet(sheet_name)
             sheet._set_parsing_errors(compile_result.parsing_errors.get(sheet_name, []))
             sheet._update_field_types(compile_result.types)
-            sheet._update_override_errors(compile_result.override_errors)
 
         self.__is_invalidated = False
 
@@ -130,7 +129,6 @@ class Project(Observer):
             )
             sheet._update_field_types(calculate_result.types)
             sheet._update_field_data(calculate_result.types, calculate_result.data)
-            sheet._update_override_errors(calculate_result.override_errors)
 
         self.__is_invalidated = False
 
@@ -218,7 +216,6 @@ class Project(Observer):
                 sheet = self.get_sheet(sheet_name)
                 sheet._update_field_types({})
                 sheet._update_field_data({}, {})
-                sheet._update_override_errors({})
             self.__is_invalidated = True
 
     def to_dsl(self) -> dict[str, str]:

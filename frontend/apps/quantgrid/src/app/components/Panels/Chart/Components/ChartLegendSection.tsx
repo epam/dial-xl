@@ -55,7 +55,9 @@ export function ChartLegendSection({
 
   return (
     <div className="flex justify-between items-center px-3 py-4">
-      <span className="text-[13px] text-textPrimary font-semibold">Legend</span>
+      <span className="text-[13px] text-text-primary font-semibold">
+        Legend
+      </span>
       <Switch
         checked={checked}
         checkedChildren="ON"

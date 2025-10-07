@@ -71,7 +71,7 @@ function createSpreadsheetTheme(theme: AppTheme): Theme {
       bgEvenColor: c.bgGridColoredCell,
       tableHeaderBgColor: c.bgGridHeader,
       fieldHeaderBgColor: c.bgLayer4,
-      totalBgColor: c.bgAccentTertiaryAlpha,
+      totalBgColor: c.bgAccentTertiaryAlphaSolid,
       cellFontColorName: f.textPrimary,
       cellFontFamily: FontFamilies.JetBrainsMonoRegular,
       boldCellFontColorName: f.textPrimary,

@@ -1,32 +1,28 @@
 import { act, RenderHookResult } from '@testing-library/react';
 
 import { useNoteEditDsl } from '../useNoteEditDsl';
+import { createWrapper, initialProps } from './createWrapper';
 import { hookTestSetup } from './hookTestSetup';
-import { RenderProps, TestWrapperProps } from './types';
-
-const initialProps: TestWrapperProps = {
-  appendToFn: jest.fn(),
-  manuallyUpdateSheetContent: jest.fn(() => Promise.resolve(true)),
-  projectName: 'project1',
-  sheetName: 'sheet1',
-};
+import { TestWrapperProps } from './types';
 
 describe('useNoteEditDsl', () => {
-  let props: TestWrapperProps;
+  const props: TestWrapperProps = { ...initialProps };
   let result: RenderHookResult<
     ReturnType<typeof useNoteEditDsl>,
     { dsl: string }
   >['result'];
-  let rerender: (props?: RenderProps) => void;
+  let setDsl: (dsl: string) => void;
+  let Wrapper: React.FC<React.PropsWithChildren>;
+
+  beforeAll(() => {
+    Wrapper = createWrapper(props);
+  });
 
   beforeEach(() => {
-    props = { ...initialProps };
     jest.clearAllMocks();
-
-    const hookRender = hookTestSetup(useNoteEditDsl, props);
-
+    const hookRender = hookTestSetup(useNoteEditDsl, Wrapper);
     result = hookRender.result;
-    rerender = hookRender.rerender;
+    setDsl = hookRender.setDsl;
   });
 
   describe('removeNote', () => {
@@ -34,7 +30,7 @@ describe('useNoteEditDsl', () => {
       // Arrange
       const dsl = 'table t1 [a]=1\n##comment\n[b]=2\n[c]=3';
       const expectedDsl = `table t1 [a]=1\n[b]=2\n[c]=3\r\n`;
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => result.current.removeNote('t1', 'b'));
@@ -53,7 +49,7 @@ describe('useNoteEditDsl', () => {
       const dsl =
         'table t1 [a]=1\n##comment\n##multiline comment\n[b]=2\n[c]=3';
       const expectedDsl = `table t1 [a]=1\n[b]=2\n[c]=3\r\n`;
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => result.current.removeNote('t1', 'b'));
@@ -71,7 +67,7 @@ describe('useNoteEditDsl', () => {
       // Arrange
       const dsl = '##comment\ntable t1 [a]=1\n[b]=2\n[c]=3';
       const expectedDsl = `table t1 [a]=1\n[b]=2\n[c]=3\r\n`;
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => result.current.removeNote('t1'));
@@ -90,7 +86,7 @@ describe('useNoteEditDsl', () => {
       const dsl =
         '##comment\n##multiline comment\ntable t1 [a]=1\n[b]=2\n[c]=3';
       const expectedDsl = `table t1 [a]=1\n[b]=2\n[c]=3\r\n`;
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => result.current.removeNote('t1'));
@@ -111,7 +107,7 @@ describe('useNoteEditDsl', () => {
         // Arrange
         const dsl = 'table t1 [a]=1\n[b]=2\n[c]=3';
         const expectedDsl = `table t1 [a]=1\n[b]=2\n[c]=3\r\n`;
-        rerender({ dsl });
+        setDsl(dsl);
 
         // Act
         act(() =>
@@ -136,7 +132,7 @@ describe('useNoteEditDsl', () => {
         // Arrange
         const dsl = 'table t1 [a]=1\n[b]=2\n[c]=3';
         const expectedDsl = `table t1 [a]=1\n##new comment\n  [b]=2\n[c]=3\r\n`;
-        rerender({ dsl });
+        setDsl(dsl);
 
         // Act
         act(() =>
@@ -160,7 +156,7 @@ describe('useNoteEditDsl', () => {
         // Arrange
         const dsl = 'table t1 [a]=1\n##comment\n[b]=2\n[c]=3';
         const expectedDsl = `table t1 [a]=1\n##updated comment\n  [b]=2\n[c]=3\r\n`;
-        rerender({ dsl });
+        setDsl(dsl);
 
         // Act
         act(() =>
@@ -184,7 +180,7 @@ describe('useNoteEditDsl', () => {
         // Arrange
         const dsl = 'table t1 [a]=1\n##comment\n##comment1\n[b]=2\n[c]=3';
         const expectedDsl = `table t1 [a]=1\n##comment\n  ##comment1\n  ##another line\n  [b]=2\n[c]=3\r\n`;
-        rerender({ dsl });
+        setDsl(dsl);
 
         // Act
         act(() =>
@@ -209,7 +205,7 @@ describe('useNoteEditDsl', () => {
         // Arrange
         const dsl = 'table t1 [a]=1\n[b]=2\n[c]=3';
         const expectedDsl = `table t1 [a]=1\n[b]=2\n[c]=3\r\n`;
-        rerender({ dsl });
+        setDsl(dsl);
 
         // Act
         act(() =>
@@ -232,7 +228,7 @@ describe('useNoteEditDsl', () => {
         // Arrange
         const dsl = 'table t1 [a]=1\n[b]=2\n[c]=3';
         const expectedDsl = `##new comment\ntable t1 [a]=1\n[b]=2\n[c]=3\r\n`;
-        rerender({ dsl });
+        setDsl(dsl);
 
         // Act
         act(() =>
@@ -254,7 +250,7 @@ describe('useNoteEditDsl', () => {
         // Arrange
         const dsl = '##comment\ntable t1 [a]=1\n[b]=2\n[c]=3';
         const expectedDsl = `##updated comment\ntable t1 [a]=1\n[b]=2\n[c]=3\r\n`;
-        rerender({ dsl });
+        setDsl(dsl);
 
         // Act
         act(() =>
@@ -277,7 +273,7 @@ describe('useNoteEditDsl', () => {
         // Arrange
         const dsl = '##comment\n##comment1\ntable t1 [a]=1\n[b]=2\n[c]=3';
         const expectedDsl = `##comment\n##comment1\n##another line\ntable t1 [a]=1\n[b]=2\n[c]=3\r\n`;
-        rerender({ dsl });
+        setDsl(dsl);
 
         // Act
         act(() =>

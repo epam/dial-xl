@@ -2,32 +2,29 @@ import { ChartType } from '@frontend/common';
 import { act, RenderHookResult } from '@testing-library/react';
 
 import { useChartEditDsl } from '../useChartEditDsl';
+import { createWrapper, initialProps } from './createWrapper';
 import { hookTestSetup } from './hookTestSetup';
-import { RenderProps, TestWrapperProps } from './types';
-
-const initialProps: TestWrapperProps = {
-  appendToFn: jest.fn(),
-  manuallyUpdateSheetContent: jest.fn(() => Promise.resolve(true)),
-  projectName: 'project1',
-  sheetName: 'sheet1',
-};
+import { TestWrapperProps } from './types';
 
 describe('useChartEditDsl', () => {
-  let props: TestWrapperProps;
+  const props: TestWrapperProps = { ...initialProps };
   let hook: RenderHookResult<
     ReturnType<typeof useChartEditDsl>,
     { dsl: string }
   >['result'];
-  let rerender: (props?: RenderProps) => void;
+  let setDsl: (dsl: string) => void;
+  let Wrapper: React.FC<React.PropsWithChildren>;
+
+  beforeAll(() => {
+    Wrapper = createWrapper(props);
+  });
 
   beforeEach(() => {
-    props = { ...initialProps };
     jest.clearAllMocks();
 
-    const hookRender = hookTestSetup(useChartEditDsl, props);
-
+    const hookRender = hookTestSetup(useChartEditDsl, Wrapper);
     hook = hookRender.result;
-    rerender = hookRender.rerender;
+    setDsl = hookRender.setDsl;
   });
 
   describe('chartResize', () => {
@@ -36,7 +33,7 @@ describe('useChartEditDsl', () => {
       const dsl = '!visualization("line-chart")\n!size(7, 7)\ntable t1 [f1]=1';
       const expectedDsl =
         '!visualization("line-chart")\n!size(20, 15)\ntable t1 [f1]=1\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => hook.current.chartResize('t1', 15, 20));
@@ -56,7 +53,7 @@ describe('useChartEditDsl', () => {
       const dsl = '!visualization("line-chart")\ntable t1 [f1]=1';
       const expectedDsl =
         '!visualization("line-chart")\n!size(20, 10)\ntable t1 [f1]=1\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => hook.current.chartResize('t1', 10, 20));
@@ -77,7 +74,7 @@ describe('useChartEditDsl', () => {
       // Arrange
       const dsl = `!layout(1,1)\ntable t1\n!selector(10)\n[f1]=1\n!layout(2,1)\ntable t2\n!selector(20)\n[f2]=2`;
       const expectedDsl = `!layout(1,1)\ntable t1\n!selector(99)\n[f1]=1\n!layout(2,1)\ntable t2\n!selector(20)\n[f2]=2\r\n`;
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => hook.current.updateSelectorValue('t1', 'f1', 99, false));
@@ -96,7 +93,7 @@ describe('useChartEditDsl', () => {
       // Arrange
       const dsl = `!layout(1,1)\ntable t1\n!selector(10)\n[f1]=1\n!selector(20)\n[f2]=2\n!selector(30)\n[f3]=3\n!layout(2,1)\ntable t2\n!selector(20)\n[f2]=2`;
       const expectedDsl = `!layout(1,1)\ntable t1\n!selector(33)\n[f1]=1\n!selector()\n[f2]=2\n!selector()\n[f3]=3\n!layout(2,1)\ntable t2\n!selector(20)\n[f2]=2\r\n`;
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => hook.current.updateSelectorValue('t1', 'f1', 33, true));
@@ -119,8 +116,8 @@ describe('useChartEditDsl', () => {
         '!layout(17,4,"title","headers")\ntable t1\ndim [stat]=RANGE(10)\n[f1]=[stat] ^ 2';
       const expectedDsl =
         '!layout(17,4,"title","headers")\ntable t1\ndim [stat]=RANGE(10)\n[f1]=[stat] ^ 2\r\n\n' +
-        `!layout(17, 7, "title", "headers")\n!visualization("line-chart")\ntable 't1_line-chart'\n  dim [source] = t1\n  [stat] = [source][stat]\n  [f1] = [source][f1]\r\n`;
-      rerender({ dsl });
+        `!layout(17, 7, "title", "headers")\n!visualization("line-chart")\ntable 't1_line-chart'\n  dim [stat], [f1] = t1[[stat],[f1]]\r\n`;
+      setDsl(dsl);
 
       // Act
       act(() => hook.current.addChart('t1', ChartType.LINE));
@@ -146,7 +143,7 @@ describe('useChartEditDsl', () => {
         group1: ['c', 'a', 'b'],
         group2: ['d'],
       };
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => hook.current.updateChartSections('t1', updatedSections));
@@ -170,7 +167,7 @@ describe('useChartEditDsl', () => {
         group1: ['a', 'b'],
         group2: ['c', 'd'],
       };
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => hook.current.updateChartSections('t1', updatedSections));
@@ -191,9 +188,9 @@ describe('useChartEditDsl', () => {
       // Arrange
       const dsl =
         'table t1\n  [a]=1\n  [b]=2\n  [c]=3\n\n  !visualization("line-chart")\ntable t2\n';
-      const expectedDsl = `table t1\n  [a]=1\n  [b]=2\n  [c]=3\n\n  !visualization("line-chart")\ntable t2\n  dim [source] = t1\n  [a] = [source][a]\n  [b] = [source][b]\n  [c] = [source][c]\r\n`;
+      const expectedDsl = `table t1\n  [a]=1\n  [b]=2\n  [c]=3\n\n  !visualization("line-chart")\ntable t2\n  [a], [b], [c] = t1[[a],[b],[c]]\r\n`;
 
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => hook.current.selectTableForChart('t1', 't2'));
@@ -215,7 +212,7 @@ describe('useChartEditDsl', () => {
       const dsl = '!layout(1, 2, "title", "headers")\ntable t1 [f1]=1';
       const expectedDsl =
         '!layout(1, 2, "title", "headers")\n!visualization("line-chart")\ntable t1 [f1]=1\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => hook.current.setChartType('t1', ChartType.LINE));
@@ -237,7 +234,7 @@ describe('useChartEditDsl', () => {
         '!layout(1, 2, "title", "headers")\n!visualization("line-chart")\ntable t1 [f1]=1';
       const expectedDsl =
         '!layout(1, 2, "title", "headers")\n!visualization("scatter-plot")\ntable t1 [f1]=1\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => hook.current.setChartType('t1', ChartType.SCATTER_PLOT));

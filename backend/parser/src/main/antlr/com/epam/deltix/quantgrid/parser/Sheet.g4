@@ -44,14 +44,17 @@ apply_filter: 'filter' expression lb;
 apply_sort: 'sort' expression (',' expression)* lb;
 
 total_definition: 'total' lb (fields_definition lb)*;
+function_argument: expression?;
 
 expression: number
          | string
          | bool
          | na
          | query_row
-         | function_name '(' (expression (',' expression)*)? ')'
-         | expression '.' function_name '(' (expression (',' expression)*)? ')'
+         | function_name '(' ')'
+         | function_name '(' function_argument (',' function_argument)* ')'
+         | expression '.' function_name '(' ')'
+         | expression '.' function_name '(' function_argument (',' function_argument)* ')'
          | table_name
          | field_name
          | expression field_name

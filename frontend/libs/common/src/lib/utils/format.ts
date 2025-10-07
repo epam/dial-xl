@@ -1,3 +1,4 @@
+import Big from 'big.js';
 import { format as formatDate } from 'date-fns';
 
 import { UTCDateMini } from '@date-fns/utc';
@@ -18,6 +19,14 @@ export const FormatKeys = {
   Integer: 'integer',
   Time: 'time',
   DateTime: 'dateTime',
+};
+
+export const DigitsModeKeys = {
+  DecimalDigits: 'decimalDigits',
+  TotalDigits: 'totalDigits',
+  CompactK: 'compactK',
+  CompactM: 'compactM',
+  CompactB: 'compactB',
 };
 
 export const resetFormatKey = 'resetFormatKey';
@@ -54,6 +63,176 @@ function excelDateToJsMilliseconds(sheetDateNumber: number) {
   return (sheetDateNumber - excelEpochDifferenceInDays) * millisecondsPerDay;
 }
 
+const formatNumberDecimalDigits = (
+  value: number,
+  decimalDigits: number,
+  useThousandsSeparator: boolean
+) => {
+  return new Intl.NumberFormat(numberLocale, {
+    minimumFractionDigits: decimalDigits,
+    maximumFractionDigits: decimalDigits,
+    useGrouping: useThousandsSeparator,
+  }).format(value);
+};
+
+const formatCompact = (
+  value: number,
+  compactType: string,
+  useThousandsSeparator: boolean
+) => {
+  let divisor = 0;
+
+  switch (compactType) {
+    case 'K': {
+      divisor = 1e3;
+      break;
+    }
+    case 'M': {
+      divisor = 1e6;
+      break;
+    }
+    case 'B': {
+      divisor = 1e9;
+      break;
+    }
+    default:
+      break;
+  }
+
+  if (!divisor) return value.toString();
+
+  let mantissa = Big(value / divisor).toFixed(1);
+  if (mantissa.endsWith('.0')) mantissa = mantissa.slice(0, -2);
+
+  const result =
+    Intl.NumberFormat(numberLocale, {
+      useGrouping: useThousandsSeparator,
+    }).format(Number(mantissa)) + compactType;
+
+  return result;
+};
+
+const formatTotalCompact = (
+  value: number,
+  totalDigits: number,
+  useThousandsSeparator: boolean
+) => {
+  const compacts = [
+    { divisor: 1e3, modifier: 'K' },
+    { divisor: 1e6, modifier: 'M' },
+    { divisor: 1e9, modifier: 'B' },
+  ];
+
+  for (const { divisor, modifier } of compacts) {
+    const resultedValue = Big(value).div(divisor);
+    const integerPart = resultedValue.toString().split('.')[0];
+    for (let frac = totalDigits - integerPart.length; frac >= 0; frac--) {
+      const candidate = resultedValue.toFixed(frac);
+
+      if (
+        (candidate.endsWith('0') && candidate.includes('.')) ||
+        candidate === '0'
+      )
+        continue;
+
+      if (candidate.length - (frac > 0 ? 1 : 0) <= totalDigits) {
+        return (
+          Intl.NumberFormat(numberLocale, {
+            useGrouping: useThousandsSeparator,
+          }).format(Number(candidate)) + modifier
+        );
+      }
+    }
+  }
+
+  return '';
+};
+
+const formatNumberTotalDigits = (
+  value: number,
+  totalDigits: number,
+  useThousandsSeparator: boolean,
+  isExpFormat?: boolean
+) => {
+  const normalizedTotalDigits = Math.abs(Math.min(-4, totalDigits));
+
+  const valueString = value.toString();
+  const isScientificValue =
+    isExpFormat || valueString.toLowerCase().includes('e');
+  const integerPartLength = valueString.split('.')[0].length;
+
+  if (!isScientificValue && integerPartLength <= normalizedTotalDigits) {
+    const candidate = new Intl.NumberFormat(numberLocale, {
+      maximumFractionDigits: normalizedTotalDigits - integerPartLength,
+      useGrouping: useThousandsSeparator,
+    }).format(value);
+
+    if (candidate && candidate !== '0') {
+      return candidate;
+    }
+  }
+
+  // compact case
+  if (!isScientificValue) {
+    const resultedValue = formatTotalCompact(
+      value,
+      normalizedTotalDigits,
+      useThousandsSeparator
+    );
+
+    if (resultedValue) return resultedValue;
+  }
+
+  // scientific case
+  const decimalGuess = Math.max(0, normalizedTotalDigits - 2); // 2 = integer + exponent
+  for (let frac = decimalGuess; frac >= 0; frac--) {
+    const exp = Big(value)
+      .toExponential(frac)
+      .replace('e', 'E')
+      .replace('E+', 'E')
+      .replace(/E(-?|\+?)0+(\d)/, 'E$1$2'); // strip leading zeros
+
+    const integerPartLength = exp.includes('.') ? exp.split('.')[0].length : 1;
+    const digit = exp.split('E')[0];
+    const exponentDigits = Math.abs(Number(exp.split('E')[1])).toString()
+      .length;
+    if (exponentDigits > 3) continue; // |exp| must be ≤ 999
+
+    if (
+      integerPartLength + frac + exponentDigits <= normalizedTotalDigits &&
+      !digit?.endsWith('0')
+    )
+      return exp; // first fit wins
+  }
+
+  return value.toString();
+};
+
+const formatNumberDigits = (
+  value: number,
+  decimalDigits: number | string,
+  useThousandsSeparator: boolean,
+  isExpFormat?: boolean
+) => {
+  const parsedDecimalDigits =
+    typeof decimalDigits === 'string'
+      ? parseInt(decimalDigits, 10)
+      : decimalDigits;
+
+  return parsedDecimalDigits >= 0
+    ? formatNumberDecimalDigits(
+        value,
+        parsedDecimalDigits,
+        useThousandsSeparator
+      )
+    : formatNumberTotalDigits(
+        value,
+        parsedDecimalDigits,
+        useThousandsSeparator,
+        isExpFormat
+      );
+};
+
 export const formatValue = (value: string, format: ColumnFormat): string => {
   try {
     const parsedValue = parseFloat(value);
@@ -70,24 +249,38 @@ export const formatValue = (value: string, format: ColumnFormat): string => {
         if (!typedArgs) break;
 
         const numberValue = parsedValue;
-        const computedValue = typedArgs.useThousandsSeparator
-          ? new Intl.NumberFormat(numberLocale, {
-              minimumFractionDigits: typedArgs.format,
-              maximumFractionDigits: typedArgs.format,
-            }).format(numberValue)
-          : numberValue.toFixed(typedArgs.format);
+        const argsFormat = typedArgs.format;
+        const isCompactFormat =
+          typeof argsFormat === 'string' &&
+          ['K', 'M', 'B'].includes(argsFormat);
+        const computedValue = isCompactFormat
+          ? formatCompact(
+              numberValue,
+              argsFormat,
+              typedArgs.useThousandsSeparator
+            )
+          : formatNumberDigits(
+              numberValue,
+              argsFormat,
+              typedArgs.useThousandsSeparator
+            );
 
         return computedValue;
       }
       case FormatType.FORMAT_TYPE_SCIENTIFIC: {
         const typedArgs = format.scientificArgs;
 
-        if (!typedArgs) break;
+        if (!typedArgs || typeof typedArgs.format !== 'number') break;
 
         const numberValue = parsedValue;
-        const computedValue = numberValue
-          .toExponential(typedArgs.format)
-          .toUpperCase();
+        const argsFormat = typedArgs.format;
+        const computedValue =
+          argsFormat >= 0
+            ? Big(numberValue)
+                .toExponential(argsFormat)
+                .replace('e', 'E')
+                .replace('E+', 'E')
+            : formatNumberDigits(numberValue, typedArgs.format, false, true);
 
         return computedValue;
       }
@@ -96,9 +289,23 @@ export const formatValue = (value: string, format: ColumnFormat): string => {
 
         if (!typedArgs) break;
 
+        const argsFormat = typedArgs.format;
+        const isCompactFormat =
+          typeof argsFormat === 'string' &&
+          ['K', 'M', 'B'].includes(argsFormat);
         const numberValue = parsedValue;
         const computedValue =
-          (numberValue * 100).toFixed(typedArgs.format) + '%';
+          (isCompactFormat
+            ? formatCompact(
+                numberValue,
+                argsFormat,
+                typedArgs.useThousandsSeparator
+              )
+            : formatNumberDigits(
+                numberValue * 100,
+                argsFormat,
+                typedArgs.useThousandsSeparator
+              )) + '%';
 
         return computedValue;
       }
@@ -107,16 +314,25 @@ export const formatValue = (value: string, format: ColumnFormat): string => {
 
         if (!typedArgs) break;
 
+        const argsFormat = typedArgs.format;
+        const isCompactFormat =
+          typeof argsFormat === 'string' &&
+          ['K', 'M', 'B'].includes(argsFormat);
         const numberValue = parsedValue;
         const computedValue =
           typedArgs.symbol +
           ' ' +
-          (typedArgs.useThousandsSeparator
-            ? new Intl.NumberFormat(numberLocale, {
-                minimumFractionDigits: typedArgs.format,
-                maximumFractionDigits: typedArgs.format,
-              }).format(numberValue)
-            : numberValue.toFixed(typedArgs.format));
+          (isCompactFormat
+            ? formatCompact(
+                numberValue,
+                argsFormat,
+                typedArgs.useThousandsSeparator
+              )
+            : formatNumberDigits(
+                numberValue,
+                argsFormat,
+                typedArgs.useThousandsSeparator
+              ));
 
         return computedValue;
       }

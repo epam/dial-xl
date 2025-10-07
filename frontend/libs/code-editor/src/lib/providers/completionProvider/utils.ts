@@ -1,6 +1,10 @@
 import { Token } from 'antlr4';
 
-import { compareTableNames, FunctionInfo } from '@frontend/common';
+import {
+  CommonMetadata,
+  compareTableNames,
+  FunctionInfo,
+} from '@frontend/common';
 import {
   currentTableRef,
   escapeTableName,
@@ -66,8 +70,6 @@ export function getTables({
   parsedSheet,
   parsedSheets,
   currentTable,
-  currentExpressionTable,
-  currentExpressionField,
 }: {
   previousCharacter: string;
   model: editor.ITextModel;
@@ -76,8 +78,6 @@ export function getTables({
   parsedSheet: ParsedSheet;
   parsedSheets: ParsedSheets;
   currentTable: ParsedTable | null;
-  currentExpressionTable: ParsedTable | null;
-  currentExpressionField: ParsedField | null;
 }): Suggestion[] {
   if (['[', '.'].includes(previousCharacter)) return [];
 
@@ -89,8 +89,6 @@ export function getTables({
         model,
         position,
         lastToken,
-        currentExpressionTable,
-        currentExpressionField,
       })
     )
     .flat();
@@ -107,8 +105,6 @@ export function getTables({
           model,
           position,
           lastToken,
-          currentExpressionTable,
-          currentExpressionField,
         })
       );
     }
@@ -121,15 +117,11 @@ export function getAllTables({
   model,
   position,
   parsedSheets,
-  currentExpressionTable,
-  currentExpressionField,
   lastToken,
 }: {
   model: editor.ITextModel;
   position: Position;
   parsedSheets: ParsedSheets;
-  currentExpressionTable: ParsedTable | null;
-  currentExpressionField: ParsedField | null;
   lastToken: Token | undefined;
 }): Suggestion[] {
   if (['[', '.'].some((char) => lastToken?.text?.endsWith(char))) return [];
@@ -143,8 +135,6 @@ export function getAllTables({
           tableName: table.tableName,
           model,
           position,
-          currentExpressionTable,
-          currentExpressionField,
           lastToken,
         })
       );
@@ -152,6 +142,26 @@ export function getAllTables({
   }
 
   return tables;
+}
+
+export function getInputSuggestions(inputList: CommonMetadata[]): Suggestion[] {
+  if (!inputList.length) return [];
+
+  return inputList.map((i) => {
+    const description = `Full path for the input file: ${i.name}`;
+    const insertText = `"${i.url}"`;
+
+    return {
+      insertText,
+      label: {
+        label: i.name,
+        description: 'Input path',
+      },
+      kind: languages.CompletionItemKind.File,
+      sortText: SortText.priority3,
+      documentation: description,
+    };
+  });
 }
 
 export function getFunctionsSuggestions(
@@ -429,15 +439,11 @@ function getTableSuggestions({
   tableName,
   model,
   position,
-  currentExpressionTable,
-  currentExpressionField,
   lastToken,
 }: {
   tableName: string;
   model: editor.ITextModel;
   position: Position;
-  currentExpressionTable: ParsedTable | null;
-  currentExpressionField: ParsedField | null;
   lastToken: Token | undefined;
 }): Suggestion[] {
   const sanitizedName = escapeTableName(tableName);

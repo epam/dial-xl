@@ -115,6 +115,7 @@ export function NewDashboardFolder({ newFolderModal }: Props) {
       inputRef.current.focus({
         cursor: 'end',
       });
+      inputRef.current.select();
     }, 0);
   }, [isModalOpen]);
 
@@ -131,7 +132,7 @@ export function NewDashboardFolder({ newFolderModal }: Props) {
       cancelButtonProps={{
         className: cx(modalFooterButtonClasses, secondaryButtonClasses),
       }}
-      destroyOnClose={true}
+      destroyOnHidden={true}
       okButtonProps={{
         className: cx(
           modalFooterButtonClasses,

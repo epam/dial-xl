@@ -188,11 +188,11 @@ async def test_unique(basic_project: FrameProject):
         assert code_regex(table, r"(?i).*UNIQUE\(.*")
 
     answer = await basic_project.query(
-        """
-        I need help with finding distinct values using designated function for getting unique rows.
-        Create a new table with exactly one column called "value" which consists all unique values of column "A" from
-        table "TUnique".
-        """
+        (
+            "I need help with finding distinct values using designated function for getting unique rows.\n"
+            'Create a new table with exactly one column called "value" which consists of all unique values of column "A" from'
+            'table "TUnique".'
+        )
     )
 
     answer.assertion(AddTable(validator=validate_unique, value=["10", "20"]))

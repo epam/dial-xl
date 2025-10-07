@@ -1,8 +1,7 @@
 import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
-import { GridCell } from '@frontend/common';
-
 import { GridStateContext } from '../../../context';
+import { GridCell } from '../../../types';
 import { getSymbolWidth } from '../../../utils';
 
 export function useCellOptions() {

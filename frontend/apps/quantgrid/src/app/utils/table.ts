@@ -1,5 +1,4 @@
-import { SelectionEdges } from '@frontend/canvas-spreadsheet';
-import { GridTable } from '@frontend/common';
+import { GridTable, SelectionEdges } from '@frontend/canvas-spreadsheet';
 
 export function isTableInsideSelection(
   table: GridTable,

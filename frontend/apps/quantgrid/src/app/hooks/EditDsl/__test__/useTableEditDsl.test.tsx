@@ -3,32 +3,28 @@ import { SheetReader } from '@frontend/parser';
 import { act, RenderHookResult } from '@testing-library/react';
 
 import { useTableEditDsl } from '../useTableEditDsl';
+import { createWrapper, initialProps } from './createWrapper';
 import { hookTestSetup } from './hookTestSetup';
-import { RenderProps, TestWrapperProps } from './types';
-
-const initialProps: TestWrapperProps = {
-  appendToFn: jest.fn(),
-  manuallyUpdateSheetContent: jest.fn(() => Promise.resolve(true)),
-  projectName: 'project1',
-  sheetName: 'sheet1',
-};
+import { TestWrapperProps } from './types';
 
 describe('useTableEditDsl', () => {
-  let props: TestWrapperProps;
+  const props: TestWrapperProps = { ...initialProps };
   let result: RenderHookResult<
     ReturnType<typeof useTableEditDsl>,
     { dsl: string }
   >['result'];
-  let rerender: (props?: RenderProps) => void;
+  let setDsl: (dsl: string) => void;
+  let Wrapper: React.FC<React.PropsWithChildren>;
+
+  beforeAll(() => {
+    Wrapper = createWrapper(props);
+  });
 
   beforeEach(() => {
-    props = { ...initialProps };
     jest.clearAllMocks();
-
-    const hookRender = hookTestSetup(useTableEditDsl, props);
-
+    const hookRender = hookTestSetup(useTableEditDsl, Wrapper);
     result = hookRender.result;
-    rerender = hookRender.rerender;
+    setDsl = hookRender.setDsl;
   });
 
   describe('renameTable', () => {
@@ -36,7 +32,7 @@ describe('useTableEditDsl', () => {
       // Arrange
       const dsl = 'table t1 [f1]=1';
       const expectedDsl = 'table t2 [f1]=1\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => result.current.renameTable('t1', 't2'));
@@ -62,7 +58,7 @@ describe('useTableEditDsl', () => {
           content: dsl,
         },
       ] as never[];
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => result.current.renameTable('t1', 't2'));
@@ -81,7 +77,7 @@ describe('useTableEditDsl', () => {
       // Arrange
       const dsl = 'table t1 [f1]=1';
       const expectedDsl = `table 'table name with spaces' [f1]=1\r\n`;
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => result.current.renameTable('t1', 'table name with spaces'));
@@ -100,7 +96,7 @@ describe('useTableEditDsl', () => {
       // Arrange
       const dsl = '!layout(2, 1)\ntable t1 [f1]=1';
       const expectedDsl = `!layout(1, 1, "title")\ntable t2 [f1]=1\r\n`;
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => result.current.renameTable('t1', 't2', { showHeader: true }));
@@ -121,7 +117,7 @@ describe('useTableEditDsl', () => {
       // Arrange
       const dsl = '!layout(2, 1)\ntable t1\n[f1]=1';
       const expectedDsl = '!layout(2, 1, "title")\ntable t1\n[f1]=1\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => result.current.toggleTableTitleOrHeaderVisibility('t1', true));
@@ -140,7 +136,7 @@ describe('useTableEditDsl', () => {
       // Arrange
       const dsl = '!layout(2, 1, "title")\ntable t1\n[f1]=1';
       const expectedDsl = '!layout(2, 1)\ntable t1\n[f1]=1\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => result.current.toggleTableTitleOrHeaderVisibility('t1', true));
@@ -159,7 +155,7 @@ describe('useTableEditDsl', () => {
       // Arrange
       const dsl = '!layout(2, 1)\ntable t1\n[f1]=1';
       const expectedDsl = '!layout(2, 1, "headers")\ntable t1\n[f1]=1\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => result.current.toggleTableTitleOrHeaderVisibility('t1', false));
@@ -178,7 +174,7 @@ describe('useTableEditDsl', () => {
       // Arrange
       const dsl = '!layout(2, 1, "headers")\ntable t1\n[f1]=1';
       const expectedDsl = '!layout(2, 1)\ntable t1\n[f1]=1\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => result.current.toggleTableTitleOrHeaderVisibility('t1', false));
@@ -199,7 +195,7 @@ describe('useTableEditDsl', () => {
       // Arrange
       const dsl = '!layout(1, 2, "title")\n table t1 [f1]=1';
       const expectedDsl = '!layout(2, 3, "title")\n table t1 [f1]=1\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => result.current.moveTable('t1', 1, 1));
@@ -219,7 +215,7 @@ describe('useTableEditDsl', () => {
       // Arrange
       const dsl = 'table t1 [f1]=1';
       const expectedDsl = '!layout(3, 3)\ntable t1 [f1]=1\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => result.current.moveTable('t1', 2, 2));
@@ -239,7 +235,7 @@ describe('useTableEditDsl', () => {
     it('should do nothing if move to the same cell', () => {
       // Arrange
       const dsl = '!layout(2, 2, "title") table t1 [f1]=1';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => result.current.moveTableTo('t1', 2, 2));
@@ -253,7 +249,7 @@ describe('useTableEditDsl', () => {
       // Arrange
       const dsl = '!layout(1, 2, "title") table t1 [f1]=1';
       const expectedDsl = '!layout(5, 8, "title")\n table t1 [f1]=1\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => result.current.moveTableTo('t1', 5, 8));
@@ -273,7 +269,7 @@ describe('useTableEditDsl', () => {
       // Arrange
       const dsl = 'table t1 [f1]=1';
       const expectedDsl = '!layout(3, 3)\ntable t1 [f1]=1\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => result.current.moveTableTo('t1', 3, 3));
@@ -295,7 +291,7 @@ describe('useTableEditDsl', () => {
       const dsl = '!layout(1, 2, "title", "headers")\ntable t1 [f1]=1';
       const expectedDsl =
         '!layout(1, 2, "horizontal", "title", "headers")\ntable t1 [f1]=1\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => result.current.flipTable('t1'));
@@ -317,7 +313,7 @@ describe('useTableEditDsl', () => {
         '!layout(1, 2, "title", "headers", "horizontal")\ntable t1 [f1]=1';
       const expectedDsl =
         '!layout(1, 2, "title", "headers")\ntable t1 [f1]=1\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => result.current.flipTable('t1'));
@@ -341,7 +337,7 @@ describe('useTableEditDsl', () => {
         '!layout(1, 2, "title", "headers")\n!visualization("line-chart")\ntable t1 [f1]=1';
       const expectedDsl =
         '!layout(1, 2, "title", "headers")\ntable t1 [f1]=1\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => result.current.convertToTable('t1'));
@@ -364,7 +360,7 @@ describe('useTableEditDsl', () => {
       const dsl = '!some_decorator("some value")\ntable t1 [f1]=1';
       const expectedDsl =
         '!some_decorator("another value")\ntable t1 [f1]=1\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() =>
@@ -390,7 +386,7 @@ describe('useTableEditDsl', () => {
       // Arrange
       const dsl = '!some_decorator("some value")\ntable t1 [f1]=1';
       const expectedDsl = '!some_decorator()\ntable t1 [f1]=1\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() =>
@@ -414,7 +410,7 @@ describe('useTableEditDsl', () => {
       // Arrange
       const dsl = 'table t1 [f1]=1\n[f2]=2\n[f3]=3\n[f4]=4\n';
       const expectedDsl = 'table t1 [f1]=1\n[f3]=3\n[f2]=2\n[f4]=4\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => result.current.swapFields('t1', 'f3', 'f2', 'left'));
@@ -433,7 +429,7 @@ describe('useTableEditDsl', () => {
       // Arrange
       const dsl = 'table t1 [f1]=1\n[f2]=2\n[f3]=3\n[f4]=4\n';
       const expectedDsl = 'table t1 [f1]=1\n[f2]=2\n[f4]=4\n[f3]=3\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => result.current.swapFields('t1', 'f4', 'f3', 'right'));
@@ -454,7 +450,7 @@ describe('useTableEditDsl', () => {
       // Arrange
       const dsl = 'table t1 [f1]=1\n[f2]=2\n[f3]=3\n[f4]=4\n';
       const expectedDsl = 'table t1 [f1]=1\n[f3]=3\n[f2]=2\n[f4]=4\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => result.current.swapFieldsByDirection('t1', 'f3', 'left'));
@@ -473,7 +469,7 @@ describe('useTableEditDsl', () => {
       // Arrange
       const dsl = 'table t1 [f1]=1\n[f2]=2\n[f3]=3\n[f4]=4\n';
       const expectedDsl = 'table t1 [f1]=1\n[f2]=2\n[f4]=4\n[f3]=3\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => result.current.swapFieldsByDirection('t1', 'f3', 'right'));
@@ -493,7 +489,7 @@ describe('useTableEditDsl', () => {
       const dsl = 'table t1 [f1]=1\ndim [a], [b], [c] = t[[a],[b],[c]]';
       const expectedDsl =
         'table t1 dim [a], [b], [c] = t[[a],[b],[c]]\r\n[f1]=1\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => result.current.swapFieldsByDirection('t1', 'a', 'left'));
@@ -513,7 +509,7 @@ describe('useTableEditDsl', () => {
       const dsl = 'table t1 dim [a], [b], [c] = t[[a],[b],[c]]\n[f1]=1';
       const expectedDsl =
         'table t1 [f1]=1\r\ndim [a], [b], [c] = t[[a],[b],[c]]\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => result.current.swapFieldsByDirection('t1', 'c', 'right'));
@@ -532,7 +528,7 @@ describe('useTableEditDsl', () => {
       // Arrange
       const dsl = 'table t1\ndim [a], [b], [c] = t[[a],[b],[c]]\r\n';
       const expectedDsl = 'table t1\ndim [b], [a], [c] = t[[b],[a],[c]]\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => result.current.swapFieldsByDirection('t1', 'a', 'right'));
@@ -553,7 +549,7 @@ describe('useTableEditDsl', () => {
       // Arrange
       const dsl = 'table t1 [f1]=1\ntable t2 [f5]=1';
       const expectedDsl = 'table t1 [f1]=1\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => result.current.deleteTable('t2'));
@@ -571,7 +567,7 @@ describe('useTableEditDsl', () => {
       // Arrange
       const dsl = `table t1 [f1]=1\ntable 't spaces' [f5]=1`;
       const expectedDsl = 'table t1 [f1]=1\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => result.current.deleteTable(`'t spaces'`));
@@ -592,7 +588,7 @@ describe('useTableEditDsl', () => {
       // Arrange
       const dsl = 'table t1 [f1]=1\ntable t2 [f2]=2\ntable t3 [f3]=3';
       const expectedDsl = 'table t1 [f1]=1\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => result.current.deleteTables(['t2', 't3']));
@@ -614,7 +610,7 @@ describe('useTableEditDsl', () => {
       const dsl = 'table t1 [f1]=1\ntable t2 [f2]=2\ntable t3 [f3]=3\n';
       const expectedDsl =
         'table t2 [f2]=2\ntable t3 [f3]=3\n\r\ntable t1 [f1]=1\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => result.current.arrangeTable('t1', 'front'));
@@ -633,7 +629,7 @@ describe('useTableEditDsl', () => {
       const dsl = 'table t1 [f1]=1\ntable t2 [f2]=2\ntable t3 [f3]=3\n';
       const expectedDsl =
         'table t3 [f3]=3\n\r\ntable t1 [f1]=1\ntable t2 [f2]=2\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => result.current.arrangeTable('t3', 'back'));
@@ -653,7 +649,7 @@ describe('useTableEditDsl', () => {
       // Arrange
       const dsl = '!layout(1, 1)\ntable t1\n[a]=1\n[b]=2\n[c]=3';
       const expectedDsl = `!layout(1, 1)\ntable t1\n[a]=1\n[b]=2\n[c]=3\r\n!layout(2, 2)\ntable 't1 clone'\n[a]=1\n[b]=2\n[c]=3\r\n`;
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => result.current.cloneTable('t1'));
@@ -672,7 +668,7 @@ describe('useTableEditDsl', () => {
       // Arrange
       const dsl = `!layout(7,4,"title")\ntable '''Table1 clone'' clone'\n[Field1] = 123\n!layout(8, 5, "title")\ntable '''Table1 clone'' clone clone'\n[Field1] = 123`;
       const expectedDsl = `!layout(7,4,"title")\ntable '''Table1 clone'' clone'\n[Field1] = 123\n!layout(8, 5, "title")\ntable '''Table1 clone'' clone clone'\n[Field1] = 123\r\n!layout(8, 5, "title")\ntable '''Table1 clone'' clone clone1'\n[Field1] = 123\r\n`;
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => result.current.cloneTable(`'''Table1 clone'' clone'`));
@@ -713,8 +709,9 @@ describe('useTableEditDsl', () => {
           content: dslDestinationSheet,
         },
       ] as WorksheetState[];
+      Wrapper = createWrapper(props);
       props.sheetName = sourceSheetName;
-      const hookRender = hookTestSetup(useTableEditDsl, props);
+      const hookRender = hookTestSetup(useTableEditDsl, Wrapper);
       result = hookRender.result;
 
       // Act
@@ -771,7 +768,8 @@ describe('useTableEditDsl', () => {
         },
       ] as WorksheetState[];
       props.sheetName = sourceSheetName;
-      const hookRender = hookTestSetup(useTableEditDsl, props);
+      Wrapper = createWrapper(props);
+      const hookRender = hookTestSetup(useTableEditDsl, Wrapper);
       result = hookRender.result;
 
       // Act
@@ -832,7 +830,8 @@ describe('useTableEditDsl', () => {
         [destinationSheetName]: SheetReader.parseSheet(dslDestinationSheet),
       };
       props.sheetName = destinationSheetName;
-      const hookRender = hookTestSetup(useTableEditDsl, props);
+      Wrapper = createWrapper(props);
+      const hookRender = hookTestSetup(useTableEditDsl, Wrapper);
       result = hookRender.result;
 
       // Act

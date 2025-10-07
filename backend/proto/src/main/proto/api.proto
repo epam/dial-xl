@@ -259,6 +259,14 @@ message CompileWorksheetsRequest {
     map<string, string> worksheets = 1;
 }
 
+message Reference {
+    oneof key {
+        TableKey tableKey = 1;
+        FieldKey fieldKey = 2;
+        TotalKey totalKey = 3;
+    }
+}
+
 message FieldInfo {
     oneof key {
         FieldKey fieldKey = 1;
@@ -271,6 +279,8 @@ message FieldInfo {
     // name of the table in case ColumnDataType.TABLE
     optional string reference_table_name = 6;
     optional string hash = 7;
+    optional ColumnFormat format = 8;
+    repeated Reference references = 9;
 }
 
 message ParsedSheet {

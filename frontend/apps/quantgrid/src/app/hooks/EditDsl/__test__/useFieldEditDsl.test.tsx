@@ -1,4 +1,5 @@
-import fetchMock, { enableFetchMocks } from 'jest-fetch-mock';
+import fetchMock from 'jest-fetch-mock';
+import { BehaviorSubject } from 'rxjs';
 
 import { ColumnDataType, FormatKeys } from '@frontend/common';
 import {
@@ -8,37 +9,29 @@ import {
 import { act, RenderHookResult } from '@testing-library/react';
 
 import { useFieldEditDsl } from '../useFieldEditDsl';
+import { createWrapper, initialProps } from './createWrapper';
 import { hookTestSetup } from './hookTestSetup';
-import { RenderProps, TestWrapperProps } from './types';
-
-const initialProps: TestWrapperProps = {
-  appendToFn: jest.fn(),
-  manuallyUpdateSheetContent: jest.fn(() => Promise.resolve(true)),
-  projectName: 'project1',
-  sheetName: 'sheet1',
-};
-
-enableFetchMocks();
+import { TestWrapperProps } from './types';
 
 describe('useFieldEditDsl', () => {
-  let props: TestWrapperProps;
+  let props: TestWrapperProps = { ...initialProps };
   let result: RenderHookResult<
     ReturnType<typeof useFieldEditDsl>,
     { dsl: string }
   >['result'];
-  let rerender: (props?: RenderProps) => void;
+  let setDsl: (dsl: string) => void;
+  let Wrapper: React.FC<React.PropsWithChildren>;
   let dsl: string;
 
+  beforeAll(() => {
+    Wrapper = createWrapper(props);
+  });
+
   beforeEach(() => {
-    props = { ...initialProps };
     jest.clearAllMocks();
-    fetchMock.resetMocks();
-    dsl = '';
-
-    const hookRender = hookTestSetup(useFieldEditDsl, props);
-
+    const hookRender = hookTestSetup(useFieldEditDsl, Wrapper);
     result = hookRender.result;
-    rerender = hookRender.rerender;
+    setDsl = hookRender.setDsl;
   });
 
   describe('changeFieldDimension', () => {
@@ -47,7 +40,7 @@ describe('useFieldEditDsl', () => {
 
       dsl = 'table t1 dim [f1]=1\n[f2]=2';
       const expectedDsl = 'table t1 [f1]=1\n[f2]=2\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => result.current.changeFieldDimension('t1', 'f1', true));
@@ -65,7 +58,7 @@ describe('useFieldEditDsl', () => {
       // Arrange
       dsl = 'table t1 key dim [f1]=1\n[f2]=2';
       const expectedDsl = 'table t1 key [f1]=1\n[f2]=2\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => result.current.changeFieldDimension('t1', 'f1', true));
@@ -81,11 +74,11 @@ describe('useFieldEditDsl', () => {
 
     it('should do nothing if removing dimension from a non-dimension field', () => {
       // Arrange
-      dsl = 'table t1 [f1]=1\n[f2]=2';
-      rerender({ dsl });
+      dsl = 'table t1 key dim [f1]=1\n[f2]=2';
+      setDsl(dsl);
 
       // Act
-      act(() => result.current.changeFieldDimension('t1', 'f1', true));
+      act(() => result.current.changeFieldDimension('t1', 'f2', true));
 
       // Assert
       expect(props.appendToFn).not.toHaveBeenCalled();
@@ -94,9 +87,9 @@ describe('useFieldEditDsl', () => {
 
     it('should add dimension to a field', () => {
       // Arrange
-      dsl = 'table t1 [f1]=1\n[f2]=2';
-      const expectedDsl = 'table t1 [f1]=1\ndim [f2]=2\r\n';
-      rerender({ dsl });
+      dsl = 'table t1 key dim [f1]=1\n[f2]=2';
+      const expectedDsl = 'table t1 key dim [f1]=1\ndim [f2]=2\r\n';
+      setDsl(dsl);
 
       // Act
       act(() => result.current.changeFieldDimension('t1', 'f2'));
@@ -114,7 +107,7 @@ describe('useFieldEditDsl', () => {
       // Arrange
       const dsl = 'table t1 [f1]=1\nkey [f2]=2';
       const expectedDsl = 'table t1 [f1]=1\nkey dim [f2]=2\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => result.current.changeFieldDimension('t1', 'f2'));
@@ -130,11 +123,11 @@ describe('useFieldEditDsl', () => {
 
     it('should do nothing if add dimension to dimension field', () => {
       // Arrange
-      const dsl = 'table t1 [f1]=1\ndim [f2]=2';
-      rerender({ dsl });
+      const dsl = 'table t1 key dim [f1]=1\n[f2]=2';
+      setDsl(dsl);
 
       // Act
-      act(() => result.current.changeFieldDimension('t1', 'f2'));
+      act(() => result.current.changeFieldDimension('t1', 'f1'));
 
       // Assert
       expect(props.appendToFn).not.toHaveBeenCalled();
@@ -145,7 +138,7 @@ describe('useFieldEditDsl', () => {
       // Arrange
       dsl = 'table t1\n  [a],[b],[c] = INPUT("url")';
       const expectedDsl = 'table t1\n  dim [a],[b],[c] = INPUT("url")\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => result.current.changeFieldDimension('t1', 'a'));
@@ -163,7 +156,7 @@ describe('useFieldEditDsl', () => {
       // Arrange
       dsl = 'table t1\n  dim [a],[b],[c] = INPUT("url")';
       const expectedDsl = 'table t1\n  [a],[b],[c] = INPUT("url")\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => result.current.changeFieldDimension('t1', 'a', true));
@@ -181,15 +174,15 @@ describe('useFieldEditDsl', () => {
   describe('changeFieldKey', () => {
     it('should add key to field', () => {
       // Arrange
-      const dsl = 'table t1 [f1]=1\n[f2]=2';
-      const expectedDsl = 'table t1 [f1]=1\nkey [f2]=2\r\n';
-      rerender({ dsl });
+      const dsl = 'table t1 [f1]=1\nkey [f2]=2';
+      const expectedDsl = 'table t1 key [f1]=1\nkey [f2]=2\r\n';
+      setDsl(dsl);
 
       // Act
-      act(() => result.current.changeFieldKey('t1', 'f2'));
+      act(() => result.current.changeFieldKey('t1', 'f1'));
 
       // Assert
-      expect(props.appendToFn).toHaveBeenCalledWith(`Add key t1[f2]`, [
+      expect(props.appendToFn).toHaveBeenCalledWith(`Add key t1[f1]`, [
         { sheetName: props.sheetName, content: expectedDsl },
       ]);
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
@@ -200,7 +193,7 @@ describe('useFieldEditDsl', () => {
     it('should do nothing if add key to key field', () => {
       // Arrange
       const dsl = 'table t1 [f1]=1\nkey [f2]=2';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => result.current.changeFieldKey('t1', 'f2'));
@@ -214,7 +207,7 @@ describe('useFieldEditDsl', () => {
       // Arrange
       const dsl = 'table t1 [f1]=1 !size(3) [f2]=2';
       const expectedDsl = 'table t1 [f1]=1 !size(3) key [f2]=2\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => result.current.changeFieldKey('t1', 'f2'));
@@ -229,7 +222,7 @@ describe('useFieldEditDsl', () => {
       // Arrange
       const dsl = 'table t1 [f1]=1 !size(3) dim [f2]=2';
       const expectedDsl = 'table t1 [f1]=1 !size(3) dim key [f2]=2\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => result.current.changeFieldKey('t1', 'f2'));
@@ -242,9 +235,9 @@ describe('useFieldEditDsl', () => {
 
     it('should remove key', () => {
       // Arrange
-      const dsl = 'table t1 [f1]=1\nkey [f2]=2';
-      const expectedDsl = 'table t1 [f1]=1\n[f2]=2\r\n';
-      rerender({ dsl });
+      const dsl = 'table t1\n[f1]=1\nkey [f2]=2';
+      const expectedDsl = 'table t1\n[f1]=1\n[f2]=2\r\n';
+      setDsl(dsl);
 
       // Act
       act(() => result.current.changeFieldKey('t1', 'f2', true));
@@ -260,11 +253,11 @@ describe('useFieldEditDsl', () => {
 
     it('should do nothing if remove key from not key field', () => {
       // Arrange
-      const dsl = 'table t1 [f1]=1\n[f2]=2';
-      rerender({ dsl });
+      const dsl = 'table t1\n[f1]=1\nkey [f2]=2';
+      setDsl(dsl);
 
       // Act
-      act(() => result.current.changeFieldKey('t1', 'f2', true));
+      act(() => result.current.changeFieldKey('t1', 'f1', true));
 
       // Assert
       expect(props.appendToFn).not.toHaveBeenCalled();
@@ -277,7 +270,7 @@ describe('useFieldEditDsl', () => {
       // Arrange
       const dsl = 'table t1 [f1]=1\n[f2]=2';
       const expectedDsl = 'table t1 [f1]=1\n!index()\n  [f2]=2\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => result.current.changeFieldIndex('t1', 'f2'));
@@ -295,7 +288,7 @@ describe('useFieldEditDsl', () => {
       // Arrange
       const dsl = 'table t1 [f1]=1\n!index()\n[f2]=2';
       const expectedDsl = 'table t1 [f1]=1\n[f2]=2\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => result.current.changeFieldIndex('t1', 'f2', true));
@@ -316,7 +309,7 @@ describe('useFieldEditDsl', () => {
       const dsl = 'table t1 [f1]=1\n!index()\n[f2]=2';
       const expectedDsl =
         'table t1 [f1]=1\n!index()\n!description("field1")\n  [f2]=2\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => result.current.changeFieldDescription('t1', 'f2', 'field1'));
@@ -336,7 +329,7 @@ describe('useFieldEditDsl', () => {
       const dsl = 'table t1 [f1]=1\n[f2]=2';
       const expectedDsl =
         'table t1 [f1]=1\n!index()\n  !description("field1")\n  [f2]=2\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => result.current.changeFieldDescription('t1', 'f2', 'field1'));
@@ -355,7 +348,7 @@ describe('useFieldEditDsl', () => {
       // Arrange
       const dsl = 'table t1 [f1]=1\n!index()\n!description("field1")\n[f2]=2';
       const expectedDsl = 'table t1 [f1]=1\n!index()\n[f2]=2\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => result.current.changeFieldDescription('t1', 'f2', '', true));
@@ -376,7 +369,7 @@ describe('useFieldEditDsl', () => {
       // Arrange
       const dsl = 'table t1 [a]=1\n[b]=2\n[c]=3';
       const expectedDsl = `table t1 [a]=1\n!size(2)\n  [b]=2\n[c]=3\r\n`;
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => result.current.onIncreaseFieldColumnSize('t1', 'b'));
@@ -394,7 +387,7 @@ describe('useFieldEditDsl', () => {
       // Arrange
       const dsl = 'table t1 [a]=1\n##note\n[b]=2\n[c]=3';
       const expectedDsl = `table t1 [a]=1\n##note\n!size(2)\n  [b]=2\n[c]=3\r\n`;
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => result.current.onIncreaseFieldColumnSize('t1', 'b'));
@@ -412,7 +405,7 @@ describe('useFieldEditDsl', () => {
       // Arrange
       const dsl = 'table t1 [a]=1\n##note\ndim [b]=RANGE(7)\n[c]=3';
       const expectedDsl = `table t1 [a]=1\n##note\n!size(2)\n  dim [b]=RANGE(7)\n[c]=3\r\n`;
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => result.current.onIncreaseFieldColumnSize('t1', 'b'));
@@ -430,7 +423,7 @@ describe('useFieldEditDsl', () => {
       // Arrange
       const dsl = 'table t1 !size(5) [a]=1\n[b]=2\n[c]=3';
       const expectedDsl = `table t1 !size(6) [a]=1\n[b]=2\n[c]=3\r\n`;
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => result.current.onIncreaseFieldColumnSize('t1', 'a'));
@@ -451,7 +444,7 @@ describe('useFieldEditDsl', () => {
       // Arrange
       const dsl = 'table t1 [a]=1\n[b]=2\n[c]=3';
       const expectedDsl = `table t1 [a]=1\n[b]=2\n[c]=3\r\n`;
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => result.current.onDecreaseFieldColumnSize('t1', 'b'));
@@ -469,9 +462,9 @@ describe('useFieldEditDsl', () => {
 
     it('should update field sizes decorator correct', async () => {
       // Arrange
-      const dsl = 'table t1 !size(6) [a]=1\n[b]=2\n[c]=3\n';
-      const expectedDsl = `table t1 !size(5) [a]=1\n[b]=2\n[c]=3\r\n`;
-      rerender({ dsl });
+      const dsl = 'table t1 !size(5) [a]=1\n[b]=2\n[c]=3';
+      const expectedDsl = `table t1 !size(4) [a]=1\n[b]=2\n[c]=3\r\n`;
+      setDsl(dsl);
 
       // Act
       act(() => result.current.onDecreaseFieldColumnSize('t1', 'a'));
@@ -490,12 +483,12 @@ describe('useFieldEditDsl', () => {
   describe('onChangeFieldColumnSize', () => {
     it('should remove decorator if decrease width to 1 column', async () => {
       // Arrange
-      const dsl = 'table t1\n !size(6) [a]=1\n[b]=2\n[c]=3\n';
-      const expectedDsl = `table t1\n [a]=1\n[b]=2\n[c]=3\r\n`;
-      rerender({ dsl });
+      const dsl = 'table t1 !size(5) [a]=1\n[b]=2\n[c]=3';
+      const expectedDsl = `table t1 [a]=1\n[b]=2\n[c]=3\r\n`;
+      setDsl(dsl);
 
       // Act
-      act(() => result.current.onChangeFieldColumnSize('t1', 'a', -5));
+      act(() => result.current.onChangeFieldColumnSize('t1', 'a', -4));
 
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
@@ -514,7 +507,7 @@ describe('useFieldEditDsl', () => {
       const dsl = '!layout(1, 1)\ntable t1\n[f1]=1';
       const expectedDsl =
         '!layout(1, 1)\ntable t1\n!format("integer", 1)\n  [f1]=1\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() =>
@@ -537,7 +530,7 @@ describe('useFieldEditDsl', () => {
       const dsl = '!layout(1, 1)\ntable t1\n!format("any", 1) [f1]=1';
       const expectedDsl =
         '!layout(1, 1)\ntable t1\n!format("general") [f1]=1\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => result.current.setFormat('t1', 'f1', FormatKeys.General));
@@ -558,7 +551,7 @@ describe('useFieldEditDsl', () => {
       const dsl = '!layout(1, 1)\ntable t1\n!format("integer", 1) [f1]=1';
       const expectedDsl =
         '!layout(1, 1)\ntable t1\n!format("number", 22, 1) [f1]=1\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() =>
@@ -584,7 +577,7 @@ describe('useFieldEditDsl', () => {
         'table t1\nkey dim [source] = RANGE(10)\n[f1]=1\noverride\n[source],[f1]\n"1",123';
       const expectedDsl =
         'table t1\nkey dim [source] = RANGE(10)\n[f1]=1234\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() =>
@@ -605,7 +598,7 @@ describe('useFieldEditDsl', () => {
       // Arrange
       const dsl = '!manual()\ntable t1\n[f1]=1\noverride\n[f1]\n123';
       const expectedDsl = '\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() =>
@@ -638,7 +631,7 @@ describe('useFieldEditDsl', () => {
       // Arrange
       const dsl = 'table t1 [f1]=1';
       const expectedDsl = 'table t1 [f1]=2 + 2\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
       fetchMock.mockResponseOnce(mockedResponse);
 
       // Act
@@ -658,7 +651,7 @@ describe('useFieldEditDsl', () => {
       // Arrange
       const dsl = 'table t1 [f1]=1';
       const expectedDsl = 'table t1 [f1]=2 + 2\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
       fetchMock.mockResponseOnce(mockedResponse);
 
       // Act
@@ -677,13 +670,13 @@ describe('useFieldEditDsl', () => {
     it('should wrap expression in ERR function if tries to add table or field', async () => {
       // Arrange
       const dsl = 'table t1 [f1]=1';
-      const expectedDsl = `table t1 [f1]=ERR("2\ntable t2 [f]=2")\r\n`;
-      rerender({ dsl });
+      const expectedDsl = `table t1 [f1]=ERR("2 table t2 [f]=2")\r\n`;
+      setDsl(dsl);
       fetchMock.mockResponseOnce(mockedResponse);
 
       // Act
       await act(() =>
-        result.current.editExpression('t1', 'f1', '2\ntable t2 [f]=2')
+        result.current.editExpression('t1', 'f1', '2 table t2 [f]=2')
       );
 
       // Assert
@@ -700,7 +693,7 @@ describe('useFieldEditDsl', () => {
       // Arrange
       const dsl = 'table t1 [f1]';
       const expectedDsl = 'table t1 [f1] = 2 + 2\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
       fetchMock.mockResponseOnce(mockedResponse);
 
       // Act
@@ -720,7 +713,7 @@ describe('useFieldEditDsl', () => {
       // Arrange
       const dsl = 'table t1 [f1] = 1 + 1';
       const expectedDsl = 'table t1 dim [f1] = RANGE(10)\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
       fetchMock.mockResponseOnce(mockedResponseNested);
 
       // Act
@@ -741,7 +734,7 @@ describe('useFieldEditDsl', () => {
       // Arrange
       const dsl = 'table t1 [x] = "test"';
       const expectedDsl = 'table t1 [x], [b] = T1(1)[[a],[b]]\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
       const mockedResponse = JSON.stringify({
         dimensionalSchemaResponse: {
           schema: ['a', 'b'],
@@ -770,7 +763,7 @@ describe('useFieldEditDsl', () => {
       // Arrange
       const dsl = 'table t1 [x], [b] = T1(1)[[a],[b]]\n[Column1] = 1';
       const expectedDsl = 'table t1 [x] = T1(1)\n[Column1] = 1\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
       const mockedResponse = JSON.stringify({
         dimensionalSchemaResponse: {
           schema: ['a', 'b', 'c'],
@@ -797,7 +790,7 @@ describe('useFieldEditDsl', () => {
       // Arrange
       const dsl = 'table t1 [x], [b] = T1(1)[[a],[b]]';
       const expectedDsl = 'table t1 [x], [b], [c] = T1(1)[[a],[b],[c]]\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
       const mockedResponse = JSON.stringify({
         dimensionalSchemaResponse: {
           schema: ['a', 'b', 'c'],
@@ -825,7 +818,7 @@ describe('useFieldEditDsl', () => {
       const dsl = 'table t1 [x], [b] = T1(1)[[a],[b]]';
       const expectedDsl =
         'table t1 dim [x], [b], [c] = INPUT("url")[[a],[b],[c]]\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
       const mockedResponse = JSON.stringify({
         dimensionalSchemaResponse: {
           schema: ['a', 'b', 'c'],
@@ -851,7 +844,7 @@ describe('useFieldEditDsl', () => {
     it('should do nothing if no target field', async () => {
       // Arrange
       const dsl = 'table t1 [f1]=1';
-      rerender({ dsl });
+      setDsl(dsl);
       fetchMock.mockResponseOnce(mockedResponse);
 
       await act(() => result.current.editExpression('t1', 'f2', '2 + 2'));
@@ -865,7 +858,7 @@ describe('useFieldEditDsl', () => {
       // Arrange
       const dsl = 'table t1 dim [x] = RANGE(10)\n[y] = 1';
       const expectedDsl = 'table t1 dim [x] = RANGE(8)\n[y] = 1\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
       const mockedResponse = JSON.stringify({
         dimensionalSchemaResponse: {
           schema: [],
@@ -894,7 +887,7 @@ describe('useFieldEditDsl', () => {
         'table t1 dim [country], [*] = PIVOT(A[country], A[indicator], A[value], "SUM")';
       const expectedDsl =
         'table t1 dim [country], [*] = PIVOT(A[country], A[indicator], A[value], "AVG")\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
       const mockedResponse = JSON.stringify({
         dimensionalSchemaResponse: {
           schema: ['country', '*'],
@@ -930,7 +923,7 @@ describe('useFieldEditDsl', () => {
       const dsl = `!layout(1, 1)\ntable t1\n!x()\n[f1]=1\n[f2]=2`;
       const expectedDsl = `!layout(1, 1)\ntable t1\n[f1]=1\n[f2]=2\r\n`;
       const historyTitle = `history message`;
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() =>
@@ -954,7 +947,7 @@ describe('useFieldEditDsl', () => {
     it('should do nothing if there is no decorator', () => {
       // Arrange
       const dsl = `!layout(1, 1)\ntable t1\n!size(2)\n[f1]=1\n[f2]=2`;
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() =>
@@ -976,7 +969,7 @@ describe('useFieldEditDsl', () => {
       const dsl = `!layout(1, 1)\ntable t1\n!x()\n[f1]=1\n[f2]=2\n`;
       const expectedDsl = `!layout(1, 1)\ntable t1\n[f1]=1\n[f2]=2\r\n`;
       const historyTitle = `history message`;
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() =>
@@ -1002,7 +995,7 @@ describe('useFieldEditDsl', () => {
       const dsl = `!layout(1, 1)\ntable t1\n  !x() [f1]=1\n  [f2]=2\n`;
       const expectedDsl = `!layout(1, 1)\ntable t1\n  [f1]=1\n  [f2]=2\r\n`;
       const historyTitle = `history message`;
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() =>
@@ -1028,7 +1021,7 @@ describe('useFieldEditDsl', () => {
       const dsl = `!layout(1, 1)\ntable t1\n  !size(2)\n  !x()\n  [f1]=1\n  [f2]=2\r\n`;
       const expectedDsl = `!layout(1, 1)\ntable t1\n  !size(2)\n  [f1]=1\n  [f2]=2\r\n`;
       const historyTitle = `history message`;
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() =>
@@ -1056,7 +1049,7 @@ describe('useFieldEditDsl', () => {
       const dsl = `!layout(1, 1)\ntable t1\n  [f1]=1\n  [f2]=2`;
       const expectedDsl = `!layout(1, 1)\ntable t1\n  !x()\n  [f1]=1\n  [f2]=2\r\n`;
       const historyTitle = `history message`;
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() =>
@@ -1083,7 +1076,7 @@ describe('useFieldEditDsl', () => {
       const dsl = `!layout(1, 1)\ntable t1\n  [f1]=1\n  [f2]=2\r\n`;
       const expectedDsl = `!layout(1, 1)\ntable t1\n  !selector("some value")\n  [f1]=1\n  [f2]=2\r\n`;
       const historyTitle = `history message`;
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() =>
@@ -1110,7 +1103,7 @@ describe('useFieldEditDsl', () => {
       const dsl = `!layout(1, 1)\ntable t1\n!selector("some value")\n[f1]=1\n[f2]=2\r\n`;
       const expectedDsl = `!layout(1, 1)\ntable t1\n!selector("another value")\n[f1]=1\n[f2]=2\r\n`;
       const historyTitle = `history message`;
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() =>
@@ -1137,7 +1130,7 @@ describe('useFieldEditDsl', () => {
       const dsl = `!layout(1, 1)\ntable t1\n  !selector("some value")\n  [f1]=1\n  [f2]=2`;
       const expectedDsl = `!layout(1, 1)\ntable t1\n  !selector("some value")\n  !x()\n  [f1]=1\n  [f2]=2\r\n`;
       const historyTitle = `history message`;
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() =>
@@ -1166,7 +1159,7 @@ describe('useFieldEditDsl', () => {
       const dsl = `!layout(1, 1)\ntable t1\n  !x()\n  [f1]=1\n  [f2]=2`;
       const expectedDsl = `!layout(1, 1)\ntable t1\n  [f1]=1\n  !x()\n  [f2]=2\r\n`;
       const historyTitle = `history message`;
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() =>
@@ -1194,7 +1187,7 @@ describe('useFieldEditDsl', () => {
       const dsl = `!layout(1, 1)\ntable t1\n  [f1]=1\n  !x()\n  [f2]=2`;
       const expectedDsl = `!layout(1, 1)\ntable t1\n  !x()\n  [f1]=1\n  [f2]=2\r\n`;
       const historyTitle = `history message`;
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() =>
@@ -1222,7 +1215,7 @@ describe('useFieldEditDsl', () => {
       const dsl = `!layout(1, 1)\ntable t1\n  !x()\n  [f1]=1\n  [f2]=2`;
       const expectedDsl = `!layout(1, 1)\ntable t1\n  [f1]=1\n  !x()\n  [f2]=2\r\n`;
       const historyTitle = `history message`;
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() =>
@@ -1251,7 +1244,7 @@ describe('useFieldEditDsl', () => {
       // Arrange
       const dsl = `!layout(2, 4, "title", "headers")\ntable t1\n  [f1]=1\n  [f2]=2`;
       const expectedDsl = `!layout(2, 4, "title", "headers")\ntable t1\n  [f1]=1\n  [f2]=2\r\n  [Field1]\noverride\nrow,[Field1]\n6,33\r\n`;
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() =>
@@ -1278,7 +1271,7 @@ describe('useFieldEditDsl', () => {
       // Arrange
       const dsl = `!layout(2, 4, "horizontal", "title", "headers")\ntable t1\n  [f1]=1\n  [f2]=2`;
       const expectedDsl = `!layout(2, 4, "horizontal", "title", "headers")\ntable t1\n  [f1]=1\n  [f2]=2\r\n  [Field1]\noverride\nrow,[Field1]\n3,33\r\n`;
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() =>
@@ -1327,7 +1320,7 @@ describe('useFieldEditDsl', () => {
       // Arrange
       const dsl = 'table t1\n  [f1]=1';
       const expectedDsl = 'table t1\n  [f1]=1\r\n  [f2] = 2 + 2\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
       fetchMock.mockResponseOnce(emptyResponse);
 
       // Act
@@ -1346,7 +1339,7 @@ describe('useFieldEditDsl', () => {
       // Arrange
       const dsl = 'table t1';
       const expectedDsl = 'table t1\r\n  [f2] = 2 + 2\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
       fetchMock.mockResponseOnce(emptyResponse);
 
       // Act
@@ -1365,7 +1358,7 @@ describe('useFieldEditDsl', () => {
       // Arrange
       const dsl = `table t1\n  [f1] = 2`;
       const expectedDsl = 'table t1\n  [field]\n  [f1] = 2\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
       fetchMock.mockResponseOnce(emptyResponse);
 
       // Act
@@ -1391,7 +1384,7 @@ describe('useFieldEditDsl', () => {
       const dsl = 'table t1\n  [f1] = 2\n  [f2] = 3\n  [f3] = 4';
       const expectedDsl =
         'table t1\n  [f1] = 2\n  [field]\n  [f2] = 3\n  [f3] = 4\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
       fetchMock.mockResponseOnce(emptyResponse);
 
       // Act
@@ -1417,7 +1410,7 @@ describe('useFieldEditDsl', () => {
       const dsl = 'table t1\n  [f1] = 2\n  [f2] = 3\n  [f3] = 4';
       const expectedDsl =
         'table t1\n  [f1] = 2\n  [field]\n  [f2] = 3\n  [f3] = 4\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
       fetchMock.mockResponseOnce(emptyResponse);
 
       // Act
@@ -1443,7 +1436,7 @@ describe('useFieldEditDsl', () => {
       const dsl = 'table t1  [f1] = 2  [f2] = 3  [f3] = 4';
       const expectedDsl =
         'table t1  [f1] = 2  [f2] = 3  [f3] = 4\r\n  [field]\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
       fetchMock.mockResponseOnce(emptyResponse);
 
       // Act
@@ -1468,7 +1461,7 @@ describe('useFieldEditDsl', () => {
       const dsl = 'table t1  [f1] = 2  [f2] = 3  [f3] = 4';
       const expectedDsl =
         'table t1  [f1] = 2  [f2] = 3  [f3] = 4\r\n  [field]\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
       fetchMock.mockResponseOnce(emptyResponse);
 
       // Act
@@ -1489,7 +1482,7 @@ describe('useFieldEditDsl', () => {
       const dsl = 'table t1\n[Column1] = 1\n[Column2] = 2';
       const expectedDsl =
         'table t1\n[Column1] = 1\n[Column2] = 2\r\n  [Column3] = 3 + 3\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
       fetchMock.mockResponseOnce(emptyResponse);
 
       // Act
@@ -1509,7 +1502,7 @@ describe('useFieldEditDsl', () => {
       // Arrange
       const dsl = 'table t1\n[a] = 1\n[b] = 2';
       const expectedDsl = 'table t1\n[a] = 1\n[b] = 2\r\n  [Column1] = t\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
       fetchMock.mockResponseOnce(mockedTableReferenceResponse);
 
       // Act
@@ -1530,7 +1523,7 @@ describe('useFieldEditDsl', () => {
       const dsl = 'table t1\n[a] = 1\n[b] = 2';
       const expectedDsl =
         'table t1\n[a] = 1\n[b] = 2\r\n  [a1], [b1], [c] = INPUT("url")[[a],[b],[c]]\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
       fetchMock.mockResponseOnce(mockedTableValueResponse);
 
       // Act
@@ -1551,7 +1544,7 @@ describe('useFieldEditDsl', () => {
       const dsl = 'table t1\n[a] = 1\n[b] = 2';
       const expectedDsl =
         'table t1\n[a] = 1\n[b] = 2\r\n  [q], [w], [e] = INPUT("url")[[a],[b],[c]]\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
       fetchMock.mockResponseOnce(mockedTableValueResponse);
 
       // Act
@@ -1572,7 +1565,7 @@ describe('useFieldEditDsl', () => {
       const dsl = 'table t1\n[a] = 1\n[b] = 2';
       const expectedDsl =
         'table t1\n[a] = 1\n[b] = 2\r\n  [q], [w], [c] = INPUT("url")[[a],[b],[c]]\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
       fetchMock.mockResponseOnce(mockedTableValueResponse);
 
       // Act
@@ -1593,7 +1586,7 @@ describe('useFieldEditDsl', () => {
       const dsl = 'table t1\n[a] = 1\n[b] = 2';
       const expectedDsl =
         'table t1\n[a] = 1\n[b] = 2\r\n  [c] = INPUT("url")[c]\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
       fetchMock.mockResponseOnce(
         JSON.stringify({
           dimensionalSchemaResponse: {
@@ -1621,8 +1614,8 @@ describe('useFieldEditDsl', () => {
   describe('removeFieldSizes', () => {
     it('should do nothing if table does not contain custom field sizes', () => {
       // Arrange
-      const dsl = 'table t1\n  [f1] = 1\n  [f2] = 2\n  [f3] = 2\n';
-      rerender({ dsl });
+      const dsl = 'table t1\n[a] = 1\n[b] = 2';
+      setDsl(dsl);
 
       // Act
       act(() => result.current.removeFieldSizes('t1'));
@@ -1637,7 +1630,7 @@ describe('useFieldEditDsl', () => {
       const dsl =
         'table t1\n  !size(10)\n  [f1] = 1\n  !size(20)\n  [f2] = 2\n  [f3] = 2';
       const expectedDsl = 'table t1\n  [f1] = 1\n  [f2] = 2\n  [f3] = 2\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => result.current.removeFieldSizes('t1'));
@@ -1655,6 +1648,12 @@ describe('useFieldEditDsl', () => {
 
   describe('autoFitTableFields', () => {
     beforeEach(() => {
+      const selection$ = new BehaviorSubject({
+        startCol: 2,
+        startRow: 4,
+        endCol: 5,
+        endRow: 8,
+      });
       props = { ...initialProps };
       props.gridApi = {
         getCanvasSymbolWidth: () => 6,
@@ -1666,13 +1665,15 @@ describe('useFieldEditDsl', () => {
             padding: 4,
           },
         },
+        selection$,
+        updateSelectionAfterDataChanged: jest.fn(),
       } as any;
       jest.clearAllMocks();
 
-      const hookRender = hookTestSetup(useFieldEditDsl, props);
-
+      Wrapper = createWrapper(props);
+      const hookRender = hookTestSetup(useFieldEditDsl, Wrapper);
       result = hookRender.result;
-      rerender = hookRender.rerender;
+      setDsl = hookRender.setDsl;
     });
 
     it('should add field to table', () => {
@@ -1681,7 +1682,7 @@ describe('useFieldEditDsl', () => {
         'table t1\n  [very_very_very_long_name_field_1] = 1\n  [very_very_very_long_name_field_2] = 2';
       const expectedDsl =
         'table t1\n  !size(4)\n  [very_very_very_long_name_field_1] = 1\n  !size(4)\n  [very_very_very_long_name_field_2] = 2\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => result.current.autoFitTableFields('t1'));

@@ -1,11 +1,17 @@
 import * as PIXI from 'pixi.js';
 import isEqual from 'react-fast-compare';
 
-import { AppTheme, ColumnDataType, GridCell } from '@frontend/common';
+import { AppTheme, ColumnDataType } from '@frontend/common';
 import { TotalType } from '@frontend/parser';
 
 import { ComponentLayer, GridSizes } from '../../../constants';
-import { GridApi, GridCallbacks, IconCell, IconMetadata } from '../../../types';
+import {
+  GridApi,
+  GridCallbacks,
+  GridCell,
+  IconCell,
+  IconMetadata,
+} from '../../../types';
 
 export function getCellIcon(
   cellData: GridCell,
@@ -229,7 +235,7 @@ export function getIconOptions(
 export function getFullIconName(iconName: string, themeName: AppTheme): string {
   const theme = themeName === AppTheme.ThemeDark ? 'Dark' : 'Light';
 
-  return `assets/icons/canvasGrid/${iconName}${theme}.svg`;
+  return `icons/canvasGrid/${iconName}${theme}.svg`;
 }
 
 function getTotalIcon(totalType: TotalType): string | undefined {
@@ -242,6 +248,7 @@ function getTotalIcon(totalType: TotalType): string | undefined {
     ['mode', 'totalMode'],
     ['max', 'totalMax'],
     ['min', 'totalMin'],
+    ['countUnique', 'totalCount'],
     ['custom', 'totalCustom'],
   ];
 
@@ -288,6 +295,7 @@ export function getTotalIconTooltip(totalType: TotalType): string {
     ['mode', 'Mode'],
     ['max', 'Max'],
     ['min', 'Min'],
+    ['countUnique', 'Count Unique'],
     ['custom', 'Custom'],
   ];
 

@@ -11,6 +11,7 @@ import {
   FieldReferenceExpression,
   FieldsReferenceExpression,
   FunctionExpression,
+  Missing,
   parseUnaryOperation,
   QueryRowExpression,
   RowReferenceExpression,
@@ -530,9 +531,20 @@ export class SheetReader implements SheetListener {
     const functionName = ctx.function_name();
 
     if (functionName) {
-      const args: Expression[] = ctx
-        .expression_list()
-        .map((p) => this.buildExpression(p));
+      const args: Expression[] = [];
+
+      for (const eCtx of ctx.expression_list()) {
+        args.push(this.buildExpression(eCtx));
+      }
+
+      for (const aCtx of ctx.function_argument_list()) {
+        const e = aCtx.expression?.();
+        if (e) {
+          args.push(this.buildExpression(e));
+        } else {
+          args.push(new Missing(Span.fromParserRuleContext(aCtx)));
+        }
+      }
 
       const { start, stop } = functionName;
       const text = functionName.getText();

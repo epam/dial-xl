@@ -4,7 +4,6 @@ import {
   getDropdownDivider,
   getDropdownItem,
   getDropdownMenuKey,
-  GridCell,
   GridListFilter,
   HeaderIcon,
   isComplexType,
@@ -20,7 +19,7 @@ import {
 } from '@frontend/common';
 import { naExpression } from '@frontend/parser';
 
-import { GridApi, GridCallbacks } from '../../../../types';
+import { GridCallbacks, GridCell } from '../../../../types';
 import { spreadsheetMenuKeys as menuKey } from '../config';
 import { ContextMenuKeyData } from '../types';
 import {
@@ -37,6 +36,7 @@ import {
   noteRemoveItem,
   orientationItem,
   sortItem,
+  switchInput,
   totalItem,
 } from './commonItem';
 
@@ -45,8 +45,7 @@ export const getTableCellMenuItems = (
   row: number,
   cell: GridCell,
   gridCallbacks: GridCallbacks,
-  filterList: GridListFilter[],
-  gridApi: GridApi | null
+  filterList: GridListFilter[]
 ) => {
   const { field, table, totalIndex, totalExpression } = cell;
 
@@ -71,6 +70,7 @@ export const getTableCellMenuItems = (
     totalFieldTypes,
     isIndex,
     isDescription,
+    isInput,
     hasOverrides: fieldHasOverrides,
   } = field;
 
@@ -113,7 +113,7 @@ export const getTableCellMenuItems = (
       }),
       icon: (
         <Icon
-          className="text-textSecondary w-[18px]"
+          className="text-text-secondary w-[18px]"
           component={() => (
             <TableArrowIcon secondaryAccentCssVar="text-accent-secondary" />
           )}
@@ -131,7 +131,7 @@ export const getTableCellMenuItems = (
       }),
       icon: (
         <Icon
-          className="text-textSecondary w-[18px]"
+          className="text-text-secondary w-[18px]"
           component={() => (
             <EditFilledIcon secondaryAccentCssVar="text-accent-primary" />
           )}
@@ -139,6 +139,7 @@ export const getTableCellMenuItems = (
       ),
       shortcut: shortcutApi.getLabel(Shortcut.Rename),
     }),
+    isInput ? switchInput(col, row) : null,
     fieldTagsItem(
       col,
       row,
@@ -160,7 +161,7 @@ export const getTableCellMenuItems = (
           }),
           icon: (
             <Icon
-              className="text-textSecondary w-[18px]"
+              className="text-text-secondary w-[18px]"
               component={() => <HeaderIcon />}
             />
           ),
@@ -175,7 +176,7 @@ export const getTableCellMenuItems = (
           }),
           icon: (
             <Icon
-              className="text-textSecondary w-[18px]"
+              className="text-text-secondary w-[18px]"
               component={() => (
                 <OverrideIcon secondaryAccentCssVar="text-accent-secondary" />
               )}
@@ -196,7 +197,7 @@ export const getTableCellMenuItems = (
           label: 'Remove total',
           icon: (
             <Icon
-              className="text-textAccentTertiary w-[18px]"
+              className="text-text-accent-tertiary w-[18px]"
               component={() => <TotalOffIcon />}
             />
           ),
@@ -229,7 +230,7 @@ export const getTableCellMenuItems = (
       ),
       icon: (
         <Icon
-          className="text-textSecondary w-[18px]"
+          className="text-text-secondary w-[18px]"
           component={() => <TagIcon />}
         />
       ),

@@ -16,7 +16,7 @@ export const AggregationSelector = ({
 }: Props) => {
   return (
     <div className="my-3">
-      <label className="block text-[12px] text-textSecondary mb-1">
+      <label className="block text-[12px] text-text-secondary mb-1">
         Aggregation Function:
       </label>
       <Select

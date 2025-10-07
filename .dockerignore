@@ -5,4 +5,4 @@ backend/*/build
 !backend/web/build/libs
 
 frontend/*
-!frontend/dist/apps/quantgrid
+!frontend/dist

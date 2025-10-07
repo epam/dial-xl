@@ -109,7 +109,7 @@ public class CompileController {
 
         ResultType resultType = ResultType.toResultType(result);
         Api.FieldInfo fieldInfo = ApiMessageMapper.toFieldInfo(ApiMessageMapper.DIMENSIONAL_SCHEMA_REQUEST_FIELD,
-                null, resultType);
+                compiler.lookupReferences(table, parsedFormula.formula()), null, resultType);
         return Api.DimensionalSchemaResponse.newBuilder()
                 .setFormula(request.getFormula())
                 .addAllSchema(fields)

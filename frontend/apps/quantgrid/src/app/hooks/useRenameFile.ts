@@ -1,4 +1,5 @@
 import { useCallback } from 'react';
+import { toast } from 'react-toastify';
 
 import {
   appMessages,
@@ -23,10 +24,15 @@ export function useRenameFile() {
     async ({
       name,
       bucket,
-      path,
+      parentPath,
       newName,
       newNameIsFull = false,
-    }: FileReference & { newName: string; newNameIsFull?: boolean }) => {
+    }: FileReference & {
+      newName: string;
+      newNameIsFull?: boolean;
+    }) => {
+      toast.loading(`Renaming ${name}...`, { toastId: 'loading' });
+
       const initialFileName = name.substring(0, name.lastIndexOf('.'));
       const fileExtension = name.substring(name.lastIndexOf('.'));
       const isProject = fileExtension === dialProjectFileExtension;
@@ -35,24 +41,21 @@ export function useRenameFile() {
         ? await renameProjectRequest({
             fileName: name,
             newFileName: newFullFileName,
-            parentPath: path,
+            parentPath,
             bucket,
           })
         : await renameFileRequest({
             fileName: name,
             newFileName: newFullFileName,
-            parentPath: path,
+            parentPath,
             bucket,
           });
 
-      if (!res) return;
+      if (!res) {
+        toast.dismiss('loading');
 
-      displayToast(
-        'success',
-        isProject
-          ? appMessages.renameProjectSuccess
-          : appMessages.renameFileSuccess
-      );
+        return;
+      }
 
       const isCsvFile = name.endsWith(csvFileExtension);
       const isNewCsvFile = newFullFileName.endsWith(csvFileExtension);
@@ -68,22 +71,30 @@ export function useRenameFile() {
           await renameFileRequest({
             fileName: schemaName,
             newFileName: newSchemaName,
-            parentPath: path,
+            parentPath,
             bucket,
           });
         } else {
           await deleteFileRequest({
             fileName: schemaName,
-            path,
+            parentPath,
             bucket,
           });
         }
       }
 
       if (isProject) {
-        renameProjectHistory(initialFileName, newName, bucket, path);
-        renameRecentProject(initialFileName, newName, bucket, path);
+        renameProjectHistory(initialFileName, newName, bucket, parentPath);
+        renameRecentProject(initialFileName, newName, bucket, parentPath);
       }
+
+      toast.dismiss('loading');
+      displayToast(
+        'success',
+        isProject
+          ? appMessages.renameProjectSuccess
+          : appMessages.renameFileSuccess
+      );
 
       return {};
     },

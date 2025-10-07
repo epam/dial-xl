@@ -66,7 +66,7 @@ export function DeleteSheet({ deleteSheetModal }: Props) {
       cancelButtonProps={{
         className: cx(modalFooterButtonClasses, secondaryButtonClasses),
       }}
-      destroyOnClose={true}
+      destroyOnHidden={true}
       okButtonProps={{
         className: cx(
           modalFooterButtonClasses,
@@ -79,7 +79,7 @@ export function DeleteSheet({ deleteSheetModal }: Props) {
       onCancel={handleCancel}
       onOk={handleOk}
     >
-      <span className="text-textPrimary">
+      <span className="text-text-primary">
         Do you want to remove sheet {sheetName}?
       </span>
     </Modal>

@@ -114,12 +114,12 @@ export const DraggableItem = ({ item, containerId, onMoveItem }: Props) => {
         {...listeners}
         {...attributes}
         className={classNames(
-          'px-2 py-1 mb-2 rounded-[3px] text-[13px] flex items-center bg-bgLayer4 hover:opacity-80 cursor-grab group',
+          'px-2 py-1 mb-2 rounded-[3px] text-[13px] flex items-center bg-bg-layer-4 hover:opacity-80 cursor-grab group',
           isDragging ? 'opacity-50' : 'opacity-100'
         )}
       >
         <Icon
-          className="w-[18px] shrink-0 mr-1 text-textSecondary"
+          className="w-[18px] shrink-0 mr-1 text-text-secondary"
           component={() => <DragCardIcon />}
         />
         <span className="truncate text-[13px] font-medium min-w-0 flex-1">

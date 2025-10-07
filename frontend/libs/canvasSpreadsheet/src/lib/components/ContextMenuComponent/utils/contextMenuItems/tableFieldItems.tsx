@@ -4,7 +4,6 @@ import {
   getDropdownDivider,
   getDropdownItem,
   getDropdownMenuKey,
-  GridCell,
   GridListFilter,
   Header2Icon,
   isComplexType,
@@ -17,7 +16,7 @@ import {
   TagIcon,
 } from '@frontend/common';
 
-import { GridApi, GridCallbacks } from '../../../../types';
+import { GridCallbacks, GridCell } from '../../../../types';
 import { spreadsheetMenuKeys as menuKey } from '../config';
 import { ContextMenuKeyData } from '../types';
 import {
@@ -34,6 +33,7 @@ import {
   noteRemoveItem,
   orientationItem,
   sortItem,
+  switchInput,
   totalItem,
 } from './commonItem';
 
@@ -42,8 +42,7 @@ export const getTableFieldMenuItems = (
   row: number,
   cell: GridCell,
   gridCallbacks: GridCallbacks,
-  filterList: GridListFilter[],
-  gridApi: GridApi | null
+  filterList: GridListFilter[]
 ) => {
   const { field, table } = cell;
 
@@ -68,6 +67,7 @@ export const getTableFieldMenuItems = (
     totalFieldTypes,
     isIndex,
     isDescription,
+    isInput,
     hasOverrides: fieldHasOverrides,
   } = field;
 
@@ -97,7 +97,7 @@ export const getTableFieldMenuItems = (
       }),
       icon: (
         <Icon
-          className="text-textSecondary w-[18px]"
+          className="text-text-secondary w-[18px]"
           component={() => (
             <TableArrowIcon secondaryAccentCssVar="text-accent-secondary" />
           )}
@@ -119,12 +119,13 @@ export const getTableFieldMenuItems = (
       }),
       icon: (
         <Icon
-          className="text-textAccentPrimary w-[18px]"
+          className="text-text-accent-primary w-[18px]"
           component={() => <FormulaIcon />}
         />
       ),
       shortcut: shortcutApi.getLabel(Shortcut.EditExpression),
     }),
+    isInput ? switchInput(col, row) : null,
     getDropdownItem({
       label: 'Rename column',
       key: getDropdownMenuKey<ContextMenuKeyData>(menuKey.renameField, {
@@ -133,7 +134,7 @@ export const getTableFieldMenuItems = (
       }),
       icon: (
         <Icon
-          className="text-textSecondary w-[18px]"
+          className="text-text-secondary w-[18px]"
           component={() => <Header2Icon />}
         />
       ),
@@ -177,7 +178,7 @@ export const getTableFieldMenuItems = (
       label: 'Open in Editor',
       icon: (
         <Icon
-          className="text-textSecondary w-[18px]"
+          className="text-text-secondary w-[18px]"
           component={() => <TagIcon />}
         />
       ),

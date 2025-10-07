@@ -11,7 +11,7 @@ import {
   primaryDisabledButtonClasses,
 } from '@frontend/common';
 
-import { LongCalcStatus } from '../../../common';
+import { LongCalcStatuses } from '../../../common';
 import { ProjectContext } from '../../../context';
 import { useApiRequests } from '../../../hooks';
 import { constructPath, encodeApiUrl } from '../../../utils';
@@ -37,7 +37,7 @@ export function LongCalculation() {
 
     if (!res) return;
 
-    setLongCalcStatus(LongCalcStatus.Accepted);
+    setLongCalcStatus(LongCalcStatuses.Accepted);
   }, [
     projectBucket,
     projectName,
@@ -55,7 +55,7 @@ export function LongCalculation() {
 
     if (!res) return;
 
-    setLongCalcStatus(LongCalcStatus.Cancelled);
+    setLongCalcStatus(LongCalcStatuses.Cancelled);
   }, [
     projectBucket,
     projectName,
@@ -67,12 +67,12 @@ export function LongCalculation() {
   const content = useMemo(() => {
     return (
       <div className="max-h-[50vh] max-w-[200px] overflow-auto thin-scrollbar flex flex-col gap-2">
-        {longCalcStatus === LongCalcStatus.NeedAccept && (
+        {longCalcStatus === LongCalcStatuses.NeedAccept && (
           <>
-            <span className="text-[13px] text-textPrimary">
+            <span className="text-[13px] text-text-primary">
               Running the project calculation may take a while.
             </span>
-            <span className="text-[13px] text-textPrimary">
+            <span className="text-[13px] text-text-primary">
               Press <b>Accept</b> to keep calculations running in the
               background.
             </span>
@@ -89,9 +89,9 @@ export function LongCalculation() {
           </>
         )}
 
-        {longCalcStatus === LongCalcStatus.Accepted && (
+        {longCalcStatus === LongCalcStatuses.Accepted && (
           <>
-            <span className="text-[13px] text-textPrimary">
+            <span className="text-[13px] text-text-primary">
               A long calculation is in progress. You can cancel at any time.
             </span>
             <Button
@@ -116,12 +116,12 @@ export function LongCalculation() {
         <Icon
           className={cx(
             'w-[18px]',
-            longCalcStatus === LongCalcStatus.NeedAccept
-              ? 'text-textError'
-              : 'text-textWarning'
+            longCalcStatus === LongCalcStatuses.NeedAccept
+              ? 'text-text-error'
+              : 'text-text-warning'
           )}
           component={() =>
-            longCalcStatus === LongCalcStatus.NeedAccept ? (
+            longCalcStatus === LongCalcStatuses.NeedAccept ? (
               <ClockExclamationIcon />
             ) : (
               <ClockCancelIcon />
@@ -133,14 +133,14 @@ export function LongCalculation() {
   }, [longCalcStatus]);
 
   useEffect(() => {
-    if (longCalcStatus !== LongCalcStatus.NeedAccept) return;
+    if (longCalcStatus !== LongCalcStatuses.NeedAccept) return;
 
     setIsPopoverOpen(true);
   }, [longCalcStatus]);
 
   if (
-    longCalcStatus === LongCalcStatus.None ||
-    longCalcStatus === LongCalcStatus.Cancelled ||
+    longCalcStatus === LongCalcStatuses.None ||
+    longCalcStatus === LongCalcStatuses.Cancelled ||
     !hasEditPermissions
   )
     return null;
@@ -148,7 +148,7 @@ export function LongCalculation() {
   return (
     <Popover
       content={content}
-      destroyTooltipOnHide={true}
+      destroyOnHidden={true}
       open={isPopoverOpen}
       trigger={['hover', 'click']}
       onOpenChange={setIsPopoverOpen}

@@ -151,7 +151,7 @@ export const Conversations = () => {
         return {
           key,
           title: isUserLocalConversation ? (
-            <Tooltip placement="top" title={name}>
+            <Tooltip placement="top" title={name} destroyOnHidden>
               <span
                 className="truncate flex justify-between group items-center"
                 id={key}
@@ -169,9 +169,13 @@ export const Conversations = () => {
             </span>
           ),
           icon: isUserLocalConversation ? (
-            <Tooltip placement="top" title="This chat is visible only for you">
+            <Tooltip
+              placement="top"
+              title="This chat is visible only for you"
+              destroyOnHidden
+            >
               <Icon
-                className="text-textSecondary w-[18px]"
+                className="text-text-secondary w-[18px]"
                 component={() =>
                   isPlayback ? (
                     <PlayAvatarIcon secondaryAccentCssVar="text-accent-primary" />
@@ -183,7 +187,7 @@ export const Conversations = () => {
             </Tooltip>
           ) : (
             <Icon
-              className="text-textSecondary w-[18px]"
+              className="text-text-secondary w-[18px]"
               component={() => (isPlayback ? <PlayIcon /> : <ChatIcon />)}
             />
           ),
@@ -209,7 +213,7 @@ export const Conversations = () => {
 
   return (
     <div
-      className="overflow-auto thin-scrollbar w-full h-full bg-bgLayer3"
+      className="overflow-auto thin-scrollbar w-full h-full bg-bg-layer-3"
       id={conversationsTreeId}
     >
       {isConversationsLoading ? (
@@ -227,7 +231,7 @@ export const Conversations = () => {
           >
             <div>
               <Tree.DirectoryTree
-                className="bg-bgLayer3 text-textPrimary"
+                className="bg-bg-layer-3 text-text-primary"
                 expandAction={false}
                 multiple={false}
                 selectedKeys={selectedKeys}

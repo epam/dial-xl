@@ -15,7 +15,7 @@ export class ProjectSelection {
 
   private welcomeMessage = 'Recent';
 
-  private projectInList = 'span.text-textPrimary';
+  private projectInList = 'span.text-text-primary';
 
   private cleanMask = '[data-file-name]';
 
@@ -48,7 +48,7 @@ export class ProjectSelection {
   }
 
   private currentFolderMatchLocator(folderName: string) {
-    return `span.text-textPrimary>[title='${folderName}']`;
+    return `span.text-text-primary>[title='${folderName}']`;
   }
 
   private treeStructureElementLocator(itemName: string) {

@@ -25,7 +25,7 @@ export const ProjectPanelSectionHeader = ({
   return (
     <div
       className={classNames(
-        'sticky select-none cursor-pointer h-[42px] flex gap-1 items-center overflow-hidden z-10 bg-bgLayer3 text-textPrimary px-3 py-3 [&:not(:first-child)]:border-t border-strokePrimary',
+        'sticky select-none cursor-pointer h-[42px] flex gap-1 items-center overflow-hidden z-10 bg-bg-layer-3 text-text-primary px-3 py-3 not-first:border-t border-stroke-primary',
         projectPanelSectionHeaderClass
       )}
       style={{

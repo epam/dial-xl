@@ -133,10 +133,14 @@ export function FormulasMenu({ position, place }: Props) {
   );
 
   useEffect(() => {
+    const tableNames = Object.values(parsedSheets)
+      .flatMap((sheet) => sheet.tables.map((t) => t.tableName))
+      .sort();
+
     setContextMenuItems(
       getFormulasMenuItems(
         functions,
-        parsedSheets,
+        tableNames,
         inputList,
         handleCreateTableBySize
       )
@@ -150,7 +154,7 @@ export function FormulasMenu({ position, place }: Props) {
   return (
     <Dropdown
       autoAdjustOverflow={true}
-      destroyPopupOnHide={true}
+      destroyOnHidden={true}
       forceRender={true}
       menu={{ items: contextMenuItems, onClick }}
       open={contextMenuOpen}

@@ -77,11 +77,14 @@ export function Profile() {
         {/* Index section */}
         {indexProfiles.length > 0 && (
           <div className="flex flex-col gap-1">
-            <span className="text-textPrimary font-semibold text-[13px]">
+            <span className="text-text-primary font-semibold text-[13px]">
               Index
             </span>
             {indexProfiles.map((p, i) => (
-              <span className="text-textSecondary text-[13px]" key={`idx-${i}`}>
+              <span
+                className="text-text-secondary text-[13px]"
+                key={`idx-${i}`}
+              >
                 {p.label}
               </span>
             ))}
@@ -91,11 +94,14 @@ export function Profile() {
         {/* Compute section */}
         {computeProfiles.length > 0 && (
           <div className="flex flex-col gap-1">
-            <span className="text-textPrimary font-semibold text-[13px]">
+            <span className="text-text-primary font-semibold text-[13px]">
               Compute
             </span>
             {computeProfiles.map((p, i) => (
-              <span className="text-textSecondary text-[13px]" key={`cmp-${i}`}>
+              <span
+                className="text-text-secondary text-[13px]"
+                key={`cmp-${i}`}
+              >
                 {p.label}
               </span>
             ))}
@@ -128,21 +134,24 @@ export function Profile() {
       <div className="flex items-center gap-1">
         {profileMainLabel === 'Complete' ? (
           <Icon
-            className="text-textAccentTertiary w-[18px]"
+            className="text-text-accent-tertiary w-[18px]"
             component={() => <CheckIcon />}
           />
         ) : (
           <Spin
             indicator={
-              <LoadingOutlined className="text-textAccentPrimary" spin />
+              <LoadingOutlined className="text-text-accent-primary" spin />
             }
             size="small"
           />
         )}
         <span
-          className={cx('text-[13px] leading-[18px] select-none w-[60px]', {
-            'font-semibold': calculateIndex,
-          })}
+          className={cx(
+            'hidden @[500px]/bottom-bar:inline-block text-[13px] leading-[18px] select-none w-[60px]',
+            {
+              'font-semibold': calculateIndex,
+            }
+          )}
         >
           {profileMainLabel}
         </span>
@@ -157,7 +166,7 @@ export function Profile() {
   return (
     <Popover
       content={profileContent}
-      destroyTooltipOnHide={true}
+      destroyOnHidden={true}
       trigger={['hover', 'click']}
     >
       {profileTrigger}

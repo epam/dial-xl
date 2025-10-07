@@ -1,5 +1,6 @@
 import pytest
 
+from dial_xl.compile import PrimitiveFieldType, GeneralFormat
 from dial_xl.overrides import Override, Overrides
 from tests.common import create_sheet, create_project, SHEET_NAME
 
@@ -176,6 +177,7 @@ async def test_remove_override_line():
 
     assert sheet.to_dsl() == "table A\n  [a] = NA\noverride\n[a]\n1\n"
 
+
 @pytest.mark.asyncio
 async def test_override_errors():
     project = await create_project(
@@ -196,8 +198,9 @@ async def test_override_errors():
     assert "Second" in table.overrides[0].error("b")
     assert "First" in table.overrides[1].error("b")
 
+
 @pytest.mark.asyncio
-async def test_manual_override_errors():
+async def test_manual_override_types_and_errors():
     project = await create_project(
         "!manual()"
         "table A\n"
@@ -215,6 +218,13 @@ async def test_manual_override_errors():
 
     sheet = project.get_sheet(SHEET_NAME)
     table = sheet.get_table("A")
+    overrides = table.overrides
 
-    assert "First" in table.overrides[1].error("a")
-    assert "Second" in table.overrides[3].error("a")
+    assert overrides[0].type("a") == PrimitiveFieldType(
+        hash="", name="DOUBLE", is_nested=False, format=GeneralFormat()
+    )
+    assert "First" in overrides[1].error("a")
+    assert overrides[2].type("a") == PrimitiveFieldType(
+        hash="", name="DOUBLE", is_nested=False, format=GeneralFormat()
+    )
+    assert "Second" in overrides[3].error("a")

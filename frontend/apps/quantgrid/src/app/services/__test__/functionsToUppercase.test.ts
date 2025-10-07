@@ -9,7 +9,7 @@ export const functionsMock: FunctionInfo[] = [
     description: '',
   },
   {
-    name: 'FILTER',
+    name: 'FIND',
     arguments: [],
     description: '',
   },
@@ -44,8 +44,8 @@ describe('functionsToUppercase', () => {
 
   it('should make function name uppercase', () => {
     // Arrange
-    const expression = 'T.filter($[a] > 0)';
-    const expectedExpression = 'T.FILTER($[a] > 0)';
+    const expression = 't1.find([id])[b]';
+    const expectedExpression = 't1.FIND([id])[b]';
 
     // Act
     const result = functionsToUppercase(expression, functionsMock);

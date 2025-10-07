@@ -12,7 +12,7 @@ export function FormulaBar() {
 
   return (
     <div
-      className="hidden md:block w-screen bg-bgLayer3 text-textPrimary border-b border-b-strokeTertiary"
+      className="hidden md:block w-screen bg-bg-layer-3 text-text-primary border-b border-b-stroke-tertiary"
       style={{
         height: containerHeight,
         minHeight: containerHeight,

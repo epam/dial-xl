@@ -1,7 +1,9 @@
+# See https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files for more about ignoring files.
+
 # compiled output
 dist
 tmp
-/out-tsc
+out-tsc
 
 # dependencies
 node_modules
@@ -16,7 +18,11 @@ node_modules
 *.sublime-workspace
 
 # IDE - VSCode
-.vscode
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
 
 # misc
 /.sass-cache
@@ -39,10 +45,20 @@ testem.log
 .DS_Store
 Thumbs.db
 
+.nx/cache
+.nx/workspace-data
+.cursor/rules/nx-rules.mdc
+.github/instructions/nx.instructions.md
+
+vite.config.*.timestamp*
+vitest.config.*.timestamp*
+test-output
+tsconfig.tsbuildinfo
+
 .env
 libs/parser/src/lib/grammar/*
 !libs/parser/src/lib/grammar/.gitkeep
-external-env.js
+
 
 # Tests
 /allure-results
@@ -50,7 +66,3 @@ external-env.js
 test-results
 folderName.txt
 playwright/.auth
-
-
-/.nx/cache
-.nx/workspace-data

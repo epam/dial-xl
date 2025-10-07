@@ -80,7 +80,7 @@ export function RowNumbers() {
     [getCellFromCoords]
   );
 
-  const handleMouseOut = useCallback((e: PIXI.FederatedPointerEvent) => {
+  const handleMouseOut = useCallback(() => {
     setHoveredRow(undefined);
 
     if (!graphicsRef.current) return;

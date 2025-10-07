@@ -70,12 +70,12 @@ export function ChatPanel({ panelName, position, isActive }: PanelProps) {
         return getDropdownItem({
           key: `${item.id}_${i}`,
           label: (
-            <Tooltip placement="top" title={formattedName}>
+            <Tooltip placement="top" title={formattedName} destroyOnHidden>
               <span
                 className={classNames(
                   'flex items-center gap-1',
                   selectedConversation?.id === item.id &&
-                    'text-textAccentPrimary'
+                    'text-text-accent-primary'
                 )}
               >
                 <span className="truncate max-w-[270px]">{formattedName}</span>
@@ -99,20 +99,21 @@ export function ChatPanel({ panelName, position, isActive }: PanelProps) {
               <Tooltip
                 placement="top"
                 title="This chat is visible only for you"
+                destroyOnHidden
               >
                 <Icon
-                  className="text-textSecondary w-[18px] shrink-0"
+                  className="text-text-secondary w-[18px] shrink-0"
                   component={() => (
                     <ChatAvatarIcon secondaryAccentCssVar="text-accent-primary" />
                   )}
                 />
               </Tooltip>
-              <Tooltip placement="top" title={item.name}>
+              <Tooltip placement="top" title={item.name} destroyOnHidden>
                 <span
                   className={classNames(
                     'truncate max-w-[270px]',
                     selectedConversation?.id === item.id &&
-                      'text-textAccentPrimary italic'
+                      'text-text-accent-primary italic'
                   )}
                 >
                   {item.name}
@@ -273,7 +274,7 @@ export function ChatPanel({ panelName, position, isActive }: PanelProps) {
                   {selectedConversationName}
                 </span>
                 <Icon
-                  className="w-4 text-textSecondary shrink-0"
+                  className="w-4 text-text-secondary shrink-0"
                   component={() => <ChevronDown />}
                 />
               </span>
@@ -290,13 +291,17 @@ export function ChatPanel({ panelName, position, isActive }: PanelProps) {
               trigger={['click', 'contextMenu']}
             >
               <Icon
-                className="w-4 text-textSecondary"
+                className="w-4 text-text-secondary"
                 component={() => <DotsIcon />}
               />
             </Dropdown>
-            <Tooltip placement="bottom" title="Create new conversation">
+            <Tooltip
+              placement="bottom"
+              title="Create new conversation"
+              destroyOnHidden
+            >
               <button
-                className="size-5 flex items-center justify-center bg-bgAccentPrimaryAlpha text-textAccentPrimary rounded-full"
+                className="size-5 flex items-center justify-center bg-bg-accent-primary-alpha text-text-accent-primary rounded-full"
                 onClick={createConversation}
               >
                 <Icon className="w-3" component={() => <PlusIcon />} />

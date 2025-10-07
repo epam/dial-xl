@@ -2,32 +2,28 @@ import { FilterOperator } from '@frontend/parser';
 import { act, RenderHookResult } from '@testing-library/react';
 
 import { useFilterEditDsl } from '../useFilterEditDsl';
+import { createWrapper, initialProps } from './createWrapper';
 import { hookTestSetup } from './hookTestSetup';
-import { RenderProps, TestWrapperProps } from './types';
-
-const initialProps: TestWrapperProps = {
-  appendToFn: jest.fn(),
-  manuallyUpdateSheetContent: jest.fn(() => Promise.resolve(true)),
-  projectName: 'project1',
-  sheetName: 'sheet1',
-};
+import { TestWrapperProps } from './types';
 
 describe('useFilterEditDsl', () => {
-  let props: TestWrapperProps;
+  const props: TestWrapperProps = { ...initialProps };
   let hook: RenderHookResult<
     ReturnType<typeof useFilterEditDsl>,
     { dsl: string }
   >['result'];
-  let rerender: (props?: RenderProps) => void;
+  let setDsl: (dsl: string) => void;
+  let Wrapper: React.FC<React.PropsWithChildren>;
+
+  beforeAll(() => {
+    Wrapper = createWrapper(props);
+  });
 
   beforeEach(() => {
-    props = { ...initialProps };
     jest.clearAllMocks();
-
-    const hookRender = hookTestSetup(useFilterEditDsl, props);
-
+    const hookRender = hookTestSetup(useFilterEditDsl, Wrapper);
     hook = hookRender.result;
-    rerender = hookRender.rerender;
+    setDsl = hookRender.setDsl;
   });
 
   describe('applyConditionFilter for numeric type', () => {
@@ -36,7 +32,7 @@ describe('useFilterEditDsl', () => {
       const dsl = 'table t1 [f1]=1 [f2]=2';
       const expectedDsl =
         'table t1 [f1]=1 [f2]=2\r\napply\nfilter [f1] > 1\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() =>
@@ -51,9 +47,10 @@ describe('useFilterEditDsl', () => {
 
     it('should change single numeric filter block', () => {
       // Arrange
-      const dsl = 'table t1 [f1]=1 [f2]=2\napply\nfilter [f1] > 1';
-      const expectedDsl = 'table t1 [f1]=1 [f2]=2\napply\nfilter [f1] >= 2\r\n';
-      rerender({ dsl });
+      const dsl = 'table t1\n[f1]=1\n[f2]=2\napply\nfilter [f1] > 1';
+      const expectedDsl =
+        'table t1\n[f1]=1\n[f2]=2\napply\nfilter [f1] >= 2\r\n';
+      setDsl(dsl);
 
       // Act
       act(() =>
@@ -68,10 +65,10 @@ describe('useFilterEditDsl', () => {
 
     it('should add numeric filter to existing one', () => {
       // Arrange
-      const dsl = 'table t1\n[f1]=1\n[f2]=2\napply\nfilter [f1] >= 2';
+      const dsl = 'table t1\n[f1]=1\n[f2]=2\napply\nfilter [f1] > 1';
       const expectedDsl =
-        'table t1\n[f1]=1\n[f2]=2\napply\nfilter [f1] >= 2 AND [f2] > 1\r\n';
-      rerender({ dsl });
+        'table t1\n[f1]=1\n[f2]=2\napply\nfilter [f1] > 1 AND [f2] > 1\r\n';
+      setDsl(dsl);
 
       // Act
       act(() =>
@@ -90,7 +87,7 @@ describe('useFilterEditDsl', () => {
         'table t1\n[f1]=1\n[f2]=2\napply\nfilter [f1] > 1 AND [f2] > 1';
       const expectedDsl =
         'table t1\n[f1]=1\n[f2]=2\napply\nfilter [f1] > 1\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() =>
@@ -105,10 +102,11 @@ describe('useFilterEditDsl', () => {
 
     it('should add numeric filter to existing text filter', () => {
       // Arrange
-      const dsl = 'table t1\n[f1]=TEXT(1)\n[f2]=2\napply\nfilter [f1] = "1"';
+      const dsl =
+        'table t1\n[f1]=TEXT(1)\n[f2]=2\napply\nfilter [f1] = "text1"';
       const expectedDsl =
-        'table t1\n[f1]=TEXT(1)\n[f2]=2\napply\nfilter [f1] = "1" AND [f2] > 1\r\n';
-      rerender({ dsl });
+        'table t1\n[f1]=TEXT(1)\n[f2]=2\napply\nfilter [f1] = "text1" AND [f2] > 1\r\n';
+      setDsl(dsl);
 
       // Act
       act(() =>
@@ -126,7 +124,7 @@ describe('useFilterEditDsl', () => {
       const dsl = 'table t1 [f1]=1 [f2]=2';
       const expectedDsl =
         'table t1 [f1]=1 [f2]=2\r\napply\nfilter BETWEEN([f1],1,3)\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() =>
@@ -152,7 +150,7 @@ describe('useFilterEditDsl', () => {
       const dsl = 'table t1 [f1]=1 [f2]=2';
       const expectedDsl =
         'table t1 [f1]=1 [f2]=2\r\napply\nfilter CONTAINS([f1],"1")\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() =>
@@ -176,7 +174,7 @@ describe('useFilterEditDsl', () => {
       const dsl = 'table t1 [f1]=1 [f2]=2';
       const expectedDsl =
         'table t1 [f1]=1 [f2]=2\r\napply\nfilter NOT CONTAINS([f1],"1")\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() =>
@@ -200,7 +198,7 @@ describe('useFilterEditDsl', () => {
       const dsl = 'table t1 [f1]=1 [f2]=2';
       const expectedDsl =
         'table t1 [f1]=1 [f2]=2\r\napply\nfilter LEFT([f1],1) = "1"\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() =>
@@ -224,7 +222,7 @@ describe('useFilterEditDsl', () => {
       const dsl = 'table t1 [f1]=1 [f2]=2';
       const expectedDsl =
         'table t1 [f1]=1 [f2]=2\r\napply\nfilter BETWEEN([f1],"1","3")\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() =>
@@ -249,7 +247,7 @@ describe('useFilterEditDsl', () => {
         'table t1\n[f1]=1\n[f2]=2\napply\nfilter NOT CONTAINS([f1], "1")';
       const expectedDsl =
         'table t1\n[f1]=1\n[f2]=2\napply\nfilter NOT CONTAINS([f1],"1") AND [f2] = "2"\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() =>
@@ -275,7 +273,7 @@ describe('useFilterEditDsl', () => {
       const dsl = 'table t1 [f1]=1 [f2]=2';
       const expectedDsl =
         'table t1 [f1]=1 [f2]=2\r\napply\nfilter [f1] = "text"\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => hook.current.applyListFilter('t1', 'f1', ['text'], false));
@@ -288,10 +286,11 @@ describe('useFilterEditDsl', () => {
 
     it('should change text filter block', () => {
       // Arrange
-      const dsl = 'table t1 [f1]=1 [f2]=2\napply\nfilter [f1] = "text1"';
+      const dsl =
+        'table t1\n[f1]=TEXT(1)\n[f2]=2\napply\nfilter [f1] = "text1"';
       const expectedDsl =
-        'table t1 [f1]=1 [f2]=2\napply\nfilter [f1] = "text1" OR [f1] = "text2"\r\n';
-      rerender({ dsl });
+        'table t1\n[f1]=TEXT(1)\n[f2]=2\napply\nfilter [f1] = "text1" OR [f1] = "text2"\r\n';
+      setDsl(dsl);
 
       // Act
       act(() =>
@@ -309,7 +308,7 @@ describe('useFilterEditDsl', () => {
       const dsl = 'table t1 [f1]=1 [f2]=2';
       const expectedDsl =
         'table t1 [f1]=1 [f2]=2\r\napply\nfilter [f1] = "some_filter"\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() =>
@@ -326,7 +325,7 @@ describe('useFilterEditDsl', () => {
       // Arrange
       const dsl = 'table t1 [f1]=1 [f2]=2';
       const expectedDsl = `table t1 [f1]=1 [f2]=2\r\napply\nfilter [f1] = "fil''ter"\r\n`;
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => hook.current.applyListFilter('t1', 'f1', [`fil'ter`], false));
@@ -342,7 +341,7 @@ describe('useFilterEditDsl', () => {
       const dsl =
         'table t1 [f1]=1 [f2]=2\napply\nfilter [f1] = "1" OR [f1] = "2"';
       const expectedDsl = 'table t1 [f1]=1 [f2]=2\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => hook.current.applyListFilter('t1', 'f1', [], false));

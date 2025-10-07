@@ -5,11 +5,11 @@ import {
   ColumnDataType,
   isNumericType,
   SelectedChartKey,
-  TableData,
   Viewport,
 } from '@frontend/common';
 import { unescapeTableName } from '@frontend/parser';
 
+import { TableData } from './types';
 import { ViewGridData } from './ViewGridData';
 
 const defaultChartViewportRows = 1000;
@@ -218,7 +218,7 @@ export class ViewportChartBuilder {
         is_content: true,
         fieldKey: {
           field,
-          table: tableName,
+          table: unescapeTableName(tableName),
         },
         is_raw: true,
       }))

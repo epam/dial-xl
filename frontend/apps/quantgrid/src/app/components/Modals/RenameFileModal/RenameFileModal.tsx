@@ -46,7 +46,7 @@ export function RenameFileModal({ item, onModalClose }: Props) {
     await renameFile({
       name,
       bucket,
-      path: parentPath,
+      parentPath,
       newName: newFileName,
       newNameIsFull: true,
     });
@@ -108,6 +108,7 @@ export function RenameFileModal({ item, onModalClose }: Props) {
       inputRef.current.focus({
         cursor: 'end',
       });
+      inputRef.current.select();
     }, 0);
   }, [isOpen]);
 
@@ -130,7 +131,7 @@ export function RenameFileModal({ item, onModalClose }: Props) {
         className: cx(modalFooterButtonClasses, secondaryButtonClasses),
         disabled: loading,
       }}
-      destroyOnClose={true}
+      destroyOnHidden={true}
       okButtonProps={{
         className: cx(
           modalFooterButtonClasses,
@@ -148,20 +149,25 @@ export function RenameFileModal({ item, onModalClose }: Props) {
       onCancel={handleCancel}
       onOk={handleOk}
     >
-      <div className="flex gap-2 items-center relative">
-        <Input
-          className={cx('h-12 my-3', inputClasses, isProject && 'pr-12')}
-          placeholder="File name"
-          ref={inputRef}
-          value={newFileName}
-          autoFocus
-          onChange={onNameChange}
-        />
-        {isProject && (
-          <span className="absolute right-4 top-[calc(50%-10px)]">
-            {dialProjectFileExtension}
-          </span>
-        )}
+      <div className="flex flex-col gap-1 mt-4">
+        <label className="text-xs text-text-secondary" htmlFor="projectName">
+          {isProject ? 'Project' : 'File'} name after renaming
+        </label>
+        <div className="flex gap-2 items-center relative">
+          <Input
+            className={cx('h-12 my-3', inputClasses, isProject && 'pr-12')}
+            placeholder={isProject ? 'Project name' : 'File name'}
+            ref={inputRef}
+            value={newFileName}
+            autoFocus
+            onChange={onNameChange}
+          />
+          {isProject && (
+            <span className="absolute right-4 top-[calc(50%-10px)]">
+              {dialProjectFileExtension}
+            </span>
+          )}
+        </div>
       </div>
     </Modal>
   );

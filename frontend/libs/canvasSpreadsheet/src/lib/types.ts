@@ -6,23 +6,28 @@ import {
   CellPlacement,
   ChartsData,
   ChartType,
+  ColumnDataType,
+  ColumnFormat,
   FieldSortOrder,
-  FilesMetadata,
   FormulaBarMode,
   FunctionInfo,
   GPTFocusColumn,
   GPTSuggestion,
-  GridCell,
   GridChart,
-  GridData,
   GridFilterType,
   GridListFilter,
-  GridTable,
+  ResourceMetadata,
+  SharedWithMeMetadata,
   SystemMessageParsedContent,
   TableArrangeType,
   ViewportInteractionMode,
 } from '@frontend/common';
-import { OverrideValue, ParsedSheets, TotalType } from '@frontend/parser';
+import {
+  OverrideValue,
+  ParsedConditionFilter,
+  ParsedSheets,
+  TotalType,
+} from '@frontend/parser';
 
 import {
   CellEditorExplicitOpenOptions,
@@ -66,9 +71,7 @@ export type GridApi = {
 
   setCellValue: (col: number, row: number, value: string) => void;
 
-  gridViewportSubscription: (
-    callback: (deltaX: number, deltaY: number) => void
-  ) => () => void;
+  gridViewportSubscription: (callback: () => void) => () => void;
 
   tooltipEvent$: Subject<GridTooltipEvent>;
   openTooltip: (x: number, y: number, message: string) => void;
@@ -134,7 +137,7 @@ export type GridProps = {
   filterList: GridListFilter[];
   tableStructure: GridTable[];
   columnSizes: Record<string, number>;
-  inputFiles: FilesMetadata[] | null;
+  inputFiles: (ResourceMetadata | SharedWithMeMetadata)[] | null;
 
   onScroll: GridCallbacks['onScroll'];
   onSelectionChange: GridCallbacks['onSelectionChange'];
@@ -361,6 +364,8 @@ export type GridCallbacks = {
   onSelectTableForChart?: (tableName: string, chartTableName: string) => void;
   onChartDblClick?: () => void;
   onDownloadTable?: (tableName: string) => Promise<void>;
+  onGridExpand?: () => void;
+  onSwitchInput?: (tableName: string, fieldName: string) => void;
 };
 
 export type Color = number | string;
@@ -538,4 +543,91 @@ export type VerticalDirection = 'up' | 'down';
 export type SelectionOptions = {
   selectedTable?: string;
   silent?: boolean;
+};
+
+export type GridTable = {
+  startRow: number;
+  startCol: number;
+  endCol: number;
+  endRow: number;
+  tableName: string;
+  chartType?: ChartType;
+  isTableNameHeaderHidden: boolean;
+  isTableFieldsHeaderHidden: boolean;
+  isTableHorizontal: boolean;
+  totalSize: number;
+  hasKeys: boolean;
+  isManual: boolean;
+  highlightType?: 'DIMMED' | 'NORMAL' | 'HIGHLIGHTED' | undefined;
+  note: string;
+  fieldNames: string[];
+};
+
+export type GridField = {
+  fieldName: string;
+  expression: string;
+  isKey: boolean;
+  isDim: boolean;
+  isNested: boolean;
+  isPeriodSeries: boolean;
+  isDynamic: boolean;
+  isFiltered: boolean;
+  filter?: ParsedConditionFilter;
+  totalFieldTypes?: TotalType[];
+  sort: FieldSortOrder;
+  isFieldUsedInSort: boolean;
+  type: ColumnDataType;
+  format: ColumnFormat | undefined;
+  referenceTableName?: string;
+  note?: string;
+  hasError: boolean;
+  errorMessage?: string;
+  highlightType?: 'DIMMED' | 'NORMAL' | 'HIGHLIGHTED' | undefined;
+  isInput: boolean;
+  isIndex: boolean;
+  isDescription: boolean;
+  descriptionField?: string;
+  dataLength: number;
+  hasOverrides: boolean;
+};
+
+export type GridCell = {
+  table?: GridTable;
+  field?: GridField;
+  value?: string;
+  displayValue?: string;
+
+  hasError?: boolean;
+  errorMessage?: string;
+
+  totalIndex?: number;
+  totalType?: TotalType;
+  totalExpression?: string;
+
+  row: number;
+  col: number;
+  dataIndex?: number;
+
+  overrideIndex?: number;
+  overrideValue?: OverrideValue;
+  isOverride?: boolean;
+
+  isUrl?: boolean;
+
+  isTableHeader?: boolean;
+  isFieldHeader?: boolean;
+
+  isRightAligned?: boolean;
+
+  startCol: number;
+  endCol: number;
+
+  startGroupColOrRow: number;
+  endGroupColOrRow: number;
+};
+
+export type RowData = { [col: string]: GridCell };
+
+export type GridData = {
+  [row: string]: RowData;
 };

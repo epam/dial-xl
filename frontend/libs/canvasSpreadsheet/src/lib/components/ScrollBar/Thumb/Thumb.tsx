@@ -91,23 +91,17 @@ export function Thumb({ direction }: Props) {
     [hasCharts]
   );
 
-  const onMouseOver = useCallback(
-    (e: PIXI.FederatedPointerEvent) => {
-      if (isPanModeEnabled) return;
+  const onMouseOver = useCallback(() => {
+    if (isPanModeEnabled) return;
 
-      setIsThumbHovered(true);
-    },
-    [isPanModeEnabled]
-  );
+    setIsThumbHovered(true);
+  }, [isPanModeEnabled]);
 
-  const onMouseOut = useCallback(
-    (e: PIXI.FederatedPointerEvent) => {
-      if (isPanModeEnabled) return;
+  const onMouseOut = useCallback(() => {
+    if (isPanModeEnabled) return;
 
-      setIsThumbHovered(false);
-    },
-    [isPanModeEnabled]
-  );
+    setIsThumbHovered(false);
+  }, [isPanModeEnabled]);
 
   const onMouseDown = useCallback(
     (e: PIXI.FederatedPointerEvent) => {

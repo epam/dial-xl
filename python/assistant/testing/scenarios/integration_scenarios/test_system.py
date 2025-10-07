@@ -16,6 +16,7 @@ from quantgrid_1.models.materialize_button import MaterializeButton
 from quantgrid_1.models.project_state import ProjectState
 from quantgrid_1.models.stage import Attachment, Stage
 from testing.framework import AddTable, FrameProject, Text, code_regex, code_substr
+from testing.framework.exceptions import MatchError
 
 
 # Tests that bot works normally when underlying LLM generated two JSONs
@@ -184,6 +185,53 @@ async def test_regenerate(basic_project: FrameProject):
         & AddTable(sheet_regex="PREDEFINED", is_focused=True),
         strict=True,
     )
+
+
+async def test_thinking_by_solution(clients_project: FrameProject):
+    predefined_code = """
+table CashCows
+  dim [cow] = Clients.FILTER(Clients[revenue] > 100)
+
+table SortedCashCows
+  dim [cow] = CashCows.SORTBY(-CashCows[cow][revenue])[cow]
+  [name] = [cow][name]
+  [revenue] = [cow][revenue]
+"""
+
+    attachments: list[Attachment] = []
+    for sheet in clients_project.get_project().sheets:
+        attachments.append(
+            Attachment(
+                title=f"DSL ({sheet.name})", data=code_snippet("", sheet.to_dsl())
+            )
+        )
+
+    _ = await clients_project.query(
+        "Create sorted table of cash cows. Client is considered a cash cow if its revenue > 100.",
+        parameters=ConfigParametersDTO(
+            generation_parameters=GenerationParameters(
+                generate_focus=False,
+                generate_summary=True,
+                saved_stages=[
+                    Stage(name=SUMMARY_STAGE_NAME, content="IRRELEVANT TEXT"),
+                    Stage(
+                        name=CHANGED_SHEETS_STAGE_NAME,
+                        attachments=[
+                            *attachments,
+                            Attachment(
+                                title="DSL (PREDEFINED)",
+                                data=code_snippet("", predefined_code),
+                            ),
+                        ],
+                    ),
+                ],
+            )
+        ),
+    )
+
+    query = clients_project.get_queries()[-1]
+    if "plan" not in query.text.lower() or "Thinking" not in query.text:
+        raise MatchError("Cannot find **Thinking** partition of Choice content.")
 
 
 async def test_empty_selection_validation(basic_project: FrameProject):

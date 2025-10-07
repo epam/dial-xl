@@ -1,32 +1,28 @@
 import { act, RenderHookResult } from '@testing-library/react';
 
 import { usePromoteRow } from '../usePromoteRow';
+import { createWrapper, initialProps } from './createWrapper';
 import { hookTestSetup } from './hookTestSetup';
-import { RenderProps, TestWrapperProps } from './types';
-
-const initialProps: TestWrapperProps = {
-  appendToFn: jest.fn(),
-  manuallyUpdateSheetContent: jest.fn(() => Promise.resolve(true)),
-  projectName: 'project1',
-  sheetName: 'sheet1',
-};
+import { TestWrapperProps } from './types';
 
 describe('usePromoteRow', () => {
-  let props: TestWrapperProps;
+  const props: TestWrapperProps = { ...initialProps };
   let hook: RenderHookResult<
     ReturnType<typeof usePromoteRow>,
     { dsl: string }
   >['result'];
-  let rerender: (props?: RenderProps) => void;
+  let setDsl: (dsl: string) => void;
+  let Wrapper: React.FC<React.PropsWithChildren>;
+
+  beforeAll(() => {
+    Wrapper = createWrapper(props);
+  });
 
   beforeEach(() => {
-    props = { ...initialProps };
     jest.clearAllMocks();
-
-    const hookRender = hookTestSetup(usePromoteRow, props);
-
+    const hookRender = hookTestSetup(usePromoteRow, Wrapper);
     hook = hookRender.result;
-    rerender = hookRender.rerender;
+    setDsl = hookRender.setDsl;
   });
 
   describe('promoteRow', () => {
@@ -34,7 +30,7 @@ describe('usePromoteRow', () => {
       // Arrange
       const dsl = `!manual()\n!layout(4, 4)\ntable t1\n[Field1] = NA\noverride\n[Field1]\n"cities"\n"London"\n"Berlin"\n"Boston"`;
       const expectedDsl = `!manual()\n!layout(4, 4, "headers")\ntable t1\n[cities] = NA\noverride\n[cities]\n"London"\n"Berlin"\n"Boston"\r\n`;
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => hook.current.promoteRow('t1', 0));
@@ -54,7 +50,7 @@ describe('usePromoteRow', () => {
     // Arrange
     const dsl = `!manual()\n!layout(4, 4)\ntable t1\n[Field1] = NA\n[Field2] = NA\noverride\n[Field1],[Field2]\n"cities","population"\n"London",1\n"Berlin",2\n"Boston",3`;
     const expectedDsl = `!manual()\n!layout(4, 4, "headers")\ntable t1\n[cities] = NA\n[population] = NA\noverride\n[cities],[population]\n"London",1\n"Berlin",2\n"Boston",3\r\n`;
-    rerender({ dsl });
+    setDsl(dsl);
 
     // Act
     act(() => hook.current.promoteRow('t1', 0));

@@ -85,16 +85,16 @@ class NumberFormatTest {
     @Test
     void testFormatWithMultiplier() {
         String[] expected = new String[] {
-                "0",
-                "0",
-                "0",
-                "0",
+                "0K",
+                "0K",
+                "0K",
+                "0K",
                 "1.2K",
-                "0",
+                "0K",
                 "123,456,789,123,456.8K",
                 "-0.1K",
-                "0",
-                "0",
+                "0K",
+                "0K",
                 "1,000,000,000,000,000,000,000,000,000K",
                 "-99,999,999,999,999,990,000,000,000K",
                 "179,769,313,486,231,600" + ",000".repeat(96) + "K",
@@ -118,13 +118,13 @@ class NumberFormatTest {
                 "1.5",
                 "1,234.6",
                 "9.999",
-                "1.23E+17",
+                "1.23E17",
                 "-123.46",
                 "1.234",
                 "1E-30",
-                "1E+30",
-                "-1E+29",
-                "1.8E+308",
+                "1E30",
+                "-1E29",
+                "1.8E308",
                 null
         };
         Formatter formatter = new NumberFormat("-5", true).createFormatter();
@@ -150,8 +150,8 @@ class NumberFormatTest {
         map.put(9999900.0, "10M");
         map.put(12345678.0, "12.35M");
         map.put(9.9999e11, "1,000B");
-        map.put(9.9999e12, "1E+13");
-        map.put(9.99e99, "1E+100");
+        map.put(9.9999e12, "1E13");
+        map.put(9.99e99, "1E100");
         Formatter formatter = new NumberFormat("-4", true).createFormatter();
 
         List<String> actual = map.keySet().stream()

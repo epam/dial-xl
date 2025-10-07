@@ -12,6 +12,7 @@ import {
   OverrideValue,
 } from './parser';
 import { escapeValue } from './services';
+import { SheetReader } from './SheetReader';
 import { Span } from './Span';
 
 type ParsedOverrideParams = {
@@ -101,6 +102,14 @@ export class ParsedOverride {
 
     this.keys.delete(oldFieldName);
     this.keys.add(newFieldName);
+  }
+
+  public getHeaderIndexByFieldName(fieldName: string): number {
+    if (!this.headers) return -1;
+
+    return this.headers.findIndex(
+      (header) => SheetReader.stripQuotes(header.text) === fieldName
+    );
   }
 
   public getValueAtIndex(fieldName: string, index: number): OverrideValue {

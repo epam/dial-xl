@@ -58,7 +58,7 @@ export const useAIPromptSuggestions = ({
           isPrompt: true,
           icon: (
             <Icon
-              className="text-textSecondary w-[20px]"
+              className="text-text-secondary w-[20px]"
               component={() => <SchoolIcon />}
             />
           ),
@@ -72,7 +72,7 @@ export const useAIPromptSuggestions = ({
           isPrompt: true,
           icon: (
             <Icon
-              className="text-textSecondary w-[18px]"
+              className="text-text-secondary w-[18px]"
               component={() => <TableIcon />}
             />
           ),
@@ -86,7 +86,7 @@ export const useAIPromptSuggestions = ({
           isPrompt: true,
           icon: (
             <Icon
-              className="text-textSecondary w-[18px]"
+              className="text-text-secondary w-[18px]"
               component={() => <BugOffIcon />}
             />
           ),
@@ -110,7 +110,7 @@ export const useAIPromptSuggestions = ({
               isPrompt: true,
               icon: (
                 <Icon
-                  className="text-textSecondary w-[18px]"
+                  className="text-text-secondary w-[18px]"
                   component={() => <EditIcon />}
                 />
               ),
@@ -139,7 +139,7 @@ export const useAIPromptSuggestions = ({
           label: 'Accept',
           icon: (
             <Icon
-              className="text-textSecondary w-[18px]"
+              className="text-text-secondary w-[18px]"
               component={() => <CheckIcon />}
             />
           ),
@@ -153,7 +153,7 @@ export const useAIPromptSuggestions = ({
           label: 'Discard',
           icon: (
             <Icon
-              className="text-textSecondary w-[18px]"
+              className="text-text-secondary w-[18px]"
               component={() => <CloseIcon />}
             />
           ),
@@ -167,7 +167,7 @@ export const useAIPromptSuggestions = ({
           label: 'Try again',
           icon: (
             <Icon
-              className="text-textSecondary w-[18px]"
+              className="text-text-secondary w-[18px]"
               component={() => <RefreshIcon />}
             />
           ),
@@ -197,7 +197,7 @@ export const useAIPromptSuggestions = ({
           label: 'Ok',
           icon: (
             <Icon
-              className="text-textSecondary w-[18px]"
+              className="text-text-secondary w-[18px]"
               component={() => <CheckIcon />}
             />
           ),
@@ -211,7 +211,7 @@ export const useAIPromptSuggestions = ({
               label: 'Add note',
               icon: (
                 <Icon
-                  className="text-textSecondary w-[18px]"
+                  className="text-text-secondary w-[18px]"
                   component={() => <NoteIcon />}
                 />
               ),
@@ -225,7 +225,7 @@ export const useAIPromptSuggestions = ({
           label: 'Try again',
           icon: (
             <Icon
-              className="text-textSecondary w-[18px]"
+              className="text-text-secondary w-[18px]"
               component={() => <RefreshIcon />}
             />
           ),
@@ -238,7 +238,7 @@ export const useAIPromptSuggestions = ({
           label: 'Type new message',
           icon: (
             <Icon
-              className="text-textSecondary w-[18px]"
+              className="text-text-secondary w-[18px]"
               component={() => <EditIcon />}
             />
           ),

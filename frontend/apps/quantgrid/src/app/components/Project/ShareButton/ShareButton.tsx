@@ -23,6 +23,7 @@ export function ShareButton() {
     <Tooltip
       placement="bottom"
       title={!isProjectShareable ? disabledTooltips.notAllowedShare : null}
+      destroyOnHidden
     >
       <Button
         className={classNames(

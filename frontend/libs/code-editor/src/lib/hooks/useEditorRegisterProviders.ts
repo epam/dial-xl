@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import isEqual from 'react-fast-compare';
 
-import { FunctionInfo } from '@frontend/common';
+import { CommonMetadata, FunctionInfo } from '@frontend/common';
 import { isParsedSheetsEqual, ParsedSheets } from '@frontend/parser';
 import { Monaco } from '@monaco-editor/react';
 
@@ -19,6 +19,7 @@ type Props = {
   codeEditor?: editor.IStandaloneCodeEditor;
   codeEditorPlace: CodeEditorPlace;
   functions: FunctionInfo[];
+  inputFiles: CommonMetadata[];
   parsedSheets: ParsedSheets;
   language: Language;
   disableHelpers: boolean;
@@ -36,6 +37,7 @@ export function useEditorRegisterProviders({
   disableHelpers,
   currentTableName,
   currentFieldName,
+  inputFiles,
 }: Props) {
   const disposeCompletionProvider = useRef<IDisposable>();
   const disposeSignatureProvider = useRef<IDisposable>();
@@ -43,6 +45,7 @@ export function useEditorRegisterProviders({
   const disposeInlineCompletionProvider = useRef<IDisposable>();
   const registeredParsedSheets = useRef({});
   const registeredFunctions = useRef({});
+  const registeredInputFiles = useRef({});
   const registeredCurrentTableName = useRef<string | undefined>(undefined);
   const registeredCurrentFieldName = useRef<string | undefined>(undefined);
 
@@ -52,6 +55,7 @@ export function useEditorRegisterProviders({
       registeredParsedSheets.current
     );
     const isFunctionsEqual = isEqual(functions, registeredFunctions.current);
+    const isInputFilesEqual = isEqual(inputFiles, registeredInputFiles.current);
     const sameContext =
       registeredCurrentTableName.current === currentTableName &&
       registeredCurrentFieldName.current === currentFieldName;
@@ -59,7 +63,10 @@ export function useEditorRegisterProviders({
     if (
       monaco &&
       codeEditor &&
-      (!isSheetsEqual || !sameContext || !isFunctionsEqual) &&
+      (!isSheetsEqual ||
+        !sameContext ||
+        !isFunctionsEqual ||
+        !isInputFilesEqual) &&
       !disableHelpers
     ) {
       if (disposeCompletionProvider) {
@@ -70,6 +77,7 @@ export function useEditorRegisterProviders({
         monaco,
         codeEditor,
         functions,
+        inputFiles,
         parsedSheets,
         language,
         currentTableName,
@@ -98,6 +106,7 @@ export function useEditorRegisterProviders({
       disposeSignatureProvider.current = newDisposeSignatureProvider;
       registeredParsedSheets.current = parsedSheets;
       registeredFunctions.current = functions;
+      registeredInputFiles.current = inputFiles;
     }
 
     if (monaco && codeEditor && codeEditorPlace === 'codeEditor') {
@@ -115,6 +124,7 @@ export function useEditorRegisterProviders({
     codeEditor,
     codeEditorPlace,
     functions,
+    inputFiles,
     parsedSheets,
     language,
     disableHelpers,
@@ -130,6 +140,7 @@ export function useEditorRegisterProviders({
       disposeInlineCompletionProvider.current?.dispose();
       registeredParsedSheets.current = {};
       registeredFunctions.current = {};
+      registeredInputFiles.current = {};
     }
   }, [disableHelpers]);
 

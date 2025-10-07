@@ -6,5 +6,7 @@ export * from './editFieldDecorator';
 export * from './editLayoutDecorator';
 export * from './editTableDecorator';
 export * from './findFirstEmptyTotalIndex';
+export * from './getFieldNameFromType';
+export * from './getFormulaFromSourceTable';
 export * from './getParsedFormulaInfo';
 export * from './types';

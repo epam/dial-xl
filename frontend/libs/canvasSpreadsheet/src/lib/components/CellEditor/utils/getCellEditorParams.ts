@@ -1,4 +1,4 @@
-import { GridCell, isComplexType } from '@frontend/common';
+import { isComplexType } from '@frontend/common';
 import {
   extractExpression,
   getTokens,
@@ -9,7 +9,7 @@ import {
   unescapeValue,
 } from '@frontend/parser';
 
-import { GridApi } from '../../../types';
+import { GridApi, GridCell } from '../../../types';
 import {
   GridCellEditorMode,
   GridCellEditorOpenOptions,

@@ -38,7 +38,7 @@ export function CellEditorTooltip({
   return (
     <div
       className={cx(
-        'absolute border border-b-0 rounded-t-[4px] pl-2 ml-[-2px] mb-[1px] whitespace-nowrap',
+        'absolute border border-b-0 rounded-t-[4px] pl-2 ml-[-2px] mb-px whitespace-nowrap',
         getCellEditorColor(editMode, true)
       )}
       style={{
@@ -47,13 +47,13 @@ export function CellEditorTooltip({
       }}
     >
       <span
-        className="text-[11px] font-semibold text-textInverted select-none"
+        className="text-[11px] font-semibold text-text-inverted select-none"
         style={{ fontSize: getPx(11 * zoom) }}
       >
         <span>{CellEditorModes[editMode].title} </span>
         {CellEditorModes[editMode].subTitle && (
           <span
-            className="italic font-normal text-textInverted cursor-pointer select-none"
+            className="italic font-normal text-text-inverted cursor-pointer select-none"
             onClick={() => {
               onSecondaryEditModeSwitch();
             }}
@@ -64,7 +64,12 @@ export function CellEditorTooltip({
           </span>
         )}
         {CellEditorModes[editMode].title && (
-          <Tooltip mouseEnterDelay={1} placement="bottom" title="Hide tooltip">
+          <Tooltip
+            mouseEnterDelay={1}
+            placement="bottom"
+            title="Hide tooltip"
+            destroyOnHidden
+          >
             <span
               className="px-2 cursor-pointer"
               onClick={() => {

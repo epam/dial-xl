@@ -1,4 +1,5 @@
-import { createEditableSheet, SheetReader } from '../../';
+import { SheetReader } from '../../SheetReader';
+import { createEditableSheet } from '../EditDslApi';
 import { Sheet } from '../Sheet';
 
 export function createEditableTestSheet(dsl: string): Sheet {

@@ -507,8 +507,9 @@ export class Table extends ObservableObserver {
    * If removing Field causes its group to become empty, the entire group is removed.
    *
    * @param name - The name of the field to remove.
+   * @param removeEmptyGroup - Whether to remove the entire FieldGroup if it becomes empty.
    */
-  public removeField(name: string): void {
+  public removeField(name: string, removeEmptyGroup = true): void {
     let groupIndex = 0;
     for (const group of this._fieldGroups) {
       const index = Array.from(group.fieldNames).indexOf(name);
@@ -518,7 +519,9 @@ export class Table extends ObservableObserver {
 
         group.removeField(name);
         if (group.fieldCount === 0) {
-          this._fieldGroups.deleteItem(groupIndex);
+          if (removeEmptyGroup) {
+            this._fieldGroups.deleteItem(groupIndex);
+          }
         } else if (shouldAddDimAfterRemove) {
           group.getFieldByIndex(0).dim = true;
         }

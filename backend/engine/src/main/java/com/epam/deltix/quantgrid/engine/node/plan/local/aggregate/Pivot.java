@@ -1,15 +1,12 @@
 package com.epam.deltix.quantgrid.engine.node.plan.local.aggregate;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-
 import com.epam.deltix.quantgrid.engine.value.Column;
 import com.epam.deltix.quantgrid.engine.value.DoubleColumn;
 import com.epam.deltix.quantgrid.engine.value.PeriodSeries;
 import com.epam.deltix.quantgrid.engine.value.PeriodSeriesColumn;
 import com.epam.deltix.quantgrid.engine.value.StringColumn;
 import com.epam.deltix.quantgrid.engine.value.local.DoubleDirectColumn;
+import com.epam.deltix.quantgrid.engine.value.local.DoubleLambdaColumn;
 import com.epam.deltix.quantgrid.engine.value.local.LocalTable;
 import com.epam.deltix.quantgrid.engine.value.local.PeriodSeriesDirectColumn;
 import com.epam.deltix.quantgrid.engine.value.local.StringDirectColumn;
@@ -19,6 +16,10 @@ import com.epam.deltix.quantgrid.util.Doubles;
 import com.epam.deltix.quantgrid.util.Strings;
 import it.unimi.dsi.fastutil.objects.Object2IntMap;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 public class Pivot implements AggregateFunction {
 
@@ -39,7 +40,7 @@ public class Pivot implements AggregateFunction {
     @Override
     public StructColumn aggregate(DoubleColumn rows, List<Column> args, int size) {
         StringColumn names = (StringColumn) args.get(0);
-        Column values = args.get(1);
+        Column values = (args.size() == 1) ? new DoubleLambdaColumn(index -> Doubles.EMPTY, rows.size()) : args.get(1);
         LocalTable table = pivot(rows, names, values, size);
         return new StructColumn(this.names, this.types, table);
     }

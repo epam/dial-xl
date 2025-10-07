@@ -4,7 +4,6 @@ export * from './ChartOrientationSection';
 export * from './ChartPlacementSection';
 export * from './ChartSelectorsSection';
 export * from './ChartSeriesSection';
-export * from './ChartTitleSection';
 export * from './ChartTypeSection';
 export * from './ChartXAxisSection';
 export * from './CollapseIcon';

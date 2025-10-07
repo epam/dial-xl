@@ -1,7 +1,10 @@
 import { useCallback } from 'react';
 
-import { SelectionEdges } from '@frontend/canvas-spreadsheet';
-import { GridCell, GridData } from '@frontend/common';
+import {
+  GridCell,
+  GridData,
+  SelectionEdges,
+} from '@frontend/canvas-spreadsheet';
 
 import { SelectedCell, SelectedCellType } from '../common';
 

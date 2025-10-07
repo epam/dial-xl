@@ -97,7 +97,7 @@ Examples:
 1. Support 3 different modes:
    - Compacted with fix precision: K/M/B  (Supported for Number/Percentage/Currency). 1 decimal max
    - Number of decimal places  (Supported for Number/Percentage/Currency/Scientific (number of decimal places in mantissa))
-   - Number of significant digits (Supported for Number/Percentage/Currency/Scientific (number of digits in exp and mantissa combined))
+   - Number of total digits (Supported for Number/Percentage/Currency/Scientific (number of digits in exp and mantissa combined))
 
 2. Support "," for percentage.  Replace 0/1 with "," or absent
 
@@ -107,30 +107,28 @@ Examples:
    In code, we have it as second parameter:
    - Positive numbers are decimal places
    - "K", "M", "B" means compacted with fixed precision
-   - Negative number means total digit.
+   - Negative number means total digits. The minimum limit for the total numbers is 4 (that is -4 as a parameter).
 
 
 Examples:
-- format("scientific", -5) - scientific with 5 total digits: 1.23e12, 1.2e123, 1.2e-123.
-- format("scientific", 2) - scientific with exactly 2 decimals: 1.23e12, 1.20e123, 1.20e-123.
+- format("scientific", -5) - scientific with 5 total digits: 1.23E12, 1.2E123, 1.2E-123.
+- format("scientific", 2) - scientific with exactly 2 decimals: 1.23E12, 1.20E123, 1.20E-123.
 - format("scientific", "K") - format error.
-- format("number", "K") - 123.1K, 123000000000K, 0.
-- format("number", -3): 1234567890123 => 1e+13
-- format("number", -4): 1234567890123 => 1.2e+13
-- format("number", -3): 1e+123 => ~~#########~~ (proposed correction: return NA instead)
+- format("number", "K") - 123.1K, 123000000000K, 0K.
+- format("number", -4): 1234567890123 => 1.2E13
 
-| original | format("number", -5) | format("number", -3) |
+| original | format("number", -5) | format("number", -4) |
 |----------|----------------------|----------------------|
 | 1        | 1                    | 1                    |
 | 12       | 12                   | 12                   |
 | 123      | 123                  | 123                  |
-| 1234     | 1234                 | 1.23K                |
-| 12345    | 12345                | 12.3K                |
-| 123456   | 123.46K              | 123K                 |
+| 1234     | 1234                 | 1234                 |
+| 12345    | 12345                | 12.35K               |
+| 123456   | 123.46K              | 123.5K               |
 | 0.42     | 0.42                 | 0.42                 |
-| 0.042    | 0.042                | 0.04                 |
-| 0.0423   | 0.0423               | 0.04                 |
-| 0.04235  | 0.0424               | 0.04                 |
-| 1e-7     | 1e-7                 | 1e-7                 |
-| 1.234E-7 | 1.234e-7             | 1.2e-7               |
-| 1.23E+15 | 1.23E+15             | 1E+15                |
+| 0.042    | 0.042                | 0.042                |
+| 0.0423   | 0.0423               | 0.042                |
+| 0.04235  | 0.0424               | 0.042                |
+| 1E-7     | 1E-7                 | 1E-7                 |
+| 1.234E-7 | 1.234E-7             | 1.23E-7              |
+| 1.23E15  | 1.23E15              | 1.2E15               |

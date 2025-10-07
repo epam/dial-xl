@@ -173,7 +173,7 @@ export function ToolBarSelect({
   return (
     <div className="flex items-center mr-3" key={keyName}>
       <span
-        className="text-[13px] text-textPrimary mr-2 select-none"
+        className="text-[13px] text-text-primary mr-2 select-none"
         style={{ fontSize: `${defaultFontSize * zoom}px` }}
       >
         {keyNameLabel}:
@@ -184,14 +184,14 @@ export function ToolBarSelect({
           ...SelectClasses,
           control: ({ menuIsOpen }) =>
             cx(
-              '!bg-bgLayer2 !text-textPrimary hover:!border-strokeAccentPrimary !shadow-none text-[13px]',
+              'bg-bg-layer-2! text-text-primary! hover:border-stroke-accent-primary! shadow-none! text-[13px]',
               menuIsOpen
-                ? '!border-strokeAccentPrimary'
-                : '!border-strokePrimary'
+                ? 'border-stroke-accent-primary!'
+                : 'border-stroke-primary!'
             ),
           dropdownIndicator: () =>
-            '!text-textPrimary hover:!text-strokeHover !pl-0',
-          input: () => '!m-0 !p-0',
+            'text-text-primary! hover:text-stroke-hover! pl-0!',
+          input: () => 'm-0! p-0!',
           option: ({ isSelected, data }) =>
             getSingleSelectOptionStyles(isSelected, data, keyName, chartConfig),
         }}

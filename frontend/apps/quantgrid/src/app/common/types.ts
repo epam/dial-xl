@@ -1,6 +1,6 @@
 import { ReactElement, ReactNode } from 'react';
 
-import { FilesMetadata, ForkedFrom } from '@frontend/common';
+import { CommonMetadata, ForkedFrom } from '@frontend/common';
 import { OverrideValue } from '@frontend/parser';
 
 // Project Panels
@@ -76,6 +76,7 @@ export type NewProjectModalRefFunction = (args: {
   openInNewTab?: boolean;
 }) => void;
 export type RenameModalRefFunction = (name: string) => void;
+export type CloneModalRefFunction = (name: string) => void;
 export type DeleteModalRefFunction = (args: {
   name: string;
   onSuccess?: () => void;
@@ -87,7 +88,7 @@ export type DeleteProjectModalRefFunction = (args: {
   onSuccess?: () => void;
 }) => void;
 export type ShareModalRefFunction = (
-  resources: Omit<FilesMetadata, 'resourceType' | 'url'>[]
+  resources: Omit<CommonMetadata, 'resourceType' | 'url'>[]
 ) => void;
 export type NewFolderModalRefFunction = (args: {
   path: string | null;
@@ -96,33 +97,10 @@ export type NewFolderModalRefFunction = (args: {
   silent?: boolean;
 }) => void;
 
-// Dashboard
-
-export type DashboardSortType =
-  | 'name'
-  | 'contentLength'
-  | 'updatedAt'
-  | 'parentPath';
-
-export type DashboardTab =
-  | 'recent'
-  | 'home'
-  | 'sharedByMe'
-  | 'sharedWithMe'
-  | 'examples';
-
-export type DashboardFilter =
-  | 'all'
-  | 'folders'
-  | 'projects'
-  | 'files'
-  | 'csvFiles';
-
-export type FileReference = {
-  name: string;
-  bucket: string;
-  path: string | null | undefined;
-};
+export type FileReference = Pick<
+  CommonMetadata,
+  'name' | 'bucket' | 'parentPath'
+>;
 
 export type ForkedProjectSettings = ForkedFrom & {
   isExists: boolean;
@@ -154,7 +132,7 @@ export enum SelectedCellType {
 }
 
 export type ColorSchema = 'read' | 'review' | 'default';
-export const LongCalcStatus = {
+export const LongCalcStatuses = {
   NeedAccept: 'need_accept' as const,
   Accepted: 'accepted' as const,
   Cancelled: 'cancelled' as const,
@@ -162,4 +140,4 @@ export const LongCalcStatus = {
 };
 
 export type LongCalcStatus =
-  (typeof LongCalcStatus)[keyof typeof LongCalcStatus];
+  (typeof LongCalcStatuses)[keyof typeof LongCalcStatuses];

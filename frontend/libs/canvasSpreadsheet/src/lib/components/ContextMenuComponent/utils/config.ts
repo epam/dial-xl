@@ -59,6 +59,7 @@ export const spreadsheetMenuKeys = {
   modeTotal: 'ModeTotal',
   maxTotal: 'MaxTotal',
   minTotal: 'MinTotal',
+  countUniqueTotal: 'CountUniqueTotal',
   addTotal: 'AddTotal',
   editTotal: 'EditTotal',
   removeTotal: 'RemoveTotal',
@@ -70,6 +71,7 @@ export const spreadsheetMenuKeys = {
   tableToBack: 'tableToBack',
   tableForward: 'tableForward',
   tableBackward: 'tableBackward',
+  switchInput: 'SwitchInput',
 };
 
 type TotalItem = {
@@ -95,6 +97,12 @@ export const totalItems: TotalItem[] = [
     key: spreadsheetMenuKeys.countTotal,
     label: 'COUNT',
     type: 'count',
+    isCheckbox: true,
+  },
+  {
+    key: spreadsheetMenuKeys.countUniqueTotal,
+    label: 'COUNT(UNIQUE)',
+    type: 'countUnique',
     isCheckbox: true,
   },
   {

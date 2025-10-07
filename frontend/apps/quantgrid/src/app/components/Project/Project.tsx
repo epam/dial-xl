@@ -11,7 +11,7 @@ import {
   useIsMobile,
 } from '@frontend/common';
 
-import { ColorSchema } from '../../common';
+import { ColorSchema, logoSrcStorageKey } from '../../common';
 import { AppContext } from '../../context';
 import {
   useDNDSpreadsheetFile,
@@ -60,30 +60,40 @@ export function Project() {
     return 'review';
   }, [isDefaultMode, isReadOnlyMode]);
 
+  const logoSrc = localStorage.getItem(logoSrcStorageKey);
+
   return (
     <>
       <div
         className={cx(
-          'shrink-0 flex items-center justify-between h-10 border-b border-b-strokeTertiary px-4 w-screen',
-          isReadOnlyMode && 'bg-bgInverted',
-          (isCSVViewMode || isAIPendingMode) && 'bg-bgAccentTertiary',
-          isAIPreviewMode && 'bg-bgAccentSecondary',
-          isDefaultMode && 'bg-bgLayer3'
+          'shrink-0 grid grid-cols-12 items-center justify-between h-10 border-b border-b-stroke-tertiary px-4 w-screen',
+          isReadOnlyMode && 'bg-bg-inverted',
+          (isCSVViewMode || isAIPendingMode) && 'bg-bg-accent-tertiary',
+          isAIPreviewMode && 'bg-bg-accent-secondary',
+          isDefaultMode && 'bg-bg-layer-3'
         )}
       >
-        <div className="flex items-center">
+        <div className="flex items-center col-span-4">
           {isMobile ? (
             <>
-              <Icon
-                className={cx(
-                  'h-5 w-5 mr-3',
-                  colorSchema === 'review' && 'text-textInverted'
-                )}
-                component={() =>
-                  colorSchema === 'review' ? <QGLogoMonochrome /> : <QGLogo />
-                }
-                onClick={() => setIsMobileMainMenuOpened(true)}
-              />
+              {logoSrc ? (
+                <img
+                  alt="custom logo"
+                  className="h-5 min-w-5 mr-3"
+                  src={logoSrc}
+                />
+              ) : (
+                <Icon
+                  className={cx(
+                    'h-5 w-5 mr-3',
+                    colorSchema === 'review' && 'text-text-inverted'
+                  )}
+                  component={() =>
+                    colorSchema === 'review' ? <QGLogoMonochrome /> : <QGLogo />
+                  }
+                  onClick={() => setIsMobileMainMenuOpened(true)}
+                />
+              )}
               <ShareButton />
               <Drawer
                 open={isMobileMainMenuOpened}
@@ -112,24 +122,34 @@ export function Project() {
                 className="hidden md:flex items-center mr-3 cursor-pointer"
                 to={routes.home}
               >
-                <Icon
-                  className={cx(
-                    'h-5 w-5',
-                    colorSchema === 'review' && 'text-textInverted'
-                  )}
-                  component={() =>
-                    colorSchema === 'review' ? <QGLogoMonochrome /> : <QGLogo />
-                  }
-                />
-                <Icon
-                  className={cx(
-                    'hidden md:block shrink-0 ml-2 h-[10px] w-[50px]',
-                    (colorSchema === 'review' || colorSchema === 'read') &&
-                      'text-textInverted',
-                    colorSchema === 'default' && 'text-textPrimary'
-                  )}
-                  component={() => <DialTextLogo />}
-                />
+                {logoSrc ? (
+                  <img alt="custom logo" className="h-5" src={logoSrc} />
+                ) : (
+                  <>
+                    <Icon
+                      className={cx(
+                        'h-5 w-5',
+                        colorSchema === 'review' && 'text-text-inverted'
+                      )}
+                      component={() =>
+                        colorSchema === 'review' ? (
+                          <QGLogoMonochrome />
+                        ) : (
+                          <QGLogo />
+                        )
+                      }
+                    />
+                    <Icon
+                      className={cx(
+                        'hidden md:block shrink-0 ml-2 h-[10px] w-[50px]',
+                        (colorSchema === 'review' || colorSchema === 'read') &&
+                          'text-text-inverted',
+                        colorSchema === 'default' && 'text-text-primary'
+                      )}
+                      component={() => <DialTextLogo />}
+                    />
+                  </>
+                )}
               </Link>
 
               <MainMenu colorSchema={colorSchema} />
@@ -139,7 +159,7 @@ export function Project() {
 
         <ProjectTitle />
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 justify-end col-span-4">
           {!isMobile && <ShareButton />}
           <SearchButton colorSchema={colorSchema} />
           <UserMenu colorSchema={colorSchema} placement="project" />

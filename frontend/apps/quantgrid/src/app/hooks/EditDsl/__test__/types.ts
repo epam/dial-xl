@@ -21,4 +21,5 @@ export type TestWrapperProps = {
   projectSheets?: WorksheetState[] | [];
   gridApi?: Partial<GridApi> | null;
   viewGridData?: ViewGridData;
+  __initialDsl: string;
 };

@@ -4,7 +4,8 @@ export interface DateTimeKeyData {
 
 export interface NumberKeyData {
   thousandComma?: boolean;
-  decimalAmount?: number;
+  digitsAmount?: number; // If positive or zero - decimal digits amount, otherwise total digits
+  compactFormat?: 'K' | 'M' | 'B';
 }
 
 export type CurrencyKeyData = NumberKeyData & {

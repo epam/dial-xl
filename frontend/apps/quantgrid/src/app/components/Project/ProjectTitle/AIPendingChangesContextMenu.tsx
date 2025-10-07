@@ -36,15 +36,15 @@ export function AIPendingChangesContextMenu() {
   return (
     <Dropdown
       autoAdjustOverflow={true}
-      destroyPopupOnHide={true}
+      destroyOnHidden={true}
       menu={{
         items: items,
-        onClick,
+        onClick: onClick as any,
       }}
       trigger={['click', 'contextMenu']}
     >
       <Icon
-        className="w-[18px] text-textInverted hover:text-textPrimary"
+        className="w-[18px] text-text-inverted hover:text-text-primary"
         component={() => <DotsIcon />}
       />
     </Dropdown>

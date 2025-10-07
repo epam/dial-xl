@@ -40,7 +40,7 @@ export const ProjectOverrideBar = () => {
   if (!isConflictResolving) return null;
 
   return (
-    <div className="flex gap-3 bg-bgError px-4 py-1 text-textError text-xs items-center justify-between">
+    <div className="flex gap-3 bg-bg-error px-4 py-1 text-text-error text-xs items-center justify-between">
       <div className="flex gap-3 items-center">
         <span>
           <Icon
@@ -52,7 +52,7 @@ export const ProjectOverrideBar = () => {
         <Button
           className={classNames(
             secondaryErrorButtonClasses,
-            'px-1 py-0.5 text-xs h-6 text-textError'
+            'px-1 py-0.5 text-xs h-6 text-text-error'
           )}
           onClick={handleDropChanges}
         >
@@ -61,7 +61,7 @@ export const ProjectOverrideBar = () => {
         <Button
           className={classNames(
             secondaryErrorButtonClasses,
-            'px-1 py-0.5 text-xs h-6 text-textError'
+            'px-1 py-0.5 text-xs h-6 text-text-error'
           )}
           onClick={resolveConflictUsingLocalChanges}
         >

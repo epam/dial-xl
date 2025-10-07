@@ -140,7 +140,7 @@ export function StructureSection() {
         <div className="flex w-full h-[500px] max-h-[500px]">
           <div className="w-1/2 flex flex-col h-full">
             <DropArea
-              className="h-full flex-grow"
+              className="h-full grow"
               emptyItemsMessage="No columns available"
               icon={<FieldIcon />}
               id="available-fields"

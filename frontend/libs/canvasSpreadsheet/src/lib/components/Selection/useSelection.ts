@@ -187,6 +187,7 @@ export function useSelection() {
       if (!mousePosition) return;
 
       const { x, y } = mousePosition;
+      const { edges, rowNumber, colNumber } = gridSizes;
 
       if (!isClickInsideCanvas(x, y, gridSizes, true, true)) return;
 
@@ -198,6 +199,9 @@ export function useSelection() {
         )
           return;
       }
+
+      // Ignore clicks on the Corner Rect (top-left header intersection)
+      if (x < rowNumber.width && y < colNumber.height) return;
 
       if ((e as MouseEvent).button === 0) {
         isMouseDown.current = true;
@@ -212,7 +216,6 @@ export function useSelection() {
         }
       }
 
-      const { edges, rowNumber, colNumber } = gridSizes;
       const cell = getCellFromCoords(x, y);
       const col = x < rowNumber.width ? 0 : cell.col;
       const row = y < colNumber.height ? 0 : cell.row;
@@ -269,16 +272,13 @@ export function useSelection() {
     ]
   );
 
-  const onCanvasMouseClick = useCallback(
-    (e: Event) => {
-      document.body.style.pointerEvents = 'auto';
-      isMouseDown.current = false;
-      gridApi.event.emit({
-        type: GridEvent.stopMoveMode,
-      });
-    },
-    [gridApi]
-  );
+  const onCanvasMouseClick = useCallback(() => {
+    document.body.style.pointerEvents = 'auto';
+    isMouseDown.current = false;
+    gridApi.event.emit({
+      type: GridEvent.stopMoveMode,
+    });
+  }, [gridApi]);
 
   const documentAutoScroll = useCallback(() => {
     if (!documentScrollOptions.current || !selectionEdges) return;

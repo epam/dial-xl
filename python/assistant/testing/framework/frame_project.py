@@ -197,15 +197,17 @@ class FrameProject:
 
         self._project.add_sheet(await self._client.parse_sheet(name, code))
 
-    async def load_sheet(self, path: str, name: str, **values):
+    async def load_code(self, path: str, **values):
         if self._bucket is None:
             self._bucket = await self._dial_api_client.bucket()
 
-        code = self._TEMPLATE_ENVIRONMENT.get_template(path).render(
+        return self._TEMPLATE_ENVIRONMENT.get_template(path).render(
             bucket=self._bucket,
             **values,
         )
 
+    async def load_sheet(self, path: str, name: str, **values):
+        code = await self.load_code(path, **values)
         await self.create_sheet(name, code)
 
     async def create_table(

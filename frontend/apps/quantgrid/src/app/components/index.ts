@@ -10,3 +10,4 @@ export * from './SearchWindow';
 export * from './SpreadsheetWrapper';
 export * from './UserMenu';
 export * from './Toast';
+export * from './Chip';

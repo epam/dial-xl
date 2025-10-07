@@ -32,8 +32,8 @@ public record ScientificFormat(int format) implements ColumnFormat {
 
     private static Formatter withDecimalDigits(int decimalDigits) {
         String zero = decimalDigits > 0
-                ? "0." + FormatUtils.ZEROS.substring(0, decimalDigits) + "E+0"
-                : "0E+0";
+                ? "0." + FormatUtils.ZEROS.substring(0, decimalDigits) + "E0"
+                : "0E0";
         return value -> {
             long l = Decimal64Utils.fromDouble(value);
             if (Decimal64Utils.isInfinity(l)) {
@@ -64,16 +64,13 @@ public record ScientificFormat(int format) implements ColumnFormat {
             }
             builder.append('E');
             int exponent = getExponent(l);
-            if (exponent >= 0) {
-                builder.append('+');
-            }
             builder.append(exponent);
             return builder.toString();
         };
     }
 
     private Formatter withTotalDigits(int totalDigits) {
-        String zero = "0E+0";
+        String zero = "0E0";
         return value -> {
             long l = Decimal64Utils.fromDouble(value);
             if (Decimal64Utils.isInfinity(l)) {
@@ -100,9 +97,6 @@ public record ScientificFormat(int format) implements ColumnFormat {
         StringBuilder builder = new StringBuilder(prefix);
         Decimal64Utils.appendTo(l, builder);
         builder.append('E');
-        if (exponent >= 0) {
-            builder.append('+');
-        }
         builder.append(exponent);
         builder.append(suffix);
 

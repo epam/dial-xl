@@ -1,7 +1,7 @@
 import { getTotalType } from '../getTotalType';
 
 describe('getTotalType', () => {
-  it('should return correct defined total type', () => {
+  it('should return correct defined simple total type', () => {
     // Arrange
     const types = [
       'sum',
@@ -24,6 +24,18 @@ describe('getTotalType', () => {
       // Assert
       expect(result).toEqual(expectedResult);
     });
+  });
+
+  it('should return unique count type', () => {
+    // Arrange
+    const value = 'COUNT(UNIQUE(Table1[a]))';
+    const expectedResult = 'countUnique';
+
+    // Act
+    const result = getTotalType('Table1', 'a', value);
+
+    // Assert
+    expect(result).toEqual(expectedResult);
   });
 
   it('should return custom type for correct formula with another formula inside', () => {

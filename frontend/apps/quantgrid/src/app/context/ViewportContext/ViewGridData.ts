@@ -7,7 +7,11 @@ import {
   Subject,
 } from 'rxjs';
 
-import { ViewportEdges } from '@frontend/canvas-spreadsheet';
+import {
+  GridData,
+  GridTable,
+  ViewportEdges,
+} from '@frontend/canvas-spreadsheet';
 import {
   ChartData,
   ChartOrientation,
@@ -24,9 +28,7 @@ import {
   formatValue,
   GridChart,
   GridChartSection,
-  GridData,
   GridListFilter,
-  GridTable,
   GridViewport,
   HighlightData,
   histogramChartSeriesSelector,
@@ -38,8 +40,6 @@ import {
   Profile,
   RuntimeError,
   SelectedChartKey,
-  TableData,
-  TablesData,
   Viewport,
   VirtualTableData,
   VirtualTablesData,
@@ -64,7 +64,9 @@ import { ProfileManager } from './ProfileManager';
 import {
   ChartUpdate,
   FiltersUpdate,
+  TableData,
   TableDynamicFieldsLoadUpdate,
+  TablesData,
 } from './types';
 import { ViewportBuilder } from './ViewportBuilder';
 import { ViewportChartBuilder } from './ViewportChartBuilder';

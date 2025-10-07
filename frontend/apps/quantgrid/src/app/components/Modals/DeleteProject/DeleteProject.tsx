@@ -87,7 +87,7 @@ export function DeleteProject({ deleteProjectModal }: Props) {
       cancelButtonProps={{
         className: cx(modalFooterButtonClasses, secondaryButtonClasses),
       }}
-      destroyOnClose={true}
+      destroyOnHidden={true}
       okButtonProps={{
         className: cx(
           modalFooterButtonClasses,
@@ -100,7 +100,7 @@ export function DeleteProject({ deleteProjectModal }: Props) {
       onCancel={handleCancel}
       onOk={handleOk}
     >
-      <span className="text-textPrimary">
+      <span className="text-text-primary">
         Do you want to remove project "{projectName}"?
       </span>
     </Modal>

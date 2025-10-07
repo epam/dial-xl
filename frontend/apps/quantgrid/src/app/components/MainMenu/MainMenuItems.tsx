@@ -1,23 +1,23 @@
 import { ItemType } from 'antd/es/menu/interface';
 
 import Icon from '@ant-design/icons';
+import { GridCell } from '@frontend/canvas-spreadsheet';
 import {
   AdjustmentsIcon,
   chartItems,
   ColumnsIcon,
+  CommonMetadata,
   DialChatLogoIconColored,
   disabledTooltips,
   EditIcon,
   ExclamationCircleIcon,
   FileIcon,
-  FilesMetadata,
   FormulasContextMenuKeyData,
   FunctionInfo,
   getDropdownDivider,
   getDropdownItem,
   getDropdownMenuKey,
   getTableBySizeDropdownItem,
-  GridCell,
   HistoryIcon,
   InsertChartContextMenuKeyData,
   InsertIcon,
@@ -115,7 +115,7 @@ export const getCreateChartChildren = () => {
         }),
         icon: (
           <Icon
-            className="text-textSecondary w-[18px]"
+            className="text-text-secondary w-[18px]"
             component={() => item.icon}
           />
         ),
@@ -127,7 +127,7 @@ export const getCreateChartChildren = () => {
 export const getCreateTableChildren = (
   functions: FunctionInfo[],
   parsedSheets: ParsedSheets,
-  inputFiles: FilesMetadata[] | null,
+  inputFiles: CommonMetadata[] | null,
   onCreateTable: (cols: number, rows: number) => void
 ) => {
   const inputs = [...(inputFiles ?? [])].sort((a, b) =>
@@ -322,7 +322,7 @@ export function getMenuItems({
   selectedCell: GridCell | null | undefined;
   functions: FunctionInfo[];
   parsedSheets: ParsedSheets;
-  inputFiles: FilesMetadata[] | null;
+  inputFiles: CommonMetadata[] | null;
   isYourProject: boolean;
   isProjectShareable: boolean;
   permissions: ResourcePermission[];
@@ -355,7 +355,7 @@ export function getMenuItems({
           key: 'FileMenu',
           icon: (
             <Icon
-              className="text-textSecondary w-[18px]"
+              className="text-text-secondary w-[18px]"
               component={() => <FileIcon />}
             />
           ),
@@ -457,7 +457,7 @@ export function getMenuItems({
           key: 'EditMenu',
           icon: (
             <Icon
-              className="w-[18px] text-textSecondary"
+              className="w-[18px] text-text-secondary"
               component={() => <EditIcon />}
             />
           ),
@@ -509,7 +509,7 @@ export function getMenuItems({
           key: 'ViewMenu',
           icon: (
             <Icon
-              className="text-textSecondary w-[18px]"
+              className="text-text-secondary w-[18px]"
               component={() => <ViewIcon />}
             />
           ),
@@ -518,7 +518,7 @@ export function getMenuItems({
               label: 'Panels',
               icon: (
                 <Icon
-                  className="text-textSecondary w-[18px]"
+                  className="text-text-secondary w-[18px]"
                   component={() => <ViewIcon />}
                 />
               ),
@@ -530,7 +530,7 @@ export function getMenuItems({
                   shortcut: shortcutApi.getLabel(Shortcut.ToggleProjects),
                   icon: (
                     <Icon
-                      className="text-textAccentPrimary w-[18px]"
+                      className="text-text-accent-primary w-[18px]"
                       component={() => <ListTreeIcon />}
                     />
                   ),
@@ -541,7 +541,7 @@ export function getMenuItems({
                   shortcut: shortcutApi.getLabel(Shortcut.ToggleCodeEditor),
                   icon: (
                     <Icon
-                      className="text-textSecondary w-[18px]"
+                      className="text-text-secondary w-[18px]"
                       component={() => <TagIcon />}
                     />
                   ),
@@ -552,7 +552,7 @@ export function getMenuItems({
                   shortcut: shortcutApi.getLabel(Shortcut.ToggleErrors),
                   icon: (
                     <Icon
-                      className="text-textError w-[18px]"
+                      className="text-text-error w-[18px]"
                       component={() => <ExclamationCircleIcon />}
                     />
                   ),
@@ -563,7 +563,7 @@ export function getMenuItems({
                   shortcut: shortcutApi.getLabel(Shortcut.ToggleHistory),
                   icon: (
                     <Icon
-                      className="text-textSecondary w-[18px]"
+                      className="text-text-secondary w-[18px]"
                       component={() => <HistoryIcon />}
                     />
                   ),
@@ -574,7 +574,7 @@ export function getMenuItems({
                   shortcut: shortcutApi.getLabel(Shortcut.ToggleChat),
                   icon: (
                     <Icon
-                      className="text-textSecondary w-[18px]"
+                      className="text-text-secondary w-[18px]"
                       component={() => <DialChatLogoIconColored />}
                     />
                   ),
@@ -585,7 +585,7 @@ export function getMenuItems({
                   shortcut: shortcutApi.getLabel(Shortcut.ToggleChart),
                   icon: (
                     <Icon
-                      className="text-textSecondary w-[18px]"
+                      className="text-text-secondary w-[18px]"
                       component={() => <AdjustmentsIcon />}
                     />
                   ),
@@ -597,7 +597,7 @@ export function getMenuItems({
               key: viewMenuKeys.togglePanelLabels,
               icon: (
                 <Icon
-                  className="text-textSecondary w-[18px]"
+                  className="text-text-secondary w-[18px]"
                   component={() =>
                     collapsedPanelsTextHidden ? (
                       <TypographyIcon />
@@ -613,7 +613,7 @@ export function getMenuItems({
               key: viewMenuKeys.toggleSplitPanels,
               icon: (
                 <Icon
-                  className="text-textSecondary w-[18px] rotate-90"
+                  className="text-text-secondary w-[18px] rotate-90"
                   component={() => <ColumnsIcon />}
                 />
               ),
@@ -624,7 +624,7 @@ export function getMenuItems({
               key: viewMenuKeys.resetSheetColumns,
               icon: (
                 <Icon
-                  className="text-textSecondary w-[18px]"
+                  className="text-text-secondary w-[18px]"
                   component={() => (
                     <ViewportNarrowIcon secondaryAccentCssVar="text-accent-primary" />
                   )}
@@ -636,7 +636,7 @@ export function getMenuItems({
               key: 'ToggleChatPlacement',
               icon: (
                 <Icon
-                  className="text-textSecondary w-[18px]"
+                  className="text-text-secondary w-[18px]"
                   component={() => <DialChatLogoIconColored />}
                 />
               ),
@@ -651,7 +651,7 @@ export function getMenuItems({
           key: 'InsertMenu',
           icon: (
             <Icon
-              className="w-4 text-textSecondary"
+              className="w-4 text-text-secondary"
               component={() => <InsertIcon />}
             />
           ),
@@ -755,7 +755,7 @@ export function getMenuItems({
           key: 'HelpMenu',
           icon: (
             <Icon
-              className="text-textSecondary w-[18px]"
+              className="text-text-secondary w-[18px]"
               component={() => <QuestionIcon />}
             />
           ),

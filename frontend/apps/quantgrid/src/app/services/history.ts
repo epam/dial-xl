@@ -1,4 +1,4 @@
-import { FilesMetadata } from '@frontend/common';
+import { ResourceMetadata } from '@frontend/common';
 
 export const maxHistoryDepth = 50;
 
@@ -181,7 +181,7 @@ export function saveProjectHistory(
   return;
 }
 
-export function cleanUpProjectHistory(projectList?: FilesMetadata[]) {
+export function cleanUpProjectHistory(projectList?: ResourceMetadata[]) {
   cleanOldProjectHistory();
 
   const history = getHistory();

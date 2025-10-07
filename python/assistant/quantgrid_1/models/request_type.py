@@ -16,8 +16,9 @@ def define_type(type: str) -> RequestType:
         RequestType.ACTIONS,
         RequestType.GENERAL,
     ]
-    matches: list[bool] = [(candidate.name.lower() in type) for candidate in candidates]
-    if sum(matches) != 1:
-        return RequestType.ACTIONS
+    final_class = type.split("Class: ")[-1]
+    for candidate in candidates:
+        if candidate.name.lower() in final_class.lower():
+            return candidate
 
-    return candidates[matches.index(True)]
+    return RequestType.ACTIONS

@@ -2,10 +2,13 @@ import { DefaultOptionType } from 'rc-select/lib/Select';
 import { useCallback, useContext, useEffect, useState } from 'react';
 import Select, { SingleValue } from 'react-select';
 
-import { SelectClasses } from '@frontend/common';
+import { filesEndpointType, SelectClasses } from '@frontend/common';
 import { AppTheme } from '@frontend/common';
 
-import { AppContext } from '../../../context';
+import { logoSrcStorageKey } from '../../../common';
+import { ApiContext, AppContext } from '../../../context';
+import { constructPath } from '../../../utils';
+import { SelectResourceInput } from '../../SelectResourceInput';
 
 const themeOptions = [
   {
@@ -35,6 +38,11 @@ const hiddenFilesOptions = [
 
 export function Settings() {
   const { updateTheme, switchShowHiddenFiles } = useContext(AppContext);
+  const { userBucket } = useContext(ApiContext);
+
+  const [logoBucket, setLogoBucket] = useState<string | undefined>(undefined);
+  const [logoPath, setLogoPath] = useState<string | undefined>(undefined);
+  const [logoName, setLogoName] = useState<string | undefined>(undefined);
 
   const [selectedTheme, setSelectedTheme] = useState<
     SingleValue<DefaultOptionType>
@@ -59,6 +67,32 @@ export function Settings() {
     [switchShowHiddenFiles]
   );
 
+  const handleUpdateInputFile = useCallback(
+    (
+      bucket: string | undefined,
+      path: string | null | undefined,
+      name: string | undefined
+    ) => {
+      setLogoBucket(bucket);
+      setLogoPath(constructPath([path]));
+      setLogoName(name);
+
+      const fileSrc = bucket
+        ? constructPath([
+            window.externalEnv.dialOverlayUrl,
+            'api',
+            filesEndpointType,
+            bucket,
+            path,
+            name,
+          ])
+        : '';
+
+      localStorage.setItem(logoSrcStorageKey, fileSrc);
+    },
+    []
+  );
+
   useEffect(() => {
     const theme = localStorage.getItem('app-theme');
 
@@ -79,11 +113,25 @@ export function Settings() {
     setSelectedShowHiddenFiles(findOption ? findOption : hiddenFilesOptions[0]);
   }, []);
 
+  useEffect(() => {
+    const logoSrc = localStorage.getItem(logoSrcStorageKey);
+    if (logoSrc) {
+      const [_prefix, rest] = logoSrc.split('api/' + filesEndpointType);
+      const [_, bucket, ...pathWithName] = rest.split('/');
+      const name = pathWithName[pathWithName.length - 1];
+      const path = pathWithName.slice(0, -1);
+
+      setLogoBucket(bucket);
+      setLogoPath(constructPath(path));
+      setLogoName(name);
+    }
+  }, []);
+
   return (
     <div className="flex flex-col">
       <div className="flex items-center my-3">
-        <span className="text-textPrimary text-[13px] w-[80px]">Theme:</span>
-        <div className="w-[200px] ml-5">
+        <span className="text-text-primary text-[13px] w-[80px]">Theme:</span>
+        <div className="w-[300px] ml-5">
           <Select
             classNames={SelectClasses}
             components={{
@@ -98,10 +146,10 @@ export function Settings() {
         </div>
       </div>
       <div className="flex items-center my-3">
-        <span className="text-textPrimary text-[13px] w-[80px]">
+        <span className="text-text-primary text-[13px] w-[80px]">
           Hidden files:
         </span>
-        <div className="w-[200px] ml-5">
+        <div className="w-[300px] ml-5">
           <Select
             classNames={SelectClasses}
             components={{
@@ -115,6 +163,28 @@ export function Settings() {
           />
         </div>
       </div>
+      {userBucket && (
+        <div className="flex items-center my-3">
+          <span className="text-text-primary text-[13px] w-[80px]">Logo:</span>
+          <div className="w-[300px] ml-5">
+            <SelectResourceInput
+              bucket={logoBucket}
+              changeLabel={logoBucket ? 'Change' : 'Add'}
+              fileExtensions={['.png', '.jpg', '.jpeg', '.svg']}
+              inputLabel=""
+              isSelectFolder={false}
+              name={logoName}
+              path={logoPath}
+              onReset={
+                logoBucket
+                  ? () => handleUpdateInputFile(undefined, undefined, undefined)
+                  : undefined
+              }
+              onSelect={handleUpdateInputFile}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

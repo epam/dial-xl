@@ -1,6 +1,7 @@
 chat:
   enabled: true
   image:
+    pullPolicy: Always
     registry: ghcr.io
     tag: development
   env:
@@ -23,6 +24,7 @@ chat:
     IS_IFRAME: "true"
     ALLOWED_IFRAME_ORIGINS: >-
       https://{{ .Values.global.url }}
+    ALLOW_OPEN_SIGNIN_PAGE_IN_IFRAME: 'true'
 
   ingress:
     enabled: true
@@ -35,10 +37,11 @@ chat:
       alb.ingress.kubernetes.io/certificate-arn: "arn:aws:acm:eu-north-1:725751206603:certificate/373e8fd1-088e-4022-adf1-5f3e7820fb4a"
       alb.ingress.kubernetes.io/ssl-redirect: "443"
     hosts:
-      - "chat-{{ .Values.global.url }}" 
+      - "chat-{{ .Values.global.url }}"
 
 core:
   image:
+    pullPolicy: Always
     registry: ghcr.io
     tag: development
 
@@ -48,6 +51,7 @@ core:
     aidial.identityProviders.auth0.jwksUrl: "https://chatbot-ui-staging.eu.auth0.com/.well-known/jwks.json"
     aidial.identityProviders.auth0.issuerPattern: '^https:\/\/chatbot-ui-staging\.eu\.auth0\.com.+$'
     aidial.identityProviders.auth0.rolePath: "dial_roles"
+    aidial.identityProviders.auth0.userDisplayName: "email"
     aidial.applications.includeCustomApps: "true"
     # Redis cluster address; password in GitLab CI/CD variables
     aidial.redis.clusterServersConfig.nodeAddresses: '["redis://redis-cluster.quantgrid-review.svc.cluster.local.:6379"]'
@@ -80,7 +84,7 @@ core:
 
     # env:
     #   VECTOR_LOG: debug
-    
+
     config: |
       data_dir: "/var/tmp/vector"
 
@@ -752,6 +756,7 @@ core:
 bedrock:
   enabled: true
   image:
+    pullPolicy: Always
     registry: ghcr.io
     tag: development
 

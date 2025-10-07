@@ -81,7 +81,7 @@ export function ChatButton() {
   return (
     <Rnd
       bounds="body"
-      className={cx('!fixed z-[1000]', {
+      className={cx('fixed! z-1000', {
         hidden: isChatOpen,
       })}
       dragHandleClassName={buttonDragHandleClass}
@@ -97,17 +97,17 @@ export function ChatButton() {
       >
         <div
           className={cx(
-            'flex items-center cursor-move w-full absolute bg-bgInverted px-[6px] py-1 rounded-[3px]',
+            'flex items-center cursor-move w-full absolute bg-bg-inverted px-[6px] py-1 rounded-[3px]',
             buttonDragHandleClass,
             { hidden: !isHovered && !isDragging }
           )}
         >
           <Icon
-            className="w-[18px] text-textInverted mr-1"
+            className="w-[18px] text-text-inverted mr-1"
             component={() => <DragIcon />}
           />
 
-          <span className="text-[13px] leading-[13px] text-textInverted">
+          <span className="text-[13px] leading-[13px] text-text-inverted">
             Drag
           </span>
         </div>

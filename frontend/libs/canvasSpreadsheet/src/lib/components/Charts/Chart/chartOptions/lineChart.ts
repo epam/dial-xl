@@ -66,7 +66,7 @@ export function organizeLineChartData(
 
     if (!valueFieldNames.length) continue;
 
-    legendData.push(...valueFieldNames);
+    legendData.push(...sortNumericOrText(valueFieldNames));
 
     // Get x-axis data for this section
     const sectionXAxisData: string[] =

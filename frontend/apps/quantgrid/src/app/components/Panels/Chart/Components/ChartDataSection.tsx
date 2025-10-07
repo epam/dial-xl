@@ -276,7 +276,7 @@ export function ChartDataSection({
             >
               <div className="flex flex-col mb-2" key={sectionKey}>
                 {Object.keys(sections).length > 1 && (
-                  <div className="text-[12px] text-textSecondary mb-1">
+                  <div className="text-[12px] text-text-secondary mb-1">
                     {sectionKey}
                   </div>
                 )}
@@ -295,7 +295,11 @@ export function ChartDataSection({
                         }
                       >
                         <div className="h-2 bg-transparent w-full" />
-                        <Tooltip placement="right" title="Add separator here">
+                        <Tooltip
+                          placement="right"
+                          title="Add separator here"
+                          destroyOnHidden
+                        >
                           <Icon
                             className="w-[18px] absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition"
                             component={() => (
@@ -313,8 +317,12 @@ export function ChartDataSection({
                     className="relative group w-full mt-3 hover:cursor-pointer"
                     onClick={() => handleRemoveSeparator(index)}
                   >
-                    <div className="h-0.5 bg-strokePrimary w-full" />
-                    <Tooltip placement="right" title="Remove separator">
+                    <div className="h-0.5 bg-stroke-primary w-full" />
+                    <Tooltip
+                      placement="right"
+                      title="Remove separator"
+                      destroyOnHidden
+                    >
                       <Icon
                         className="w-[18px] absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition text-accent-primary"
                         component={() => <CircleRemove />}
@@ -356,13 +364,13 @@ function DraggableField({
       style={style}
       {...(!isOverlay ? attributes : {})}
       {...(!isOverlay ? listeners : {})}
-      className="flex items-center h-7 w-full px-2 rounded-[3px] border border-strokePrimary bg-bgLayer2 cursor-grab active:cursor-grabbing"
+      className="flex items-center h-7 w-full px-2 rounded-[3px] border border-stroke-primary bg-bg-layer-2 cursor-grab active:cursor-grabbing"
     >
       <Icon
-        className="w-[18px] mr-1 text-textPrimary"
+        className="w-[18px] mr-1 text-text-primary"
         component={() => <DragCardIcon />}
       />
-      <span className="text-[13px] text-textPrimary">{fieldName}</span>
+      <span className="text-[13px] text-text-primary">{fieldName}</span>
     </div>
   );
 }

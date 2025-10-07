@@ -47,7 +47,7 @@ export const DropArea = ({
         <div
           className={classNames(
             'flex-1 p-2 overflow-y-auto thin-scrollbar transition-colors duration-200 h-full',
-            isOver && 'border-2 border-dashed border-strokeAccentPrimary'
+            isOver && 'border-2 border-dashed border-stroke-accent-primary'
           )}
           ref={setNodeRef}
         >
@@ -66,7 +66,7 @@ export const DropArea = ({
           </SortableContext>
 
           {items.length === 0 && emptyItemsMessage && (
-            <div className="absolute inset-0 flex items-center justify-center text-[13px] text-textSecondary text-center p-8">
+            <div className="absolute inset-0 flex items-center justify-center text-[13px] text-text-secondary text-center p-8">
               {emptyItemsMessage}
             </div>
           )}

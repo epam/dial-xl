@@ -66,8 +66,35 @@ export function organizeFlatBarChartData(
     });
 
     if (chartOrientation === 'vertical') {
-      if (!xAxisData.length) {
-        xAxisData.push(...(rowLabels.length ? rowLabels : rowNumbers));
+      // For custom x-axis labels, sort the row numbers accordingly
+      let sortedRowNumbers = [...rowNumbers];
+      let sortedLabels = [...rowLabels];
+
+      if (rowLabels.length && xAxisFieldName) {
+        // Create pairs of [label, rowNumber] for sorting
+        const labelRowPairs = rowLabels.map((label, idx) => ({
+          label,
+          rowNumber: rowNumbers[idx],
+        }));
+
+        // Sort by labels
+        labelRowPairs.sort((a, b) => {
+          const sorted = sortNumericOrText([a.label, b.label]);
+
+          return sorted[0] === a.label ? -1 : 1;
+        });
+
+        // Extract sorted arrays
+        sortedLabels = labelRowPairs.map((pair) => pair.label);
+        sortedRowNumbers = labelRowPairs.map((pair) => pair.rowNumber);
+
+        // Add sorted labels to xAxisData
+        if (!xAxisData.length) {
+          xAxisData.push(...sortedLabels);
+        }
+      } else if (!xAxisData.length) {
+        // If no custom labels, just use row numbers
+        xAxisData.push(...rowNumbers);
       }
 
       for (const valueFieldName of sortNumericOrText(valueFieldNames)) {
@@ -77,7 +104,7 @@ export function organizeFlatBarChartData(
         const fieldValuesDisplay = data[valueFieldName]?.displayValues;
         if (!Array.isArray(fieldValues)) return;
 
-        const seriesData = rowNumbers.map((row) => {
+        const seriesData = sortedRowNumbers.map((row) => {
           const idx = Number(row) - 1;
           const v = fieldValues[idx];
           const n = parseFloat(v as string);
@@ -140,11 +167,9 @@ export function organizeFlatBarChartData(
   }
 
   const uniqueXAxisData = addLineBreaks(
-    chartOrientation === 'vertical'
-      ? sortNumericOrText([...new Set(xAxisData)].filter(Boolean)).map(
-          (raw) => xDisplayByRaw.get(raw) ?? raw
-        )
-      : [...new Set(xAxisData)]
+    [...new Set(xAxisData)]
+      .filter(Boolean)
+      .map((raw) => xDisplayByRaw.get(raw) ?? raw)
   );
 
   const uniqueLegendData = [...new Set(legendData)];
@@ -154,7 +179,6 @@ export function organizeFlatBarChartData(
     series,
     legendData: uniqueLegendData,
     xAxisData: uniqueXAxisData,
-    isHorizontal: chartOrientation === 'horizontal',
   };
 }
 
@@ -165,7 +189,6 @@ export function getFlatBarChartOption({
   zoom,
   theme,
   showLegend,
-  isHorizontal,
 }: GetOptionProps): EChartsOption {
   function getValue(value: number) {
     return value * zoom;
@@ -238,10 +261,8 @@ export function getFlatBarChartOption({
       formatter: (params: any) => {
         return params
           .map(
-            ({ marker, data, name, seriesName }: any) =>
-              `${marker}${
-                isHorizontal ? name : seriesName
-              }<span style="float: right; margin-left: 20px"><b>${
+            ({ marker, data, seriesName }: any) =>
+              `${marker}${seriesName}<span style="float: right; margin-left: 20px"><b>${
                 data?.displayValue || data?.value || ''
               }</b></span>`
           )

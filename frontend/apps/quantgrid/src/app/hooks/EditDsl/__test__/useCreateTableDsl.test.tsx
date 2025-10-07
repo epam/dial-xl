@@ -1,42 +1,39 @@
-import { ChartType, ColumnDataType, GridTable } from '@frontend/common';
+import { GridTable } from '@frontend/canvas-spreadsheet';
+import { ChartType, ColumnDataType } from '@frontend/common';
 import { act, RenderHookResult } from '@testing-library/react';
 
 import { ViewGridData } from '../../../context';
 import { useCreateTableDsl } from '../useCreateTableDsl';
+import { createWrapper, initialProps } from './createWrapper';
 import { hookTestSetup } from './hookTestSetup';
-import { RenderProps, TestWrapperProps } from './types';
-
-const initialProps: TestWrapperProps = {
-  appendToFn: jest.fn(),
-  manuallyUpdateSheetContent: jest.fn(() => Promise.resolve(true)),
-  projectName: 'project1',
-  sheetName: 'sheet1',
-};
+import { TestWrapperProps } from './types';
 
 describe('useCreateTableDsl', () => {
-  let props: TestWrapperProps;
+  let props: TestWrapperProps = { ...initialProps };
   let hook: RenderHookResult<
     ReturnType<typeof useCreateTableDsl>,
     { dsl: string }
   >['result'];
-  let rerender: (props?: RenderProps) => void;
+  let setDsl: (dsl: string) => void;
+  let Wrapper: React.FC<React.PropsWithChildren>;
+
+  beforeAll(() => {
+    Wrapper = createWrapper(props);
+  });
 
   beforeEach(() => {
-    props = { ...initialProps };
     jest.clearAllMocks();
-
-    const hookRender = hookTestSetup(useCreateTableDsl, props);
-
+    const hookRender = hookTestSetup(useCreateTableDsl, Wrapper);
     hook = hookRender.result;
-    rerender = hookRender.rerender;
+    setDsl = hookRender.setDsl;
   });
 
   describe('createDerivedTable', () => {
     it('should create derived table', () => {
       // Arrange
       const dsl = 'table t1 [f1]=1\n[f2]=2';
-      const expectedDsl = `table t1 [f1]=1\n[f2]=2\r\n\n!layout(1, 4, "title", "headers")\ntable t1_derived\n  dim [source] = t1\n  [f1] = [source][f1]\n  [f2] = [source][f2]\r\n`;
-      rerender({ dsl });
+      const expectedDsl = `table t1 [f1]=1\n[f2]=2\r\n\n!layout(1, 4, "title", "headers")\ntable t1_derived\n  dim [f1], [f2] = t1[[f1],[f2]]\r\n`;
+      setDsl(dsl);
 
       // Act
       act(() => hook.current.createDerivedTable('t1'));
@@ -54,8 +51,8 @@ describe('useCreateTableDsl', () => {
     it('should create derived table from table with name in quotes', () => {
       // Arrange
       const dsl = `table 'some table' [f1]=1\n[f2]=2`;
-      const expectedDsl = `table 'some table' [f1]=1\n[f2]=2\r\n\n!layout(1, 4, "title", "headers")\ntable 'some table_derived'\n  dim [source] = 'some table'\n  [f1] = [source][f1]\n  [f2] = [source][f2]\r\n`;
-      rerender({ dsl });
+      const expectedDsl = `table 'some table' [f1]=1\n[f2]=2\r\n\n!layout(1, 4, "title", "headers")\ntable 'some table_derived'\n  dim [f1], [f2] = 'some table'[[f1],[f2]]\r\n`;
+      setDsl(dsl);
 
       // Act
       act(() => hook.current.createDerivedTable(`'some table'`));
@@ -73,7 +70,7 @@ describe('useCreateTableDsl', () => {
     it('should do nothing if source table not found', () => {
       // Arrange
       const dsl = 'table t1 [f1]=1\n[f2]=2';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => hook.current.createDerivedTable('t2'));
@@ -86,8 +83,8 @@ describe('useCreateTableDsl', () => {
     it('should create derived table with unique field names', () => {
       // Arrange
       const dsl = 'table t1 [source]=1\n[f2]=2';
-      const expectedDsl = `table t1 [source]=1\n[f2]=2\r\n\n!layout(1, 4, "title", "headers")\ntable t1_derived\n  dim [source1] = t1\n  [source] = [source1][source]\n  [f2] = [source1][f2]\r\n`;
-      rerender({ dsl });
+      const expectedDsl = `table t1 [source]=1\n[f2]=2\r\n\n!layout(1, 4, "title", "headers")\ntable t1_derived\n  dim [source], [f2] = t1[[source],[f2]]\r\n`;
+      setDsl(dsl);
 
       // Act
       act(() => hook.current.createDerivedTable('t1'));
@@ -108,7 +105,7 @@ describe('useCreateTableDsl', () => {
       // Arrange
       const dsl = 'table t1 [f1]=1';
       const expectedDsl = `table t1 [f1]=1\r\n\n!layout(1, 1, "title", "headers")\n!visualization("line-chart")\n!size(15,10)\ntable Chart1\r\n`;
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => hook.current.createEmptyChartTable(ChartType.LINE));
@@ -128,7 +125,7 @@ describe('useCreateTableDsl', () => {
       // Arrange
       const dsl = 'table t1 [f1]=1';
       const expectedDsl = `table t1 [f1]=1\r\n\n!layout(5, 5)\ntable Table1\n  [Column1] = 2 + 2\r\n`;
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => hook.current.createSingleValueTable(5, 5, '= 2 + 2'));
@@ -146,7 +143,7 @@ describe('useCreateTableDsl', () => {
       // Arrange
       const dsl = '';
       const expectedDsl = `!layout(5, 5)\ntable Table1\n  [Column1] = 2 + 2\r\n`;
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => hook.current.createSingleValueTable(5, 5, '= 2 + 2'));
@@ -165,7 +162,7 @@ describe('useCreateTableDsl', () => {
       const dsl = 'table t1 [f1]=1';
       const expectedDsl =
         'table t1 [f1]=1\r\n\n!layout(4, 4)\ntable Table1\n  [Column1] = 33\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => hook.current.createSingleValueTable(4, 4, '33'));
@@ -184,7 +181,7 @@ describe('useCreateTableDsl', () => {
       const dsl = 'table t1 [f1]=1';
       const expectedDsl =
         'table t1 [f1]=1\r\n\n!layout(4, 4)\ntable Table1\n  [Column1] = "some string"\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => hook.current.createSingleValueTable(4, 4, 'some string'));
@@ -210,7 +207,7 @@ describe('useCreateTableDsl', () => {
           content: dsl,
         },
       ] as never[];
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => hook.current.createSingleValueTable(4, 4, '=COUNT(T1)'));
@@ -236,7 +233,7 @@ describe('useCreateTableDsl', () => {
           content: dsl,
         },
       ] as never[];
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() =>
@@ -270,7 +267,7 @@ describe('useCreateTableDsl', () => {
           content: dsl,
         },
       ] as never[];
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() =>
@@ -291,8 +288,8 @@ describe('useCreateTableDsl', () => {
     it('should create dimension table', () => {
       // Arrange
       const dsl = 'table table1 [f1]=1';
-      const expectedDsl = `table table1 [f1]=1\r\n\n!layout(4, 4, "title", "headers")\ntable t2\n  dim [source1] = t3\n  dim [source2] = t4\r\n`;
-      rerender({ dsl });
+      const expectedDsl = `table table1 [f1]=1\r\n\n!layout(4, 4, "title", "headers")\ntable t2\n  dim [Column1] = t3\n  dim [Column2] = t4\r\n`;
+      setDsl(dsl);
 
       // Act
       act(() => hook.current.createDimensionTable(4, 4, 't2:t3:t4'));
@@ -310,7 +307,7 @@ describe('useCreateTableDsl', () => {
     it('should create dimension table with unique name', () => {
       // Arrange
       const dsl = 'table t1 [f1]=1';
-      const expectedDsl = `table t1 [f1]=1\r\n\n!layout(4, 4, "title", "headers")\ntable t2\n  dim [source1] = t3\n  dim [source2] = t4\r\n`;
+      const expectedDsl = `table t1 [f1]=1\r\n\n!layout(4, 4, "title", "headers")\ntable t2\n  dim [Column1] = t3\n  dim [Column2] = t4\r\n`;
       props.projectSheets = [
         {
           projectName: 'project1',
@@ -318,7 +315,7 @@ describe('useCreateTableDsl', () => {
           content: dsl,
         },
       ] as never[];
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => hook.current.createDimensionTable(4, 4, 't1:t3:t4'));
@@ -336,8 +333,8 @@ describe('useCreateTableDsl', () => {
     it('should create dimension table in a blank sheet', () => {
       // Arrange
       const dsl = '';
-      const expectedDsl = `!layout(4, 4, "title", "headers")\ntable t1\n  dim [source1] = t2\n  dim [source2] = t3\r\n`;
-      rerender({ dsl });
+      const expectedDsl = `!layout(4, 4, "title", "headers")\ntable t1\n  dim [Column1] = t2\n  dim [Column2] = t3\r\n`;
+      setDsl(dsl);
 
       // Act
       act(() => hook.current.createDimensionTable(4, 4, 't1:t2:t3'));
@@ -355,8 +352,8 @@ describe('useCreateTableDsl', () => {
     it('should create dimension table at the beginning of the spreadsheet', () => {
       // Arrange
       const dsl = 'table table1 [f1]=1';
-      const expectedDsl = `table table1 [f1]=1\r\n\n!layout(1, 1, "title", "headers")\ntable t2\n  dim [source1] = t3\n  dim [source2] = t4\r\n`;
-      rerender({ dsl });
+      const expectedDsl = `table table1 [f1]=1\r\n\n!layout(1, 1, "title", "headers")\ntable t2\n  dim [Column1] = t3\n  dim [Column2] = t4\r\n`;
+      setDsl(dsl);
 
       // Act
       act(() => hook.current.createDimensionTable(0, 0, 't2:t3:t4'));
@@ -374,7 +371,7 @@ describe('useCreateTableDsl', () => {
     it('should do nothing if unable to parse value', () => {
       // Arrange
       const dsl = 'table t1 [f1]=1';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => hook.current.createDimensionTable(4, 4, 't1'));
@@ -396,7 +393,7 @@ describe('useCreateTableDsl', () => {
         ['2', '22', '222'],
         ['3', '33', '333'],
       ];
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => hook.current.createManualTable(4, 4, cells));
@@ -417,7 +414,7 @@ describe('useCreateTableDsl', () => {
       const expectedDsl =
         '!layout(1, 1, "title", "headers")\n!manual()\ntable Table1\n  [Column1]\noverride\n[Column1]\n1\r\n';
       const cells = [['1']];
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => hook.current.createManualTable(0, 0, cells));
@@ -438,7 +435,7 @@ describe('useCreateTableDsl', () => {
       // Arrange
       const dsl = 'table t1 [a]=1\n[b]=2\n[c]=3';
       const expectedDsl = `table t1 [a]=1\n[b]=2\n[c]=3\r\n\n!layout(5, 4, "title", "headers")\ntable t2\n  dim [a], [b], [c] = t1[[a],[b],[c]]\r\n`;
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() =>
@@ -469,7 +466,7 @@ describe('useCreateTableDsl', () => {
       // Arrange
       const dsl = 'table t1 [a]=1\n[b]=2\n[c]=3';
       const expectedDsl = `table t1 [a]=1\n[b]=2\n[c]=3\r\n\n!layout(5, 4, "title", "headers")\ntable t2\n  dim [a '[2000']], [b '[2001']], [c '[2002']] = t1[[a '[2000']],[b '[2001']],[c '[2002']]]\r\n`;
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() =>
@@ -500,7 +497,7 @@ describe('useCreateTableDsl', () => {
       // Arrange
       const dsl = 'table t1 [a]=1\n[b]=2\n[c]=3';
       const expectedDsl = `table t1 [a]=1\n[b]=2\n[c]=3\r\n\n!layout(5, 4, "title", "headers")\ntable t2\n  dim key [a], [b], [c] = t1[[a],[b],[c]]\r\n`;
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() =>
@@ -530,8 +527,8 @@ describe('useCreateTableDsl', () => {
     it('should create dimension table from formula in empty sheet and with empty schema', () => {
       // Arrange
       const dsl = '';
-      const expectedDsl = `!layout(5, 4, "title", "headers")\ntable t1\n  dim [source] = RANGE(10)\r\n`;
-      rerender({ dsl });
+      const expectedDsl = `!layout(5, 4, "title", "headers")\ntable t1\n  dim [number] = RANGE(10)\r\n`;
+      setDsl(dsl);
 
       // Act
       act(() =>
@@ -562,7 +559,7 @@ describe('useCreateTableDsl', () => {
       // Arrange
       const dsl = 'table t1 [a]=1\n[b]=2\n[c]=3';
       const expectedDsl = `table t1 [a]=1\n[b]=2\n[c]=3\r\n\n!layout(5, 4, "title", "headers")\ntable t2\n  [a], [b], [c] = t1[[a],[b],[c]]\r\n`;
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() =>
@@ -594,7 +591,7 @@ describe('useCreateTableDsl', () => {
       const dsl =
         'table t1\n  dim [source] = t1\n  [a] = [source][a]\n  [b] = [source][b]\n  [c] = [source][c]\r\n';
       const expectedDsl = `table t1\n  dim [source] = t1\n  [a] = [source][a]\n  [b] = [source][b]\n  [c] = [source][c]\r\n\r\n!layout(5, 4, "title", "headers")\ntable t2\n  dim [source], [a], [b], [c] = t1[[source],[a],[b],[c]]\r\n`;
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() =>
@@ -625,7 +622,7 @@ describe('useCreateTableDsl', () => {
       // Arrange
       const dsl = '';
       const expectedDsl = `!layout(5, 4, "title", "headers")\ntable t1\n  dim [a], [b], [c] = INPUT("input_url")[[a],[b],[c]]\r\n`;
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() =>
@@ -656,7 +653,7 @@ describe('useCreateTableDsl', () => {
       // Arrange
       const dsl = '';
       const expectedDsl = `!layout(5, 4, "title", "headers")\ntable t1\n  [a], [b] = T1(1)[[a],[b]]\r\n`;
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() =>
@@ -687,7 +684,7 @@ describe('useCreateTableDsl', () => {
       // Arrange
       const dsl = '';
       const expectedDsl = `!layout(5, 4, "title", "headers")\ntable t1\n  [a] = T1(1)[a]\r\n`;
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() =>
@@ -718,7 +715,7 @@ describe('useCreateTableDsl', () => {
       // Arrange
       const dsl = 'table t1 [a]=1\n[b]=2\n[c]=3';
       const expectedDsl = `table t1 [a]=1\n[b]=2\n[c]=3\r\n\n!layout(10, 5, "title", "headers")\ntable 't1_(1,2,3)[b]'\n  dim [a], [b], [c] = t1.FIND(1,2,3)[b][[a],[b],[c]]\r\n`;
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() =>
@@ -751,7 +748,7 @@ describe('useCreateTableDsl', () => {
       // Arrange
       const dsl = 'table t1 [a]=1\n[b]=2\n[c]=3';
       const expectedDsl = `table t1 [a]=1\n[b]=2\n[c]=3\r\n\n!layout(10, 5, "title", "headers")\ntable 't1_(1,2,3)[b]'\n  dim [a '[2000']], [b '[2001']], [c '[2002']] = t1.FIND(1,2,3)[b][[a '[2000']],[b '[2001']],[c '[2002']]]\r\n`;
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() =>
@@ -784,7 +781,7 @@ describe('useCreateTableDsl', () => {
       // Arrange
       const dsl = 'table t1 [a]=1\n[b]=2\n[c]=3';
       const expectedDsl = `table t1 [a]=1\n[b]=2\n[c]=3\r\n\n!layout(10, 5, "title", "headers")\ntable 't1_(1,2,3)[b]'\n  dim key [a], [b], [c] = t1.FIND(1,2,3)[b][[a],[b],[c]]\r\n`;
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() =>
@@ -817,7 +814,7 @@ describe('useCreateTableDsl', () => {
       // Arrange
       const dsl = 'table t1 [a]=1\n[b]=2\n[c]=3';
       const expectedDsl = `table t1 [a]=1\n[b]=2\n[c]=3\r\n\n!layout(10, 5, "horizontal", "title", "headers")\ntable 't1_(1,2,3)[b]'\n  [a], [b], [c] = t1(1,2,3)[b][[a],[b],[c]]\r\n`;
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() =>
@@ -850,7 +847,7 @@ describe('useCreateTableDsl', () => {
       // Arrange
       const dsl = 'table t1 [a]=1\n[b]=2\n[c]=3';
       const expectedDsl = `table t1 [a]=1\n[b]=2\n[c]=3\r\n\n!layout(10, 5, "horizontal", "title", "headers")\ntable 't1_(1,2,3)[b]'\n  key [a], [b], [c] = t1(1,2,3)[b][[a],[b],[c]]\r\n`;
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() =>
@@ -883,7 +880,7 @@ describe('useCreateTableDsl', () => {
       // Arrange
       const dsl = 'table t1 [a]=1\n[b]=2\n[c]=3';
       const expectedDsl = `table t1 [a]=1\n[b]=2\n[c]=3\r\n\n!layout(5, 4, "title", "headers")\ntable t2\n  dim [date], [value] = PERIODSERIES(A[b], A[c], "DAY")[[date],[value]]\r\n`;
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() =>
@@ -914,7 +911,7 @@ describe('useCreateTableDsl', () => {
       // Arrange
       const dsl = 'table t1 [a]=1\n[b]=2\n[c]=3';
       const expectedDsl = `table t1 [a]=1\n[b]=2\n[c]=3\r\n\n!layout(5, 4, "title", "headers")\ntable t2\n  dim [date], [value] = PERIODSERIES(A[b], A[c], "DAY")[[date],[value]]\r\n`;
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() =>
@@ -956,14 +953,15 @@ describe('useCreateTableDsl', () => {
         },
         getGridTableStructure: (): GridTable[] => [],
       } as ViewGridData;
-      const hookRender = hookTestSetup(useCreateTableDsl, props);
+      Wrapper = createWrapper(props);
+      const hookRender = hookTestSetup(useCreateTableDsl, Wrapper);
       hook = hookRender.result;
-      rerender = hookRender.rerender;
+      setDsl = hookRender.setDsl;
 
       // Arrange
       const dsl = '!layout(1,1)\ntable t1\n[f1]="text"';
       const expectedDsl = `!layout(1,1)\ntable t1\n[f1]="text"\r\n\n!layout(1, 3, "title", "headers")\n!manual()\ntable 't1 totals'\n  [Stat]\n  [f1]\noverride\n[Stat],[f1]\n"COUNT",COUNT(t1[f1])\n"MIN",MIN(t1[f1])\n"MAX",MAX(t1[f1])\r\n`;
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => hook.current.createAllTableTotals('t1'));
@@ -993,14 +991,15 @@ describe('useCreateTableDsl', () => {
         },
         getGridTableStructure: (): GridTable[] => [],
       } as ViewGridData;
-      const hookRender = hookTestSetup(useCreateTableDsl, props);
+      Wrapper = createWrapper(props);
+      const hookRender = hookTestSetup(useCreateTableDsl, Wrapper);
       hook = hookRender.result;
-      rerender = hookRender.rerender;
+      setDsl = hookRender.setDsl;
 
       // Arrange
       const dsl = '!layout(1,1)\ntable t1\n[f1]=1\n[f2]="text"';
       const expectedDsl = `!layout(1,1)\ntable t1\n[f1]=1\n[f2]="text"\r\n\n!layout(1, 4, "title", "headers")\n!manual()\ntable 't1 totals'\n  [Stat]\n  [f1]\n  [f2]\noverride\n[Stat],[f1],[f2]\n"COUNT",COUNT(t1[f1]),COUNT(t1[f2])\n"MIN",MIN(t1[f1]),MIN(t1[f2])\n"MAX",MAX(t1[f1]),MAX(t1[f2])\n"AVERAGE",AVERAGE(t1[f1]),\n"STDEVS",STDEVS(t1[f1]),\r\n`;
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => hook.current.createAllTableTotals('t1'));
@@ -1029,14 +1028,15 @@ describe('useCreateTableDsl', () => {
         },
         getGridTableStructure: (): GridTable[] => [],
       } as ViewGridData;
-      const hookRender = hookTestSetup(useCreateTableDsl, props);
+      Wrapper = createWrapper(props);
+      const hookRender = hookTestSetup(useCreateTableDsl, Wrapper);
       hook = hookRender.result;
-      rerender = hookRender.rerender;
+      setDsl = hookRender.setDsl;
 
       // Arrange
       const dsl = '!layout(1,1)\ntable t1\n[f1]=RANGE(10)';
       const expectedDsl = `!layout(1,1)\ntable t1\n[f1]=RANGE(10)\r\n\n!layout(1, 3, "title", "headers")\n!manual()\ntable 't1 totals'\n  [Stat]\n  [f1]\noverride\n[Stat],[f1]\n"COUNT",COUNT(t1[f1])\r\n`;
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => hook.current.createAllTableTotals('t1'));

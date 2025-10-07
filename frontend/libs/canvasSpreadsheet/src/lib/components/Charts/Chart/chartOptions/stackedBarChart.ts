@@ -63,7 +63,36 @@ export function organizeStackedBarChartData(
     });
 
     if (chartOrientation === 'vertical') {
-      if (!xAxisData.length) xAxisData.push(...rowLabels);
+      // For custom x-axis labels, sort the row numbers accordingly
+      let sortedRowNumbers = [...rowNumbers];
+      let sortedLabels = [...rowLabels];
+
+      if (rowLabels.length && xAxisFieldName) {
+        // Create pairs of [label, rowNumber] for sorting
+        const labelRowPairs = rowLabels.map((label, idx) => ({
+          label,
+          rowNumber: rowNumbers[idx],
+        }));
+
+        // Sort by labels
+        labelRowPairs.sort((a, b) => {
+          const sorted = sortNumericOrText([a.label, b.label]);
+
+          return sorted[0] === a.label ? -1 : 1;
+        });
+
+        // Extract sorted arrays
+        sortedLabels = labelRowPairs.map((pair) => pair.label);
+        sortedRowNumbers = labelRowPairs.map((pair) => pair.rowNumber);
+
+        // Add sorted labels to xAxisData
+        if (!xAxisData.length) {
+          xAxisData.push(...sortedLabels);
+        }
+      } else if (!xAxisData.length) {
+        // If no custom labels, just use row numbers
+        xAxisData.push(...rowNumbers);
+      }
 
       for (const fieldName of sortNumericOrText(valueFieldNames)) {
         legendData.push(fieldName);
@@ -72,7 +101,7 @@ export function organizeStackedBarChartData(
         const fieldValuesDisplay = data[fieldName]?.displayValues;
         if (!Array.isArray(fieldValues)) return;
 
-        const values = rowNumbers.map((row) => {
+        const values = sortedRowNumbers.map((row) => {
           const idx = Number(row) - 1;
           const n = parseFloat(fieldValues[idx] as string);
           const disp = fieldValuesDisplay[idx];
@@ -135,11 +164,9 @@ export function organizeStackedBarChartData(
   }
 
   const uniqueXAxisData = addLineBreaks(
-    chartOrientation === 'vertical'
-      ? sortNumericOrText([...new Set(xAxisData)]).map(
-          (raw) => xDisplayByRaw.get(raw) ?? raw
-        )
-      : [...new Set(xAxisData)]
+    [...new Set(xAxisData)]
+      .filter(Boolean)
+      .map((raw) => xDisplayByRaw.get(raw) ?? raw)
   );
 
   return {
@@ -147,7 +174,6 @@ export function organizeStackedBarChartData(
     legendData: [...new Set(legendData)],
     series,
     xAxisData: uniqueXAxisData,
-    isHorizontal: chartOrientation === 'horizontal',
   };
 }
 
@@ -158,7 +184,6 @@ export function getStackedBarChartOption({
   zoom,
   theme,
   showLegend,
-  isHorizontal,
 }: GetOptionProps): EChartsOption {
   function getValue(value: number) {
     return value * zoom;
@@ -231,10 +256,8 @@ export function getStackedBarChartOption({
       formatter: (params: any) => {
         return params
           .map(
-            ({ marker, data, name, seriesName }: any) =>
-              `${marker}${
-                isHorizontal ? name : seriesName
-              }<span style="float: right; margin-left: 20px"><b>${
+            ({ marker, data, seriesName }: any) =>
+              `${marker}${seriesName}<span style="float: right; margin-left: 20px"><b>${
                 data?.displayValue || data?.value || ''
               }</b></span>`
           )

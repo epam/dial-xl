@@ -49,14 +49,14 @@ def setup_environment(request: pytest.FixtureRequest):
 
 
 def strip_test_indexing(node_id: str) -> tuple[str, int]:
-    match = re.fullmatch(r"(.*)\[(\d+)-\d+]", node_id)
+    match = re.fullmatch(r"(.*?)(?:\[(\d+)-\d+])?", node_id)
     if match is None:
         return node_id, 0
 
     name = "".join(char if char.isalnum() else "_" for char in match.group(1))
     name = re.sub(r"_+", "_", name)
 
-    return name, int(match.group(2))
+    return name, int(match.group(2) or 0)
 
 
 @pytest.fixture(scope="function", name="project")

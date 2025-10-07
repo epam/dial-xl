@@ -1,9 +1,7 @@
 import * as PIXI from 'pixi.js';
 
-import { GridCell } from '@frontend/common';
-
 import { GridSizes } from '../constants';
-import { CellStyle, Coordinates, Theme } from '../types';
+import { CellStyle, Coordinates, GridCell, Theme } from '../types';
 
 function drawShadows(
   graphics: PIXI.Graphics,
@@ -84,7 +82,7 @@ function drawShadows(
   if (shadow?.shadowTopLeft) {
     const defaultShift = shadow.shadowTopLeft[0].width ?? 1;
     let accumulatedHeight = 0;
-    shadow.shadowTopLeft.forEach((currentShadow, index) => {
+    shadow.shadowTopLeft.forEach((currentShadow) => {
       graphics
         .lineStyle({ ...currentShadow, alignment: 0 })
         .moveTo(

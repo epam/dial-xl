@@ -95,7 +95,7 @@ export function useProjectActions() {
         {
           bucket: projectBucket,
           name: `${projectName}${dialProjectFileExtension}`,
-          path: projectPath,
+          parentPath: projectPath,
         },
       ],
     });
@@ -115,6 +115,7 @@ export function useProjectActions() {
         bucket: projectBucket,
         parentPath: projectPath,
         nodeType: MetadataNodeType.ITEM,
+        items: [],
       },
     ]);
   }, [projectBucket, projectName, projectPath, shareResources]);

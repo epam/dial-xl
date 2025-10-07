@@ -6,7 +6,7 @@ import {
   appMessages,
   csvFileExtension,
   dialProjectFileExtension,
-  FilesMetadata,
+  ResourceMetadata,
   schemaFileExtension,
 } from '@frontend/common';
 
@@ -14,20 +14,22 @@ import { ApiContext } from '../../context';
 import { displayToast } from '../../utils';
 import { useApiRequests } from '..';
 
+type CloneItem = Pick<
+  ResourceMetadata,
+  'bucket' | 'name' | 'parentPath' | 'permissions'
+> & { newName?: string };
+
 export function useCloneResources() {
   const { userBucket } = useContext(ApiContext);
   const { cloneFile, cloneProject } = useApiRequests();
 
   const handleCloneProject = useCallback(
     async (
-      item: Pick<
-        FilesMetadata,
-        'bucket' | 'name' | 'parentPath' | 'permissions'
-      >,
+      item: CloneItem,
       targetBucket?: string,
       targetPath?: string | null
     ) => {
-      const { bucket, name, parentPath } = item;
+      const { bucket, name, parentPath, newName } = item;
 
       if (!userBucket) {
         displayToast('error', apiMessages.cloneProjectClient);
@@ -38,7 +40,7 @@ export function useCloneResources() {
       const res = await cloneProject({
         bucket: bucket,
         name: name,
-        path: parentPath,
+        parentPath,
         targetBucket: targetBucket ?? userBucket,
         targetPath:
           targetPath ?? bucket === userBucket ? parentPath ?? null : null,
@@ -46,6 +48,7 @@ export function useCloneResources() {
           item?.permissions?.includes('READ') &&
           !item.permissions.includes('WRITE')
         ),
+        newName,
       });
 
       if (!res) return;
@@ -62,12 +65,9 @@ export function useCloneResources() {
   );
 
   const handleCloneFile = useCallback(
-    async (
-      item: Pick<FilesMetadata, 'bucket' | 'name' | 'parentPath'>,
-      targetBucket?: string,
-      targetPath?: string
-    ) => {
-      const isCsvFile = item.name.endsWith(csvFileExtension);
+    async (item: CloneItem, targetBucket?: string, targetPath?: string) => {
+      const { bucket, name, parentPath, newName } = item;
+      const isCsvFile = name.endsWith(csvFileExtension);
 
       if (!userBucket) {
         displayToast('error', apiMessages.cloneProjectClient);
@@ -76,28 +76,30 @@ export function useCloneResources() {
       }
 
       const res = await cloneFile({
-        bucket: item.bucket,
-        name: item.name,
-        path: item.parentPath,
+        bucket,
+        name,
+        parentPath,
         targetBucket: targetBucket ?? userBucket,
         targetPath:
-          targetPath ?? item.bucket === userBucket
-            ? item.parentPath ?? null
-            : null,
+          targetPath ?? bucket === userBucket ? parentPath ?? null : null,
+        newName,
       });
 
       if (!isCsvFile) return;
 
+      function toSchemaFileName(name: string) {
+        return '.' + name.replaceAll(csvFileExtension, schemaFileExtension);
+      }
+
       await cloneFile({
-        bucket: item.bucket,
-        name: '.' + item.name.replaceAll(csvFileExtension, schemaFileExtension),
-        path: item.parentPath,
+        bucket: bucket,
+        name: toSchemaFileName(name),
+        parentPath,
         targetBucket: targetBucket ?? userBucket,
         targetPath:
-          targetPath ?? item.bucket === userBucket
-            ? item.parentPath ?? null
-            : null,
+          targetPath ?? bucket === userBucket ? parentPath ?? null : null,
         suppressErrors: true,
+        newName: newName ? toSchemaFileName(newName) : undefined,
       });
 
       if (!res) return;
@@ -113,7 +115,7 @@ export function useCloneResources() {
       targetBucket,
       targetPath,
     }: {
-      items: Pick<FilesMetadata, 'bucket' | 'name' | 'parentPath'>[];
+      items: CloneItem[];
       targetBucket?: string;
       targetPath?: string;
     }) => {

@@ -10,9 +10,9 @@ import {
   selectedTabClasses,
 } from '@frontend/common';
 
-import { DashboardTab } from '../../common';
 import { DashboardContext } from '../../context';
 import { routes } from '../../types';
+import { DashboardTab } from '../../types/dashboard';
 import { constructPath } from '../../utils';
 
 type Tab = {

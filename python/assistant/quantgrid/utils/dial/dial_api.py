@@ -1,5 +1,7 @@
 import json
 
+from typing import Any
+
 import aiohttp
 
 from dial_xl.credentials import ApiKeyProvider, CredentialProvider, JwtProvider
@@ -43,15 +45,26 @@ class DIALApi:
 
         async with aiohttp.ClientSession() as session:
             headers = await self._auth_header()
-            async with session.get(
-                f"{self._dial_url}/v1/metadata/{path}",
-                headers=headers,
-                params={"limit": 1000},
-            ) as response:
-                response.raise_for_status()
+            params: dict[str, Any] = {"limit": 1000}
 
-                json_response = await response.json()
-                return [item["url"] for item in json_response["items"]]
+            token: str | None = ""
+            items: list[str] = []
+
+            while token is not None:
+                params["token"] = token
+
+                async with session.get(
+                    f"{self._dial_url}/v1/metadata/{path}",
+                    headers=headers,
+                    params=params,
+                ) as response:
+                    response.raise_for_status()
+                    json_response = await response.json()
+
+                    token = json_response.get("nextToken")
+                    items.extend(item["url"] for item in json_response["items"])
+
+        return items
 
     async def create_file(
         self,

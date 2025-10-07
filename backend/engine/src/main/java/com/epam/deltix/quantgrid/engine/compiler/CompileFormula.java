@@ -22,6 +22,7 @@ import com.epam.deltix.quantgrid.parser.ast.FieldReference;
 import com.epam.deltix.quantgrid.parser.ast.Formula;
 import com.epam.deltix.quantgrid.parser.ast.Function;
 import com.epam.deltix.quantgrid.parser.ast.FieldsReference;
+import com.epam.deltix.quantgrid.parser.ast.Missing;
 import com.epam.deltix.quantgrid.parser.ast.QueryRow;
 import com.epam.deltix.quantgrid.parser.ast.TableReference;
 import com.epam.deltix.quantgrid.type.ColumnType;
@@ -72,9 +73,14 @@ public class CompileFormula {
 
                 TableReference table = new TableReference(function.span(), function.name());
                 function = new Function(function.span(), "RowReference", Util.listOf(table, function.arguments()));
+                context.mapFormula(formula, function);
             }
 
             return CompileFunction.compile(context.withFunction(function));
+        }
+
+        if (formula instanceof Missing) {
+            throw new CompileError("Missing formula");
         }
 
         throw new CompileError("Unsupported formula: " + formula);

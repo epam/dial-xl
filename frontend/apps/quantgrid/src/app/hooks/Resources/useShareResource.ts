@@ -27,7 +27,7 @@ import { useApiRequests } from '../';
 export function useShareResources() {
   const {
     getProject: getProjectRequest,
-    shareFiles: shareFilesRequest,
+    createResourcesShare: shareFilesRequest,
     getFiles: getFilesRequest,
   } = useApiRequests();
 
@@ -70,7 +70,7 @@ export function useShareResources() {
       const project = await getProjectRequest({
         name: projectName,
         bucket,
-        path: parentPath,
+        parentPath,
       });
 
       if (!project) return;

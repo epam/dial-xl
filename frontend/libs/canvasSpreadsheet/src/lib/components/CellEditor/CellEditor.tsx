@@ -28,6 +28,7 @@ export function CellEditor({
   isPointClickMode,
   sheetContent,
   zoom = 1,
+  inputList = [],
 }: Props) {
   const {
     currentFieldName,
@@ -76,12 +77,12 @@ export function CellEditor({
 
   return (
     <div
-      className="h-full w-full absolute left-0 top-0 pointer-events-none overflow-hidden z-[305]"
+      className="h-full w-full absolute left-0 top-0 pointer-events-none overflow-hidden z-305"
       id={cellEditorContainerId}
     >
       <div
         className={cx(
-          'absolute z-[305] outline outline-[1.5px] pointer-events-auto',
+          'absolute z-305 outline-solid outline-[1.5px] pointer-events-auto',
           getCellEditorColor(editMode)
         )}
         id={cellEditorWrapperId}
@@ -103,6 +104,7 @@ export function CellEditor({
           currentTableName={currentTableName}
           disableHelpers={disableHelpers}
           functions={functions}
+          inputFiles={inputList}
           language="cell-editor"
           options={{
             ...cellEditorOptions,

@@ -1,12 +1,12 @@
 from time import time
 
-from dial_xl.project import FieldKey, Viewport
 from langchain_core.runnables import Runnable, RunnableLambda
 
 from quantgrid_1.chains.parameters import ChainParameters
 from quantgrid_1.models.stage_generation_type import StageGenerationMethod
 from quantgrid_1.utils.formatting import get_markdown_table_values
 from quantgrid_1.utils.stages import replicate_stages
+from quantgrid_1.utils.viewports import get_project_viewports
 
 STAGE_NAME = "Data Fetching"
 
@@ -29,19 +29,10 @@ async def head_fetcher(inputs: dict) -> dict:
 
     with ChainParameters.get_choice(inputs).create_stage(STAGE_NAME) as stage:
         start_time = time()
-
-        viewports: list[Viewport] = [
-            Viewport(
-                start_row=0,
-                end_row=10,
-                key=FieldKey(table=table.name, field=field_name),
-            )
-            for sheet in project.sheets
-            for table in sheet.tables
-            for field_group in table.field_groups
-            for field_name in field_group.field_names
-        ]
-        await project.calculate(viewports)
+        await project.compile()
+        # after we got field types we can calculate considering date format
+        typed_viewports = get_project_viewports(project, consider_date_type=True)
+        await project.calculate(typed_viewports)
 
         printed_tables: dict[str, str] = {}
         for sheet in project.sheets:

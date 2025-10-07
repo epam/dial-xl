@@ -1,32 +1,29 @@
 import { act, RenderHookResult } from '@testing-library/react';
 
 import { useOverridesEditDsl } from '../useOverridesEditDsl';
+import { createWrapper, initialProps } from './createWrapper';
 import { hookTestSetup } from './hookTestSetup';
-import { RenderProps, TestWrapperProps } from './types';
-
-const initialProps: TestWrapperProps = {
-  appendToFn: jest.fn(),
-  manuallyUpdateSheetContent: jest.fn(() => Promise.resolve(true)),
-  projectName: 'project1',
-  sheetName: 'sheet1',
-};
+import { TestWrapperProps } from './types';
 
 describe('useOverridesEditDsl', () => {
-  let props: TestWrapperProps;
+  const props: TestWrapperProps = { ...initialProps };
   let hook: RenderHookResult<
     ReturnType<typeof useOverridesEditDsl>,
     { dsl: string }
   >['result'];
-  let rerender: (props?: RenderProps) => void;
+  let setDsl: (dsl: string) => void;
+  let Wrapper: React.FC<React.PropsWithChildren>;
+
+  beforeAll(() => {
+    Wrapper = createWrapper(props);
+  });
 
   beforeEach(() => {
-    props = { ...initialProps };
     jest.clearAllMocks();
 
-    const hookRender = hookTestSetup(useOverridesEditDsl, props);
-
+    const hookRender = hookTestSetup(useOverridesEditDsl, Wrapper);
     hook = hookRender.result;
-    rerender = hookRender.rerender;
+    setDsl = hookRender.setDsl;
   });
 
   describe('removeOverride', () => {
@@ -35,7 +32,7 @@ describe('useOverridesEditDsl', () => {
       const dsl = 'table t1 key [f1]=1\n [f2]=2\noverride\n[f1],[f2]\n2,3\n3,4';
       const expectedDsl =
         'table t1 key [f1]=1\n [f2]=2\noverride\n[f1],[f2]\n2,3\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => hook.current.removeOverride('t1', 'f2', 1, '4'));
@@ -55,7 +52,7 @@ describe('useOverridesEditDsl', () => {
       const dsl = 'table t1 [f1]=1\n [f2]=2\noverride\nrow,[f2]\n1,3\n2,4';
       const expectedDsl =
         'table t1 [f1]=1\n [f2]=2\noverride\nrow,[f2]\n2,4\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => hook.current.removeOverride('t1', 'f2', 1, '4'));
@@ -76,7 +73,7 @@ describe('useOverridesEditDsl', () => {
         table t1\ndim [f1]=RANGE(5)\n[*] = PIVOT(RANGE(10), TEXT($), COUNT($))\noverride\nrow,[5]\n3,4\n4,5\n`;
       const expectedDsl = `
         table t1\ndim [f1]=RANGE(5)\n[*] = PIVOT(RANGE(10), TEXT($), COUNT($))\noverride\nrow,[5]\n3,4\r\n`;
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => hook.current.removeOverride('t1', '5', 4, '4'));
@@ -96,7 +93,7 @@ describe('useOverridesEditDsl', () => {
       const dsl = '!manual table t1 [f1]=1\n [f2]=2\noverride\n[f2]\n1\n2';
       const expectedDsl =
         '!manual table t1 [f1]=1\n [f2]=2\noverride\n[f2]\n1\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => hook.current.removeOverride('t1', 'f2', 1, '2'));
@@ -115,7 +112,7 @@ describe('useOverridesEditDsl', () => {
       // Arrange
       const dsl = 'table t1 key [f1]=1\n [f2]=2\noverride\n[f1],[f2]\n2,3\n';
       const expectedDsl = 'table t1 key [f1]=1\n [f2]=2\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => hook.current.removeOverride('t1', 'f2', 0, '3'));
@@ -133,7 +130,7 @@ describe('useOverridesEditDsl', () => {
     it('should do nothing if try to remove override from table without overrides', async () => {
       // Arrange
       const dsl = 'table t1 key [f1]=1\n [f2]=2';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => hook.current.removeOverride('t1', 'f2', 1, '4'));
@@ -147,7 +144,7 @@ describe('useOverridesEditDsl', () => {
       // Arrange
       const dsl = '!manual()\ntable t1 [f1]=1\noverride\n[f1]\n3\n';
       const expectedDsl = '\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => hook.current.removeOverride('t1', 'f1', 0, '3'));
@@ -169,7 +166,7 @@ describe('useOverridesEditDsl', () => {
         '!manual()\ntable t1\n[a]\n[b]\noverride\n[a],[b]\n1,1\n2,2\n3,3\n';
       const expectedDsl =
         '!manual()\ntable t1\n[a]\n[b]\noverride\n[a],[b]\n1,1\n3,3\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => hook.current.removeOverrideRow('t1', 1));
@@ -191,7 +188,7 @@ describe('useOverridesEditDsl', () => {
       const dsl = '!manual()\ntable t1 [f1]=1\noverride\n[f1]\n1\n2\n3\n';
       const expectedDsl =
         '!manual()\ntable t1 [f1]=1\noverride\n[f1]\n1\n2\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => hook.current.removeTableOrOverrideRow('t1', 2));
@@ -210,7 +207,7 @@ describe('useOverridesEditDsl', () => {
       // Arrange
       const dsl = '!manual()\ntable t1 [f1]=1\noverride\n[f1]\n1';
       const expectedDsl = '\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => hook.current.removeTableOrOverrideRow('t1', 0));
@@ -231,7 +228,7 @@ describe('useOverridesEditDsl', () => {
       const dsl = 'table t1 key [f1]=1\n [f2]=2\noverride\n[f1],[f2]\n2,3\n3,4';
       const expectedDsl =
         'table t1 key [f1]=1\n [f2]=2\noverride\n[f1],[f2]\n2,3\n3,555\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => hook.current.editOverride('t1', 'f2', 1, '555'));
@@ -251,7 +248,7 @@ describe('useOverridesEditDsl', () => {
       const dsl = 'table t1 [f1]=1\n [f2]=2\noverride\nrow,[f2]\n1,3\n2,4';
       const expectedDsl =
         'table t1 [f1]=1\n [f2]=2\noverride\nrow,[f2]\n1,3\n2,555\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => hook.current.editOverride('t1', 'f2', 2, '555'));
@@ -271,7 +268,7 @@ describe('useOverridesEditDsl', () => {
       const dsl = '!manual table t1 [f1]=1\n [f2]=2\noverride\n[f2]\n1\n2';
       const expectedDsl =
         '!manual table t1 [f1]=1\n [f2]=2\noverride\n[f2]\n1\n555\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => hook.current.editOverride('t1', 'f2', 1, '555'));
@@ -289,7 +286,7 @@ describe('useOverridesEditDsl', () => {
     it('should do nothing if table has no overrides', () => {
       // Arrange
       const dsl = 'table t1 [f1]=1\n [f2]=2';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => hook.current.editOverride('t1', 'f2', 1, '555'));
@@ -307,7 +304,7 @@ describe('useOverridesEditDsl', () => {
         '!layout(1, 1, "title", "headers") table t1 [f1]=1\n [f2]=2\noverride\nrow,[f2]\n1,3\n';
       const expectedDsl =
         '!layout(1, 1, "title", "headers") table t1 [f1]=1\n [f2]=2\noverride\nrow,[f2]\n1,3\n2,111\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => hook.current.addOverride(2, 4, 't1', '111'));
@@ -327,7 +324,7 @@ describe('useOverridesEditDsl', () => {
       const dsl = '!manual table t1 [f1]=1\n [f2]=2\noverride\n[f2]\n1\n2\n';
       const expectedDsl =
         '!manual table t1 [f1]=1\n [f2]=2\noverride\n[f2]\n1\n2\n111\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => hook.current.addOverride(2, 5, 't1', '111'));

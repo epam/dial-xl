@@ -1,32 +1,28 @@
 import { act, RenderHookResult } from '@testing-library/react';
 
 import { useSortEditDsl } from '../useSortEditDsl';
+import { createWrapper, initialProps } from './createWrapper';
 import { hookTestSetup } from './hookTestSetup';
-import { RenderProps, TestWrapperProps } from './types';
-
-const initialProps: TestWrapperProps = {
-  appendToFn: jest.fn(),
-  manuallyUpdateSheetContent: jest.fn(() => Promise.resolve(true)),
-  projectName: 'project1',
-  sheetName: 'sheet1',
-};
+import { TestWrapperProps } from './types';
 
 describe('useSortEditDsl', () => {
-  let props: TestWrapperProps;
+  const props: TestWrapperProps = { ...initialProps };
   let hook: RenderHookResult<
     ReturnType<typeof useSortEditDsl>,
     { dsl: string }
   >['result'];
-  let rerender: (props?: RenderProps) => void;
+  let setDsl: (dsl: string) => void;
+  let Wrapper: React.FC<React.PropsWithChildren>;
+
+  beforeAll(() => {
+    Wrapper = createWrapper(props);
+  });
 
   beforeEach(() => {
-    props = { ...initialProps };
     jest.clearAllMocks();
-
-    const hookRender = hookTestSetup(useSortEditDsl, props);
-
+    const hookRender = hookTestSetup(useSortEditDsl, Wrapper);
     hook = hookRender.result;
-    rerender = hookRender.rerender;
+    setDsl = hookRender.setDsl;
   });
 
   describe('changeFieldSort', () => {
@@ -34,7 +30,7 @@ describe('useSortEditDsl', () => {
       // Arrange
       const dsl = 'table t1 [f1]=1 [f2]=2';
       const expectedDsl = 'table t1 [f1]=1 [f2]=2\r\napply\nsort [f1]\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => hook.current.changeFieldSort('t1', 'f1', 'asc'));
@@ -49,7 +45,7 @@ describe('useSortEditDsl', () => {
       // Arrange
       const dsl = 'table t1 [f1]=1 [f2]=2\napply\nsort [f2]';
       const expectedDsl = 'table t1 [f1]=1 [f2]=2\napply\nsort [f2], [f1]\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => hook.current.changeFieldSort('t1', 'f1', 'asc'));
@@ -62,12 +58,12 @@ describe('useSortEditDsl', () => {
 
     it('should change sort block', () => {
       // Arrange
-      const dsl = 'table t1 [f1]=1 [f2]=2\r\napply\r\nsort [f1]';
-      const expectedDsl = 'table t1 [f1]=1 [f2]=2\r\napply\r\nsort -[f1]\r\n';
-      rerender({ dsl });
+      const dsl = 'table t1 [f1]=1 [f2]=2\napply\nsort [f2]';
+      const expectedDsl = 'table t1 [f1]=1 [f2]=2\napply\nsort -[f2]\r\n';
+      setDsl(dsl);
 
       // Act
-      act(() => hook.current.changeFieldSort('t1', 'f1', 'desc'));
+      act(() => hook.current.changeFieldSort('t1', 'f2', 'desc'));
 
       // Assert
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
@@ -77,12 +73,12 @@ describe('useSortEditDsl', () => {
 
     it('should clear sort', () => {
       // Arrange
-      const dsl = 'table t1 [f1]=1 [f2]=2\r\napply\r\nsort [f1]';
+      const dsl = 'table t1 [f1]=1 [f2]=2\napply\nsort [f2]';
       const expectedDsl = 'table t1 [f1]=1 [f2]=2\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
-      act(() => hook.current.changeFieldSort('t1', 'f1', null));
+      act(() => hook.current.changeFieldSort('t1', 'f2', null));
 
       // Assert
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
@@ -92,8 +88,8 @@ describe('useSortEditDsl', () => {
 
     it('should do nothing when clear sort, but apply block does not exist', () => {
       // Arrange
-      const dsl = 'table t1 [f1]=1 [f2]=2\r\n';
-      rerender({ dsl });
+      const dsl = 'table t1 [f1]=1 [f2]=2';
+      setDsl(dsl);
 
       // Act
       act(() => hook.current.changeFieldSort('t1', 'f1', null));
@@ -104,8 +100,8 @@ describe('useSortEditDsl', () => {
 
     it('should do nothing when clear sort, sort block does not exist, but apply block exist', () => {
       // Arrange
-      const dsl = 'table t1 [f1]=1 [f2]=2\r\napply\r\nfilter [f] > 0\r\n';
-      rerender({ dsl });
+      const dsl = 'table t1 [f1]=1 [f2]=2\napply\nfilter [f] > 0';
+      setDsl(dsl);
 
       // Act
       act(() => hook.current.changeFieldSort('t1', 'f1', null));

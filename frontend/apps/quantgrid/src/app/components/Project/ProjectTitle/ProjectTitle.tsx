@@ -32,33 +32,33 @@ const tagMapping: Record<string, ProjectTitleTagProps> = {
     title: 'TEMPORARY',
     tooltipText: 'This project is temporary and changes may not be saved.',
     icon: <ClockExclamationIcon />,
-    containerClasses: 'border-strokePrimary',
-    iconClasses: 'text-strokePrimary',
-    textClasses: 'text-textInverted',
+    containerClasses: 'border-stroke-primary',
+    iconClasses: 'text-stroke-primary',
+    textClasses: 'text-text-inverted',
   },
   readOnly: {
     title: 'READ-ONLY',
     tooltipText: 'This project is read-only and cannot be edited.',
     icon: <EditOffIcon />,
-    containerClasses: 'border-warningInverted',
-    iconClasses: 'text-warningInverted',
-    textClasses: 'text-warningInverted',
+    containerClasses: 'border-warning-inverted',
+    iconClasses: 'text-warning-inverted',
+    textClasses: 'text-warning-inverted',
   },
   preview: {
     title: 'PREVIEW',
     tooltipText: 'AI preview mode is enabled. You can only view the project.',
     icon: <EyeIcon />,
-    containerClasses: 'border-strokePrimary',
-    iconClasses: 'text-textInverted',
-    textClasses: 'text-textInverted',
+    containerClasses: 'border-stroke-primary',
+    iconClasses: 'text-text-inverted',
+    textClasses: 'text-text-inverted',
   },
   playback: {
     title: 'PLAYBACK',
     tooltipText: 'Playback mode is enabled. You can only view the project.',
     icon: <PlayIcon />,
-    containerClasses: 'border-strokePrimary',
-    iconClasses: 'text-textInverted',
-    textClasses: 'text-textInverted',
+    containerClasses: 'border-stroke-primary',
+    iconClasses: 'text-text-inverted',
+    textClasses: 'text-text-inverted',
   },
 };
 
@@ -69,6 +69,7 @@ export function ProjectTitle() {
     cloneCurrentProject,
     isProjectReadonlyByUser,
     setIsProjectReadonlyByUser,
+    projectAuthor,
   } = useContext(ProjectContext);
   const {
     acceptPendingChanges,
@@ -116,17 +117,17 @@ export function ProjectTitle() {
   if (!projectName) return null;
 
   return (
-    <div className="inline-flex items-center h-full overflow-hidden whitespace-nowrap mx-4 gap-4">
+    <div className="inline-flex items-center h-full overflow-hidden whitespace-nowrap mx-4 gap-4 col-span-4 justify-center">
       {tagKey && !isMobile && <ProjectTitleTag {...tagMapping[tagKey]} />}
 
       {isAIPendingMode && !isMobile && (
         <div className="flex items-center gap-1">
           <Icon
-            className="w-[18px] text-textInverted"
+            className="w-[18px] text-text-inverted"
             component={() => <SparklesIcon />}
           />
 
-          <span className="text-[13px] font-semibold text-textInverted">
+          <span className="text-[13px] font-semibold text-text-inverted">
             You have pending AI edits
           </span>
         </div>
@@ -134,13 +135,22 @@ export function ProjectTitle() {
 
       {showProjectName && (
         <div className="flex items-center gap-1">
-          <Tooltip placement="bottom" title={`Project: ${projectName}`}>
+          <Tooltip
+            placement="bottom"
+            title={
+              <div className="flex flex-col">
+                <span>Project: {projectName}</span>
+                <span>Author: {projectAuthor ?? '-'}</span>
+              </div>
+            }
+            destroyOnHidden
+          >
             <span
               className={cx(
                 'text-[13px] text-ellipsis inline-block overflow-hidden whitespace-nowrap',
                 {
-                  'text-textPrimary': isDefaultMode,
-                  'text-textInverted':
+                  'text-text-primary': isDefaultMode,
+                  'text-text-inverted':
                     isCSVViewMode || isAIPreviewMode || isReadOnlyMode,
                 }
               )}
@@ -152,7 +162,7 @@ export function ProjectTitle() {
           {forkedProject && (
             <ProjectFork
               className={
-                isDefaultMode ? 'text-textPrimary' : 'text-textInverted'
+                isDefaultMode ? 'text-text-primary' : 'text-text-inverted'
               }
             />
           )}
@@ -164,8 +174,8 @@ export function ProjectTitle() {
           <HeaderButton
             className={
               isReadOnlyMode
-                ? '!bg-bgLayer3 !text-textPrimary'
-                : '!bg-transparent !text-textInverted'
+                ? 'bg-bg-layer-3! text-text-primary!'
+                : 'bg-transparent! text-text-inverted!'
             }
             onClick={handleClone}
           >
@@ -174,7 +184,7 @@ export function ProjectTitle() {
         )}
         {isReadOnlyMode && isProjectReadonlyByUser && (
           <HeaderButton
-            className={'!bg-transparent !text-textInverted'}
+            className={'bg-transparent! text-text-inverted!'}
             onClick={() => setIsProjectReadonlyByUser(false)}
           >
             {isMobile ? 'Edit' : 'Make editable'}
@@ -184,7 +194,7 @@ export function ProjectTitle() {
         {isAIPendingMode && (
           <>
             <HeaderButton
-              className="!bg-transparent !text-textInverted"
+              className="bg-transparent! text-text-inverted!"
               disabled={answerIsGenerating}
               onClick={discardPendingChanges}
             >
@@ -192,7 +202,7 @@ export function ProjectTitle() {
             </HeaderButton>
             {!isMajorChangedAIAnswer ? (
               <HeaderButton
-                className="!bg-bgLayer3 !text-textPrimary"
+                className="bg-bg-layer-3! text-text-primary!"
                 disabled={answerIsGenerating}
                 onClick={acceptPendingChanges}
               >
@@ -200,7 +210,7 @@ export function ProjectTitle() {
               </HeaderButton>
             ) : (
               <HeaderButton
-                className="!bg-bgLayer3 !text-textPrimary"
+                className="bg-bg-layer-3! text-text-primary!"
                 disabled={answerIsGenerating}
                 onClick={regenerateSummary}
               >
@@ -214,13 +224,13 @@ export function ProjectTitle() {
         {isAIPreviewMode && (
           <>
             <HeaderButton
-              className="!bg-transparent !text-textInverted"
+              className="bg-transparent! text-text-inverted!"
               onClick={handleClone}
             >
               {isMobile ? 'Clone' : 'Clone to my projects'}
             </HeaderButton>
             <HeaderButton
-              className="!bg-bgLayer3 !text-textPrimary"
+              className="bg-bg-layer-3! text-text-primary!"
               onClick={exitAIPreview}
             >
               {selectedConversation?.isPlayback ? 'Stop' : 'Exit'}
@@ -254,7 +264,7 @@ const HeaderButton: FC<ComponentProps<typeof Button>> = ({
     <Button
       className={cx(
         primaryDisabledButtonClasses,
-        'border-strokePrimary rounded-[3px] !text-[13px] px-2 py-0.5 h-6 !shadow-none hover:!border-bgLayer4 hover:!bg-bgLayer4 hover:!text-textPrimary focus:!outline-0 focus-visible:!outline-0 focus:!border focus:!border-strokeHoverFocus focus:!bg-bgLayer4',
+        'border-stroke-primary rounded-[3px] text-[13px]! px-2 py-0.5 h-6 shadow-none! hover:border-bg-layer-4! hover:bg-bg-layer-4! hover:text-text-primary! focus:outline-0! focus-visible:outline-0! focus:border! focus:border-stroke-hover-focus! focus:bg-bg-layer-4!',
         className
       )}
       loading={isLoading}

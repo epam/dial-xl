@@ -27,6 +27,7 @@ from quantgrid.configuration import LOGGER
 from quantgrid.utils.dial import DIALApi
 from quantgrid.utils.project import ProjectUtil
 from testing.excel_report import XLSXReport
+from testing.json_report import write_json_report
 from testing.models import QGReport, QueryInfo, Verdict
 from testing.quantgrid_report import generate_quantgrid_report
 
@@ -257,6 +258,7 @@ def pytest_sessionfinish(session: Session, exitstatus: ExitCode):
 
     with XLSXReport("report.xlsx", share_link, environment.report_folder) as report:
         report.write(session.config.stash[QUANTGRID_REPORTS_KEY])
+    write_json_report("report.json", session.config.stash[QUANTGRID_REPORTS_KEY])
 
     if os.getenv("PYTEST_OPEN_REPORT", "True").lower() != "true":
         return (yield)

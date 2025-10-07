@@ -19,7 +19,7 @@ export function DNDSelection() {
 
   const graphicsRef = useRef<PIXI.Graphics>(null);
 
-  const getSelectionCoords = useCallback(() => {
+  const getSelectionCoords = useCallback((): null | void => {
     if (!dndSelection) {
       setSelectionCoords(null);
 

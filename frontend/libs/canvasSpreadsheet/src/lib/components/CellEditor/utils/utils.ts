@@ -1,8 +1,8 @@
-import { GridCell, Shortcut, shortcutApi } from '@frontend/common';
+import { Shortcut, shortcutApi } from '@frontend/common';
 import { getTokens } from '@frontend/parser';
 
 import { cellEditorWrapperId } from '../../../constants';
-import { GridApi } from '../../../types';
+import { GridApi, GridCell } from '../../../types';
 import { CellEditorExplicitOpenOptions, GridCellEditorMode } from '../types';
 
 export const isCellEditorHasFocus = (): boolean => {

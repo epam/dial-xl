@@ -139,9 +139,8 @@ const shortcutMap: ShortcutMap = {
   ],
 
   [Shortcut.SearchWindow]: [
-    KeyboardCode.Command,
-    KeyboardCode.Shift,
-    KeyboardCode.F,
+    [KeyboardCode.Command, KeyboardCode.F],
+    [KeyboardCode.Command, KeyboardCode.Shift, KeyboardCode.F],
   ],
   [Shortcut.MoveSelectionNextAvailableUp]: [
     KeyboardCode.Command,

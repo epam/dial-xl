@@ -21,7 +21,7 @@ import {
 } from '../../../../context';
 import { useFieldEditDsl } from '../../../../hooks';
 import { uniqueId } from '../../../../services';
-import { ChartPanelSelectClasses } from './SelectUtils';
+import { ChartPanelSelectClasses } from '../ChartPanelSelectClasses';
 
 type Section = {
   title: string;
@@ -171,13 +171,13 @@ export function SeriesColumnAttributesSection({
         return (
           <div className="flex flex-col mb-2" key={section.title}>
             {sections.length > 1 && (
-              <div className="text-[12px] text-textSecondary mb-1">
+              <div className="text-[12px] text-text-secondary mb-1">
                 {section.title}
               </div>
             )}
 
             <div className="flex items-center mb-2">
-              <span className="min-w-[120px] text-[13px] text-textPrimary">
+              <span className="min-w-[120px] text-[13px] text-text-primary">
                 Dot color
               </span>
 
@@ -185,7 +185,7 @@ export function SeriesColumnAttributesSection({
                 classNames={{
                   ...SelectClasses,
                   ...ChartPanelSelectClasses,
-                  clearIndicator: () => '!p-0',
+                  clearIndicator: () => 'p-0!',
                 }}
                 components={{
                   IndicatorSeparator: null,
@@ -210,7 +210,7 @@ export function SeriesColumnAttributesSection({
 
             {showSizeSelector && (
               <div className="flex items-center mb-2">
-                <span className="min-w-[120px] text-[13px] text-textPrimary">
+                <span className="min-w-[120px] text-[13px] text-text-primary">
                   Dot size
                 </span>
 
@@ -218,7 +218,7 @@ export function SeriesColumnAttributesSection({
                   classNames={{
                     ...SelectClasses,
                     ...ChartPanelSelectClasses,
-                    clearIndicator: () => '!p-0',
+                    clearIndicator: () => 'p-0!',
                   }}
                   components={{
                     IndicatorSeparator: null,

@@ -98,6 +98,7 @@ export function RenameProject({ renameProjectModal }: Props) {
       inputRef.current.focus({
         cursor: 'end',
       });
+      inputRef.current.select();
     }, 0);
   }, [isModalOpen]);
 
@@ -114,7 +115,7 @@ export function RenameProject({ renameProjectModal }: Props) {
       cancelButtonProps={{
         className: cx(modalFooterButtonClasses, secondaryButtonClasses),
       }}
-      destroyOnClose={true}
+      destroyOnHidden={true}
       okButtonProps={{
         className: cx(
           modalFooterButtonClasses,
@@ -128,15 +129,20 @@ export function RenameProject({ renameProjectModal }: Props) {
       onCancel={handleCancel}
       onOk={handleOk}
     >
-      <Input
-        className={cx('h-12 my-3', inputClasses)}
-        id="projectName"
-        placeholder="Project name"
-        ref={inputRef}
-        value={newProjectName}
-        autoFocus
-        onChange={onNameChange}
-      />
+      <div className="flex flex-col gap-1 mt-4">
+        <label className="text-xs text-text-secondary" htmlFor="projectName">
+          Project name after renaming
+        </label>
+        <Input
+          className={cx('h-12 my-3', inputClasses)}
+          id="projectName"
+          placeholder="Project name"
+          ref={inputRef}
+          value={newProjectName}
+          autoFocus
+          onChange={onNameChange}
+        />
+      </div>
     </Modal>
   );
 }

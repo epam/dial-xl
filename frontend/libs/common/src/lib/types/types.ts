@@ -1,18 +1,9 @@
 import { MenuProps } from 'antd';
 
 import {
-  OverrideValue,
-  ParsedConditionFilter,
-  ParsedField,
-  ParsedTable,
-  TotalType,
-} from '@frontend/parser';
-
-import {
-  ColumnDataType,
-  ColumnFormat,
   CompilationError,
   FieldKey,
+  ParsingError,
   PeriodSeries,
 } from '../services';
 
@@ -72,10 +63,6 @@ export type ChartTableWithoutSelectors = {
   tableName: string;
 };
 
-export type TablesData = {
-  [tableName: string]: TableData;
-};
-
 export type TotalData = {
   [columnName: string]: Record<number, string>;
 };
@@ -100,30 +87,6 @@ export type VirtualTableData = {
   totalRows: number;
 };
 
-export type TableData = {
-  chunks: { [index: number]: ColumnChunk };
-  // when table has new definition -> should put all data to cache and showing it, until new data come
-  fallbackChunks: { [index: number]: ColumnChunk };
-
-  total: TotalData;
-
-  table: ParsedTable;
-  dynamicFields?: string[];
-  isDynamicFieldsRequested: boolean;
-
-  totalRows: number;
-  highlightData: HighlightData | undefined;
-
-  fieldErrors: { [columnName: string]: string };
-  indexErrors: { [columnName: string]: string };
-
-  nestedColumnNames: Set<string>;
-
-  columnReferenceTableNames: { [columnName: string]: string };
-  types: { [columnName: string]: ColumnDataType };
-  formats: { [columnName: string]: ColumnFormat | undefined };
-};
-
 export type ColumnChunk = { [columnName: string]: string[] };
 
 export type ChartsData = {
@@ -137,6 +100,11 @@ export type ChartData = {
   };
 };
 
+export type EvaluationError =
+  | CompilationError
+  | RuntimeError
+  | IndexError
+  | ParsingError;
 export type RuntimeError = CompilationError;
 export type IndexError = {
   fieldKey: FieldKey;
@@ -175,92 +143,6 @@ export enum Highlight {
   'NORMAL' = 'NORMAL',
   'HIGHLIGHTED' = 'HIGHLIGHTED',
 }
-
-export type GridTable = {
-  startRow: number;
-  startCol: number;
-  endCol: number;
-  endRow: number;
-  tableName: string;
-  chartType?: ChartType;
-  isTableNameHeaderHidden: boolean;
-  isTableFieldsHeaderHidden: boolean;
-  isTableHorizontal: boolean;
-  totalSize: number;
-  hasKeys: boolean;
-  isManual: boolean;
-  highlightType?: 'DIMMED' | 'NORMAL' | 'HIGHLIGHTED' | undefined;
-  note: string;
-  fieldNames: string[];
-};
-
-export type GridField = {
-  fieldName: string;
-  expression: string;
-  isKey: boolean;
-  isDim: boolean;
-  isNested: boolean;
-  isPeriodSeries: boolean;
-  isDynamic: boolean;
-  isFiltered: boolean;
-  filter?: ParsedConditionFilter;
-  totalFieldTypes?: TotalType[];
-  sort: FieldSortOrder;
-  isFieldUsedInSort: boolean;
-  type: ColumnDataType;
-  format: ColumnFormat | undefined;
-  referenceTableName?: string;
-  note?: string;
-  hasError: boolean;
-  errorMessage?: string;
-  highlightType?: 'DIMMED' | 'NORMAL' | 'HIGHLIGHTED' | undefined;
-  isIndex: boolean;
-  isDescription: boolean;
-  descriptionField?: string;
-  dataLength: number;
-  hasOverrides: boolean;
-};
-
-export type GridCell = {
-  table?: GridTable;
-  field?: GridField;
-  value?: string;
-  displayValue?: string;
-
-  hasError?: boolean;
-  errorMessage?: string;
-
-  totalIndex?: number;
-  totalType?: TotalType;
-  totalExpression?: string;
-
-  row: number;
-  col: number;
-  dataIndex?: number;
-
-  overrideIndex?: number;
-  overrideValue?: OverrideValue;
-  isOverride?: boolean;
-
-  isUrl?: boolean;
-
-  isTableHeader?: boolean;
-  isFieldHeader?: boolean;
-
-  isRightAligned?: boolean;
-
-  startCol: number;
-  endCol: number;
-
-  startGroupColOrRow: number;
-  endGroupColOrRow: number;
-};
-
-export type RowData = { [col: string]: GridCell };
-
-export type GridData = {
-  [row: string]: RowData;
-};
 
 export type CellPlacement = {
   row: number;
@@ -301,15 +183,6 @@ export type GridChart = {
 };
 
 export type ChartOrientation = 'horizontal' | 'vertical';
-
-export type GridFieldCache = {
-  field: ParsedField;
-  fieldIndex: number;
-  dataFieldSecondaryDirectionStart: number;
-  fieldSize: number;
-  isRightAligned: boolean;
-  cellField: GridField;
-};
 
 export type FormulaBarMode = 'formula' | 'value';
 

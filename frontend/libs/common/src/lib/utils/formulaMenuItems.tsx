@@ -1,8 +1,7 @@
 import Icon from '@ant-design/icons';
-import { ParsedSheets } from '@frontend/parser';
 
 import { TablePlusIcon } from '../icons';
-import { FilesMetadata, FunctionInfo, FunctionType } from '../services';
+import { CommonMetadata, FunctionInfo, FunctionType } from '../services';
 import { FormulasContextMenuKeyData, MenuItem } from '../types';
 import { getDropdownItem, getDropdownMenuKey } from './getDropdownItem';
 import { getTableBySizeDropdownItem } from './getSizeDropdownItem';
@@ -54,8 +53,8 @@ const getSubmenuItemsByFunctionType = (
 
 export const getCreateTableChildren = (
   functions: FunctionInfo[],
-  parsedSheets: ParsedSheets,
-  inputFiles: FilesMetadata[] | null,
+  tableNames: string[],
+  inputFiles: CommonMetadata[] | null,
   onCreateTable: (cols: number, rows: number) => void
 ): MenuItem[] => {
   const inputs = [...(inputFiles ?? [])].sort((a, b) =>
@@ -66,13 +65,6 @@ export const getCreateTableChildren = (
   const filterFunction = functions.find((func) => func.name === 'FILTER');
   const sortByFunction = functions.find((func) => func.name === 'SORTBY');
   const uniqueByFunction = functions.find((func) => func.name === 'UNIQUEBY');
-
-  let tableNames: string[] = [];
-  for (const sheet of Object.values(parsedSheets)) {
-    tableNames = tableNames.concat(
-      [...sheet.tables.map((table) => table.tableName)].sort()
-    );
-  }
 
   return [
     getDropdownItem({
@@ -220,8 +212,8 @@ export const getCreateTableChildren = (
 
 export const getFormulasMenuItems = (
   functions: FunctionInfo[],
-  parsedSheets: ParsedSheets,
-  inputFiles: FilesMetadata[] | null,
+  tableNames: string[],
+  inputFiles: CommonMetadata[] | null,
   onCreateTable: (cols: number, rows: number) => void,
   withFunctions = true
 ): MenuItem[] => {
@@ -236,7 +228,7 @@ export const getFormulasMenuItems = (
     label: 'Create Table',
     icon: (
       <Icon
-        className="text-textSecondary w-[18px]"
+        className="text-text-secondary w-[18px]"
         component={() => (
           <TablePlusIcon secondaryAccentCssVar="text-accent-tertiary" />
         )}
@@ -244,7 +236,7 @@ export const getFormulasMenuItems = (
     ),
     children: getCreateTableChildren(
       functions,
-      parsedSheets,
+      tableNames,
       inputFiles,
       onCreateTable
     ),

@@ -64,9 +64,14 @@ export function usePivotTableSetup() {
           return emptyResult;
         }
 
-        const args = pivotFn.arguments[0] as Expression[];
+        const allArgs = (
+          Array.isArray(pivotFn.arguments)
+            ? pivotFn.arguments
+            : [pivotFn.arguments]
+        ).flatMap((a) => (Array.isArray(a) ? a : [a])) as Expression[];
+
         const { rows, columns, values, aggregations, tableName } =
-          parsePivotArguments(args, aggregationFunctions);
+          parsePivotArguments(allArgs, aggregationFunctions);
 
         const sourceTable = Object.values(parsedSheets ?? {})
           .flatMap(({ tables }) => tables)

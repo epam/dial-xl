@@ -2,6 +2,8 @@ import logging
 import typing
 
 from aidial_sdk import HTTPException
+from aidial_sdk.chat_completion import Role
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 from langchain_core.runnables import Runnable, RunnableLambda
 from pydantic import TypeAdapter
 
@@ -66,6 +68,18 @@ async def hint_finder(inputs: dict):
                 )
                 break
 
+        message_history: list[BaseMessage] = []
+        for message in ChainParameters.get_messages(inputs)[:-1]:
+            match message.role:
+                case Role.ASSISTANT:
+                    message_history.append(AIMessage(message.text()))
+
+                case Role.USER:
+                    message_history.append(HumanMessage(message.text()))
+
+                case _:
+                    continue
+
         if not output:
             structured_model = model.with_structured_output(
                 HintSelectionResponse, method="function_calling", include_raw=True
@@ -81,6 +95,7 @@ async def hint_finder(inputs: dict):
                 structured_model,
                 [
                     load_hints_system(),
+                    *message_history,
                     load_hints_human(str(messages[-1].content), formatted_hints),
                 ],
                 LLMConsumer(choice),

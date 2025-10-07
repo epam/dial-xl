@@ -123,7 +123,7 @@ export function ChartPlacementSection({
   return (
     <div className="flex flex-col">
       <div className="flex items-center mb-2">
-        <span className="min-w-[120px] text-[13px] text-textPrimary">
+        <span className="min-w-[120px] text-[13px] text-text-primary">
           Rows and columns
         </span>
         <InputNumber
@@ -138,7 +138,7 @@ export function ChartPlacementSection({
           onKeyDown={handleKeyDown}
           onPressEnter={handleResizeTable}
         />
-        <span className="mx-2 text-textSecondary text-[16px] font-semibold">
+        <span className="mx-2 text-text-secondary text-[16px] font-semibold">
           X
         </span>
         <InputNumber
@@ -155,7 +155,7 @@ export function ChartPlacementSection({
         />
       </div>
       <div className="flex items-center mb-2">
-        <span className="min-w-[120px] text-[13px] text-textPrimary">
+        <span className="min-w-[120px] text-[13px] text-text-primary">
           Start row
         </span>
         <InputNumber
@@ -171,7 +171,7 @@ export function ChartPlacementSection({
         />
       </div>
       <div className="flex items-center mb-2">
-        <span className="min-w-[120px] text-[13px] text-textPrimary">
+        <span className="min-w-[120px] text-[13px] text-text-primary">
           Start column
         </span>
         <InputNumber

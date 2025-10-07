@@ -1,0 +1,88 @@
+@theme {
+  --color-*: initial;
+  --color-bg-accent-primary: var(--color-bg-accent-primary);
+  --color-bg-accent-primary-alpha: var(--color-bg-accent-primary-alpha);
+  --color-bg-accent-primary-alpha-2: var(--color-bg-accent-primary-alpha-2);
+  --color-bg-accent-secondary: var(--color-bg-accent-secondary);
+  --color-bg-accent-secondary-alpha: var(--color-bg-accent-secondary-alpha);
+  --color-bg-accent-tertiary: var(--color-bg-accent-tertiary);
+  --color-bg-accent-tertiary-alpha: var(--color-bg-accent-tertiary-alpha);
+  --color-bg-error: var(--color-bg-error);
+  --color-bg-grid-accent-primary-alpha: var(
+    --color-bg-grid-accent-primary-alpha
+  );
+  --color-bg-grid-field: var(--color-bg-grid-field);
+  --color-bg-grid-header: var(--color-bg-grid-header);
+  --color-bg-grid-inverted: var(--color-bg-grid-inverted);
+  --color-bg-grid-layer-main: var(--color-bg-grid-layer-main);
+  --color-bg-inverted: var(--color-bg-inverted);
+  --color-bg-layer-0: var(--color-bg-layer-0);
+  --color-bg-layer-1: var(--color-bg-layer-1);
+  --color-bg-layer-2: var(--color-bg-layer-2);
+  --color-bg-layer-3: var(--color-bg-layer-3);
+  --color-bg-layer-4: var(--color-bg-layer-4);
+  --color-bg-layer-5: var(--color-bg-layer-5);
+  --color-bg-layer-4-inverted: var(--color-bg-layer-4-inverted);
+  --color-bg-scrollbar-hover: var(--color-bg-scrollbar-hover);
+
+  --color-controls-bg-accent: var(--color-controls-bg-accent);
+  --color-controls-bg-accent-hover: var(--color-controls-bg-accent-hover);
+  --color-controls-bg-disable: var(--color-controls-bg-disable);
+  --color-controls-text-disable: var(--color-controls-text-disable);
+  --color-controls-text-permanent: var(--color-controls-text-permanent);
+
+  --color-stroke-accent-primary: var(--color-stroke-accent-primary);
+  --color-stroke-accent-secondary: var(--color-stroke-accent-secondary);
+  --color-stroke-accent-tertiary: var(--color-stroke-accent-tertiary);
+  --color-stroke-grid: var(--color-stroke-grid);
+  --color-stroke-grid-accent-primary: var(--color-stroke-grid-accent-primary);
+  --color-stroke-error: var(--color-stroke-error);
+  --color-stroke-grid-error: var(--color-stroke-grid-error);
+  --color-stroke-grid-main: var(--color-stroke-grid-main);
+  --color-stroke-grid-table: var(--color-stroke-grid-table);
+  --color-stroke-hover: var(--color-stroke-hover);
+  --color-stroke-hover-focus: var(--color-stroke-hover-focus);
+  --color-stroke-primary: var(--color-stroke-primary);
+  --color-stroke-secondary: var(--color-stroke-secondary);
+  --color-stroke-tertiary: var(--color-stroke-tertiary);
+  --color-stroke-tertiary-inverted: var(--color-stroke-tertiary-inverted);
+
+  --color-text-accent-primary: var(--color-text-accent-primary);
+  --color-text-accent-secondary: var(--color-text-accent-secondary);
+  --color-text-accent-tertiary: var(--color-text-accent-tertiary);
+  --color-text-error: var(--color-text-error);
+  --color-text-grid-primary: var(--color-text-grid-primary);
+  --color-text-inverted: var(--color-text-inverted);
+  --color-text-primary: var(--color-text-primary);
+  --color-text-secondary: var(--color-text-secondary);
+  --color-text-warning: var(--color-text-warning);
+
+  --color-warning-inverted: var(--color-warning-inverted);
+
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto',
+    'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+
+  @keyframes fast-pulse {
+    0% {
+      opacity: 20%;
+    }
+    50% {
+      opacity: 100%;
+    }
+    100% {
+      opacity: 20%;
+    }
+  }
+  @keyframes radial-progress {
+    0% {
+      stroke-dashoffset: 565px;
+    }
+    100% {
+      stroke-dashoffset: 0;
+    }
+  }
+
+  --animate-fast-pulse: fast-pulse 1.5s infinite;
+  --animate-radial-progress: radial-progress linear forwards;
+}

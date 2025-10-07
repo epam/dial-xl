@@ -1,9 +1,5 @@
 package com.epam.deltix.quantgrid.engine.node.plan.local;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-
 import com.epam.deltix.quantgrid.engine.Util;
 import com.epam.deltix.quantgrid.engine.executor.ExecutionError;
 import com.epam.deltix.quantgrid.engine.meta.Meta;
@@ -20,6 +16,7 @@ import com.epam.deltix.quantgrid.engine.value.ErrorColumn;
 import com.epam.deltix.quantgrid.engine.value.PeriodSeries;
 import com.epam.deltix.quantgrid.engine.value.Table;
 import com.epam.deltix.quantgrid.engine.value.local.DoubleDirectColumn;
+import com.epam.deltix.quantgrid.engine.value.local.DoubleLambdaColumn;
 import com.epam.deltix.quantgrid.engine.value.local.LocalTable;
 import com.epam.deltix.quantgrid.engine.value.local.PeriodSeriesDirectColumn;
 import com.epam.deltix.quantgrid.engine.value.local.StringDirectColumn;
@@ -28,6 +25,8 @@ import it.unimi.dsi.fastutil.doubles.DoubleArrayList;
 import it.unimi.dsi.fastutil.longs.Long2IntOpenCustomHashMap;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 public class AggregateByLocal extends Plan1<Table, Table> {
@@ -88,6 +87,11 @@ public class AggregateByLocal extends Plan1<Table, Table> {
     @Override
     protected Table execute(Table table) {
         List<Column> keys = getKeys().stream().map(expression -> (Column) expression.evaluate()).toList();
+        if (keys.isEmpty()) {
+            DoubleLambdaColumn rows = new DoubleLambdaColumn(index -> 0, table.size());
+            return aggregate(rows, rows.size() == 0 ? 0 : 1);
+        }
+
         TableHashStrategy strategy = TableHashStrategy.fromColumns(keys);
         Long2IntOpenCustomHashMap map = new Long2IntOpenCustomHashMap(strategy);
         map.defaultReturnValue(-1);
@@ -113,9 +117,14 @@ public class AggregateByLocal extends Plan1<Table, Table> {
     }
 
     private Table aggregate(DoubleColumn rows, int size) {
+        List<Aggregation> aggregations = getAggregations();
+        if (aggregations.isEmpty()) {
+            return new LocalTable(size);
+        }
+
         List<Column> results = new ArrayList<>();
 
-        for (Aggregation aggregation : getAggregations()) {
+        for (Aggregation aggregation : aggregations) {
             Column column;
 
             try {

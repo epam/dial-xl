@@ -8,7 +8,7 @@ Besides that, in case those hints are not relevant they could significantly decr
 Therefore, it's crucial to select only those hints that are relevant to the user query.
 
 You will be provided with the hints names and triggers related to the specific hint. You will be also provided with
-the current user query. Your task is to select only one hint that is relevant to the user query.
+the user chat history and the latest user query. Your task is to select only one hint that is relevant to the latest user query.
 
 There are the following relevancy classes:
 1. **Exact Match**: User query contains the trigger of the hint, then the hint is relevant.

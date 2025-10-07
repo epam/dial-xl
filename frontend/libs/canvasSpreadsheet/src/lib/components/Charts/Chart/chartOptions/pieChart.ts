@@ -2,7 +2,7 @@ import { EChartsOption, PieSeriesOption } from 'echarts';
 import {
   OptionDataItemObject,
   OptionDataValue,
-} from 'echarts/types/src/util/types';
+} from 'echarts/types/src/util/types.js';
 
 import { chartRowNumberSelector, ChartsData } from '@frontend/common';
 

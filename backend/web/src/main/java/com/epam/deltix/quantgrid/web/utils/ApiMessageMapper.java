@@ -117,9 +117,7 @@ public class ApiMessageMapper {
                     .setMessage(error);
 
             if (key instanceof TableKey tableKey) {
-                builder.setTableKey(Api.TableKey.newBuilder()
-                        .setTable(tableKey.table())
-                        .build());
+                builder.setTableKey(toTableKey(tableKey));
             } else if (key instanceof FieldKey fieldKey) {
                 builder.setFieldKey(toFieldKey(fieldKey));
             } else if (key instanceof TotalKey totalKey) {
@@ -157,7 +155,13 @@ public class ApiMessageMapper {
                 .build();
     }
 
-    public Api.FieldInfo toFieldInfo(ParsedKey key, String hash, ResultType resultType) {
+    private Api.TableKey toTableKey(TableKey tableKey) {
+        return Api.TableKey.newBuilder()
+                .setTable(tableKey.table())
+                .build();
+    }
+
+    public Api.FieldInfo toFieldInfo(ParsedKey key, Set<ParsedKey> references, String hash, ResultType resultType) {
         Api.FieldInfo.Builder builder = Api.FieldInfo.newBuilder();
         if (key instanceof FieldKey fieldKey) {
             builder.setFieldKey(toFieldKey(fieldKey));
@@ -181,6 +185,26 @@ public class ApiMessageMapper {
         builder.setIsNested(resultType.isNested());
         if (hash != null) {
             builder.setHash(hash);
+        }
+        if (resultType.format() != null) {
+            builder.setFormat(toColumnFormat(resultType.format()));
+        }
+        builder.addAllReferences(references.stream()
+                .map(ApiMessageMapper::toReference)
+                .toList());
+        return builder.build();
+    }
+
+    private static Api.Reference toReference(ParsedKey key) {
+        Api.Reference.Builder builder = Api.Reference.newBuilder();
+        if (key instanceof FieldKey fieldKey) {
+            builder.setFieldKey(toFieldKey(fieldKey));
+        } else if (key instanceof TotalKey totalKey) {
+            builder.setTotalKey(toTotalKey(totalKey));
+        } else if (key instanceof TableKey tableKey) {
+            builder.setTableKey(toTableKey(tableKey));
+        } else {
+            throw new IllegalArgumentException("Unsupported reference key: " + key);
         }
         return builder.build();
     }
@@ -399,7 +423,8 @@ public class ApiMessageMapper {
         List<Api.FieldInfo> fields = new ArrayList<>();
         compilation.results().forEach((key, value) -> {
             String hash = compilation.hashes().get(key);
-            fields.add(toFieldInfo(key, hash, ResultType.toResultType(value)));
+            Set<ParsedKey> references = compilation.references().getOrDefault(key, Set.of());
+            fields.add(toFieldInfo(key, references, hash, ResultType.toResultType(value)));
         });
         List<Api.FieldKey> indices = compilation.indices().stream()
                 .map(ApiMessageMapper::toFieldKey)
@@ -422,26 +447,13 @@ public class ApiMessageMapper {
         ParsedKey key = trace.key();
 
         if (key instanceof TableKey table) {
-            builder.setTableKey(Api.TableKey.newBuilder()
-                    .setTable(table.table())
-                    .build());
+            builder.setTableKey(toTableKey(table));
         } else if (key instanceof FieldKey field) {
-            builder.setFieldKey(Api.FieldKey.newBuilder()
-                    .setTable(field.table())
-                    .setField(field.fieldName())
-                    .build());
+            builder.setFieldKey(toFieldKey(field));
         } else if (key instanceof TotalKey total) {
-            builder.setTotalKey(Api.TotalKey.newBuilder()
-                    .setTable(total.table())
-                    .setField(total.field())
-                    .setNumber(total.number())
-                    .build());
+            builder.setTotalKey(toTotalKey(total));
         } else if (key instanceof OverrideKey override) {
-            builder.setOverrideKey(Api.OverrideKey.newBuilder()
-                    .setTable(override.table())
-                    .setField(override.field())
-                    .setRow(override.position())
-                    .build());
+            builder.setOverrideKey(toOverrideKey(override));
         } else {
             throw new IllegalArgumentException("Unsupported key: " + key);
         }

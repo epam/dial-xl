@@ -1,5 +1,6 @@
 import { expect } from '@playwright/test';
 
+import { waitForCondition } from '../helpers/canvasExpects';
 import { BaseComponent } from './BaseComponent';
 
 export class Chat extends BaseComponent {
@@ -258,21 +259,41 @@ export class Chat extends BaseComponent {
   }
 
   public async asyncLoginAuth0() {
-    await this.innerPage
-      .frameLocator(this.chatFrame)
-      .locator(this.loginAuth0)
-      .click();
-    await this.innerPage
-      .frameLocator(this.chatFrame)
-      .locator('[name="email"]')
-      .fill(this.username);
-    await this.innerPage
-      .frameLocator(this.chatFrame)
-      .locator('[name="password"]')
-      .fill(this.password);
-    await this.innerPage
-      .frameLocator(this.chatFrame)
-      .locator('span.auth0-label-submit')
-      .click();
+    await waitForCondition(
+      async () => {
+        return (
+          this.innerPage
+            .frameLocator(this.chatFrame)
+            .locator(this.loginAuth0)
+            .isVisible() ||
+          this.innerPage.locator(this.newConversationButton).last().isVisible()
+        );
+      },
+      100,
+      20000
+    );
+    if (
+      await this.innerPage
+        .frameLocator(this.chatFrame)
+        .locator(this.loginAuth0)
+        .isVisible()
+    ) {
+      await this.innerPage
+        .frameLocator(this.chatFrame)
+        .locator(this.loginAuth0)
+        .click();
+      await this.innerPage
+        .frameLocator(this.chatFrame)
+        .locator('[name="email"]')
+        .fill(this.username);
+      await this.innerPage
+        .frameLocator(this.chatFrame)
+        .locator('[name="password"]')
+        .fill(this.password);
+      await this.innerPage
+        .frameLocator(this.chatFrame)
+        .locator('span.auth0-label-submit')
+        .click();
+    }
   }
 }

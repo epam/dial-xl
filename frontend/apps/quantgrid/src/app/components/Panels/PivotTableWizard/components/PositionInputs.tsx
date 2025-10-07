@@ -27,7 +27,7 @@ export function PositionInputs() {
   return (
     <div className="flex flex-col items-start">
       <div className="flex items-center mb-2">
-        <span className="min-w-[100px] text-[13px] text-textPrimary">
+        <span className="min-w-[100px] text-[13px] text-text-primary">
           Start Row:
         </span>
         <InputNumber
@@ -41,7 +41,7 @@ export function PositionInputs() {
         />
       </div>
       <div className="flex items-center mb-2">
-        <span className="min-w-[100px] text-[13px] text-textPrimary">
+        <span className="min-w-[100px] text-[13px] text-text-primary">
           Start Column:
         </span>
         <InputNumber

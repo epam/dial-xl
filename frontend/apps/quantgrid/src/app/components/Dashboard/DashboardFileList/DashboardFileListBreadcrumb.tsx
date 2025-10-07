@@ -6,17 +6,17 @@ import {
   projectFoldersRootPrefix,
 } from '@frontend/common';
 
-import { DashboardTab } from '../../../common';
 import { ApiContext, DashboardContext } from '../../../context';
 import { routeParams } from '../../../types';
 import { Breadcrumb } from '../../../types/breadcrumbs';
+import { DashboardTab } from '../../../types/dashboard';
 import { getDashboardNavigateUrl } from '../../../utils';
 import { Breadcrumbs } from '../../Breadcrumbs/Breadcrumbs';
 
 const breadcrumbLabels: {
   [key in DashboardTab]?: string;
 } = {
-  home: 'Home',
+  home: 'My Files',
   recent: 'Recent',
   sharedByMe: 'Shared by me',
   sharedWithMe: 'Shared with me',
@@ -50,7 +50,7 @@ export function DashboardFileListBreadcrumb() {
     if (!currentTab) return;
 
     const breadcrumbUrlParts = folderPath?.split('/').filter(Boolean) ?? [];
-    const mainBreadcrumbLabel = breadcrumbLabels[currentTab] || 'Home';
+    const mainBreadcrumbLabel = breadcrumbLabels[currentTab] || 'My Files';
     const folderBucket = searchParams.get(routeParams.folderBucket) ?? '';
     let updatedBreadcrumbs: Breadcrumb[] = [
       {
@@ -84,7 +84,7 @@ export function DashboardFileListBreadcrumb() {
     <div className="grow shrink overflow-hidden">
       <Breadcrumbs
         breadcrumbs={breadcrumbs}
-        classNames="text-textPrimary text-[16px] grow"
+        classNames="text-text-primary text-[16px] grow"
         onSelectBreadcrumb={handleSelectBreadcrumb}
       />
     </div>

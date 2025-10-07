@@ -37,13 +37,14 @@ export function MoveMode() {
               title={`Enable Select Mode (${shortcutApi.getLabel(
                 Shortcut.ChangeViewportInteractionMode
               )})`}
+              destroyOnHidden
             >
               <Icon
                 className={cx(
                   ' w-[16px]',
                   viewportInteractionMode === 'select'
-                    ? 'text-textAccentPrimary'
-                    : 'text-textSecondary'
+                    ? 'text-text-accent-primary'
+                    : 'text-text-secondary'
                 )}
                 component={() => <CursorIcon />}
               />
@@ -58,13 +59,14 @@ export function MoveMode() {
               title={`Enable Pan Mode (${shortcutApi.getLabel(
                 Shortcut.ChangeViewportInteractionMode
               )})`}
+              destroyOnHidden
             >
               <Icon
                 className={cx(
                   ' w-[16px]',
                   viewportInteractionMode === 'pan'
-                    ? 'text-textAccentPrimary'
-                    : 'text-textSecondary'
+                    ? 'text-text-accent-primary'
+                    : 'text-text-secondary'
                 )}
                 component={() => <HandIcon />}
               />
@@ -72,6 +74,7 @@ export function MoveMode() {
           ),
         },
       ]}
+      rootClassName="hidden md:block"
       shape="round"
       size="small"
       value={viewportInteractionMode === 'select' ? 'select' : 'pan'}

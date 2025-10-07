@@ -161,7 +161,7 @@ export const useDashboardCreateMenuItems = (projects: string[]) => {
           icon: (
             <Icon
               className={classNames(
-                'w-[18px] text-textSecondary group-disabled:text-controlsTextDisable'
+                'w-[18px] text-text-secondary group-disabled:text-controls-text-disable'
               )}
               component={() => <FolderPlusIcon />}
             />
@@ -174,7 +174,7 @@ export const useDashboardCreateMenuItems = (projects: string[]) => {
           icon: (
             <Icon
               className={classNames(
-                'w-[18px] text-textSecondary group-disabled:text-controlsTextDisable'
+                'w-[18px] text-text-secondary group-disabled:text-controls-text-disable'
               )}
               component={() => <UploadIcon />}
             />

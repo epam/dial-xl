@@ -15,17 +15,19 @@ import Icon from '@ant-design/icons';
 import {
   CheckIcon,
   CloseIcon,
-  FilesMetadata,
   FolderIcon,
   FolderPlusIcon,
   getDropdownItem,
   HomeIcon,
   inputClasses,
   MetadataNodeType,
+  MetadataResourceType,
   modalFooterButtonClasses,
   primaryButtonClasses,
   publicBucket,
+  ResourceMetadata,
   secondaryButtonClasses,
+  SharedWithMeMetadata,
 } from '@frontend/common';
 
 import { ApiContext } from '../../../context';
@@ -35,7 +37,7 @@ import { Breadcrumb } from '../../../types/breadcrumbs';
 import { isEntityNameInvalid } from '../../../utils';
 import { Breadcrumbs } from '../../Breadcrumbs/Breadcrumbs';
 
-type Folder = Pick<FilesMetadata, 'name' | 'parentPath'> & {
+type Folder = Pick<ResourceMetadata, 'name' | 'parentPath'> & {
   bucket: string | undefined;
 };
 
@@ -49,7 +51,7 @@ const fuseOptions: Fuse.IFuseOptions<any> = {
 type Props = {
   initialPath: string | null | undefined;
   initialBucket: string;
-  onOk: (parentPath: string | null | undefined, bucket: string) => void;
+  onOk: (bucket: string, parentPath: string | null | undefined) => void;
   onCancel: () => void;
 };
 
@@ -60,7 +62,7 @@ export function SelectFolder({
   onCancel,
 }: Props) {
   const { userBucket } = useContext(ApiContext);
-  const { getFiles, getSharedWithMeFiles, createFolder } = useApiRequests();
+  const { getFiles, getSharedWithMeResources, createFolder } = useApiRequests();
 
   const [isOpen, setIsOpen] = useState(true);
 
@@ -106,7 +108,7 @@ export function SelectFolder({
   const handleGetFolders = useCallback(async () => {
     setIsLoading(true);
 
-    let files: FilesMetadata[];
+    let files: (SharedWithMeMetadata | ResourceMetadata)[];
     if (currentBucket) {
       files =
         (await getFiles({
@@ -114,7 +116,10 @@ export function SelectFolder({
           suppressErrors: true,
         })) ?? [];
     } else {
-      files = (await getSharedWithMeFiles()) ?? [];
+      files =
+        (await getSharedWithMeResources({
+          resourceType: MetadataResourceType.FILE,
+        })) ?? [];
     }
 
     setIsLoading(false);
@@ -125,7 +130,7 @@ export function SelectFolder({
     );
 
     setStorageFolders(folders);
-  }, [currentBucket, getFiles, currentPath, getSharedWithMeFiles]);
+  }, [currentBucket, getFiles, currentPath, getSharedWithMeResources]);
 
   const handleNavigateToFolder = useCallback((folder: Folder) => {
     setSearchValue('');
@@ -169,7 +174,7 @@ export function SelectFolder({
         {
           name:
             currentBucket === userBucket
-              ? 'Home'
+              ? 'My Files'
               : currentBucket === publicBucket
               ? 'Public'
               : 'Shared with me',
@@ -177,11 +182,11 @@ export function SelectFolder({
           icon: <HomeIcon />,
           dropdownItems: [
             getDropdownItem({
-              key: 'Home',
-              label: 'Home',
+              key: 'MyFiles',
+              label: 'My Files',
               onClick: () => {
                 handleSelectBreadcrumb({
-                  name: 'Home',
+                  name: 'My Files',
                   path: null,
                   bucket: userBucket,
                 });
@@ -241,7 +246,7 @@ export function SelectFolder({
 
       const result = await createFolder({
         bucket: folder.bucket,
-        path: folder.parentPath,
+        parentPath: folder.parentPath,
         name: renameValue,
       });
 
@@ -261,7 +266,7 @@ export function SelectFolder({
 
   useEffect(() => {
     handleGetFolders();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // below triggers, not dependencies
   }, [currentPath, handleGetFolders]);
 
   useEffect(() => {
@@ -278,14 +283,14 @@ export function SelectFolder({
       cancelButtonProps={{
         className: classNames(modalFooterButtonClasses, secondaryButtonClasses),
       }}
-      destroyOnClose={true}
+      destroyOnHidden={true}
       footer={null}
       open={isOpen}
       title={`Select folder`}
       onCancel={handleClose}
     >
       <div className="flex flex-col gap-3 min-h-[400px] max-h-[70dvh] justify-between overflow-hidden">
-        <div className="flex flex-col gap-2 flex-grow overflow-hidden">
+        <div className="flex flex-col gap-2 grow overflow-hidden">
           <div>
             <Input
               className={classNames('h-[38px]', inputClasses)}
@@ -302,26 +307,26 @@ export function SelectFolder({
             onSelectBreadcrumb={handleSelectBreadcrumb}
           />
 
-          <div className="flex flex-col flex-grow overflow-auto thin-scrollbar">
+          <div className="flex flex-col grow overflow-auto thin-scrollbar">
             {isLoading ? (
-              <div className="size-full flex flex-grow items-center justify-center">
+              <div className="size-full flex grow items-center justify-center">
                 <Spin className="z-50" size="large"></Spin>
               </div>
             ) : (
               displayedFolders.map((folder) => (
                 <div
                   className={classNames(
-                    'flex items-center gap-2 py-1.5 px-3 h-[30px] hover:bg-bgAccentPrimaryAlpha rounded cursor-pointer border-l-2 border-transparent select-none',
+                    'flex items-center text-text-primary gap-2 py-1.5 px-3 h-[30px] hover:bg-bg-accent-primary-alpha rounded-sm cursor-pointer border-l-2 border-transparent select-none',
                     selectedFolder?.name === folder.name &&
                       selectedFolder.parentPath === folder.parentPath &&
-                      'border-l-strokeAccentPrimary bg-bgAccentPrimaryAlpha'
+                      'border-l-stroke-accent-primary bg-bg-accent-primary-alpha'
                   )}
                   key={folder.parentPath + folder.name}
                   onClick={() => setSelectedFolder(folder)}
                   onDoubleClick={() => handleNavigateToFolder(folder)}
                 >
                   <Icon
-                    className="w-[18px] text-textSecondary shrink-0 hover:text-textAccentPrimary"
+                    className="w-[18px] text-text-secondary shrink-0 hover:text-text-accent-primary"
                     component={() => <FolderIcon />}
                   />
                   {renamingNewFolder?.name === folder.name &&
@@ -334,7 +339,7 @@ export function SelectFolder({
                         onChange={onNewFolderInputChange}
                       />
                       <button
-                        className="flex items-center text-textSecondary hover:text-textAccentPrimary disabled:text-textSecondary"
+                        className="flex items-center text-text-secondary hover:text-text-accent-primary disabled:text-text-secondary"
                         disabled={!renameValue}
                         onClick={() => finishRenamingNewFolder(true, folder)}
                       >
@@ -344,7 +349,7 @@ export function SelectFolder({
                         />
                       </button>
                       <button
-                        className="flex items-center text-textSecondary hover:text-textAccentPrimary disabled:text-textSecondary disabled:hover:text-textSecondary"
+                        className="flex items-center text-text-secondary hover:text-text-accent-primary disabled:text-text-secondary disabled:hover:text-text-secondary"
                         onClick={() => finishRenamingNewFolder(false, folder)}
                       >
                         <Icon
@@ -362,11 +367,11 @@ export function SelectFolder({
           </div>
         </div>
 
-        <div className="flex items-center justify-between pt-5 border-t border-strokePrimary">
+        <div className="flex items-center justify-between pt-5 border-t border-stroke-primary">
           <button disabled={!canCreateNewFolder} onClick={addNewFolder}>
             <Icon
-              className={cx('w-[24px] text-textSecondary shrink-0', {
-                'hover:text-textAccentPrimary': canCreateNewFolder,
+              className={cx('w-[24px] text-text-secondary shrink-0', {
+                'hover:text-text-accent-primary': canCreateNewFolder,
               })}
               component={() => <FolderPlusIcon />}
             />
@@ -376,12 +381,12 @@ export function SelectFolder({
             disabled={!currentBucket}
             onClick={() =>
               onOk(
+                currentBucket!,
                 selectedFolder
                   ? [selectedFolder.parentPath, selectedFolder.name]
                       .filter(Boolean)
                       .join('/')
-                  : currentPath,
-                currentBucket!
+                  : currentPath
               )
             }
           >

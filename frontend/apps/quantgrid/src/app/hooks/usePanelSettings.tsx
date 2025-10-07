@@ -4,8 +4,6 @@ import { useCallback, useContext } from 'react';
 
 import Icon from '@ant-design/icons';
 import {
-  ArrowAltIcon,
-  ArrowNarrowUp,
   BottomPositionIcon,
   ColumnsIcon,
   DialChatLogoIcon,
@@ -31,8 +29,6 @@ export function usePanelSettings() {
     panelsSplitEnabled,
     updateSplitPanelsEnabled,
     updateCollapsedPanelsTextHidden,
-    toggleExpandPanel,
-    expandedPanelSide,
   } = useContext(LayoutContext);
   const { toggleChatWindowPlacement } = useContext(AppContext);
 
@@ -43,8 +39,6 @@ export function usePanelSettings() {
       panelsPosition: PanelPosition,
       isPanelCollapsed = false
     ): MenuProps['items'] => {
-      const expanded = expandedPanelSide === panelsPosition;
-
       const specificItems =
         panelName === PanelName.Chat
           ? [
@@ -66,33 +60,10 @@ export function usePanelSettings() {
 
       const positionItems: MenuProps['items'] = [
         getDropdownItem({
-          key: 'expand-collapse',
-          icon: (
-            <Icon
-              className={classNames('text-textSecondary w-[18px]', {
-                'transform rotate-[225deg]': expanded,
-                'transform rotate-45': !expanded,
-              })}
-              component={() =>
-                expanded ? <ArrowNarrowUp /> : <ArrowAltIcon />
-              }
-            />
-          ),
-          label: (
-            <span>
-              {expanded ? `Restore ${panelTitle}` : `Expand ${panelTitle}`}
-            </span>
-          ),
-          onClick: () => {
-            toggleExpandPanel(panelName);
-          },
-        }),
-        getDropdownDivider(),
-        getDropdownItem({
           key: 'left',
           icon: (
             <Icon
-              className="text-textSecondary w-[18px]"
+              className="text-text-secondary w-[18px]"
               component={() => <LeftPositionIcon />}
             />
           ),
@@ -105,7 +76,7 @@ export function usePanelSettings() {
           key: 'right',
           icon: (
             <Icon
-              className="text-textSecondary w-[18px]"
+              className="text-text-secondary w-[18px]"
               component={() => <RightPositionIcon />}
             />
           ),
@@ -118,7 +89,7 @@ export function usePanelSettings() {
           key: 'bottom',
           icon: (
             <Icon
-              className="text-textSecondary w-[18px]"
+              className="text-text-secondary w-[18px]"
               component={() => <BottomPositionIcon />}
             />
           ),
@@ -135,7 +106,7 @@ export function usePanelSettings() {
           key: 'hideText',
           icon: (
             <Icon
-              className="text-textSecondary w-[18px]"
+              className="text-text-secondary w-[18px]"
               component={() =>
                 collapsedPanelsTextHidden ? (
                   <TypographyIcon />
@@ -158,7 +129,7 @@ export function usePanelSettings() {
           key: 'split',
           icon: (
             <Icon
-              className="text-textSecondary rotate-90 w-[18px]"
+              className="text-text-secondary rotate-90 w-[18px]"
               component={() => <ColumnsIcon />}
             />
           ),
@@ -189,7 +160,7 @@ export function usePanelSettings() {
               key: 'expand',
               icon: (
                 <Icon
-                  className={`h-[16px] w-[16px] text-textSecondary ${iconRotate}`}
+                  className={`h-[16px] w-[16px] text-text-secondary ${iconRotate}`}
                   component={() => <MinimizePanelIcon />}
                 />
               ),
@@ -210,12 +181,10 @@ export function usePanelSettings() {
       ];
     },
     [
-      expandedPanelSide,
       collapsedPanelsTextHidden,
       panelsSplitEnabled,
       openedPanels,
       toggleChatWindowPlacement,
-      toggleExpandPanel,
       changePanelPosition,
       updateCollapsedPanelsTextHidden,
       updateSplitPanelsEnabled,

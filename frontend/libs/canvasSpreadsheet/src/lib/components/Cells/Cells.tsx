@@ -141,7 +141,7 @@ export function Cells() {
       gridViewportSubscriber?.current?.subscribe(() => {
         updateCells();
       }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // below triggers, not dependencies
     [updateCells, gridViewportSubscriber]
   );
 

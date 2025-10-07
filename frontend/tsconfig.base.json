@@ -1,25 +1,33 @@
 {
-  "compileOnSave": false,
   "compilerOptions": {
-    "rootDir": ".",
-    "sourceMap": true,
-    "declaration": false,
-    "moduleResolution": "node",
+    "baseUrl": ".",
+    "composite": true,
+    "customConditions": ["development"],
+    "declarationMap": true,
+    "emitDeclarationOnly": true,
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
     "importHelpers": true,
-    "target": "es2015",
+    "isolatedModules": true,
+    "lib": ["es2022", "DOM", "DOM.Iterable"],
+    "types": ["node", "react", "react-dom"],
+    "jsx": "react-jsx",
     "module": "esnext",
-    "lib": ["es2021", "dom", "DOM.Iterable"],
+    "moduleResolution": "bundler",
+    "noEmitOnError": true,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitOverride": false,
+    "noImplicitReturns": true,
+    "noUnusedLocals": false,
     "skipLibCheck": true,
-    "skipDefaultLibCheck": true,
-    "baseUrl": ".",
+    "strict": true,
+    "target": "es2022",
     "paths": {
       "@frontend/canvas-spreadsheet": ["libs/canvasSpreadsheet/src/index.ts"],
       "@frontend/code-editor": ["libs/code-editor/src/index.ts"],
       "@frontend/common": ["libs/common/src/index.ts"],
+      "@frontend/common/*": ["libs/common/src/*"],
       "@frontend/parser": ["libs/parser/src/index.ts"]
     }
-  },
-  "exclude": ["node_modules", "tmp"]
+  }
 }

@@ -3,11 +3,10 @@ import asyncio
 from time import time
 from typing import List
 
-from dial_xl.project import FieldKey, Project, Viewport
+from dial_xl.project import Project
 from langchain_core.runnables import Runnable, RunnableLambda
 from openai import RateLimitError
 
-from quantgrid.utils.project import FieldGroupUtil
 from quantgrid_1.chains.parameters import ChainParameters
 from quantgrid_1.log_config import qg_logger as logger
 from quantgrid_1.models.action import Action, AddTableAction, EditTableAction
@@ -22,6 +21,7 @@ from quantgrid_1.utils.formatting import (
 )
 from quantgrid_1.utils.stages import append_duration, replicate_stages
 from quantgrid_1.utils.stream_content import get_token_error, stream_content
+from quantgrid_1.utils.viewports import get_table_viewports
 
 FAIL_MESSAGE = "Sorry, I can't help with this. Please try again or change the task."
 SUMMARY_CONTEXT_STAGE_NAME = "Summarization Context"
@@ -33,26 +33,20 @@ async def add_values_to_actions(project: Project, actions: List[Action]):
             action, EditTableAction
         ):
             continue
-
-        viewports = []
-
         sheet, table = find_table(project, action.table_name)
         if table is None:
             continue
 
-        fields = FieldGroupUtil.get_table_fields(table)
-        for field in fields:
-            viewports.append(
-                Viewport(
-                    key=FieldKey(table=action.table_name, field=field.name),
-                    start_row=0,
-                    end_row=10,
-                )
-            )
-
         try:
             async with asyncio.timeout(10):
-                await project.calculate(viewports)
+                await project.compile()
+        except Exception:
+            continue
+
+        typed_viewports = get_table_viewports(table, consider_date_type=True)
+        try:
+            async with asyncio.timeout(10):
+                await project.calculate(typed_viewports)
         except Exception:
             continue
 

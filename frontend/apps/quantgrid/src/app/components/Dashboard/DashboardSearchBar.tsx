@@ -1,6 +1,6 @@
-import { Button, Dropdown, Input } from 'antd';
+import { Button, Dropdown, Input, InputRef } from 'antd';
 import cx from 'classnames';
-import { useContext, useMemo } from 'react';
+import { useContext, useEffect, useMemo, useRef } from 'react';
 
 import {
   dialProjectFileExtension,
@@ -15,6 +15,7 @@ import { useDashboardCreateMenuItems } from './hooks';
 export function DashboardSearchBar() {
   const { searchValue, search, displayedDashboardItems } =
     useContext(DashboardContext);
+  const inputRef = useRef<InputRef | null>(null);
 
   const projects = useMemo(
     () =>
@@ -26,6 +27,20 @@ export function DashboardSearchBar() {
 
   const { dropdownItems } = useDashboardCreateMenuItems(projects);
 
+  useEffect(() => {
+    const onSearch = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key === 'f') {
+        event.preventDefault();
+        inputRef.current?.focus();
+      }
+    };
+    document.addEventListener('keydown', onSearch);
+
+    return () => {
+      document.removeEventListener('keydown', onSearch);
+    };
+  });
+
   return (
     <div className="flex justify-between gap-2 md:gap-5">
       <Input
@@ -35,10 +50,11 @@ export function DashboardSearchBar() {
         )}
         placeholder="Search project..."
         prefix={
-          <div className="size-[18px] text-textSecondary shrink-0">
+          <div className="size-[18px] text-text-secondary shrink-0">
             <SearchIcon />
           </div>
         }
+        ref={inputRef}
         value={searchValue}
         onChange={(e) => {
           search(e.target.value);

@@ -102,7 +102,7 @@ export function ProjectPanel({
     <PanelWrapper isActive={isActive} panelName={panelName}>
       <PanelToolbar panelName={panelName} position={position} title={title} />
       <div
-        className="w-full h-full overflow-auto thin-scrollbar bg-bgLayer3 relative group/panel"
+        className="w-full h-full overflow-auto thin-scrollbar bg-bg-layer-3 relative group/panel"
         id={projectPanelWrapperId}
       >
         <ProjectPanelSection
@@ -110,8 +110,12 @@ export function ProjectPanel({
           content={<ProjectTree />}
           headerExtra={
             isDefaultMode ? (
-              <Tooltip placement="bottom" title="Create worksheet">
-                <button className="size-[22px] flex items-center justify-center bg-bgAccentPrimaryAlpha text-textAccentPrimary rounded-full">
+              <Tooltip
+                placement="bottom"
+                title="Create worksheet"
+                destroyOnHidden
+              >
+                <button className="size-[22px] flex items-center justify-center bg-bg-accent-primary-alpha text-text-accent-primary rounded-full">
                   <Icon
                     className="w-3"
                     component={() => <PlusIcon />}
@@ -139,6 +143,7 @@ export function ProjectPanel({
                   className="opacity-0 transition-opacity duration-200 ease-in-out pointer-events-none group-hover/panel:opacity-100 group-hover/panel:pointer-events-auto"
                   placement="bottom"
                   title="Import Conversation"
+                  destroyOnHidden
                 >
                   <Icon
                     className={classNames(iconClasses, 'w-[18px]')}
@@ -146,9 +151,13 @@ export function ProjectPanel({
                     onClick={handleImportConversation}
                   />
                 </Tooltip>
-                <Tooltip placement="bottom" title="Create new conversation">
+                <Tooltip
+                  placement="bottom"
+                  title="Create new conversation"
+                  destroyOnHidden
+                >
                   <button
-                    className="size-[22px] flex items-center justify-center bg-bgAccentPrimaryAlpha text-textAccentPrimary rounded-full"
+                    className="size-[22px] flex items-center justify-center bg-bg-accent-primary-alpha text-text-accent-primary rounded-full"
                     onClick={handleCreateConversation}
                   >
                     <Icon className="w-3" component={() => <PlusIcon />} />
@@ -174,6 +183,7 @@ export function ProjectPanel({
                   className="opacity-0 transition-opacity duration-200 ease-in-out pointer-events-none group-hover/panel:opacity-100 group-hover/panel:pointer-events-auto"
                   placement="bottom"
                   title="Import AI Hints"
+                  destroyOnHidden
                 >
                   <Icon
                     className={classNames(iconClasses, 'w-[18px]')}
@@ -186,6 +196,7 @@ export function ProjectPanel({
                 className="opacity-0 transition-opacity duration-200 ease-in-out pointer-events-none group-hover/panel:opacity-100 group-hover/panel:pointer-events-auto"
                 placement="bottom"
                 title="Export AI Hints"
+                destroyOnHidden
               >
                 <Icon
                   className={classNames(iconClasses, 'w-[18px]')}
@@ -194,9 +205,13 @@ export function ProjectPanel({
                 />
               </Tooltip>
               {isDefaultMode && (
-                <Tooltip placement="bottom" title="Add new hint">
+                <Tooltip
+                  placement="bottom"
+                  title="Add new hint"
+                  destroyOnHidden
+                >
                   <button
-                    className="size-[22px] flex items-center justify-center bg-bgAccentPrimaryAlpha text-textAccentPrimary rounded-full group-disabled:text-controlsTextDisable group-disabled:bg-controlsBgDisable"
+                    className="size-[22px] flex items-center justify-center bg-bg-accent-primary-alpha text-text-accent-primary rounded-full group-disabled:text-controls-text-disable group-disabled:bg-controls-bg-disable"
                     onClick={() => isProjectEditable && newHintsModal()}
                   >
                     <Icon className="w-3" component={() => <PlusIcon />} />
@@ -222,6 +237,7 @@ export function ProjectPanel({
                   className="opacity-0 transition-opacity duration-200 ease-in-out pointer-events-none group-hover/panel:opacity-100 group-hover/panel:pointer-events-auto"
                   placement="bottom"
                   title="Import input"
+                  destroyOnHidden
                 >
                   <Icon
                     className={classNames(iconClasses, 'w-[18px]')}
@@ -229,9 +245,9 @@ export function ProjectPanel({
                     onClick={() => !inputsAddDisabled && importInput()}
                   />
                 </Tooltip>
-                <Tooltip placement="bottom" title="Upload file">
+                <Tooltip placement="bottom" title="Upload file" destroyOnHidden>
                   <button
-                    className="size-[22px] flex items-center justify-center bg-bgAccentPrimaryAlpha text-textAccentPrimary rounded-full"
+                    className="size-[22px] flex items-center justify-center bg-bg-accent-primary-alpha text-text-accent-primary rounded-full"
                     onClick={() => !inputsAddDisabled && uploadFiles()}
                   >
                     <Icon className="w-3" component={() => <PlusIcon />} />

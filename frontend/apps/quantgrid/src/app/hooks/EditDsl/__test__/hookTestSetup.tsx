@@ -1,46 +1,41 @@
-import { useContext, useEffect } from 'react';
+import { useContext } from 'react';
 
-import { renderHook, RenderHookResult } from '@testing-library/react';
+import { act, renderHook, RenderHookResult } from '@testing-library/react';
 
-import { createWrapper, DslContext } from './createWrapper';
+import { DslContext } from './createWrapper';
 
 interface HookTestSetup<T> {
-  result: RenderHookResult<T, { dsl: string }>['result'];
-  rerender: (props?: { dsl: string }) => void;
+  result: RenderHookResult<T, unknown>['result'];
   setDsl: (dsl: string) => void;
+  rerender: (props?: unknown) => void;
 }
-
 /**
- * Reusable function to setup and render a hook for testing.
+ * Reusable function to set up and render a hook for testing.
  * @param hook - The hook to test.
- * @param initialProps - Initial props for the wrapper.
- * @param initialDsl - Initial DSL to set in the context.
+ * @param wrapper - The wrapper component providing necessary context.
  * @returns An object containing `result`, `rerender`, and `setDsl`.
  */
 export function hookTestSetup<T>(
   hook: () => T,
-  initialProps: Record<string, any> = {},
-  initialDsl = ''
+  wrapper: React.ComponentType<React.PropsWithChildren<unknown>>
 ): HookTestSetup<T> {
-  const wrapper = createWrapper(initialProps);
+  let setDslFn: (dsl: string) => void = () => {};
 
   const hookRender = renderHook(
-    ({ dsl }) => {
-      const context = useContext(DslContext);
-      if (!context) throw new Error('DslContext is not available');
+    () => {
+      const ctx = useContext(DslContext);
+      if (!ctx) throw new Error('DslContext is not available');
 
-      useEffect(() => {
-        context.setDsl(dsl);
-      }, [context, dsl]);
+      setDslFn = ctx.setDsl;
 
       return hook();
     },
-    { wrapper, initialProps: { dsl: initialDsl } }
+    { wrapper }
   );
 
   return {
     result: hookRender.result,
+    setDsl: (dsl: string) => act(() => setDslFn(dsl)),
     rerender: hookRender.rerender,
-    setDsl: (dsl: string) => hookRender.rerender({ dsl }),
   };
 }

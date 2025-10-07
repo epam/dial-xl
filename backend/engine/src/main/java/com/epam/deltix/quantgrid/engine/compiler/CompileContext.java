@@ -27,6 +27,7 @@ import com.epam.deltix.quantgrid.parser.ast.ConstText;
 import com.epam.deltix.quantgrid.parser.ast.CurrentField;
 import com.epam.deltix.quantgrid.parser.ast.Formula;
 import com.epam.deltix.quantgrid.parser.ast.Function;
+import com.epam.deltix.quantgrid.parser.ast.Missing;
 import com.epam.deltix.quantgrid.parser.ast.TableReference;
 import com.epam.deltix.quantgrid.parser.ast.UnaryOperator;
 import lombok.Getter;
@@ -198,6 +199,11 @@ public class CompileContext {
         return function().arguments().get(index);
     }
 
+    public boolean hasArgument(int index) {
+        List<Formula> args = function().arguments();
+        return index >= 0 && index < args.size() && !(args.get(index) instanceof Missing);
+    }
+
     public String constStringArgument(int index) {
         Formula argument = argument(index);
         CompileUtil.verify(argument instanceof ConstText, getErrorForArgument(index, "constant text is expected, like \"Example\""));
@@ -227,8 +233,17 @@ public class CompileContext {
         return compiler.lookupResult(formula);
     }
 
+    public void mapFormula(Formula from, Formula to) {
+        compiler.mapFormula(from, to);
+    }
+
     public <T extends CompiledResult> T compileArgument(int index, ResultValidator<T> validator) {
         Formula argument = argument(index);
+
+        if (argument instanceof Missing) {
+            throw new CompileError(getErrorForArgument(index, "missing"));
+        }
+
         CompiledResult compiled = compileFormula(argument);
 
         try {

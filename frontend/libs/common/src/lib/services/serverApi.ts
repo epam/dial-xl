@@ -56,15 +56,6 @@ export interface Viewport {
   is_raw: boolean;
 }
 
-export enum Status {
-  Succeed = 'SUCCEED',
-  Failed = 'FAILED',
-  VersionConflict = 'VERSION_CONFLICT',
-  NotFound = 'NOT_FOUND',
-  InvalidConflict = 'INVALID_PROTOCOL',
-  Unrecognized = 'UNRECOGNIZED',
-}
-
 export interface ForkedFrom {
   bucket: string;
   path: string | null | undefined;
@@ -142,20 +133,19 @@ export enum FormatType {
   FORMAT_TYPE_SCIENTIFIC = 'FORMAT_TYPE_SCIENTIFIC',
 }
 
-// eslint-disable-next-line @typescript-eslint/no-empty-interface
 export interface BooleanFormatArgs {}
 
 export interface NumberFormatArgs {
-  format: number;
+  format: number | string; // It can be decimal digits, total digits or Compact type(K, M, B)
   useThousandsSeparator: boolean;
 }
 
 export interface ScientificFormatArgs {
-  format: number;
+  format: number | string;
 }
 
 export interface CurrencyFormatArgs {
-  format: number;
+  format: number | string; // It can be decimal digits, total digits or Compact type(K, M, B)
   useThousandsSeparator: boolean;
   symbol: string;
 }
@@ -165,7 +155,8 @@ export interface DateFormatArgs {
 }
 
 export interface PercentageFormatArgs {
-  format: number;
+  format: number | string; // It can be decimal digits, total digits or Compact type(K, M, B)
+  useThousandsSeparator: boolean;
 }
 
 export interface ColumnFormat {

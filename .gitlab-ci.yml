@@ -1,7 +1,9 @@
 include:
   - project: Gitlab/ci
     ref: 1.0.0
-    file: jobs/cloud-auth/aws.gitlab-ci.yml 
+    file: jobs/cloud-auth/aws.gitlab-ci.yml
+
+  - local: "ci/store_results_to_s3.yml"
 
 .sed_template: &sed_template |
   sed -i -E 's@^URIs:.+ubuntu\.com.+@URIs: http://ftp.uni-stuttgart.de/ubuntu/@' /etc/apt/sources.list.d/ubuntu.sources
@@ -28,6 +30,7 @@ stages:
   - build # Application build
   - publish # publush docker images
   - deploy # deploy application to k8s
+  - post-deploy # startup checks
   - e2e-test # run e2e tests
   - aggregate_results # combine test results from several runners and publish it
   - promote # copy docker image to public repo
@@ -256,6 +259,7 @@ deploy_quantgrid_review:
   rules:
     - if: '$CI_MERGE_REQUEST_ID && $review_DEPLOY_ENV == "true"'
     - if: '$CI_PIPELINE_SOURCE == "web"'
+  resource_group: "deploy-group-${CI_COMMIT_REF_SLUG}"
  
 ### destroy quantgrid app for review environment
 destroy_quantgrid_review:
@@ -351,6 +355,7 @@ deploy_dial_review:
   rules:
     - if: '$CI_MERGE_REQUEST_ID && $review_DEPLOY_ENV == "true"'
     - if: '$CI_PIPELINE_SOURCE == "web"'
+  resource_group: "deploy-dial-group-${CI_COMMIT_REF_SLUG}"  
 
 destroy_dial_review:
   image: ${TOOLS_IMAGE}
@@ -517,6 +522,8 @@ build_backend:
 build_frontend:
   stage: build
   image: timbru31/java-node:11-jre-iron
+  variables:
+    NODE_OPTIONS: "--require=$CI_PROJECT_DIR/frontend/max-listeners.js"
   script:
     - cd frontend
     - yarn install
@@ -525,7 +532,7 @@ build_frontend:
     - yarn build:ci
   artifacts:
     paths:
-      - frontend/dist/apps/quantgrid
+      - frontend/dist
     expire_in: 10 days
   tags:
     - Linux
@@ -801,9 +808,8 @@ promote:
     - wget -q --tries=60 --wait=5 --retry-on-host-error --spider ${BASE_URL}
   script:
     - cd frontend
-    - yarn add --dev @playwright/test
-    - yarn add @playwright/test allure-playwright --dev
-    - if [ -z "$TEST_TAG" ]; then if [ -z "$TEST_FEATURES" ]; then npm run e2e:ci; else npm run e2e:ci -- --grep $TEST_FEATURES; fi; else for tag in $TEST_TAG; do DATA_TYPE=${tag:1} npm run e2e:ci -- --grep $tag; done; fi
+    - yarn add @playwright/test@1.49.1 allure-playwright --dev
+    - if [ -z "$TEST_TAG" ]; then if [ -z "$TEST_FEATURES" ]; then npm run e2e:ci; else PW_GREP="$TEST_FEATURES" npm run e2e:ci; fi; else for tag in $TEST_TAG; do DATA_TYPE=${tag:1} PW_GREP="$tag" npm run e2e:ci; done; fi
   artifacts:
     name: "${CI_JOB_ID}_${CI_JOB_NAME}"
     when: always
@@ -811,6 +817,7 @@ promote:
     paths:
       - frontend/allure-results
       - frontend/test-results/videos
+      - frontend/blob-report
   tags:
 #    - gpu
     - AWS
@@ -961,9 +968,16 @@ integration_test_qgbot:
   artifacts:
     paths:
       - python/assistant/report.xlsx
+      - python/assistant/report.json
       - python/assistant/qg.log
     expire_in: 3 month
     when: always
+
+store_integration_test_qgbot_to_s3:
+  needs: [integration_test_qgbot]
+  extends: .store_test_results_to_s3_template
+  variables:
+    DIR_NAME: integration
 
 business_test_qgbot:
   image: "python:3.12-slim"
@@ -1033,22 +1047,32 @@ business_test_qgbot:
   artifacts:
     paths:
       - python/assistant/report.xlsx
+      - python/assistant/report.json
       - python/assistant/qg.log
     expire_in: 3 month
     when: always
+
+store_business_test_qgbot_to_s3:
+  needs: [business_test_qgbot]
+  extends: .store_test_results_to_s3_template
+  variables:
+    DIR_NAME: business
 
 prepare_report:
   image: ${TEST_IMAGE}
   stage: aggregate_results
   script:
     - /allure/allure-2.27.0/bin/allure generate ./frontend/allure-results -o ./frontend/allure-report-s3 --clean
+    - cd frontend
+    - npx playwright merge-reports --reporter html ./blob-report
+    - cd ..
     - export AWS_ACCESS_KEY_ID=${nightlytest_AWS_ACCESS_KEY_ID} # No problem with inheritance; easily copy the example to another project
     - export AWS_SECRET_ACCESS_KEY=${nightlytest_AWS_SECRET_ACCESS_KEY}
     - export AWS_DEFAULT_REGION=${nightlytest_AWS_DEFAULT_REGION}
     - aws s3 sync ./frontend/allure-report-s3 s3://new-reports.deltixhub.net/Deltix/Quantgrid/$CI_PIPELINE_ID
     - echo "The report is available at the adress:"
     - echo "http://new-reports.deltixhub.net.s3-website-us-west-2.amazonaws.com/Deltix/Quantgrid/$CI_PIPELINE_ID"
-    - expected_test_count=324
+    - expected_test_count=340
     - line_count=$(grep "chromium" ./frontend/allure-report-s3/data/suites.csv | wc -l)
     - '[ "$line_count" -eq "$expected_test_count" ] || { echo "Error: test count mistatch. Expected $expected_test_count, executed $line_count ."; exit 1; }'
     - echo "Test count is correct"
@@ -1058,6 +1082,7 @@ prepare_report:
     expire_in: 3 day
     paths:
       - frontend/allure-report-s3
+      - frontend/playwright-report
   tags:
     - AWS
     - DockerExecutor
@@ -1072,3 +1097,83 @@ prepare_report:
     - if: $CI_COMMIT_BRANCH  == "main"
   interruptible: true
 
+wait_for_enviroment_startup:
+  image: ${TEST_IMAGE}
+  stage: post-deploy
+  before_script:
+    - apt-get update
+    - apt-get install -y dnsutils
+  script: |
+        wait_for_availability() {
+        DOMAIN="$1"
+        ATTEMPT=0
+        ATTEMPT_LIMIT=90  # retry resolve up to 15 minutes
+        ATTEMPT_DELAY=10  # 10 seconds between resolve attempts
+
+        if [ -z "$DOMAIN" ]; then
+            echo "Specify domain name as first argument" >&2
+            return 1
+        fi
+
+        BASE_DOMAIN=$(echo "$DOMAIN" | sed -E 's/[^.]+\.(.+)/\1/')
+        echo "Query Google public DNS for $BASE_DOMAIN nameservers"
+        NS_SERVERS=$(dig +short @8.8.8.8 ns $BASE_DOMAIN)
+        if [ -n "$NS_SERVERS" ]; then
+            echo "Detected nameservers for $BASE_DOMAIN:"
+            echo "$NS_SERVERS"
+        else
+            echo "Unable to detect nameservers for $BASE_DOMAIN" >&2
+            return 1
+        fi
+
+        for NS in $NS_SERVERS
+        do
+            while true
+            do
+                echo "Query $NS for $DOMAIN"
+                RESULT=$(dig +short @${NS} "$DOMAIN")
+                if [ ! -z "$RESULT" ]; then
+                    if echo "$RESULT" | grep -Eq '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}'; then
+                        echo "$RESULT"
+                        break
+                    fi
+                fi
+                ATTEMPT=$((ATTEMPT+1))
+                if [ $ATTEMPT -le $ATTEMPT_LIMIT ]; then
+                    sleep $ATTEMPT_DELAY
+                else
+                    echo "Unable to resolve $DOMAIN" >&2
+                    return 1
+                fi
+            done
+         done
+        }
+        echo "${BASE_URL} ${QG_URL} ${DIAL_URL}"
+        wget -q --tries=60 --wait=5 --retry-on-host-error --spider ${BASE_URL}
+        echo "BASE_URL checked"
+        wget -q --tries=60 --wait=5 --retry-on-host-error --spider ${QG_URL}
+        echo "QG_URL checked"
+        for i in $(seq 1 60); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' "$DIAL_URL")
+            if [ "$code" = "200" ] || [ "$code" = "401" ]; then
+            echo "Environment up (HTTP $code)"; exit 0
+         fi
+         echo "Got HTTP ${code:-no response}; retrying in 5s..."
+         sleep 5
+        done
+        echo "Timed out waiting for $DIAL_URL"; exit 1
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+      variables:
+        BASE_URL: ${development_ENV_URL}
+        QG_URL: https://quantgrid-dev.staging.deltixhub.io
+        DIAL_URL: https://dev-dial-core.staging.deltixhub.io        
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      variables:
+        BASE_URL: ${review_ENV_URL}
+        QG_URL: https://quantgrid-${CI_COMMIT_REF_SLUG}.staging.deltixhub.io
+        DIAL_URL: https://core-quantgrid-${CI_COMMIT_REF_SLUG}.staging.deltixhub.io
+  tags:
+    - AWS
+    - DockerExecutor
+  interruptible: true    

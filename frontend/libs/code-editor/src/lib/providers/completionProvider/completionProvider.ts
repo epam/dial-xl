@@ -3,7 +3,7 @@ import { Monaco } from '@monaco-editor/react';
 import { editor, IDisposable, IRange, languages, Position } from '../../monaco';
 import CompletionItem = languages.CompletionItem;
 
-import { FunctionInfo } from '@frontend/common';
+import { CommonMetadata, FunctionInfo } from '@frontend/common';
 import { ParsedSheets } from '@frontend/parser';
 
 import { Language } from '../../codeEditorConfig';
@@ -19,6 +19,7 @@ export function registerCompletionProvider(
   monaco: Monaco,
   codeEditor: editor.IStandaloneCodeEditor,
   functions: FunctionInfo[],
+  inputFiles: CommonMetadata[],
   parsedSheets: ParsedSheets,
   language: Language,
   currentTableName?: string,
@@ -47,6 +48,7 @@ export function registerCompletionProvider(
           position,
           context,
           functions,
+          inputFiles,
           parsedSheets,
         });
       } else {
@@ -55,6 +57,7 @@ export function registerCompletionProvider(
           position,
           context,
           functions,
+          inputFiles,
           parsedSheets,
           currentTableName,
           currentFieldName,

@@ -1,4 +1,4 @@
-import { FilesMetadata } from '@frontend/common';
+import { ResourceMetadata } from '@frontend/common';
 
 import {
   constructPath,
@@ -221,7 +221,7 @@ describe('name utils', () => {
         resourceType: 'FILE',
         nodeType: 'ITEM',
         name: 'project.qg',
-      } as FilesMetadata;
+      } as ResourceMetadata;
       expect(isProjectMetadata(meta)).toBe(true);
     });
 
@@ -232,7 +232,7 @@ describe('name utils', () => {
           resourceType: 'FILE',
           nodeType: 'ITEM',
           name: 'project.txt',
-        } as FilesMetadata)
+        } as ResourceMetadata)
       ).toBe(false);
 
       // Wrong resource type
@@ -241,7 +241,7 @@ describe('name utils', () => {
           resourceType: 'CONVERSATION',
           nodeType: 'ITEM',
           name: 'project.qg',
-        } as FilesMetadata)
+        } as ResourceMetadata)
       ).toBe(false);
 
       // Wrong node type
@@ -250,7 +250,7 @@ describe('name utils', () => {
           resourceType: 'FILE',
           nodeType: 'FOLDER',
           name: 'project.qg',
-        } as FilesMetadata)
+        } as ResourceMetadata)
       ).toBe(false);
     });
   });

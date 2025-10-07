@@ -12,6 +12,7 @@ from testing.models import (
     IndexStage,
     RouteStage,
     SheetsStage,
+    StandaloneQuestionStage,
 )
 
 # Order matters. Python dictionaries are ordered.
@@ -23,6 +24,7 @@ STAGE_MAPPING: dict[str, type[AnyStage]] = {
     "Actions": ActionsStage,
     "Changed Sheets": SheetsStage,
     "Focus": FocusStage,
+    "Standalone Question": StandaloneQuestionStage,
     "": GenericStage,
 }
 

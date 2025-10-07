@@ -1,10 +1,9 @@
 import { useCallback, useContext } from 'react';
 
-import { GridTable } from '@frontend/common';
-
 import { GridStateContext } from '../context';
 import {
   Edges,
+  GridTable,
   HorizontalDirection,
   SelectionEdges,
   VerticalDirection,

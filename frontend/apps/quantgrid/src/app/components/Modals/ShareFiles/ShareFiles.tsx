@@ -1,16 +1,17 @@
-import { Button, Checkbox, Input, Modal, Spin } from 'antd';
+import { Avatar, Button, Checkbox, Input, Modal, Spin } from 'antd';
 import classNames from 'classnames';
 import { useCallback, useContext, useEffect, useState } from 'react';
+import { useAuth } from 'react-oidc-context';
 
 import Icon from '@ant-design/icons';
 import {
   appMessages,
   CheckIcon,
+  CommonMetadata,
   conversationsEndpointType,
   CopyIcon,
   dialProjectFileExtension,
   filesEndpointType,
-  FilesMetadata,
   inputClasses,
   makeCopy,
   MetadataNodeType,
@@ -19,17 +20,23 @@ import {
   primaryButtonClasses,
   primaryDisabledButtonClasses,
   publicBucket,
+  ResourceMetadata,
   ResourcePermission,
   secondaryButtonClasses,
+  stableColorFromLabel,
 } from '@frontend/common';
 
 import { ShareModalRefFunction } from '../../../common';
 import { ApiContext, ProjectContext } from '../../../context';
 import { useApiRequests, useShareResources } from '../../../hooks';
 import {
+  constructPath,
   convertUrlToMetadata,
+  decodeApiUrl,
   displayToast,
+  encodeApiUrl,
   getProjectNavigateUrl,
+  normalizePermissionsLabels,
 } from '../../../utils';
 
 type Props = {
@@ -37,16 +44,18 @@ type Props = {
 };
 
 export function ShareFiles({ shareProjectModal }: Props) {
-  const { getResourceMetadata } = useApiRequests();
+  const { getResourceMetadata, getSharedByMeResources } = useApiRequests();
   const { getShareLink, collectResourceAndDependentFileUrls } =
     useShareResources();
   const { userBucket } = useContext(ApiContext);
-  const { cloneCurrentProject } = useContext(ProjectContext);
+  const { cloneCurrentProject, projectPermissions } =
+    useContext(ProjectContext);
+  const { user } = useAuth();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const [resources, setResources] = useState<
-    Omit<FilesMetadata, 'resourceType' | 'url'>[]
+    Omit<CommonMetadata, 'resourceType' | 'url'>[]
   >([]);
   const [fileName, setFileName] = useState('');
   const [fileCount, setFileCount] = useState(0);
@@ -60,6 +69,9 @@ export function ShareFiles({ shareProjectModal }: Props) {
   const [isAllowResharing, setIsAllowResharing] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [isShowErrorCloneButton, setIsShowErrorCloneButton] = useState(false);
+  const [sharedUsers, setSharedUsers] = useState<
+    { name: string; permissions: string[]; isAuthor?: boolean }[] | null
+  >([]);
 
   const showModal = useCallback(() => {
     setIsModalOpen(true);
@@ -69,8 +81,87 @@ export function ShareFiles({ shareProjectModal }: Props) {
     setIsModalOpen(false);
   }, []);
 
+  const getSharedUsers = useCallback(
+    async (resources: Omit<CommonMetadata, 'resourceType' | 'url'>[]) => {
+      // Display only for single file
+      if (resources.length > 1 || resources.length === 0) {
+        setSharedUsers(null);
+
+        return;
+      }
+
+      const resource = resources[0];
+      const sharedUsers: {
+        name: string;
+        permissions: string[];
+        isAuthor?: boolean;
+      }[] = [];
+
+      // Temporarily show shared users only for user projects
+      if (resource.bucket === publicBucket || resource.bucket !== userBucket) {
+        setSharedUsers(null);
+
+        return;
+      }
+
+      sharedUsers.push({
+        name: user?.profile.name ? user?.profile.name + ' (Me)' : 'Me',
+        permissions: normalizePermissionsLabels(projectPermissions),
+        isAuthor: true,
+      });
+      const sharedByMeResources = await getSharedByMeResources({
+        resourceType: MetadataResourceType.FILE,
+      });
+      const resourceUrl = encodeApiUrl(
+        constructPath([
+          filesEndpointType,
+          resource.bucket,
+          resource.parentPath,
+          resource.name,
+        ])
+      );
+      const sharedMatchedResourcesFile = sharedByMeResources?.find(
+        (item) =>
+          item.nodeType === MetadataNodeType.ITEM && item.url === resourceUrl
+      );
+      const sharedMatchedResourceFolders = sharedByMeResources
+        ?.filter(
+          (item) =>
+            item.nodeType === MetadataNodeType.FOLDER &&
+            resourceUrl.startsWith(item.url)
+        )
+        .sort((a, b) => a.url.length - b.url.length);
+
+      const sharedMatchedResource =
+        sharedMatchedResourcesFile ??
+        (sharedMatchedResourceFolders
+          ? sharedMatchedResourceFolders[
+              sharedMatchedResourceFolders.length - 1
+            ]
+          : undefined);
+
+      if (!sharedMatchedResource) {
+        setSharedUsers(sharedUsers);
+
+        return;
+      }
+
+      sharedUsers.push(
+        ...sharedMatchedResource.sharedWith.map((item) => ({
+          name: item.user,
+          permissions: normalizePermissionsLabels(item.permissions),
+        }))
+      );
+
+      setSharedUsers(sharedUsers);
+    },
+    [getSharedByMeResources, projectPermissions, user?.profile.name, userBucket]
+  );
+
   const processResources = useCallback(
-    async (initialResources: Omit<FilesMetadata, 'resourceType' | 'url'>[]) => {
+    async (
+      initialResources: Omit<CommonMetadata, 'resourceType' | 'url'>[]
+    ) => {
       if (initialResources.length === 0) return;
 
       const resourcesUrls = await collectResourceAndDependentFileUrls(
@@ -87,7 +178,7 @@ export function ShareFiles({ shareProjectModal }: Props) {
 
       const mappedResources = resourcesUrls
         .map(convertUrlToMetadata)
-        .filter(Boolean) as FilesMetadata[];
+        .filter(Boolean) as ResourceMetadata[];
       const notUserResources = mappedResources.filter(
         (res) => res.bucket !== userBucket
       );
@@ -101,20 +192,22 @@ export function ShareFiles({ shareProjectModal }: Props) {
       }
 
       const resultingUrlsMetadata = await Promise.allSettled(
-        mappedResources.map((res) =>
-          getResourceMetadata({
-            path: res.url.startsWith(`${filesEndpointType}/`)
-              ? res.url.replace(`${filesEndpointType}/`, '')
-              : res.url.startsWith(`${conversationsEndpointType}/`)
-              ? res.url.replace(`${conversationsEndpointType}/`, '')
-              : res.url,
+        mappedResources.map((res) => {
+          const path = res.url.startsWith(`${filesEndpointType}/`)
+            ? res.url.replace(`${filesEndpointType}/`, '')
+            : res.url.startsWith(`${conversationsEndpointType}/`)
+            ? res.url.replace(`${conversationsEndpointType}/`, '')
+            : res.url;
+
+          return getResourceMetadata({
+            path: decodeApiUrl(path),
             withPermissions: true,
             suppressErrors: true,
             resourceType: res.url.startsWith(`${conversationsEndpointType}/`)
               ? MetadataResourceType.CONVERSATION
-              : undefined,
-          })
-        )
+              : MetadataResourceType.FILE,
+          });
+        })
       );
 
       const mappedResourcesResults = mappedResources.map((resource, index) => ({
@@ -134,9 +227,17 @@ export function ShareFiles({ shareProjectModal }: Props) {
         return [];
       }
 
-      const failedResources = mappedResourcesResults.filter(
-        ({ result }) => result.status === 'rejected' || !result.value
-      );
+      const failedResources = mappedResourcesResults
+        // skip error when there are no conversations
+        .filter(
+          ({ resource, result }) =>
+            !(
+              result.status === 'fulfilled' &&
+              resource.nodeType === 'FOLDER' &&
+              resource.resourceType === 'CONVERSATION'
+            )
+        )
+        .filter(({ result }) => result.status === 'rejected' || !result.value);
       if (failedResources.length) {
         setErrorMessage(
           'Warning: Cannot share some of the referenced files. They are either deleted or inaccessible.'
@@ -149,7 +250,7 @@ export function ShareFiles({ shareProjectModal }: Props) {
         )
         .map(
           (item) =>
-            (item.result as PromiseFulfilledResult<FilesMetadata>).value.url
+            (item.result as PromiseFulfilledResult<ResourceMetadata>).value.url
         );
     },
     [
@@ -165,6 +266,8 @@ export function ShareFiles({ shareProjectModal }: Props) {
     setIsLoading(true);
     setErrorMessage('');
     setIsShowErrorCloneButton(false);
+
+    getSharedUsers(resources);
 
     // Special case: for public projects just share the link to project
     if (
@@ -228,6 +331,7 @@ export function ShareFiles({ shareProjectModal }: Props) {
     setInputValue(link);
   }, [
     getShareLink,
+    getSharedUsers,
     isAllowResharing,
     isShareConnectedChats,
     isWriteShare,
@@ -236,7 +340,7 @@ export function ShareFiles({ shareProjectModal }: Props) {
   ]);
 
   const initModal = useCallback(
-    (resources: Omit<FilesMetadata, 'resourceType' | 'url'>[]) => {
+    (resources: Omit<CommonMetadata, 'resourceType' | 'url'>[]) => {
       showModal();
 
       setIsWriteShare(false);
@@ -294,7 +398,7 @@ export function ShareFiles({ shareProjectModal }: Props) {
       cancelButtonProps={{
         className: classNames(modalFooterButtonClasses, secondaryButtonClasses),
       }}
-      destroyOnClose={true}
+      destroyOnHidden={true}
       footer={null}
       open={isModalOpen}
       title={`Share: ${
@@ -306,8 +410,8 @@ export function ShareFiles({ shareProjectModal }: Props) {
     >
       <div className="flex flex-col gap-4">
         {errorMessage && (
-          <div className="rounded border border-strokeError p-5 flex flex-col gap-2">
-            <span className="text-textError whitespace-pre-wrap">
+          <div className="rounded border border-stroke-error p-5 flex flex-col gap-2">
+            <span className="text-text-error whitespace-pre-wrap">
               {errorMessage}
             </span>
 
@@ -328,18 +432,15 @@ export function ShareFiles({ shareProjectModal }: Props) {
 
         {isPublicShare ? (
           <div className="flex flex-col gap-2">
-            <div className="text-textSecondary">
-              The link is temporary and expires in 3 days.
-            </div>
-            <div className="text-textSecondary">{descriptionText}</div>
+            <div className="text-text-secondary">{descriptionText}</div>
           </div>
         ) : (
           <>
             <div className="flex flex-col gap-2">
-              <div className="text-textSecondary">
+              <div className="text-text-secondary">
                 The link is temporary and expires in 3 days.
               </div>
-              <div className="text-textSecondary">
+              <div className="text-text-secondary">
                 {descriptionText} Renaming will stop sharing.
               </div>
             </div>
@@ -356,7 +457,7 @@ export function ShareFiles({ shareProjectModal }: Props) {
                 rootClassName="dial-xl-checkbox"
                 onChange={(e) => setIsAllowResharing(e.target.checked)}
               >
-                Allow <span className="font-semibold">share</span> by other
+                Allow <span className="font-semibold">reshare</span> by other
                 users
               </Checkbox>
             </div>
@@ -371,7 +472,7 @@ export function ShareFiles({ shareProjectModal }: Props) {
             value={inputValue}
           />
           <button
-            className="group absolute right-2 top-0.5 h-full disabled:cursor-not-allowed disabled:text-controlsTextDisable"
+            className="group absolute right-2 top-0.5 h-full disabled:cursor-not-allowed disabled:text-controls-text-disable"
             disabled={isLoading || !inputValue}
             onClick={handleCopy}
           >
@@ -382,14 +483,52 @@ export function ShareFiles({ shareProjectModal }: Props) {
                 className={classNames(
                   'w-6',
                   isCopied
-                    ? 'text-textAccentPrimary'
-                    : 'group-enabled:text-textSecondary group-enabled:group-hover:text-textAccentPrimary'
+                    ? 'text-text-accent-primary'
+                    : 'group-enabled:text-text-secondary group-hover:group-enabled:text-text-accent-primary'
                 )}
                 component={() => (isCopied ? <CheckIcon /> : <CopyIcon />)}
               ></Icon>
             )}
           </button>
         </div>
+
+        {sharedUsers && (
+          <>
+            <hr className="w-[calc(100%+160px] -ml-6 -mr-6"></hr>
+            <div className="flex flex-col gap-2">
+              <span className="font-bold">Who has access</span>
+              <div className="flex flex-col gap-2 max-h-96 overflow-y-auto thin-scrollbar">
+                {sharedUsers.map((user) => (
+                  <span
+                    className="flex justify-between gap-2 items-center"
+                    key={user.name}
+                  >
+                    <span className="flex items-center gap-2">
+                      <Avatar
+                        className="text-xs!"
+                        size={28}
+                        style={{
+                          backgroundColor: stableColorFromLabel(user.name),
+                        }}
+                      >
+                        {user.name.slice(0, 1)}
+                      </Avatar>
+                      {user.name}
+                    </span>
+                    <span
+                      className={classNames(
+                        'shrink-0 flex items-center gap-1'
+                        // user.isAuthor && 'font-bold'
+                      )}
+                    >
+                      {user.isAuthor ? 'Author' : user.permissions.join(', ')}
+                    </span>
+                  </span>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </Modal>
   );

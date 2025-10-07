@@ -14,8 +14,8 @@ import {
   selectStyles,
 } from '@frontend/common';
 
-import { DashboardFilter } from '../../../common';
 import { DashboardContext } from '../../../context';
+import { DashboardFilter } from '../../../types/dashboard';
 
 type FilterOptions = {
   label: string;
@@ -63,7 +63,7 @@ function SelectIcon({ size, isTransparent, filter }: SelectIconProps) {
       case 'csvFiles':
         return (
           <Icon
-            className="text-textAccentSecondary"
+            className="text-text-accent-secondary"
             component={() => <CSVFileIcon />}
           ></Icon>
         );
@@ -75,7 +75,7 @@ function SelectIcon({ size, isTransparent, filter }: SelectIconProps) {
   return (
     <Icon
       className={cx(`w-[${size}px]`, {
-        'text-textSecondary': !isTransparent,
+        'text-text-secondary': !isTransparent,
         'text-transparent': isTransparent,
       })}
       component={() => itemIcon}
@@ -128,10 +128,10 @@ export function DashboardFileListFilter() {
           ...SelectClasses,
           control: () =>
             cx(
-              '!bg-bgLayer3 !border-0 hover:!border-none !shadow-none text-[14px]'
+              'bg-bg-layer-3! border-0! hover:border-none! shadow-none! text-[14px]'
             ),
-          valueContainer: () => '!pr-0',
-          menu: () => '!bg-bgLayer0 text-[14px] !rounded-[3px] min-w-[120px]',
+          valueContainer: () => 'pr-0!',
+          menu: () => 'bg-bg-layer-0! text-[14px] rounded-[3px]! min-w-[120px]',
         }}
         components={{
           IndicatorSeparator: null,

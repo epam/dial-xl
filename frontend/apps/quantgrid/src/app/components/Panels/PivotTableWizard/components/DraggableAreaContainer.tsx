@@ -22,25 +22,25 @@ export function DraggableAreaContainer({
   return (
     <div
       className={classNames(
-        'h-full flex flex-col bg-bgLayer2 border rounded-[3px]',
+        'h-full flex flex-col bg-bg-layer-2 border rounded-[3px]',
         className,
-        errorMessage ? 'border-strokeError' : 'border-strokePrimary'
+        errorMessage ? 'border-stroke-error' : 'border-stroke-primary'
       )}
     >
       <div className="flex justify-between p-2">
         <div className="flex items-center">
           <Icon
-            className="text-textSecondary w-[18px] mr-1"
+            className="text-text-secondary w-[18px] mr-1"
             component={() => icon}
           />
-          <h3 className="text-textPrimary text-[12px] leading-[18px]">
+          <h3 className="text-text-primary text-[12px] leading-[18px]">
             {title}
           </h3>
         </div>
         {errorMessage && (
-          <Tooltip placement="top" title={errorMessage}>
+          <Tooltip placement="top" title={errorMessage} destroyOnHidden>
             <Icon
-              className="text-textError w-[18px] mr-1"
+              className="text-text-error w-[18px] mr-1"
               component={() => <ExclamationCircleIcon />}
             />
           </Tooltip>

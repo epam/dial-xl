@@ -10,10 +10,10 @@ export function SpreadsheetHighlight() {
   return (
     <div
       className={cx(
-        'absolute left-0 top-0 pointer-events-none size-full z-[999] ring-[3px] rounded ring-inset opacity-60',
+        'absolute left-0 top-0 pointer-events-none size-full z-999 ring-[3px] rounded-sm ring-inset opacity-60',
         {
-          'ring-strokeAccentSecondary': isAIPreviewMode,
-          'ring-strokeAccentTertiary': isAIPendingMode,
+          'ring-stroke-accent-secondary': isAIPreviewMode,
+          'ring-stroke-accent-tertiary': isAIPendingMode,
         }
       )}
     ></div>

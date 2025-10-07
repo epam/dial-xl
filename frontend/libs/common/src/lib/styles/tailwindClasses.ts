@@ -3,47 +3,47 @@ import { DefaultOptionType } from 'rc-select/lib/Select';
 import { ClassNamesConfig, GroupBase, StylesConfig } from 'react-select';
 
 export const inputClasses = cx(
-  'rounded-[3px] border !border-strokeTertiary !bg-bgLayer3 text-textPrimary ',
-  'focus:!bg-bgLayer3 focus:!border-strokeAccentPrimary',
-  'focus-within:!bg-bgLayer3 focus-within:!shadow-none focus:!shadow-none focus-within:!border-strokeAccentPrimary',
-  'hover:!bg-bgLayer3 hover:!border-strokeAccentPrimary',
-  'disabled:!border-strokeTertiary disabled:text-controlsTextDisable disabled:placeholder:text-controlsTextDisable'
+  'rounded-[3px] border border-stroke-tertiary! bg-bg-layer-3! text-text-primary ',
+  'focus:bg-bg-layer-3! focus:border-stroke-accent-primary!',
+  'focus-within:bg-bg-layer-3! focus-within:shadow-none! focus:shadow-none! focus-within:border-stroke-accent-primary!',
+  'hover:bg-bg-layer-3! hover:border-stroke-accent-primary!',
+  'disabled:border-stroke-tertiary! disabled:text-controls-text-disable disabled:placeholder:text-controls-text-disable'
 );
 
 export const primaryButtonClasses =
-  'border-controlsBgAccent rounded-[3px] leading-none !bg-controlsBgAccent !text-controlsTextPermanent !shadow-none focus:!outline-0 focus-visible:!outline-0 focus:!border focus:!border-strokeHoverFocus focus:!bg-controlsBgAccentHover hover:!border-controlsBgAccentHover hover:!bg-controlsBgAccentHover hover:!text-controlsTextPermanent';
+  'border-controls-bg-accent rounded-[3px] leading-none bg-controls-bg-accent! text-controls-text-permanent! shadow-none! focus:outline-0! focus-visible:outline-0! focus:border! focus:border-stroke-hover-focus! focus:bg-controls-bg-accent-hover! hover:border-controls-bg-accent-hover! hover:bg-controls-bg-accent-hover! hover:text-controls-text-permanent!';
 
 export const primaryDisabledButtonClasses =
-  'disabled:text-controlsTextDisable disabled:!bg-controlsBgDisable';
+  'disabled:text-controls-text-disable disabled:bg-controls-bg-disable!';
 
 export const secondaryButtonClasses =
-  'border-strokePrimary rounded-[3px] !text-textPrimary !bg-bgLayer2 !shadow-none hover:!border-bgLayer4 hover:!bg-bgLayer4 hover:!text-textPrimary focus:!outline-0 focus-visible:!outline-0 focus:!border focus:!border-strokeHoverFocus focus:!bg-bgLayer4';
+  'border-stroke-primary rounded-[3px] text-text-primary! bg-bg-layer-2! shadow-none! hover:border-bg-layer-4! hover:bg-bg-layer-4! hover:text-text-primary! focus:outline-0! focus-visible:outline-0! focus:border! focus:border-stroke-hover-focus! focus:bg-bg-layer-4!';
 
 export const secondaryOutlineButtonClasses =
-  'max-md:h-7 border-strokePrimary rounded-[3px] leading-none !text-textPrimary !bg-transparent !shadow-none hover:!border-bgLayer4 hover:!bg-bgLayer4 hover:!text-textPrimary focus:!outline-0 focus-visible:!outline-0 focus:!border focus:!border-strokeHoverFocus focus:!bg-bgLayer4';
+  'max-md:h-7 border-stroke-primary rounded-[3px] leading-none text-text-primary! bg-transparent! shadow-none! hover:border-bg-layer-4! hover:bg-bg-layer-4! hover:text-text-primary! focus:outline-0! focus-visible:outline-0! focus:border! focus:border-stroke-hover-focus! focus:bg-bg-layer-4!';
 
 export const secondaryOutlineInvertedButtonClasses =
-  'border-strokePrimary rounded-[3px] !text-textInverted !bg-transparent !shadow-none hover:!border-bgLayer4 hover:!bg-bgLayer4 hover:!text-textPrimary focus:!text-textPrimary focus:!outline-0 focus-visible:!outline-0 focus:!border focus:!border-strokeHoverFocus focus:!bg-bgLayer4';
+  'border-stroke-primary rounded-[3px] text-text-inverted! bg-transparent! shadow-none! hover:border-bg-layer-4! hover:bg-bg-layer-4! hover:text-text-primary! focus:text-text-primary! focus:outline-0! focus-visible:outline-0! focus:border! focus:border-stroke-hover-focus! focus:bg-bg-layer-4!';
 
 export const secondaryErrorButtonClasses =
-  'border-strokeError rounded-[3px] !text-textError !bg-transparent !shadow-none hover:!border-textAccentTertiary hover:!text-textAccentTertiary';
+  'border-stroke-error rounded-[3px] text-text-error! bg-transparent! shadow-none! hover:border-text-accent-tertiary! hover:text-text-accent-tertiary!';
 
 export const secondaryDisabledButtonClasses =
-  'disabled:!text-controlsTextDisable disabled:!bg-bgLayer2 disabled:!cursor-not-allowed';
+  'disabled:text-controls-text-disable! disabled:bg-bg-layer-2! disabled:cursor-not-allowed!';
 
 export const modalFooterButtonClasses = 'h-9 text-[13px]';
 
 export const selectedTabClasses =
-  'bg-bgAccentPrimaryAlpha border-b-2 !border-b-strokeAccentPrimary hover:!bg-bgAccentPrimaryAlpha focus:!bg-bgAccentPrimaryAlpha focus:!border-b-strokeAccentPrimary focus-visible:!bg-strokeAccentPrimary';
+  'bg-bg-accent-primary-alpha border-b-2 border-b-stroke-accent-primary! hover:bg-bg-accent-primary-alpha! focus:bg-bg-accent-primary-alpha! focus:border-b-stroke-accent-primary! focus-visible:bg-stroke-accent-primary!';
 
 export const notSelectedTabClasses =
-  'bg-bgLayer4 hover:!bg-bgAccentPrimaryAlpha focus:!bg-bgAccentPrimaryAlpha focus-visible:!bg-bgAccentPrimaryAlpha';
+  'bg-bg-layer-4 hover:bg-bg-accent-primary-alpha! focus:bg-bg-accent-primary-alpha! focus-visible:bg-bg-accent-primary-alpha!';
 
 export const defaultTabClasses =
-  'flex items-center rounded-[3px] !text-textPrimary border-0 shadow-none focus:!outline-0 focus-visible:!outline-0 !transition-none';
+  'flex items-center rounded-[3px] text-text-primary! border-0 shadow-none focus:outline-0! focus-visible:outline-0! transition-none!';
 
 export const iconClasses =
-  'text-textSecondary cursor-pointer hover:text-textAccentPrimary';
+  'text-text-secondary cursor-pointer hover:text-text-accent-primary';
 
 export const SelectClasses: ClassNamesConfig<
   DefaultOptionType,
@@ -52,24 +52,24 @@ export const SelectClasses: ClassNamesConfig<
 > = {
   control: ({ menuIsOpen }) =>
     cx(
-      '!bg-bgLayer3 !text-textPrimary hover:!border-strokeAccentPrimary !shadow-none text-[13px]',
-      menuIsOpen ? '!border-strokeAccentPrimary' : '!border-strokeTertiary'
+      'bg-bg-layer-3! text-text-primary! hover:border-stroke-accent-primary! shadow-none! text-[13px]',
+      menuIsOpen ? 'border-stroke-accent-primary!' : 'border-stroke-tertiary!'
     ),
-  menu: () => '!bg-bgLayer0 text-[13px] !rounded-[3px]',
+  menu: () => 'bg-bg-layer-0! text-[13px] rounded-[3px]!',
   menuList: () => 'thin-scrollbar',
-  singleValue: () => '!text-textPrimary select-none',
-  multiValue: () => '!text-textPrimary select-none',
-  indicatorsContainer: () => '!text-textPrimary',
-  dropdownIndicator: () => 'hover:!text-strokeHover !pl-0',
+  singleValue: () => 'text-text-primary! select-none',
+  multiValue: () => 'text-text-primary! select-none',
+  indicatorsContainer: () => 'text-text-primary!',
+  dropdownIndicator: () => 'hover:text-stroke-hover! pl-0!',
   option: ({ isSelected, isDisabled }) =>
     cx(
       isSelected
         ? isDisabled
-          ? '!bg-bgAccentPrimaryAlpha !text-controlsTextDisabled'
-          : '!bg-bgAccentPrimaryAlpha !text-textAccentPrimary'
+          ? 'bg-bg-accent-primary-alpha! !text-controls-text-disabled'
+          : 'bg-bg-accent-primary-alpha! text-text-accent-primary!'
         : isDisabled
-        ? '!bg-bgLayer0 !text-controlsTextDisabled'
-        : '!bg-bgLayer0 !text-textPrimary hover:!bg-bgAccentPrimaryAlpha'
+        ? 'bg-bg-layer-0! !text-controls-text-disabled'
+        : 'bg-bg-layer-0! text-text-primary! hover:bg-bg-accent-primary-alpha!'
     ),
 };
 

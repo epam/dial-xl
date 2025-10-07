@@ -7,6 +7,7 @@ import com.epam.deltix.quantgrid.engine.compiler.result.CompiledPivotTable;
 import com.epam.deltix.quantgrid.engine.compiler.result.CompiledResult;
 import com.epam.deltix.quantgrid.engine.compiler.result.CompiledTable;
 import com.epam.deltix.quantgrid.engine.compiler.result.format.ColumnFormat;
+import com.epam.deltix.quantgrid.engine.compiler.result.format.GeneralFormat;
 import com.epam.deltix.quantgrid.engine.compiler.result.validator.NestedColumnValidators;
 import com.epam.deltix.quantgrid.engine.compiler.result.validator.ResultValidator;
 import com.epam.deltix.quantgrid.engine.compiler.result.validator.TableValidators;
@@ -31,6 +32,7 @@ import com.epam.deltix.quantgrid.parser.ast.FieldReference;
 import com.epam.deltix.quantgrid.parser.ast.FieldsReference;
 import com.epam.deltix.quantgrid.parser.ast.Formula;
 import com.epam.deltix.quantgrid.type.ColumnType;
+import it.unimi.dsi.fastutil.ints.IntArrayList;
 import lombok.experimental.UtilityClass;
 
 import java.util.ArrayList;
@@ -67,6 +69,9 @@ import static com.epam.deltix.quantgrid.engine.node.plan.local.aggregate.Aggrega
 @UtilityClass
 public class CompilePivot {
 
+    private final List<ResultValidator<CompiledTable>> VALIDATORS = List.of(
+            TableValidators.NESTED, TableValidators.NESTED, TableValidators.NESTED);
+
     private final EnumSet<AggregateType> AGGREGATIONS = EnumSet.of(
             COUNT, FIRST, LAST, SINGLE, SUM, AVERAGE, MIN, MAX, STDEVP, STDEVS, GEOMEAN, MEDIAN,
             CORREL, MODE, INDEX, MINBY, MAXBY, PERIODSERIES, PERCENTILE, PERCENTILE_EXC, QUARTILE, QUARTILE_EXC
@@ -87,18 +92,49 @@ public class CompilePivot {
     }
 
     public CompiledPivotTable compile(CompileContext context) {
-        AggregateType aggregation = getAggregation(context);
-        List<CompiledTable> args = CompileFunction.compileArgs(context,
-                List.of(TableValidators.NESTED, TableValidators.NESTED, TableValidators.NESTED));
+        ArrayList<ResultValidator<CompiledTable>> validators = new ArrayList<>();
+        IntArrayList indices = new IntArrayList();
 
-        List<CompiledColumn> rows = getColumns("rows", context, args.get(0), NestedColumnValidators.STRING_OR_DOUBLE);
-        List<CompiledColumn> cols = getColumns("columns", context, args.get(1), NestedColumnValidators.STRING);
-        List<CompiledColumn> vals = getColumns("values", context, args.get(2), valueValidators(aggregation));
+        for (int i = 0; i < 3; i++) {
+            if (context.hasArgument(i)) {
+                validators.add(VALIDATORS.get(i));
+                indices.add(i);
+            }
+        }
+
+        List<CompiledTable> args = CompileFunction.compileArgs(context, validators, indices.toIntArray());
+        CompileUtil.verify(!args.isEmpty(),
+                "PIVOT function requires at least 1st or 2nd or 3rd argument to be specified");
+
+        AggregateType aggregation = getAggregation(context);
+
+        int arg = 0;
+        List<CompiledColumn> rows = context.hasArgument(0)
+                ? getColumns("rows", context, args.get(arg++), NestedColumnValidators.STRING_OR_DOUBLE)
+                : List.of();
+
+        List<CompiledColumn> cols = context.hasArgument(1)
+                ? getColumns("columns", context, args.get(arg++), NestedColumnValidators.STRING)
+                : List.of();
+
+        List<CompiledColumn> vals = context.hasArgument(2)
+                ? getColumns("values", context, args.get(arg++), valueValidators(aggregation))
+                : List.of();
 
         return compilePivot(context, rows, cols, vals, aggregation);
     }
 
     private AggregateType getAggregation(CompileContext context) {
+        if (!context.hasArgument(2)) {
+            CompileUtil.verify(!context.hasArgument(3),
+                    "PIVOT function requires 3rd argument when 4th argument is specified");
+            return null;
+        }
+
+        if (!context.hasArgument(3)) {
+            return SINGLE;
+        }
+
         try {
             String function = context.constStringArgument(3);
             AggregateType aggregation = AggregateType.valueOf(function);
@@ -113,36 +149,55 @@ public class CompilePivot {
     private CompiledPivotTable compilePivot(CompileContext context,
                                             List<CompiledColumn> rows, List<CompiledColumn> cols,
                                             List<CompiledColumn> vals, AggregateType aggregation) {
-        Expression col = concat(cols);
-        Plan names = compileNames(col);
-
+        Plan names = null;
         List<Expression> all = new ArrayList<>();
         all.addAll(rows.stream().map(CompiledColumn::expression).toList());
-        all.add(col);
+
+        if (!cols.isEmpty()) {
+            Expression col = concat(cols);
+            names = compileNames(col);
+            all.add(col);
+        }
+
         all.addAll(vals.stream().map(CompiledColumn::expression).toList());
 
         SelectLocal source = new SelectLocal(all);
-        int keys = rows.size();
+        List<Expression> aggKeys = columns(source, 0, all.size() - vals.size()); // rows + col
+        List<Expression> aggVals = columns(source, all.size() - vals.size(), all.size()); // vals
 
-        List<Expression> aggKeys = columns(source, 0, keys + 1);       // rows + col
-        List<Expression> aggVals = columns(source, keys + 1, all.size()); // vals
+        Plan result = new AggregateByLocal(source, aggKeys, aggregation == null ? List.of()
+                : List.of(new AggregateByLocal.Aggregation(aggregation, aggVals)));
 
-        AggregateByLocal agg = new AggregateByLocal(source, aggKeys,
-                List.of(new AggregateByLocal.Aggregation(aggregation, aggVals)));
+        ColumnType type = null;
+        ColumnFormat format = null;
 
-        ColumnType type = agg.getMeta().getSchema().getType(keys + 1);
-        ColumnFormat format = FormatResolver.resolveAggregationFormat(aggregation,
-                vals.stream().map(CompiledColumn::format).toList());
+        if (aggregation != null) {
+            type = result.getMeta().getSchema().getType(all.size() - vals.size());
+            format = FormatResolver.resolveAggregationFormat(aggregation,
+                    vals.stream().map(CompiledColumn::format).toList());
+        } else if (!cols.isEmpty()) {
+            type = ColumnType.DOUBLE;
+            format = GeneralFormat.INSTANCE;
+        }
 
-        PivotByLocal pivot = new PivotByLocal(agg,
-                columns(agg, 0, keys),            // rows
-                columns(agg, keys, keys + 2),       // col + res
-                names,
-                column(names, 0),
-                type);
+        if (!cols.isEmpty()) {
+            result = new PivotByLocal(result,
+                    columns(result, 0, rows.size()),
+                    columns(result, rows.size(), rows.size() + (aggregation == null ? 1 : 2)),
+                    names,
+                    column(names, 0),
+                    type);
+        }
 
-        OrderByLocal sorted = new OrderByLocal(pivot, columns(pivot, 0, keys), Util.boolArray(keys, true));
-        return new CompiledPivotTable(names, sorted, keys(context, rows), format, type);
+        if (!rows.isEmpty()) {
+            result = new OrderByLocal(result, columns(result, 0, rows.size()), Util.boolArray(rows.size(), true));
+        }
+
+        Set<String> naming = new HashSet<>();
+        List<CompiledPivotTable.Key> keys = keys(context, rows, naming);
+        String name = value(context, cols, vals, naming);
+
+        return new CompiledPivotTable(names, result, keys, name, format, type);
     }
 
     private Plan compileNames(Expression column) {
@@ -251,10 +306,13 @@ public class CompilePivot {
         return new Get(plan, column);
     }
 
-    private List<CompiledPivotTable.Key> keys(CompileContext context, List<CompiledColumn> rows) {
+    private List<CompiledPivotTable.Key> keys(CompileContext context, List<CompiledColumn> rows, Set<String> names) {
+        if (rows.isEmpty()) {
+            return List.of();
+        }
+
         Formula formula = context.argument(0);
         List<CompiledPivotTable.Key> keys = new ArrayList<>();
-        Set<String> names = new HashSet<>();
 
         for (int i = 0; i < rows.size(); i++) {
             String name;
@@ -276,5 +334,33 @@ public class CompilePivot {
         }
 
         return keys;
+    }
+
+    private String value(CompileContext context,
+                         List<CompiledColumn> cols, List<CompiledColumn> vals,
+                         Set<String> names) {
+        if (!cols.isEmpty()) {
+            return PIVOT_NAME;
+        }
+
+        if (vals.isEmpty()) {
+            return null;
+        }
+
+        Formula formula = context.argument(2);
+        String name;
+
+        if (formula instanceof FieldReference field) {
+            name = field.field();
+        } else {
+            name = "value";
+        }
+
+        String base = name;
+        for (int i = 1; !names.add(name); i++) {
+            name = base + i;
+        }
+
+        return name;
     }
 }

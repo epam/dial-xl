@@ -126,21 +126,21 @@ export const getCellEditorColor = (
     case 'edit_cell_expression':
     case 'edit_dim_expression':
       return isLabel
-        ? 'bg-strokeGridAccentPrimary border-strokeGrid'
-        : 'outline-strokeGridAccentPrimary';
+        ? 'bg-stroke-grid-accent-primary border-stroke-grid'
+        : 'outline-stroke-grid-accent-primary';
     case 'rename_table':
     case 'rename_field':
       return isLabel
-        ? 'bg-strokeAccentTertiary border-strokeAccentTertiary'
-        : 'outline-strokeAccentTertiary';
+        ? 'bg-stroke-accent-tertiary border-stroke-accent-tertiary'
+        : 'outline-stroke-accent-tertiary';
     case 'add_override':
     case 'edit_override':
       return isLabel
-        ? 'bg-strokeAccentSecondary border-strokeAccentSecondary'
-        : 'outline-strokeAccentSecondary';
+        ? 'bg-stroke-accent-secondary border-stroke-accent-secondary'
+        : 'outline-stroke-accent-secondary';
     default:
       return isLabel
-        ? 'bg-strokeGridAccentPrimary border-strokeGrid'
-        : 'outline-strokeGridAccentPrimary';
+        ? 'bg-stroke-grid-accent-primary border-stroke-grid'
+        : 'outline-stroke-grid-accent-primary';
   }
 };

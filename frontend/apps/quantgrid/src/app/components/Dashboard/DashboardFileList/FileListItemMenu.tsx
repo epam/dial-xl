@@ -30,12 +30,11 @@ import {
 import { ApiContext, DashboardContext, ProjectContext } from '../../../context';
 import {
   useApiRequests,
-  useCloneResources,
   useDeleteResources,
   useMoveResources,
 } from '../../../hooks';
 import { DashboardItem } from '../../../types/dashboard';
-import { RenameFileModal, SelectFolder } from '../../Modals';
+import { CloneFile, RenameFileModal, SelectFolder } from '../../Modals';
 import {
   useDashboardDiscardAccessResource,
   useDashboardRevokeAccessResource,
@@ -60,11 +59,11 @@ export function FileListItemMenu({
   const { shareResources } = useContext(ProjectContext);
   const { downloadFiles } = useApiRequests();
   const { deleteResources } = useDeleteResources();
-  const { cloneResources } = useCloneResources();
   const { moveResources } = useMoveResources();
   const { revokeResourceAccess } = useDashboardRevokeAccessResource();
   const { discardResourceAccess } = useDashboardDiscardAccessResource();
   const [renameModalOpen, setRenameModalOpen] = useState(false);
+  const [cloneModalOpen, setCloneModalOpen] = useState(false);
   const [selectFolderModalOpen, setSelectFolderModalOpen] = useState(false);
 
   const isAbleToEdit =
@@ -79,7 +78,7 @@ export function FileListItemMenu({
         item.parentPath === projectFolderAppdata));
 
   const handleMoveToFolder = useCallback(
-    async (path: string | null | undefined, bucket: string) => {
+    async (bucket: string, path: string | null | undefined) => {
       setSelectFolderModalOpen(false);
 
       await moveResources([item], path, bucket, () => refetchData());
@@ -96,7 +95,7 @@ export function FileListItemMenu({
               label: 'Download',
               icon: (
                 <Icon
-                  className="text-textSecondary w-[18px]"
+                  className="text-text-secondary w-[18px]"
                   component={() => <DownloadIcon />}
                 />
               ),
@@ -107,7 +106,7 @@ export function FileListItemMenu({
                     {
                       bucket: item.bucket,
                       name: item.name,
-                      path: item.parentPath,
+                      parentPath: item.parentPath,
                     },
                   ],
                 });
@@ -124,7 +123,7 @@ export function FileListItemMenu({
               label: 'Rename',
               icon: (
                 <Icon
-                  className="text-textSecondary w-[18px]"
+                  className="text-text-secondary w-[18px]"
                   component={() => <EditIcon />}
                 />
               ),
@@ -139,15 +138,12 @@ export function FileListItemMenu({
               label: 'Clone',
               icon: (
                 <Icon
-                  className="text-textSecondary w-[18px]"
+                  className="text-text-secondary w-[18px]"
                   component={() => <CopyIcon />}
                 />
               ),
               onClick: async () => {
-                await cloneResources({
-                  items: [item],
-                });
-                refetchData();
+                setCloneModalOpen(true);
               },
             })
           : undefined,
@@ -157,7 +153,7 @@ export function FileListItemMenu({
               label: 'Move to',
               icon: (
                 <Icon
-                  className="text-textSecondary w-[18px]"
+                  className="text-text-secondary w-[18px]"
                   component={() => <MoveToIcon />}
                 />
               ),
@@ -172,7 +168,7 @@ export function FileListItemMenu({
           label: 'Share',
           icon: (
             <Icon
-              className="text-textSecondary group-disabled:text-controlsTextDisable w-[18px]"
+              className="text-text-secondary group-disabled:text-controls-text-disable w-[18px]"
               component={() => <ShareIcon />}
             />
           ),
@@ -188,7 +184,7 @@ export function FileListItemMenu({
               label: 'Unshare',
               icon: (
                 <Icon
-                  className="text-textSecondary w-[18px]"
+                  className="text-text-secondary w-[18px]"
                   component={() => <UnshareIcon />}
                 />
               ),
@@ -199,6 +195,7 @@ export function FileListItemMenu({
                     bucket: item.bucket,
                     parentPath: item.parentPath,
                     nodeType: item.nodeType,
+                    resourceType: item.resourceType,
                   },
                   () => refetchData()
                 );
@@ -211,7 +208,7 @@ export function FileListItemMenu({
               label: 'Discard access',
               icon: (
                 <Icon
-                  className="text-textSecondary w-[18px]"
+                  className="text-text-secondary w-[18px]"
                   component={() => <TrashIcon />}
                 />
               ),
@@ -222,6 +219,7 @@ export function FileListItemMenu({
                     bucket: item.bucket,
                     parentPath: item.parentPath,
                     nodeType: item.nodeType,
+                    resourceType: item.resourceType,
                   },
                   () => refetchData()
                 );
@@ -237,8 +235,8 @@ export function FileListItemMenu({
                   className={cx(
                     'w-[18px]',
                     disabledDelete
-                      ? 'text-controlsTextDisable'
-                      : 'text-textSecondary'
+                      ? 'text-controls-text-disable'
+                      : 'text-text-secondary'
                   )}
                   component={() => <TrashIcon />}
                 />
@@ -257,7 +255,6 @@ export function FileListItemMenu({
       item,
       isSharedWithMe,
       downloadFiles,
-      cloneResources,
       refetchData,
       shareResources,
       revokeResourceAccess,
@@ -287,6 +284,16 @@ export function FileListItemMenu({
             refetchData();
 
             setRenameModalOpen(false);
+          }}
+        />
+      )}
+      {cloneModalOpen && (
+        <CloneFile
+          item={item}
+          onModalClose={() => {
+            refetchData();
+
+            setCloneModalOpen(false);
           }}
         />
       )}

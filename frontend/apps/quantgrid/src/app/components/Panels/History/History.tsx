@@ -10,7 +10,7 @@ export function History() {
   const reversedHistory = useMemo(() => [...history].reverse(), [history]);
 
   return (
-    <div className="p-1 h-full w-full overflow-auto bg-bgLayer3 thin-scrollbar">
+    <div className="p-1 h-full w-full overflow-auto bg-bg-layer-3 thin-scrollbar">
       {reversedHistory.map(({ title, time }, index) => {
         const reversedIndex = history.length - 1 - index;
 
@@ -25,11 +25,11 @@ export function History() {
         return (
           <div
             className={cx(
-              'p-1 rounded-[3px] flex cursor-pointer hover:bg-bgAccentPrimaryAlpha',
+              'p-1 rounded-[3px] flex cursor-pointer hover:bg-bg-accent-primary-alpha',
               {
-                'bg-bgAccentPrimaryAlpha': isUndoIndex,
-                'bg-bgLayer4': isRevertedIndex,
-                'bg-bgAccentPrimaryAlpha border-l-2 border-l-strokeAccentPrimary':
+                'bg-bg-accent-primary-alpha': isUndoIndex,
+                'bg-bg-layer-4': isRevertedIndex,
+                'bg-bg-accent-primary-alpha border-l-2 border-l-stroke-accent-primary':
                   isTopHistory && !isRevertedIndex,
               }
             )}
@@ -37,12 +37,12 @@ export function History() {
             title={title + '\n' + new Date(time).toLocaleString()}
             onClick={() => !isTopHistory && undo({ undoIndex: reversedIndex })}
           >
-            <p className="ml-auto text-[13px] mr-1 text-textSecondary">{`[${reversedIndex}]`}</p>
-            <p className="text-[13px] text-ellipsis text-textPrimary inline-block overflow-hidden w-full whitespace-nowrap mr-1">
+            <p className="ml-auto text-[13px] mr-1 text-text-secondary">{`[${reversedIndex}]`}</p>
+            <p className="text-[13px] text-ellipsis text-text-primary inline-block overflow-hidden w-full whitespace-nowrap mr-1">
               {title}
             </p>
             <p
-              className={'text-[11px] text-textSecondary text-right min-w-max'}
+              className={'text-[11px] text-text-secondary text-right min-w-max'}
             >
               {formatTimeAgo(time)}
             </p>
@@ -51,7 +51,7 @@ export function History() {
       })}
 
       {!history.length && (
-        <div className="mx-auto max-w-max text-[13px] text-textPrimary">
+        <div className="mx-auto max-w-max text-[13px] text-text-primary">
           There is no history changes
         </div>
       )}

@@ -2,6 +2,7 @@ import { RefObject } from 'react';
 
 import {
   AppTheme,
+  CommonMetadata,
   FormulaBarMode,
   FunctionInfo,
   Shortcut,
@@ -34,6 +35,7 @@ export type Props = {
   formulaBarMode: FormulaBarMode;
   isPointClickMode: boolean;
   sheetContent: string;
+  inputList?: CommonMetadata[] | null;
 };
 
 export const defaultStyle: EditorStyle = {

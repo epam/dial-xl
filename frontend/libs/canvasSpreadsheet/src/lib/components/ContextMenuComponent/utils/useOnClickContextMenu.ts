@@ -432,6 +432,7 @@ export function useOnClickContextMenu({ api, gridCallbacks }: Props) {
         case menuKey.modeTotal:
         case menuKey.maxTotal:
         case menuKey.minTotal:
+        case menuKey.countUniqueTotal:
           if (totalType && currentTableName && currentFieldName) {
             callbacks.onToggleTotalByType?.(
               currentTableName,
@@ -455,6 +456,11 @@ export function useOnClickContextMenu({ api, gridCallbacks }: Props) {
             const { chartType } = data as InsertChartContextMenuKeyData;
 
             callbacks.onInsertChart?.(chartType);
+          }
+          break;
+        case menuKey.switchInput:
+          if (currentTableName && currentFieldName) {
+            callbacks.onSwitchInput?.(currentTableName, currentFieldName);
           }
           break;
       }

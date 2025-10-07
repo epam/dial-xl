@@ -1,6 +1,6 @@
-import { CellPlacement, GridCell, GridTable } from '@frontend/common';
+import { CellPlacement } from '@frontend/common';
 
-import { Edges, GridApi } from '../types';
+import { Edges, GridApi, GridCell, GridTable } from '../types';
 
 export const showFieldDottedSelection = (
   cell: CellPlacement,

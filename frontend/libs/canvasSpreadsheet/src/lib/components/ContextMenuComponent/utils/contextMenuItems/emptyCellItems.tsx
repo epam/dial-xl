@@ -2,20 +2,20 @@ import Icon from '@ant-design/icons';
 import {
   chartItems,
   ChartPlusIcon,
+  CommonMetadata,
   FieldPlusIcon,
-  FilesMetadata,
   FunctionInfo,
   getDropdownDivider,
   getDropdownItem,
   getDropdownMenuKey,
   getFormulasMenuItems,
-  GridCell,
   InsertChartContextMenuKeyData,
   isFeatureFlagEnabled,
   RowPlusIcon,
 } from '@frontend/common';
 import { ParsedSheets } from '@frontend/parser';
 
+import { GridCell } from '../../../../types';
 import { spreadsheetMenuKeys as menuKey } from '../config';
 import { ContextMenuKeyData } from '../types';
 import { askAIItem } from './commonItem';
@@ -42,7 +42,7 @@ export const getEmptyCellMenuItems = (
       }),
       icon: (
         <Icon
-          className="text-textSecondary w-[18px]"
+          className="text-text-secondary w-[18px]"
           component={() =>
             isTableHorizontal ? (
               <RowPlusIcon secondaryAccentCssVar="text-accent-tertiary" />
@@ -59,19 +59,23 @@ export const getEmptyCellMenuItems = (
 export const getEmptyCellWithoutContextMenuItem = (
   functions: FunctionInfo[],
   parsedSheets: ParsedSheets,
-  inputFiles: FilesMetadata[] | null,
+  inputFiles: CommonMetadata[] | null,
   onCreateTable: (cols: number, rows: number) => void,
   col: number,
   row: number
 ) => {
   const isShowAIPrompt = isFeatureFlagEnabled('askAI');
 
+  const tableNames = Object.values(parsedSheets)
+    .flatMap((sheet) => sheet.tables.map((t) => t.tableName))
+    .sort();
+
   return [
     isShowAIPrompt ? askAIItem(col, row) : null,
     isShowAIPrompt ? getDropdownDivider() : null,
     ...getFormulasMenuItems(
       functions,
-      parsedSheets,
+      tableNames,
       inputFiles,
       onCreateTable,
       false
@@ -81,7 +85,7 @@ export const getEmptyCellWithoutContextMenuItem = (
       key: 'CreateChart',
       icon: (
         <Icon
-          className="text-textSecondary w-[18px]"
+          className="text-text-secondary w-[18px]"
           component={() => (
             <ChartPlusIcon secondaryAccentCssVar="text-accent-tertiary" />
           )}
@@ -101,7 +105,7 @@ export const getEmptyCellWithoutContextMenuItem = (
             ),
             icon: (
               <Icon
-                className="text-textSecondary w-[18px]"
+                className="text-text-secondary w-[18px]"
                 component={() => item.icon}
               />
             ),

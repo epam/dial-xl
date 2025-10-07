@@ -1,16 +1,13 @@
-import { Collapse } from 'antd';
+import { Button, Collapse } from 'antd';
 import { CollapseProps } from 'antd/es/collapse/Collapse';
 import cx from 'classnames';
 import { useCallback, useContext, useMemo, useState } from 'react';
 
+import { primaryButtonClasses } from '@frontend/common';
+
 import { AppContext, ProjectContext } from '../../../context';
 import { CollapseIcon } from '../Chart/Components';
-import {
-  PivotWizardActions,
-  PositionInputs,
-  StructureSection,
-  TableSelector,
-} from './components';
+import { PositionInputs, StructureSection, TableSelector } from './components';
 import { usePivotTableSetup } from './hooks';
 import { PivotWizardContext } from './PivotWizardContext';
 import { toSelectOption } from './utils';
@@ -22,7 +19,8 @@ enum CollapseSection {
 }
 
 export function PivotTableWizard() {
-  const { pivotTableName, pivotTableWizardMode } = useContext(AppContext);
+  const { pivotTableName, pivotTableWizardMode, changePivotTableWizardMode } =
+    useContext(AppContext);
   const { parsedSheets } = useContext(ProjectContext);
   const { onChangeTableName, selectedTableName, startCol, startRow } =
     useContext(PivotWizardContext);
@@ -100,14 +98,25 @@ export function PivotTableWizard() {
     <div className="flex flex-col w-full h-full overflow-hidden">
       <div
         className={cx(
-          'flex flex-col w-full overflow-auto thin-scrollbar bg-bgLayer3 flex-grow'
+          'flex flex-col w-full overflow-auto thin-scrollbar bg-bg-layer-3 grow'
         )}
       >
-        <h2 className="text-[13px] text-textPrimary font-semibold px-4 py-2">
-          {pivotTableWizardMode === 'create'
-            ? 'Create Pivot Table'
-            : `Edit Pivot Table: ${pivotTableName}`}
-        </h2>
+        <div className="flex items-center justify-between gap-2 py-2">
+          <h2 className="text-[13px] text-text-primary font-semibold px-4 py-2">
+            {pivotTableWizardMode === 'create'
+              ? 'Create Pivot Table'
+              : `Edit Pivot Table: ${pivotTableName}`}
+          </h2>
+
+          {pivotTableWizardMode === 'edit' && (
+            <Button
+              className={cx(primaryButtonClasses, 'max-w-[200px] h-7 mx-2')}
+              onClick={() => changePivotTableWizardMode(null)}
+            >
+              Edit Table Properties
+            </Button>
+          )}
+        </div>
 
         <Collapse
           activeKey={collapseActiveKeys}
@@ -117,8 +126,6 @@ export function PivotTableWizard() {
           onChange={onCollapseSectionChange}
         />
       </div>
-
-      <PivotWizardActions />
     </div>
   );
 }

@@ -1,17 +1,28 @@
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { config } from 'dotenv';
 
-// import { workspaceRoot } from '@nx/devkit';
+import { workspaceRoot } from '@nx/devkit';
 import { nxE2EPreset } from '@nx/playwright/preset';
 import { defineConfig, devices } from '@playwright/test';
+import * as fs from 'fs';
+import * as path from 'path';
 
 config();
+
+const fromRoot = (...p: string[]) => path.join(workspaceRoot, ...p);
+const authFile = path.join(workspaceRoot, 'playwright', '.auth', 'user.json');
+fs.mkdirSync(path.dirname(authFile), { recursive: true });
 
 // For CI, you may want to set BASE_URL to the deployed application.
 const baseURL =
   process.env['BASE_URL'] || 'https://quantgrid-dev.staging.deltixhub.io/'; //'http://localhost:4200';
 
+const jobID = process.env['CI_JOB_ID'] || '0';
+
 const workersCount = parseInt(process.env['WORKER_COUNT'] || '4');
+
+const PW_GREP = process.env.PW_GREP;
+const grep = PW_GREP ? new RegExp(PW_GREP) : undefined;
 
 /**
  * See https://playwright.dev/docs/test-configuration.
@@ -19,7 +30,12 @@ const workersCount = parseInt(process.env['WORKER_COUNT'] || '4');
 export default defineConfig({
   ...nxE2EPreset(__filename, { testDir: './playwright' }),
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
-  reporter: [['list'], ['allure-playwright']],
+  reporter: [
+    ['list'],
+    ['allure-playwright', { resultsDir: fromRoot('allure-results') }],
+    ['blob', { outputFile: fromRoot('blob-report', `report-${jobID}.zip`) }],
+  ],
+  outputDir: fromRoot('test-results'),
   fullyParallel: false,
   workers: workersCount,
   use: {
@@ -31,7 +47,7 @@ export default defineConfig({
     video: 'retain-on-failure',
     contextOptions: {
       recordVideo: {
-        dir: './test-results/videos/',
+        dir: fromRoot('test-results', 'videos'),
       },
     },
   },
@@ -52,17 +68,18 @@ export default defineConfig({
     {
       name: 'clean',
       testMatch: /.*\.teardown\.ts/,
-      use: { storageState: 'playwright/.auth/user.json' },
+      use: { storageState: authFile },
     },
     {
       name: 'chromium',
+      grep,
       use: {
         ...devices['Desktop Chrome'],
         viewport: {
           width: 1920,
           height: 1080,
         },
-        storageState: 'playwright/.auth/user.json',
+        storageState: authFile,
       },
       dependencies: ['setup'],
     },

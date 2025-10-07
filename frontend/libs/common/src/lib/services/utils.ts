@@ -1,5 +1,4 @@
-import { GridCell, IndexError, RuntimeError } from '../types';
-import { ColumnDataType, CompilationError, ParsingError } from './serverApi';
+import { ColumnDataType } from './serverApi';
 
 const complexTypes = [
   ColumnDataType.PERIOD_SERIES,
@@ -44,39 +43,11 @@ export function isValidUrl(value: string) {
   return /^https?:\/\//i.test(value);
 }
 
-export function getKeyLabelFromError(
-  error: CompilationError | RuntimeError | ParsingError | IndexError
-): string {
-  const keys = ['fieldKey', 'totalKey', 'applyKey', 'overrideKey', 'tableKey'];
-
-  for (const key of keys) {
-    if (Object.prototype.hasOwnProperty.call(error, key)) {
-      const errorElement = error[key as never];
-      const { table, field } = errorElement;
-
-      return getTableFieldLabel(table, field);
-    }
-  }
-
-  return '';
-}
-
 export function getTableFieldLabel(tableName: string, fieldName = ''): string {
   if (!tableName && !fieldName) return '';
   if (!fieldName) return tableName;
 
   return `${tableName}[${fieldName}]`;
-}
-
-export function shouldNotOverrideCell(cell: GridCell | undefined): boolean {
-  const sortedOrFiltered =
-    cell?.field?.isFiltered ||
-    cell?.field?.sort ||
-    cell?.field?.isFieldUsedInSort;
-  const hasKeys = cell?.table?.hasKeys;
-  const isManual = cell?.table?.isManual;
-
-  return !!sortedOrFiltered && !hasKeys && !isManual;
 }
 
 export function toExcelColumnName(index: number): string {

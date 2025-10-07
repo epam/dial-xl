@@ -1,5 +1,6 @@
 package com.epam.deltix.quantgrid.engine.compiler;
 
+import com.epam.deltix.quantgrid.engine.ComputationType;
 import com.epam.deltix.quantgrid.engine.ResultType;
 import com.epam.deltix.quantgrid.engine.SimilarityRequest;
 import com.epam.deltix.quantgrid.engine.SimilarityRequestField;
@@ -13,10 +14,13 @@ import com.epam.deltix.quantgrid.engine.compiler.function.Functions;
 import com.epam.deltix.quantgrid.engine.compiler.result.CompiledColumn;
 import com.epam.deltix.quantgrid.engine.compiler.result.CompiledNestedColumn;
 import com.epam.deltix.quantgrid.engine.compiler.result.CompiledPivotColumn;
+import com.epam.deltix.quantgrid.engine.compiler.result.CompiledReferenceTable;
 import com.epam.deltix.quantgrid.engine.compiler.result.CompiledResult;
 import com.epam.deltix.quantgrid.engine.compiler.result.CompiledRow;
+import com.epam.deltix.quantgrid.engine.compiler.result.CompiledRowTable;
 import com.epam.deltix.quantgrid.engine.compiler.result.CompiledSimpleColumn;
 import com.epam.deltix.quantgrid.engine.compiler.result.CompiledTable;
+import com.epam.deltix.quantgrid.engine.compiler.result.CompiledTotalTable;
 import com.epam.deltix.quantgrid.engine.compiler.result.format.ColumnFormat;
 import com.epam.deltix.quantgrid.engine.compiler.result.format.FormatUtils;
 import com.epam.deltix.quantgrid.engine.compiler.result.format.GeneralFormat;
@@ -29,7 +33,6 @@ import com.epam.deltix.quantgrid.engine.node.Trace;
 import com.epam.deltix.quantgrid.engine.node.plan.Plan;
 import com.epam.deltix.quantgrid.engine.node.plan.Scalar;
 import com.epam.deltix.quantgrid.engine.node.plan.local.IndexResultLocal;
-import com.epam.deltix.quantgrid.engine.ComputationType;
 import com.epam.deltix.quantgrid.engine.node.plan.local.SimilaritySearchLocal;
 import com.epam.deltix.quantgrid.engine.node.plan.local.ViewportLocal;
 import com.epam.deltix.quantgrid.engine.rule.AssignIdentity;
@@ -45,6 +48,7 @@ import com.epam.deltix.quantgrid.engine.rule.Reduce;
 import com.epam.deltix.quantgrid.engine.rule.ReverseProjection;
 import com.epam.deltix.quantgrid.engine.service.input.storage.InputProvider;
 import com.epam.deltix.quantgrid.parser.FieldKey;
+import com.epam.deltix.quantgrid.parser.OverrideKey;
 import com.epam.deltix.quantgrid.parser.ParsedApply;
 import com.epam.deltix.quantgrid.parser.ParsedDecorator;
 import com.epam.deltix.quantgrid.parser.ParsedField;
@@ -60,7 +64,11 @@ import com.epam.deltix.quantgrid.parser.Span;
 import com.epam.deltix.quantgrid.parser.TableKey;
 import com.epam.deltix.quantgrid.parser.TotalKey;
 import com.epam.deltix.quantgrid.parser.ast.ConstText;
+import com.epam.deltix.quantgrid.parser.ast.CurrentField;
+import com.epam.deltix.quantgrid.parser.ast.FieldReference;
+import com.epam.deltix.quantgrid.parser.ast.FieldsReference;
 import com.epam.deltix.quantgrid.parser.ast.Formula;
+import com.epam.deltix.quantgrid.parser.ast.TableReference;
 import com.epam.deltix.quantgrid.type.ColumnType;
 import lombok.Getter;
 import lombok.experimental.Accessors;
@@ -74,9 +82,13 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
+
+import static java.util.function.Predicate.not;
 
 @Slf4j
 @Accessors(fluent = true)
@@ -86,6 +98,7 @@ public class Compiler {
     // FieldKey -> ParsedField
     // TableKey -> ParsedTable
     // TotalKey -> Formula
+    // OverrideKey -> Formula
     private final Map<ParsedKey, Object> parsed = new LinkedHashMap<>();
     private final Map<String, CompileExplode> explodes = new HashMap<>();
     private final Map<String, CompileOverride> overrides = new HashMap<>();
@@ -95,6 +108,7 @@ public class Compiler {
     private final Map<ParsedKey, CompileError> compileErrors = new HashMap<>();
     private final Map<String, ParsedPython.Function> pythonFunctions = new HashMap<>();
     private final Map<Formula, CompiledResult> formulas = new HashMap<>();
+    private final Map<Formula, Formula> formulaSubstitutions = new HashMap<>();
 
     @Getter
     private final Map<FieldKey, IndexResultLocal> indices = new HashMap<>();
@@ -144,7 +158,9 @@ public class Compiler {
     }
 
     private void compileAll(Collection<Viewport> viewports) {
-        Set<ParsedKey> keys = new HashSet<>(parsed.keySet());        // compile sheets fields
+        Set<ParsedKey> keys = new HashSet<>(parsed.keySet().stream()
+                .filter(not(OverrideKey.class::isInstance)) // compile overrides on demand, TODO: fix dependencies
+                .collect(Collectors.toUnmodifiableSet())); // compile sheets fields
         keys.addAll(viewports.stream().map(Viewport::key).toList()); // compile viewports fields
 
         // can trigger appearing new dynamic fields
@@ -184,6 +200,7 @@ public class Compiler {
         Map<ParsedKey, String> hashes = new HashMap<>();
         Map<ParsedKey, CompileError> errors = new HashMap<>(compileErrors);
         Set<FieldKey> keys = new HashSet<>(indices.keySet());
+        Map<ParsedKey, Set<ParsedKey>> references = new HashMap<>();
 
         for (Map.Entry<CompileKey, CompiledResult> entry : compiled.entrySet()) {
             CompileKey key = entry.getKey();
@@ -204,9 +221,17 @@ public class Compiler {
             if (key instanceof FieldKey || key instanceof TotalKey) {
                 Util.verify(hashes.containsKey(key));
             }
+            Object object = parsed.get(key);
+            if (object instanceof ParsedFields fields) {
+                references.put(key, lookupReferences(key.table(), fields.formula()));
+            } else if (object instanceof Formula formula) {
+                references.put(key, lookupReferences(key.table(), formula));
+            } else {
+                Util.verify(object == null);
+            }
         }
 
-        return new Compilation(results, keys, errors, hashes, graph);
+        return new Compilation(results, keys, errors, hashes, references, graph);
     }
 
     private static ParsedTable getEvaluationTable(List<ParsedSheet> sheets) {
@@ -386,7 +411,9 @@ public class Compiler {
 
             if (table.overrides() != null) {
                 CompileContext context = new CompileContext(this, CompileKey.tableKey(tableName));
-                overrides.put(table.tableName(), new CompileOverride(context, table));
+                CompileOverride override = new CompileOverride(context, table);
+                overrides.put(table.tableName(), override);
+                parsed.putAll(override.getParsedOverrides());
             }
 
             for (ParsedFields declaration : table.fields()) {
@@ -875,5 +902,66 @@ public class Compiler {
 
     CompiledResult lookupResult(Formula formula) {
         return formulas.get(formula);
+    }
+
+    void mapFormula(Formula from, Formula to) {
+        formulaSubstitutions.put(from, to);
+    }
+
+    public Set<ParsedKey> lookupReferences(String tableName, Formula formula) {
+        Set<ParsedKey> result = new LinkedHashSet<>();
+        lookupReferences(tableName, formula, result);
+        return result;
+    }
+
+    private void lookupReferences(String tableName, Formula formula, Set<ParsedKey> allReferences) {
+        // A formula originally parsed as a function name may be replaced with a table reference
+        Formula resolvedFormula = formulaSubstitutions.getOrDefault(formula, formula);
+        lookupReference(tableName, resolvedFormula, allReferences);
+        for (Formula argument : resolvedFormula.arguments()) {
+            lookupReferences(tableName, argument, allReferences);
+        }
+    }
+
+    private void lookupReference(String tableName, Formula formula, Set<ParsedKey> allReferences) {
+        CompiledResult result = formulas.get(formula);
+        if (result == null) {
+            return;
+        }
+
+        if (formula instanceof TableReference tableReference) {
+            allReferences.add(new TableKey(tableReference.table()));
+        } else if (formula instanceof FieldsReference fieldsReference) {
+            CompiledResult table = formulas.get(fieldsReference.table());
+            CompileUtil.verify(table != null, "Missing compiled result for table: " + fieldsReference.table());
+
+            if (table instanceof CompiledReferenceTable referenceTable) {
+                for (String field : fieldsReference.fields()) {
+                    allReferences.add(new FieldKey(referenceTable.name(), field));
+                }
+            } else if (table instanceof CompiledRowTable rowTable) {
+                for (String field : fieldsReference.fields()) {
+                    allReferences.add(new FieldKey(rowTable.name(), field));
+                }
+            } else if (table instanceof CompiledTotalTable totalTable) {
+                for (String field : fieldsReference.fields()) {
+                    allReferences.add(new TotalKey(totalTable.getTable().tableName(), field, totalTable.getNumber()));
+                }
+            }
+        } else if (formula instanceof FieldReference fieldReference) {
+            CompiledResult table = formulas.get(fieldReference.table());
+            CompileUtil.verify(table != null, "Missing compiled result for table: " + fieldReference.table());
+
+            if (table instanceof CompiledReferenceTable referenceTable) {
+                allReferences.add(new FieldKey(referenceTable.name(), fieldReference.field()));
+            } else if (table instanceof CompiledRowTable rowTable) {
+                allReferences.add(new FieldKey(rowTable.name(), fieldReference.field()));
+            } else if (table instanceof CompiledTotalTable totalTable) {
+                allReferences.add(
+                        new TotalKey(totalTable.getTable().tableName(), fieldReference.field(), totalTable.getNumber()));
+            }
+        } else if (formula instanceof CurrentField reference) {
+            allReferences.add(new FieldKey(tableName, reference.field()));
+        }
     }
 }

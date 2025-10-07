@@ -1,7 +1,6 @@
 import { Checkbox } from 'antd';
-import { CheckboxChangeEvent } from 'antd/es/checkbox';
 import cx from 'classnames';
-import { format } from 'date-fns';
+import classNames from 'classnames';
 import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
@@ -12,24 +11,19 @@ import {
   csvFileExtension,
   CSVFileIcon,
   csvTempFolder,
+  defaultSheetName,
   dialProjectFileExtension,
   DotsIcon,
   FileIcon,
   FolderIcon,
-  formatBytes,
   MetadataNodeType,
   projectFoldersRootPrefix,
   QGLogo,
 } from '@frontend/common';
 
-import {
-  ApiContext,
-  AppContext,
-  DashboardContext,
-  defaultSheetName,
-} from '../../../context';
+import { ApiContext, AppContext, DashboardContext } from '../../../context';
 import { useApiRequests, useCreateTableDsl } from '../../../hooks';
-import { DashboardItem } from '../../../types/dashboard';
+import { DashboardItem, DashboardListColumn } from '../../../types/dashboard';
 import {
   constructPath,
   encodeApiUrl,
@@ -41,20 +35,16 @@ import { FileListItemMenu } from './FileListItemMenu';
 
 type Props = {
   item: DashboardItem;
+  columns: DashboardListColumn[];
 };
 
-export function FileListItem({ item }: Props) {
+export function FileListItem({ item, columns }: Props) {
   const { setLoading } = useContext(AppContext);
   const { userBucket } = useContext(ApiContext);
   const [isHovered, setIsHovered] = useState(false);
   const [isSelected, setIsSelected] = useState(false);
-  const {
-    currentTab,
-    folderPath,
-    searchValue,
-    selectedItems,
-    setSelectedItems,
-  } = useContext(DashboardContext);
+  const { currentTab, selectedItems, setSelectedItems } =
+    useContext(DashboardContext);
   const {
     createProject: createProjectRequest,
     getDimensionalSchema: getDimensionalSchemaRequest,
@@ -70,26 +60,10 @@ export function FileListItem({ item }: Props) {
     [item]
   );
 
-  const isSimplifiedColumns =
-    currentTab === 'recent' || (currentTab === 'sharedByMe' && !folderPath);
-
-  const isSearchColumns = searchValue !== '';
-
   const isFolder = useMemo(
     () => item.nodeType === MetadataNodeType.FOLDER,
     [item]
   );
-
-  const isSharedWithMe = useMemo(
-    () => item.bucket !== userBucket,
-    [item.bucket, userBucket]
-  );
-
-  const updatedAt = useMemo(() => {
-    return item.nodeType === MetadataNodeType.ITEM && item.updatedAt
-      ? format(item.updatedAt, 'MMM dd, yyyy')
-      : '-';
-  }, [item.nodeType, item.updatedAt]);
 
   const itemLink = useMemo(() => {
     return isProject
@@ -124,7 +98,7 @@ export function FileListItem({ item }: Props) {
     if (isCSV) {
       return (
         <Icon
-          className="text-textAccentSecondary"
+          className="text-text-accent-secondary"
           component={() => <CSVFileIcon />}
         ></Icon>
       );
@@ -139,16 +113,13 @@ export function FileListItem({ item }: Props) {
 
   const Tag = isFolder || isProject ? Link : 'div';
 
-  const onSelectItem = useCallback(
-    (e: CheckboxChangeEvent) => {
-      if (isSelected) {
-        setSelectedItems(selectedItems.filter((i) => i !== item));
-      } else {
-        setSelectedItems([...selectedItems, item]);
-      }
-    },
-    [isSelected, item, selectedItems, setSelectedItems]
-  );
+  const onSelectItem = useCallback(() => {
+    if (isSelected) {
+      setSelectedItems(selectedItems.filter((i) => i !== item));
+    } else {
+      setSelectedItems([...selectedItems, item]);
+    }
+  }, [isSelected, item, selectedItems, setSelectedItems]);
 
   const handleItemClick = useCallback(async () => {
     // Ignore not csv file clicks
@@ -243,89 +214,78 @@ export function FileListItem({ item }: Props) {
         trigger={['contextMenu']}
       >
         <Tag
-          className={cx('flex py-3 border-b border-b-strokeTertiary', {
-            'cursor-pointer': isProject || isFolder || isCSV,
-            'bg-bgAccentPrimaryAlpha': isHovered || isSelected,
-          })}
+          className={cx(
+            'flex items-center border-b border-b-stroke-tertiary h-[45px]',
+            {
+              'cursor-pointer': isProject || isFolder || isCSV,
+              'bg-bg-accent-primary-alpha': isHovered || isSelected,
+            }
+          )}
           target={isProject ? '_blank' : '_self'}
           to={itemLink}
           onClick={handleItemClick}
           onMouseLeave={() => setIsHovered(false)}
           onMouseOver={() => setIsHovered(true)}
         >
-          <div className="flex grow items-center overflow-x-hidden leading-none">
-            <div className="flex items-center min-w-[200px] md:min-w-[60%] pl-3 md:pl-4 pr-2 gap-2 md:gap-4 overflow-hidden text-ellipsis">
-              <div className="text-lg flex items-center justify-center relative">
-                {!isFolder && (isHovered || isSelected) ? (
-                  <Checkbox
-                    checked={isSelected}
-                    className="w-[18px] h-[18px]"
-                    rootClassName="dial-xl-checkbox"
-                    onChange={onSelectItem}
-                    onClick={(e) => e.stopPropagation()}
-                  />
-                ) : (
-                  <>
-                    <Icon
-                      className={cx('w-[18px]', {
-                        'text-textSecondary': !isProject,
-                        'text-transparent': isProject,
-                      })}
-                      component={() => itemIcon}
-                    ></Icon>
-                    {item.isSharedByMe && (
-                      <span className="p-[2px] absolute bottom-0 left-[-1px] flex items-center justify-center bg-bgLayer3 rounded-tr">
-                        <Icon
-                          className="w-[7px] text-textAccentSecondary"
-                          component={() => <ArrowUpRightIcon />}
-                        ></Icon>
-                      </span>
-                    )}
-                  </>
+          <div className="flex grow items-center overflow-hidden leading-none w-full">
+            {columns.map((column, index) => (
+              <div
+                className={classNames(
+                  'flex items-center gap-2 md:gap-4 overflow-hidden text-ellipsis',
+                  column.classNames
                 )}
-              </div>
-
-              <span
-                className="text-textPrimary text-sm select-none overflow-hidden text-ellipsis text-nowrap"
-                title={getDisplayName(item.name)}
+                key={column.title}
               >
-                {getDisplayName(item.name)}
-              </span>
-            </div>
-            {(isSimplifiedColumns || isSearchColumns) && (
-              <div className="min-w-[100px] md:min-w-[20%] pr-2 overflow-hidden text-ellipsis whitespace-nowrap">
+                {index === 0 ? (
+                  <div className="text-lg flex items-center justify-center relative">
+                    {!isFolder && (isHovered || isSelected) ? (
+                      <Checkbox
+                        checked={isSelected}
+                        className="w-[18px] h-[18px]"
+                        rootClassName="dial-xl-checkbox"
+                        onChange={onSelectItem}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    ) : (
+                      <>
+                        <Icon
+                          className={cx('w-[18px]', {
+                            'text-text-secondary': !isProject,
+                            'text-transparent': isProject,
+                          })}
+                          component={() => itemIcon}
+                        ></Icon>
+                        {item.isSharedByMe && (
+                          <span className="p-[2px] absolute bottom-0 -left-px flex items-center justify-center bg-bg-layer-3 rounded-tr">
+                            <Icon
+                              className="w-[7px] text-text-accent-secondary"
+                              component={() => <ArrowUpRightIcon />}
+                            ></Icon>
+                          </span>
+                        )}
+                      </>
+                    )}
+                  </div>
+                ) : null}
+
                 <span
-                  className="text-textSecondary text-sm select-none"
+                  className="text-text-primary text-sm select-none overflow-hidden text-ellipsis text-nowrap"
                   title={
-                    isSharedWithMe
-                      ? 'Shared with me'
-                      : `Home${item.parentPath ? '/' + item.parentPath : ''}`
+                    typeof column.formatValue(item) === 'string'
+                      ? (column.formatValue(item) as string)
+                      : ''
                   }
                 >
-                  {isSharedWithMe
-                    ? 'Shared with me'
-                    : `Home${item.parentPath ? '/' + item.parentPath : ''}`}
+                  {column.formatValue(item)}
                 </span>
               </div>
-            )}
-            <div className="min-w-[100px] md:min-w-[20%] pr-2">
-              <span className="text-textSecondary text-sm select-none">
-                {updatedAt}
-              </span>
-            </div>
-            {!isSimplifiedColumns && !isSearchColumns && (
-              <div className="min-w-[100px] md:min-w-[20%] pr-2">
-                <span className="text-textSecondary text-sm select-none">
-                  {item.contentLength ? formatBytes(item.contentLength) : '-'}
-                </span>
-              </div>
-            )}
+            ))}
           </div>
           <div className="w-6"></div>
         </Tag>
       </FileListItemMenu>
       <FileListItemMenu
-        className="absolute top-[calc((100%-18px)/2)] right-0 w-6 flex items-center justify-center pr-4 cursor-pointer mr-4 text-transparent group-hover:text-textSecondary group-hover:hover:text-textAccentPrimary"
+        className="absolute top-[calc((100%-18px)/2)] right-0 w-6 flex items-center justify-center pr-4 cursor-pointer mr-4 text-transparent group-hover:text-text-secondary hover:group-hover:text-text-accent-primary"
         isFolder={isFolder}
         item={item}
         trigger={['click', 'contextMenu']}
@@ -338,8 +298,4 @@ export function FileListItem({ item }: Props) {
       </FileListItemMenu>
     </div>
   );
-}
-
-function getDisplayName(name: string): string {
-  return name.replace(dialProjectFileExtension, '');
 }

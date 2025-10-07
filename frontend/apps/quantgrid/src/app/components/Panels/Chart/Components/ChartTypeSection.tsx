@@ -16,11 +16,8 @@ import {
   ProjectContext,
 } from '../../../../context';
 import { useChartEditDsl } from '../../../../hooks';
-import {
-  ChartPanelSelectClasses,
-  CustomSingleValueWithIcon,
-  OptionWithIcon,
-} from './SelectUtils';
+import { ChartPanelSelectClasses } from '../ChartPanelSelectClasses';
+import { CustomSingleValueWithIcon, OptionWithIcon } from './SelectUtils';
 
 const chartTypeOptions = chartItems.map((item) => ({
   ...item,

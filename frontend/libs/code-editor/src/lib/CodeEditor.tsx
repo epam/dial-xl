@@ -20,13 +20,7 @@ import {
   useHandleDefaultFeatures,
   useInlineSuggestions,
 } from './hooks';
-import {
-  editor,
-  IPosition,
-  KeyCode,
-  KeyMod,
-  monacoFromNodeModules,
-} from './monaco';
+import { editor, IPosition, KeyCode, KeyMod, monaco } from './monaco';
 import {
   getFieldAtPosition,
   getTableAtPosition,
@@ -34,9 +28,9 @@ import {
 import { canEnablePointAndClick, getCursorOffset } from './services';
 import { CodeEditorCallbacks, CodeEditorProps } from './types';
 
-import './CodeEditor.module.scss';
+import './styles.css';
 
-loader.config({ monaco: monacoFromNodeModules });
+loader.config({ monaco });
 
 export function CodeEditor({
   language,
@@ -64,6 +58,7 @@ export function CodeEditor({
   options = {},
   errors = [],
   functions = [],
+  inputFiles = [],
   parsedSheets = {},
   disableHelpers = false,
   setCode,
@@ -171,6 +166,7 @@ export function CodeEditor({
     disableHelpers,
     currentTableName,
     currentFieldName,
+    inputFiles: inputFiles || [],
   });
 
   useHandleDefaultFeatures({

@@ -68,8 +68,8 @@ class PercentageFormatTest {
     @Test
     void testFormatWithMultiplier() {
         String[] expected = new String[] {
-                "0%",
-                "0%",
+                "0K%",
+                "0K%",
                 "0.1K%",
                 "0.2K%",
                 "123.5K%",
@@ -77,7 +77,7 @@ class PercentageFormatTest {
                 "12,345,678,912,345,680K%",
                 "-12.3K%",
                 "0.1K%",
-                "0%",
+                "0K%",
                 "100,000,000,000,000,000,000,000,000,000K%",
                 "-10,000,000,000,000,000,000,000,000,000K%",
                 null,
@@ -101,12 +101,12 @@ class PercentageFormatTest {
                 "150%",
                 "123.5K%",
                 "999.9%",
-                "1.23E+19%",
+                "1.23E19%",
                 "-12,346%",
                 "123.4%",
                 "1E-28%",
-                "1E+32%",
-                "-1E+31%",
+                "1E32%",
+                "-1E31%",
                 null,
                 null
         };

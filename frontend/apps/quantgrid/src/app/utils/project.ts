@@ -1,3 +1,4 @@
+import { Message } from '@epam/ai-dial-overlay';
 import {
   csvFileExtension,
   DslSheetChange,
@@ -231,28 +232,67 @@ export const collectFilesFromProject = (
   }
 };
 
+export const updateFilesPathInputs = (
+  sheet: string,
+  newProjectFolderPath: string
+): string => {
+  const encodedNewPath = encodeApiUrl(newProjectFolderPath);
+
+  return sheet.replace(/INPUT\("([^"]+)"\)/g, (_, url: string) => {
+    if (!url.startsWith('files/')) return `INPUT("${url}")`;
+
+    const lastSlash = url.lastIndexOf('/');
+    const fileName = url.slice(lastSlash + 1);
+    const updatedUrl = `files/${encodedNewPath}/${fileName}`;
+
+    return `INPUT("${updatedUrl}")`;
+  });
+};
+
 export const updateFilesPathInputsInProject = (
   sheets: WorksheetState[],
   newProjectFolderPath: string
 ): WorksheetState[] => {
-  const encodedNewPath = encodeApiUrl(newProjectFolderPath);
-
   return sheets.map((sheet) => {
-    const content = sheet.content.replace(
-      /INPUT\("([^"]+)"\)/g,
-      (_, url: string) => {
-        if (!url.startsWith('files/')) return `INPUT("${url}")`;
-
-        const lastSlash = url.lastIndexOf('/');
-        const fileName = url.slice(lastSlash + 1);
-        const updatedUrl = `files/${encodedNewPath}/${fileName}`;
-
-        return `INPUT("${updatedUrl}")`;
-      }
-    );
+    const content = updateFilesPathInputs(sheet.content, newProjectFolderPath);
 
     return { ...sheet, content };
   });
+};
+
+export const updateMessagesProjectFoldersPath = (
+  messages: Message[],
+  projectFolderTargetPath: string
+) => {
+  const replacedMessages = messages.map(
+    (msg): Message => ({
+      ...msg,
+      content: updateFilesPathInputs(msg.content, projectFolderTargetPath),
+      custom_content: {
+        ...msg.custom_content,
+        stages: msg.custom_content?.stages?.map((stage) => ({
+          ...stage,
+          content: stage.content
+            ? updateFilesPathInputs(stage.content, projectFolderTargetPath)
+            : undefined,
+          attachments: stage.attachments?.map((attachment) => ({
+            ...attachment,
+            data: attachment.data
+              ? updateFilesPathInputs(attachment.data, projectFolderTargetPath)
+              : undefined,
+          })),
+        })),
+        attachments: msg.custom_content?.attachments?.map((attachment) => ({
+          ...attachment,
+          data: attachment.data
+            ? updateFilesPathInputs(attachment.data, projectFolderTargetPath)
+            : undefined,
+        })),
+      },
+    })
+  );
+
+  return replacedMessages;
 };
 
 export const getProjectSheetsRecord = (

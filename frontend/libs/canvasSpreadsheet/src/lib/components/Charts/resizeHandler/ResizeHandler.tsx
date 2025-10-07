@@ -72,7 +72,7 @@ export function ResizeHandler({
       }
     }
 
-    function onStopResize(e: MouseEvent) {
+    function onStopResize() {
       if (!isResizing.current) return;
 
       onChartResize(cellWidth, cellHeight);
@@ -122,7 +122,7 @@ export function ResizeHandler({
     <>
       {isResizing.current && (
         <div
-          className="absolute border-2 border-strokeGridAccentPrimary"
+          className="absolute border-2 border-stroke-grid-accent-primary"
           style={{
             width: getPx(width),
             height: getPx(height),
@@ -132,7 +132,7 @@ export function ResizeHandler({
         />
       )}
       <div
-        className="w-2 h-2 absolute box-border rounder-[3px] bg-strokeGridAccentPrimary cursor-nwse-resize pointer-events-auto"
+        className="w-2 h-2 absolute box-border rounder-[3px] bg-stroke-grid-accent-primary cursor-nwse-resize pointer-events-auto"
         ref={handlerRef}
         style={{
           top: getPx(chartConfig.toolBarTop + height - 6),

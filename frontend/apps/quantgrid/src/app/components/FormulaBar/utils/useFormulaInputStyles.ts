@@ -16,10 +16,10 @@ export function useFormulaInputStyles(
       return '';
 
     if (editMode === 'edit_override' || editMode === 'add_override') {
-      return 'border-b border-b-strokeAccentSecondary';
+      return 'border-b border-b-stroke-accent-secondary';
     }
 
-    return 'border-b border-b-strokeAccentPrimary';
+    return 'border-b border-b-stroke-accent-primary';
   }, [editMode, fieldName, isEditingDimField]);
 
   return {

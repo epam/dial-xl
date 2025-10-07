@@ -19,7 +19,7 @@ export function DashboardFileListHeader({
 }: Props) {
   return (
     <div
-      className="flex items-center text-textSecondary cursor-pointer"
+      className="flex items-center text-text-secondary cursor-pointer"
       onClick={onClick}
     >
       <span className="text-xs font-bold leading-[12px] uppercase select-none">

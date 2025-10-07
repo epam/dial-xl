@@ -1,8 +1,6 @@
 import { MutableRefObject, RefObject, useCallback } from 'react';
 
-import { GridCell } from '@frontend/common';
-
-import { GridApi } from '../../../types';
+import { GridApi, GridCell } from '../../../types';
 import {
   showFieldDottedSelection,
   showFieldGroupDottedSelection,

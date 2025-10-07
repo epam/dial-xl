@@ -1,18 +1,18 @@
 import { useCallback, useContext } from 'react';
 
 import {
+  GridCell,
   GridCellEditorMode,
   isCellEditorValueFormula,
+  isHiddenFieldCell,
+  isHiddenTableHeaderCell,
+  shouldNotOverrideCell,
 } from '@frontend/canvas-spreadsheet';
 import {
   CellPlacement,
   defaultFieldName,
   getFormulaType,
-  GridCell,
-  isHiddenFieldCell,
-  isHiddenTableHeaderCell,
   overrideKeyFieldMessage,
-  shouldNotOverrideCell,
 } from '@frontend/common';
 import { checkAndWrapExpression, escapeValue } from '@frontend/parser';
 

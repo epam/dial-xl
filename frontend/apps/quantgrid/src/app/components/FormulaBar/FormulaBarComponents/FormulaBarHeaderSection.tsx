@@ -193,7 +193,7 @@ export function FormulaBarHeaderSection({ onPanelAutoResize }: Props) {
   return (
     <div
       className={cx('h-full w-full flex', {
-        'border-b border-b-strokeAccentTertiary':
+        'border-b border-b-stroke-accent-tertiary':
           inputFocused ||
           editMode === 'rename_table' ||
           editMode === 'rename_field',

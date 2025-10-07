@@ -13,6 +13,16 @@ export class ErrorListener implements ANTLRErrorListener<any> {
     this.errors.push(`line ${line}:${charPositionInLine} ${msg}`);
   }
 
+  reportAmbiguity() {
+    // do nothing
+  }
+  reportAttemptingFullContext() {
+    // do nothing
+  }
+  reportContextSensitivity() {
+    // do nothing
+  }
+
   public getErrors() {
     return this.errors;
   }

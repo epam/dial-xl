@@ -161,7 +161,7 @@ public record NumberFormat(String format, boolean useThousandsSeparator) impleme
 
     private static Formatter withMultiplier(
             int exponent, String multiplier, boolean useThousandsSeparator, String prefix, String suffix) {
-        String zero = prefix + "0" + suffix;
+        String zero = prefix + "0" + multiplier + suffix;
         return value -> {
             long l = Decimal64Utils.fromDouble(value);
             if (Decimal64Utils.isInfinity(l)) {

@@ -1,6 +1,8 @@
 import { DataNode } from 'antd/es/tree';
 import { useCallback, useEffect, useState } from 'react';
 
+import { csvFileExtension } from '@frontend/common';
+
 import { useDND, useRequestDimTable } from '../../../hooks';
 import { InputChildData } from './useInputsContextMenu';
 
@@ -17,15 +19,26 @@ export const useInputsDragDrop = (childData: InputChildData) => {
       if (!dropCell || !draggedPath) return;
 
       e.preventDefault();
+
       const { col, row } = dropCell;
       const formula = `:INPUT("${draggedPath}")`;
-      requestDimSchemaForDimFormula(col, row, formula);
+      const newTableName = Object.values(childData)
+        .find((file) => file.url === draggedPath)
+        ?.name.replaceAll(csvFileExtension, '');
+
+      requestDimSchemaForDimFormula(col, row, formula, newTableName);
 
       setDraggedPath('');
 
       handleDragEnd();
     },
-    [requestDimSchemaForDimFormula, draggedPath, getDropCell, handleDragEnd]
+    [
+      requestDimSchemaForDimFormula,
+      draggedPath,
+      getDropCell,
+      handleDragEnd,
+      childData,
+    ]
   );
 
   const onDragOver = useCallback(

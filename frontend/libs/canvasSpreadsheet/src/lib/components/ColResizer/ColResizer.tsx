@@ -1,11 +1,12 @@
 import * as PIXI from 'pixi.js';
 import { useCallback, useContext, useEffect, useRef, useState } from 'react';
 
-import { CellPlacement, GridCell } from '@frontend/common';
+import { CellPlacement } from '@frontend/common';
 import { Graphics, useApp } from '@pixi/react';
 
 import { ComponentLayer } from '../../constants';
 import { GridStateContext, GridViewportContext } from '../../context';
+import { GridCell } from '../../types';
 import {
   getMousePosition,
   getSymbolWidth,

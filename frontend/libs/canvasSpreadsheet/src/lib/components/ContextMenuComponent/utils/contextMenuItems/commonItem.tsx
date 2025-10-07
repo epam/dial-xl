@@ -4,14 +4,13 @@ import {
   CollapseIcon,
   EyeIcon,
   FieldIcon,
+  FileIcon,
   FilterIcon,
   getCheckboxDropdownSubmenuItem,
   getDropdownDivider,
   getDropdownItem,
   getDropdownMenuKey,
-  GridCell,
   GridListFilter,
-  GridTable,
   InsertFilledIcon,
   isNumericType,
   isTextType,
@@ -31,7 +30,7 @@ import {
 } from '@frontend/common';
 import { TotalType } from '@frontend/parser';
 
-import { GridCallbacks } from '../../../../types';
+import { GridCallbacks, GridCell, GridTable } from '../../../../types';
 import { ConditionFilter, ListFilter } from '../../components';
 import {
   spreadsheetMenuKeys as menuKey,
@@ -46,7 +45,7 @@ export function arrangeTableItems(col: number, row: number): MenuItem {
     key: 'Arrange',
     icon: (
       <Icon
-        className="text-textSecondary w-[18px]"
+        className="text-text-secondary w-[18px]"
         component={() => (
           <ArrangeIcon secondaryAccentCssVar="text-accent-primary" />
         )}
@@ -94,7 +93,7 @@ export function askAIItem(col: number, row: number): MenuItem {
     }),
     icon: (
       <Icon
-        className="text-textAccentTertiary w-[18px]"
+        className="text-text-accent-tertiary w-[18px]"
         component={() => <SparklesIcon />}
       />
     ),
@@ -118,7 +117,7 @@ export function noteEditItem(
     ),
     icon: (
       <Icon
-        className="text-textWarning w-[18px]"
+        className="text-text-warning w-[18px]"
         component={() => <NoteIcon />}
       />
     ),
@@ -135,7 +134,7 @@ export function noteRemoveItem(col: number, row: number): MenuItem {
     }),
     icon: (
       <Icon
-        className="text-textWarning w-[18px]"
+        className="text-text-warning w-[18px]"
         component={() => <NoteOffIcon />}
       />
     ),
@@ -152,7 +151,7 @@ export function orientationItem(
     key: 'Orientation',
     icon: (
       <Icon
-        className="text-textSecondary w-[18px]"
+        className="text-text-secondary w-[18px]"
         component={() => (
           <OrientationIcon secondaryAccentCssVar="text-accent-tertiary" />
         )}
@@ -198,7 +197,7 @@ export function hideItem(
     key: 'Hide',
     icon: (
       <Icon
-        className="text-textSecondary w-[18px]"
+        className="text-text-secondary w-[18px]"
         component={() => (
           <EyeIcon secondaryAccentCssVar="text-accent-primary" />
         )}
@@ -244,7 +243,7 @@ export function sortItem(
     label: 'Sort',
     icon: (
       <Icon
-        className="text-textSecondary w-[18px]"
+        className="text-text-secondary w-[18px]"
         component={() => (
           <SortIcon secondaryAccentCssVar="text-accent-primary" />
         )}
@@ -293,7 +292,7 @@ export function fieldTagsItem(
     label: 'Index',
     icon: (
       <Icon
-        className="text-textWarning w-[18px]"
+        className="text-text-warning w-[18px]"
         component={() => <KeyIcon />}
       />
     ),
@@ -378,7 +377,7 @@ export function dimensionItem(
     ),
     icon: (
       <Icon
-        className="text-textSecondary w-[18px]"
+        className="text-text-secondary w-[18px]"
         component={() =>
           showCollapseNestedField ? (
             <CollapseIcon secondaryAccentCssVar="text-accent-primary" />
@@ -403,7 +402,7 @@ export function insertItem(
     label: 'Insert',
     icon: (
       <Icon
-        className="text-textAccentTertiary w-[18px]"
+        className="text-text-accent-tertiary w-[18px]"
         component={() => <InsertFilledIcon />}
       />
     ),
@@ -457,7 +456,7 @@ export function fieldItem(
     key: 'Column',
     icon: (
       <Icon
-        className="text-textSecondary w-[18px]"
+        className="text-text-secondary w-[18px]"
         component={() => (
           <FieldIcon secondaryAccentCssVar="text-accent-primary" />
         )}
@@ -536,7 +535,7 @@ export function deleteItem(
     key: 'Delete',
     icon: (
       <Icon
-        className="text-textError w-[18px]"
+        className="text-text-error w-[18px]"
         component={() => <TrashFilledIcon />}
       />
     ),
@@ -584,7 +583,7 @@ export function totalItem(
     label: 'Total',
     icon: (
       <Icon
-        className="text-textAccentTertiary w-[18px]"
+        className="text-text-accent-tertiary w-[18px]"
         component={() => <TotalIcon />}
       />
     ),
@@ -664,7 +663,7 @@ export function filterItem(
     label: 'Filter',
     icon: (
       <Icon
-        className="text-textSecondary w-[18px]"
+        className="text-text-secondary w-[18px]"
         component={() => <FilterIcon />}
       />
     ),
@@ -701,5 +700,21 @@ export function filterItem(
         ),
       }),
     ],
+  });
+}
+
+export function switchInput(col: number, row: number): MenuItem {
+  return getDropdownItem({
+    label: 'Switch input',
+    key: getDropdownMenuKey<ContextMenuKeyData>(menuKey.switchInput, {
+      col,
+      row,
+    }),
+    icon: (
+      <Icon
+        className="text-text-secondary w-[18px]"
+        component={() => <FileIcon />}
+      />
+    ),
   });
 }

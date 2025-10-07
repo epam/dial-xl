@@ -41,7 +41,7 @@ export const PanelStatusBar = forwardRef(function PanelStatusBar(
   return (
     <div
       className={cx(
-        'bg-bgLayer2 text-[11px] tracking-normal overflow-hidden w-full h-full border-strokeTertiary',
+        'bg-bg-layer-2 text-[11px] tracking-normal overflow-hidden w-full h-full border-stroke-tertiary',
         isBottomPanel ? 'border-t' : isLeftPanel ? 'border-r' : 'border-l'
       )}
       ref={ref}
@@ -71,14 +71,15 @@ export const PanelStatusBar = forwardRef(function PanelStatusBar(
             <Tooltip
               placement={isLeftPanel ? 'right' : isRightPanel ? 'left' : 'top'}
               title={p.title}
+              destroyOnHidden
             >
               <div
                 className={cx(
-                  'flex gap-1 items-center justify-center h-full text-nowrap cursor-pointer select-none hover:bg-bgAccentPrimaryAlpha hover:text-textAccentPrimary rounded',
+                  'flex gap-1 items-center justify-center h-full text-nowrap cursor-pointer select-none hover:bg-bg-accent-primary-alpha hover:text-text-accent-primary rounded-sm',
                   {
-                    'text-textAccentPrimary': isPanelOpen(p.name),
-                    'text-textSecondary': !isPanelOpen(p.name),
-                    'flex-col py-1.5 px-[1px]':
+                    'text-text-accent-primary': isPanelOpen(p.name),
+                    'text-text-secondary': !isPanelOpen(p.name),
+                    'flex-col py-1.5 px-px':
                       !isBottomPanel && !collapsedPanelsTextHidden,
                     'flex-col p-1.5':
                       !isBottomPanel && collapsedPanelsTextHidden,
@@ -111,7 +112,7 @@ export const PanelStatusBar = forwardRef(function PanelStatusBar(
                     component={() => p.icon}
                   />
                   {!isBottomPanel && showErrorNotification(p.name) && (
-                    <div className="absolute top-0 -right-1 bg-strokeError w-[6px] h-[6px] ml-2 rounded-full" />
+                    <div className="absolute top-0 -right-1 bg-stroke-error w-[6px] h-[6px] ml-2 rounded-full" />
                   )}
                 </div>
                 {(!collapsedPanelsTextHidden || isBottomPanel) && (
@@ -120,7 +121,7 @@ export const PanelStatusBar = forwardRef(function PanelStatusBar(
                       {p.title}
                     </span>
                     {isBottomPanel && showErrorNotification(p.name) && (
-                      <div className="bg-strokeError w-[6px] h-[6px] ml-2 rounded-full" />
+                      <div className="bg-stroke-error w-[6px] h-[6px] ml-2 rounded-full" />
                     )}
                   </>
                 )}

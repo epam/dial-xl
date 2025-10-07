@@ -6,10 +6,10 @@ import { toast } from 'react-toastify';
 import {
   csvFileExtension,
   dialProjectFileExtension,
-  FilesMetadata,
   MetadataNodeType,
   modalFooterButtonClasses,
   primaryButtonClasses,
+  ResourceMetadata,
   schemaFileExtension,
   secondaryButtonClasses,
 } from '@frontend/common';
@@ -24,12 +24,12 @@ export function useDeleteResources() {
   const { deleteFile, deleteFolder, deleteProject } = useApiRequests();
 
   const handleDeleteProject = useCallback(
-    async (item: Pick<FilesMetadata, 'bucket' | 'name' | 'parentPath'>) => {
+    async (item: Pick<ResourceMetadata, 'bucket' | 'name' | 'parentPath'>) => {
       const { bucket, name, parentPath } = item;
       const projectName = name.replace(dialProjectFileExtension, '');
       const res = await deleteProject({
         name: projectName,
-        path: parentPath,
+        parentPath,
         bucket,
       });
 
@@ -44,7 +44,7 @@ export function useDeleteResources() {
   );
 
   const handleDeleteFolder = useCallback(
-    async (item: Pick<FilesMetadata, 'bucket' | 'name' | 'parentPath'>) => {
+    async (item: Pick<ResourceMetadata, 'bucket' | 'name' | 'parentPath'>) => {
       const result = await deleteFolder({
         bucket: item.bucket,
         name: item.name,
@@ -59,13 +59,13 @@ export function useDeleteResources() {
   );
 
   const handleDeleteFile = useCallback(
-    async (item: Pick<FilesMetadata, 'bucket' | 'name' | 'parentPath'>) => {
+    async (item: Pick<ResourceMetadata, 'bucket' | 'name' | 'parentPath'>) => {
       const isCsvFile = item.name.endsWith(csvFileExtension);
 
       const result = await deleteFile({
         bucket: item.bucket,
         fileName: item.name,
-        path: item.parentPath,
+        parentPath: item.parentPath,
       });
 
       if (!result) return;
@@ -78,7 +78,7 @@ export function useDeleteResources() {
         bucket: item.bucket,
         fileName:
           '.' + item.name.replaceAll(csvFileExtension, schemaFileExtension),
-        path: item.parentPath,
+        parentPath: item.parentPath,
         suppressErrors: true,
       });
     },
@@ -88,7 +88,7 @@ export function useDeleteResources() {
   const getContent = useCallback(
     (
       items: Pick<
-        FilesMetadata,
+        ResourceMetadata,
         'bucket' | 'name' | 'parentPath' | 'nodeType'
       >[]
     ) => {
@@ -111,7 +111,7 @@ export function useDeleteResources() {
   const deleteResources = useCallback(
     (
       items: Pick<
-        FilesMetadata,
+        ResourceMetadata,
         'bucket' | 'name' | 'parentPath' | 'nodeType'
       >[],
       onFinish?: () => void

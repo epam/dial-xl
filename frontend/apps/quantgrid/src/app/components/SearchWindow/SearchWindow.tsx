@@ -247,7 +247,7 @@ export function SearchWindow() {
         className={cx('ant-input-sm h-[38px] text-[13px]', inputClasses)}
         placeholder="Search..."
         prefix={
-          <div className="text-textSecondary size-[18px] shrink-0">
+          <div className="text-text-secondary size-[18px] shrink-0">
             <SearchIcon />
           </div>
         }
@@ -282,21 +282,21 @@ export function SearchWindow() {
           selected={filter === 'fields'}
           onClick={() => setFilter('fields')}
         />
-        <span className="hidden md:block text-[10px] text-textSecondary">
+        <span className="hidden md:block text-[10px] text-text-secondary">
           Tab or Shift+Tab to switch
         </span>
       </div>
-      <div className="thin-scrollbar py-2 pr-2 overflow-auto h-max max-h-96 bg-bgLayer3">
+      <div className="thin-scrollbar py-2 pr-2 overflow-auto h-max max-h-96 bg-bg-layer-3">
         {results && results.length === 0 && (
-          <div className="text-textPrimary pl-3">No results.</div>
+          <div className="text-text-primary pl-3">No results.</div>
         )}
         {results?.map((result, index) => (
           <SearchResult
             className={cx(
-              'p-2 mb-1 cursor-pointer rounded-[3px] border-b-strokeTertiary select-none hover:bg-bgAccentPrimaryAlpha',
+              'p-2 mb-1 cursor-pointer rounded-[3px] border-b-stroke-tertiary select-none hover:bg-bg-accent-primary-alpha',
               index === currentChosenIndex
-                ? 'border-l-2 border-l-strokeAccentPrimary bg-bgAccentPrimaryAlpha stroke-textPrimary'
-                : 'stroke-textSecondary'
+                ? 'border-l-2 border-l-stroke-accent-primary bg-bg-accent-primary-alpha stroke-text-primary'
+                : 'stroke-text-secondary'
             )}
             key={result.item.name + result.item.type + index}
             result={result}

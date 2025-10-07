@@ -1,27 +1,24 @@
-/* eslint-disable */
-
 export default {
-  displayName: 'quantgrid',
-  preset: '../../jest.preset.js',
+  displayName: '@quantgrid/quantgrid',
+  preset: '../../jest-lib.preset.js',
   transform: {
-    '^.+\\.(ts|tsx)?$': [
-      'ts-jest',
-      { tsconfig: '<rootDir>/tsconfig.spec.json' },
-    ],
-    '^.+\\.(js|jsx)$': [
+    '^(?!.*\\.(js|jsx|ts|tsx|css|json)$)': '@nx/react/plugins/jest',
+    '^.+\\.[tj]sx?$': [
       'babel-jest',
       {
         presets: ['@nx/react/babel'],
-        plugins: [
-          ['@babel/plugin-proposal-private-methods', { loose: true }],
-          '@babel/plugin-transform-class-static-block',
-        ],
       },
     ],
   },
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx'],
-  coverageDirectory: '../../coverage/apps/quantgrid',
-  transformIgnorePatterns: ['<rootDir>/node_modules/(?!monaco-editor).+\\.js$'],
-  testPathIgnorePatterns: ['apps/quantgrid/playwright/'],
+  coverageDirectory: 'test-output/jest/coverage',
+  moduleNameMapper: {
+    '^react-markdown$': '<rootDir>/__mocks__/react-markdown.tsx',
+    '^remark-gfm$': '<rootDir>/__mocks__/remark-gfm.ts',
+    '^@epam/ai-dial-overlay$': '<rootDir>/__mocks__/@epam/ai-dial-overlay.ts',
+    '^monaco-editor(/.*)?$': '<rootDir>/__mocks__/monaco-editor.ts',
+    '^jose$': '<rootDir>/__mocks__/jose.ts',
+  },
   setupFilesAfterEnv: ['../../jest-canvas.js'],
+  testPathIgnorePatterns: ['apps/quantgrid/playwright/'],
 };

@@ -808,7 +808,7 @@ export function useFieldEditDsl() {
         parsedSheets,
         tableName
       );
-      const { isInputFunction, isFieldReferenceFormula } =
+      const { isInputFunction, isFieldReferenceFormula, isPivotFunction } =
         getParsedFormulaInfo(fixedNewExpression);
       let newHasAccessors = isFieldReferenceFormula;
       let isPeriodSeries = false;
@@ -840,6 +840,7 @@ export function useFieldEditDsl() {
           );
           const hasToAppendSelectors =
             !schemaHasDynamic &&
+            !isPivotFunction &&
             ((!isFieldReferenceFormula &&
               (isInputFunction || isPeriodSeries)) ||
               shouldRecreateTable);
@@ -860,60 +861,90 @@ export function useFieldEditDsl() {
         parsedTable.fields.map((f) => f.key.fieldName)
       );
 
-      /* Manipulate columns */
-
-      /* both formulas have accessor lists */
-      if (oldHasAccessors && newHasAccessors && finalSchema.length) {
-        const oldSchemaLen = oldLeftSchema.length;
-        const newSchemaLen = finalSchema.length;
-
-        // Add new columns if the accessor list got longer
-        if (newSchemaLen > oldSchemaLen) {
-          const lastLeft = oldLeftSchema[oldSchemaLen - 1];
-          const targetFieldGroup = table.getFieldGroupByFieldName(lastLeft);
-
-          if (targetFieldGroup) {
-            for (let i = oldSchemaLen; i < newSchemaLen; i++) {
-              const uniqueFieldName = createUniqueName(finalSchema[i], [
-                ...existingFieldNames,
-              ]);
-              existingFieldNames.add(uniqueFieldName);
-              targetFieldGroup.addField(new Field(uniqueFieldName));
-            }
-          }
-        }
-
-        // Remove surplus columns if the accessor list got shorter
-        if (newSchemaLen < oldSchemaLen) {
-          for (let i = newSchemaLen; i < oldSchemaLen; i++) {
-            table.removeField(oldLeftSchema[i]);
-          }
-        }
-
-        table.setFieldFormula(oldLeftSchema[0], finalFormula);
-      } else if (oldHasAccessors && !newHasAccessors) {
-        /* Accessor list removed */
-        oldLeftSchema.slice(1).forEach((c) => table.removeField(c));
-        table.setFieldFormula(oldLeftSchema[0], finalFormula);
-      } else if (!oldHasAccessors && newHasAccessors && finalSchema.length) {
-        /* Accessor list added */
-        const firstColumn = oldLeftSchema[0];
-        const targetFieldGroup = table.getFieldGroupByFieldName(firstColumn);
+      // Special handling for pivot function – always update the left part
+      if (isPivotFunction) {
+        const shouldAddDim = !!fieldInfo?.isNested;
+        const targetFieldGroup = table.getFieldGroupByFieldName(
+          oldLeftSchema[0]
+        );
 
         if (targetFieldGroup) {
-          finalSchema.slice(1).forEach((acc) => {
+          oldLeftSchema.forEach((c) => {
+            table.removeField(c, false);
+            existingFieldNames.delete(c);
+          });
+
+          finalSchema.forEach((acc, index) => {
             const uniqueFieldName = createUniqueName(acc, [
               ...existingFieldNames,
             ]);
             existingFieldNames.add(uniqueFieldName);
-            targetFieldGroup.addField(new Field(uniqueFieldName));
-          });
-        }
+            const newField = new Field(uniqueFieldName);
 
-        table.setFieldFormula(firstColumn, finalFormula);
+            if (index === 0 && shouldAddDim) {
+              newField.dim = true;
+            }
+
+            targetFieldGroup.addField(newField);
+          });
+
+          table.setFieldFormula(finalSchema[0], finalFormula);
+        }
       } else {
-        /* No accessor lists before or after */
-        table.setFieldFormula(fieldName, finalFormula);
+        /* Manipulate columns */
+        /* both formulas have accessor lists */
+        if (oldHasAccessors && newHasAccessors && finalSchema.length) {
+          const oldSchemaLen = oldLeftSchema.length;
+          const newSchemaLen = finalSchema.length;
+
+          // Add new columns if the accessor list got longer
+          if (newSchemaLen > oldSchemaLen) {
+            const lastLeft = oldLeftSchema[oldSchemaLen - 1];
+            const targetFieldGroup = table.getFieldGroupByFieldName(lastLeft);
+
+            if (targetFieldGroup) {
+              for (let i = oldSchemaLen; i < newSchemaLen; i++) {
+                const uniqueFieldName = createUniqueName(finalSchema[i], [
+                  ...existingFieldNames,
+                ]);
+                existingFieldNames.add(uniqueFieldName);
+                targetFieldGroup.addField(new Field(uniqueFieldName));
+              }
+            }
+          }
+
+          // Remove surplus columns if the accessor list got shorter
+          if (newSchemaLen < oldSchemaLen) {
+            for (let i = newSchemaLen; i < oldSchemaLen; i++) {
+              table.removeField(oldLeftSchema[i]);
+            }
+          }
+
+          table.setFieldFormula(oldLeftSchema[0], finalFormula);
+        } else if (oldHasAccessors && !newHasAccessors) {
+          /* Accessor list removed */
+          oldLeftSchema.slice(1).forEach((c) => table.removeField(c));
+          table.setFieldFormula(oldLeftSchema[0], finalFormula);
+        } else if (!oldHasAccessors && newHasAccessors && finalSchema.length) {
+          /* Accessor list added */
+          const firstColumn = oldLeftSchema[0];
+          const targetFieldGroup = table.getFieldGroupByFieldName(firstColumn);
+
+          if (targetFieldGroup) {
+            finalSchema.slice(1).forEach((acc) => {
+              const uniqueFieldName = createUniqueName(acc, [
+                ...existingFieldNames,
+              ]);
+              existingFieldNames.add(uniqueFieldName);
+              targetFieldGroup.addField(new Field(uniqueFieldName));
+            });
+          }
+
+          table.setFieldFormula(firstColumn, finalFormula);
+        } else {
+          /* No accessor lists before or after */
+          table.setFieldFormula(fieldName, finalFormula);
+        }
       }
 
       /* Adjust the `dim` flag if necessary */

@@ -1,5 +1,6 @@
 from typing import Iterator
 
+from dial_xl.compile import FieldType
 from dial_xl.events import Event, ObservableNode, ObservableObserver, notify_observer
 from dial_xl.reader import _Reader
 from dial_xl.utils import _escape_field_name, _unescape_field_name, _validate_index
@@ -162,17 +163,16 @@ class _Overrides:
 
 class Override(ObservableNode):
     __values: dict[str, str]
-    __errors: dict[str, str]
-    __row_number: str | None = None
+    __types: dict[str, FieldType | str]
+    __row_number: str | None
 
     def __init__(
         self,
         values: dict[str, str] | None = None,
-        errors: dict[str, str] | None = None,
         row_number: str | None = None,
     ):
         self.__values = values or {}
-        self.__errors = errors or {}
+        self.__types = {}
         self.__row_number = row_number
 
     @property
@@ -191,8 +191,15 @@ class Override(ObservableNode):
         """Set the row number of the override, which invalidates all compilation and computation results, as well as any sheet parsing errors."""
         self.__row_number = value
 
-    def error(self, key: str) -> str | None:
-        return self.__errors.get(key, None)
+    def error(self, name: str) -> str | None:
+        """Get an error message for a specific override value, if any."""
+        error = self.__types.get(name)
+        return error if isinstance(error, str) else None
+
+    def type(self, name: str) -> FieldType | None:
+        """Get the result type of a specific override value, if any."""
+        field_type = self.__types.get(name)
+        return field_type if isinstance(field_type, FieldType) else None
 
     def __getitem__(self, key: str) -> str:
         """Get an override value by key."""
@@ -206,10 +213,18 @@ class Override(ObservableNode):
     @notify_observer
     def __delitem__(self, key: str):
         """Delete an override value by key, which invalidates all compilation and computation results, as well as any sheet parsing errors."""
+        if key in self.__types:
+            del self.__types[key]
         del self.__values[key]
 
-    def _set_errors(self, errors: dict[str, str]):
-        self.__errors = errors
+    def _set_type(self, name: str, field_type: FieldType | str | None):
+        if name not in self.__values:
+            raise ValueError(f"Override value '{name}' not found")
+
+        if field_type is None:
+            del self.__types[name]
+        else:
+            self.__types[name] = field_type
 
 
 class Overrides(ObservableObserver):

@@ -14,6 +14,7 @@ import {
   AppContext,
   AppSpreadsheetInteractionContext,
   ChatOverlayContext,
+  InputsContext,
   LayoutContext,
   ProjectContext,
   UndoRedoContext,
@@ -55,6 +56,7 @@ export function CodeEditorWrapper() {
   const { showHasUnsavedChanges } = useContext(CodeEditorContext);
   const { appendTo } = useContext(UndoRedoContext);
   const { theme } = useContext(AppContext);
+  const { inputList } = useContext(InputsContext);
   const { expandedPanelSide, toggleExpandPanel } = useContext(LayoutContext);
   const { errors } = useDSLErrors();
 
@@ -258,13 +260,14 @@ export function CodeEditorWrapper() {
 
   return (
     <div
-      className="h-[calc(100%-20px)] w-full pt-5 bg-bgLayer3"
+      className="h-[calc(100%-20px)] w-full pt-5 bg-bg-layer-3"
       id={codeEditorId}
     >
       <CodeEditor
         codeEditorPlace="codeEditor"
         errors={errors}
         functions={functions}
+        inputFiles={inputList}
         language="code-editor"
         options={{
           readOnly:

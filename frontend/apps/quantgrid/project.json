@@ -1,99 +1,276 @@
 {
-  "name": "quantgrid",
-  "$schema": "../../node_modules/nx/schemas/project-schema.json",
-  "sourceRoot": "apps/quantgrid/src",
-  "projectType": "application",
-  "tags": [],
+  "root": "apps/quantgrid",
   "targets": {
     "generateGrammar": {
       "command": "yarn generateGrammar"
     },
-    "build": {
-      "executor": "@nx/webpack:webpack",
-      "outputs": ["{options.outputPath}"],
-      "defaultConfiguration": "production",
-      "dependsOn": ["generateGrammar"],
-      "options": {
-        "compiler": "babel",
-        "outputPath": "dist/apps/quantgrid",
-        "index": "apps/quantgrid/src/index.html",
-        "baseHref": "/",
-        "main": "apps/quantgrid/src/main.tsx",
-        "tsConfig": "apps/quantgrid/tsconfig.app.json",
-        "assets": [
-          "apps/quantgrid/src/favicon.ico",
-          "apps/quantgrid/src/assets/logo/800-600.png",
-          "apps/quantgrid/src/assets/logo/1080-1080.png",
-          "apps/quantgrid/src/assets/logo/1200-600.png",
-          "apps/quantgrid/src/assets/logo/1200-630.png",
-          "apps/quantgrid/src/assets/fonts/JetBrainsMono-Bold.ttf",
-          "apps/quantgrid/src/assets/fonts/JetBrainsMono-Regular.ttf",
-          "apps/quantgrid/src/assets/icons/canvasGrid"
-        ],
-        "styles": ["apps/quantgrid/src/styles.scss"],
-        "scripts": [],
-        "webpackConfig": "apps/quantgrid/webpack.config.js",
-        "postcssConfig": "apps/quantgrid/postcss.config.js"
-      },
-      "configurations": {
-        "development": {
-          "extractLicenses": false,
-          "optimization": false,
-          "sourceMap": true,
-          "vendorChunk": true
-        },
-        "production": {
-          "fileReplacements": [
-            {
-              "replace": "apps/quantgrid/src/environments/environment.ts",
-              "with": "apps/quantgrid/src/environments/environment.prod.ts"
-            }
-          ],
-          "optimization": true,
-          "outputHashing": "all",
-          "sourceMap": false,
-          "namedChunks": false,
-          "extractLicenses": true,
-          "vendorChunk": false
+    "typecheck": {
+      "dependsOn": ["^typecheck"],
+      "cache": true,
+      "inputs": [
+        "production",
+        "^production",
+        {
+          "externalDependencies": ["typescript"]
         }
-      }
-    },
-    "serve": {
-      "executor": "@nx/webpack:dev-server",
-      "defaultConfiguration": "development",
-      "dependsOn": ["generateGrammar"],
-      "options": {
-        "buildTarget": "quantgrid:build",
-        "hmr": true
-      },
-      "configurations": {
-        "development": {
-          "buildTarget": "quantgrid:build:development"
-        },
-        "production": {
-          "buildTarget": "quantgrid:build:production",
-          "hmr": false
+      ],
+      "outputs": [],
+      "syncGenerators": ["@nx/js:typescript-sync"],
+      "metadata": {
+        "technologies": ["typescript", "typescript"],
+        "description": "Runs type-checking for the project.",
+        "help": {
+          "command": "yarn tsc --build --help",
+          "example": {
+            "args": ["--force"]
+          }
         }
-      }
+      },
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/quantgrid",
+        "command": "tsc --noEmit -p tsconfig.app.json"
+      },
+      "configurations": {},
+      "parallelism": true
     },
     "lint": {
-      "executor": "@nx/eslint:lint",
-      "dependsOn": ["generateGrammar"]
+      "cache": true,
+      "dependsOn": ["generateGrammar"],
+      "options": {
+        "cwd": "apps/quantgrid",
+        "command": "eslint ."
+      },
+      "inputs": [
+        "default",
+        "^default",
+        "{workspaceRoot}/eslint.config.mjs",
+        "{workspaceRoot}/apps/quantgrid/eslint.config.mjs",
+        "{workspaceRoot}/tools/eslint-rules/**/*",
+        {
+          "externalDependencies": ["eslint"]
+        }
+      ],
+      "outputs": ["{options.outputFile}"],
+      "metadata": {
+        "technologies": ["eslint"],
+        "description": "Runs ESLint on project",
+        "help": {
+          "command": "yarn eslint --help",
+          "example": {
+            "options": {
+              "max-warnings": 0
+            }
+          }
+        }
+      },
+      "executor": "nx:run-commands",
+      "configurations": {},
+      "parallelism": true
+    },
+    "build": {
+      "options": {
+        "cwd": "apps/quantgrid",
+        "command": "vite build"
+      },
+      "cache": true,
+      "dependsOn": ["generateGrammar", "^build", "^typecheck"],
+      "inputs": [
+        "production",
+        "^production",
+        {
+          "externalDependencies": ["vite"]
+        }
+      ],
+      "outputs": ["{projectRoot}\\dist"],
+      "metadata": {
+        "technologies": ["vite"],
+        "description": "Run Vite build",
+        "help": {
+          "command": "yarn vite build --help",
+          "example": {
+            "options": {
+              "sourcemap": true,
+              "manifest": "manifest.json"
+            }
+          }
+        }
+      },
+      "syncGenerators": ["@nx/js:typescript-sync"],
+      "executor": "nx:run-commands",
+      "configurations": {},
+      "parallelism": true
+    },
+    "serve": {
+      "continuous": true,
+      "dependsOn": ["generateGrammar"],
+      "options": {
+        "cwd": "apps/quantgrid",
+        "command": "vite"
+      },
+      "metadata": {
+        "technologies": ["vite"],
+        "description": "Starts Vite dev server",
+        "help": {
+          "command": "yarn vite --help",
+          "example": {
+            "options": {
+              "port": 3000
+            }
+          }
+        },
+        "deprecated": "Use devTargetName instead. This option willbe removed in Nx 22."
+      },
+      "syncGenerators": ["@nx/js:typescript-sync"],
+      "executor": "nx:run-commands",
+      "configurations": {},
+      "parallelism": true
+    },
+    "dev": {
+      "continuous": true,
+      "options": {
+        "cwd": "apps/quantgrid",
+        "command": "vite"
+      },
+      "metadata": {
+        "technologies": ["vite"],
+        "description": "Starts Vite dev server",
+        "help": {
+          "command": "yarn vite --help",
+          "example": {
+            "options": {
+              "port": 3000
+            }
+          }
+        }
+      },
+      "syncGenerators": ["@nx/js:typescript-sync"],
+      "executor": "nx:run-commands",
+      "configurations": {},
+      "parallelism": true
+    },
+    "preview": {
+      "continuous": true,
+      "dependsOn": ["build"],
+      "options": {
+        "cwd": "apps/quantgrid",
+        "command": "vite preview"
+      },
+      "metadata": {
+        "technologies": ["vite"],
+        "description": "Locally preview Vite production build",
+        "help": {
+          "command": "yarn vite preview --help",
+          "example": {
+            "options": {
+              "port": 3000
+            }
+          }
+        }
+      },
+      "executor": "nx:run-commands",
+      "configurations": {},
+      "parallelism": true
+    },
+    "serve-static": {
+      "continuous": true,
+      "executor": "@nx/web:file-server",
+      "options": {
+        "buildTarget": "build",
+        "spa": true
+      },
+      "syncGenerators": ["@nx/js:typescript-sync"],
+      "configurations": {},
+      "parallelism": true
+    },
+    "build-deps": {
+      "dependsOn": ["^build"],
+      "configurations": {},
+      "options": {},
+      "parallelism": true,
+      "executor": "nx:noop"
+    },
+    "watch-deps": {
+      "continuous": true,
+      "dependsOn": ["build-deps"],
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "yarn nx watch --projects @quantgrid/quantgrid --includeDependentProjects -- yarn nx build-deps @quantgrid/quantgrid"
+      },
+      "configurations": {},
+      "parallelism": true
     },
     "test": {
-      "executor": "@nx/jest:jest",
-      "dependsOn": ["generateGrammar"],
-      "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
       "options": {
-        "jestConfig": "apps/quantgrid/jest.config.ts"
-      }
+        "cwd": "apps/quantgrid",
+        "env": {
+          "TS_NODE_COMPILER_OPTIONS": "{\"moduleResolution\":\"node10\",\"module\":\"commonjs\",\"customConditions\":null}"
+        },
+        "command": "jest"
+      },
+      "metadata": {
+        "technologies": ["jest"],
+        "description": "Run Jest Tests",
+        "help": {
+          "command": "yarn jest --help",
+          "example": {
+            "options": {
+              "coverage": true
+            }
+          }
+        }
+      },
+      "cache": true,
+      "inputs": [
+        "default",
+        "^production",
+        "{workspaceRoot}\\jest-lib.preset.js",
+        {
+          "externalDependencies": ["jest"]
+        }
+      ],
+      "outputs": ["{projectRoot}\\test-output\\jest\\coverage"],
+      "executor": "nx:run-commands",
+      "configurations": {},
+      "parallelism": true,
+      "dependsOn": ["generateGrammar", "^build"]
     },
     "e2e": {
-      "executor": "@nx/playwright:playwright",
-      "outputs": ["{workspaceRoot}/dist/.playwright/apps/quantgrid"],
+      "cache": false,
       "options": {
-        "config": "apps/quantgrid/playwright.config.ts"
+        "command": "playwright test"
+      },
+      "inputs": [
+        "default",
+        "^production",
+        {
+          "externalDependencies": ["playwright"]
+        }
+      ],
+      "outputs": [
+        "{workspaceRoot}\\playwright-report",
+        "{workspaceRoot}\\test-results",
+        "{workspaceRoot}\\allure-results",
+        "{workspaceRoot}\\allure-report",
+        "{workspaceRoot}\\blob-report"
+      ],
+      "executor": "nx:run-commands",
+      "parallelism": true,
+      "metadata": {
+        "technologies": ["playwright"],
+        "description": "Run Playwright E2E tests"
       }
     }
-  }
+  },
+  "projectType": "application",
+  "metadata": {
+    "targetGroups": {},
+    "js": {
+      "packageName": "@quantgrid/quantgrid",
+      "isInPackageManagerWorkspaces": true
+    }
+  },
+  "name": "@quantgrid/quantgrid",
+  "tags": ["npm:private", "type:app"],
+  "implicitDependencies": []
 }

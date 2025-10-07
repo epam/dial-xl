@@ -80,6 +80,7 @@ export function RenameConversation({
       inputRef.current.focus({
         cursor: 'end',
       });
+      inputRef.current.select();
     }, 0);
   }, [isOpened]);
 
@@ -96,7 +97,7 @@ export function RenameConversation({
       cancelButtonProps={{
         className: cx(modalFooterButtonClasses, secondaryButtonClasses),
       }}
-      destroyOnClose={true}
+      destroyOnHidden={true}
       okButtonProps={{
         className: cx(
           modalFooterButtonClasses,
@@ -109,34 +110,41 @@ export function RenameConversation({
       onCancel={handleCancel}
       onOk={handleOk}
     >
-      <Form className="pb-2" form={form}>
-        <Form.Item
-          name="newConversationName"
-          rules={[
-            { required: true, message: 'Conversation name is required' },
-            {
-              validator: (_, value) => {
-                const result = !projectConversations?.some(
-                  (i) => i.name === value
-                );
+      <div className="flex flex-col gap-1 mt-4">
+        <label className="text-xs text-text-secondary" htmlFor="projectName">
+          Conversation name after renaming
+        </label>
+        <Form className="pb-2" form={form}>
+          <Form.Item
+            name="newConversationName"
+            rules={[
+              { required: true, message: 'Conversation name is required' },
+              {
+                validator: (_, value) => {
+                  const result = !projectConversations?.some(
+                    (i) => i.name === value
+                  );
 
-                return result
-                  ? Promise.resolve()
-                  : Promise.reject(
-                      new Error('A conversation with this name already exists.')
-                    );
+                  return result
+                    ? Promise.resolve()
+                    : Promise.reject(
+                        new Error(
+                          'A conversation with this name already exists.'
+                        )
+                      );
+                },
               },
-            },
-          ]}
-          validateTrigger={['onBlur']}
-        >
-          <Input
-            className={cx('h-12 my-3', inputClasses)}
-            placeholder="Conversation name"
-            ref={inputRef}
-          />
-        </Form.Item>
-      </Form>
+            ]}
+            validateTrigger={['onBlur']}
+          >
+            <Input
+              className={cx('h-12 my-3', inputClasses)}
+              placeholder="Conversation name"
+              ref={inputRef}
+            />
+          </Form.Item>
+        </Form>
+      </div>
     </Modal>
   );
 }

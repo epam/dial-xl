@@ -8,7 +8,7 @@ from dial_xl.compile import (
     TableTypeResult,
     EMPTY_FIELD_KEY,
     EMPTY_TOTAL_KEY,
-    OVERRIDE_TABLE_ERRORS,
+    parse_format,
 )
 from dial_xl.credentials import CredentialProvider
 from dial_xl.model.api_pb2 import (
@@ -27,6 +27,7 @@ class FieldData(ImmutableModel):
     start_row: int
     end_row: int
     total_rows: int
+    is_raw: bool
 
 
 FIELD_DATA_RESULTS = dict[str, FieldData | str]  # Field -> FieldData or error
@@ -39,7 +40,6 @@ class TableDataResult(ImmutableModel):
 
 class CalculateResult(ImmutableModel):
     parsing_errors: dict[str, list[ParsingError]]  # Parsing errors per sheet
-    override_errors: dict[str, OVERRIDE_TABLE_ERRORS]
     types: dict[str, TableTypeResult]
     data: dict[str, TableDataResult]
 
@@ -53,6 +53,7 @@ def to_field_data_or_error(column_data):
             start_row=column_data.start_row,
             end_row=column_data.end_row,
             total_rows=column_data.total_rows,
+            is_raw=column_data.is_raw,
         )
     )
 
@@ -81,6 +82,10 @@ async def calculate_project(
                     hash="",
                     name=ColumnDataType.Name(column_data.type),
                     is_nested=column_data.isNested,
+                    format=(
+                        parse_format(column_data.format) if column_data.is_raw else None
+                    ),
+                    references=[],
                 )
         elif column_data.totalKey != EMPTY_TOTAL_KEY:
             total_key = column_data.totalKey
@@ -97,7 +102,6 @@ async def calculate_project(
 
     return CalculateResult(
         parsing_errors=compile_result.parsing_errors,
-        override_errors=compile_result.override_errors,
         types=compile_result.types,
         data=data,
     )

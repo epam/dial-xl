@@ -70,6 +70,5 @@ class XLCopier:
     def copy_override(override: Override) -> Override:
         return Override(
             values={key: override[key] for key in override.names},
-            errors={},
             row_number=override.row_number,
         )

@@ -74,7 +74,7 @@ export function ProjectFork({ className }: Props) {
           label: 'Reset to base project',
           icon: (
             <Icon
-              className="text-textSecondary w-[18px]"
+              className="text-text-secondary w-[18px]"
               component={() => <ReloadIcon />}
             />
           ),
@@ -87,7 +87,7 @@ export function ProjectFork({ className }: Props) {
           label: 'Restore connection to base project',
           icon: (
             <Icon
-              className="w-[18px] text-textSecondary"
+              className="w-[18px] text-text-secondary"
               component={() => <SettingsIcon />}
             />
           ),
@@ -106,7 +106,7 @@ export function ProjectFork({ className }: Props) {
         <Icon
           className={cx(
             'ml-2 h-[18px] w-[18px] cursor-pointer hover:opacity-80',
-            forkedProject?.isExists ? className : 'text-textError'
+            forkedProject?.isExists ? className : 'text-text-error'
           )}
           component={() =>
             forkedProject?.isExists ? <ForkIcon /> : <ForkExclamationIcon />

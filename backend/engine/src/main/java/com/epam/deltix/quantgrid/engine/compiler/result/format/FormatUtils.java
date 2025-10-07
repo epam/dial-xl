@@ -77,7 +77,7 @@ public class FormatUtils {
                 CompileUtil.verify(args.size() == 1,
                         "Scientific formatting requires 1 argument: format. Got: %d",
                         args.size());
-                int format = castToPositiveInteger(args.get(0), name, DECIMAL_PLACES_PARAM);
+                int format = castToInteger(args.get(0), name, DECIMAL_PLACES_PARAM);
 
                 yield new ScientificFormat(format);
             }
@@ -85,18 +85,16 @@ public class FormatUtils {
         };
     }
 
-    private int castToPositiveInteger(Object parameter, String formatName, String parameterName) {
+    private int castToInteger(Object parameter, String formatName, String parameterName) {
         if (parameter instanceof Double value && !value.isNaN()) {
-            CompileUtil.verify(value >= 0, "Parameter %s cannot be negative", parameterName);
-
             int intPart = value.intValue();
-            CompileUtil.verify(value == intPart, "Parameter %s is not integer", parameterName);
+            CompileUtil.verify(value == intPart, "Parameter %s is not an integer number", parameterName);
 
             return intPart;
         }
 
         throw new CompileError(
-                "Wrong parameter %s for format %s, expected a positive integer".formatted(parameterName, formatName));
+                "Wrong parameter %s for format %s, expected an integer number".formatted(parameterName, formatName));
     }
 
     public boolean getThousandsSeparator(Object parameter) {

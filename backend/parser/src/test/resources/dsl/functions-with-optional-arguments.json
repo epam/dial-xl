@@ -1,0 +1,315 @@
+{
+  "name": "test",
+  "tables": [
+    {
+      "span": {
+        "sheet": "test",
+        "text": "table A\n  [a] = FUNCTION(1, , 3)\n  [b] = FUNCTION(,,)\n  [c] = A.FUNCTION(1, , 3)\n  [d] = A.FUNCTION(,,)\n",
+        "from": 0,
+        "to": 104
+      },
+      "name": {
+        "span": {
+          "sheet": "test",
+          "text": "A",
+          "from": 6,
+          "to": 7
+        },
+        "text": "A"
+      },
+      "fields": [
+        {
+          "span": {
+            "sheet": "test",
+            "text": "[a] = FUNCTION(1, , 3)",
+            "from": 10,
+            "to": 32
+          },
+          "fields": [
+            {
+              "span": {
+                "sheet": "test",
+                "text": "[a]",
+                "from": 10,
+                "to": 13
+              },
+              "name": {
+                "span": {
+                  "sheet": "test",
+                  "text": "[a]",
+                  "from": 10,
+                  "to": 13
+                },
+                "text": "a"
+              },
+              "decorators": [],
+              "docs": []
+            }
+          ],
+          "formula": {
+            "name": "FUNCTION",
+            "span": {
+              "sheet": "test",
+              "text": "FUNCTION(1, , 3)",
+              "from": 16,
+              "to": 32
+            },
+            "arguments": [
+              {
+                "span": {
+                  "sheet": "test",
+                  "text": "1",
+                  "from": 25,
+                  "to": 26
+                },
+                "arguments": []
+              },
+              {
+                "span": {
+                  "sheet": "test",
+                  "text": "",
+                  "from": 28,
+                  "to": 28
+                },
+                "arguments": []
+              },
+              {
+                "span": {
+                  "sheet": "test",
+                  "text": "3",
+                  "from": 30,
+                  "to": 31
+                },
+                "arguments": []
+              }
+            ]
+          }
+        },
+        {
+          "span": {
+            "sheet": "test",
+            "text": "[b] = FUNCTION(,,)",
+            "from": 35,
+            "to": 53
+          },
+          "fields": [
+            {
+              "span": {
+                "sheet": "test",
+                "text": "[b]",
+                "from": 35,
+                "to": 38
+              },
+              "name": {
+                "span": {
+                  "sheet": "test",
+                  "text": "[b]",
+                  "from": 35,
+                  "to": 38
+                },
+                "text": "b"
+              },
+              "decorators": [],
+              "docs": []
+            }
+          ],
+          "formula": {
+            "name": "FUNCTION",
+            "span": {
+              "sheet": "test",
+              "text": "FUNCTION(,,)",
+              "from": 41,
+              "to": 53
+            },
+            "arguments": [
+              {
+                "span": {
+                  "sheet": "test",
+                  "text": "",
+                  "from": 50,
+                  "to": 50
+                },
+                "arguments": []
+              },
+              {
+                "span": {
+                  "sheet": "test",
+                  "text": "",
+                  "from": 51,
+                  "to": 51
+                },
+                "arguments": []
+              },
+              {
+                "span": {
+                  "sheet": "test",
+                  "text": "",
+                  "from": 52,
+                  "to": 52
+                },
+                "arguments": []
+              }
+            ]
+          }
+        },
+        {
+          "span": {
+            "sheet": "test",
+            "text": "[c] = A.FUNCTION(1, , 3)",
+            "from": 56,
+            "to": 80
+          },
+          "fields": [
+            {
+              "span": {
+                "sheet": "test",
+                "text": "[c]",
+                "from": 56,
+                "to": 59
+              },
+              "name": {
+                "span": {
+                  "sheet": "test",
+                  "text": "[c]",
+                  "from": 56,
+                  "to": 59
+                },
+                "text": "c"
+              },
+              "decorators": [],
+              "docs": []
+            }
+          ],
+          "formula": {
+            "name": "FUNCTION",
+            "span": {
+              "sheet": "test",
+              "text": "A.FUNCTION(1, , 3)",
+              "from": 62,
+              "to": 80
+            },
+            "arguments": [
+              {
+                "span": {
+                  "sheet": "test",
+                  "text": "A",
+                  "from": 62,
+                  "to": 63
+                },
+                "arguments": []
+              },
+              {
+                "span": {
+                  "sheet": "test",
+                  "text": "1",
+                  "from": 73,
+                  "to": 74
+                },
+                "arguments": []
+              },
+              {
+                "span": {
+                  "sheet": "test",
+                  "text": "",
+                  "from": 76,
+                  "to": 76
+                },
+                "arguments": []
+              },
+              {
+                "span": {
+                  "sheet": "test",
+                  "text": "3",
+                  "from": 78,
+                  "to": 79
+                },
+                "arguments": []
+              }
+            ]
+          }
+        },
+        {
+          "span": {
+            "sheet": "test",
+            "text": "[d] = A.FUNCTION(,,)",
+            "from": 83,
+            "to": 103
+          },
+          "fields": [
+            {
+              "span": {
+                "sheet": "test",
+                "text": "[d]",
+                "from": 83,
+                "to": 86
+              },
+              "name": {
+                "span": {
+                  "sheet": "test",
+                  "text": "[d]",
+                  "from": 83,
+                  "to": 86
+                },
+                "text": "d"
+              },
+              "decorators": [],
+              "docs": []
+            }
+          ],
+          "formula": {
+            "name": "FUNCTION",
+            "span": {
+              "sheet": "test",
+              "text": "A.FUNCTION(,,)",
+              "from": 89,
+              "to": 103
+            },
+            "arguments": [
+              {
+                "span": {
+                  "sheet": "test",
+                  "text": "A",
+                  "from": 89,
+                  "to": 90
+                },
+                "arguments": []
+              },
+              {
+                "span": {
+                  "sheet": "test",
+                  "text": "",
+                  "from": 100,
+                  "to": 100
+                },
+                "arguments": []
+              },
+              {
+                "span": {
+                  "sheet": "test",
+                  "text": "",
+                  "from": 101,
+                  "to": 101
+                },
+                "arguments": []
+              },
+              {
+                "span": {
+                  "sheet": "test",
+                  "text": "",
+                  "from": 102,
+                  "to": 102
+                },
+                "arguments": []
+              }
+            ]
+          }
+        }
+      ],
+      "decorators": [],
+      "docs": [],
+      "totals": []
+    }
+  ],
+  "pythons": [],
+  "errors": []
+}

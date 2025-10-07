@@ -16,7 +16,7 @@ import {
 import { useApiRequests } from '../../../hooks';
 import { createUniqueFileName } from '../../../services';
 import { isEntityNameInvalid, notAllowedSymbols } from '../../../utils';
-import { SelectFolderInput } from '../../SelectFolderInput';
+import { SelectResourceInput } from '../../SelectResourceInput';
 
 interface ResultedFile {
   file: File;
@@ -125,7 +125,7 @@ export function PreUploadFile({
   );
 
   const handleSelectFolder = useCallback(
-    (parentPath: string | null | undefined, bucket: string) => {
+    (bucket: string, parentPath: string | null | undefined) => {
       setPath(parentPath);
       setBucket(bucket);
     },
@@ -281,13 +281,13 @@ export function PreUploadFile({
       cancelButtonProps={{
         className: classNames(modalFooterButtonClasses, secondaryButtonClasses),
       }}
-      destroyOnClose={true}
+      destroyOnHidden={true}
       footer={null}
       open={isOpen}
       title={`Upload files`}
       onCancel={handleClose}
     >
-      <div className="flex flex-col gap-3 text-textPrimary">
+      <div className="flex flex-col gap-3 text-text-primary">
         <span>
           Max file size is 512 Mb.{' '}
           {allowedExtensions && allowedExtensions.length > 0
@@ -297,28 +297,28 @@ export function PreUploadFile({
         {errorMessages.length > 0
           ? errorMessages.map((message) => (
               <div
-                className="flex items-center p-3 gap-3 border border-strokeError rounded"
+                className="flex items-center p-3 gap-3 border border-stroke-error rounded-sm"
                 key={message}
               >
                 <Icon
-                  className="w-[24px] text-textError shrink-0"
+                  className="w-[24px] text-text-error shrink-0"
                   component={() => <ExclamationCircleIcon />}
                 />
-                <div className="text-textError whitespace-pre-wrap">
+                <div className="text-text-error whitespace-pre-wrap">
                   {message}
                 </div>
               </div>
             ))
           : null}
 
-        <SelectFolderInput
+        <SelectResourceInput
           bucket={bucket}
           path={path}
-          onSelectFolder={handleSelectFolder}
+          onSelect={handleSelectFolder}
         />
 
         <div className="flex flex-col gap-1">
-          <span className="text-xs text-textSecondary">Files</span>
+          <span className="text-xs text-text-secondary">Files</span>
           <div className="flex flex-col gap-3">
             {selectedFiles.map((file, index) => (
               <div className="flex gap-2 items-center relative" key={file.name}>
@@ -337,7 +337,7 @@ export function PreUploadFile({
                   onClick={() => handleRemoveFile(index)}
                 >
                   <Icon
-                    className="w-[24px] text-textSecondary hover:text-textAccentPrimary"
+                    className="w-[24px] text-text-secondary hover:text-text-accent-primary"
                     component={() => <TrashIcon />}
                   />
                 </button>
@@ -347,7 +347,7 @@ export function PreUploadFile({
         </div>
 
         <div className="flex items-center justify-between">
-          <label className="text-textAccentPrimary hover:underline hover:cursor-pointer">
+          <label className="text-text-accent-primary hover:underline hover:cursor-pointer">
             Add more files...
             <input
               accept={allowedExtensions?.join()}

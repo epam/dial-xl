@@ -5,7 +5,7 @@ type FetchOptions = {
   timeout?: number;
 };
 
-class HeadersMap {
+export class HeadersMap {
   private headers: Map<string, string>;
 
   constructor(headersString: string) {

@@ -34,6 +34,7 @@ export function getDropdownItem(props: MenuItemProps): MenuItem {
       <button
         className="group flex justify-between items-center py-1 px-3 w-full"
         data-label={label}
+        data-qa={key}
         disabled={disabled}
         onClick={(e) => {
           if (disabled) return;
@@ -47,7 +48,7 @@ export function getDropdownItem(props: MenuItemProps): MenuItem {
       >
         <div className="flex gap-2 items-center">
           {icon && <span className="size-[18px] leading-none">{icon}</span>}
-          <span className="!ml-0">{label}</span>
+          <span className="ml-0!">{label}</span>
         </div>
         <span className="hidden md:inline ml-5 text-xs text-gray-400 leading-none">
           {shortcut}
@@ -62,6 +63,7 @@ export function getDropdownItem(props: MenuItemProps): MenuItem {
           : {})}
         className="flex items-center py-1 px-3 gap-2 group size-full"
         data-label={label}
+        data-qa={key}
         disabled={disabled}
         onClick={(e) => {
           if (disabled) return;
@@ -83,6 +85,7 @@ export function getDropdownItem(props: MenuItemProps): MenuItem {
     <Tooltip
       className={classNames(disabled && 'hover:cursor-not-allowed')}
       title={tooltip}
+      destroyOnHidden
     >
       {buildLabel}
     </Tooltip>

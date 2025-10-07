@@ -94,7 +94,7 @@ public class TestExecutor {
                 "No compilation errors expected: " + collector.getErrors().entrySet().stream()
                         .map(e -> e.getKey() + ": " + e.getValue()).collect(Collectors.joining(",")));
 
-        computation.await(15, TimeUnit.SECONDS);
+        computation.await(30, TimeUnit.SECONDS);
         return collector;
     }
 

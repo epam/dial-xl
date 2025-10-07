@@ -59,7 +59,7 @@ class CalculateControllerTest {
 
         String events = response.getContentAsString();
         assertThat(events).isEqualTo("""
-                data:{"id":"test-id","compileResult":{"sheets":[{"name":"Test","parsingErrors":[]}],"compilationErrors":[],"fieldInfo":[{"fieldKey":{"table":"A","field":"a"},"type":"STRING","isNested":false,"hash":"30a675e677f073101dc1ce3e4ee078af784cb29cbcbf06e0ee5501bf873f4e33"}],"indices":[{"table":"A","field":"a"}]}}
+                data:{"id":"test-id","compileResult":{"sheets":[{"name":"Test","parsingErrors":[]}],"compilationErrors":[],"fieldInfo":[{"fieldKey":{"table":"A","field":"a"},"type":"STRING","isNested":false,"hash":"30a675e677f073101dc1ce3e4ee078af784cb29cbcbf06e0ee5501bf873f4e33","format":{"type":"FORMAT_TYPE_GENERAL","generalArgs":{}},"references":[]}],"indices":[{"table":"A","field":"a"}]}}
                 
                 data:{"id":"test-id","status":"SUCCEED","index":{"key":{"table":"A","field":"a"}}}
                 
@@ -93,7 +93,7 @@ class CalculateControllerTest {
 
         String events = response.getContentAsString();
         assertThat(events).isEqualTo("""
-                data:{"id":"test-id","compileResult":{"sheets":[{"name":"Test","parsingErrors":[]}],"compilationErrors":[],"fieldInfo":[{"fieldKey":{"table":"A","field":"a"},"type":"STRING","isNested":false,"hash":"30a675e677f073101dc1ce3e4ee078af784cb29cbcbf06e0ee5501bf873f4e33"}],"indices":[{"table":"A","field":"a"}]}}
+                data:{"id":"test-id","compileResult":{"sheets":[{"name":"Test","parsingErrors":[]}],"compilationErrors":[],"fieldInfo":[{"fieldKey":{"table":"A","field":"a"},"type":"STRING","isNested":false,"hash":"30a675e677f073101dc1ce3e4ee078af784cb29cbcbf06e0ee5501bf873f4e33","format":{"type":"FORMAT_TYPE_GENERAL","generalArgs":{}},"references":[]}],"indices":[{"table":"A","field":"a"}]}}
                 
                 data:{"id":"test-id","status":"SUCCEED","index":{"key":{"table":"A","field":"a"}}}
                 
@@ -127,7 +127,7 @@ class CalculateControllerTest {
 
         String events = response.getContentAsString();
         assertThat(events).isEqualTo("""
-                data:{"id":"test-id","compileResult":{"sheets":[{"name":"Test","parsingErrors":[]}],"compilationErrors":[{"fieldKey":{"table":"A","field":"a"},"message":"Unsupported compiled result CompiledSimpleColumn"}],"fieldInfo":[{"fieldKey":{"table":"A","field":"a"},"type":"DOUBLE","isNested":false,"hash":"ed49df5434e203f4bd06f432de76d675a4a94a5f3bc115b7a04344685cb0c1a4"}],"indices":[]}}
+                data:{"id":"test-id","compileResult":{"sheets":[{"name":"Test","parsingErrors":[]}],"compilationErrors":[{"fieldKey":{"table":"A","field":"a"},"message":"Unsupported compiled result CompiledSimpleColumn"}],"fieldInfo":[{"fieldKey":{"table":"A","field":"a"},"type":"DOUBLE","isNested":false,"hash":"ed49df5434e203f4bd06f432de76d675a4a94a5f3bc115b7a04344685cb0c1a4","format":{"type":"FORMAT_TYPE_GENERAL","generalArgs":{}},"references":[]}],"indices":[]}}
                 
                 data:[DONE]
                 

@@ -5,11 +5,11 @@ import { useCallback } from 'react';
 import {
   appMessages,
   dialProjectFileExtension,
-  FilesMetadata,
   MetadataNodeType,
   modalFooterButtonClasses,
   primaryButtonClasses,
   projectFoldersRootPrefix,
+  ResourceMetadata,
   secondaryButtonClasses,
 } from '@frontend/common';
 
@@ -21,7 +21,7 @@ export function useDashboardRevokeAccessResource() {
     useApiRequests();
 
   const getContent = useCallback(
-    (item: Pick<FilesMetadata, 'name' | 'bucket' | 'nodeType'>) => {
+    (item: Pick<ResourceMetadata, 'name' | 'bucket' | 'nodeType'>) => {
       const isProject = item.name.endsWith(dialProjectFileExtension);
       const fileName = isProject
         ? item.name.replace(dialProjectFileExtension, '')
@@ -36,21 +36,29 @@ export function useDashboardRevokeAccessResource() {
 
   const handleRevokeProject = useCallback(
     async (
-      item: Pick<FilesMetadata, 'name' | 'bucket' | 'nodeType' | 'parentPath'>
+      item: Pick<
+        ResourceMetadata,
+        'name' | 'bucket' | 'nodeType' | 'parentPath' | 'resourceType'
+      >
     ) => {
       return Promise.allSettled([
         revokeResourcesAccessRequest([
           {
             name: item.name,
             bucket: item.bucket,
-            path: item.parentPath,
+            parentPath: item.parentPath,
             nodeType: item.nodeType,
+            resourceType: item.resourceType,
           },
           {
             name: item.name.replaceAll(dialProjectFileExtension, ''),
             bucket: item.bucket,
-            path: constructPath([projectFoldersRootPrefix, item.parentPath]),
+            parentPath: constructPath([
+              projectFoldersRootPrefix,
+              item.parentPath,
+            ]),
             nodeType: MetadataNodeType.FOLDER,
+            resourceType: item.resourceType,
           },
         ]),
       ]);
@@ -60,7 +68,10 @@ export function useDashboardRevokeAccessResource() {
 
   const revokeResourceAccess = useCallback(
     (
-      item: Pick<FilesMetadata, 'name' | 'bucket' | 'nodeType' | 'parentPath'>,
+      item: Pick<
+        ResourceMetadata,
+        'name' | 'bucket' | 'nodeType' | 'parentPath' | 'resourceType'
+      >,
       onSuccess?: () => void
     ) => {
       Modal.confirm({
@@ -84,7 +95,8 @@ export function useDashboardRevokeAccessResource() {
               {
                 name: item.name,
                 bucket: item.bucket,
-                path: item.parentPath,
+                parentPath: item.parentPath,
+                resourceType: item.resourceType,
                 nodeType: item.nodeType,
               },
             ]);

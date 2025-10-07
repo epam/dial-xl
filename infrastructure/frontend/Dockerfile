@@ -1,6 +1,6 @@
-FROM nginx:stable-alpine3.17
+FROM nginx:stable-alpine3.21-perl
 
 COPY infrastructure/frontend/nginx /etc/nginx
-COPY frontend/dist/apps/quantgrid /frontend
+COPY frontend/dist /frontend
 
 # used ENTRYPOINT from base image

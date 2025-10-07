@@ -85,13 +85,17 @@ export class ParsedTable {
       []
     );
 
-    this.isPivot = this.fields.some(
-      (f) =>
-        f.expression &&
-        findFunctionExpressions(f.expression).some(
-          (func) => func.name === 'PIVOT'
-        )
-    );
+    try {
+      this.isPivot = this.fields.some(
+        (f) =>
+          f.expression &&
+          findFunctionExpressions(f.expression).some(
+            (func) => func.name === 'PIVOT'
+          )
+      );
+    } catch (e) {
+      this.isPivot = false;
+    }
   }
 
   public getPlacement(): [number, number] {

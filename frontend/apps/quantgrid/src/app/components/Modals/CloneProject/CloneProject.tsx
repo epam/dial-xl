@@ -1,0 +1,168 @@
+import { Input, InputRef, Modal } from 'antd';
+import cx from 'classnames';
+import {
+  ChangeEvent,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
+
+import {
+  dialProjectFileExtension,
+  inputClasses,
+  KeyboardCode,
+  MetadataNodeType,
+  modalFooterButtonClasses,
+  primaryButtonClasses,
+  primaryDisabledButtonClasses,
+  secondaryButtonClasses,
+  shouldStopPropagation,
+} from '@frontend/common';
+
+import { CloneModalRefFunction } from '../../../common';
+import { ProjectContext } from '../../../context';
+import { useApiRequests } from '../../../hooks';
+import { createUniqueFileName } from '../../../services';
+import { isEntityNameInvalid } from '../../../utils';
+
+type Props = {
+  cloneProjectModal: { current: CloneModalRefFunction | null };
+};
+
+export function CloneProject({ cloneProjectModal }: Props) {
+  const { projectName, cloneCurrentProject, projectPath, projectBucket } =
+    useContext(ProjectContext);
+  const { getFiles } = useApiRequests();
+
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [newProjectName, setNewProjectName] = useState('');
+  const inputRef = useRef<InputRef | null>(null);
+
+  const showModal = useCallback(() => {
+    setIsModalOpen(true);
+  }, []);
+
+  const handleOk = useCallback(() => {
+    setIsModalOpen(false);
+
+    if (newProjectName && projectName) {
+      cloneCurrentProject({
+        newName: newProjectName,
+        silent: true,
+      });
+    }
+
+    setNewProjectName('');
+  }, [newProjectName, projectName, cloneCurrentProject]);
+
+  const handleCancel = useCallback(() => {
+    setIsModalOpen(false);
+    setNewProjectName('');
+  }, []);
+
+  const onNameChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+    if (isEntityNameInvalid(event.target.value)) return;
+
+    setNewProjectName(event.target.value);
+  }, []);
+
+  const initModal = useCallback(
+    async (name: string) => {
+      const allFilesInDestination = await getFiles({
+        path: `${projectBucket}/${projectPath ? projectPath + '/' : ''}`,
+        suppressErrors: true,
+      });
+
+      const fileNamesInDestination = (allFilesInDestination ?? [])
+        .filter((f) => f.nodeType !== MetadataNodeType.FOLDER)
+        .map((file) => file.name);
+      const targetName = fileNamesInDestination.includes(
+        name + dialProjectFileExtension
+      )
+        ? createUniqueFileName(name, fileNamesInDestination)
+        : name;
+
+      showModal();
+      setNewProjectName(targetName);
+    },
+    [getFiles, projectPath, projectBucket, showModal]
+  );
+
+  const onKeydown = useCallback(
+    (event: KeyboardEvent) => {
+      if (!isModalOpen) return;
+      if (shouldStopPropagation(event)) {
+        event.stopPropagation();
+      }
+      if (
+        event.key === KeyboardCode.Enter &&
+        newProjectName &&
+        newProjectName !== projectName
+      ) {
+        handleOk();
+      }
+    },
+    [handleOk, isModalOpen, newProjectName, projectName]
+  );
+
+  useEffect(() => {
+    cloneProjectModal.current = initModal;
+  }, [initModal, cloneProjectModal]);
+
+  useEffect(() => {
+    setTimeout(() => {
+      if (!inputRef.current || !isModalOpen) return;
+
+      inputRef.current.focus({
+        cursor: 'end',
+      });
+      inputRef.current.select();
+    }, 0);
+  }, [isModalOpen]);
+
+  useEffect(() => {
+    window.addEventListener('keydown', onKeydown);
+
+    return () => {
+      window.removeEventListener('keydown', onKeydown);
+    };
+  }, [onKeydown]);
+
+  return (
+    <Modal
+      cancelButtonProps={{
+        className: cx(modalFooterButtonClasses, secondaryButtonClasses),
+      }}
+      destroyOnHidden={true}
+      okButtonProps={{
+        className: cx(
+          modalFooterButtonClasses,
+          primaryButtonClasses,
+          primaryDisabledButtonClasses
+        ),
+        disabled: !newProjectName || newProjectName === projectName,
+      }}
+      open={isModalOpen}
+      title="Clone Project"
+      onCancel={handleCancel}
+      onOk={handleOk}
+    >
+      <div className="flex flex-col gap-1 mt-4">
+        <label className="text-xs text-text-secondary" htmlFor="projectName">
+          Project name after cloning
+        </label>
+        <Input
+          className={cx('h-12 my-3', inputClasses)}
+          id="projectName"
+          placeholder="Project name"
+          ref={inputRef}
+          value={newProjectName}
+          autoFocus
+          onChange={onNameChange}
+        />
+      </div>
+    </Modal>
+  );
+}

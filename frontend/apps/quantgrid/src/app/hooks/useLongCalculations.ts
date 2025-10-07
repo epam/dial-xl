@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef } from 'react';
 
 import { useStateWithRef } from '@frontend/common';
 
-import { LongCalcStatus } from '../common';
+import { LongCalcStatus, LongCalcStatuses } from '../common';
 
 const longCalcTimeoutMs = 15000; // 15 seconds
 
@@ -13,7 +13,7 @@ interface PendingViewportReq {
 
 export function useLongCalculations() {
   const [longCalcStatus, setLongCalcStatus, longCalcStatusRef] =
-    useStateWithRef<LongCalcStatus>(LongCalcStatus.None);
+    useStateWithRef<LongCalcStatus>(LongCalcStatuses.None);
 
   // Store active viewport requests with their individual timers
   const pendingViewportReqs = useRef<PendingViewportReq[]>([]);
@@ -24,10 +24,10 @@ export function useLongCalculations() {
     (controller: AbortController) => {
       const timer = setTimeout(() => {
         if (
-          longCalcStatusRef.current === LongCalcStatus.None ||
-          longCalcStatusRef.current === LongCalcStatus.Cancelled
+          longCalcStatusRef.current === LongCalcStatuses.None ||
+          longCalcStatusRef.current === LongCalcStatuses.Cancelled
         ) {
-          setLongCalcStatus(LongCalcStatus.NeedAccept);
+          setLongCalcStatus(LongCalcStatuses.NeedAccept);
         }
       }, longCalcTimeoutMs);
 
@@ -51,10 +51,10 @@ export function useLongCalculations() {
 
         if (
           pendingViewportReqs.current.length === 0 &&
-          (currentStatus === LongCalcStatus.NeedAccept ||
-            currentStatus === LongCalcStatus.Accepted)
+          (currentStatus === LongCalcStatuses.NeedAccept ||
+            currentStatus === LongCalcStatuses.Accepted)
         ) {
-          setLongCalcStatus(LongCalcStatus.None);
+          setLongCalcStatus(LongCalcStatuses.None);
         }
       }
     },
@@ -95,8 +95,8 @@ export function useLongCalculations() {
           pendingViewportReqs.current = [];
           viewportRequestControllers.current = [];
 
-          if (longCalcStatusRef.current === LongCalcStatus.NeedAccept) {
-            setLongCalcStatus(LongCalcStatus.None);
+          if (longCalcStatusRef.current === LongCalcStatuses.NeedAccept) {
+            setLongCalcStatus(LongCalcStatuses.None);
           }
           break;
       }
@@ -114,12 +114,12 @@ export function useLongCalculations() {
   }, [manageRequestLifecycle]);
 
   useEffect(() => {
-    if (longCalcStatus === LongCalcStatus.Cancelled) {
+    if (longCalcStatus === LongCalcStatuses.Cancelled) {
       pendingViewportReqs.current.forEach((req) => {
         clearTimeout(req.timer);
       });
 
-      setLongCalcStatus(LongCalcStatus.None);
+      setLongCalcStatus(LongCalcStatuses.None);
     }
   }, [longCalcStatus, setLongCalcStatus]);
 

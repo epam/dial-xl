@@ -9,18 +9,20 @@ import {
   CSVFileIcon,
   dialProjectFileExtension,
   FileIcon,
-  FilesMetadata,
   FolderIcon,
   getDropdownItem,
   HomeIcon,
   inputClasses,
   MetadataNodeType,
+  MetadataResourceType,
   modalFooterButtonClasses,
   primaryButtonClasses,
   primaryDisabledButtonClasses,
   publicBucket,
   QGLogo,
+  ResourceMetadata,
   secondaryButtonClasses,
+  SharedWithMeMetadata,
 } from '@frontend/common';
 
 import { ApiContext } from '../../../context';
@@ -28,7 +30,10 @@ import { useApiRequests } from '../../../hooks';
 import { Breadcrumb } from '../../../types/breadcrumbs';
 import { Breadcrumbs } from '../../Breadcrumbs/Breadcrumbs';
 
-type FolderOrFile = Pick<FilesMetadata, 'name' | 'parentPath' | 'nodeType'> & {
+type FolderOrFile = Pick<
+  ResourceMetadata,
+  'name' | 'parentPath' | 'nodeType'
+> & {
   bucket: string | undefined;
 };
 
@@ -63,7 +68,7 @@ export function SelectFile({
   onCancel,
 }: Props) {
   const { userBucket } = useContext(ApiContext);
-  const { getFiles, getSharedWithMeFiles } = useApiRequests();
+  const { getFiles, getSharedWithMeResources } = useApiRequests();
 
   const [isOpen, setIsOpen] = useState(true);
 
@@ -90,7 +95,7 @@ export function SelectFile({
   const handleGetItems = useCallback(async () => {
     setIsLoading(true);
 
-    let files: FilesMetadata[];
+    let files: (ResourceMetadata | SharedWithMeMetadata)[];
     if (currentBucket) {
       files =
         (await getFiles({
@@ -98,7 +103,10 @@ export function SelectFile({
           suppressErrors: true,
         })) ?? [];
     } else {
-      files = (await getSharedWithMeFiles()) ?? [];
+      files =
+        (await getSharedWithMeResources({
+          resourceType: MetadataResourceType.FILE,
+        })) ?? [];
     }
 
     setIsLoading(false);
@@ -134,7 +142,7 @@ export function SelectFile({
     currentBucket,
     getFiles,
     currentPath,
-    getSharedWithMeFiles,
+    getSharedWithMeResources,
     fileExtensions,
   ]);
 
@@ -182,7 +190,7 @@ export function SelectFile({
         {
           name:
             currentBucket === userBucket
-              ? 'Home'
+              ? 'My Files'
               : currentBucket === publicBucket
               ? 'Public'
               : 'Shared with me',
@@ -190,11 +198,11 @@ export function SelectFile({
           icon: <HomeIcon />,
           dropdownItems: [
             getDropdownItem({
-              key: 'Home',
-              label: 'Home',
+              key: 'MyFiles',
+              label: 'My Files',
               onClick: () => {
                 handleSelectBreadcrumb({
-                  name: 'Home',
+                  name: 'My Files',
                   path: null,
                   bucket: userBucket,
                 });
@@ -239,7 +247,7 @@ export function SelectFile({
 
   useEffect(() => {
     handleGetItems();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // below triggers, not dependencies
   }, [currentPath, handleGetItems]);
 
   useEffect(() => {
@@ -265,7 +273,7 @@ export function SelectFile({
     if (isCSV) {
       return (
         <Icon
-          className="text-textAccentSecondary"
+          className="text-text-accent-secondary"
           component={() => <CSVFileIcon />}
         ></Icon>
       );
@@ -283,14 +291,14 @@ export function SelectFile({
       cancelButtonProps={{
         className: classNames(modalFooterButtonClasses, secondaryButtonClasses),
       }}
-      destroyOnClose={true}
+      destroyOnHidden={true}
       footer={null}
       open={isOpen}
       title={modalTitle}
       onCancel={handleClose}
     >
       <div className="flex flex-col gap-3 min-h-[400px] max-h-[70dvh] justify-between overflow-hidden">
-        <div className="flex flex-col gap-2 flex-grow overflow-hidden">
+        <div className="flex flex-col gap-2 grow overflow-hidden">
           <div>
             <Input
               className={classNames('h-[38px]', inputClasses)}
@@ -307,27 +315,27 @@ export function SelectFile({
             onSelectBreadcrumb={handleSelectBreadcrumb}
           />
 
-          <div className="flex flex-col flex-grow overflow-auto thin-scrollbar">
+          <div className="flex flex-col grow overflow-auto thin-scrollbar">
             {isLoading ? (
-              <div className="size-full flex flex-grow items-center justify-center">
+              <div className="size-full flex grow items-center justify-center">
                 <Spin className="z-50" size="large"></Spin>
               </div>
             ) : (
               displayedItems.map((item) => (
                 <div
                   className={classNames(
-                    'flex items-center gap-2 py-1.5 px-3 h-[30px] hover:bg-bgAccentPrimaryAlpha rounded cursor-pointer border-l-2 border-transparent select-none',
+                    'flex items-center gap-2 py-1.5 px-3 h-[30px] hover:bg-bg-accent-primary-alpha rounded-sm cursor-pointer border-l-2 border-transparent select-none',
                     selectedItem?.name === item.name &&
                       selectedItem.parentPath === item.parentPath &&
                       selectedItem.parentPath === item.parentPath &&
-                      'border-l-strokeAccentPrimary bg-bgAccentPrimaryAlpha'
+                      'border-l-stroke-accent-primary bg-bg-accent-primary-alpha'
                   )}
                   key={item.parentPath + item.name}
                   onClick={() => setSelectedItem(item)}
                   onDoubleClick={() => handleNavigateToFolder(item)}
                 >
                   <Icon
-                    className="w-[18px] text-textSecondary shrink-0 hover:text-textAccentPrimary"
+                    className="w-[18px] text-text-secondary shrink-0 hover:text-text-accent-primary"
                     component={() => getItemIcon(item)}
                   />
                   {item.name}
@@ -337,7 +345,7 @@ export function SelectFile({
           </div>
         </div>
 
-        <div className="flex items-center justify-between pt-5 border-t border-strokePrimary">
+        <div className="flex items-center justify-between pt-5 border-t border-stroke-primary">
           <Button
             className={classNames(
               primaryButtonClasses,

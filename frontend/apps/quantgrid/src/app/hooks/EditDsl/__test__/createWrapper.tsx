@@ -1,13 +1,16 @@
+import clone from 'clone';
 import React, {
   createContext,
   createRef,
   PropsWithChildren,
+  useMemo,
   useState,
 } from 'react';
 
 import { GridApi } from '@frontend/canvas-spreadsheet';
 import { WorksheetState } from '@frontend/common';
-import { SheetReader } from '@frontend/parser';
+import { ParsedSheet, ParsedSheets, SheetReader } from '@frontend/parser';
+import { jest } from '@jest/globals';
 
 import {
   ApiContext,
@@ -20,173 +23,270 @@ import {
 } from '../../../context';
 import { TestWrapperProps } from './types';
 
+export const initialProps: TestWrapperProps = {
+  appendToFn: jest.fn(),
+  manuallyUpdateSheetContent: jest.fn(() => Promise.resolve(true)),
+  projectName: 'project1',
+  sheetName: 'sheet1',
+  __initialDsl: '',
+};
+
 export const DslContext = createContext<{
   dsl: string;
   setDsl: (dsl: string) => void;
 } | null>(null);
 
+const dslParseCache = new Map<string, ParsedSheet | null>();
+const sheetContentParseCache = new Map<string, ParsedSheet | null>();
+
+function getParsedForDsl(content: string): ParsedSheet | null {
+  if (!dslParseCache.has(content)) {
+    const parsed = SheetReader.parseSheet(content);
+    dslParseCache.set(content, parsed);
+  }
+  const cached = dslParseCache.get(content);
+
+  return cached ? clone(cached) : null;
+}
+
+function getParsedForSheet(name: string, content: string): ParsedSheet | null {
+  const key = `${name}::${content}`;
+  if (!sheetContentParseCache.has(key)) {
+    const parsed = SheetReader.parseSheet(content);
+    sheetContentParseCache.set(key, parsed);
+  }
+  const cached = sheetContentParseCache.get(key);
+
+  return cached ? clone(cached) : null;
+}
+
 export function createWrapper({
   appendToFn = () => {},
-  updateSheetContent = () => new Promise((): boolean => false),
-  manuallyUpdateSheetContent = () => new Promise((): boolean => false),
-  parsedSheet = null,
-  parsedSheets = {},
+  updateSheetContent = () => Promise.resolve(false),
+  manuallyUpdateSheetContent = () => Promise.resolve(false),
+  parsedSheet: parsedSheetProp = null,
+  parsedSheets: parsedSheetsProp = {},
   projectName = '',
   sheetName = '',
   projectSheets = [],
   gridApi = null,
   viewGridData = new ViewGridData(),
+  __initialDsl = '',
 }: TestWrapperProps) {
   return ({ children }: PropsWithChildren<unknown>) => {
-    const [dsl, setDsl] = useState('');
-    const updatedProjectSheets: WorksheetState[] = [...projectSheets];
+    const [dsl, setDsl] = useState(__initialDsl);
 
-    if (projectSheets.length > 0) {
-      for (let i = 0; i < projectSheets.length; i++) {
-        const sheet = projectSheets[i];
-        parsedSheets[sheet.sheetName] = SheetReader.parseSheet(sheet.content);
-
-        if (
-          !updatedProjectSheets.find((ws) => ws.sheetName === sheet.sheetName)
-        ) {
-          updatedProjectSheets.push(sheet);
-        }
+    const stableProjectSheets = useMemo<WorksheetState[]>(() => {
+      if (projectSheets.length > 0) return projectSheets;
+      if (sheetName && projectName) {
+        return [{ sheetName, projectName, content: dsl }];
       }
-    } else if (sheetName && projectName) {
-      parsedSheets[sheetName] = SheetReader.parseSheet(dsl);
-      parsedSheet = parsedSheets[sheetName];
-      const worksheetState: WorksheetState = {
-        sheetName: sheetName,
-        projectName: projectName,
-        content: dsl,
-      };
-      updatedProjectSheets.push(worksheetState);
-    }
 
-    const mockGridApiRef = createRef<GridApi>();
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore
-    mockGridApiRef.current = gridApi;
+      return [];
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [projectSheets, sheetName, projectName, dsl]);
+
+    const { parsedSheet, parsedSheets } = useMemo(
+      (): {
+        parsedSheet: ParsedSheet | null;
+        parsedSheets: ParsedSheets;
+      } => {
+        if (projectSheets.length > 0 && stableProjectSheets.length > 0) {
+          const nextParsed: ParsedSheets = { ...parsedSheetsProp };
+          for (const sheet of stableProjectSheets) {
+            const parsed = getParsedForSheet(sheet.sheetName, sheet.content);
+            if (parsed) {
+              nextParsed[sheet.sheetName] = parsed;
+            }
+          }
+
+          return { parsedSheet: parsedSheetProp, parsedSheets: nextParsed };
+        }
+
+        if (sheetName && projectName) {
+          const content = dsl ?? '';
+          const parsed = getParsedForDsl(content);
+
+          return {
+            parsedSheet: parsed,
+            parsedSheets: parsed
+              ? { ...parsedSheetsProp, [sheetName]: parsed }
+              : { ...parsedSheetsProp },
+          };
+        }
+
+        return {
+          parsedSheet: parsedSheetProp,
+          parsedSheets: { ...parsedSheetsProp },
+        };
+      }, // eslint-disable-next-line react-hooks/exhaustive-deps
+      [
+        dsl,
+        projectName,
+        sheetName,
+        projectSheets.length,
+        stableProjectSheets,
+        parsedSheetProp,
+        parsedSheetsProp,
+      ]
+    );
+
+    // Keep refs & contexts fresh — include deps!
+    const mockGridApiRef = useMemo(() => {
+      const ref = createRef<GridApi>();
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore
+      ref.current = gridApi;
+
+      return ref;
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [gridApi]);
+
+    const dslCtx = useMemo(() => ({ dsl, setDsl }), [dsl]);
+
+    const apiCtx = useMemo(
+      () => ({ userBucket: 'SomeBucket', userRoles: [], isAdmin: false }),
+      []
+    );
+
+    const viewportCtx = useMemo(
+      () => ({
+        viewGridData,
+        clearTablesData: () => {},
+        onColumnDataResponse: () => {},
+        onProfileResponse: () => {},
+        onIndexResponse: () => {},
+      }),
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      [viewGridData]
+    );
+
+    const projectCtx = useMemo(
+      () => ({
+        projectName,
+        projectSheets: stableProjectSheets,
+        projectVersion: '',
+        projectBucket: '',
+        projectPath: '',
+        projectPermissions: [],
+        projectAuthor: '',
+        isProjectEditable: true,
+        isProjectShareable: true,
+        hasEditPermissions: true,
+
+        isProjectChangedOnServerByUser: false,
+        projects: [],
+
+        sheetName,
+        sheetContent: dsl,
+
+        sheetErrors: [],
+        compilationErrors: [],
+        runtimeErrors: [],
+        indexErrors: [],
+
+        parsedSheet,
+        parsedSheets,
+
+        selectedCell: null,
+
+        functions: [],
+        forkedProject: null,
+
+        beforeTemporaryState: null,
+        startTemporaryState: () => {},
+        isProjectReadonlyByUser: false,
+        setIsProjectReadonlyByUser: () => {},
+        resolveTemporaryState: () => {},
+        setIsTemporaryStateEditable: () => {},
+        diffData: null,
+        setDiffData: () => {},
+        isProjectEditingDisabled: false,
+        setIsProjectEditingDisabled: () => {},
+
+        isConflictResolving: false,
+        initConflictResolving: () => {},
+        resolveConflictUsingLocalChanges: () => {},
+        resolveConflictUsingServerChanges: () => {},
+
+        fieldInfos: [],
+        responseIds: [],
+
+        openProject: () => {},
+        closeCurrentProject: () => {},
+        createProject: () => {},
+        deleteProject: () => {},
+        deleteCurrentProject: () => {},
+        renameCurrentProject: () => {},
+        cloneCurrentProject: () => ({} as Promise<void>),
+
+        acceptShareProject: () => {},
+        acceptShareFiles: () => {},
+        shareResources: () => {},
+
+        openSheet: () => {},
+        createSheet: () => {},
+        renameSheet: () => {},
+        deleteSheet: () => {},
+
+        updateSheetContent,
+        manuallyUpdateSheetContent,
+
+        openStatusModal: () => {},
+        updateSelectedCell: () => {},
+
+        getFunctions: () => {},
+        getCurrentProjectViewport: () => {},
+        getVirtualProjectViewport: () => {},
+        getProjects: () => {},
+        longCalcStatus: null,
+        setLongCalcStatus: () => {},
+      }),
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      [
+        projectName,
+        stableProjectSheets,
+        sheetName,
+        dsl,
+        parsedSheet,
+        parsedSheets,
+        updateSheetContent,
+        manuallyUpdateSheetContent,
+      ]
+    );
+
+    const undoCtx = useMemo(
+      () => ({
+        appendTo: appendToFn,
+        undo: () => {},
+        history: [],
+        redo: () => {},
+        revertedIndex: null,
+        clear: () => {},
+      }),
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      [appendToFn]
+    );
+
+    const appSpreadsheetInteractionCtx = useMemo(
+      () => ({
+        openField: () => {},
+        openTable: () => {},
+        openCellEditor: () => {},
+        autoCleanUpTable: () => {},
+      }),
+      []
+    );
 
     return (
-      <DslContext.Provider value={{ dsl, setDsl }}>
-        <ApiContext.Provider
-          value={{
-            userBucket: 'SomeBucket',
-            userRoles: [],
-            isAdmin: false,
-          }}
-        >
-          <ViewportContext.Provider
-            value={{
-              viewGridData,
-              clearTablesData: () => {},
-              onColumnDataResponse: () => {},
-              onProfileResponse: () => {},
-              onIndexResponse: () => {},
-            }}
-          >
-            <ProjectContext.Provider
-              value={{
-                projectName,
-                projectSheets: updatedProjectSheets,
-                projectVersion: '',
-                projectBucket: '',
-                projectPath: '',
-                projectPermissions: [],
-                isProjectEditable: true,
-                isProjectShareable: true,
-                hasEditPermissions: true,
-
-                isProjectChangedOnServerByUser: false,
-
-                projects: [],
-
-                sheetName,
-                sheetContent: dsl,
-                sheetErrors: [],
-                compilationErrors: [],
-                runtimeErrors: [],
-                indexErrors: [],
-
-                parsedSheet,
-                parsedSheets,
-
-                selectedCell: null,
-
-                functions: [],
-
-                forkedProject: null,
-
-                beforeTemporaryState: null,
-                startTemporaryState: () => {},
-                isProjectReadonlyByUser: false,
-                setIsProjectReadonlyByUser: () => {},
-                resolveTemporaryState: () => {},
-                setIsTemporaryStateEditable: () => {},
-                diffData: null,
-                setDiffData: () => {},
-                isProjectEditingDisabled: false,
-                setIsProjectEditingDisabled: () => {},
-
-                isConflictResolving: false,
-                initConflictResolving: () => {},
-                resolveConflictUsingLocalChanges: () => {},
-                resolveConflictUsingServerChanges: () => {},
-
-                fieldInfos: [],
-                responseIds: [],
-
-                openProject: () => {},
-                closeCurrentProject: () => {},
-                createProject: () => {},
-                deleteProject: () => {},
-                deleteCurrentProject: () => {},
-                renameCurrentProject: () => {},
-                cloneCurrentProject: () => ({} as Promise<void>),
-
-                acceptShareProject: () => {},
-                acceptShareFiles: () => {},
-                shareResources: () => {},
-
-                openSheet: () => {},
-                createSheet: () => {},
-                renameSheet: () => {},
-                deleteSheet: () => {},
-
-                updateSheetContent,
-                manuallyUpdateSheetContent,
-
-                openStatusModal: () => {},
-
-                updateSelectedCell: () => {},
-
-                getFunctions: () => {},
-                getCurrentProjectViewport: () => {},
-                getVirtualProjectViewport: () => {},
-                getProjects: () => {},
-                longCalcStatus: null,
-                setLongCalcStatus: () => {},
-              }}
-            >
-              <UndoRedoContext.Provider
-                value={{
-                  appendTo: appendToFn,
-                  undo: () => {},
-                  history: [],
-                  redo: () => {},
-                  revertedIndex: null,
-                  clear: () => {},
-                }}
-              >
+      <DslContext.Provider value={dslCtx}>
+        <ApiContext.Provider value={apiCtx}>
+          <ViewportContext.Provider value={viewportCtx}>
+            <ProjectContext.Provider value={projectCtx}>
+              <UndoRedoContext.Provider value={undoCtx}>
                 <CanvasSpreadsheetContext.Provider value={mockGridApiRef}>
                   <AppSpreadsheetInteractionContext.Provider
-                    value={{
-                      openField: () => {},
-                      openTable: () => {},
-                      openCellEditor: () => {},
-                      autoCleanUpTable: () => {},
-                    }}
+                    value={appSpreadsheetInteractionCtx}
                   >
                     {children}
                   </AppSpreadsheetInteractionContext.Provider>

@@ -1,9 +1,9 @@
 import {
   conversationsEndpointType,
   dialProjectFileExtension,
-  FilesMetadata,
   MetadataNodeType,
   MetadataResourceType,
+  ResourceMetadata,
 } from '@frontend/common';
 
 export const notAllowedSymbols = ':;,=/{}%&"';
@@ -52,7 +52,7 @@ export const convertUrlToMetadata = (
   url: string
 ):
   | Pick<
-      FilesMetadata,
+      ResourceMetadata,
       'bucket' | 'name' | 'resourceType' | 'nodeType' | 'parentPath' | 'url'
     >
   | undefined => {
@@ -64,7 +64,7 @@ export const convertUrlToMetadata = (
 
   if (!name || !bucket || !resourceType) return;
 
-  const resultingType: FilesMetadata['resourceType'] =
+  const resultingType: ResourceMetadata['resourceType'] =
     resourceType === conversationsEndpointType
       ? MetadataResourceType.CONVERSATION
       : MetadataResourceType.FILE;
@@ -82,7 +82,7 @@ export const convertUrlToMetadata = (
 };
 
 export const isProjectMetadata = (
-  meta: Pick<FilesMetadata, 'resourceType' | 'nodeType' | 'name'>
+  meta: Pick<ResourceMetadata, 'resourceType' | 'nodeType' | 'name'>
 ) => {
   return (
     meta.resourceType === MetadataResourceType.FILE &&

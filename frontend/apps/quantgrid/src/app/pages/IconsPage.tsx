@@ -9,7 +9,7 @@ import * as Icons from '../../../../../libs/common/src/lib/icons';
 
 export function IconsPage() {
   const [iconClassname, setIconClassname] = useState(
-    'size-10 border rounded text-textAccentPrimary'
+    'size-10 border rounded-sm text-text-accent-primary'
   );
   const [iconProps, setIconProps] = useState<QGIconProps>({
     secondaryAccentCssVar: 'text-accent-secondary',

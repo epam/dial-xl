@@ -1,5 +1,6 @@
 export * from './assistant';
 export * from './chart';
+export * from './color';
 export * from './currencies';
 export * from './featureFlags';
 export * from './formatBytes';
@@ -8,6 +9,5 @@ export * from './formulaMenuItems';
 export * from './getDropdownItem';
 export * from './getSizeDropdownItem';
 export * from './hashCode';
-export * from './hiddenCellsUtils';
 export * from './formatNumberGeneral';
 export * from './assistant-stages';

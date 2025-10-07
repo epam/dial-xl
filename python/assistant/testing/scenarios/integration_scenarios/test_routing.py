@@ -54,3 +54,13 @@ async def test_general_route(basic_project: FrameProject):
     general_queries = ["What does this bot do?", "How to use this bot?"]
     result = await _run_routing_check(basic_project, "General", general_queries)
     assert result
+
+
+async def test_history_routing(basic_project: FrameProject):
+    query = await basic_project.query("Create a table with numbers from 1 to 10.")
+    basic_project.apply(query)
+
+    action_queries = ["Try again", "What about table from 10 to 20?"]
+
+    result = await _run_routing_check(basic_project, "Actions", action_queries)
+    assert result

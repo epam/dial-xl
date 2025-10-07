@@ -1,3 +1,5 @@
+import enum
+
 from dial_xl.compile import PrimitiveFieldType, TableFieldType
 from dial_xl.field import FieldType
 from dial_xl.table import Table as XLTable
@@ -6,6 +8,14 @@ from quantgrid.configuration import LOGGER
 from quantgrid.exceptions import DIALXLLibraryError
 from quantgrid.python.misc.unknown_table import UnknownTable
 from quantgrid.python.runtime.types import Array, Bool, Date, Number, RowRef, Str, Type
+
+
+class FieldTypes(enum.StrEnum):
+    DOUBLE = "DOUBLE"
+    INTEGER = "INTEGER"
+    BOOLEAN = "BOOLEAN"
+    DATE = "DATE"
+    STRING = "STRING"
 
 
 def resolve_type(
@@ -17,15 +27,15 @@ def resolve_type(
     python_type: str
     if isinstance(field_type, PrimitiveFieldType):
         match field_type.name:
-            case "DOUBLE":
+            case FieldTypes.DOUBLE:
                 python_type = Number.__name__
-            case "INTEGER":
+            case FieldTypes.INTEGER:
                 python_type = Number.__name__
-            case "BOOLEAN":
+            case FieldTypes.BOOLEAN:
                 python_type = Bool.__name__
-            case "DATE":
+            case FieldTypes.DATE:
                 python_type = Date.__name__
-            case "STRING":
+            case FieldTypes.STRING:
                 python_type = Str.__name__
             case _:
                 python_type = Type.__name__

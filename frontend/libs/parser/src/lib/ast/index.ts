@@ -9,6 +9,7 @@ export * from './Expression';
 export * from './FieldReferenceExpression';
 export * from './FieldsReferenceExpression';
 export * from './FunctionExpression';
+export * from './Missing';
 export * from './QueryRowExpression';
 export * from './RowReferenceExpression';
 export * from './TableReferenceExpression';

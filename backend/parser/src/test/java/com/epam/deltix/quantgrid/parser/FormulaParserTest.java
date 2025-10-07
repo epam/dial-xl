@@ -254,7 +254,7 @@ class FormulaParserTest {
         ParsedFormula parsedFormula = SheetReader.parseFormula("Table1.SUM");
         Assertions.assertEquals(
                 parsedFormula.errors(),
-                List.of(new ParsingError(1, 11, "mismatched input '<EOF>' expecting '('"))
+                List.of(new ParsingError(1, 11, "no viable alternative at input '.SUM'"))
         );
     }
 
@@ -263,7 +263,7 @@ class FormulaParserTest {
         ParsedFormula parsedFormula = SheetReader.parseFormula("Table1.Table2");
         Assertions.assertEquals(
                 parsedFormula.errors(),
-                List.of(new ParsingError(1, 14, "mismatched input '<EOF>' expecting '('"))
+                List.of(new ParsingError(1, 14, "no viable alternative at input '.Table2'"))
         );
     }
 

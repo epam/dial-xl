@@ -161,9 +161,9 @@ export function ProjectTree() {
           <span
             className={classNames(
               'truncate flex justify-between group items-center',
-              sheetName === name && '!text-textAccentPrimary',
+              sheetName === name && 'text-text-accent-primary!',
               {
-                'text-textSecondary opacity-50': !diffSheets[name],
+                'text-text-secondary opacity-50': !diffSheets[name],
               }
             )}
             id={key}
@@ -174,7 +174,7 @@ export function ProjectTree() {
         ),
         icon: (
           <Icon
-            className="text-textSecondary w-[18px]"
+            className="text-text-secondary w-[18px]"
             component={() => <FileIcon />}
           />
         ),
@@ -200,8 +200,9 @@ export function ProjectTree() {
                 className={classNames(
                   'truncate flex justify-between group items-center',
                   {
-                    'text-textAccentTertiary': tableHighlight === 'HIGHLIGHTED',
-                    'text-textSecondary opacity-50':
+                    'text-text-accent-tertiary':
+                      tableHighlight === 'HIGHLIGHTED',
+                    'text-text-secondary opacity-50':
                       tableHighlight === 'DIMMED',
                   }
                 )}
@@ -209,9 +210,9 @@ export function ProjectTree() {
                 title={t.tableName}
               >
                 <span className="truncate">{t.tableName}</span>
-                <div className="text-textSecondary hidden group-hover:block">
+                <div className="text-text-secondary hidden group-hover:block">
                   <Icon
-                    className="w-[18px] text-textSecondary mr-1"
+                    className="w-[18px] text-text-secondary mr-1"
                     component={() => <DragIcon />}
                   />
                   Drag
@@ -221,7 +222,7 @@ export function ProjectTree() {
             className: classNames(isPointClickMode && 'point-click'),
             icon: (
               <Icon
-                className={cx('text-textSecondary w-[18px]', {
+                className={cx('text-text-secondary w-[18px]', {
                   'opacity-50': tableHighlight === 'DIMMED',
                 })}
                 component={() =>
@@ -257,7 +258,7 @@ export function ProjectTree() {
                       className={classNames(
                         'truncate flex justify-between group items-center',
                         {
-                          'text-textSecondary opacity-50':
+                          'text-text-secondary opacity-50':
                             fieldHighlight === 'DIMMED',
                         }
                       )}
@@ -271,9 +272,9 @@ export function ProjectTree() {
                   icon: (
                     <Icon
                       className={cx('size-[18px]', {
-                        'text-textAccentTertiary':
+                        'text-text-accent-tertiary':
                           fieldHighlight === 'HIGHLIGHTED',
-                        'text-textSecondary opacity-50':
+                        'text-text-secondary opacity-50':
                           fieldHighlight === 'DIMMED',
                       })}
                       component={() =>
@@ -520,7 +521,7 @@ export function ProjectTree() {
 
   return (
     <div
-      className="overflow-auto thin-scrollbar w-full h-full bg-bgLayer3"
+      className="overflow-auto thin-scrollbar w-full h-full bg-bg-layer-3"
       id={projectTreeId}
     >
       <div className="min-w-[200px] pr-2 relative">
@@ -531,7 +532,7 @@ export function ProjectTree() {
           <div>
             <Tree.DirectoryTree
               allowDrop={handleNodeDropAllowed}
-              className="bg-bgLayer3 text-textPrimary"
+              className="bg-bg-layer-3 text-text-primary"
               draggable={{ icon: false, nodeDraggable: handleIsNodeDraggable }}
               expandAction={false}
               expandedKeys={expandedKeys}
@@ -542,7 +543,7 @@ export function ProjectTree() {
               selectedKeys={selectedKeys}
               switcherIcon={
                 <Icon
-                  className="text-textSecondary pointer-events-none w-2"
+                  className="text-text-secondary pointer-events-none w-2"
                   component={() => <DownOutlinedIcon />}
                 />
               }

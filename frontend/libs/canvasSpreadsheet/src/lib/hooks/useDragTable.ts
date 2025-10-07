@@ -1,9 +1,7 @@
 import { useCallback, useContext, useEffect, useRef } from 'react';
 
-import { GridCell } from '@frontend/common';
-
 import { GridStateContext, GridViewportContext } from '../context';
-import { Coordinates } from '../types';
+import { Coordinates, GridCell } from '../types';
 import {
   getMousePosition,
   isClickInsideCanvas,

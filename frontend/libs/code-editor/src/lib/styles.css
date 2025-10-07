@@ -1,0 +1,135 @@
+.monaco-editor .suggest-widget {
+  min-height: 25px;
+}
+
+.monaco-editor .parameter-hints-widget {
+  z-index: 501;
+}
+
+.monaco-editor .suggest-widget {
+  z-index: 502;
+}
+
+.monaco-editor .rendered-markdown strong {
+  color: var(--color-text-secondary);
+  font-weight: 600;
+}
+
+.suggest-widget .monaco-action-bar.left a {
+  display: none;
+}
+
+.arrow-background {
+  background-color: var(--color-bg-layer-3);
+}
+
+/* Function description widget */
+.overflowingOverlayWidgets .suggest-details-container {
+  min-height: max-content;
+}
+
+.overflowingOverlayWidgets .suggest-details {
+  min-height: calc(100% + 16px);
+}
+
+.overflowingOverlayWidgets .suggest-details .body {
+  background-color: var(--color-bg-accent-primary-alpha-2);
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+.overflowingOverlayWidgets .suggest-details .body .header {
+  color: var(--color-text-primary) !important;
+}
+
+.overflowingOverlayWidgets .suggest-details .body .docs {
+  background-color: var(--color-bg-layer-0);
+  padding-left: 4px !important;
+  padding-right: 4px !important;
+}
+
+/* Parameter hints widget */
+.parameter-hints-widget .body {
+  background-color: var(--color-bg-accent-primary-alpha-2);
+  padding-left: 4px;
+  padding-bottom: 4px;
+}
+
+.parameter-hints-widget .body .docs {
+  padding-left: 0;
+  padding-right: 4px;
+}
+
+.parameter-hints-widget .body .docs > * {
+  background-color: var(--color-bg-layer-0);
+  padding-left: 8px;
+  padding-right: 8px;
+  margin: 0;
+  padding-top: 1px;
+  padding-bottom: 1px;
+}
+
+.parameter-hints-widget .body .docs > :not(:first-child) {
+  border-top: 1px solid var(--color-stroke-primary);
+}
+
+/* Generated hint styles */
+.generated-suggest-hint {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.generated-suggest-hint .hint {
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  display: inline-block;
+  border-radius: 5px;
+}
+
+.generated-suggest-hint .formulas-trigger {
+  color: var(--color-text-accent-primary);
+  font-weight: 600;
+  display: inline-block;
+  font-size: 11px;
+}
+
+/* Suggest status bar overrides */
+.monaco-editor
+  .suggest-widget.with-status-bar
+  .suggest-status-bar
+  .monaco-action-bar.right
+  .action-label {
+  color: transparent;
+  position: relative;
+}
+
+.monaco-editor
+  .suggest-widget.with-status-bar
+  .suggest-status-bar
+  .monaco-action-bar.right
+  .action-label:after {
+  position: absolute;
+  left: 1px;
+  top: 2px;
+  color: var(--color-text-accent-primary);
+  font-weight: 600;
+  display: inline-block;
+  font-size: 11px;
+}
+
+.monaco-editor
+  .suggest-widget.with-status-bar
+  .suggest-status-bar
+  .monaco-action-bar.right
+  .action-label[aria-label^='Show More']:after {
+  content: '↗ Show more (^Space)';
+}
+
+.monaco-editor
+  .suggest-widget.with-status-bar
+  .suggest-status-bar
+  .monaco-action-bar.right
+  .action-label[aria-label^='Show Less']:after {
+  content: '↗ Show less (^Space)';
+}

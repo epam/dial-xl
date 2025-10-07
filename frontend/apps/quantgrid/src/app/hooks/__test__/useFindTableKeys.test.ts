@@ -1,17 +1,11 @@
 import { SheetReader } from '@frontend/parser';
-import { act } from '@testing-library/react';
+import { act, RenderHookResult } from '@testing-library/react';
 
 import { ViewGridData } from '../../context';
+import { createWrapper, initialProps } from '../EditDsl/__test__/createWrapper';
 import { hookTestSetup } from '../EditDsl/__test__/hookTestSetup';
 import { RenderProps, TestWrapperProps } from '../EditDsl/__test__/types';
 import { useFindTableKeys } from '../useFindTableKeys';
-
-const initialProps: TestWrapperProps = {
-  appendToFn: jest.fn(),
-  manuallyUpdateSheetContent: jest.fn(() => Promise.resolve(true)),
-  projectName: 'project1',
-  sheetName: 'sheet1',
-};
 
 const mockedViewGridData = {
   getTableData: (tableName: string) => {
@@ -49,25 +43,37 @@ const mockedViewGridDataWithString = {
   },
 } as ViewGridData;
 
+let Wrapper: React.FC<React.PropsWithChildren>;
+
 describe('useFindTableKeys', () => {
   let props: TestWrapperProps;
+  let hook: RenderHookResult<
+    ReturnType<typeof useFindTableKeys>,
+    { dsl: string }
+  >['result'];
   let rerender: (props?: RenderProps) => void;
 
+  beforeAll(() => {
+    Wrapper = createWrapper({
+      ...initialProps,
+      viewGridData: mockedViewGridData,
+    });
+  });
+
   beforeEach(() => {
-    props = { ...initialProps };
+    props = { ...initialProps, viewGridData: mockedViewGridData };
     jest.clearAllMocks();
+
+    const hookRender = hookTestSetup(useFindTableKeys, Wrapper);
+    hook = hookRender.result;
+    rerender = hookRender.rerender;
   });
 
   describe('findTableKeys', () => {
     it('should find keys in vertical table', () => {
       // Arrange
-      props = { ...initialProps };
-      props.viewGridData = mockedViewGridData;
       const dsl =
         '!layout(1, 1, "title", "headers")\r\ntable T2\r\nkey dim [source] = RANGE(5)\r\nkey [f1] = [source] + 1\r\n';
-      const hookRender = hookTestSetup(useFindTableKeys, props);
-      const hook = hookRender.result;
-      rerender = hookRender.rerender;
       rerender({ dsl });
       let result: string | number = '';
       const table = SheetReader.parseSheet(dsl).tables[0];
@@ -83,11 +89,11 @@ describe('useFindTableKeys', () => {
 
     it('should find string keys', () => {
       // Arrange
-      props = { ...initialProps };
-      props.viewGridData = mockedViewGridDataWithString;
+      props = { ...initialProps, viewGridData: mockedViewGridDataWithString };
       const dsl =
         '!manual()\r\\n!layout(1, 1, "title", "headers")\r\ntable ttt\r\nkey [source]\r\n[f1]\r\noverride\r\n[f1],[source]\r\n123,"revenue"\r\n24,"cost"\r\n11,"profit"\r\n';
-      const hookRender = hookTestSetup(useFindTableKeys, props);
+      const Wrapper = createWrapper(props);
+      const hookRender = hookTestSetup(useFindTableKeys, Wrapper);
       const hook = hookRender.result;
       rerender = hookRender.rerender;
       rerender({ dsl });
@@ -105,13 +111,8 @@ describe('useFindTableKeys', () => {
 
     it('should find keys in vertical table without field headers', () => {
       // Arrange
-      props = { ...initialProps };
-      props.viewGridData = mockedViewGridData;
       const dsl =
         '!layout(1, 1, "title")\r\ntable T2\r\nkey dim [source] = RANGE(5)\r\nkey [f1] = [source] + 1\r\n';
-      const hookRender = hookTestSetup(useFindTableKeys, props);
-      const hook = hookRender.result;
-      rerender = hookRender.rerender;
       rerender({ dsl });
       let result: string | number = '';
       const table = SheetReader.parseSheet(dsl).tables[0];
@@ -127,13 +128,8 @@ describe('useFindTableKeys', () => {
 
     it('should find keys in vertical table without field and table headers', () => {
       // Arrange
-      props = { ...initialProps };
-      props.viewGridData = mockedViewGridData;
       const dsl =
         '!layout(1, 1)\r\ntable T2\r\nkey dim [source] = RANGE(5)\r\nkey [f1] = [source] + 1\r\n';
-      const hookRender = hookTestSetup(useFindTableKeys, props);
-      const hook = hookRender.result;
-      rerender = hookRender.rerender;
       rerender({ dsl });
       let result: string | number = '';
       const table = SheetReader.parseSheet(dsl).tables[0];
@@ -149,13 +145,8 @@ describe('useFindTableKeys', () => {
 
     it('should find keys in vertical table with totals', () => {
       // Arrange
-      props = { ...initialProps };
-      props.viewGridData = mockedViewGridData;
       const dsl =
         '!layout(1, 1, "title", "headers")\r\ntable T2\r\nkey dim [source] = RANGE(5)\r\nkey [f1] = [source] + 1\r\ntotal\r\n[f1] = COUNT(T2[f1])\r\n';
-      const hookRender = hookTestSetup(useFindTableKeys, props);
-      const hook = hookRender.result;
-      rerender = hookRender.rerender;
       rerender({ dsl });
       let result: string | number = '';
       const table = SheetReader.parseSheet(dsl).tables[0];
@@ -171,13 +162,8 @@ describe('useFindTableKeys', () => {
 
     it('should find keys in horizontal table', () => {
       // Arrange
-      props = { ...initialProps };
-      props.viewGridData = mockedViewGridData;
       const dsl =
         '!layout(1, 1, "horizontal", "title", "headers")\r\ntable T2\r\nkey dim [source] = RANGE(5)\r\nkey [f1] = [source] + 1\r\n';
-      const hookRender = hookTestSetup(useFindTableKeys, props);
-      const hook = hookRender.result;
-      rerender = hookRender.rerender;
       rerender({ dsl });
       let result: string | number = '';
       const table = SheetReader.parseSheet(dsl).tables[0];
@@ -193,13 +179,8 @@ describe('useFindTableKeys', () => {
 
     it('should find keys in horizontal table without field headers', () => {
       // Arrange
-      props = { ...initialProps };
-      props.viewGridData = mockedViewGridData;
       const dsl =
         '!layout(1, 1, "horizontal", "title")\r\ntable T2\r\nkey dim [source] = RANGE(5)\r\nkey [f1] = [source] + 1\r\n';
-      const hookRender = hookTestSetup(useFindTableKeys, props);
-      const hook = hookRender.result;
-      rerender = hookRender.rerender;
       rerender({ dsl });
       let result: string | number = '';
       const table = SheetReader.parseSheet(dsl).tables[0];
@@ -215,13 +196,8 @@ describe('useFindTableKeys', () => {
 
     it('should find keys in horizontal table without field and table headers', () => {
       // Arrange
-      props = { ...initialProps };
-      props.viewGridData = mockedViewGridData;
       const dsl =
         '!layout(1, 1, "horizontal")\r\ntable T2\r\nkey dim [source] = RANGE(5)\r\nkey [f1] = [source] + 1\r\n';
-      const hookRender = hookTestSetup(useFindTableKeys, props);
-      const hook = hookRender.result;
-      rerender = hookRender.rerender;
       rerender({ dsl });
       let result: string | number = '';
       const table = SheetReader.parseSheet(dsl).tables[0];
@@ -237,13 +213,8 @@ describe('useFindTableKeys', () => {
 
     it('should find keys in horizontal table with totals', () => {
       // Arrange
-      props = { ...initialProps };
-      props.viewGridData = mockedViewGridData;
       const dsl =
         '!layout(1, 1, "horizontal", "title", "headers")\r\ntable T2\r\nkey dim [source] = RANGE(5)\r\nkey [f1] = [source] + 1\r\ntotal\r\n[f1] = COUNT(T2[f1])\r\n';
-      const hookRender = hookTestSetup(useFindTableKeys, props);
-      const hook = hookRender.result;
-      rerender = hookRender.rerender;
       rerender({ dsl });
 
       let result: string | number = '';

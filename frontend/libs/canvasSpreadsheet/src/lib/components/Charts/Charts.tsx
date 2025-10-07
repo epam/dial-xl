@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { canvasId } from '../../constants';
+import { GridTable } from '../../types';
 import {
   filterByTypeAndCast,
   getMousePosition,
@@ -38,6 +39,10 @@ export function Charts({
   const viewportNode = useRef<HTMLDivElement>(null);
   const containerNode = useRef<HTMLDivElement>(null);
   const currentGridSizes = api?.gridSizes;
+  const tableStructureRef = useRef<GridTable[]>([]);
+  useEffect(() => {
+    tableStructureRef.current = tableStructure;
+  }, [tableStructure]);
 
   const { hiddenCharts } = useHideCharts(
     api,
@@ -132,6 +137,13 @@ export function Charts({
     viewportNode.current.style.height = getPx(containerHeight);
     containerNode.current.style.width = getPx(containerWidth);
     containerNode.current.style.height = getPx(containerHeight);
+
+    // Do not show charts when the container has no size (e.g., a panel is expanded)
+    if (containerWidth <= 0 || containerHeight <= 0) {
+      viewportNode.current.style.display = 'none';
+    } else {
+      viewportNode.current.style.display = 'block';
+    }
   }, [api, currentGridSizes]);
 
   const handleChartResize = useCallback(
@@ -171,7 +183,9 @@ export function Charts({
     (tableName: string) => {
       if (!api) return;
 
-      const table = tableStructure.find((t) => t.tableName === tableName);
+      const table = tableStructureRef.current.find(
+        (t) => t.tableName === tableName
+      );
 
       if (!table || table?.isTableNameHeaderHidden) return;
 
@@ -184,7 +198,7 @@ export function Charts({
         endRow: startRow,
       });
     },
-    [api, tableStructure]
+    [api]
   );
 
   const onChartDblClick = useCallback(() => {
@@ -298,7 +312,7 @@ export function Charts({
 
   return (
     <div
-      className="block fixed left-0 top-0 pointer-events-none overflow-hidden bg-transparent z-[103]"
+      className="block fixed left-0 top-0 pointer-events-none overflow-hidden bg-transparent z-103"
       ref={viewportNode}
     >
       <div className="relative" id="chartsContainer" ref={containerNode}>
@@ -324,7 +338,7 @@ export function Charts({
             )}
 
             <div
-              className="absolute border-[0.3px] border-strokePrimary bg-bgLayer3"
+              className="absolute border-[0.3px] border-stroke-primary bg-bg-layer-3"
               key={chartConfig.tableName}
               style={{
                 left: getPx(chartConfig.left),

@@ -37,7 +37,7 @@ export const useOnFormatClick = () => {
           const castedData = data as NumberKeyData | undefined;
 
           setFormat(cell.table.tableName, cell.field.fieldName, action, [
-            castedData?.decimalAmount ?? 1,
+            castedData?.digitsAmount ?? castedData?.compactFormat ?? 1,
             castedData?.thousandComma ?? false,
           ]);
           break;
@@ -46,7 +46,7 @@ export const useOnFormatClick = () => {
           const castedData = data as NumberKeyData | undefined;
 
           setFormat(cell.table.tableName, cell.field.fieldName, action, [
-            castedData?.decimalAmount ?? 1,
+            castedData?.digitsAmount ?? castedData?.compactFormat ?? 1,
           ]);
           break;
         }
@@ -54,7 +54,7 @@ export const useOnFormatClick = () => {
           const castedData = data as CurrencyKeyData | undefined;
 
           setFormat(cell.table.tableName, cell.field.fieldName, action, [
-            castedData?.decimalAmount ?? 1,
+            castedData?.digitsAmount ?? castedData?.compactFormat ?? 1,
             castedData?.thousandComma ?? false,
             castedData?.currencySymbol ?? 'EUR',
           ]);
@@ -74,7 +74,8 @@ export const useOnFormatClick = () => {
           const castedData = data as NumberKeyData | undefined;
 
           setFormat(cell.table.tableName, cell.field.fieldName, action, [
-            castedData?.decimalAmount ?? 1,
+            castedData?.digitsAmount ?? castedData?.compactFormat ?? 1,
+            castedData?.thousandComma ?? false,
           ]);
           break;
         }

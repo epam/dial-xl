@@ -4,17 +4,17 @@ import { useCallback, useContext, useEffect, useState } from 'react';
 
 import Icon from '@ant-design/icons';
 import {
+  CommonMetadata,
   DownOutlinedIcon,
   DragIcon,
   FileIcon,
-  FilesMetadata,
   MetadataNodeType,
 } from '@frontend/common';
 
 import { InputsContext, ViewportContext } from '../../../context';
 import { useMoveResources } from '../../../hooks';
 import { constructPath } from '../../../utils';
-import { RenameFileModal, SelectFolder } from '../../Modals';
+import { CloneFile, RenameFileModal, SelectFolder } from '../../Modals';
 import { PanelEmptyMessage } from '../PanelEmptyMessage';
 import { getNode } from './buildTree';
 import { InputChildData, useInputsContextMenu } from './useInputsContextMenu';
@@ -36,13 +36,15 @@ export function Inputs() {
   const [inputTree, setInputTree] = useState<DataNode[]>([]);
   const [childData, setChildData] = useState<InputChildData>({});
   const [hoverKey, setHoverKey] = useState('');
-  const [renameItem, setRenameItem] = useState<FilesMetadata>();
-  const [moveItem, setMoveItem] = useState<FilesMetadata>();
+  const [renameItem, setRenameItem] = useState<CommonMetadata>();
+  const [moveItem, setMoveItem] = useState<CommonMetadata>();
+  const [cloneItem, setCloneItem] = useState<CommonMetadata>();
 
   const { createContextMenuItems, items, onContextMenuClick } =
     useInputsContextMenu({
-      onRename: (item: FilesMetadata) => setRenameItem(item),
-      onMove: (item: FilesMetadata) => setMoveItem(item),
+      onRename: (item: CommonMetadata) => setRenameItem(item),
+      onMove: (item: CommonMetadata) => setMoveItem(item),
+      onClone: (item: CommonMetadata) => setCloneItem(item),
     });
   const { onDragStart } = useInputsDragDrop(childData);
 
@@ -56,7 +58,7 @@ export function Inputs() {
   );
 
   const onOpenFolder = useCallback(
-    (folder: FilesMetadata) => {
+    (folder: CommonMetadata) => {
       updateInputsFolder({
         bucket: folder.bucket,
         parentPath: constructPath([folder.parentPath, folder.name]),
@@ -66,7 +68,7 @@ export function Inputs() {
   );
 
   const handleMoveToFolder = useCallback(
-    async (path: string | null | undefined, bucket: string) => {
+    async (bucket: string, path: string | null | undefined) => {
       if (!moveItem) return;
 
       await moveResources([moveItem], path, bucket, () => {
@@ -110,7 +112,7 @@ export function Inputs() {
   }, [inputList, inputs]);
 
   return (
-    <div className="overflow-auto thin-scrollbar w-full h-full bg-bgLayer3 flex flex-col">
+    <div className="overflow-auto thin-scrollbar w-full h-full bg-bg-layer-3 flex flex-col">
       {isInputsLoading ? (
         <div className="flex grow items-center justify-center">
           <Spin className="z-50" size="large"></Spin>
@@ -125,7 +127,7 @@ export function Inputs() {
           >
             <div>
               <Tree.DirectoryTree
-                className="bg-bgLayer3 text-textPrimary"
+                className="bg-bg-layer-3 text-text-primary"
                 defaultExpandAll={true}
                 draggable={false}
                 icon={false}
@@ -134,7 +136,7 @@ export function Inputs() {
                 selectable={false}
                 switcherIcon={
                   <Icon
-                    className="text-textSecondary w-2"
+                    className="text-text-secondary w-2"
                     component={() => <DownOutlinedIcon />}
                   />
                 }
@@ -164,11 +166,11 @@ export function Inputs() {
                         MetadataNodeType.ITEM && (
                         <div className="flex items-center pointer-events-none">
                           <Icon
-                            className="w-[18px] text-textSecondary mr-1"
+                            className="w-[18px] text-text-secondary mr-1"
                             component={() => <DragIcon />}
                           />
 
-                          <span className="text-[13px] text-textSecondary">
+                          <span className="text-[13px] text-text-secondary">
                             Drag
                           </span>
                         </div>
@@ -193,7 +195,6 @@ export function Inputs() {
               onModalClose={() => {
                 viewGridData.clearCachedViewports();
                 setRenameItem(undefined);
-
                 getInputs();
               }}
             />
@@ -204,6 +205,15 @@ export function Inputs() {
               initialPath={moveItem.parentPath}
               onCancel={() => setMoveItem(undefined)}
               onOk={handleMoveToFolder}
+            />
+          )}
+          {cloneItem && (
+            <CloneFile
+              item={cloneItem}
+              onModalClose={() => {
+                setCloneItem(undefined);
+                getInputs();
+              }}
             />
           )}
         </div>

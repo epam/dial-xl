@@ -65,7 +65,30 @@ export const parsePivotArguments = (
   args: Expression[],
   aggregationFunctions: string[]
 ) => {
-  const [rowsArg, columnsArg, valuesArg, aggregationsArg] = args;
+  let rowsArg: Expression | undefined;
+  let columnsArg: Expression | undefined;
+  let valuesArg: Expression | undefined;
+  let aggregationsArg: Expression | undefined;
+
+  if (args.length === 4) {
+    [rowsArg, columnsArg, valuesArg, aggregationsArg] = args;
+  } else {
+    for (const a of args) {
+      if (a instanceof ConstStringExpression) {
+        if (!aggregationsArg) aggregationsArg = a;
+        continue;
+      }
+      const isFieldRef =
+        a instanceof FieldReferenceExpression ||
+        a instanceof FieldsReferenceExpression;
+      if (isFieldRef) {
+        if (!rowsArg) rowsArg = a;
+        else if (!columnsArg) columnsArg = a;
+        else if (!valuesArg) valuesArg = a;
+      }
+    }
+  }
+
   const result: {
     rows: FieldItem[];
     columns: FieldItem[];
@@ -92,6 +115,11 @@ export const parsePivotArguments = (
 
   // Extract columns
   if (columnsArg && columnsArg instanceof FieldReferenceExpression) {
+    const tableRefExpression =
+      columnsArg?.expression as TableReferenceExpression;
+    if (tableRefExpression?.tableName) {
+      result.tableName = tableRefExpression.tableName;
+    }
     result.columns = [extractFieldFromReference(columnsArg)];
   } else if (columnsArg && columnsArg instanceof FieldsReferenceExpression) {
     result.columns = extractFieldsFromReference(columnsArg);
@@ -99,6 +127,11 @@ export const parsePivotArguments = (
 
   // Extract values
   if (valuesArg && valuesArg instanceof FieldReferenceExpression) {
+    const tableRefExpression =
+      valuesArg?.expression as TableReferenceExpression;
+    if (tableRefExpression?.tableName) {
+      result.tableName = tableRefExpression.tableName;
+    }
     result.values = [extractFieldFromReference(valuesArg)];
   } else if (valuesArg && valuesArg instanceof FieldsReferenceExpression) {
     result.values = extractFieldsFromReference(valuesArg);

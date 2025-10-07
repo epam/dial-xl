@@ -497,4 +497,18 @@ class SheetParserTest {
 
         assertJsonEquals("multiline-formula-error", sheet);
     }
+
+    @Test
+    void testFunctionWithOptionalArguments() {
+        String dsl = """
+                table A
+                  [a] = FUNCTION(1, , 3)
+                  [b] = FUNCTION(,,)
+                  [c] = A.FUNCTION(1, , 3)
+                  [d] = A.FUNCTION(,,)
+                """;
+
+        ParsedSheet sheet = SheetReader.parseSheet(dsl);
+        assertJsonEquals("functions-with-optional-arguments", sheet);
+    }
 }

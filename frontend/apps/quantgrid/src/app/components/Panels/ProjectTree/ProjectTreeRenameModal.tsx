@@ -70,6 +70,7 @@ export function ProjectTreeRenameModal({
       inputRef.current.focus({
         cursor: 'end',
       });
+      inputRef.current.select();
     }, 0);
   }, [isOpened]);
 
@@ -86,7 +87,7 @@ export function ProjectTreeRenameModal({
       cancelButtonProps={{
         className: cx(modalFooterButtonClasses, secondaryButtonClasses),
       }}
-      destroyOnClose={true}
+      destroyOnHidden={true}
       okButtonProps={{
         className: cx(
           modalFooterButtonClasses,

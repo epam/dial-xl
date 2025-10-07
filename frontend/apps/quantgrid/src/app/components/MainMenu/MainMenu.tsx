@@ -409,7 +409,11 @@ export function MainMenu({
   ]);
 
   return (
-    <div className="select-none" id="mainProjectMenu">
+    <div
+      className="select-none"
+      id="mainProjectMenu"
+      style={{ minWidth: 0, flex: 'auto' }}
+    >
       <Menu
         className={cx('bg-transparent h-[39px] leading-[40px]', colorSchema)}
         items={menuItems}

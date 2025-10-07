@@ -129,7 +129,7 @@ export function Tooltip({ apiRef }: Props) {
       className="h-full w-full absolute left-0 top-0 pointer-events-none overflow-hidden z-[305]"
       id="tooltipContainer"
     >
-      <AntdTooltip open={tooltipOpen} title={tooltipContent}>
+      <AntdTooltip open={tooltipOpen} title={tooltipContent} destroyOnHidden>
         <div
           className="absolute"
           style={{

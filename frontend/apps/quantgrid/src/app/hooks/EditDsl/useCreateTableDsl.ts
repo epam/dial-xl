@@ -4,8 +4,11 @@ import {
   ChartType,
   ColumnDataType,
   defaultChartCols,
+  defaultChartName,
   defaultChartRows,
   defaultFieldName,
+  defaultSheetName,
+  defaultTableName,
   isComplexType,
   isNumericType,
   isTableType,
@@ -24,7 +27,6 @@ import {
   Overrides,
   sanitizeExpressionOrOverride,
   Sheet,
-  sourceFieldName,
   unescapeTableName,
   visualizationDecoratorName,
 } from '@frontend/parser';
@@ -44,12 +46,10 @@ import {
   autoSizeTableHeader,
   createAndPlaceTable,
   CreateExpandedTableParams,
+  getFieldNameFromType,
+  getFormulaFromSourceTable,
   getParsedFormulaInfo,
 } from './utils';
-
-const defaultSheetName = 'Sheet1';
-const defaultTableName = 'Table1';
-const defaultChartName = 'Chart1';
 
 export function useCreateTableDsl() {
   const {
@@ -94,37 +94,35 @@ export function useCreateTableDsl() {
         },
       });
 
-      const uniqueSourceFieldName = createUniqueName(
-        sourceFieldName,
-        fields.map((f) => f.key.fieldName)
-      );
+      const { formula } = getFormulaFromSourceTable(parsedTable);
+      const fieldGroup = new FieldGroup(formula);
 
-      table.addField({
-        name: uniqueSourceFieldName,
-        formula: tableName,
-        isDim: true,
-      });
+      fields
+        .filter((f) => !f.isDynamic)
+        .forEach((parsedField, index) => {
+          const { fieldName } = parsedField.key;
+          const field = new Field(fieldName);
 
-      fields.forEach((f, index) => {
-        const { fieldName, fullFieldName } = f.key;
-        table.addField({
-          name: fieldName,
-          formula: `[${uniqueSourceFieldName}]${fullFieldName}`,
+          if (index === 0) {
+            field.dim = true;
+          }
+
+          const fieldSize = getExpandedTextSize({
+            text: fieldName,
+            col: newTableCol + index,
+            grid,
+            projectName,
+            sheetName,
+          });
+          if (fieldSize && fieldSize > 1) {
+            field.addDecorator(
+              new Decorator(fieldColSizeDecoratorName, `(${fieldSize})`)
+            );
+          }
+
+          fieldGroup.addField(field);
         });
-        const field = table.getField(fieldName);
-        const fieldSize = getExpandedTextSize({
-          text: field.name,
-          col: newTableCol + index,
-          grid,
-          projectName,
-          sheetName,
-        });
-        if (fieldSize && fieldSize > 1) {
-          field.addDecorator(
-            new Decorator(fieldColSizeDecoratorName, `(${fieldSize})`)
-          );
-        }
-      });
+      table.fieldGroups.append(fieldGroup);
 
       autoSizeTableHeader(table, newTableCol, grid, projectName, sheetName);
 
@@ -202,7 +200,6 @@ export function useCreateTableDsl() {
 
       const parts = value.split(':');
       if (parts.length < 2) return;
-
       const baseName = unescapeTableName(parts[0]) || defaultTableName;
 
       const { table, tableName: newTableName } = createAndPlaceTable({
@@ -218,7 +215,7 @@ export function useCreateTableDsl() {
       });
 
       parts.slice(1).forEach((part, index) => {
-        const fieldName = `${sourceFieldName}${index + 1}`;
+        const fieldName = `Column${index + 1}`;
         const expression = autoFixSingleExpression(
           part.trim(),
           functions,
@@ -449,7 +446,9 @@ export function useCreateTableDsl() {
         return { dsl: sheet.toDSL(), newTableName };
       }
 
-      const finalSourceFieldName = fieldName || sourceFieldName;
+      const finalSourceFieldName = fieldName
+        ? fieldName
+        : getFieldNameFromType(type);
       table.addField({
         name: finalSourceFieldName,
         isDim: isSourceDimField,

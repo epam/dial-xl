@@ -20,18 +20,18 @@ export function SearchButton({ colorSchema = 'default' }: Props) {
   return (
     <Button
       className={cx(
-        'flex items-center !justify-start text-[13px] !font-bold rounded-[3px] h-[28px] !px-3 py-0 leading-4 !shadow-none',
-        'focus:!outline-0 focus-visible:!outline-0 focus:!border',
-        '!text-textSecondary hover:!text-textSecondary',
+        'flex items-center justify-start! text-[13px] font-bold! rounded-[3px] h-[28px] px-3! py-0 leading-4 shadow-none!',
+        'focus:outline-0! focus-visible:outline-0! focus:border!',
+        'text-text-secondary! hover:text-text-secondary!',
         colorSchema === 'read' &&
-          'bg-bgLayer4Inverted hover:!bg-bgLayer4Inverted focus:!bg-bgLayer4Inverted border-strokeTertiaryInverted hover:!border-strokeTertiaryInverted focus:!border-strokeTertiaryInverted',
+          'bg-bg-layer-4-inverted hover:!bg-bg-layer-4-inverted focus:!bg-bg-layer-4-inverted border-stroke-tertiary-inverted hover:border-stroke-tertiary-inverted! focus:border-stroke-tertiary-inverted!',
         (colorSchema === 'review' || colorSchema === 'default') &&
-          '!bg-bgLayer4 hover:!bg-bgLayer4 focus:!bg-bgLayer4 border-strokeTertiary hover:!border-strokeTertiary focus:!border-strokeTertiary'
+          'bg-bg-layer-4! hover:bg-bg-layer-4! focus:bg-bg-layer-4! border-stroke-tertiary hover:border-stroke-tertiary! focus:border-stroke-tertiary!'
       )}
       icon={
         (xl || md) && (
           <Icon
-            className="text-textSecondary w-[18px]"
+            className="text-text-secondary w-[18px]"
             component={() => <SearchIcon />}
           />
         )
@@ -44,7 +44,7 @@ export function SearchButton({ colorSchema = 'default' }: Props) {
         'Search'
       ) : (
         <Icon
-          className="text-textSecondary w-[18px]"
+          className="text-text-secondary w-[18px]"
           component={() => <SearchIcon />}
         />
       )}

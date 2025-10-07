@@ -21,8 +21,10 @@ from quantgrid.models.actions import (
     OverrideAction,
     RemoveFieldAction,
 )
-from quantgrid.utils.project import FieldGroupUtil, ProjectCalculator
+from quantgrid.python.misc.resolve_type import FieldTypes
+from quantgrid.utils.project import FieldGroupUtil
 from quantgrid.utils.string import markdown_table
+from quantgrid.utils.string.quoting import add_double_quotes
 from quantgrid_1.utils.project_utils import find_table
 
 
@@ -69,8 +71,10 @@ def get_markdown_table_values(table: Table, include_warning: bool = False):
             and isinstance(field.field_type, PrimitiveFieldType)
             and not field.field_type.is_nested
         ):
+            is_string = field.field_type.name == FieldTypes.STRING
             results[field.name] = [
-                ProjectCalculator.format_entry(e) for e in field.field_data.values
+                (e if not is_string else add_double_quotes(e))
+                for e in field.field_data.values
             ]
             total_rows = max(total_rows, field.field_data.total_rows)
 

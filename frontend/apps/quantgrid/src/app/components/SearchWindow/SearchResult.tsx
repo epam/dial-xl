@@ -56,7 +56,7 @@ export function SearchResult({ className, result, onClick }: Props) {
     <div className={cx('flex items-center', className)} onClick={onClick}>
       <div className={'mr-2 h-full flex items-center'}>{icon()}</div>
       <div
-        className="text-textPrimary text-[13px] mr-2"
+        className="text-text-primary text-[13px] mr-2"
         dangerouslySetInnerHTML={{
           __html: getBoldStr(
             result.item.name,
@@ -67,7 +67,7 @@ export function SearchResult({ className, result, onClick }: Props) {
       {result.item.path && (
         <span
           className={
-            'ml-auto text-[11px] text-textSecondary overflow-hidden break-words'
+            'ml-auto text-[11px] text-text-secondary overflow-hidden break-words'
           }
         >
           {path2str(result.item.path)}

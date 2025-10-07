@@ -1,0 +1,42 @@
+include:
+  - project: Gitlab/ci
+    ref: 1.0.0
+    file: jobs/cloud-auth/aws.gitlab-ci.yml
+
+.store_test_results_to_s3_template:
+  image: ${TOOLS_IMAGE}
+  stage: aggregate_results
+  extends: .cloud-auth
+  variables:
+    GIT_DEPTH: 0
+    DIAL_PREFIX: "dial-${CI_COMMIT_REF_SLUG}"
+    AWS_DEFAULT_REGION: us-east-1
+    AWS_ROLE_ARN: arn:aws:iam::725751206603:role/GitLab-CI-project-1542-role
+  script:
+    - aws s3 cp python/assistant/report.xlsx s3://deltix-staging-dial-quantgrid-test-results/test-results/${CI_COMMIT_SHA}/${CI_JOB_ID}/${DIR_NAME}/report.xlsx
+    - aws s3 cp python/assistant/report.json s3://deltix-staging-dial-quantgrid-test-results/test-results/${CI_COMMIT_SHA}/${CI_JOB_ID}/${DIR_NAME}/report.json
+    - aws s3 cp python/assistant/qg.log s3://deltix-staging-dial-quantgrid-test-results/test-results/${CI_COMMIT_SHA}/${CI_JOB_ID}/${DIR_NAME}/qg.log
+    - git log --pretty=format:"%H|%P|%an|%ad|%s" --date=iso --all > "python/assistant/graph.txt"
+    - aws s3 cp python/assistant/graph.txt s3://deltix-staging-dial-quantgrid-test-results/graph/${CI_COMMIT_SHA}/graph.txt
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "web"'
+      allow_failure: true
+    - if: '$CI_PIPELINE_SOURCE  == "schedule"'
+      when: always
+      allow_failure: true
+    - if: '$CI_COMMIT_BRANCH  == "main"'
+      allow_failure: true
+    - if: "$CI_PIPELINE_SOURCE == 'merge_request_event'"
+      allow_failure: true
+      changes:
+        paths:
+          - python/**/*
+          - backend/**/*
+          - infrastructure/**/*
+  interruptible: true
+  tags:
+    - kubernetes
+    - staging
+  artifacts:
+    paths:
+      - python/assistant/graph.txt

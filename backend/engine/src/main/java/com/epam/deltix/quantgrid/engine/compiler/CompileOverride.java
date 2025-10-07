@@ -32,7 +32,9 @@ import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import lombok.SneakyThrows;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.IntStream;
 
@@ -117,28 +119,26 @@ class CompileOverride {
         init();
 
         OverrideKey overrideKey = context.key().overrideKey();
-        FieldKey fieldKey = new FieldKey(overrideKey.table(), overrideKey.field());
-        int position = overrideKey.position();
-        Formula formula = overrides.map().get(fieldKey).get(position - 1);
+        Formula formula = formula(overrideKey);
 
         CompiledSimpleColumn override = SimpleColumnValidators.STRING_OR_DOUBLE
                 .convert(context.compileFormula(formula));
 
-        CompileUtil.verify(override.scalar(), "Override formula must produce a text or a number. Column: %s. Position: %d",
-                fieldKey, position);
+        CompileUtil.verify(override.scalar(), "Override formula must produce a text or a number. Column: %s[%s]. Position: %d",
+                overrideKey.table(), overrideKey.field(), overrideKey.position());
 
         return override;
     }
 
+    Formula formula(OverrideKey overrideKey) {
+        FieldKey fieldKey = new FieldKey(overrideKey.table(), overrideKey.field());
+        int position = overrideKey.position();
+        return overrides.map().get(fieldKey).get(position - 1);
+    }
+
     CompiledResult compileField(CompileContext context, CompiledResult result) {
         FieldKey field = context.key().fieldKey();
-        List<Formula> formulas = overrides.map().get(field);
-
-        if ((!manual && keys.contains(field)) || formulas == null) {
-            return result;
-        }
-
-        int[] indices = findOverrideIndices(formulas);
+        int[] indices = findOverrideIndices(field);
 
         if (indices.length == 0) {
             return result;
@@ -272,6 +272,35 @@ class CompileOverride {
                     keys.stream().filter(field -> !definedFields.contains(field))
                             .map(FieldKey::fieldName).toList());
         }
+    }
+
+    Map<OverrideKey, Formula> getParsedOverrides() {
+        Map<OverrideKey, Formula> map = new HashMap<>();
+        for (FieldKey field : overrides.map().keySet()) {
+            if (field.equals(overrides.rowKey())) {
+                continue;
+            }
+
+            int[] indices = findOverrideIndices(field);
+
+            for (int index : indices) {
+                Formula formula = overrides.map().get(field).get(index);
+                OverrideKey key = new OverrideKey(field.table(), field.fieldName(), index + 1);
+                map.put(key, formula);
+            }
+        }
+
+        return map;
+    }
+
+    private int[] findOverrideIndices(FieldKey field) {
+        List<Formula> formulas = overrides.map().get(field);
+
+        if ((!manual && keys.contains(field)) || formulas == null) {
+            return new int[0];
+        }
+
+        return findOverrideIndices(formulas);
     }
 
     private int[] findOverrideIndices(List<Formula> formulas) {

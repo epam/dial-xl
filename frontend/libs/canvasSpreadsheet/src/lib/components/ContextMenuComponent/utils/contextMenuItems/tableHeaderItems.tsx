@@ -8,7 +8,6 @@ import {
   getDropdownDivider,
   getDropdownItem,
   getDropdownMenuKey,
-  GridCell,
   HeaderIcon,
   InsertFilledIcon,
   isFeatureFlagEnabled,
@@ -21,6 +20,7 @@ import {
   TagIcon,
 } from '@frontend/common';
 
+import { GridCell } from '../../../../types';
 import { spreadsheetMenuKeys as menuKey } from '../config';
 import { ContextMenuKeyData } from '../types';
 import {
@@ -58,7 +58,7 @@ export const getTableHeaderMenuItems = (cell: GridCell) => {
       }),
       icon: (
         <Icon
-          className="text-textSecondary w-[18px]"
+          className="text-text-secondary w-[18px]"
           component={() => <HeaderIcon />}
         />
       ),
@@ -72,7 +72,7 @@ export const getTableHeaderMenuItems = (cell: GridCell) => {
       }),
       icon: (
         <Icon
-          className="text-textSecondary w-[18px]"
+          className="text-text-secondary w-[18px]"
           component={() => <TableXIcon secondaryAccentCssVar="text-error" />}
         />
       ),
@@ -86,7 +86,7 @@ export const getTableHeaderMenuItems = (cell: GridCell) => {
       }),
       icon: (
         <Icon
-          className="text-textSecondary w-[18px]"
+          className="text-text-secondary w-[18px]"
           component={() => (
             <TableArrowIcon secondaryAccentCssVar="text-accent-secondary" />
           )}
@@ -98,7 +98,7 @@ export const getTableHeaderMenuItems = (cell: GridCell) => {
       key: 'Insert',
       icon: (
         <Icon
-          className="text-textAccentTertiary w-[18px]"
+          className="text-text-accent-tertiary w-[18px]"
           component={() => <InsertFilledIcon />}
         />
       ),
@@ -131,7 +131,7 @@ export const getTableHeaderMenuItems = (cell: GridCell) => {
       }),
       icon: (
         <Icon
-          className="text-textSecondary w-[18px]"
+          className="text-text-secondary w-[18px]"
           component={() => <DownloadIcon />}
         />
       ),
@@ -145,7 +145,7 @@ export const getTableHeaderMenuItems = (cell: GridCell) => {
       }),
       icon: (
         <Icon
-          className="text-textSecondary w-[18px]"
+          className="text-text-secondary w-[18px]"
           component={() => (
             <CopyFilledIcon secondaryAccentCssVar="text-accent-tertiary" />
           )}
@@ -160,7 +160,7 @@ export const getTableHeaderMenuItems = (cell: GridCell) => {
       }),
       icon: (
         <Icon
-          className="text-textSecondary w-[18px]"
+          className="text-text-secondary w-[18px]"
           component={() => (
             <TableRectangleIcon secondaryAccentCssVar="text-accent-primary" />
           )}
@@ -176,7 +176,7 @@ export const getTableHeaderMenuItems = (cell: GridCell) => {
           }),
           icon: (
             <Icon
-              className="text-textSecondary w-[18px]"
+              className="text-text-secondary w-[18px]"
               component={() => (
                 <TableArrowsIcon secondaryAccentCssVar="text-accent-secondary" />
               )}
@@ -189,7 +189,7 @@ export const getTableHeaderMenuItems = (cell: GridCell) => {
       key: 'ConvertToChart',
       icon: (
         <Icon
-          className="text-textSecondary w-[18px]"
+          className="text-text-secondary w-[18px]"
           component={() => (
             <ChartArrowsIcon secondaryAccentCssVar="text-accent-secondary" />
           )}
@@ -211,7 +211,7 @@ export const getTableHeaderMenuItems = (cell: GridCell) => {
               ),
               icon: (
                 <Icon
-                  className="text-textSecondary w-[18px]"
+                  className="text-text-secondary w-[18px]"
                   component={() => item.icon}
                 />
               ),
@@ -225,7 +225,7 @@ export const getTableHeaderMenuItems = (cell: GridCell) => {
           key: 'AddChart',
           icon: (
             <Icon
-              className="text-textSecondary w-[18px]"
+              className="text-text-secondary w-[18px]"
               component={() => (
                 <ChartPlusIcon secondaryAccentCssVar="text-accent-tertiary" />
               )}
@@ -242,7 +242,7 @@ export const getTableHeaderMenuItems = (cell: GridCell) => {
                 }),
                 icon: (
                   <Icon
-                    className="text-textSecondary w-[18px]"
+                    className="text-text-secondary w-[18px]"
                     component={() => item.icon}
                   />
                 ),
@@ -274,7 +274,7 @@ export const getTableHeaderMenuItems = (cell: GridCell) => {
       }),
       icon: (
         <Icon
-          className="text-textSecondary w-[18px]"
+          className="text-text-secondary w-[18px]"
           component={() => <TagIcon />}
         />
       ),

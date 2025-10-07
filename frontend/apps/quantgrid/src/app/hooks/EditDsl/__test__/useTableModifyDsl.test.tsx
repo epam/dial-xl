@@ -3,39 +3,35 @@ import { act, RenderHookResult } from '@testing-library/react';
 
 import { ViewGridData } from '../../../context';
 import { useTableModifyDsl } from '../useTableModifyDsl';
+import { createWrapper, initialProps } from './createWrapper';
 import { hookTestSetup } from './hookTestSetup';
-import { RenderProps, TestWrapperProps } from './types';
-
-const initialProps: TestWrapperProps = {
-  appendToFn: jest.fn(),
-  manuallyUpdateSheetContent: jest.fn(() => Promise.resolve(true)),
-  projectName: 'project1',
-  sheetName: 'sheet1',
-};
+import { TestWrapperProps } from './types';
 
 describe('useTableModifyDsl', () => {
-  let props: TestWrapperProps;
+  let props: TestWrapperProps = { ...initialProps };
   let hook: RenderHookResult<
     ReturnType<typeof useTableModifyDsl>,
     { dsl: string }
   >['result'];
-  let rerender: (props?: RenderProps) => void;
+  let setDsl: (dsl: string) => void;
+  let Wrapper: React.FC<React.PropsWithChildren>;
+
+  beforeAll(() => {
+    Wrapper = createWrapper(props);
+  });
 
   beforeEach(() => {
-    props = { ...initialProps };
     jest.clearAllMocks();
-
-    const hookRender = hookTestSetup(useTableModifyDsl, props);
-
+    const hookRender = hookTestSetup(useTableModifyDsl, Wrapper);
     hook = hookRender.result;
-    rerender = hookRender.rerender;
+    setDsl = hookRender.setDsl;
   });
 
   describe('autoCleanUpTableDSL', () => {
     it('should not modify table if at least one field is dim', () => {
       // Arrange
       const dsl = 'table t1 dim [f1] = RANGE(5)  [f2] = [f1] ^ 2';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => hook.current.autoCleanUpTableDSL('t1'));
@@ -48,7 +44,7 @@ describe('useTableModifyDsl', () => {
     it('should not remove any field', () => {
       // Arrange
       const dsl = '!layout(1, 1, "title")\ntable t1\n[f1] = 1\n[f2] = 2\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => hook.current.autoCleanUpTableDSL('t1'));
@@ -62,7 +58,7 @@ describe('useTableModifyDsl', () => {
       // Arrange
       const dsl = '!layout(1, 1, "title")\ntable t1\n[f1] = 1\n[f2]';
       const expectedDsl = '!layout(1, 1, "title")\ntable t1\n[f1] = 1\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => hook.current.autoCleanUpTableDSL('t1'));
@@ -81,7 +77,7 @@ describe('useTableModifyDsl', () => {
       const dsl =
         '!layout(1, 1, "title")\ntable t1\n[f1] = 1\n[f2]\n[f3]\n[f4]';
       const expectedDsl = '!layout(1, 1, "title")\ntable t1\n[f1] = 1\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => hook.current.autoCleanUpTableDSL('t1'));
@@ -101,7 +97,7 @@ describe('useTableModifyDsl', () => {
         '!layout(1, 1, "title")\ntable t1\n[f1] = 1\n[f2]\noverride\nrow,[f1],[f2]\n1,321,';
       const expectedDsl =
         '!layout(1, 1, "title")\ntable t1\n[f1] = 1\noverride\nrow,[f1]\n1,321\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => hook.current.autoCleanUpTableDSL('t1'));
@@ -121,7 +117,7 @@ describe('useTableModifyDsl', () => {
         '!layout(1, 1, "title")\ntable t1\n[f1] = 1\n[f2]\n[f3]\n[f4]\noverride\nrow,[f1],[f2],[f3],[f4]\n1,321,,,';
       const expectedDsl =
         '!layout(1, 1, "title")\ntable t1\n[f1] = 1\noverride\nrow,[f1]\n1,321\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => hook.current.autoCleanUpTableDSL('t1'));
@@ -141,7 +137,7 @@ describe('useTableModifyDsl', () => {
         '!manual()\n!layout(1, 1)\ntable t1\n[f1]\n[f2]\noverride\n[f1],[f2]\n1,2\n3,4\n,';
       const expectedDsl =
         '!manual()\n!layout(1, 1)\ntable t1\n[f1]\n[f2]\noverride\n[f1],[f2]\n1,2\n3,4\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => hook.current.autoCleanUpTableDSL('t1'));
@@ -161,7 +157,7 @@ describe('useTableModifyDsl', () => {
         '!manual()\n!layout(1, 1)\ntable t1\n[f1]\n[f2]\noverride\n[f1],[f2]\n1,2\n3,4\n,\n,\n,';
       const expectedDsl =
         '!manual()\n!layout(1, 1)\ntable t1\n[f1]\n[f2]\noverride\n[f1],[f2]\n1,2\n3,4\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => hook.current.autoCleanUpTableDSL('t1'));
@@ -180,7 +176,7 @@ describe('useTableModifyDsl', () => {
       const dsl =
         '!layout(1, 1)\n!manual()\ntable t1\n[f1]\n[f2]\noverride\n[f1],[f2]\n1,2\n,\n,\n,';
       const expectedDsl = '!layout(1, 1)\ntable t1\n[f1] = 1\n[f2] = 2\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => hook.current.autoCleanUpTableDSL('t1'));
@@ -199,7 +195,7 @@ describe('useTableModifyDsl', () => {
       const dsl =
         '!layout(1, 1)\n!manual()\ntable t1\n[f1]=1\n[f2]=2\noverride\n[f1],[f2]\n,\n,\n,';
       const expectedDsl = '!layout(1, 1)\ntable t1\n[f1]=1\n[f2]=2\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => hook.current.autoCleanUpTableDSL('t1'));
@@ -218,7 +214,7 @@ describe('useTableModifyDsl', () => {
       const dsl =
         '!manual()\n!layout(1, 1)\ntable t1\n[f1]\n[f2]\noverride\n[f1],[f2]\n,\n,\n,';
       const expectedDsl = '\r\n';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => hook.current.autoCleanUpTableDSL('t1'));
@@ -236,7 +232,7 @@ describe('useTableModifyDsl', () => {
       // Arrange
       const dsl =
         '!manual()\n!layout(1, 1)\ntable t1\n[f1]\n[f2]\noverride\n[f1],[f2]\n1,2\n3,4';
-      rerender({ dsl });
+      setDsl(dsl);
 
       // Act
       act(() => hook.current.autoCleanUpTableDSL('t1'));
@@ -263,10 +259,11 @@ describe('useTableModifyDsl', () => {
           } as any;
         },
       } as ViewGridData;
-      const hookRender = hookTestSetup(useTableModifyDsl, props);
+      Wrapper = createWrapper(props);
+      const hookRender = hookTestSetup(useTableModifyDsl, Wrapper);
       const hook = hookRender.result;
-      rerender = hookRender.rerender;
-      rerender({ dsl });
+      setDsl = hookRender.setDsl;
+      setDsl(dsl);
 
       // Act
       act(() =>
@@ -299,10 +296,11 @@ describe('useTableModifyDsl', () => {
           } as any;
         },
       } as ViewGridData;
-      const hookRender = hookTestSetup(useTableModifyDsl, props);
+      Wrapper = createWrapper(props);
+      const hookRender = hookTestSetup(useTableModifyDsl, Wrapper);
       const hook = hookRender.result;
-      rerender = hookRender.rerender;
-      rerender({ dsl });
+      setDsl = hookRender.setDsl;
+      setDsl(dsl);
 
       // Act
       act(() =>
@@ -334,10 +332,11 @@ describe('useTableModifyDsl', () => {
           } as any;
         },
       } as ViewGridData;
-      const hookRender = hookTestSetup(useTableModifyDsl, props);
+      Wrapper = createWrapper(props);
+      const hookRender = hookTestSetup(useTableModifyDsl, Wrapper);
       const hook = hookRender.result;
-      rerender = hookRender.rerender;
-      rerender({ dsl });
+      setDsl = hookRender.setDsl;
+      setDsl(dsl);
 
       // Act
       act(() =>
@@ -370,10 +369,11 @@ describe('useTableModifyDsl', () => {
           } as any;
         },
       } as ViewGridData;
-      const hookRender = hookTestSetup(useTableModifyDsl, props);
+      Wrapper = createWrapper(props);
+      const hookRender = hookTestSetup(useTableModifyDsl, Wrapper);
       const hook = hookRender.result;
-      rerender = hookRender.rerender;
-      rerender({ dsl });
+      setDsl = hookRender.setDsl;
+      setDsl(dsl);
 
       // Act
       act(() =>

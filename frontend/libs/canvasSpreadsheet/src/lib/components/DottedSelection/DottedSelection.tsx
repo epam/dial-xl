@@ -26,7 +26,7 @@ export function DottedSelection() {
 
   const { getDashedRectPolygons, calculateCellDimensions } = useCellUtils();
 
-  const getSelectionCoords = useCallback(() => {
+  const getSelectionCoords = useCallback((): undefined | null | void => {
     if (!viewportLimitedDottedSelection) return null;
 
     setSelectionCoords(calculateCellDimensions(viewportLimitedDottedSelection));
@@ -77,7 +77,7 @@ export function DottedSelection() {
     limitDottedSelection();
   }, [limitDottedSelection]);
 
-  const draw = useCallback(() => {
+  const draw = useCallback((): undefined | null | void => {
     if (!graphicsRef.current) return;
 
     const graphics = graphicsRef.current;

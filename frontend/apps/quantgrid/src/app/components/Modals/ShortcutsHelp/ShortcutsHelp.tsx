@@ -31,7 +31,7 @@ export function ShortcutsHelp({ openShortcutHelpModal }: Props) {
 
   return (
     <Modal
-      destroyOnClose={true}
+      destroyOnHidden={true}
       footer={[
         <Button
           className={cx(modalFooterButtonClasses, secondaryButtonClasses)}
@@ -46,31 +46,31 @@ export function ShortcutsHelp({ openShortcutHelpModal }: Props) {
       onCancel={handleCancel}
     >
       <div className="max-h-[500px] overflow-y-auto thin-scrollbar my-5">
-        <div className="flex flex-col bg-bgLayer3">
-          <div className="flex border border-strokeTertiary">
+        <div className="flex flex-col bg-bg-layer-3">
+          <div className="flex border border-stroke-tertiary">
             <div className="w-1/2 py-3 pl-5">
-              <span className="text-textSecondary font-bold select-none">
+              <span className="text-text-secondary font-bold select-none">
                 Shortcut
               </span>
             </div>
             <div className="w-1/2 py-3">
-              <span className="text-textSecondary font-bold select-none">
+              <span className="text-text-secondary font-bold select-none">
                 Description
               </span>
             </div>
           </div>
           {shortcuts.map((shortcut) => (
             <div
-              className="flex flex-row justify-start items-center py-4 border-b border-x border-b-strokeTertiary border-x-strokeTertiary cursor-pointer hover:bg-bgAccentPrimaryAlpha"
+              className="flex flex-row justify-start items-center py-4 border-b border-x border-b-stroke-tertiary border-x-stroke-tertiary cursor-pointer hover:bg-bg-accent-primary-alpha"
               key={shortcut.key}
             >
               <div className="flex items-center w-1/2 pl-5 pr-2">
-                <span className="text-textPrimary select-none">
+                <span className="text-text-primary select-none">
                   {shortcut.shortcut}
                 </span>
               </div>
               <div className="w-1/2 pr-2">
-                <span className="text-textSecondary select-none">
+                <span className="text-text-secondary select-none">
                   {shortcut.description}
                 </span>
               </div>

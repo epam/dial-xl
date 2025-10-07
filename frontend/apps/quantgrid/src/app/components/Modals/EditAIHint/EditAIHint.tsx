@@ -63,9 +63,9 @@ const customizeRequiredMark = (
   { required }: { required: boolean }
 ) => (
   <>
-    <span className="text-textSecondary text-xs">{label}</span>
+    <span className="text-text-secondary text-xs">{label}</span>
     &nbsp;
-    {required && <span className="text-textError">*</span>}
+    {required && <span className="text-text-error">*</span>}
   </>
 );
 
@@ -78,7 +78,7 @@ const CustomVisibleButton = ({
 }) => {
   return (
     <Icon
-      className="w-[24px] text-textSecondary hover:text-textAccentPrimary"
+      className="w-[24px] text-text-secondary hover:text-text-accent-primary"
       component={() => (value ? <EyeIcon /> : <EyeOffIcon />)}
       onClick={() => onChange?.(!value)}
     />
@@ -239,13 +239,16 @@ export const EditAIHint = ({
 
   return (
     <Modal
-      className="min-w-[min(70dvw,1000px)] !px-0"
-      destroyOnClose={true}
+      className="min-w-[min(70dvw,1000px)] px-0!"
+      destroyOnHidden={true}
       footer={
         isProjectEditable ? (
           <div className="flex justify-between items-center">
             <div className="flex gap-2">
-              <Tooltip title={isHintDisabled ? 'Enable hint' : 'Disable hint'}>
+              <Tooltip
+                title={isHintDisabled ? 'Enable hint' : 'Disable hint'}
+                destroyOnHidden
+              >
                 <div>
                   <Form.Item
                     getValueProps={(value) => ({
@@ -262,9 +265,9 @@ export const EditAIHint = ({
               {!isNewHint && (
                 <div>
                   <button onClick={() => onDelete()}>
-                    <Tooltip title={'Remove hint'}>
+                    <Tooltip title={'Remove hint'} destroyOnHidden>
                       <Icon
-                        className="w-[24px] text-textSecondary hover:text-textAccentPrimary"
+                        className="w-[24px] text-text-secondary hover:text-text-accent-primary"
                         component={() => <TrashIcon />}
                       />
                     </Tooltip>
@@ -309,7 +312,7 @@ export const EditAIHint = ({
       open
       onCancel={handleCancel}
     >
-      <div className="flex flex-col gap-3 min-h-[390px] max-h-[67dvh] justify-between overflow-auto thin-scrollbar text-textPrimary pr-4">
+      <div className="flex flex-col gap-3 min-h-[390px] max-h-[67dvh] justify-between overflow-auto thin-scrollbar text-text-primary pr-4">
         <div>
           {isProjectEditable ? (
             <Form.Item
@@ -329,7 +332,7 @@ export const EditAIHint = ({
               validateFirst
             >
               <Input
-                className={classNames('!h-[32px]', inputClasses)}
+                className={classNames('h-[32px]!', inputClasses)}
                 placeholder="Name of hint"
               />
             </Form.Item>
@@ -398,6 +401,7 @@ export const EditAIHint = ({
                                     ? 'Enable trigger'
                                     : 'Disable trigger'
                                 }
+                                destroyOnHidden
                               >
                                 <div>
                                   <Form.Item
@@ -415,7 +419,7 @@ export const EditAIHint = ({
                                   </Form.Item>
                                 </div>
                               </Tooltip>
-                              <Tooltip title="Remove trigger">
+                              <Tooltip title="Remove trigger" destroyOnHidden>
                                 <div className="h-[24px] flex items-center">
                                   <button
                                     className="h-full"
@@ -433,7 +437,7 @@ export const EditAIHint = ({
                                     }}
                                   >
                                     <Icon
-                                      className="w-[24px] text-textSecondary hover:text-textAccentPrimary"
+                                      className="w-[24px] text-text-secondary hover:text-text-accent-primary"
                                       component={() => <TrashIcon />}
                                     />
                                   </button>
@@ -470,7 +474,7 @@ export const EditAIHint = ({
                   {isProjectEditable && (
                     <div>
                       <button
-                        className="flex items-center text-textAccentPrimary hover:bg-bgAccentPrimaryAlpha py-1 px-2 rounded"
+                        className="flex items-center text-text-accent-primary hover:bg-bg-accent-primary-alpha py-1 px-2 rounded-sm"
                         onClick={() => {
                           const addedItem: FormFieldsType['triggers'][0] = {
                             value: '',
@@ -480,7 +484,7 @@ export const EditAIHint = ({
                         }}
                       >
                         <Icon
-                          className="w-[12px] mr-2 text-textAccentPrimary group-disabled:stroke-controlsTextDisable"
+                          className="w-[12px] mr-2 text-text-accent-primary group-disabled:stroke-controls-text-disable"
                           component={() => <PlusIcon />}
                         />
                         <span>Add new trigger</span>
@@ -506,7 +510,7 @@ export const EditAIHint = ({
             ]}
           >
             <Editor
-              className="h-[360px] bg-bgLayer3 border border-strokePrimary"
+              className="h-[360px] bg-bg-layer-3 border border-stroke-primary"
               defaultLanguage="markdown"
               options={{
                 ...codeEditorOptions,

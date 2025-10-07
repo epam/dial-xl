@@ -1,91 +1,44 @@
-import { useCallback, useContext } from 'react';
+import { useContext } from 'react';
 
-import Icon from '@ant-design/icons';
-import {
-  CodeEditorContext,
-  CompileErrorIcon,
-  ParsingError,
-  ParsingErrorIcon,
-} from '@frontend/common';
+import { CompileErrorIcon } from '@frontend/common';
 
-import { PanelName } from '../../../common';
-import { LayoutContext, ProjectContext } from '../../../context';
+import { ProjectContext } from '../../../context';
 import { PanelEmptyMessage } from '../PanelEmptyMessage';
-import { CompileOrRuntimeError } from './CompileOrRuntimeError';
-
-function getParsingErrorLink(error: ParsingError): string {
-  if (!error.source.startColumn) {
-    return `${error.source.startLine}: `;
-  }
-
-  return `${error.source.startLine}:${error.source.startColumn}: `;
-}
+import { ErrorItem } from './ErrorItem';
 
 export function Errors() {
   const { sheetErrors, compilationErrors, runtimeErrors, indexErrors } =
     useContext(ProjectContext);
-  const { updateSelectedError } = useContext(CodeEditorContext);
-  const { openPanel } = useContext(LayoutContext);
 
-  const onParsingErrorClick = useCallback(
-    (error: ParsingError) => {
-      openPanel(PanelName.CodeEditor);
-      updateSelectedError(error);
-    },
-    [openPanel, updateSelectedError]
-  );
+  const hasErrors = [
+    sheetErrors,
+    compilationErrors,
+    runtimeErrors,
+    indexErrors,
+  ].some((e) => e && e?.length > 0);
 
-  const isSheetErrors = sheetErrors && sheetErrors.length > 0;
-  const isCompilationErrors = compilationErrors && compilationErrors.length > 0;
-  const isRuntimeErrors = runtimeErrors && runtimeErrors.length > 0;
-  const isIndexErrors = indexErrors && indexErrors.length > 0;
-
-  if (
-    !isSheetErrors &&
-    !isCompilationErrors &&
-    !isRuntimeErrors &&
-    !isIndexErrors
-  ) {
+  if (!hasErrors) {
     return (
       <PanelEmptyMessage icon={<CompileErrorIcon />} message="No errors" />
     );
   }
 
   return (
-    <div className="w-full h-full p-1 overflow-auto thin-scrollbar bg-bgLayer3">
+    <div className="w-full h-full p-1 overflow-auto thin-scrollbar bg-bg-layer-3">
       {sheetErrors?.map((error, index) => (
-        <div className="mt-1 p-1 bg-bgError rounded-[3px]" key={index}>
-          <div className="flex">
-            <Icon
-              className="shrink-0 block mt-[3px] text-textError mx-2 w-[18px]"
-              component={() => <ParsingErrorIcon />}
-              title="Parsing error"
-            />
-            <div className="pr-2">
-              <span
-                className="text-textError font-semibold text-[13px] [overflow-wrap:anywhere] hover:underline cursor-pointer"
-                onClick={() => onParsingErrorClick(error)}
-              >
-                {getParsingErrorLink(error)}
-              </span>
-              <span className="text-[13px] text-textPrimary [overflow-wrap:anywhere]">
-                {error.message}
-              </span>
-            </div>
-          </div>
-        </div>
+        <ErrorItem error={error} errorType="parsing" key={index} />
       ))}
 
       {compilationErrors?.map((error, index) => (
-        <CompileOrRuntimeError error={error} errorType="compile" key={index} />
+        <ErrorItem error={error} errorType="compile" key={index} />
       ))}
 
       {runtimeErrors?.map((error, index) => (
-        <CompileOrRuntimeError error={error} errorType="runtime" key={index} />
+        <ErrorItem error={error} errorType="runtime" key={index} />
       ))}
 
       {indexErrors?.map((error, index) => (
-        <CompileOrRuntimeError error={error} errorType="index" key={index} />
+        <ErrorItem error={error} errorType="index" key={index} />
       ))}
     </div>
   );

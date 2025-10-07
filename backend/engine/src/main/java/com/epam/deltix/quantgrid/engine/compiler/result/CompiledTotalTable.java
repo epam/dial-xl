@@ -5,14 +5,15 @@ import com.epam.deltix.quantgrid.engine.compiler.CompileUtil;
 import com.epam.deltix.quantgrid.engine.node.expression.Expand;
 import com.epam.deltix.quantgrid.engine.node.plan.Plan;
 import com.epam.deltix.quantgrid.parser.FieldKey;
-import com.epam.deltix.quantgrid.parser.ParsedField;
 import com.epam.deltix.quantgrid.parser.ParsedFields;
 import com.epam.deltix.quantgrid.parser.ParsedTable;
 import com.epam.deltix.quantgrid.parser.ParsedTotal;
+import lombok.Getter;
 
 import java.util.ArrayList;
 import java.util.List;
 
+@Getter
 public class CompiledTotalTable extends CompiledAbstractTable {
 
     private final ParsedTable table;

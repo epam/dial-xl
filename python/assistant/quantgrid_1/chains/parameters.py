@@ -7,7 +7,7 @@ from dial_xl.project import Project
 from fastapi import BackgroundTasks
 from langchain_openai import AzureChatOpenAI
 
-from quantgrid.models import ProjectHint
+from quantgrid.models import AnyAction, ProjectHint
 from quantgrid.utils.dial import DIALApi
 from quantgrid_1.models.action import Action
 from quantgrid_1.models.application_state import ApplicationState
@@ -63,10 +63,13 @@ class ChainParameters:
     FIX_ERRORS = "fixed_errors"
 
     FINAL_PROJECT = "final_project"
+    COMPUTED_ACTIONS = "computed_actions"
 
     SUMMARIZATION = "summarization"
     FOCUS_TOOL = "focus_tool"
     FOCUS = "focus"
+
+    STANDALONE_QUESTION = "standalone_question"
 
     HINT = "hint"
 
@@ -220,13 +223,21 @@ class ChainParameters:
         return None
 
     @staticmethod
-    def get_final_project(inputs: dict) -> Project:
-        return inputs[ChainParameters.FINAL_PROJECT]
+    def get_final_project(inputs: dict) -> Project | None:
+        return inputs.get(ChainParameters.FINAL_PROJECT)
 
     @staticmethod
-    def get_focus(inputs: dict) -> Focus:
-        return inputs[ChainParameters.FOCUS]
+    def get_focus(inputs: dict) -> Focus | None:
+        return inputs.get(ChainParameters.FOCUS)
 
     @staticmethod
     def get_summarization(inputs: dict) -> str | None:
         return inputs.get(ChainParameters.SUMMARIZATION)
+
+    @staticmethod
+    def get_standalone_question(inputs: dict) -> str | None:
+        return inputs.get(ChainParameters.STANDALONE_QUESTION)
+
+    @staticmethod
+    def get_computed_actions(inputs: dict) -> list[AnyAction] | None:
+        return inputs.get(ChainParameters.COMPUTED_ACTIONS)

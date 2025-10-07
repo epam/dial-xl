@@ -260,7 +260,7 @@ export function AIPrompt({
   }, [assistantTextAnswer, isError, isSuggestionReview, resetRequestResults]);
 
   const show = useCallback(
-    (x: number, y: number, width: number, height: number) => {
+    (x: number, y: number, width: number) => {
       if (!api) return;
 
       const {
@@ -309,11 +309,9 @@ export function AIPrompt({
       const cellX = api.getCellX(col);
       const cellY = api.getCellY(row);
       const nextCellX = api.getCellX(col + 1);
-      const nextCellY = api.getCellY(row + 1);
       const width = nextCellX - cellX;
-      const height = nextCellY - cellY;
 
-      show(cellX, cellY, width, height);
+      show(cellX, cellY, width);
 
       setTimeout(() => {
         promptAreaRef.current?.focus();
@@ -733,7 +731,7 @@ export function AIPrompt({
     >
       {!isCollapsed && (
         <div
-          className="pointer-events-auto rounded-md break-words z-[600] absolute transition-opacity flex gap-1"
+          className="pointer-events-auto rounded-md break-words z-600 absolute transition-opacity flex gap-1"
           data-initial-scroll-left={initialScrollLeft}
           data-initial-scroll-top={initialScrollTop}
           data-left={initialPosition.x}
@@ -750,7 +748,7 @@ export function AIPrompt({
             className="rounded"
             content={
               <div
-                className="flex flex-col text-textPrimary"
+                className="flex flex-col text-text-primary"
                 ref={contentRef}
                 style={{ width: `${aiPromptWidth}px` }}
               >
@@ -760,7 +758,7 @@ export function AIPrompt({
                 >
                   <div className="inline-block h-[18px] w-[18px]">
                     <Icon
-                      className="text-bgAccentTertiary h-[18px] w-[18px] shrink-0"
+                      className="text-bg-accent-tertiary h-[18px] w-[18px] shrink-0"
                       component={() => <SparklesIcon />}
                     ></Icon>
                   </div>
@@ -769,7 +767,7 @@ export function AIPrompt({
                   !isError &&
                   !isLoading ? (
                     <TextArea
-                      className="grow text-sm text-textPrimary !bg-bgLayer0 !leading-tight !border-none !outline-none focus-within:outline-none focus-within:!shadow-none focus:!shadow-none p-0 !min-h-[18px]"
+                      className="grow text-sm text-text-primary bg-bg-layer-0! leading-tight! border-none! outline-hidden! focus-within:outline-hidden focus-within:shadow-none! focus:shadow-none! p-0 min-h-[18px]!"
                       placeholder="Ask AI anything"
                       ref={promptAreaRef}
                       size="small"
@@ -793,14 +791,14 @@ export function AIPrompt({
                           {loadingLabel}...
                         </div>
                       ) : (
-                        <div className="text-textSecondary leading-tight">
+                        <div className="text-text-secondary leading-tight">
                           {prompt}
                         </div>
                       )}
                       {!isError && assistantTextAnswer && (
                         <div className="overflow-auto thin-scrollbar">
                           <Markdown
-                            className="prose prose-sm min-w-full prose-a:text-textAccentSecondary prose-a:no-underline hover:prose-a:underline"
+                            className="prose prose-sm min-w-full prose-a:text-text-accent-secondary prose-a:no-underline prose-a:hover:underline"
                             content={assistantTextAnswer}
                           />
                         </div>
@@ -811,7 +809,7 @@ export function AIPrompt({
                   {!isSuggestionReview && (
                     <div className="inline-block">
                       <button
-                        className="flex hover:text-textAccentPrimary disabled:text-textSecondary h-[18px] w-[18px]"
+                        className="flex hover:text-text-accent-primary disabled:text-text-secondary h-[18px] w-[18px]"
                         disabled={!prompt}
                         onClick={() => {
                           if (isLoading) {
@@ -829,7 +827,7 @@ export function AIPrompt({
                           ></Icon>
                         ) : isError ? (
                           <Icon
-                            className="h-[18px] w-[18px] text-textError"
+                            className="h-[18px] w-[18px] text-text-error"
                             component={() => <RefreshIcon />}
                           ></Icon>
                         ) : (
@@ -845,7 +843,7 @@ export function AIPrompt({
                   {isSuggestionReview && (
                     <div className="inline-block">
                       <button
-                        className="flex text-textSecondary hover:text-textAccentPrimary h-[18px] w-[18px]"
+                        className="flex text-text-secondary hover:text-text-accent-primary h-[18px] w-[18px]"
                         onClick={() => {
                           handleCollapseAIPrompt();
                         }}
@@ -860,7 +858,7 @@ export function AIPrompt({
                 </div>
 
                 {isError && (
-                  <div className="flex gap-2 items-center text-textError bg-bgError px-3 py-1.5">
+                  <div className="flex gap-2 items-center text-text-error bg-bg-error px-3 py-1.5">
                     <Icon
                       className="h-[18px] w-[18px]"
                       component={() => <ExclamationCircleIcon />}
@@ -875,19 +873,19 @@ export function AIPrompt({
                   {contextMenuItems.map((section) =>
                     section.items.length > 0 ? (
                       <div
-                        className="flex flex-col border-t border-strokePrimary"
+                        className="flex flex-col border-t border-stroke-primary"
                         key={section.section}
                       >
-                        <span className="px-3 uppercase text-[10px] text-textSecondary py-1 font-bold">
+                        <span className="px-3 uppercase text-[10px] text-text-secondary py-1 font-bold">
                           {section.section}
                         </span>
                         <div className="flex flex-col">
                           {section.items.map((item) => (
                             <button
                               className={classNames(
-                                'flex px-3 gap-2 truncate items-center justify-between py-1 hover:bg-bgAccentPrimaryAlpha',
+                                'flex px-3 gap-2 truncate items-center justify-between py-1 hover:bg-bg-accent-primary-alpha',
                                 selectedPromptKey === item.key &&
-                                  'bg-bgAccentPrimaryAlpha2'
+                                  'bg-bg-accent-primary-alpha-2'
                               )}
                               key={item.key}
                               onClick={() => item.onClick?.()}
@@ -896,12 +894,12 @@ export function AIPrompt({
                                 <span className="shrink-0 flex items-center">
                                   {item.icon}
                                 </span>
-                                <Tooltip title={item.label}>
+                                <Tooltip title={item.label} destroyOnHidden>
                                   <span className="truncate">{item.label}</span>
                                 </Tooltip>
                               </span>
                               {item.shortcut && (
-                                <span className="text-textSecondary">
+                                <span className="text-text-secondary">
                                   {item.shortcut}
                                 </span>
                               )}
@@ -923,14 +921,14 @@ export function AIPrompt({
 
           <Modal
             className="max-w-[330px]"
-            destroyOnClose={true}
+            destroyOnHidden={true}
             footer={null}
             open={isWaitForAIPromptOpened}
             title="Please wait."
             onCancel={() => setIsWaitForAIPromptOpened(false)}
           >
             <div className="flex flex-col gap-4">
-              <div className="text-textSecondary">
+              <div className="text-text-secondary">
                 Please wait till AI end generating or stop generating manually.
               </div>
               <div className="flex gap-1 justify-end">

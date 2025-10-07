@@ -19,6 +19,7 @@ KEY = "generationParameters"
 CHANGED_SHEETS_STAGE_NAME = "Changed Sheets"
 FOCUS_STAGE_NAME = "Focus"
 SUMMARY_STAGE_NAME = "Summary"
+STANDALONE_QUESTION_STAGE_NAME = "Standalone Question"
 
 
 class GenerationParameters(
@@ -33,6 +34,7 @@ class GenerationParameters(
     generate_actions: bool | None = None
     generate_focus: bool | None = None
     generate_summary: bool | None = None
+    generate_standalone_question: bool | None = None
 
     question_status: QuestionStatus = QuestionStatus.UNDECIDED
 
@@ -100,6 +102,27 @@ class GenerationParameters(
             return StageGenerationMethod.SKIP
 
         if self.summary is not None and self.generate_summary is None:
+            return StageGenerationMethod.REPLICATE
+
+        return StageGenerationMethod.REGENERATE
+
+    @cached_property
+    def standalone_question(self) -> str | None:
+        for stage in self.saved_stages:
+            if stage.name.startswith(STANDALONE_QUESTION_STAGE_NAME):
+                return stage.content
+
+        return None
+
+    @cached_property
+    def standalone_question_generation_method(self) -> StageGenerationMethod:
+        if self.generate_standalone_question is False:
+            return StageGenerationMethod.SKIP
+
+        if (
+            self.standalone_question is not None
+            and self.generate_standalone_question is None
+        ):
             return StageGenerationMethod.REPLICATE
 
         return StageGenerationMethod.REGENERATE

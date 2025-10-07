@@ -1,0 +1,25 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compileOnSave": false,
+  "files": [],
+  "references": [
+    {
+      "path": "./apps/quantgrid"
+    },
+    {
+      "path": "./libs/canvasSpreadsheet"
+    },
+    {
+      "path": "./libs/code-editor"
+    },
+    {
+      "path": "./libs/common"
+    },
+    {
+      "path": "./libs/parser"
+    },
+    {
+      "path": "./apps/migrate-projects-cli"
+    }
+  ]
+}

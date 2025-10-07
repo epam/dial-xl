@@ -1,8 +1,8 @@
 # Add files here to ignore them from prettier formatting
-
 /dist
 /coverage
 /libs/parser/src/lib/grammar
 
 /.nx/cache
 /.nx/workspace-data
+/.yarn

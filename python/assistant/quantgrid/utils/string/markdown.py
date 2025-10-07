@@ -27,6 +27,7 @@ def markdown_table(
         numalign="decimal",
         stralign="left",
         missingval="?",
+        disable_numparse=True,
     )
 
     if total_rows:

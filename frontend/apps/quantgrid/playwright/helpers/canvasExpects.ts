@@ -5,7 +5,7 @@ import { Canvas } from '../components/Canvas';
 const interval = 200;
 const timeout = 30000;
 
-async function waitForCondition(
+export async function waitForCondition(
   conditionFn: () => boolean | Promise<boolean>,
   pollingInterval: number,
   timeout: number

@@ -180,14 +180,14 @@ export const useRequestDimTable = () => {
   );
 
   const requestDimSchemaForDimFormula = useCallback(
-    async (col: number, row: number, value: string) => {
+    async (col: number, row: number, value: string, newTableName?: string) => {
       if (!projectName || !projectSheets) return;
 
       const formulaParts = value.split(':');
 
       if (formulaParts.length !== 2) return;
 
-      const tableName = formulaParts[0].trim();
+      const tableName = newTableName || formulaParts[0].trim();
       const expression = formulaParts[1].trim();
       const formula = fixExpression(expression, functions, parsedSheets);
 

@@ -3,7 +3,7 @@ from typing import Iterator
 import aiohttp
 
 from dial_xl.calculate import TableDataResult
-from dial_xl.compile import ParsingError, TableTypeResult, OVERRIDE_TABLE_ERRORS
+from dial_xl.compile import ParsingError, TableTypeResult
 from dial_xl.credentials import CredentialProvider
 from dial_xl.dynamic_field import DynamicField
 from dial_xl.events import Event, ObservableObserver, notify_observer
@@ -146,7 +146,9 @@ class Sheet(ObservableObserver):
     def _update_field_types(self, types: dict[str, TableTypeResult]):
         for table_name in self.table_names:
             table = self.get_table(table_name)
-            table_types = types.get(table_name, TableTypeResult(fields={}, totals={}))
+            table_types = types.get(
+                table_name, TableTypeResult(fields={}, totals={}, overrides={})
+            )
             for group in table.field_groups:
                 for field in group.fields:
                     field._set_field_type(table_types.fields.get(field.name))
@@ -157,14 +159,10 @@ class Sheet(ObservableObserver):
                         total_types = table_types.totals.get(index, {})
                         field._set_field_type(total_types.get(field.name))
 
-    def _update_override_errors(self, errors: dict[str, OVERRIDE_TABLE_ERRORS]):
-        for table_name in self.table_names:
-            table = self.get_table(table_name)
-            table_errors = errors.get(table_name, {})
-
             for index, override in enumerate(table.overrides or []):
-                errors = table_errors.get(index + 1, {})
-                override._set_errors(errors)
+                for name in override.names:
+                    override_types = table_types.overrides.get(index, {})
+                    override._set_type(name, override_types.get(name))
 
     def _update_field_data(
         self,
@@ -173,7 +171,9 @@ class Sheet(ObservableObserver):
     ):
         for table_name in self.table_names:
             table = self.get_table(table_name)
-            table_types = types.get(table_name, TableTypeResult(fields={}, totals={}))
+            table_types = types.get(
+                table_name, TableTypeResult(fields={}, totals={}, overrides={})
+            )
             table_data = data.get(table_name, TableDataResult(fields={}, totals={}))
             dynamic_fields: list[DynamicField] = []
             table_fields = {

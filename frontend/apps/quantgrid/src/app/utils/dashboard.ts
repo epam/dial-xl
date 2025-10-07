@@ -6,9 +6,13 @@ import {
   MetadataNodeType,
 } from '@frontend/common';
 
-import { DashboardFilter, DashboardSortType, DashboardTab } from '../common';
 import { routeParams, routes } from '../types';
-import { DashboardItem } from '../types/dashboard';
+import {
+  DashboardFilter,
+  DashboardItem,
+  DashboardSortType,
+  DashboardTab,
+} from '../types/dashboard';
 
 export const routeToTabMap: { [key: string]: DashboardTab } = {
   [routes.home]: 'home',
@@ -68,6 +72,7 @@ export function filterDashboardItems(
 export function sortDashboardItems(
   items: DashboardItem[],
   sortKey: DashboardSortType,
+  sortFn: ((a: DashboardItem, b: DashboardItem) => number) | undefined,
   sortAsc: boolean
 ): DashboardItem[] {
   return items.sort((a, b) => {
@@ -77,31 +82,44 @@ export function sortDashboardItems(
     if (aIsFolder && !bIsFolder) return -1;
     if (!aIsFolder && bIsFolder) return 1;
 
-    if (aIsFolder && bIsFolder) {
-      return sortAsc
-        ? a['name'].localeCompare(b['name'])
-        : b['name'].localeCompare(a['name']);
-    }
-
-    const aIsQG = a.name.endsWith(dialProjectFileExtension);
-    const bIsQG = b.name.endsWith(dialProjectFileExtension);
+    const aIsQG =
+      a.nodeType === MetadataNodeType.ITEM &&
+      a.name.endsWith(dialProjectFileExtension);
+    const bIsQG =
+      b.nodeType === MetadataNodeType.ITEM &&
+      b.name.endsWith(dialProjectFileExtension);
 
     if (aIsQG && !bIsQG) return -1;
     if (!aIsQG && bIsQG) return 1;
 
-    if (sortKey === 'name' || sortKey === 'parentPath') {
-      const aValue = a[sortKey] ?? '';
-      const bValue = b[sortKey] ?? '';
-
-      return sortAsc
-        ? aValue!.localeCompare(bValue!)
-        : bValue!.localeCompare(aValue!);
-    } else {
-      const aValue = a[sortKey] ?? 0;
-      const bValue = b[sortKey] ?? 0;
-
-      return sortAsc ? aValue - bValue : bValue - aValue;
+    // Use defined sort fn for this sorting
+    if (sortFn) {
+      return sortFn(a, b) * (sortAsc ? 1 : -1);
     }
+
+    const aValue = (a as any)[sortKey];
+    const bValue = (b as any)[sortKey];
+
+    if (aValue && !bValue) return -1 * (sortAsc ? 1 : -1);
+    if (!aValue && bValue) return 1 * (sortAsc ? 1 : -1);
+
+    if (typeof aValue === 'string' && typeof bValue === 'string') {
+      return sortAsc
+        ? aValue.localeCompare(bValue)
+        : bValue.localeCompare(aValue);
+    } else if (typeof aValue === 'number' && typeof bValue === 'number') {
+      return sortAsc ? aValue - bValue : bValue - aValue;
+    } else if (typeof aValue === 'boolean' && typeof bValue === 'boolean') {
+      return sortAsc
+        ? (aValue ? 1 : 0) - (bValue ? 1 : 0)
+        : (bValue ? 1 : 0) - (aValue ? 1 : 0);
+    } else if (Array.isArray(aValue) && Array.isArray(bValue)) {
+      return sortAsc
+        ? aValue.length - bValue.length
+        : bValue.length - aValue.length;
+    }
+
+    return -1;
   });
 }
 

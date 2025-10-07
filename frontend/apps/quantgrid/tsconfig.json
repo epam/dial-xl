@@ -1,20 +1,27 @@
 {
-  "compilerOptions": {
-    "jsx": "react-jsx",
-    "allowJs": false,
-    "esModuleInterop": false,
-    "allowSyntheticDefaultImports": true,
-    "noImplicitOverride": false,
-    "strict": true
-  },
   "files": [],
   "include": [],
   "references": [
+    {
+      "path": "../../libs/code-editor"
+    },
+    {
+      "path": "../../libs/canvasSpreadsheet"
+    },
+    {
+      "path": "../../libs/parser"
+    },
+    {
+      "path": "../../libs/common"
+    },
     {
       "path": "./tsconfig.app.json"
     },
     {
       "path": "./tsconfig.spec.json"
+    },
+    {
+      "path": "./tsconfig.e2e.json"
     }
   ],
   "extends": "../../tsconfig.base.json"

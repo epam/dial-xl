@@ -7,7 +7,6 @@ import { debounce } from 'ts-debounce';
 
 import Icon from '@ant-design/icons';
 import {
-  GridCell,
   GridListFilter,
   inputClasses,
   secondaryButtonClasses,
@@ -15,7 +14,7 @@ import {
   SortIcon,
 } from '@frontend/common';
 
-import { GridCallbacks } from '../../../types';
+import { GridCallbacks, GridCell } from '../../../types';
 
 const CheckboxGroup = Checkbox.Group;
 
@@ -63,7 +62,7 @@ export function ListFilter({
     return textFilter
       .map((i) => ({
         label: (
-          <span className={classNames(i.isFiltered && 'text-textSecondary')}>
+          <span className={classNames(i.isFiltered && 'text-text-secondary')}>
             {i.value}
           </span>
         ),
@@ -215,7 +214,7 @@ export function ListFilter({
           onKeyDown={(e) => e.key !== 'Escape' && e.stopPropagation()}
         />
         <button
-          className="flex items-center text-textSecondary hover:text-textAccentPrimary"
+          className="flex items-center text-text-secondary hover:text-text-accent-primary"
           onClick={handleChangeSort}
         >
           <Icon

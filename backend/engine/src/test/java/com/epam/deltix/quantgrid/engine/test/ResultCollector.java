@@ -19,6 +19,7 @@ import com.epam.deltix.quantgrid.parser.ParsedFields;
 import com.epam.deltix.quantgrid.parser.ParsedKey;
 import com.epam.deltix.quantgrid.parser.ParsedSheet;
 import com.epam.deltix.quantgrid.parser.ParsedTable;
+import com.epam.deltix.quantgrid.parser.ParsingError;
 import com.epam.deltix.quantgrid.parser.TableKey;
 import com.epam.deltix.quantgrid.parser.TotalKey;
 import lombok.Getter;
@@ -54,6 +55,18 @@ public class ResultCollector implements ResultListener {
                         positions.put(new FieldKey(table.tableName(), field.fieldName()), position++);
                     }
                 }
+            }
+
+            for (ParsingError error : sheet.errors()) {
+                if (error.getTableName() == null) {
+                    continue;
+                }
+
+                ParsedKey key = error.getFieldName() == null
+                        ? new TableKey(error.getTableName())
+                        : new FieldKey(error.getTableName(), error.getFieldName());
+
+                errors.put(key, error.getMessage());
             }
         }
     }

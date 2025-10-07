@@ -17,7 +17,7 @@ from quantgrid_1.utils.formatting import format_actions
 from quantgrid_1.utils.project_utils import find_table
 
 
-async def publish_changed_sheets(inputs: dict) -> dict:
+async def prepare_changed_sheets(inputs: dict) -> dict:
     choice = ChainParameters.get_choice(inputs)
     client = ChainParameters.get_client(inputs)
     parameters = ChainParameters.get_request_parameters(inputs)
@@ -29,12 +29,6 @@ async def publish_changed_sheets(inputs: dict) -> dict:
     final_actions = (
         ChainParameters.get_fixed_actions(inputs)
         if ChainParameters.FIX_ACTIONS in inputs
-        else []
-    )
-
-    final_errors = (
-        ChainParameters.get_fixed_errors(inputs)
-        if ChainParameters.FIX_ERRORS in inputs
         else []
     )
 
@@ -73,6 +67,24 @@ async def publish_changed_sheets(inputs: dict) -> dict:
 
     inputs[ChainParameters.FOCUS] = _publish_focus(inputs, final_project)
     inputs[ChainParameters.FINAL_PROJECT] = final_project
+    inputs[ChainParameters.COMPUTED_ACTIONS] = computed_actions
+
+    return inputs
+
+
+async def publish_changed_sheets(inputs: dict):
+    choice = ChainParameters.get_choice(inputs)
+    computed_actions = ChainParameters.get_computed_actions(inputs)
+    final_project = ChainParameters.get_final_project(inputs)
+
+    if computed_actions is None or final_project is None:
+        return inputs
+
+    final_errors = (
+        ChainParameters.get_fixed_errors(inputs)
+        if ChainParameters.FIX_ERRORS in inputs
+        else []
+    )
 
     if len(computed_actions):
         changed_sheets(choice, final_project, is_success=len(final_errors) == 0)
@@ -136,5 +148,9 @@ async def _push_suggested_changes(
         stage.append_content(format_actions(project, actions))
 
 
-def build_changed_sheets_chain() -> Runnable:
+def build_prepare_changed_sheets_chain() -> Runnable:
+    return RunnableLambda(prepare_changed_sheets)
+
+
+def build_publish_changed_sheets_chain() -> Runnable:
     return RunnableLambda(publish_changed_sheets)

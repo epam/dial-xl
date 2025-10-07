@@ -315,6 +315,8 @@ function getTotalExpression(
   type: TotalType
 ): string {
   if (type === 'custom') return naExpression;
+  if (type === 'countUnique')
+    return `COUNT(UNIQUE(${tableName}[${fieldName}]))`;
 
   return `${type.toUpperCase()}(${tableName}[${fieldName}])`;
 }

@@ -52,6 +52,10 @@ export function UserMenu({ placement, colorSchema = 'default' }: Props) {
     } else {
       await auth.revokeTokens();
       await auth.removeUser();
+      await auth.signoutRedirect({
+        post_logout_redirect_uri: window.location.href,
+        id_token_hint: auth.user?.id_token,
+      });
     }
   }, [auth, closeCurrentProject, projectName]);
 
@@ -75,7 +79,7 @@ export function UserMenu({ placement, colorSchema = 'default' }: Props) {
       label: userName,
       icon: (
         <Icon
-          className="w-[18px] text-textSecondary"
+          className="w-[18px] text-text-secondary"
           component={() => <UserAvatar />}
         />
       ),
@@ -90,7 +94,7 @@ export function UserMenu({ placement, colorSchema = 'default' }: Props) {
       label: 'Settings',
       icon: (
         <Icon
-          className="w-[18px] text-textSecondary"
+          className="w-[18px] text-text-secondary"
           component={() => <SettingsIcon />}
         />
       ),
@@ -101,7 +105,7 @@ export function UserMenu({ placement, colorSchema = 'default' }: Props) {
       label: 'Logout',
       icon: (
         <Icon
-          className="text-textSecondary w-[18px]"
+          className="text-text-secondary w-[18px]"
           component={() => <LogoutIcon />}
         />
       ),
@@ -127,31 +131,31 @@ export function UserMenu({ placement, colorSchema = 'default' }: Props) {
           <Icon
             className={cx(
               'h-[18px] w-[18px]',
-              colorSchema === 'read' && 'text-textSecondary',
-              colorSchema === 'review' && 'text-textInverted',
-              colorSchema === 'default' && 'text-textSecondary'
+              colorSchema === 'read' && 'text-text-secondary',
+              colorSchema === 'review' && 'text-text-inverted',
+              colorSchema === 'default' && 'text-text-secondary'
             )}
             component={() => <UserAvatar />}
           />
           {placement === 'dashboard' && (
-            <span className="hidden md:inline-block whitespace-nowrap overflow-hidden text-textPrimary text-sm text-ellipsis mx-2 select-none max-xl:hidden">
+            <span className="hidden md:inline-block whitespace-nowrap overflow-hidden text-text-primary text-sm text-ellipsis mx-2 select-none max-xl:hidden">
               {userName}
             </span>
           )}
           <Icon
             className={cx(
-              'hidden md:inline-block w-[18px] transition-all group-hover:text-textAccentPrimary',
+              'hidden md:inline-block w-[18px] transition-all group-hover:text-text-accent-primary',
               isUserMenuOpened && 'rotate-180',
-              colorSchema === 'read' && 'text-textInverted',
-              colorSchema === 'review' && 'text-textInverted',
-              colorSchema === 'default' && 'text-textPrimary'
+              colorSchema === 'read' && 'text-text-inverted',
+              colorSchema === 'review' && 'text-text-inverted',
+              colorSchema === 'default' && 'text-text-primary'
             )}
             component={() => <ChevronDown />}
           />
         </a>
       </Dropdown>
       <Modal
-        destroyOnClose={true}
+        destroyOnHidden={true}
         footer={null}
         open={isSettingsOpen}
         title="Settings"

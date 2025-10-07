@@ -1,9 +1,14 @@
 import { useCallback, useContext } from 'react';
 
-import { GridTable, isContextMenuOpen } from '@frontend/common';
+import { isContextMenuOpen } from '@frontend/common';
 
 import { GridStateContext } from '../context';
-import { Edges, HorizontalDirection, VerticalDirection } from '../types';
+import {
+  Edges,
+  GridTable,
+  HorizontalDirection,
+  VerticalDirection,
+} from '../types';
 import { isCellEditorOpen } from '../utils';
 import { useNavigation } from './useNavigation';
 
@@ -109,9 +114,9 @@ export function useSelectionMoveNextAvailable() {
 
       if (direction === 'up') {
         const tableWhichSelectionInside: GridTable | undefined =
-          tablesWhichSelectionInside.filter(
+          tablesWhichSelectionInside.find(
             (table) => table.startRow !== startRow
-          )[0];
+          );
         if (
           target &&
           (!tableWhichSelectionInside ||
@@ -136,9 +141,7 @@ export function useSelectionMoveNextAvailable() {
       }
       if (direction === 'down') {
         const tableWhichSelectionInside: GridTable | undefined =
-          tablesWhichSelectionInside.filter(
-            (table) => table.endRow !== startRow
-          )[0];
+          tablesWhichSelectionInside.find((table) => table.endRow !== startRow);
         if (
           target &&
           (!tableWhichSelectionInside ||
@@ -146,9 +149,9 @@ export function useSelectionMoveNextAvailable() {
         ) {
           selectEntireCell({
             startCol: target.col,
-            startRow: edges.row,
+            startRow: Math.min(edges.row, target.row),
             endCol: target.col,
-            endRow: edges.row,
+            endRow: Math.min(edges.row, target.row),
           });
         } else if (tableWhichSelectionInside) {
           selectEntireCell({
@@ -163,9 +166,9 @@ export function useSelectionMoveNextAvailable() {
       }
       if (direction === 'left') {
         const tableWhichSelectionInside: GridTable | undefined =
-          tablesWhichSelectionInside.filter(
+          tablesWhichSelectionInside.find(
             (table) => table.startCol !== startCol
-          )[0];
+          );
         if (
           target &&
           (!tableWhichSelectionInside ||
@@ -190,18 +193,16 @@ export function useSelectionMoveNextAvailable() {
       }
       if (direction === 'right') {
         const tableWhichSelectionInside: GridTable | undefined =
-          tablesWhichSelectionInside.filter(
-            (table) => table.endCol !== endCol
-          )[0];
+          tablesWhichSelectionInside.find((table) => table.endCol !== endCol);
         if (
           target &&
           (!tableWhichSelectionInside ||
             target.col <= tableWhichSelectionInside.endCol)
         ) {
           selectEntireCell({
-            startCol: edges.col,
+            startCol: Math.min(edges.col, target.col),
             startRow: target.row,
-            endCol: edges.col,
+            endCol: Math.min(edges.col, target.col),
             endRow: target.row,
           });
         } else if (tableWhichSelectionInside) {

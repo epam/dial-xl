@@ -40,7 +40,7 @@ export function ToolBar({
 
   return (
     <div
-      className="flex items-center absolute bg-bgLayer3 border-x-[0.3px] border-x-strokePrimary"
+      className="flex items-center absolute bg-bg-layer-3 border-x-[0.3px] border-x-stroke-primary"
       key={'toolbar_' + chartConfig.tableName}
       style={{
         left: getPx(chartConfig.toolBarLeft),

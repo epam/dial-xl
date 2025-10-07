@@ -35,6 +35,10 @@ class FocusStage(Stage):
     type: Literal["focus"] = "focus"
 
 
+class StandaloneQuestionStage(Stage):
+    type: Literal["standalone"] = "standalone"
+
+
 type AnyStage = (
     GenericStage
     | HintStage
@@ -44,4 +48,5 @@ type AnyStage = (
     | ActionsStage
     | SheetsStage
     | FocusStage
+    | StandaloneQuestionStage
 )

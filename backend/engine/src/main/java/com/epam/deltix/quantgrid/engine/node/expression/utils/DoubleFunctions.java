@@ -1,6 +1,8 @@
 package com.epam.deltix.quantgrid.engine.node.expression.utils;
 
+import com.epam.deltix.quantgrid.util.Dates;
 import com.epam.deltix.quantgrid.util.Doubles;
+import com.epam.deltix.quantgrid.util.Strings;
 import lombok.experimental.UtilityClass;
 
 @UtilityClass
@@ -505,5 +507,30 @@ public class DoubleFunctions {
 
         double result = Math.log(value) / Math.log(base);
         return Doubles.normalizeNaN(result);
+    }
+
+    public double value(String input) {
+        if (Strings.isError(input)) {
+            return Strings.toDoubleError(input);
+        }
+
+        if (Strings.isEmpty(input)) {
+            return Doubles.EMPTY;
+        }
+
+        if ("true".equalsIgnoreCase(input)) {
+            return 1;
+        }
+
+        if ("false".equalsIgnoreCase(input)) {
+            return 0;
+        }
+
+        double date = Dates.from(input);
+        if (!Doubles.isNa(date)) {
+            return date;
+        }
+
+        return Doubles.parseDouble(input);
     }
 }

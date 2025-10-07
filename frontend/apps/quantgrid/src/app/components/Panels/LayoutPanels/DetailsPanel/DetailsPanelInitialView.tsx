@@ -44,26 +44,26 @@ export function DetailsPanelInitialView() {
   return (
     <div className="max-w-[370px] self-center grow justify-center flex flex-col items-center pb-1 px-4">
       <Icon
-        className="w-10 text-textAccentPrimary mb-4"
+        className="w-10 text-text-accent-primary mb-4"
         component={() => (
           <TableHeaderIcon secondaryAccentCssVar="text-bgAccentPrimaryAlphaRGB" />
         )}
       />
-      <span className="text-[13px] font-semibold text-textPrimary text-center">
+      <span className="text-[13px] font-semibold text-text-primary text-center">
         Select an existing chart or Pivot table to see details
       </span>
 
-      <div className="flex items-center w-full text-sm text-textSecondary my-10">
-        <div className="flex-grow border-t border-strokePrimary"></div>
+      <div className="flex items-center w-full text-sm text-text-secondary my-10">
+        <div className="grow border-t border-stroke-primary"></div>
         <span className="px-3">OR</span>
-        <div className="flex-grow border-t border-strokePrimary"></div>
+        <div className="grow border-t border-stroke-primary"></div>
       </div>
 
       <Icon
-        className="w-10 text-textSecondary mb-4"
+        className="w-10 text-text-secondary mb-4"
         component={() => <TableIcon />}
       />
-      <span className="text-[13px] font-semibold text-textPrimary text-center">
+      <span className="text-[13px] font-semibold text-text-primary text-center">
         Create Pivot table
       </span>
 

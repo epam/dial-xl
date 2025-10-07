@@ -25,15 +25,15 @@ class ScientificFormatTest {
     @Test
     void testFormatWithDecimalPoint() {
         String[] expected = new String[] {
-                "0.00E+0",
-                "0.00E+0",
-                "1.00E+0",
-                "1.00E+1",
-                "1.23E+3",
+                "0.00E0",
+                "0.00E0",
+                "1.00E0",
+                "1.00E1",
+                "1.23E3",
                 "-1.00E-20",
-                "3.35E+30",
+                "3.35E30",
                 "4.94E-324",
-                "1.80E+308",
+                "1.80E308",
                 Strings.ERROR_NA
         };
         Formatter formatter = new ScientificFormat(2).createFormatter();
@@ -48,15 +48,15 @@ class ScientificFormatTest {
     @Test
     void testFormatWithoutDecimalPoint() {
         String[] expected = new String[] {
-                "0E+0",
-                "0E+0",
-                "1E+0",
-                "1E+1",
-                "1E+3",
+                "0E0",
+                "0E0",
+                "1E0",
+                "1E1",
+                "1E3",
                 "-1E-20",
-                "3E+30",
+                "3E30",
                 "5E-324",
-                "2E+308",
+                "2E308",
                 Strings.ERROR_NA
         };
         Formatter formatter = new ScientificFormat(0).createFormatter();
@@ -71,15 +71,15 @@ class ScientificFormatTest {
     @Test
     void testFormatWithTotalDigits() {
         String[] expected = new String[] {
-                "0E+0",
-                "0E+0",
-                "1E+0",
-                "1E+1",
-                "1.23E+3",
+                "0E0",
+                "0E0",
+                "1E0",
+                "1E1",
+                "1.23E3",
                 "-1E-20",
-                "3.3E+30",
+                "3.3E30",
                 "5E-324",
-                "2E+308",
+                "2E308",
                 Strings.ERROR_NA
         };
         Formatter formatter = new ScientificFormat(-4).createFormatter();

@@ -2,12 +2,15 @@ import { AppTheme } from '../types';
 
 export const themeColors: Record<AppTheme, Record<string, string>> = {
   [AppTheme.ThemeLight]: {
+    bgAccentPrimary: 'rgba(132, 62, 243)',
     bgAccentPrimaryAlpha: 'rgba(132, 62, 243, 0.1)',
     bgAccentPrimaryAlphaRGB: '#843EF319',
     bgAccentPrimaryAlpha2: 'rgba(169, 114, 255, 0.2)',
-    bgAccentTertiaryAlpha: '#e7edf9',
     bgAccentSecondary: '#009d9f',
+    bgAccentSecondaryAlpha: 'rgba(0,157,159, 0.1)',
     bgAccentTertiary: '#2764d9',
+    bgAccentTertiaryAlpha: 'rgba(39,100,217, 0.1)',
+    bgAccentTertiaryAlphaSolid: '#e7edf9',
     bgError: '#f3d6d8',
     bgGridAccentPrimaryAlpha: 'rgba(132, 62, 243, 0.1)',
     bgGridField: '#dde1e6',
@@ -58,12 +61,15 @@ export const themeColors: Record<AppTheme, Record<string, string>> = {
     warningInverted: '#f4ce46',
   },
   [AppTheme.ThemeDark]: {
+    bgAccentPrimary: 'rgba(169, 114, 255)',
     bgAccentPrimaryAlpha: 'rgba(169, 114, 255, 0.17)',
     bgAccentPrimaryAlphaRGB: '#A972FF2B',
     bgAccentPrimaryAlpha2: 'rgba(132, 62, 243, 0.35)',
-    bgAccentTertiaryAlpha: '#121e33',
     bgAccentSecondary: '#37babc',
+    bgAccentSecondaryAlpha: 'rgba(55,186,188, 0.15)',
     bgAccentTertiary: '#5c8dea',
+    bgAccentTertiaryAlpha: 'rgba(92,141,234, 0.17)',
+    bgAccentTertiaryAlphaSolid: '#121e33',
     bgError: '#402027',
     bgGridAccentPrimaryAlpha: 'rgba(169, 114, 255, 0.17)',
     bgGridField: '#333942',
@@ -113,14 +119,16 @@ export const themeColors: Record<AppTheme, Record<string, string>> = {
     textWarning: '#f4ce46',
     warningInverted: '#daae14',
   },
-
   [AppTheme.ThemeDarkMixed]: {
+    bgAccentPrimary: 'rgba(169, 114, 255)',
     bgAccentPrimaryAlpha: 'rgba(169, 114, 255, 0.17)',
     bgAccentPrimaryAlphaRGB: '#A972FF2B',
     bgAccentPrimaryAlpha2: 'rgba(132, 62, 243, 0.35)',
-    bgAccentTertiaryAlpha: '#121e33',
     bgAccentSecondary: '#37babc',
+    bgAccentSecondaryAlpha: 'rgba(0,157,159, 0.1)',
     bgAccentTertiary: '#5c8dea',
+    bgAccentTertiaryAlpha: 'rgba(39,100,217, 0.1)',
+    bgAccentTertiaryAlphaSolid: '#e7edf9',
     bgError: '#402027',
     bgGridAccentPrimaryAlpha: 'rgba(132, 62, 243, 0.1)',
     bgGridField: '#dde1e6',
@@ -186,7 +194,7 @@ export function themeColorToKebab(str: string): string {
 export function generateThemeCSS(theme: AppTheme): string {
   let css = `.${theme} {\n`;
   for (const [key, val] of Object.entries(themeColors[theme])) {
-    css += `  --${themeColorToKebab(key)}: ${val};\n`;
+    css += `  --color-${themeColorToKebab(key)}: ${val};\n`;
   }
   css += '}\n';
 

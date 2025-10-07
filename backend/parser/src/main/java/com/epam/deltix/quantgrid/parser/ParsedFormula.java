@@ -10,6 +10,7 @@ import com.epam.deltix.quantgrid.parser.ast.FieldReference;
 import com.epam.deltix.quantgrid.parser.ast.Formula;
 import com.epam.deltix.quantgrid.parser.ast.Function;
 import com.epam.deltix.quantgrid.parser.ast.FieldsReference;
+import com.epam.deltix.quantgrid.parser.ast.Missing;
 import com.epam.deltix.quantgrid.parser.ast.QueryRow;
 import com.epam.deltix.quantgrid.parser.ast.TableReference;
 import com.epam.deltix.quantgrid.parser.ast.UnaryOperation;
@@ -37,10 +38,19 @@ public record ParsedFormula(Formula formula, List<ParsingError> errors) {
 
         Span span = Span.from(ctx);
         if (ctx.function_name() != null) {
-            Formula[] arguments = ctx.expression().stream()
+            List<Formula> args = new ArrayList<>();
+
+            ctx.expression()
+                    .stream()
                     .map(ParsedFormula::buildFormula)
-                    .toArray(Formula[]::new);
-            return new Function(span, ctx.function_name().getText(), arguments);
+                    .forEach(args::add);
+
+            ctx.function_argument()
+                    .stream()
+                    .map(arg -> arg.expression() == null ? new Missing(Span.from(arg)) : buildFormula(arg.expression()))
+                    .forEach(args::add);
+
+            return new Function(span, ctx.function_name().getText(), args);
         } else if (ctx.list_expression() != null) {
             Formula[] arguments = ctx.list_expression().expression().stream()
                     .map(ParsedFormula::buildFormula)

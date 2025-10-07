@@ -1,6 +1,4 @@
-import { GridCell } from '@frontend/common';
-
-import { Edges } from '../../types';
+import { Edges, GridCell } from '../../types';
 
 export type CellError = Edges & {
   message: string;

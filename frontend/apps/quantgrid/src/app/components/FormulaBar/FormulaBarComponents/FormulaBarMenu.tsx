@@ -42,18 +42,18 @@ export function FormulaBarMenu() {
     <div>
       <Dropdown
         autoAdjustOverflow={true}
-        destroyPopupOnHide={true}
+        destroyOnHidden={true}
         menu={{
           items: items,
           selectable: true,
           selectedKeys: [formulaBarMode],
-          onClick,
+          onClick: onClick as any,
         }}
         rootClassName={formulaBarMenuClass}
         trigger={['click', 'contextMenu']}
       >
         <Icon
-          className="w-[18px] text-textPrimary hover:text-textAccentPrimary"
+          className="w-[18px] text-text-primary hover:text-text-accent-primary"
           component={() => <DotsIcon />}
         />
       </Dropdown>

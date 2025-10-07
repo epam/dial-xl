@@ -1,16 +1,34 @@
 import * as fs from 'fs';
+import * as path from 'path';
 
+import { workspaceRoot } from '@nx/devkit';
 import { expect, test as setup } from '@playwright/test';
 
 import { LoginPage } from '../pages/LoginPage';
 import { ProjectSelection } from '../pages/ProjectSelection';
 import { TestFixtures } from './TestFixtures';
 
-const authFile = 'playwright/.auth/user.json';
+const folderNameFile = path.join(
+  workspaceRoot,
+  'playwright',
+  'run-state',
+  'folderName.txt'
+);
+const authFile = path.resolve(
+  __dirname,
+  '..',
+  '..',
+  '..',
+  '..',
+  'playwright',
+  '.auth',
+  'user.json'
+);
 
 const username = process.env['QUANTGRID_TEST_USERNAME'];
 const password = process.env['QUANTGRID_TEST_PASSWORD'];
 const authType = process.env['AUTH_TYPE'];
+
 const authEnabled = true;
 
 setup('authenticate', async ({ page }) => {
@@ -50,15 +68,17 @@ setup('authenticate', async ({ page }) => {
   await startPage.openFolder(dateFormat);
   const folderName = TestFixtures.addGuid('autotest_folder');
   await startPage.createFolder(folderName);
-  fs.writeFileSync('./folderName.txt', rootFolder + '\n');
-  fs.writeFileSync('./folderName.txt', dateFormat + '\n', { flag: 'a+' });
-  fs.writeFileSync('./folderName.txt', folderName, { flag: 'a+' });
+  fs.mkdirSync(path.dirname(folderNameFile), { recursive: true });
+  fs.writeFileSync(
+    folderNameFile,
+    `${rootFolder}\n${dateFormat}\n${folderName}`
+  );
   await startPage.addNewProject('autotest_empty', [
     rootFolder,
     dateFormat,
     folderName,
   ]);
-
+  fs.mkdirSync(path.dirname(authFile), { recursive: true });
   // End of authentication steps.
 
   await page.context().storageState({ path: authFile });

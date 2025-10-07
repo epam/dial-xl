@@ -64,7 +64,7 @@ describe('autoRenameFields', () => {
 
   it('should return same dsl if unable to parse dsl', () => {
     // Arrange
-    const dsl = '!table t [f1]=2\n [f2]=3\n [f3]=4';
+    const dsl = 'table! t [f1]=2\n [f2]=3\n [f3]=4';
 
     // Act
     const result = autoRenameFields(dsl);

@@ -7,7 +7,13 @@ from quantgrid.models import AnyAction
 from quantgrid_1.models.focus import Focus
 from quantgrid_1.models.stage import Attachment
 from testing.models.assistant_score import AssistantScore, Verdict
-from testing.models.query_stages import AnyStage, FocusStage, RouteStage, SheetsStage
+from testing.models.query_stages import (
+    AnyStage,
+    FocusStage,
+    RouteStage,
+    SheetsStage,
+    StandaloneQuestionStage,
+)
 
 AnnotatedAction = Annotated[AnyAction, Field(discriminator="type")]
 AnnotatedStage = Annotated[AnyStage, Field(discriminator="type")]
@@ -62,3 +68,20 @@ class QueryInfo(BaseModel):
             return Focus.model_validate_json(json_content)
 
         return Focus(columns=[])
+
+    @property
+    def standalone_question(self) -> str | None:
+        for stage in reversed(self.stages):
+            if isinstance(stage, StandaloneQuestionStage) and len(stage.content):
+                return stage.content
+
+        return None
+
+    @property
+    def standalone_question_file(self) -> str | None:
+        for stage in reversed(self.stages):
+            if isinstance(stage, StandaloneQuestionStage) and len(stage.content):
+                for attachment in stage.attachments:
+                    return attachment.url
+
+        return None

@@ -22,7 +22,7 @@ export const UndoRedoPanel = ({
   return (
     <PanelWrapper isActive={isActive} panelName={panelName}>
       <PanelToolbar panelName={panelName} position={position} title={title}>
-        <Tooltip placement="bottom" title="Clear history">
+        <Tooltip placement="bottom" title="Clear history" destroyOnHidden>
           <Icon
             className={cx('w-[16px]', iconClasses)}
             component={() => <ClearIcon />}

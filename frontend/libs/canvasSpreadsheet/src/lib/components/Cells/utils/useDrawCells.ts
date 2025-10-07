@@ -4,7 +4,6 @@ import { RefObject, useCallback, useContext, useEffect, useState } from 'react';
 import {
   formatNumberGeneral,
   FormatType,
-  GridCell,
   isGeneralFormatting,
 } from '@frontend/common';
 import { unescapeFieldName, unescapeTableName } from '@frontend/parser';
@@ -12,7 +11,7 @@ import { unescapeFieldName, unescapeTableName } from '@frontend/parser';
 import { adjustmentFontMultiplier } from '../../../constants';
 import { GridStateContext, GridViewportContext } from '../../../context';
 import { useDraw } from '../../../hooks';
-import { Cell, IconCell } from '../../../types';
+import { Cell, GridCell, IconCell } from '../../../types';
 import { applyCellGraphics, cropText, hashText } from '../../../utils';
 import {
   getCellIcon,

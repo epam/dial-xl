@@ -11,11 +11,12 @@ import {
 import { Subscription } from 'rxjs';
 
 import {
-  FilesMetadata,
   FunctionInfo,
   GridListFilter,
   KeyboardCode,
   MenuItem,
+  ResourceMetadata,
+  SharedWithMeMetadata,
   Shortcut,
   shortcutApi,
   useClickOutside,
@@ -49,7 +50,7 @@ type Props = {
   gridCallbacksRef: RefObject<GridCallbacks>;
   functions: FunctionInfo[];
   parsedSheets: ParsedSheets;
-  inputFiles: FilesMetadata[] | null;
+  inputFiles: (ResourceMetadata | SharedWithMeMetadata)[] | null;
   filterList: GridListFilter[];
 };
 
@@ -175,25 +176,11 @@ export function ContextMenu({
         setContextMenuItems(getTableHeaderMenuItems(cellData));
       } else if (cellData.isFieldHeader && cellData.field && gridCallbacks) {
         setContextMenuItems(
-          getTableFieldMenuItems(
-            col,
-            row,
-            cellData,
-            gridCallbacks,
-            filterList,
-            apiRef.current
-          )
+          getTableFieldMenuItems(col, row, cellData, gridCallbacks, filterList)
         );
       } else if (gridCallbacks) {
         setContextMenuItems(
-          getTableCellMenuItems(
-            col,
-            row,
-            cellData,
-            gridCallbacks,
-            filterList,
-            apiRef.current
-          )
+          getTableCellMenuItems(col, row, cellData, gridCallbacks, filterList)
         );
       }
     });
@@ -467,7 +454,7 @@ export function ContextMenu({
     <Dropdown
       align={{ offset: [3, -3] }}
       autoAdjustOverflow={true}
-      destroyPopupOnHide={true}
+      destroyOnHidden={true}
       forceRender={true}
       menu={{ items: contextMenuItems, onClick }}
       open={contextMenuOpen}

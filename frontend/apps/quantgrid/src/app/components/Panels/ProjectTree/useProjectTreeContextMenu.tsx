@@ -24,12 +24,14 @@ import {
 import {
   AppContext,
   AppSpreadsheetInteractionContext,
+  InputsContext,
   OpenFieldSideEffect,
   OpenTableSideEffect,
   ProjectContext,
   ViewportContext,
 } from '../../../context';
 import {
+  isInputFormula,
   useChartEditDsl,
   useCreateTableDsl,
   useDeleteEntityDsl,
@@ -98,6 +100,7 @@ const contextMenuActionKeys = {
 
   openTableInEditor: 'openTableInEditor',
   openFieldInEditor: 'openFieldInEditor',
+  switchInput: 'switchInput',
 };
 
 export type ProjectTreeData = {
@@ -137,6 +140,7 @@ export const useProjectTreeContextMenu = (
   const { isPointClickMode } = useContext(AppContext);
   const projectAction = useProjectActions();
   const { projectName, openSheet } = useContext(ProjectContext);
+  const { onSwitchInput } = useContext(InputsContext);
   const { viewGridData } = useContext(ViewportContext);
   const { openField, openTable } = useContext(AppSpreadsheetInteractionContext);
   const { deleteField } = useDeleteEntityDsl();
@@ -189,7 +193,9 @@ export const useProjectTreeContextMenu = (
           ),
           label: 'Rename Worksheet',
           disabled: !isDefaultMode,
-          tooltip: disabledTooltips.notAllowedChanges,
+          tooltip: !isDefaultMode
+            ? disabledTooltips.notAllowedChanges
+            : undefined,
         }),
         getDropdownItem({
           key: getDropdownMenuKey<ProjectTreeData>(
@@ -198,7 +204,9 @@ export const useProjectTreeContextMenu = (
           ),
           label: 'Delete Worksheet',
           disabled: !isDefaultMode,
-          tooltip: disabledTooltips.notAllowedChanges,
+          tooltip: !isDefaultMode
+            ? disabledTooltips.notAllowedChanges
+            : undefined,
         }),
       ];
     },
@@ -336,7 +344,7 @@ export const useProjectTreeContextMenu = (
                   ),
                   icon: (
                     <Icon
-                      className="text-textSecondary w-[18px]"
+                      className="text-text-secondary w-[18px]"
                       component={() => item.icon}
                     />
                   ),
@@ -361,7 +369,7 @@ export const useProjectTreeContextMenu = (
                     ),
                     icon: (
                       <Icon
-                        className="text-textSecondary w-[18px]"
+                        className="text-text-secondary w-[18px]"
                         component={() => item.icon}
                       />
                     ),
@@ -496,6 +504,7 @@ export const useProjectTreeContextMenu = (
       let isText = false;
       let isDescription = false;
       let fieldNames: string[] = [];
+      let isInput = false;
 
       if (tableName && fieldName) {
         const context = findContext(tableName, fieldName);
@@ -513,6 +522,9 @@ export const useProjectTreeContextMenu = (
           isIndex = !!context.field?.isIndex();
           isDescription = !!context.field?.isDescription();
           fieldNames = context.table.getFieldNames();
+          isInput = isInputFormula(
+            context.field?.expressionMetadata?.text || ''
+          );
 
           const fieldHeaderPlacement =
             context.table.getFieldHeaderPlacement(fieldName);
@@ -562,6 +574,15 @@ export const useProjectTreeContextMenu = (
           ),
           label: 'Edit formula',
         }),
+        isInput
+          ? getDropdownItem({
+              key: getDropdownMenuKey<ProjectTreeData>(
+                contextMenuActionKeys.switchInput,
+                childData
+              ),
+              label: 'Switch input',
+            })
+          : null,
         getDropdownItem({
           key: getDropdownMenuKey<ProjectTreeData>(
             contextMenuActionKeys.renameField,
@@ -1128,11 +1149,17 @@ export const useProjectTreeContextMenu = (
             changeFieldDescription(data.tableName, data.fieldName, '', true);
           }
           break;
+        case contextMenuActionKeys.switchInput:
+          if (data.tableName && data.fieldName) {
+            onSwitchInput(data.tableName, data.fieldName);
+          }
+          break;
         default:
           break;
       }
     },
     [
+      onSwitchInput,
       projectAction,
       moveToNode,
       deleteTable,

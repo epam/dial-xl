@@ -1,3 +1,5 @@
+export * from './CloneFile';
+export * from './CloneProject';
 export * from './DeleteProject';
 export * from './DeleteSheet';
 export * from './EditAIHint';
@@ -8,8 +10,8 @@ export * from './PreUploadFile';
 export * from './RenameFileModal';
 export * from './RenameProject';
 export * from './RenameSheet';
-export * from './SelectFolder';
 export * from './SelectFile';
+export * from './SelectFolder';
 export * from './Settings';
 export * from './ShareFiles';
 export * from './ShortcutsHelp';

@@ -3,6 +3,7 @@ import { editor, IRange, Position, Range } from '../monaco';
 const OPENING_BRACKETS = ['(', '[', '{'];
 const CLOSING_BRACKETS = [')', ']', '}'];
 const QUOTES = ['"', "'", '`'];
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const ALL_BRACKETS = [...OPENING_BRACKETS, ...CLOSING_BRACKETS] as const;
 type Bracket = (typeof ALL_BRACKETS)[number];
 

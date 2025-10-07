@@ -1,7 +1,12 @@
 import pytest
 
 from dial_xl.calculate import FieldData
-from dial_xl.compile import PrimitiveFieldType
+from dial_xl.compile import (
+    PrimitiveFieldType,
+    GeneralFormat,
+    FieldReference,
+    TableReference,
+)
 from dial_xl.decorator import Decorator
 from dial_xl.field import Field
 from dial_xl.field_groups import FieldGroup
@@ -225,8 +230,7 @@ table A
   [b] = 1
                 
 table B
-    [a] = 1
-    [*] = A.PIVOT($[a], SUM($[b]))
+    dim [a], [*] = PIVOT(A[a], A[a], A[b], "SUM")
 """
     )
 
@@ -242,24 +246,34 @@ table B
     )
     sheet = project.get_sheet(SHEET_NAME)
     table = sheet.get_table("B")
-    pivot_field = table.field_groups[1].get_field("*")
+    pivot_field = table.field_groups[0].get_field("*")
     dynamic_field = table.get_dynamic_field("dynamic field")
 
-    assert len(table.field_groups) == 2
+    assert len(table.field_groups) == 1
     assert list(table.dynamic_field_names) == ["dynamic field"]
     assert_type_equality(
         pivot_field.field_type,
-        PrimitiveFieldType(hash="", name="STRING", is_nested=False),
+        PrimitiveFieldType(
+            hash="",
+            name="STRING",
+            is_nested=False,
+            format=GeneralFormat(),
+            references=[
+                FieldReference(table="A", field="a"),
+                TableReference(table="A"),
+                FieldReference(table="A", field="b"),
+            ],
+        ),
     )
     assert pivot_field.field_data == FieldData(
-        values=["dynamic field"], start_row=0, end_row=5, total_rows=1
+        values=["dynamic field"], start_row=0, end_row=5, total_rows=1, is_raw=False
     )
     assert_type_equality(
         dynamic_field.field_type,
-        PrimitiveFieldType(hash="", name="DOUBLE", is_nested=False),
+        PrimitiveFieldType(hash="", name="DOUBLE", is_nested=False, format=None),
     )
     assert dynamic_field.field_data == FieldData(
-        values=["1"], start_row=0, end_row=5, total_rows=1
+        values=["1"], start_row=0, end_row=5, total_rows=1, is_raw=False
     )
 
 

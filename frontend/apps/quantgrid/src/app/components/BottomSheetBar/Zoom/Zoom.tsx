@@ -3,16 +3,21 @@ import cx from 'classnames';
 import { useContext, useEffect, useMemo, useState } from 'react';
 
 import Icon from '@ant-design/icons';
-import { ChevronDown, getDropdownItem } from '@frontend/common';
+import { ChevronDown, getDropdownItem, zoomValues } from '@frontend/common';
 
-import { AppContext, zoomValues } from '../../../context';
+import { AppContext } from '../../../context';
 
-const zoomOptions = zoomValues?.map((zoom) => ({
-  label: zoom * 100 + '%',
-  value: zoom,
-}));
 export function Zoom() {
   const { updateZoom, zoom } = useContext(AppContext);
+
+  const zoomOptions = useMemo(
+    () =>
+      zoomValues?.map((zoom) => ({
+        label: zoom * 100 + '%',
+        value: zoom,
+      })),
+    []
+  );
 
   const [isZoomOpened, setIsZoomOpened] = useState(false);
   const [selectedZoom, setSelectedZoom] = useState<{
@@ -24,7 +29,7 @@ export function Zoom() {
     setSelectedZoom(
       zoomOptions.find((z) => z.value === zoom) || zoomOptions[0]
     );
-  }, [zoom]);
+  }, [zoom, zoomOptions]);
 
   const items: MenuProps['items'] = useMemo(
     () =>
@@ -35,7 +40,7 @@ export function Zoom() {
           onClick: () => updateZoom(val.value),
         })
       ),
-    [updateZoom]
+    [updateZoom, zoomOptions]
   );
 
   return (
@@ -44,18 +49,18 @@ export function Zoom() {
         align={{
           offset: [0, 12],
         }}
-        className="px-3 h-full min-w-[60px] flex items-center justify-center"
+        className="px-1 h-full min-w-[60px] flex items-center justify-center"
         menu={{ items }}
         open={isZoomOpened}
         onOpenChange={setIsZoomOpened}
       >
         <div className="cursor-pointer flex gap-1 group">
-          <span className="text-[13px] text-textPrimary">
+          <span className="text-[13px] text-text-primary">
             {selectedZoom.label}
           </span>
           <Icon
             className={cx(
-              'text-textPrimary w-[18px] transition-all group-hover:text-textAccentPrimary',
+              'text-text-primary w-[18px] transition-all group-hover:text-text-accent-primary',
               isZoomOpened && 'rotate-180'
             )}
             component={() => <ChevronDown />}

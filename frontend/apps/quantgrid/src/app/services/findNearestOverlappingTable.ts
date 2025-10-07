@@ -1,4 +1,4 @@
-import { GridTable } from '@frontend/common';
+import { GridTable } from '@frontend/canvas-spreadsheet';
 import { ParsedTable } from '@frontend/parser';
 
 export function findNearestOverlappingTable(

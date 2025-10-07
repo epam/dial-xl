@@ -94,6 +94,7 @@ export function RenameSheet({ renameSheetModal }: Props) {
       inputRef.current.focus({
         cursor: 'end',
       });
+      inputRef.current.select();
     }, 0);
   }, [isModalOpen]);
 
@@ -110,7 +111,7 @@ export function RenameSheet({ renameSheetModal }: Props) {
       cancelButtonProps={{
         className: cx(modalFooterButtonClasses, secondaryButtonClasses),
       }}
-      destroyOnClose={true}
+      destroyOnHidden={true}
       okButtonProps={{
         className: cx(
           modalFooterButtonClasses,
@@ -123,34 +124,39 @@ export function RenameSheet({ renameSheetModal }: Props) {
       onCancel={handleCancel}
       onOk={handleOk}
     >
-      <Form className="pb-2" form={form}>
-        <Form.Item
-          name="newSheetName"
-          rules={[
-            { required: true, message: 'Sheet name is required' },
-            {
-              validator: (_, value) => {
-                const result = !projectSheets?.some(
-                  (sheet) => sheet.sheetName === value
-                );
+      <div className="flex flex-col gap-1 mt-4">
+        <label className="text-xs text-text-secondary" htmlFor="projectName">
+          Worksheet name after renaming
+        </label>
+        <Form className="pb-2" form={form}>
+          <Form.Item
+            name="newSheetName"
+            rules={[
+              { required: true, message: 'Sheet name is required' },
+              {
+                validator: (_, value) => {
+                  const result = !projectSheets?.some(
+                    (sheet) => sheet.sheetName === value
+                  );
 
-                return result
-                  ? Promise.resolve()
-                  : Promise.reject(
-                      new Error('A worksheet with this name already exists.')
-                    );
+                  return result
+                    ? Promise.resolve()
+                    : Promise.reject(
+                        new Error('A worksheet with this name already exists.')
+                      );
+                },
               },
-            },
-          ]}
-          validateTrigger={['onBlur']}
-        >
-          <Input
-            className={cx('h-12 my-3', inputClasses)}
-            placeholder="Sheet name"
-            ref={inputRef}
-          />
-        </Form.Item>
-      </Form>
+            ]}
+            validateTrigger={['onBlur']}
+          >
+            <Input
+              className={cx('h-12 my-3', inputClasses)}
+              placeholder="Sheet name"
+              ref={inputRef}
+            />
+          </Form.Item>
+        </Form>
+      </div>
     </Modal>
   );
 }

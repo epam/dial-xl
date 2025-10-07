@@ -3,7 +3,13 @@ from dial_xl.field import Field
 from dial_xl.table import Table
 
 from quantgrid.utils.project import FieldGroupUtil
-from testing.framework import AddFieldOrTable, AddTable, FrameProject, find_unsorted
+from testing.framework import (
+    AddFieldOrTable,
+    AddTable,
+    FrameProject,
+    find_unsorted,
+    values,
+)
 from testing.framework.frame_project import Hint, Trigger
 from testing.framework.testing_utils import code_regex, field, field_code_regex
 
@@ -40,6 +46,54 @@ async def test_hint_natural_language(clients_project: FrameProject):
         assert find_unsorted(table, ["ClientD", "ClientF"])
 
     answer.assertion(AddFieldOrTable(validator=validate))
+
+
+async def test_hint_history(clients_project: FrameProject):
+    await clients_project.create_ai_hint(
+        hints=[
+            Hint(
+                name="Sorting Cash Cows",
+                triggers=[Trigger(value="Sort table with cash cows", isDisabled=False)],
+                suggestion="""
+                    When asked to sort cash cows, create table with EXACTLY ONE column: just cow names, no revenue values.
+
+                    ```xl
+                    table SortedCows
+                        dim [name] = CowsTable[name].SORTBY(-CowsTable[revenue])
+                    ```
+                """,
+                isDisabled=False,
+            )
+        ]
+    )
+
+    answer = await clients_project.query(
+        """
+        Find all cash cows. Cash cow are clients of type B and having revenue more than 100.
+        """
+    )
+
+    clients_project.apply(answer)
+
+    answer = await clients_project.query(
+        """
+        Sort them.
+        """
+    )
+
+    def validate(_, __, table: Table):
+        assert len(table.field_groups) == 1
+        field_group = table.field_groups[0]
+
+        assert field_group.field_count == 1
+        table_field = field_group.get_field(next(field_group.field_names))
+
+        assert isinstance(table_field.field_data, FieldData)
+        assert len(table_field.field_data.values) == 2
+
+        assert values(table_field) == ["ClientF", "ClientD"]
+
+    answer.assertion(AddTable(validator=validate))
 
 
 async def test_hint_unknown_function(clients_project: FrameProject):

@@ -2,7 +2,7 @@ import Fuse from 'fuse.js';
 
 import {
   dialProjectFileExtension,
-  FilesMetadata,
+  ResourceMetadata,
   WorksheetState,
 } from '@frontend/common';
 import { ParsedSheets } from '@frontend/parser';
@@ -68,7 +68,7 @@ export function path2str(path: ISearchResult['path']) {
 }
 
 export function search(
-  projects: FilesMetadata[],
+  projects: ResourceMetadata[],
   sheets: WorksheetState[] | null,
   parsedSheets: ParsedSheets | null,
   query: string,
