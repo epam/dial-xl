@@ -107,6 +107,7 @@ frontend:
     const authProvider = 'keycloak';
     const authScope = 'openid dial profile email offline_access';
     const dialBaseUrl = 'https://dev-dial-core.staging.deltixhub.io';
+    const defaultLogoUrl = '';
     const qgBotDeploymentName = 'qgbot';
     const adminRoles = ['admin'];
     const featureFlags = [];

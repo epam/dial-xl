@@ -14,5 +14,6 @@ interface Window {
     defaultPanelsSettings?: PanelRecord;
     defaultLeftPanelSize?: number;
     defaultRightPanelSize?: number;
+    defaultLogoUrl?: string;
   };
 }

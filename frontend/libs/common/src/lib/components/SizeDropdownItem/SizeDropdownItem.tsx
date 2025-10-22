@@ -81,11 +81,11 @@ export const SizeDropdownItem = ({
             >
               <div
                 className={classNames(
-                  'size-4 border border-strokeSecondary',
+                  'size-4 border border-stroke-secondary',
                   hoveredCell &&
                     hoveredCell?.col > colIndex &&
                     hoveredCell?.row > rowIndex &&
-                    'border-strokeAccentSecondary/70 bg-bgAccentSecondary'
+                    'border-stroke-accent-secondary/70 bg-bg-accent-secondary'
                 )}
               ></div>
             </div>
@@ -95,7 +95,7 @@ export const SizeDropdownItem = ({
       <div className="p-1 flex justify-start items-start w-full">
         <div>
           <input
-            className="border border-strokePrimary mr-1 px-1 h-6"
+            className="border border-stroke-primary mr-1 px-1 h-6"
             maxLength={2}
             size={2}
             type="text"
@@ -109,7 +109,7 @@ export const SizeDropdownItem = ({
           />
           x
           <input
-            className="ml-1 border border-strokePrimary px-1 h-6"
+            className="ml-1 border border-stroke-primary px-1 h-6"
             maxLength={2}
             size={2}
             type="text"

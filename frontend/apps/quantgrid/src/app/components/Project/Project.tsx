@@ -60,7 +60,9 @@ export function Project() {
     return 'review';
   }, [isDefaultMode, isReadOnlyMode]);
 
-  const logoSrc = localStorage.getItem(logoSrcStorageKey);
+  const logoSrc =
+    localStorage.getItem(logoSrcStorageKey) ??
+    window.externalEnv.defaultLogoUrl;
 
   return (
     <>

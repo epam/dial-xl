@@ -4,7 +4,8 @@ const dialOverlayUrl = 'https://dev-dial-chat-overlay.staging.deltixhub.io';
 
 const authScope = 'openid dial profile email offline_access';
 const adminRoles = ['admin'];
-const apiBaseUrl = 'http://localhost:8080';
+
+const defaultLogoUrl = '';
 
 // Available feature flags - frontend/libs/common/src/lib/types/feature-flags.ts
 const featureFlags = ['askAI', 'copilotAutocomplete'];

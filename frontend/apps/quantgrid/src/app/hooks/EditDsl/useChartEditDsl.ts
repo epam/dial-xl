@@ -185,7 +185,7 @@ export function useChartEditDsl() {
         ],
       });
 
-      const { formula, shouldAddDim } = getFormulaFromSourceTable(parsedTable);
+      const { formula } = getFormulaFromSourceTable(parsedTable);
       const fieldGroup = new FieldGroup(formula);
 
       fields
@@ -194,7 +194,7 @@ export function useChartEditDsl() {
           const { fieldName } = parsedField.key;
           const field = new Field(fieldName);
 
-          if (index === 0 && shouldAddDim) {
+          if (index === 0) {
             field.dim = true;
           }
 

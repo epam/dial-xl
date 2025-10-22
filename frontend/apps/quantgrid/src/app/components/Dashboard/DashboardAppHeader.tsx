@@ -8,7 +8,9 @@ import { routes } from '../../types';
 import { UserMenu } from '../UserMenu';
 
 export function DashboardAppHeader() {
-  const logoSrc = localStorage.getItem(logoSrcStorageKey);
+  const logoSrc =
+    localStorage.getItem(logoSrcStorageKey) ??
+    window.externalEnv.defaultLogoUrl;
 
   return (
     <div className="flex justify-between items-center px-3 md:px-5 lg:px-[20%] h-10 md:h-[48px] bg-bg-layer-3 border-b border-stroke-tertiary">
@@ -17,7 +19,7 @@ export function DashboardAppHeader() {
           {logoSrc ? (
             <img
               alt="custom logo"
-              className="h-5 min-w-5 md:h-6 mg:min-w-6"
+              className="h-5 min-w-5 md:h-6 mg:min-w-6 object-center"
               src={logoSrc}
             />
           ) : (

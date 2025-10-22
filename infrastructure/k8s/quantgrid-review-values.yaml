@@ -109,6 +109,7 @@ frontend:
     const authProvider = 'auth0';
     const authScope = 'openid profile email offline_access';
     const dialBaseUrl = 'https://core-{{ .Values.global.url }}';
+    const defaultLogoUrl = '';
     const qgBotDeploymentName = 'qg';
     const adminRoles = ['admin'];
     const featureFlags = ['askAI', 'copilotAutocomplete'];

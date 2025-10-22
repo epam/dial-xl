@@ -1800,7 +1800,7 @@ export class ViewGridData {
         }
 
         for (let i = 0; i < chunk[hasValuesFieldName].length; i++) {
-          if (chunk[hasValuesFieldName][i] === 'FALSE' && chunk[fieldName][i]) {
+          if (chunk[hasValuesFieldName][i] === '0' && chunk[fieldName][i]) {
             keysWithNoDataPoint[fieldKey].push(chunk[fieldName][i]);
           }
         }
