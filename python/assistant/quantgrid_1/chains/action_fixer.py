@@ -64,7 +64,9 @@ async def action_fixer(inputs: dict) -> dict:
             history.add_message(
                 HumanMessage(
                     f"Please fix the errors in actions that you generated "
-                    f"to answer user's question:\n {json.dumps(errors, indent=2)}"
+                    f"to answer user's question. Follow all previous recommendations.\n"
+                    f"Answer should be based on the data, so do not come up with your own numbers unless directly asked."
+                    f"\nErrors:\n{json.dumps(errors, indent=2)}"
                 )
             )
 

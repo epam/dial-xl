@@ -24,8 +24,8 @@ env:
   QG_REST_URL: "https://{{ .Values.global.url }}" 
 
   BOT_VERSION: "1"
-  CORE_MODEL: "anthropic.claude-v3-5-sonnet-v2"
-  CLASSIFICATION_MODEL: "anthropic.claude-v3-5-sonnet-v2"
+  CORE_MODEL: "anthropic.claude-v4-5-sonnet-v1"
+  CLASSIFICATION_MODEL: "anthropic.claude-v4-5-sonnet-v1"
   LLM_NAME: "anthropic.claude-v3-5-sonnet-v2"
   MAX_FIX_ATTEMPTS: "5"
   LLM_MAX_CONTEXT_TOKENS: "150000"

@@ -26,8 +26,8 @@ env:
   QG_URL: "https://quantgrid-dev.staging.deltixhub.io"
 
   BOT_VERSION: "1"
-  CORE_MODEL: "anthropic.claude-v3-5-sonnet-v2"
-  CLASSIFICATION_MODEL: "anthropic.claude-v3-5-sonnet-v2"
+  CORE_MODEL: "anthropic.claude-v4-5-sonnet-v1"
+  CLASSIFICATION_MODEL: "anthropic.claude-v4-5-sonnet-v1"
   LLM_NAME: "anthropic.claude-v3-5-sonnet-v2"
   MAX_FIX_ATTEMPTS: "5"
   LLM_MAX_CONTEXT_TOKENS: "150000"
@@ -42,5 +42,5 @@ env:
   WEB_CONCURRENCY: "4"
   UVICORN_LIMIT_CONCURRENCY: "512"
   UVICORN_TIMEOUT_KEEP_ALIVE: "600"
-  
+
 

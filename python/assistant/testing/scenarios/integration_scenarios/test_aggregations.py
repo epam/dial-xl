@@ -32,7 +32,7 @@ async def test_sum(imdb_simple_project: FrameProject):
         assert code_regex(table, "(?i).*SUM.*")
 
     answer.assertion(
-        AddFieldOrTable(validator=check, is_focused=True) & Text(substrings=["210"])
+        AddFieldOrTable(validator=check, is_focused=True) & Text(numbers="210")
     )
 
 
@@ -45,7 +45,7 @@ async def test_min(imdb_simple_project: FrameProject):
         assert code_regex(table, "(?i).*MIN.*")
 
     answer.assertion(
-        AddFieldOrTable(validator=check, is_focused=True) & Text(substrings=["1954"])
+        AddFieldOrTable(validator=check, is_focused=True) & Text(numbers="1954")
     )
 
 

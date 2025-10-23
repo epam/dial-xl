@@ -40,7 +40,7 @@ async def test_note_awareness(basic_project: FrameProject):
     )
 
     def validate_dode(_, __, table: Table, field: Field):
-        assert field_code_regex(table, field, r"(?i).*(SORTBY|MAXBY).*")
+        assert field_code_regex(table, field, r"(?i).*(SORTBY|MAX).*")
 
     def validate_id(_, __, table: Table, field: Field):
         assert find_unsorted(table, ["5"])

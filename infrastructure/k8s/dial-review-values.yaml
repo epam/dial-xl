@@ -157,6 +157,7 @@ core:
         "models": {
           "text-embedding-3-large": {
             "type": "embedding",
+            "displayName": "text-embedding-3-large",
             "descriptionKeywords": ["Continue Supported"],
             "endpoint": "http://{{ .Values.global.name }}-openai/openai/deployments/text-embedding-3-large/embeddings",
             "limits": {
@@ -180,6 +181,7 @@ core:
           },
           "text-embedding-3-small": {
             "type": "embedding",
+            "displayName": "text-embedding-3-small",
             "descriptionKeywords": ["Continue Supported"],
             "endpoint": "http://{{ .Values.global.name }}-openai/openai/deployments/text-embedding-3-small/embeddings",
             "limits": {
@@ -635,6 +637,47 @@ core:
                     }
                 }
             ]
+          },
+          "anthropic.claude-v4-5-sonnet-v1": {
+            "type": "chat",
+            "displayName": "Anthropic Claude 4.5 Sonnet",
+            "iconUrl": "anthropic.svg",
+            "endpoint": "http://{{ .Values.global.name }}-bedrock/openai/deployments/us.anthropic.claude-sonnet-4-5-20250929-v1:0/chat/completions",
+            "description": "Claude Sonnet 4.5 is Anthropic’s most powerful model for powering real-world agents, with industry-leading capabilities around coding, and computer use. It is the ideal balance of performance and practicality for most internal and external use cases.",
+            "defaults": {
+              "max_tokens": 4000
+            },
+            "inputAttachmentTypes": [
+              "image/*"
+            ],
+            "features": {
+              "systemPromptSupported": true,
+              "toolsSupported": false,
+              "seedSupported": false,
+              "urlAttachmentsSupported": false,
+              "folderAttachmentsSupported": false,
+              "allowResume": true,
+              "accessibleByPerRequestKey": true,
+              "contentPartsSupported": false,
+              "temperatureSupported": true,
+              "addonsSupported": true,
+              "parallelToolCallsSupported": true
+            },
+            "limits": {
+              "maxTotalTokens": 200000
+            },
+            "pricing": {
+              "unit": "token",
+              "prompt": "0.000003",
+              "completion": "0.000015"
+            },
+            "upstreams": [
+              {
+                "extraData": {
+                  "region": "us-east-1"
+                }
+              }
+            ]
           }
         },
         "roles": {
@@ -708,6 +751,10 @@ core:
               "claude-3-5-sonnet-v2@20241022": {
                   "minute": "64000000000",
                   "day": "1000000000000"
+              },
+              "anthropic.claude-v4-5-sonnet-v1": {
+                  "minute": "64000000000",
+                  "day": "1000000000000"
               }
             }
           }
@@ -769,6 +816,7 @@ bedrock:
   env:
     AWS_DEFAULT_REGION: "us-east-1"
     DIAL_URL: "http://{{ .Values.global.name }}-core"
+    COMPATIBILITY_MAPPING: '{"us.anthropic.claude-sonnet-4-5-20250929-v1:0": "anthropic.claude-sonnet-4-20250514-v1:0"}'
 
 vertexai:
   enabled: true
