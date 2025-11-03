@@ -221,7 +221,7 @@ class Override(ObservableNode):
         if name not in self.__values:
             raise ValueError(f"Override value '{name}' not found")
 
-        if field_type is None:
+        if field_type is None and name in self.__types:
             del self.__types[name]
         else:
             self.__types[name] = field_type

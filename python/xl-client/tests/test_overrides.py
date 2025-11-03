@@ -1,8 +1,10 @@
+import textwrap
+
 import pytest
 
-from dial_xl.compile import PrimitiveFieldType, GeneralFormat
+from dial_xl.compile import GeneralFormat, PrimitiveFieldType
 from dial_xl.overrides import Override, Overrides
-from tests.common import create_sheet, create_project, SHEET_NAME
+from tests.common import SHEET_NAME, create_project, create_sheet
 
 
 @pytest.mark.asyncio
@@ -228,3 +230,39 @@ async def test_manual_override_types_and_errors():
         hash="", name="DOUBLE", is_nested=False, format=GeneralFormat()
     )
     assert "Second" in overrides[3].error("a")
+
+
+@pytest.mark.asyncio
+async def test_empty_override():
+    project = await create_project(
+        textwrap.dedent(
+            """
+            table A
+              [a] = RANGE(2)
+              [b]
+            override
+            row,[b]
+            1,1
+            2,
+            """
+        )
+    )
+
+    await project.compile()
+
+    sheet = project.get_sheet(SHEET_NAME)
+    table = sheet.get_table("A")
+    overrides = table.overrides
+    overrides[0]["b"] = "2"
+
+    assert sheet.to_dsl() == textwrap.dedent(
+        """
+        table A
+          [a] = RANGE(2)
+          [b]
+        override
+        row,[b]
+        1,2
+        2,
+        """
+    )
