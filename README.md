@@ -19,6 +19,9 @@
 - [Integrate with your tools](#Integrate-with-your-tools)
 - [Collaborate with your team](#Collaborate-with-your-team)
 - [Test and Deploy](#Test-and-Deploy)
+- [Installation](#Installation)
+- [Usage](#Usage)
+- [Contributing](#Contributing)
 
 ---
 
