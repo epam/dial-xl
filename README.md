@@ -1,8 +1,32 @@
-# QuantGrid
+<h1 align="center">
+         QuantGrid
+    </h1>
+    <p align="center">
+        <p align="center">
+        <a href="https://dialx.ai/">
+          <img src="https://dialx.ai/dialx_logo.svg" alt="About DIALX">
+        </a>
+    </p>
+<h4 align="center">
+    <a href="https://discord.gg/ukzj9U9tEe">
+        <img src="https://img.shields.io/static/v1?label=AI%20DIALX%20Community%20in&message=Discord&color=blue&logo=Discord&style=flat-square" alt="Discord">
+    </a>
+</h4>
+
+- [Documentation](#Documentation)
+- [Run backend locally](#Run-backend-locally)
+- [Usage](#usage)
+- [Integrate with your tools](#Integrate-with-your-tools)
+- [Collaborate with your team](#Collaborate-with-your-team)
+- [Test and Deploy](#Test-and-Deploy)
+
+---
 
 ## Documentation
 
-The documentation of the project could be found in the `docs` folder.
+The documentation of the project could be found in the [docs](docs) folder.
+
+---
 
 ## Run backend locally
 
@@ -26,7 +50,10 @@ web:
 ```
 Execute `./gradlew -Dspring.profiles.active=local bootRun` to run a backend server
 
-Tip: to run backend using Intellij IDEA - add `local` to Active profiles in Run/Debug configuration.
+> [!TIP] 
+> To run backend using Intellij IDEA - add `local` to Active profiles in Run/Debug configuration.
+
+---
 
 ## Integrate with your tools
 
@@ -40,6 +67,8 @@ Tip: to run backend using Intellij IDEA - add `local` to Active profiles in Run/
 - [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
 - [ ] [Automatically merge when pipeline succeeds](https://docs.gitlab.com/ee/user/project/merge_requests/merge_when_pipeline_succeeds.html)
 
+---
+
 ## Test and Deploy
 
 Use the built-in continuous integration in GitLab.
@@ -51,6 +80,8 @@ Use the built-in continuous integration in GitLab.
 - [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
 
 ***
+
+---
 
 # Editing this README
 
