@@ -6,37 +6,26 @@ import Bowser from 'bowser';
 import { WebStorageStateStore } from 'oidc-client-ts';
 import * as ReactDOM from 'react-dom/client';
 import { AuthProvider, AuthProviderProps } from 'react-oidc-context';
-import { BrowserRouter } from 'react-router-dom';
+import { BrowserRouter } from 'react-router';
 import { ToastContainer } from 'react-toastify';
 
-import { CodeEditorContextProvider } from '@frontend/common';
-
-import {
-  AIHintsContextProvider,
-  ApiContextProvider,
-  AppContextProvider,
-  AppSpreadsheetInteractionContextProvider,
-  CanvasSpreadsheetContextProvider,
-  ChatOverlayContextProvider,
-  CommonProvider,
-  InputsContextProvider,
-  Loader,
-  ProjectContextProvider,
-  SearchWindowContextProvider,
-  UndoRedoProvider,
-  ViewportContextProvider,
-} from './app';
+import { ApiContextProvider, CommonProvider } from './app';
 import { AppRoutes } from './AppRoutes';
 import { StyleProvider } from '@ant-design/cssinjs';
 import { Log } from 'oidc-client-ts';
 
 import './styles.css';
 
-Log.setLevel(Log.ERROR);
-Log.setLogger(console);
+const logLevel = window.externalEnv.logLevel as unknown as number;
+if (typeof logLevel === 'number' && logLevel >= 0 && logLevel <= 4) {
+  Log.setLevel(logLevel);
+} else {
+  Log.setLevel(Log.ERROR);
+}
 
+Log.setLogger(console);
 const root = ReactDOM.createRoot(
-  document.getElementById('root') as HTMLElement
+  document.getElementById('root') as HTMLElement,
 );
 
 const browser = Bowser.getParser(window.navigator.userAgent);
@@ -48,14 +37,14 @@ const extraQueryParams = isAuth0
       },
     }
   : undefined;
-const scope =
-  window.externalEnv.authScope || 'openid profile email offline_access';
+const scope = window.externalEnv.authScope || 'openid profile email';
 
 // Clear url params from auth params
 const search = new URLSearchParams(window.location.search);
 search.delete('state');
 search.delete('session_state');
 search.delete('code');
+search.delete('iss');
 const finalSearchParams = search.size > 0 ? '?' + search.toString() : '';
 //
 
@@ -63,7 +52,7 @@ const oidcConfig: AuthProviderProps = {
   authority: window.externalEnv.authAuthority || '',
   client_id: window.externalEnv.authClientId || '',
   redirect_uri: encodeURI(
-    window.location.origin + window.location.pathname + finalSearchParams
+    window.location.origin + window.location.pathname + finalSearchParams,
   ),
   automaticSilentRenew: true,
   // monitorSession: true causing 'error=login_required' in Firefox with infinite loop
@@ -82,50 +71,26 @@ root.render(
       <div className="flex flex-col h-dvh overflow-hidden">
         <CommonProvider>
           <StyleProvider layer>
-            <ConfigProvider wave={{ disabled: true }}>
-              <AppContextProvider>
-                <ApiContextProvider>
-                  <ViewportContextProvider>
-                    <ProjectContextProvider>
-                      <CanvasSpreadsheetContextProvider>
-                        <UndoRedoProvider>
-                          <AIHintsContextProvider>
-                            <AppSpreadsheetInteractionContextProvider>
-                              <InputsContextProvider>
-                                <ChatOverlayContextProvider>
-                                  <SearchWindowContextProvider>
-                                    <CodeEditorContextProvider
-                                      dialBaseUrl={
-                                        window.externalEnv.dialBaseUrl || ''
-                                      }
-                                    >
-                                      <AppRoutes />
+            <ConfigProvider
+              modal={{ mask: { enabled: true, blur: false } }}
+              wave={{ disabled: true }}
+            >
+              <ApiContextProvider>
+                <AppRoutes />
 
-                                      <ToastContainer
-                                        autoClose={10000}
-                                        hideProgressBar={true}
-                                        limit={5}
-                                        position="bottom-right"
-                                        theme="colored"
-                                        closeOnClick
-                                      />
-                                      <Loader />
-                                    </CodeEditorContextProvider>
-                                  </SearchWindowContextProvider>
-                                </ChatOverlayContextProvider>
-                              </InputsContextProvider>
-                            </AppSpreadsheetInteractionContextProvider>
-                          </AIHintsContextProvider>
-                        </UndoRedoProvider>
-                      </CanvasSpreadsheetContextProvider>
-                    </ProjectContextProvider>
-                  </ViewportContextProvider>
-                </ApiContextProvider>
-              </AppContextProvider>
+                <ToastContainer
+                  autoClose={10000}
+                  hideProgressBar={true}
+                  limit={5}
+                  position="bottom-right"
+                  theme="colored"
+                  closeOnClick
+                />
+              </ApiContextProvider>
             </ConfigProvider>
           </StyleProvider>
         </CommonProvider>
       </div>
     </BrowserRouter>
-  </AuthProvider>
+  </AuthProvider>,
 );

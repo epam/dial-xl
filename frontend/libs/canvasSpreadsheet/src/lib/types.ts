@@ -1,4 +1,4 @@
-import * as PIXI from 'pixi.js';
+import { BitmapText, Sprite, StrokeStyle } from 'pixi.js';
 import { BehaviorSubject, Observable, Subject } from 'rxjs';
 
 import {
@@ -8,21 +8,19 @@ import {
   ChartType,
   ColumnDataType,
   ColumnFormat,
+  ControlData,
   FieldSortOrder,
   FormulaBarMode,
   FunctionInfo,
-  GPTFocusColumn,
-  GPTSuggestion,
+  GPTState,
   GridChart,
-  GridFilterType,
   GridListFilter,
   ResourceMetadata,
   SharedWithMeMetadata,
-  SystemMessageParsedContent,
-  TableArrangeType,
   ViewportInteractionMode,
 } from '@frontend/common';
 import {
+  ControlType,
   OverrideValue,
   ParsedConditionFilter,
   ParsedSheets,
@@ -34,12 +32,12 @@ import {
   EventType,
   GridCellEditorEvent,
   GridCellEditorEventInsertValue,
-  GridCellEditorMode,
   GridContextMenuEvent,
 } from './components';
 import { GridTooltipEvent } from './components/Tooltip/types';
 import { GridSizes } from './constants';
-import { FontColorName, FontFamilies } from './setup';
+import { FontFamilies } from './setup';
+import { GridEventBus } from './utils';
 
 export type GridApi = {
   getViewportCoords: () => ViewportCoords;
@@ -48,14 +46,17 @@ export type GridApi = {
   moveViewportToCell: (
     col: number,
     row: number,
-    centerCellInViewport?: boolean
+    centerCellInViewport?: boolean,
   ) => void;
 
   updateSelection: (
     selection: SelectionEdges | null,
-    selectionOptions?: SelectionOptions
+    selectionOptions?: SelectionOptions,
   ) => void;
   clearSelection: () => void;
+  selectedTable: string | null;
+  selectedChart: string | null;
+  setSelectedChart: (chartName: string | null) => void;
 
   getCell: GetCell;
   getCellFromCoords: (x: number, y: number) => CellPlacement;
@@ -66,7 +67,7 @@ export type GridApi = {
   getColumnContentMaxSymbols: (
     col: number,
     viewportStartRow: number,
-    viewportEndRow: number
+    viewportEndRow: number,
   ) => number;
 
   setCellValue: (col: number, row: number, value: string) => void;
@@ -83,7 +84,7 @@ export type GridApi = {
     y: number,
     col: number,
     row: number,
-    source?: 'canvas-element' | 'html-element'
+    source?: 'canvas-element' | 'html-element',
   ) => void;
 
   cellEditorEvent$: Subject<GridCellEditorEvent>;
@@ -93,13 +94,13 @@ export type GridApi = {
   setCellEditorValue: (value: string) => void;
   insertCellEditorValue: (
     value: string,
-    options?: GridCellEditorEventInsertValue['options']
+    options?: GridCellEditorEventInsertValue['options'],
   ) => void;
   showCellEditor: (
     col: number,
     row: number,
     value: string,
-    options?: CellEditorExplicitOpenOptions
+    options?: CellEditorExplicitOpenOptions,
   ) => void;
 
   setPointClickValue: (value: string) => void;
@@ -138,9 +139,8 @@ export type GridProps = {
   tableStructure: GridTable[];
   columnSizes: Record<string, number>;
   inputFiles: (ResourceMetadata | SharedWithMeMetadata)[] | null;
-
-  onScroll: GridCallbacks['onScroll'];
-  onSelectionChange: GridCallbacks['onSelectionChange'];
+  controlData: ControlData | null;
+  controlIsLoading: boolean;
 
   isReadOnly: boolean;
   zoom?: number;
@@ -151,221 +151,12 @@ export type GridProps = {
   formulaBarMode: FormulaBarMode;
   isPointClickMode: boolean;
   sheetContent: string;
-  systemMessageContent: SystemMessageParsedContent | undefined;
+  systemMessageContent: GPTState | undefined;
   currentSheetName: string | null;
   viewportInteractionMode: ViewportInteractionMode;
-} & GridCallbacks;
+  showGridLines: boolean;
 
-export type GridCallbacks = {
-  onSelectionChange?: (selection: SelectionEdges | null) => void;
-  onScroll?: (
-    startCol: number,
-    endCol: number,
-    startRow: number,
-    endRow: number
-  ) => void;
-
-  onDeleteField?: (tableName: string, fieldName: string) => void;
-  onDeleteTable?: (tableName: string) => void;
-  onAddField?: (
-    tableName: string,
-    fieldText: string,
-    insertOptions?: {
-      insertFromFieldName?: string;
-      direction?: HorizontalDirection;
-      withSelection?: boolean;
-    }
-  ) => void;
-  onSwapFields?: (
-    tableName: string,
-    fieldName: string,
-    direction: HorizontalDirection
-  ) => void;
-  onIncreaseFieldColumnSize?: (tableName: string, fieldName: string) => void;
-  onDecreaseFieldColumnSize?: (tableName: string, fieldName: string) => void;
-  onChangeFieldColumnSize?: (
-    tableName: string,
-    fieldName: string,
-    valueAdd: number
-  ) => void;
-  onMoveTable?: (tableName: string, rowDelta: number, colDelta: number) => void;
-  onCloneTable?: (tableName: string) => void;
-  onToggleTableTitleOrHeaderVisibility?: (
-    tableName: string,
-    toggleTableHeader: boolean
-  ) => void;
-  onFlipTable?: (tableName: string) => void;
-  onDNDTable?: (tableName: string, row: number, col: number) => void;
-  onChangeFieldDimension?: (
-    tableName: string,
-    fieldName: string,
-    isRemove?: boolean
-  ) => void;
-  onChangeFieldKey?: (
-    tableName: string,
-    fieldName: string,
-    isRemove?: boolean
-  ) => void;
-  onChangeFieldIndex?: (
-    tableName: string,
-    fieldName: string,
-    isRemove?: boolean
-  ) => void;
-  onChangeDescription?: (
-    tableName: string,
-    fieldName: string,
-    descriptionFieldName: string,
-    isRemove?: boolean
-  ) => void;
-  onCreateDerivedTable?: (tableName: string) => void;
-  onCreateManualTable?: (
-    col: number,
-    row: number,
-    cells: string[][],
-    hideTableHeader?: boolean,
-    hideFieldHeader?: boolean,
-    customTableName?: string
-  ) => void;
-  onCellEditorSubmit?: ({
-    editMode,
-    currentCell,
-    cell,
-    value,
-    dimFieldName,
-    openStatusModal,
-  }: {
-    editMode: GridCellEditorMode;
-    currentCell: CellPlacement;
-    cell: GridCell | undefined;
-    value: string;
-    dimFieldName?: string;
-    openStatusModal?: (text: string) => void;
-  }) => void;
-  onRemoveOverride?: (
-    tableName: string,
-    fieldName: string,
-    overrideIndex: number,
-    value: OverrideValue
-  ) => void;
-  onRemoveOverrideRow?: (tableName: string, overrideIndex: number) => void;
-  onCellEditorUpdateValue?: (
-    value: string,
-    cancelEdit: boolean,
-    dimFieldName?: string
-  ) => void;
-  onMessage?: (message: string) => void;
-  onExpandDimTable?: (
-    tableName: string,
-    fieldName: string,
-    col: number,
-    row: number
-  ) => void;
-  onShowRowReference?: (
-    tableName: string,
-    fieldName: string,
-    col: number,
-    row: number
-  ) => void;
-  onChartResize?: (tableName: string, cols: number, rows: number) => void;
-  onGetMoreChartKeys?: (tableName: string, fieldName: string) => void;
-  onSelectChartKey?: (
-    tableName: string,
-    fieldName: string,
-    key: string | string[],
-    isNoDataKey?: boolean
-  ) => void;
-  onAddChart?: (tableName: string, chartType: ChartType) => void;
-  onConvertToTable?: (tableName: string) => void;
-  onConvertToChart?: (tableName: string, chartType: ChartType) => void;
-  onPaste?: (cells: string[][]) => void;
-  onRemoveNote?: (tableName: string, fieldName?: string) => void;
-  onUpdateNote?: ({
-    tableName,
-    fieldName,
-    note,
-  }: {
-    tableName: string;
-    fieldName?: string | undefined;
-    note: string;
-  }) => void;
-  onCellEditorChangeEditMode?: (editMode: GridCellEditorMode) => void;
-  onAddTableRow?: (
-    col: number,
-    row: number,
-    tableName: string,
-    value: string
-  ) => void;
-  onAddTableRowToEnd?: (tableName: string, value: string) => void;
-  onStartPointClick?: () => void;
-  onStopPointClick?: () => void;
-  onPointClickSelectValue?: (
-    pointClickSelection: SelectionEdges | null
-  ) => void;
-  onOpenInEditor?: (
-    tableName: string,
-    fieldName?: string,
-    openOverride?: boolean
-  ) => void;
-  onDelete?: () => void;
-  onSortChange?: (
-    tableName: string,
-    fieldName: string,
-    order: FieldSortOrder
-  ) => void;
-  onApplyConditionFilter?: (
-    tableName: string,
-    fieldName: string,
-    operator: string,
-    value: string | string[] | null,
-    filterType: GridFilterType
-  ) => void;
-  onApplyListFilter?: (
-    tableName: string,
-    fieldName: string,
-    values: string[],
-    isNumeric: boolean
-  ) => void;
-  onRemoveTotalByIndex?: (
-    tableName: string,
-    fieldName: string,
-    index: number
-  ) => void;
-  onToggleTotalByType?: (
-    tableName: string,
-    fieldName: string,
-    type: TotalType
-  ) => void;
-  onUpdateFieldFilterList?: (args: {
-    tableName: string;
-    fieldName: string;
-    getMoreValues?: boolean;
-    searchValue: string;
-    sort: 1 | -1;
-  }) => void;
-  onPromoteRow?: (tableName: string, dataIndex: number) => void;
-  onCreateTableAction?: (
-    action: string,
-    type: string | undefined,
-    insertFormula: string | undefined,
-    tableName: string | undefined
-  ) => void;
-  onAutoFitFields?: (tableName: string) => void;
-  onRemoveFieldSizes?: (tableName: string) => void;
-  onApplySuggestion?: (
-    GPTSuggestions: GPTSuggestion[] | null,
-    GPTFocusColumn: GPTFocusColumn[]
-  ) => void;
-  onUndo?: () => void;
-  onOpenSheet?: (args: { sheetName: string }) => void;
-  onArrangeTable?: (tableName: string, arrangeType: TableArrangeType) => void;
-  onAddAllFieldTotals?: (tableName: string, fieldName: string) => void;
-  onAddAllTableTotals?: (tableName: string) => void;
-  onInsertChart?: (chartType: ChartType) => void;
-  onSelectTableForChart?: (tableName: string, chartTableName: string) => void;
-  onChartDblClick?: () => void;
-  onDownloadTable?: (tableName: string) => Promise<void>;
-  onGridExpand?: () => void;
-  onSwitchInput?: (tableName: string, fieldName: string) => void;
+  eventBus: GridEventBus;
 };
 
 export type Color = number | string;
@@ -380,15 +171,16 @@ export type Theme = {
     tableHeaderBgColor: Color;
     fieldHeaderBgColor: Color;
     totalBgColor: Color;
-    cellFontColorName: FontColorName;
+    cellFontColor: Color;
     cellFontFamily: FontFamilies;
     boldCellFontFamily: FontFamilies;
-    boldCellFontColorName: FontColorName;
+    boldCellFontColor: Color;
     keyFontFamily: FontFamilies;
-    keyFontColorName: FontColorName;
-    linkFontColorName: FontColorName;
+    keyFontColor: Color;
+    linkFontColor: Color;
+    linkFontHoverColor: Color;
     linkFontFamily: FontFamilies;
-    indexFontColorName: FontColorName;
+    indexFontColor: Color;
     resizerHoverColor: Color;
     resizerActiveColor: Color;
   };
@@ -398,7 +190,7 @@ export type Theme = {
     bgColorSelected: Color;
     bgColorFullSelected: Color;
     bgColorHover: Color;
-    fontColorName: FontColorName;
+    fontColor: Color;
     fontFamily: FontFamilies;
     resizerHoverColor: Color;
     resizerActiveColor: Color;
@@ -408,7 +200,7 @@ export type Theme = {
     bgColorSelected: Color;
     bgColorFullSelected: Color;
     bgColorHover: Color;
-    fontColorName: FontColorName;
+    fontColor: Color;
     fontFamily: FontFamilies;
   };
   scrollBar: {
@@ -417,7 +209,13 @@ export type Theme = {
     thumbColor: Color;
     thumbColorHovered: Color;
   };
-  selection: { bgColor: Color; bgAlpha: number; borderColor: Color };
+  selection: {
+    bgColor: Color;
+    bgAlpha: number;
+    borderColor: Color;
+    alpha: number;
+    alignment: number;
+  };
   pointClickSelection: {
     color: Color;
     errorColor: Color;
@@ -448,7 +246,7 @@ export type Theme = {
     };
   };
   dndSelection: { borderColor: Color };
-  hiddenCell: { fontColorName: FontColorName; fontFamily: FontFamilies };
+  hiddenCell: { fontColor: Color; fontFamily: FontFamilies };
   tableShadow: {
     color: Color;
     alpha: number;
@@ -481,21 +279,47 @@ export type ViewportCoords = {
 export type Cell = {
   col: number;
   row: number;
-  text: PIXI.BitmapText;
+  text: BitmapText;
+  isVisible?: boolean;
+};
+
+type CellFnArgs = {
+  cellData: GridCell;
+  eventBus: GridEventBus;
+  gridApi: GridApi;
+  themeName: AppTheme;
+  gridSizes: GridSizes;
+};
+
+export type CellIconConfig = {
+  name: string;
+  priority: number; // lower value has higher priority, same priority items rendered near each other
+  enabled: (args: CellFnArgs) => boolean; // if false, icon will not be added to the cell
+  visibleModifier: 'hoverField' | 'hoverTable' | 'always'; // if 'hover', icon will be visible only when cell is hovered
+  path: (args: CellFnArgs) => string | string[];
+  tooltip: ((args: CellFnArgs) => string) | string | undefined;
+  iconSize: (args: CellFnArgs) => number;
+  onAddEventListeners?: (args: CellFnArgs & { icon: Sprite }) => void;
 };
 
 export type IconMetadata = {
-  path: string;
+  path: string | string[];
+  isAnimatedIcon: boolean;
   iconSize: number;
+  visibleModifier: 'hoverField' | 'hoverTable' | 'always';
   tableName?: string;
   tooltip?: string;
+  onAddEventListeners?: (args: CellFnArgs & { icon: Sprite }) => void;
 };
 
-export type IconCell = {
-  icon?: PIXI.Sprite;
-  secondaryIcon?: PIXI.Sprite; // e.g. for the table header context menu
-  iconMetadata?: IconMetadata;
-  secondaryIconMetadata?: IconMetadata;
+export type CellIcon = {
+  icon: Sprite;
+  metadata: IconMetadata;
+};
+
+export type CellIcons = {
+  primaryIcons: CellIcon[]; // left icons
+  secondaryIcons: CellIcon[]; // right icons
 };
 
 export type CellStyle = {
@@ -506,20 +330,20 @@ export type CellStyle = {
     textAlpha: number;
   };
   border?: {
-    borderTop?: PIXI.ILineStyleOptions;
-    borderRight?: PIXI.ILineStyleOptions;
-    borderBottom?: PIXI.ILineStyleOptions;
-    borderLeft?: PIXI.ILineStyleOptions;
+    borderTop?: StrokeStyle;
+    borderRight?: StrokeStyle;
+    borderBottom?: StrokeStyle;
+    borderLeft?: StrokeStyle;
   };
   shadow?: {
-    shadowTop?: PIXI.ILineStyleOptions[];
-    shadowTopRight?: PIXI.ILineStyleOptions[];
-    shadowTopLeft?: PIXI.ILineStyleOptions[];
-    shadowRight?: PIXI.ILineStyleOptions[];
-    shadowBottom?: PIXI.ILineStyleOptions[];
-    shadowBottomRight?: PIXI.ILineStyleOptions[];
-    shadowBottomLeft?: PIXI.ILineStyleOptions[];
-    shadowLeft?: PIXI.ILineStyleOptions[];
+    shadowTop?: StrokeStyle[];
+    shadowTopRight?: StrokeStyle[];
+    shadowTopLeft?: StrokeStyle[];
+    shadowRight?: StrokeStyle[];
+    shadowBottom?: StrokeStyle[];
+    shadowBottomRight?: StrokeStyle[];
+    shadowBottomLeft?: StrokeStyle[];
+    shadowLeft?: StrokeStyle[];
   };
 };
 
@@ -584,11 +408,16 @@ export type GridField = {
   errorMessage?: string;
   highlightType?: 'DIMMED' | 'NORMAL' | 'HIGHLIGHTED' | undefined;
   isInput: boolean;
+  isImport: boolean;
   isIndex: boolean;
+  isControl: boolean;
+  controlType?: ControlType;
   isDescription: boolean;
   descriptionField?: string;
   dataLength: number;
   hasOverrides: boolean;
+  isAIFunctions: boolean;
+  isLoading?: boolean;
 };
 
 export type GridCell = {
@@ -611,6 +440,7 @@ export type GridCell = {
   overrideIndex?: number;
   overrideValue?: OverrideValue;
   isOverride?: boolean;
+  overrideAIFunctions?: boolean;
 
   isUrl?: boolean;
 

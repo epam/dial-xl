@@ -1,4 +1,5 @@
 import { useCallback, useContext, useEffect, useMemo } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 
 import { isNoteOpen } from '@frontend/canvas-spreadsheet';
 import {
@@ -6,16 +7,18 @@ import {
   Shortcut,
   shortcutApi,
   ShortcutHandlersMap,
+  zoomValues,
 } from '@frontend/common';
 
 import { PanelName } from '../common';
+import { ChatOverlayContext, LayoutContext, UndoRedoContext } from '../context';
 import {
-  AppContext,
-  ChatOverlayContext,
-  LayoutContext,
-  SearchWindowContext,
-  UndoRedoContext,
-} from '../context';
+  useSearchModalStore,
+  useUIStore,
+  useUserSettingsStore,
+  useViewStore,
+} from '../store';
+import { defaultZoom } from '../utils';
 import { useGridApi } from './useGridApi';
 import { useProjectActions } from './useProjectActions';
 
@@ -27,17 +30,25 @@ const disabledShortcutsOnCellEditorOpen = [
 export function useShortcuts() {
   const { togglePanel } = useContext(LayoutContext);
   const { undo, redo } = useContext(UndoRedoContext);
-  const {
-    toggleChat,
-    updateZoomWithWheel,
-    updateZoom,
-    chatWindowPlacement,
-    setViewportInteractionMode,
-    viewportInteractionMode,
-  } = useContext(AppContext);
+  const { setViewportInteractionMode, viewportInteractionMode } = useViewStore(
+    useShallow((s) => ({
+      setViewportInteractionMode: s.setViewportInteractionMode,
+      viewportInteractionMode: s.viewportInteractionMode,
+    })),
+  );
+  const { toggleChat } = useUIStore(
+    useShallow((s) => ({
+      toggleChat: s.toggleChat,
+    })),
+  );
+  const chatWindowPlacement = useUserSettingsStore(
+    (s) => s.data.chatWindowPlacement,
+  );
   const { isAIPendingChanges } = useContext(ChatOverlayContext);
   const gridApi = useGridApi();
-  const { openSearchWindow } = useContext(SearchWindowContext);
+  const openSearchModal = useSearchModalStore((s) => s.open);
+  const zoom = useUserSettingsStore((s) => s.data.zoom);
+  const setSetting = useUserSettingsStore((s) => s.patch);
 
   const { createProjectAction } = useProjectActions();
 
@@ -48,6 +59,17 @@ export function useShortcuts() {
       toggleChat();
     }
   }, [toggleChat, chatWindowPlacement, togglePanel]);
+
+  const updateZoomWithWheel = useCallback(
+    (direction: number) => {
+      const idx = zoomValues.findIndex((v) => v === zoom);
+      const next = idx + direction;
+      if (next < 0 || next >= zoomValues.length) return;
+
+      setSetting({ zoom: zoomValues[next] });
+    },
+    [setSetting, zoom],
+  );
 
   const shortcutGlobalHandlersMap: Partial<ShortcutHandlersMap> = useMemo(
     () => ({
@@ -62,11 +84,11 @@ export function useShortcuts() {
       [Shortcut.UndoAction]: () => undo(),
       [Shortcut.ZoomIn]: () => updateZoomWithWheel(1),
       [Shortcut.ZoomOut]: () => updateZoomWithWheel(-1),
-      [Shortcut.ZoomReset]: () => updateZoom(1),
-      [Shortcut.SearchWindow]: () => openSearchWindow(),
+      [Shortcut.ZoomReset]: () => setSetting({ zoom: defaultZoom }),
+      [Shortcut.SearchWindow]: () => openSearchModal(),
       [Shortcut.ChangeViewportInteractionMode]: () =>
         setViewportInteractionMode(
-          viewportInteractionMode === 'select' ? 'pan' : 'select'
+          viewportInteractionMode === 'select' ? 'pan' : 'select',
         ),
 
       // just prevent save web page on save
@@ -81,11 +103,11 @@ export function useShortcuts() {
       redo,
       undo,
       updateZoomWithWheel,
-      updateZoom,
-      openSearchWindow,
+      setSetting,
+      openSearchModal,
       setViewportInteractionMode,
       viewportInteractionMode,
-    ]
+    ],
   );
 
   const handleEvent = useCallback(
@@ -104,7 +126,7 @@ export function useShortcuts() {
         if (shortcutApi.is(shortcutKey as Shortcut, event)) {
           const isUndoAIPromptHandle =
             [Shortcut.UndoAction, Shortcut.RedoAction].includes(
-              shortcutKey as Shortcut
+              shortcutKey as Shortcut,
             ) && isAIPendingChanges;
 
           if (isNoteOpen() || isUndoAIPromptHandle) break;
@@ -124,7 +146,7 @@ export function useShortcuts() {
         }
       }
     },
-    [gridApi, isAIPendingChanges, shortcutGlobalHandlersMap]
+    [gridApi, isAIPendingChanges, shortcutGlobalHandlersMap],
   );
 
   const handleWheelEvent = useCallback(
@@ -135,7 +157,7 @@ export function useShortcuts() {
         event.stopImmediatePropagation();
       }
     },
-    [updateZoomWithWheel]
+    [updateZoomWithWheel],
   );
 
   useEffect(() => {

@@ -55,7 +55,7 @@ export function useNoteEditDsl() {
         tableName,
       });
     },
-    [findEditContext, updateDSL]
+    [findEditContext, updateDSL],
   );
 
   const removeNote = useCallback(
@@ -66,7 +66,7 @@ export function useNoteEditDsl() {
         note: null,
       });
     },
-    [updateNote]
+    [updateNote],
   );
 
   return {

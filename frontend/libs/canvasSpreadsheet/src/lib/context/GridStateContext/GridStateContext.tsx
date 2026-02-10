@@ -1,27 +1,26 @@
+import { Application } from 'pixi.js';
 import { createContext } from 'react';
 import { BehaviorSubject } from 'rxjs';
-
-import { Application } from '@pixi/app';
 
 import { GridSizes } from '../../constants';
 import {
   Edges,
   GetCell,
   GridApi,
-  GridCallbacks,
   GridTable,
   SelectionEdges,
   SelectionOptions,
   Theme,
 } from '../../types';
+import { GridEventBus } from '../../utils';
 
 type GridStateContextActions = {
   getCell: GetCell;
   setCellValue: (col: number, row: number, value: string) => void;
-  getBitmapFontName: (fontFamily: string, fontName: string) => string;
+  getBitmapFontName: (fontFamily: string) => string;
   setSelectionEdges: (
     edges: SelectionEdges | null,
-    selectionOptions?: SelectionOptions
+    selectionOptions?: SelectionOptions,
   ) => void;
   setDottedSelectionEdges: (edges: SelectionEdges | null) => void;
   setPointClickError: (error: boolean) => void;
@@ -29,13 +28,21 @@ type GridStateContextActions = {
   setIsTableDragging: (isDragging: boolean) => void;
   setDNDSelection: (selection: SelectionEdges | null) => void;
   setHasCharts: (hasCharts: boolean) => void;
-  selection$: BehaviorSubject<Edges | null>;
+  increaseCanvasAnimatedItems: () => void;
+  decreaseCanvasAnimatedItems: () => void;
+  updateMaxRowOrCol: (
+    targetCol: number | null,
+    targetRow: number | null,
+  ) => void;
+  shrinkRowOrCol: (targetCol: number | null, targetRow: number | null) => void;
+  setSelectedChart: (chartName: string | null) => void;
 };
 
 type GridStateContextValues = {
   app: Application | null;
+  canvasSymbolWidth: number;
   gridApi: GridApi;
-  gridCallbacks: GridCallbacks;
+  eventBus: GridEventBus;
   gridWidth: number;
   gridHeight: number;
   fullHeight: number;
@@ -46,6 +53,7 @@ type GridStateContextValues = {
   pointClickError: boolean;
   dndSelection: SelectionEdges | null;
   selectedTable: string | null;
+  selectedChart: string | null;
   dottedSelectionEdges: SelectionEdges | null;
   tableStructure: GridTable[];
   theme: Theme;
@@ -53,11 +61,8 @@ type GridStateContextValues = {
   isPanModeEnabled: boolean;
   hasCharts: boolean;
   zoom: number;
-  updateMaxRowOrCol: (
-    targetCol: number | null,
-    targetRow: number | null
-  ) => void;
-  shrinkRowOrCol: (targetCol: number | null, targetRow: number | null) => void;
+  selection$: BehaviorSubject<Edges | null>;
+  showGridLines: boolean;
 };
 
 export const GridStateContext = createContext<

@@ -7,7 +7,7 @@ from dial_xl.table import Table
 from multiset import Multiset
 
 from quantgrid.utils.project import FieldGroupUtil
-from testing.framework.exceptions import MatchingError
+from testing.exceptions import MatchingError
 from testing.framework.project_utils import get_field_formula_or_fail
 
 

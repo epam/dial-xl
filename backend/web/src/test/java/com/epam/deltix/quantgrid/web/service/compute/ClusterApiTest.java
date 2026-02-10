@@ -49,9 +49,11 @@ class ClusterApiTest {
 
     @Test
     void testAddAndRemove() {
+        Assertions.assertEquals(0, cluster.countComputeNodes());
         Assertions.assertTrue(cluster.addComputeNode("node.1", "node.1.endpoint", 10000));
         Assertions.assertFalse(cluster.addComputeNode("node.1", "node.1.endpoint", 10000));
 
+        Assertions.assertEquals(1, cluster.countComputeNodes());
         Assertions.assertTrue(cluster.heartbeatComputeNode("node.1", 10000));
         assertKeys("{qg_cluster}.node.node.1", "{qg_cluster}.nodes", "{qg_cluster}.nodes_free");
 
@@ -61,6 +63,7 @@ class ClusterApiTest {
 
         Assertions.assertFalse(cluster.heartbeatComputeNode("node.1", 10000));
         Assertions.assertFalse(cluster.heartbeatComputeNode("node.2", 10000));
+        Assertions.assertEquals(0, cluster.countComputeNodes());
 
         assertKeys();
     }

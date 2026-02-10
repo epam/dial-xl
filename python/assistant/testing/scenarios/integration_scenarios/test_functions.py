@@ -2,6 +2,7 @@ import re
 
 from dial_xl.table import Table
 
+from testing.exceptions import CompileError, MatchError
 from testing.framework import (
     AddField,
     AddFieldOrTable,
@@ -11,7 +12,6 @@ from testing.framework import (
     code_regex,
     fields,
 )
-from testing.framework.exceptions import CompileError, MatchError
 from testing.framework.project_utils import get_field_formula_or_fail
 
 
@@ -297,8 +297,8 @@ async def test_logic_operators(basic_project: FrameProject):
     answer = await basic_project.query(
         """
         Please use logical operators to solve following task.
-        1. Create new column called "Con", that equals to "TRUE" when "A" and "B" both equals to 1, and "FALSE" otherwise.
-        2. Create new column called "Dis" that equals to "TRUE" when at least "A" or "B" equals to 1, and "FALSE" otherwise.
+        1. Create new column called "Con", that equals to TRUE when "A" and "B" both equals to 1, and FALSE otherwise.
+        2. Create new column called "Dis" that equals to TRUE when at least "A" or "B" equals to 1, and FALSE otherwise.
         """
     )
 

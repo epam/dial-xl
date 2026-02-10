@@ -1,10 +1,4 @@
-import {
-  MutableRefObject,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from 'react';
+import { RefObject, useCallback, useEffect, useRef, useState } from 'react';
 
 import {
   commentToNote,
@@ -13,8 +7,13 @@ import {
 } from '@frontend/common';
 
 import { noteTextAreaId } from '../../constants';
-import { GridApi, GridCallbacks, GridCell } from '../../types';
-import { filterByTypeAndCast, focusSpreadsheet, getPx } from '../../utils';
+import { GridApi, GridCell } from '../../types';
+import {
+  filterByTypeAndCast,
+  focusSpreadsheet,
+  getPx,
+  GridEventBus,
+} from '../../utils';
 import {
   EventTypeOpenNote,
   EventTypeStartMoveMode,
@@ -27,12 +26,12 @@ const noteAutoHideTimeout = 2000;
 const verticalOffset = 5;
 
 type Props = {
-  gridCallbacksRef: MutableRefObject<GridCallbacks>;
-  api: GridApi | null;
+  eventBus: GridEventBus;
+  apiRef: RefObject<GridApi | null>;
   zoom?: number;
 };
 
-export function Notes({ gridCallbacksRef, api, zoom = 1 }: Props) {
+export function Notes({ eventBus, apiRef, zoom = 1 }: Props) {
   const [noteOpened, setNoteOpened] = useState(false);
   const [notePosition, setNotePosition] = useState(defaultPosition);
   const [cell, setCell] = useState<GridCell | null>(null);
@@ -48,16 +47,14 @@ export function Notes({ gridCallbacksRef, api, zoom = 1 }: Props) {
     (onEscape = false) => {
       if (!noteOpened || (!onEscape && mouseOver.current)) return;
 
-      if (
-        !onEscape &&
-        gridCallbacksRef.current &&
-        cell?.table?.tableName &&
-        note !== initialNote
-      ) {
-        gridCallbacksRef.current.onUpdateNote?.({
-          tableName: cell.table.tableName,
-          fieldName: cell.field?.fieldName,
-          note,
+      if (!onEscape && cell?.table?.tableName && note !== initialNote) {
+        eventBus.emit({
+          type: 'notes/update',
+          payload: {
+            tableName: cell.table.tableName,
+            fieldName: cell.field?.fieldName,
+            note,
+          },
         });
       }
 
@@ -69,7 +66,7 @@ export function Notes({ gridCallbacksRef, api, zoom = 1 }: Props) {
       setNotePosition(defaultPosition);
       focusSpreadsheet();
     },
-    [noteOpened, gridCallbacksRef, cell, note, initialNote]
+    [noteOpened, eventBus, cell, note, initialNote],
   );
 
   const onClickOutside = useCallback(() => {
@@ -81,13 +78,7 @@ export function Notes({ gridCallbacksRef, api, zoom = 1 }: Props) {
 
   const showNote = useCallback(
     (cell: GridCell, x: number, y: number) => {
-      const noteData =
-        (cell.isTableHeader
-          ? cell.table?.note
-          : cell.isFieldHeader
-          ? cell.field?.note
-          : '') ?? '';
-      const note = commentToNote(noteData);
+      const note = commentToNote(getNote(cell));
 
       setInitialNote(note);
       setNote(note);
@@ -99,11 +90,12 @@ export function Notes({ gridCallbacksRef, api, zoom = 1 }: Props) {
         y: y + verticalOffset * zoom,
       });
     },
-    [zoom]
+    [zoom],
   );
 
   const showNoteExplicitly = useCallback(
     (col: number, row: number) => {
+      const api = apiRef.current;
       if (!api || restrictOpening) return;
 
       const cell = api.getCell(col, row);
@@ -121,7 +113,7 @@ export function Notes({ gridCallbacksRef, api, zoom = 1 }: Props) {
         noteRef.current?.focus();
       }, 0);
     },
-    [api, showNote, restrictOpening]
+    [apiRef, showNote, restrictOpening],
   );
 
   const onKeydown = useCallback(
@@ -136,7 +128,7 @@ export function Notes({ gridCallbacksRef, api, zoom = 1 }: Props) {
 
       hideNote(true);
     },
-    [hideNote, noteOpened]
+    [hideNote, noteOpened],
   );
 
   const handleMouseLeave = useCallback(() => {
@@ -164,6 +156,7 @@ export function Notes({ gridCallbacksRef, api, zoom = 1 }: Props) {
   }, [onKeydown]);
 
   useEffect(() => {
+    const api = apiRef.current;
     if (!api) return;
 
     const gridViewportUnsubscribe = api.gridViewportSubscription(onScroll);
@@ -175,7 +168,7 @@ export function Notes({ gridCallbacksRef, api, zoom = 1 }: Props) {
 
     const startMoveModeSubscription = api.events$
       .pipe(
-        filterByTypeAndCast<EventTypeStartMoveMode>(GridEvent.startMoveMode)
+        filterByTypeAndCast<EventTypeStartMoveMode>(GridEvent.startMoveMode),
       )
       .subscribe(() => {
         setRestrictOpening(true);
@@ -195,7 +188,7 @@ export function Notes({ gridCallbacksRef, api, zoom = 1 }: Props) {
         stopMoveModeSubscription,
       ].forEach((s) => s.unsubscribe());
     };
-  }, [api, onScroll, showNoteExplicitly]);
+  }, [apiRef, onScroll, showNoteExplicitly]);
 
   return (
     <div
@@ -227,4 +220,14 @@ export function Notes({ gridCallbacksRef, api, zoom = 1 }: Props) {
       </div>
     </div>
   );
+}
+
+function getNote(cell: GridCell) {
+  const tableNote = cell.table?.note ?? '';
+  const fieldNote = cell.field?.note ?? '';
+
+  if (cell.table?.chartType) return tableNote;
+  if (cell.isTableHeader) return tableNote;
+
+  return fieldNote;
 }

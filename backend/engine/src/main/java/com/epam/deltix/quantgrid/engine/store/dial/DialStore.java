@@ -9,9 +9,9 @@ import com.epam.deltix.quantgrid.util.BodyWriter;
 import com.epam.deltix.quantgrid.util.DialFileApi;
 import com.epam.deltix.quantgrid.util.EtaggedStream;
 import lombok.RequiredArgsConstructor;
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
-import javax.annotation.PostConstruct;
 import java.io.IOException;
 import java.security.Principal;
 import java.time.Clock;
@@ -23,6 +23,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import javax.annotation.PostConstruct;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -45,11 +46,19 @@ public class DialStore implements Store {
     }
 
     @Override
+    @SneakyThrows
+    public String link(String linkId, String fromId, String toId) {
+        String fromPath = getResultPath(fromId);
+        String toPath = getResultPath(toId);
+        return lock.link(linkId, fromPath, toPath, principal);
+    }
+
+    @Override
     public Table load(Identity id, Meta meta) throws IOException {
         String dataPath = getResultPath(id) + DATA_NAME;
         log.info("Loading data from {}", dataPath);
         try (EtaggedStream stream = dialFileApi.readFile(dataPath, principal)) {
-            return StoreUtils.readTable(stream.stream(), List.of(meta.getSchema().getTypes()));
+            return StoreUtils.readTable(stream.stream(), List.of(meta.getSchema().getTypes()), false);
         }
     }
 
@@ -57,14 +66,21 @@ public class DialStore implements Store {
     public void save(Identity id, Table table) throws IOException {
         String resultPath = getResultPath(id);
         String dataPath = resultPath + DATA_NAME;
-        BodyWriter bodyWriter = stream -> StoreUtils.writeTable(stream, table);
+        BodyWriter bodyWriter = stream -> StoreUtils.writeTable(stream, table, false);
+        ConcurrentModificationException error = null;
+
         try {
             log.info("Writing data to {}", dataPath);
             dialFileApi.writeFile(dataPath, null, bodyWriter, "text/csv", principal);
         } catch (ConcurrentModificationException e) {
             log.debug("File already exists, skipping save for {}", id.id());
+            error = e;
         }
+
         lock.access(resultPath, path -> true, principal);
+        if (error != null) {
+            throw error;
+        }
     }
 
     @Override
@@ -158,7 +174,11 @@ public class DialStore implements Store {
     }
 
     private String getResultPath(Identity id) {
-        return getResultsPath() + id.id() + "/";
+        return getResultPath(id.id());
+    }
+
+    private String getResultPath(String id) {
+        return getResultsPath() + id + "/";
     }
 
     private String getResultsPath() {

@@ -1,0 +1,27 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "url",
+    "header_name",
+    "header_value"
+  ],
+  "properties": {
+    "url": {
+      "type" : "string",
+      "title" : "Target file URL",
+      "description" : "Full HTTP URL to the target file (e.g., https://dial.example.com/v1/files/bucket/folder/data.csv)."
+    },
+    "header_name": {
+      "type": "string",
+      "title": "Authorization Header Name",
+      "description": "Name of the HTTP header to use for authorization: 'api-key' or 'Authorization'."
+    },
+    "header_value": {
+      "type": "string",
+      "title": "Authorization Header Value",
+      "description": "Value of the HTTP header to use for authorization.",
+      "airbyte_secret": true
+    }
+  }
+}

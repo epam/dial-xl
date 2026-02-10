@@ -26,6 +26,9 @@
   --color-bg-scrollbar-hover: var(--color-bg-scrollbar-hover);
 
   --color-controls-bg-accent: var(--color-controls-bg-accent);
+  --color-controls-bg-accent-secondary: var(
+    --color-controls-bg-accent-secondary
+  );
   --color-controls-bg-accent-hover: var(--color-controls-bg-accent-hover);
   --color-controls-bg-disable: var(--color-controls-bg-disable);
   --color-controls-text-disable: var(--color-controls-text-disable);
@@ -46,6 +49,9 @@
   --color-stroke-secondary: var(--color-stroke-secondary);
   --color-stroke-tertiary: var(--color-stroke-tertiary);
   --color-stroke-tertiary-inverted: var(--color-stroke-tertiary-inverted);
+  --color-stroke-tertiary-inverted-alpha: var(
+    --color-stroke-tertiary-inverted-alpha
+  );
 
   --color-text-accent-primary: var(--color-text-accent-primary);
   --color-text-accent-secondary: var(--color-text-accent-secondary);
@@ -59,8 +65,9 @@
 
   --color-warning-inverted: var(--color-warning-inverted);
 
-  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto',
-    'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+  --font-sans:
+    'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
     sans-serif;
 
   @keyframes fast-pulse {

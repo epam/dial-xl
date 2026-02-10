@@ -12,7 +12,7 @@ export class ParsedSheet {
     public errors: string[],
     public pythonBlocks: PythonBlock[],
     private dsl: string,
-    sheetName = 'Sheet1'
+    sheetName = 'Sheet1',
   ) {
     this._readOnly = false;
     try {
@@ -36,7 +36,7 @@ export class ParsedSheet {
       this.errors,
       this.pythonBlocks,
       this.dsl,
-      undefined
+      undefined,
     );
   }
 

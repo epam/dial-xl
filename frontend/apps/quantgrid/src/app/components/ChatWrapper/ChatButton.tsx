@@ -1,12 +1,13 @@
 import cx from 'classnames';
-import { useCallback, useContext, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { DraggableData, DraggableEvent } from 'react-draggable';
 import { Rnd } from 'react-rnd';
+import { useShallow } from 'zustand/react/shallow';
 
 import Icon from '@ant-design/icons';
 import { DialChatLogoIconColored, DragIcon } from '@frontend/common';
 
-import { AppContext } from '../../context';
+import { useUIStore } from '../../store';
 
 export const chatButtonId = 'toggleDialChatButton';
 const buttonDragHandleClass = 'chat-button-drag-handle';
@@ -19,7 +20,12 @@ type ChatButtonOptions = {
 };
 
 export function ChatButton() {
-  const { toggleChat, isChatOpen } = useContext(AppContext);
+  const { toggleChat, isChatOpen } = useUIStore(
+    useShallow((s) => ({
+      toggleChat: s.toggleChat,
+      isChatOpen: s.isChatOpen,
+    })),
+  );
   const [isHovered, setIsHovered] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [isInit, setIsInit] = useState(false);
@@ -42,7 +48,7 @@ export function ChatButton() {
       setRatioPos(getRatioPos());
       document.body.style.pointerEvents = 'auto';
     },
-    []
+    [],
   );
 
   const handleWindowResize = useCallback(() => {
@@ -50,11 +56,11 @@ export function ChatButton() {
       ...prev,
       x: Math.min(
         ratioPos.rx * window.innerWidth,
-        window.innerWidth - defaultButtonOffsetX
+        window.innerWidth - defaultButtonOffsetX,
       ),
       y: Math.min(
         ratioPos.ry * window.innerHeight,
-        window.innerHeight - defaultButtonOffsetY
+        window.innerHeight - defaultButtonOffsetY,
       ),
     }));
   }, [ratioPos]);
@@ -99,7 +105,7 @@ export function ChatButton() {
           className={cx(
             'flex items-center cursor-move w-full absolute bg-bg-inverted px-[6px] py-1 rounded-[3px]',
             buttonDragHandleClass,
-            { hidden: !isHovered && !isDragging }
+            { hidden: !isHovered && !isDragging },
           )}
         >
           <Icon

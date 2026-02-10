@@ -1,5 +1,5 @@
+from testing.exceptions import MatchingError
 from testing.framework import FrameProject
-from testing.framework.exceptions import MatchingError
 
 
 async def _run_routing_check(

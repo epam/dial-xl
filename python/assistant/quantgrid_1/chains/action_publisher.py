@@ -5,7 +5,7 @@ from typing import List
 
 from dial_xl.project import Project
 from langchain_core.runnables import Runnable, RunnableLambda
-from openai import RateLimitError
+from openai import InternalServerError, RateLimitError
 
 from quantgrid_1.chains.parameters import ChainParameters
 from quantgrid_1.log_config import qg_logger as logger
@@ -19,10 +19,20 @@ from quantgrid_1.utils.formatting import (
     get_markdown_table_values,
     get_project_dsl_with_values,
 )
-from quantgrid_1.utils.stages import append_duration, replicate_stages
-from quantgrid_1.utils.stream_content import get_token_error, stream_content
+from quantgrid_1.utils.stages import (
+    append_duration,
+    append_token_info,
+    replicate_stages,
+)
+from quantgrid_1.utils.stream_content import (
+    delay_retry,
+    get_rate_error,
+    get_token_error,
+    stream_content,
+)
 from quantgrid_1.utils.viewports import get_table_viewports
 
+ATTEMPTS = 3
 FAIL_MESSAGE = "Sorry, I can't help with this. Please try again or change the task."
 SUMMARY_CONTEXT_STAGE_NAME = "Summarization Context"
 
@@ -132,7 +142,7 @@ async def action_publisher(inputs: dict) -> dict:
         summary_context_stage.append_content("\n\n")
         summary_context_stage.append_content(summary_prompt)
 
-        for _ in range(3):
+        for retry_id in range(ATTEMPTS):
             try:
                 iterator = ChainParameters.get_main_model(inputs).astream(
                     input=[
@@ -141,7 +151,7 @@ async def action_publisher(inputs: dict) -> dict:
                     ]
                 )
 
-                total_content, total_output_tokens = await stream_content(
+                total_content, input_tokens, output_tokens = await stream_content(
                     iterator, choice
                 )
 
@@ -149,14 +159,24 @@ async def action_publisher(inputs: dict) -> dict:
                 summary_stage.append_content(choice_cacher.content)
                 app_state.actions_history.append(total_content)
                 append_duration(summary_context_stage, start_time)
+
+                append_token_info(
+                    summary_stage,
+                    input_token_count=input_tokens,
+                    output_token_count=output_tokens,
+                )
+
                 summary_context_stage.add_attachment(
-                    title="summary_output_tokens", data=str(total_output_tokens)
+                    title="summary_output_tokens", data=str(output_tokens)
                 )
 
                 return inputs
 
             except RateLimitError as error:
                 raise get_token_error(error)
+            except InternalServerError as error:
+                await delay_retry(retry_id, ATTEMPTS, 30)
+                raise get_rate_error(error)
             except Exception as exception:
                 create_exception_stage(choice, exception)
                 logger.exception(exception)

@@ -1,3 +1,4 @@
+import { Application } from 'pixi.js';
 import { RefObject } from 'react';
 
 import {
@@ -8,9 +9,9 @@ import {
   Shortcut,
 } from '@frontend/common';
 import { ParsedSheets } from '@frontend/parser';
-import { Application } from '@pixi/app';
 
-import { GridApi, GridCallbacks } from '../../types';
+import { GridApi } from '../../types';
+import { GridEventBus } from '../../utils';
 
 export type CurrentCell = {
   col: number;
@@ -26,8 +27,8 @@ export type EditorStyle = {
 
 export type Props = {
   app: Application | null;
-  apiRef: RefObject<GridApi>;
-  gridCallbacksRef: RefObject<GridCallbacks>;
+  apiRef: RefObject<GridApi | null>;
+  eventBus: GridEventBus;
   zoom?: number;
   theme: AppTheme;
   functions?: FunctionInfo[];

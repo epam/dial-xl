@@ -52,7 +52,7 @@ export const ProjectOverrideBar = () => {
         <Button
           className={classNames(
             secondaryErrorButtonClasses,
-            'px-1 py-0.5 text-xs h-6 text-text-error'
+            'px-1 py-0.5 text-xs h-6 text-text-error',
           )}
           onClick={handleDropChanges}
         >
@@ -61,7 +61,7 @@ export const ProjectOverrideBar = () => {
         <Button
           className={classNames(
             secondaryErrorButtonClasses,
-            'px-1 py-0.5 text-xs h-6 text-text-error'
+            'px-1 py-0.5 text-xs h-6 text-text-error',
           )}
           onClick={resolveConflictUsingLocalChanges}
         >

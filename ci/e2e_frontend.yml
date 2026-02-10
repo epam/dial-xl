@@ -1,0 +1,241 @@
+variables:
+  E2E_TEST_IMAGE: "timbru31/java-node:11-jre-krypton"
+  ALLURE_IMAGE: "registry.deltixhub.com/thirdparty.docker/playwright-java-allure:0.0.13"
+
+.run_fronted_e2e_tests_template:
+  image: node:24-bookworm
+  cache:
+    - key:
+        files:
+          - frontend/yarn.lock
+        prefix: "node-modules"
+      paths:
+        - frontend/node_modules/
+      policy: pull
+    - key:
+        files:
+          - frontend/yarn.lock
+        prefix: "playwright"
+      paths:
+        - frontend/pw-browsers
+      policy: pull-push
+  before_script:
+    - wget -q --tries=60 --wait=5 --retry-on-host-error --spider ${BASE_URL}
+  script:
+    - cd frontend
+    - |
+      if [ -d "node_modules" ] && [ -f "node_modules/.yarn-state.yml" ]; then
+        echo "node_modules cache restored"
+      else
+        echo "No node_modules cache, running yarn install..."
+        yarn install --immutable
+      fi
+    - PLAYWRIGHT_VERSION=$(node -p "require('./package.json').devDependencies['@playwright/test']")
+    - echo "Playwright version from package.json - $PLAYWRIGHT_VERSION"
+    - PLAYWRIGHT_BROWSERS_PATH=./pw-browsers
+    - PLAYWRIGHT_BROWSERS_PATH=$PLAYWRIGHT_BROWSERS_PATH npx playwright install chromium --with-deps
+    - |
+      if [ -z "$TEST_TAG" ]; then
+        if [ -z "$TEST_FEATURES" ]; then
+          PLAYWRIGHT_BROWSERS_PATH=$PLAYWRIGHT_BROWSERS_PATH yarn e2e:ci
+        else
+          PW_GREP="$TEST_FEATURES" PLAYWRIGHT_BROWSERS_PATH=$PLAYWRIGHT_BROWSERS_PATH yarn e2e:ci
+        fi
+      else
+        for tag in $TEST_TAG; do
+          DATA_TYPE=${tag:1} PW_GREP="$tag" PLAYWRIGHT_BROWSERS_PATH=$PLAYWRIGHT_BROWSERS_PATH yarn e2e:ci
+        done
+      fi
+  artifacts:
+    name: "${CI_JOB_ID}_${CI_JOB_NAME}"
+    when: always
+    expire_in: 1 day
+    paths:
+      - frontend/allure-results
+      - frontend/test-results/videos
+      - frontend/blob-report
+  tags:
+    #    - gpu
+    - AWS
+    - DockerExecutor
+    - aws-2xlarge
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+      variables:
+        BASE_URL: ${development_ENV_URL}
+        QUANTGRID_TEST_USERNAME: ${QUANTGRID_KEYCLOAK_USERNAME}
+        QUANTGRID_TEST_USERNAME2: ${QUANTGRID_KEYCLOAK_USERNAME2}
+        QUANTGRID_TEST_PASSWORD: ${QUANTGRID_KEYCLOAK_PASSWORD}
+        AUTH_TYPE: "keycloak"
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      variables:
+        BASE_URL: ${review_ENV_URL}
+        QUANTGRID_TEST_USERNAME: ${QUANTGRID_AUTH0_USERNAME}
+        QUANTGRID_TEST_USERNAME2: ${QUANTGRID_AUTH0_USERNAME2}
+        QUANTGRID_TEST_PASSWORD: ${QUANTGRID_AUTH0_PASSWORD}
+        AUTH_TYPE: "auth0"
+      changes:
+        paths:
+          - frontend/**/*
+          - backend/**/*
+          - infrastructure/**/*
+  interruptible: true
+
+run_fronted_e2e_tests_default_1:
+  stage: e2e-test
+  extends: .run_fronted_e2e_tests_template
+  variables:
+    TEST_FEATURES: "(.*)tests.grid(.*)"
+
+run_fronted_e2e_tests_default_2:
+  stage: e2e-test
+  extends: .run_fronted_e2e_tests_template
+  variables:
+    TEST_FEATURES: "(.*)tests.panels(.*)|(.*)tests.charts(.*)"
+
+run_fronted_e2e_tests_default_3:
+  stage: e2e-test
+  extends: .run_fronted_e2e_tests_template
+  variables:
+    TEST_FEATURES: "(.*)tests.multiusers(.*)|(.*)tests.popup_forms(.*)|(.*)tests.topmenu(.*)|(.*)tests.editor(.*)"
+
+run_fronted_e2e_tests_hidden:
+  stage: e2e-test
+  extends: .run_fronted_e2e_tests_template
+  variables:
+    TEST_TAG: "@hiddenTable @hiddenAll @horizontal"
+
+run_fronted_e2e_tests_chat:
+  stage: e2e-test
+  extends: .run_fronted_e2e_tests_template
+  variables:
+    TEST_FEATURES: "(.*)tests.bot(.*)"
+
+run_fronted_e2e_tests_flaky:
+  stage: e2e-test
+  extends: .run_fronted_e2e_tests_template
+  variables:
+    TEST_TAG: "@flaky"
+
+prepare_report:
+  image: ${ALLURE_IMAGE}
+  stage: aggregate_results
+  script:
+    - /allure/allure-2.27.0/bin/allure generate ./frontend/allure-results -o ./frontend/allure-report-s3 --clean
+    - cd frontend
+    - npx playwright merge-reports --reporter html ./blob-report
+    - cd ..
+    - export AWS_ACCESS_KEY_ID=${nightlytest_AWS_ACCESS_KEY_ID} # No problem with inheritance; easily copy the example to another project
+    - export AWS_SECRET_ACCESS_KEY=${nightlytest_AWS_SECRET_ACCESS_KEY}
+    - export AWS_DEFAULT_REGION=${nightlytest_AWS_DEFAULT_REGION}
+    - aws s3 sync ./frontend/allure-report-s3 s3://new-reports.deltixhub.net/Deltix/Quantgrid/$CI_PIPELINE_ID
+    - echo "The report is available at the adress:"
+    - echo "http://new-reports.deltixhub.net.s3-website-us-west-2.amazonaws.com/Deltix/Quantgrid/$CI_PIPELINE_ID"
+    - expected_test_count=359
+    - line_count=$(grep "chromium" ./frontend/allure-report-s3/data/suites.csv | wc -l)
+    - '[ "$line_count" -eq "$expected_test_count" ] || { echo "Error: test count mistatch. Expected $expected_test_count, executed $line_count ."; exit 1; }'
+    - echo "Test count is correct"
+  artifacts:
+    name: "${CI_JOB_ID}_${CI_JOB_NAME}"
+    when: always
+    expire_in: 3 day
+    paths:
+      - frontend/allure-report-s3
+      - frontend/playwright-report
+  tags:
+    - AWS
+    - DockerExecutor
+  when: always
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes:
+        paths:
+          - frontend/**/*
+          - backend/**/*
+          - infrastructure/**/*
+    - if: $CI_COMMIT_BRANCH  == "main"
+  interruptible: true
+
+wait_for_enviroment_startup:
+  image: timbru31/java-node:11-jre-krypton
+  stage: post-deploy
+  before_script:
+    - rm -f /etc/apt/sources.list.d/yarn.list || true
+    - rm -f /etc/apt/sources.list.d/*yarn* || true
+    - apt-get update
+    - apt-get install -y --no-install-recommends dnsutils
+    - rm -rf /var/lib/apt/lists/*
+  script: |
+    wait_for_availability() {
+    DOMAIN="$1"
+    ATTEMPT=0
+    ATTEMPT_LIMIT=90  # retry resolve up to 15 minutes
+    ATTEMPT_DELAY=10  # 10 seconds between resolve attempts
+
+    if [ -z "$DOMAIN" ]; then
+        echo "Specify domain name as first argument" >&2
+        return 1
+    fi
+
+    BASE_DOMAIN=$(echo "$DOMAIN" | sed -E 's/[^.]+\.(.+)/\1/')
+    echo "Query Google public DNS for $BASE_DOMAIN nameservers"
+    NS_SERVERS=$(dig +short @8.8.8.8 ns $BASE_DOMAIN)
+    if [ -n "$NS_SERVERS" ]; then
+        echo "Detected nameservers for $BASE_DOMAIN:"
+        echo "$NS_SERVERS"
+    else
+        echo "Unable to detect nameservers for $BASE_DOMAIN" >&2
+        return 1
+    fi
+
+    for NS in $NS_SERVERS
+    do
+        while true
+        do
+            echo "Query $NS for $DOMAIN"
+            RESULT=$(dig +short @${NS} "$DOMAIN")
+            if [ ! -z "$RESULT" ]; then
+                if echo "$RESULT" | grep -Eq '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}'; then
+                    echo "$RESULT"
+                    break
+                fi
+            fi
+            ATTEMPT=$((ATTEMPT+1))
+            if [ $ATTEMPT -le $ATTEMPT_LIMIT ]; then
+                sleep $ATTEMPT_DELAY
+            else
+                echo "Unable to resolve $DOMAIN" >&2
+                return 1
+            fi
+        done
+     done
+    }
+    echo "${BASE_URL} ${QG_URL} ${DIAL_URL}"
+    wget -q --tries=60 --wait=5 --retry-on-host-error --spider ${BASE_URL}
+    echo "BASE_URL checked"
+    wget -q --tries=60 --wait=5 --retry-on-host-error --spider ${QG_URL}
+    echo "QG_URL checked"
+    for i in $(seq 1 60); do
+        code=$(curl -s -o /dev/null -w '%{http_code}' "$DIAL_URL")
+        if [ "$code" = "200" ] || [ "$code" = "401" ]; then
+        echo "Environment up (HTTP $code)"; exit 0
+     fi
+     echo "Got HTTP ${code:-no response}; retrying in 5s..."
+     sleep 5
+    done
+    echo "Timed out waiting for $DIAL_URL"; exit 1
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+      variables:
+        BASE_URL: ${development_ENV_URL}
+        QG_URL: https://quantgrid-dev.staging.deltixhub.io
+        DIAL_URL: https://dev-dial-core.staging.deltixhub.io
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      variables:
+        BASE_URL: ${review_ENV_URL}
+        QG_URL: https://quantgrid-${CI_COMMIT_REF_SLUG}.staging.deltixhub.io
+        DIAL_URL: https://core-quantgrid-${CI_COMMIT_REF_SLUG}.staging.deltixhub.io
+  tags:
+    - AWS
+    - DockerExecutor
+  interruptible: true

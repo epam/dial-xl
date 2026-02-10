@@ -33,7 +33,7 @@ export function useProjectMode() {
 
   const isCSVViewMode: boolean = useMemo(() => {
     return !!projectPath?.startsWith(
-      constructPath([projectFoldersRootPrefix, csvTempFolder])
+      constructPath([projectFoldersRootPrefix, csvTempFolder]),
     );
   }, [projectPath]);
 

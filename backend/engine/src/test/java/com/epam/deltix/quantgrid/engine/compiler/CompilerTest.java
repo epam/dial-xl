@@ -537,15 +537,106 @@ class CompilerTest {
         String dsl = """
                     table A
                        dim [a] = RANGE(4)
-                           
+                
                     table B
-                       dim [c] = A.SORTBY(-$[a])[a]
-                       dim [d] = A[a].FILTER($ < [c]).SORTBY(-$)
+                       dim [c] = A.SORTBY(-$[a], )[a]
+                       dim [d] = A[a].FILTER($ < [c]).SORTBY($, -1)
+                
+                    table C
+                       dim [e] = SORTBY(B, B[d], -1, B[c])[c]
+                
+                    !manual()
+                    table D
+                       [a]
+                       [b]
+                       [c]
+                    override
+                       [a], [b], [c]
+                       "a", 1, 1
+                       "c", 5, 2
+                       "a", 2, 3
+                       "b", 3, 4
+                       "b", 4, 5
+                       "c", 1, 6
+                
+                    table E
+                       dim [a], [b], [c] = SORTBY(D, D[a], 1, D[b], -1)[[a], [b], [c]]
+                
+                    table F
+                      [a] = SORTBY(D)
+                      [b] = SORTBY(D, D[a], D[b])
+                      [c] = SORTBY(D, )
+                      [d] = SORTBY(D, D[a], 1, , 1)
+                      [e] = SORTBY(D, D[a], 1, D[b], D[b])
                 """;
 
-        ResultCollector data = executeWithoutErrors(dsl);
-        data.verify("B", "c", 4, 4, 4, 3, 3, 2);
-        data.verify("B", "d", 3, 2, 1, 2, 1, 1);
+        ResultCollector data = executeWithErrors(dsl);
+        data.verify("""
+                Table: A
+                +---+
+                | a |
+                +---+
+                | 1 |
+                | 2 |
+                | 3 |
+                | 4 |
+                +---+
+                
+                Table: B
+                +---+---+
+                | c | d |
+                +---+---+
+                | 4 | 3 |
+                | 4 | 2 |
+                | 4 | 1 |
+                | 3 | 2 |
+                | 3 | 1 |
+                | 2 | 1 |
+                +---+---+
+                
+                Table: C
+                +---+
+                | e |
+                +---+
+                | 4 |
+                | 3 |
+                | 4 |
+                | 2 |
+                | 3 |
+                | 4 |
+                +---+
+                
+                Table: D
+                +---+---+---+
+                | a | b | c |
+                +---+---+---+
+                | a | 1 | 1 |
+                | c | 5 | 2 |
+                | a | 2 | 3 |
+                | b | 3 | 4 |
+                | b | 4 | 5 |
+                | c | 1 | 6 |
+                +---+---+---+
+                
+                Table: E
+                +---+---+---+
+                | a | b | c |
+                +---+---+---+
+                | a | 2 | 3 |
+                | a | 1 | 1 |
+                | b | 4 | 5 |
+                | b | 3 | 4 |
+                | c | 5 | 2 |
+                | c | 1 | 6 |
+                +---+---+---+
+                
+                Table: F
+                ERR >> F[a] - Function SORTBY expects at least 2 arguments - "table_or_array", "array" (repeatable) and "order" (repeatable) (optional), but 1 were provided
+                ERR >> F[b] - Invalid argument "order" for function SORTBY: order must be 1 (ascending) or -1 (descending)
+                ERR >> F[c] - Invalid argument "array" for function SORTBY: missing
+                ERR >> F[d] - Invalid argument "array" for function SORTBY: missing
+                ERR >> F[e] - Invalid argument "order" for function SORTBY: order must be 1 (ascending) or -1 (descending)
+                """);
     }
 
     @Test
@@ -562,10 +653,22 @@ class CompilerTest {
                            
                     table B
                        dim [x] = SORT(A[a])
+                    
+                    table C
+                       dim [x] = SORT(A[a], ) 
+                       
+                    table D
+                       dim [x] = SORT(A[a], 1) 
+                       
+                    table E
+                       dim [x] = SORT(A[a], -1)        
                 """;
 
         ResultCollector data = executeWithoutErrors(dsl);
         data.verify("B", "x", "a", "b", "c");
+        data.verify("C", "x", "a", "b", "c");
+        data.verify("D", "x", "a", "b", "c");
+        data.verify("E", "x", "c", "b", "a");
     }
 
     @Test
@@ -919,10 +1022,6 @@ class CompilerTest {
 
                 table B
                   dim [a], [*] = PIVOT(A[a], A[c], A[[d],[b]], "PERCENTILE")
-                  [p1] = [1]
-                  [p2] = [2]
-                  [p3] = [3]
-                  [p4] = [4]
                 """;
 
         ResultCollector data = executeWithoutErrors(dsl);
@@ -941,14 +1040,11 @@ class CompilerTest {
                 +------------+-----+---+---+
                 
                 Table: B
-                +------------+---+-----+-----+----+----+
-                |          a | * |  p1 |  p2 | p3 | p4 |
-                +------------+---+-----+-----+----+----+
-                | PERCENTILE | 1 | 1.5 | 3.5 |  1 |  6 |
-                |          - | 2 |   - |   - |  - |  - |
-                |          - | 3 |   - |   - |  - |  - |
-                |          - | 4 |   - |   - |  - |  - |
-                +------------+---+-----+-----+----+----+
+                +------------+-----+-----+---+---+
+                |          a |   1 |   2 | 3 | 4 |
+                +------------+-----+-----+---+---+
+                | PERCENTILE | 1.5 | 3.5 | 1 | 6 |
+                +------------+-----+-----+---+---+
                 """);
     }
 
@@ -3481,10 +3577,10 @@ class CompilerTest {
                 "The arguments 'table_or_array' and 'condition' of the FILTER function are from different origins and may have different sizes."
                         + " Did you mean A.FILTER(1).FILTER(-A.FILTER(1)[a] < A[a].COUNT())?");
         collector.verifyError("B", "c",
-                "The arguments 'table_or_array' and 'keys' of the SORTBY function are from different origins and may have different sizes."
+                "The arguments 'table_or_array' and 'array' of the SORTBY function are from different origins and may have different sizes."
                         + " Did you mean A.FILTER(1).SORTBY(A.FILTER(1)[a])?");
         collector.verifyError("B", "d",
-                "The arguments 'table_or_array' and 'keys' of the SORTBY function are from different origins and may have different sizes."
+                "The arguments 'table_or_array' and 'array' of the SORTBY function are from different origins and may have different sizes."
                         + " Did you mean A.FILTER(1).SORTBY(-A.FILTER(1)[a] + A.FILTER(1)[b])?");
         collector.verifyError("B", "e",
                 "The arguments 'table_or_array' and 'condition' of the FILTER function are from different origins and may have different sizes.");
@@ -3675,16 +3771,37 @@ class CompilerTest {
                       [d] = ROW()
                 apply
                   filter [a] < 3 AND [b] < 4
-                  sort [b], [a]
+                  sort [b], 1, [a]
                 override
                   row, [c]
                   1, 10
+                
+                table B
+                  dim [a] = RANGE(3)
+                  dim [b] = RANGE(4)
+                apply
+                  sort [a], [b]
                 """;
 
-        ResultCollector collector = executeWithoutErrors(dsl);
-        collector.verify("A", "a", 1, 2, 1, 2, 1, 2);
-        collector.verify("A", "b", 1, 1, 2, 2, 3, 3);
-        collector.verify("A", "c", 10, 3, 3, 4, 4, 5);
+        ResultCollector collector = executeWithErrors(dsl);
+        collector.verify("""
+                Table: A
+                +---+---+----+---+
+                | a | b |  c | d |
+                +---+---+----+---+
+                | 1 | 1 | 10 | 1 |
+                | 2 | 1 |  3 | 2 |
+                | 1 | 2 |  3 | 3 |
+                | 2 | 2 |  4 | 4 |
+                | 1 | 3 |  4 | 5 |
+                | 2 | 3 |  5 | 6 |
+                +---+---+----+---+
+                
+                Table: B
+                ERR >> B    - Can't apply sort. Make sure you do not use overridden columns in sort for a table without keys. Error: Argument #2 order must be 1 (ascending) or -1 (descending)
+                ERR >> B[a] - Can't apply sort. Make sure you do not use overridden columns in sort for a table without keys. Error: Argument #2 order must be 1 (ascending) or -1 (descending)
+                ERR >> B[b] - Can't apply sort. Make sure you do not use overridden columns in sort for a table without keys. Error: Argument #2 order must be 1 (ascending) or -1 (descending)
+                """);
     }
 
     @Test
@@ -6315,7 +6432,7 @@ class CompilerTest {
                 table A
                   dim [a] = RANGE(1)
                       [b] = FILTER(A,)
-                      [c] = SORTBY(A, A[a],)
+                      [c] = UNIQUEBY(A, A[a],)
                 """;
 
         ResultCollector data = executeWithErrors(dsl);
@@ -6327,7 +6444,7 @@ class CompilerTest {
                 | 1 |
                 +---+
                 ERR >> A[b] - Invalid argument "condition" for function FILTER: missing
-                ERR >> A[c] - Invalid argument "keys" for function SORTBY: missing
+                ERR >> A[c] - Invalid argument "keys" for function UNIQUEBY: missing
                 """);
     }
 
@@ -6342,24 +6459,18 @@ class CompilerTest {
                
                 table B
                   dim [*] = PIVOT(, A[indicator], A[val], "SUM")
-                      [result0] = [indicator0]
-                      [result1] = [indicator1]
                 
                 table C
                   dim [company], [sum] = PIVOT(A[company], , A[val], "SUM")
                 
                 table D
                   dim [company], [*] = PIVOT(A[company], A[indicator],,)
-                      [result0] = [indicator0]
-                      [result1] = [indicator1]
-               
+                
                 table E
                   dim [company] = PIVOT(A[company],,,)
                 
                 table F
                   dim [*] = PIVOT(,A[indicator],,)
-                      [result0] = [indicator0]
-                      [result1] = [indicator1]
                 
                 table G
                   dim [sum] = PIVOT(,,A[val], "SUM")[val]
@@ -6387,12 +6498,11 @@ class CompilerTest {
                 +-----+----------+------------+-------+
                 
                 Table: B
-                +------------+---------+---------+
-                |          * | result0 | result1 |
-                +------------+---------+---------+
-                | indicator0 |      30 |      25 |
-                | indicator1 |       - |       - |
-                +------------+---------+---------+
+                +------------+------------+
+                | indicator0 | indicator1 |
+                +------------+------------+
+                |         30 |         25 |
+                +------------+------------+
                 
                 Table: C
                 +----------+-----+
@@ -6404,13 +6514,13 @@ class CompilerTest {
                 +----------+-----+
                 
                 Table: D
-                +----------+------------+---------+---------+
-                |  company |          * | result0 | result1 |
-                +----------+------------+---------+---------+
-                | company0 | indicator0 |         |         |
-                | company1 | indicator1 |         |         |
-                | company2 |          - |         |         |
-                +----------+------------+---------+---------+
+                +----------+------------+------------+
+                |  company | indicator0 | indicator1 |
+                +----------+------------+------------+
+                | company0 |            |            |
+                | company1 |            |            |
+                | company2 |            |            |
+                +----------+------------+------------+
                 
                 Table: E
                 +----------+
@@ -6422,12 +6532,11 @@ class CompilerTest {
                 +----------+
                 
                 Table: F
-                +------------+---------+---------+
-                |          * | result0 | result1 |
-                +------------+---------+---------+
-                | indicator0 |         |         |
-                | indicator1 |       - |       - |
-                +------------+---------+---------+
+                +------------+------------+
+                | indicator0 | indicator1 |
+                +------------+------------+
+                |            |            |
+                +------------+------------+
                 
                 Table: G
                 +-----+
@@ -6442,6 +6551,46 @@ class CompilerTest {
                 +-----+
                 |  65 |
                 +-----+
+                """);
+    }
+
+    @Test
+    void testNestedPivot() {
+        String dsl = """
+                table A
+                  dim [val] = RANGE(10)
+                      [company] = "company" & ([val] MOD 3)
+                      [indicator] = "indicator" & ([val] MOD 2)
+                      [index] = [val] MOD 3
+               
+                table B
+                  [company], [*] = PIVOT(A[company], A[indicator], A[val], "SUM")
+                """;
+
+        ResultCollector data = executeWithoutErrors(dsl);
+        data.verify("""
+                Table: A
+                +-----+----------+------------+-------+
+                | val |  company |  indicator | index |
+                +-----+----------+------------+-------+
+                |   1 | company1 | indicator1 |     1 |
+                |   2 | company2 | indicator0 |     2 |
+                |   3 | company0 | indicator1 |     0 |
+                |   4 | company1 | indicator0 |     1 |
+                |   5 | company2 | indicator1 |     2 |
+                |   6 | company0 | indicator0 |     0 |
+                |   7 | company1 | indicator1 |     1 |
+                |   8 | company2 | indicator0 |     2 |
+                |   9 | company0 | indicator1 |     0 |
+                |  10 | company1 | indicator0 |     1 |
+                +-----+----------+------------+-------+
+                
+                Table: B
+                +---------+------------+------------+
+                | company | indicator0 | indicator1 |
+                +---------+------------+------------+
+                |       3 |          3 |          3 |
+                +---------+------------+------------+
                 """);
     }
 
@@ -6471,4 +6620,340 @@ class CompilerTest {
                 """);
     }
 
+    @Test
+    void testControls() {
+        String dsl = """
+                !manual()
+                table Data
+                  [company]
+                  [indicator]
+                  !format("number", 2, ",")
+                  [value]
+                override
+                  [company],[indicator],[value]
+                  "APPLE","GDP",10
+                  "MICROSOFT","GDP",20
+                  "APPLE","WTF",30
+                
+                !control()
+                table Control
+                  [company] = DROPDOWN(Data, Data[company], "APPLE")
+                  [indicator] = CHECKBOX(Data, Data[indicator], {"GDP"})
+                  [value_dropdown] = DROPDOWN(, Data[value], 20)
+                  [value_checkbox] = CHECKBOX(, Data[value], {TRUE})
+                
+                table ViewValueCheckbox
+                  dim [value_checkbox] = Control[value_checkbox]
+                
+                table Filtered
+                  dim [company],[indicator],[value] = Data[[company],[indicator],[value]]
+                apply
+                  filter [company] = Control[company] AND IN([indicator], Control[indicator])
+                
+                !control()
+                table EmptyControl
+                  [company] = DROPDOWN(Data, Data[company], )
+                  [indicator] = CHECKBOX(Data, Data[indicator], )
+                """;
+
+        ResultCollector data = executeWithoutErrors(dsl);
+        data.verify("""
+                Table: Control
+                +---------+-----------+----------------+----------------+
+                | company | indicator | value_dropdown | value_checkbox |
+                +---------+-----------+----------------+----------------+
+                |   APPLE |         1 |          20.00 |              1 |
+                +---------+-----------+----------------+----------------+
+                
+                Table: Data
+                +-----------+-----------+-------+
+                |   company | indicator | value |
+                +-----------+-----------+-------+
+                |     APPLE |       GDP | 10.00 |
+                | MICROSOFT |       GDP | 20.00 |
+                |     APPLE |       WTF | 30.00 |
+                +-----------+-----------+-------+
+                
+                Table: EmptyControl
+                +---------+-----------+
+                | company | indicator |
+                +---------+-----------+
+                |         |         0 |
+                +---------+-----------+
+                
+                Table: Filtered
+                +---------+-----------+-------+
+                | company | indicator | value |
+                +---------+-----------+-------+
+                |   APPLE |       GDP | 10.00 |
+                +---------+-----------+-------+
+                
+                Table: ViewValueCheckbox
+                +----------------+
+                | value_checkbox |
+                +----------------+
+                |           1.00 |
+                +----------------+
+                """);
+    }
+
+    @Test
+    void testInvalidControls() {
+        String dsl = """
+                table Data
+                  dim [x] = RANGE(5)
+                
+                table ControlWithoutDecorator
+                  [x] = DROPDOWN(, Data[x], 5)
+                
+                !control()
+                table ControlWithInvalidFormula
+                  [x] = 1
+                
+                !control()
+                table ControlWithOverride
+                  [x] = DROPDOWN(, Data[x], 5)
+                override
+                  row,[x]
+                  1, 3
+                
+                !manual()
+                !control()
+                table ControlWithManual
+                  [x] = DROPDOWN(, Data[x], 5)
+                
+                !control()
+                table ControlWithApply
+                  [x] = DROPDOWN(, Data[x], 5)
+                apply
+                  filter [x] > 0
+                """;
+
+        ResultCollector data = executeWithErrors(dsl);
+        data.verify("""
+                Table: ControlWithApply
+                ERR >> ControlWithApply    - Control table cannot contain apply section. Please remove apply section
+                ERR >> ControlWithApply[x] - Control table cannot contain apply section. Please remove apply section
+                
+                Table: ControlWithInvalidFormula
+                ERR >> ControlWithInvalidFormula[x] - Invalid control formula, expected one of DROPDOWN, CHECKBOX functions
+                
+                Table: ControlWithManual
+                ERR >> ControlWithManual    - Control table cannot be manual. Please remove !manual() decorator
+                ERR >> ControlWithManual[x] - Control table cannot be manual. Please remove !manual() decorator
+                
+                Table: ControlWithOverride
+                ERR >> ControlWithOverride    - Control table cannot contain override section. Please remove override section
+                ERR >> ControlWithOverride[x] - Control table cannot contain override section. Please remove override section
+                
+                Table: ControlWithoutDecorator
+                ERR >> ControlWithoutDecorator[x] - Function DROPDOWN can be used only in control table
+                
+                Table: Data
+                +---+
+                | x |
+                +---+
+                | 1 |
+                | 2 |
+                | 3 |
+                | 4 |
+                | 5 |
+                +---+
+                """);
+    }
+
+    @Test
+    void testScalarDimension() {
+        String dsl = """
+                table A
+                  [x] = 1
+                
+                table B
+                  dim [x] = A[x]
+                      [y] = [x] + 1
+                apply
+                filter [x] = 1
+                """;
+
+        ResultCollector data = executeWithoutErrors(dsl);
+        data.verify("""
+                Table: A
+                +---+
+                | x |
+                +---+
+                | 1 |
+                +---+
+                
+                Table: B
+                +---+---+
+                | x | y |
+                +---+---+
+                | 1 | 2 |
+                +---+---+
+                """);
+    }
+
+    @Test
+    void testMinMaxWithText() {
+        String dsl = """
+                table Data
+                  dim [value] = RANGE(10)
+                      [company] = "company-" & [value] MOD 3
+                      [indicator] = "indicator-" & [value] MOD 2
+                      [text] = "text-" & [value]
+                
+                table Min
+                  dim [company], [*] = PIVOT(Data[company], Data[indicator], Data[text], "MIN")
+                      [min1] = [indicator-0]
+                      [min2] = [indicator-1]
+                      [min3] = MIN(Data[text])
+                      [min4] = MIN(FILTER(Data[text], [company] = Data[company]))
+                
+                table Max
+                  dim [company], [*] = PIVOT(Data[company], Data[indicator], Data[text], "MAX")
+                      [min1] = [indicator-0]
+                      [min2] = [indicator-1]
+                      [min3] = MAX(Data[text])
+                      [min4] = MAX(FILTER(Data[text], [company] = Data[company]))
+                """;
+
+        ResultCollector data = executeWithoutErrors(dsl);
+        data.verify("""
+                Table: Data
+                +-------+-----------+-------------+---------+
+                | value |   company |   indicator |    text |
+                +-------+-----------+-------------+---------+
+                |     1 | company-1 | indicator-1 |  text-1 |
+                |     2 | company-2 | indicator-0 |  text-2 |
+                |     3 | company-0 | indicator-1 |  text-3 |
+                |     4 | company-1 | indicator-0 |  text-4 |
+                |     5 | company-2 | indicator-1 |  text-5 |
+                |     6 | company-0 | indicator-0 |  text-6 |
+                |     7 | company-1 | indicator-1 |  text-7 |
+                |     8 | company-2 | indicator-0 |  text-8 |
+                |     9 | company-0 | indicator-1 |  text-9 |
+                |    10 | company-1 | indicator-0 | text-10 |
+                +-------+-----------+-------------+---------+
+                
+                Table: Max
+                +-----------+-------------+-------------+--------+--------+--------+--------+
+                |   company | indicator-0 | indicator-1 |   min1 |   min2 |   min3 |   min4 |
+                +-----------+-------------+-------------+--------+--------+--------+--------+
+                | company-0 |      text-6 |      text-9 | text-6 | text-9 | text-9 | text-9 |
+                | company-1 |      text-4 |      text-7 | text-4 | text-7 | text-9 | text-7 |
+                | company-2 |      text-8 |      text-5 | text-8 | text-5 | text-9 | text-8 |
+                +-----------+-------------+-------------+--------+--------+--------+--------+
+                
+                Table: Min
+                +-----------+-------------+-------------+---------+--------+--------+--------+
+                |   company | indicator-0 | indicator-1 |    min1 |   min2 |   min3 |   min4 |
+                +-----------+-------------+-------------+---------+--------+--------+--------+
+                | company-0 |      text-6 |      text-3 |  text-6 | text-3 | text-1 | text-3 |
+                | company-1 |     text-10 |      text-1 | text-10 | text-1 | text-1 | text-1 |
+                | company-2 |      text-2 |      text-5 |  text-2 | text-5 | text-1 | text-2 |
+                +-----------+-------------+-------------+---------+--------+--------+--------+
+                """);
+    }
+
+    @Test
+    void testErr() {
+        String dsl = """
+                table A
+                  [a] = ERR("F(")
+                  [b] = ERR("1+")
+                  [c] = ERR("1'"2")
+                  [d] = ERR("1")
+                """;
+
+        ResultCollector data = executeWithErrors(dsl);
+        data.verify("""
+                Table: A
+                ERR >> A[a] - Invalid formula: no viable alternative at input 'F('
+                ERR >> A[b] - Invalid formula: mismatched input '<EOF>' expecting {'-', 'TRUE', 'FALSE', 'NA', '$', 'NOT', '{', '(', FLOAT, IDENTIFIER, STRING_LITERAL, FIELD_NAME, MULTI_WORD_TABLE_IDENTIFIER}
+                ERR >> A[c] - Invalid formula: token recognition error at: '"2'
+                ERR >> A[d] - Valid formula
+                """);
+    }
+
+    @Test
+    void testGroupBy() {
+        String dsl = """
+                !manual()
+                table Data
+                  [company]
+                  [indicator]
+                  [amount]
+                  [revenue] = [amount] + 10
+                override
+                [company], [indicator], [amount]
+                "Apple", "GDP", 1
+                "Apple", "WTF", 2
+                "Microsoft", "GDP", 3
+                "Microsoft", "WTF", 4
+                "Microsoft", "GDP", 5
+                "Google", "GDP", 6
+               
+                table ResultA
+                  dim [company], [amount] = GROUPBY(Data[company], Data[amount], "SUM")
+               
+                table ResultB
+                  dim [company], [min], [average], [max] = GROUPBY(Data[company], Data[amount], {"MIN", "AVERAGE", "MAX"})
+               
+                table ResultC
+                  dim [company], [sum of amount], [sum of revenue] = GROUPBY(Data[company], Data[[amount], [revenue]], "SUM")
+               
+                table ResultD
+                  dim [company], [indicator], [correlation], [sum] = GROUPBY(Data[[company], [indicator]], Data[[amount], [amount], [revenue]], {"CORREL", "SUM"}, Data[company] = "Microsoft")
+               """;
+
+        ResultCollector data = executeWithoutErrors(dsl);
+        data.verify("""
+                Table: Data
+                +-----------+-----------+--------+---------+
+                |   company | indicator | amount | revenue |
+                +-----------+-----------+--------+---------+
+                |     Apple |       GDP |      1 |      11 |
+                |     Apple |       WTF |      2 |      12 |
+                | Microsoft |       GDP |      3 |      13 |
+                | Microsoft |       WTF |      4 |      14 |
+                | Microsoft |       GDP |      5 |      15 |
+                |    Google |       GDP |      6 |      16 |
+                +-----------+-----------+--------+---------+
+                
+                Table: ResultA
+                +-----------+--------+
+                |   company | amount |
+                +-----------+--------+
+                |     Apple |      3 |
+                |    Google |      6 |
+                | Microsoft |     12 |
+                +-----------+--------+
+                
+                Table: ResultB
+                +-----------+-----+---------+-----+
+                |   company | min | average | max |
+                +-----------+-----+---------+-----+
+                |     Apple |   1 |     1.5 |   2 |
+                |    Google |   6 |       6 |   6 |
+                | Microsoft |   3 |       4 |   5 |
+                +-----------+-----+---------+-----+
+                
+                Table: ResultC
+                +-----------+---------------+----------------+
+                |   company | sum of amount | sum of revenue |
+                +-----------+---------------+----------------+
+                |     Apple |             3 |             23 |
+                |    Google |             6 |             16 |
+                | Microsoft |            12 |             42 |
+                +-----------+---------------+----------------+
+                
+                Table: ResultD
+                +-----------+-----------+-------------+-----+
+                |   company | indicator | correlation | sum |
+                +-----------+-----------+-------------+-----+
+                | Microsoft |       GDP |           1 |  28 |
+                | Microsoft |       WTF |          NA |  14 |
+                +-----------+-----------+-------------+-----+
+                """);
+    }
 }

@@ -17,12 +17,12 @@ const LayoutGenericParamsKeys = {
 };
 
 export const getLayoutParams = (
-  decorator: ParsedDecorator
+  decorator: ParsedDecorator,
 ): LayoutDecoratorParams => {
   const [row, col, ...layoutArgs] = decorator.params[0] as [
     number,
     number,
-    ...string[]
+    ...string[],
   ];
 
   let isHorizontal = false;
@@ -56,20 +56,20 @@ export const getLayoutParams = (
 
 export const updateLayoutDecorator = (
   decorator: ParsedDecorator | undefined,
-  params: Partial<LayoutDecoratorParams>
+  params: Partial<LayoutDecoratorParams>,
 ): string => {
   const layoutParams = decorator && getLayoutParams(decorator);
 
   const isHorizontal =
-    params.isHorizontal ?? layoutParams?.isHorizontal
+    (params.isHorizontal ?? layoutParams?.isHorizontal)
       ? LayoutGenericParamsKeys.horizontal
       : undefined;
   const showTableHeader =
-    params.showTableHeader ?? layoutParams?.showTableHeader
+    (params.showTableHeader ?? layoutParams?.showTableHeader)
       ? LayoutGenericParamsKeys.title
       : undefined;
   const showFieldHeaders =
-    params.showFieldHeaders ?? layoutParams?.showFieldHeaders
+    (params.showFieldHeaders ?? layoutParams?.showFieldHeaders)
       ? LayoutGenericParamsKeys.headers
       : undefined;
   const col = params.col ?? layoutParams?.col ?? 1;
@@ -81,7 +81,7 @@ export const updateLayoutDecorator = (
     row,
     includeDecoratorName,
     [isHorizontal, showTableHeader, showFieldHeaders].filter(
-      Boolean
-    ) as string[]
+      Boolean,
+    ) as string[],
   );
 };

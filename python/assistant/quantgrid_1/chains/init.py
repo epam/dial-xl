@@ -75,9 +75,15 @@ async def init(inputs: dict) -> dict:
 
     inputs[ChainParameters.BUCKET] = await dial_api.bucket()
 
-    max_tokens = (
+    env_max_context_tokens = (
         int(os.environ["LLM_MAX_CONTEXT_TOKENS"])
         if "LLM_MAX_CONTEXT_TOKENS" in os.environ
+        else None
+    )
+
+    env_max_output_tokens = (
+        int(os.environ["LLM_MAX_OUTPUT_TOKENS"])
+        if "LLM_MAX_OUTPUT_TOKENS" in os.environ
         else None
     )
 
@@ -88,29 +94,43 @@ async def init(inputs: dict) -> dict:
         "api_key": SecretStr(request.api_key),
     }
 
-    main_model_tokens = await fetch_context_window(DIAL_URL, credential, MODEL_NAME)
+    main_model_context_tokens = await fetch_context_window(
+        DIAL_URL, credential, MODEL_NAME
+    )
+
     inputs[ChainParameters.MAIN_MODEL] = AzureChatOpenAI(
         azure_deployment=MODEL_NAME,
         model=MODEL_NAME,
         extra_body={
             "seed": 5,
-            "max_prompt_tokens": (max_tokens or main_model_tokens or 100_000) - 2000,
+            "max_prompt_tokens": (
+                env_max_context_tokens or main_model_context_tokens or 100_000
+            )
+            - 2000,
+            "max_tokens": env_max_output_tokens or 8_000,
         },
         **model_parameters,
     )
 
-    cls_model_tokens = await fetch_context_window(DIAL_URL, credential, CLS_MODEL_NAME)
+    cls_model_context_tokens = await fetch_context_window(
+        DIAL_URL, credential, CLS_MODEL_NAME
+    )
+
     inputs[ChainParameters.CLS_MODEL] = AzureChatOpenAI(
         azure_deployment=CLS_MODEL_NAME,
         model=CLS_MODEL_NAME,
         extra_body={
             "seed": 5,
-            "max_prompt_tokens": (max_tokens or cls_model_tokens or 100_000) - 2000,
+            "max_prompt_tokens": (
+                env_max_context_tokens or cls_model_context_tokens or 100_000
+            )
+            - 2000,
+            "max_tokens": env_max_output_tokens or 8_000,
         },
         **model_parameters,
     )
 
-    hint_model_tokens = await fetch_context_window(
+    hint_model_context_tokens = await fetch_context_window(
         DIAL_URL, credential, AI_HINT_MODEL_NAME
     )
 
@@ -119,7 +139,11 @@ async def init(inputs: dict) -> dict:
         model=AI_HINT_MODEL_NAME,
         extra_body={
             "seed": 5,
-            "max_prompt_tokens": (max_tokens or hint_model_tokens or 100_000) - 2000,
+            "max_prompt_tokens": (
+                env_max_context_tokens or hint_model_context_tokens or 100_000
+            )
+            - 2000,
+            "max_tokens": env_max_output_tokens or 8_000,
         },
         **model_parameters,
     )
@@ -130,7 +154,11 @@ async def init(inputs: dict) -> dict:
 
     with choice.create_stage("Receiving the project state (0 s)") as stage:
         parameters = RequestParameters.load_from(request)
-        stage.append_content(code_snippet("json", parameters.model_dump_json(indent=2)))
+        dump = parameters.model_dump_json(
+            indent=2, exclude={"generation_parameters": {"saved_stages"}}
+        )
+
+        stage.append_content(code_snippet("json", dump))
 
     inputs[ChainParameters.ORIGINAL_PROJECT_STATE] = parameters.project_state
     inputs[ChainParameters.ORIGINAL_PROJECT] = await create_project(
@@ -144,7 +172,7 @@ async def init(inputs: dict) -> dict:
 
     app_state = None
     broken_state_count = 0
-    for message in request.messages:
+    for message in reversed(request.messages):
         if message.role != Role.ASSISTANT:
             continue
 
@@ -158,7 +186,8 @@ async def init(inputs: dict) -> dict:
             continue
 
         actions_history = message.custom_content.state["actions_history"]
-        app_state = ApplicationState(actions_history=actions_history)
+        if app_state is None:
+            app_state = ApplicationState(actions_history=actions_history)
 
         break
 

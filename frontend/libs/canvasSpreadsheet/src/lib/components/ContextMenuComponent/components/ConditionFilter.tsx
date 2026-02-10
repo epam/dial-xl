@@ -1,6 +1,5 @@
 import { Button, Input } from 'antd';
 import cx from 'classnames';
-import { DefaultOptionType } from 'rc-select/lib/Select';
 import {
   ChangeEvent,
   MouseEvent,
@@ -18,14 +17,15 @@ import {
   selectStyles,
 } from '@frontend/common';
 import { FilterOperator, ParsedConditionFilter } from '@frontend/parser';
+import { DefaultOptionType } from '@rc-component/select/lib/Select';
 
-import { GridCallbacks } from '../../../types';
+import { GridEventBus } from '../../../utils';
 
 type Props = {
   tableName: string;
   fieldName: string;
   filter?: ParsedConditionFilter;
-  gridCallbacks: GridCallbacks;
+  eventBus: GridEventBus;
   filterType: GridFilterType;
 };
 
@@ -66,7 +66,7 @@ export function ConditionFilter({
   tableName,
   fieldName,
   filter,
-  gridCallbacks,
+  eventBus,
   filterType,
 }: Props) {
   const operatorOptions =
@@ -83,7 +83,7 @@ export function ConditionFilter({
     (option: SingleValue<DefaultOptionType>) => {
       setSelectedOperator(option);
     },
-    []
+    [],
   );
 
   const onChangeInput = useCallback((e: ChangeEvent) => {
@@ -112,58 +112,67 @@ export function ConditionFilter({
       if (isBetweenOperator) {
         if (!secondaryExpressionValue) return;
 
-        gridCallbacks.onApplyConditionFilter?.(
-          tableName,
-          fieldName,
-          selectedOperator.value as string,
-          [expressionValue, secondaryExpressionValue],
-          filterType
-        );
+        eventBus.emit({
+          type: 'filters/condition-applied',
+          payload: {
+            tableName,
+            fieldName,
+            operator: selectedOperator.value as string,
+            value: [expressionValue, secondaryExpressionValue],
+            filterType,
+          },
+        });
 
         return;
       }
 
       if (!expressionValue) return;
 
-      gridCallbacks.onApplyConditionFilter?.(
-        tableName,
-        fieldName,
-        selectedOperator.value as string,
-        expressionValue,
-        filterType
-      );
+      eventBus.emit({
+        type: 'filters/condition-applied',
+        payload: {
+          tableName,
+          fieldName,
+          operator: selectedOperator.value as string,
+          value: expressionValue,
+          filterType,
+        },
+      });
     },
     [
       expressionValue,
       fieldName,
       filterType,
-      gridCallbacks,
+      eventBus,
       secondaryExpressionValue,
       selectedOperator,
       tableName,
-    ]
+    ],
   );
 
   const onClear = useCallback(() => {
-    gridCallbacks.onApplyConditionFilter?.(
-      tableName,
-      fieldName,
-      '',
-      null,
-      filterType
-    );
+    eventBus.emit({
+      type: 'filters/condition-applied',
+      payload: {
+        tableName,
+        fieldName,
+        operator: '',
+        value: null,
+        filterType,
+      },
+    });
 
     setExpressionValue('');
     setSecondaryExpressionValue('');
     setSelectedOperator(operatorOptions[0]);
-  }, [fieldName, filterType, gridCallbacks, operatorOptions, tableName]);
+  }, [fieldName, filterType, eventBus, operatorOptions, tableName]);
 
   useEffect(() => {
     if (!filter) return;
 
     const { value, secondaryValue, operator } = filter;
     const operatorOption = operatorOptions.find(
-      (option) => option.value === operator
+      (option) => option.value === operator,
     );
 
     if (!operatorOption) return;
@@ -232,7 +241,7 @@ export function ConditionFilter({
         <Button
           className={cx(
             'h-8 px-2 text-[13px] w-16 ml-2',
-            secondaryButtonClasses
+            secondaryButtonClasses,
           )}
           onClick={onClear}
         >

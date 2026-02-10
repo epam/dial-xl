@@ -1,5 +1,6 @@
 package com.epam.deltix.quantgrid.engine.compiler;
 
+import com.epam.deltix.quantgrid.engine.Util;
 import com.epam.deltix.quantgrid.engine.compiler.result.CompiledResult;
 import com.epam.deltix.quantgrid.engine.compiler.result.CompiledSimpleColumn;
 import com.epam.deltix.quantgrid.engine.compiler.result.CompiledTable;
@@ -13,13 +14,11 @@ import com.epam.deltix.quantgrid.parser.ParsedApply;
 import com.epam.deltix.quantgrid.parser.ParsedApplyFilter;
 import com.epam.deltix.quantgrid.parser.ParsedApplySort;
 import com.epam.deltix.quantgrid.parser.ParsedTable;
+import com.epam.deltix.quantgrid.parser.ast.ConstNumber;
 import com.epam.deltix.quantgrid.parser.ast.Formula;
-import com.epam.deltix.quantgrid.parser.ast.UnaryOperation;
-import com.epam.deltix.quantgrid.parser.ast.UnaryOperator;
 import lombok.experimental.UtilityClass;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 @UtilityClass
@@ -73,18 +72,11 @@ class CompileApply {
                                     ParsedApplySort sorting, List<FieldKey> dimensions) {
         try {
             List<Formula> arguments = sorting.formulas();
+            List<CompiledSimpleColumn> columns = new ArrayList<>();
+            List<Boolean> orders = new ArrayList<>();
 
-            List<CompiledSimpleColumn> keyResult = new ArrayList<>();
-            boolean[] ascending = new boolean[arguments.size()];
-            Arrays.fill(ascending, true);
-
-            for (int i = 0; i < arguments.size(); i++) {
+            for (int i = 0; i < arguments.size(); i += 2) {
                 Formula formula = arguments.get(i);
-
-                if (formula instanceof UnaryOperator unary && unary.operation() == UnaryOperation.NEG) {
-                    formula = unary.argument();
-                    ascending[i] = false;
-                }
 
                 CompiledResult arg = context.compileFormula(formula);
                 arg = context.promote(arg, dimensions);
@@ -92,13 +84,25 @@ class CompileApply {
 
                 CompiledSimpleColumn key = SimpleColumnValidators.STRING_OR_DOUBLE.convert(arg, INCORRECT_SORT_LAYOUT);
                 CompileUtil.verifySameLayout(key, table, INCORRECT_SORT_LAYOUT
-                        + (arguments.size() > 1 ? " Erroneous key index: " + (i + 1) : ""));
+                        + (arguments.size() > 2 ? " Erroneous key index: " + (i + 1) : ""));
 
-                keyResult.add(key);
+                boolean order = true;
+
+                if (i + 1 < arguments.size()) {
+                    formula = arguments.get(i + 1);
+                    String error = "Argument #" + (i + 2) + " order must be 1 (ascending) or -1 (descending)";
+                    CompileUtil.verify(formula instanceof ConstNumber, error);
+                    double number = ((ConstNumber) formula).number();
+                    CompileUtil.verify(number == 1 || number == -1, error);
+                    order = (number == 1);
+                }
+
+                columns.add(key);
+                orders.add(order);
             }
 
-            List<Expression> keys = keyResult.stream().map(CompiledSimpleColumn::node).toList();
-            OrderByLocal plan = new OrderByLocal(table.node(), keys, ascending);
+            List<Expression> keys = columns.stream().map(CompiledSimpleColumn::node).toList();
+            OrderByLocal plan = new OrderByLocal(table.node(), keys, Util.boolArray(orders));
 
             Trace trace = new Trace(context.computationId(), Trace.Type.COMPUTE, context.key().key(), sorting.span());
             plan.getTraces().add(trace);

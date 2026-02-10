@@ -12,7 +12,7 @@ export const ProjectPanelSectionContent = ({
     <div
       className={classNames(
         'px-2 transition-all overflow-hidden',
-        isCollapsed ? 'h-0 pb-0' : 'pb-2 h-[calc-size(auto,size)]'
+        isCollapsed ? 'h-0 pb-0' : 'pb-2 h-[calc-size(auto,size)]',
       )}
     >
       {children}

@@ -18,6 +18,7 @@ import { checkAndWrapExpression, escapeValue } from '@frontend/parser';
 
 import { ProjectContext } from '../context';
 import { createUniqueName } from '../services';
+import { useStatusModalStore } from '../store';
 import {
   useCreateTableDsl,
   useFieldEditDsl,
@@ -69,7 +70,7 @@ export const useSubmitCellEditor = () => {
       if (valueType === 'single_dim') {
         gridApi?.hideCellEditor();
 
-        return requestDimSchemaForDimFormula(col, row, value);
+        return requestDimSchemaForDimFormula({ col, row, value });
       }
 
       const leftTableCell = gridApi?.getCell(Math.max(1, col - 1), row);
@@ -81,14 +82,14 @@ export const useSubmitCellEditor = () => {
         leftTableCell?.table && !leftTableCell.table.isTableHorizontal
           ? leftTableCell
           : topTableCell?.table && topTableCell.table.isTableHorizontal
-          ? topTableCell
-          : undefined;
+            ? topTableCell
+            : undefined;
       const addRowCell =
         leftTableCell?.table && leftTableCell.table.isTableHorizontal
           ? leftTableCell
           : topTableCell?.table && !topTableCell.table.isTableHorizontal
-          ? topTableCell
-          : undefined;
+            ? topTableCell
+            : undefined;
 
       let editFieldNameCell;
       let editTableNameCell;
@@ -97,7 +98,7 @@ export const useSubmitCellEditor = () => {
         isHiddenTableHeaderCell(bottomTableCell);
       const isBottomTableFieldHeadersHidden = isHiddenFieldCell(
         bottomTableCell,
-        true
+        true,
       );
       const isRightTableFieldHidden = isHiddenFieldCell(rightTableCell, false);
 
@@ -129,7 +130,7 @@ export const useSubmitCellEditor = () => {
           ?.fields.map((field) => field.key.fieldName);
         const newFieldName = createUniqueName(
           defaultFieldName,
-          tableFieldNames
+          tableFieldNames,
         );
 
         addFieldWithOverride({
@@ -153,7 +154,7 @@ export const useSubmitCellEditor = () => {
           col,
           row,
           tableName,
-          valueType === 'formula' ? value.slice(1) : escapeValue(value)
+          valueType === 'formula' ? value.slice(1) : escapeValue(value),
         );
       }
 
@@ -199,7 +200,7 @@ export const useSubmitCellEditor = () => {
       addTableRow,
       renameTable,
       renameField,
-    ]
+    ],
   );
 
   const submitCellEditor = useCallback(
@@ -209,14 +210,12 @@ export const useSubmitCellEditor = () => {
       cell,
       value,
       dimFieldName,
-      openStatusModal,
     }: {
       editMode: GridCellEditorMode;
       currentCell: CellPlacement;
       cell: GridCell | undefined;
       value: string;
       dimFieldName?: string;
-      openStatusModal?: (text: string) => void;
     }): boolean => {
       if (!currentCell) return true;
 
@@ -267,7 +266,7 @@ export const useSubmitCellEditor = () => {
               tableName,
               fieldName,
               trimmedValue,
-              cell.overrideIndex!
+              cell.overrideIndex!,
             );
           } else {
             if (trimmedValue === cell?.field?.expression) return true;
@@ -287,7 +286,7 @@ export const useSubmitCellEditor = () => {
             }
 
             if (cell.field?.isKey) {
-              openStatusModal?.(overrideKeyFieldMessage);
+              useStatusModalStore.getState().open(overrideKeyFieldMessage);
 
               return false;
             }
@@ -345,7 +344,7 @@ export const useSubmitCellEditor = () => {
       renameField,
       renameTable,
       submitEmptyCell,
-    ]
+    ],
   );
 
   return { submitCellEditor, submitEmptyCell };

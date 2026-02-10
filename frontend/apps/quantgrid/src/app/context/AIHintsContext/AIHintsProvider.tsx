@@ -1,7 +1,7 @@
-import { Modal } from 'antd';
 import classNames from 'classnames';
 import {
   ChangeEvent,
+  type JSX,
   PropsWithChildren,
   useCallback,
   useContext,
@@ -24,9 +24,10 @@ import {
 import { EditAIHint } from '../../components';
 import { useApiRequests } from '../../hooks';
 import { createUniqueName } from '../../services';
+import { useAntdModalStore } from '../../store';
 import { constructPath, isHintValid, triggerDownload } from '../../utils';
-import { AIHintsContext } from '../AIHintsContext';
 import { ProjectContext } from '../ProjectContext';
+import { AIHintsContext } from './AIHintsContext';
 
 export function AIHintsContextProvider({
   children,
@@ -34,6 +35,7 @@ export function AIHintsContextProvider({
   const { projectName, projectBucket, projectPath } =
     useContext(ProjectContext);
   const { getAIHintsContent, putAIHintsContent } = useApiRequests();
+  const confirmModal = useAntdModalStore((s) => s.confirm);
 
   const [hints, setHints] = useState<AIHint[]>([]);
   const [isHintsLoading, setIsHintsLoading] = useState(false);
@@ -43,7 +45,7 @@ export function AIHintsContextProvider({
     number | undefined
   >();
   const [selectedHintsIndexes, setSelectedHintsIndexes] = useState<number[]>(
-    []
+    [],
   );
   const importFilesInputRef = useRef<HTMLInputElement>(null);
 
@@ -57,25 +59,25 @@ export function AIHintsContextProvider({
   }, [editedAIHintIndex, hints]);
   const hintsValidationResult = useMemo(() => {
     return hints.map((hint, index) =>
-      isHintValid(hint, [...hints.slice(0, index), ...hints.slice(index + 1)])
+      isHintValid(hint, [...hints.slice(0, index), ...hints.slice(index + 1)]),
     );
   }, [hints]);
 
   // Temporary function to normalize hints to extended format
   const normalizeAIHintsResponse = useCallback(
     (
-      aiHints: (AIHint & { triggers: (string | AIHintTrigger)[] })[]
+      aiHints: (AIHint & { triggers: (string | AIHintTrigger)[] })[],
     ): AIHint[] => {
       return aiHints.map((hint) => ({
         ...hint,
         triggers: hint.triggers.map((trigger) =>
           typeof trigger === 'string'
             ? { value: trigger, isDisabled: false }
-            : trigger
+            : trigger,
         ),
       }));
     },
-    []
+    [],
   );
 
   const getHints = useCallback(async () => {
@@ -99,7 +101,7 @@ export function AIHintsContextProvider({
     setIsHintsLoading(false);
 
     const normalizedAIHintsResponse = normalizeAIHintsResponse(
-      (aiHintsResponse?.json ?? []) as any
+      (aiHintsResponse?.json ?? []) as any,
     );
     setHints(normalizedAIHintsResponse);
   }, [
@@ -129,7 +131,7 @@ export function AIHintsContextProvider({
         hints: updatedHints,
       });
     },
-    [projectBucket, projectName, projectPath, putAIHintsContent]
+    [projectBucket, projectName, projectPath, putAIHintsContent],
   );
 
   const newHintsModal = useCallback(() => {
@@ -140,11 +142,12 @@ export function AIHintsContextProvider({
 
     setIsShowEditModal(true);
   }, []);
+
   const deleteHintModal = useCallback(
     (hintIndex: number) => {
       setSelectedHintsIndexes([]);
 
-      Modal.confirm({
+      confirmModal({
         icon: null,
         title: 'Confirm',
         content: `Are you sure you want to delete this hint?`,
@@ -154,7 +157,7 @@ export function AIHintsContextProvider({
         cancelButtonProps: {
           className: classNames(
             modalFooterButtonClasses,
-            secondaryButtonClasses
+            secondaryButtonClasses,
           ),
         },
         onOk: async () => {
@@ -164,13 +167,13 @@ export function AIHintsContextProvider({
         },
       });
     },
-    [hints, updateHints]
+    [hints, updateHints, confirmModal],
   );
 
   const handleDeleteEditedHint = useCallback(() => {
     setSelectedHintsIndexes([]);
 
-    Modal.confirm({
+    confirmModal({
       icon: null,
       title: 'Confirm',
       content: `Are you sure you want to delete this hint?`,
@@ -182,7 +185,7 @@ export function AIHintsContextProvider({
       },
       onOk: async () => {
         const updatedHints = hints.filter(
-          (_, index) => editedAIHintIndex !== index
+          (_, index) => editedAIHintIndex !== index,
         );
         setEditedAIHintIndex(undefined);
         setIsShowEditModal(false);
@@ -190,7 +193,7 @@ export function AIHintsContextProvider({
         updateHints(updatedHints);
       },
     });
-  }, [editedAIHintIndex, hints, updateHints]);
+  }, [editedAIHintIndex, hints, updateHints, confirmModal]);
 
   const handleCancelEditModal = useCallback(() => {
     setSelectedHintsIndexes([]);
@@ -211,7 +214,7 @@ export function AIHintsContextProvider({
       let updatedHints;
       if (hintIndex !== undefined) {
         updatedHints = hints.map((hint, index) =>
-          index === hintIndex ? hintToSave : hint
+          index === hintIndex ? hintToSave : hint,
         );
       } else {
         updatedHints = [hintToSave, ...hints];
@@ -219,7 +222,7 @@ export function AIHintsContextProvider({
 
       updateHints(updatedHints);
     },
-    [editedAIHintIndex, hints, updateHints]
+    [editedAIHintIndex, hints, updateHints],
   );
 
   const importAIHints = useCallback(() => {
@@ -262,7 +265,7 @@ export function AIHintsContextProvider({
         /* empty */
       }
     },
-    [hints, updateHints]
+    [hints, updateHints],
   );
 
   const exportAIHints = useCallback(() => {
@@ -280,7 +283,9 @@ export function AIHintsContextProvider({
 
     setSelectedHintsIndexes([]);
 
-    triggerDownload(fileUrl, fileName);
+    triggerDownload({ fileUrl, fileName });
+
+    URL.revokeObjectURL(fileUrl);
   }, [hints, selectedHintsIndexes]);
 
   const toggleSelectionHint = useCallback((hintIndex: number) => {
@@ -301,11 +306,13 @@ export function AIHintsContextProvider({
     (hintIndex: number) => {
       updateHints(
         hints.map((hint, index) =>
-          hintIndex === index ? { ...hint, isDisabled: !hint.isDisabled } : hint
-        )
+          hintIndex === index
+            ? { ...hint, isDisabled: !hint.isDisabled }
+            : hint,
+        ),
       );
     },
-    [hints, updateHints]
+    [hints, updateHints],
   );
 
   useEffect(() => {
@@ -346,7 +353,7 @@ export function AIHintsContextProvider({
       selectedHintsIndexes,
       toggleSelectionHint,
       toggleHintVisibility,
-    ]
+    ],
   );
 
   return (

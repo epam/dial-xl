@@ -1,5 +1,6 @@
 import { Button, Tooltip } from 'antd';
 import cx from 'classnames';
+import classNames from 'classnames';
 import {
   ComponentProps,
   FC,
@@ -22,7 +23,7 @@ import {
 } from '@frontend/common';
 
 import { ChatOverlayContext, ProjectContext } from '../../../context';
-import { useProjectMode } from '../../../hooks';
+import { useProjectActions, useProjectMode } from '../../../hooks';
 import { AIPendingChangesContextMenu } from './AIPendingChangesContextMenu';
 import { ProjectFork } from './ProjectFork';
 import { ProjectTitleTag, ProjectTitleTagProps } from './ProjectTitleTag';
@@ -66,7 +67,6 @@ export function ProjectTitle() {
   const {
     projectName,
     forkedProject,
-    cloneCurrentProject,
     isProjectReadonlyByUser,
     setIsProjectReadonlyByUser,
     projectAuthor,
@@ -89,14 +89,15 @@ export function ProjectTitle() {
     isDefaultMode,
     isAIPreviewMode,
   } = useProjectMode();
+  const { cloneCurrentProjectAction } = useProjectActions();
 
   const showProjectName = useMemo(() => {
     return !isAIPendingMode && !isMobile;
   }, [isAIPendingMode, isMobile]);
 
   const handleClone = useCallback(
-    () => cloneCurrentProject(),
-    [cloneCurrentProject]
+    () => cloneCurrentProjectAction(),
+    [cloneCurrentProjectAction],
   );
 
   const tagKey = useMemo(() => {
@@ -117,7 +118,7 @@ export function ProjectTitle() {
   if (!projectName) return null;
 
   return (
-    <div className="inline-flex items-center h-full overflow-hidden whitespace-nowrap mx-4 gap-4 col-span-4 justify-center">
+    <div className="w-full inline-flex items-center h-full overflow-hidden whitespace-nowrap mx-4 gap-4 grow justify-center">
       {tagKey && !isMobile && <ProjectTitleTag {...tagMapping[tagKey]} />}
 
       {isAIPendingMode && !isMobile && (
@@ -134,7 +135,7 @@ export function ProjectTitle() {
       )}
 
       {showProjectName && (
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 shrink overflow-hidden">
           <Tooltip
             placement="bottom"
             title={
@@ -147,12 +148,12 @@ export function ProjectTitle() {
           >
             <span
               className={cx(
-                'text-[13px] text-ellipsis inline-block overflow-hidden whitespace-nowrap',
+                'text-[13px] text-ellipsis truncate min-w-10 inline-block overflow-hidden whitespace-nowrap',
                 {
                   'text-text-primary': isDefaultMode,
                   'text-text-inverted':
                     isCSVViewMode || isAIPreviewMode || isReadOnlyMode,
-                }
+                },
               )}
               id="projectNameTitle"
             >
@@ -161,9 +162,9 @@ export function ProjectTitle() {
           </Tooltip>
           {forkedProject && (
             <ProjectFork
-              className={
-                isDefaultMode ? 'text-text-primary' : 'text-text-inverted'
-              }
+              className={classNames(
+                isDefaultMode ? 'text-text-primary' : 'text-text-inverted',
+              )}
             />
           )}
         </div>
@@ -257,7 +258,7 @@ const HeaderButton: FC<ComponentProps<typeof Button>> = ({
 
       setIsLoading(false);
     },
-    [onClick]
+    [onClick],
   );
 
   return (
@@ -265,7 +266,7 @@ const HeaderButton: FC<ComponentProps<typeof Button>> = ({
       className={cx(
         primaryDisabledButtonClasses,
         'border-stroke-primary rounded-[3px] text-[13px]! px-2 py-0.5 h-6 shadow-none! hover:border-bg-layer-4! hover:bg-bg-layer-4! hover:text-text-primary! focus:outline-0! focus-visible:outline-0! focus:border! focus:border-stroke-hover-focus! focus:bg-bg-layer-4!',
-        className
+        className,
       )}
       loading={isLoading}
       onClick={handleClickOnButton}

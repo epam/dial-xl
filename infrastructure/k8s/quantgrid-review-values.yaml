@@ -20,14 +20,20 @@ backendControl:
     SECURITY_ENABLED: "true"
     JWKS_URI: "https://chatbot-ui-staging.eu.auth0.com/.well-known/jwks.json"
     WEB_STORAGE_DIAL_ENABLED: "true"
-    WEB_STORAGE_DIAL_BASE_URL: "https://core-{{ .Values.global.url }}"
+    WEB_STORAGE_DIAL_BASE_URL: "http://dial-{{ .Values.global.mergeid }}-core.quantgrid-review.svc.cluster.local"
+    SYNC_DESTINATION_IMAGE: "registry-test.deltixhub.com/deltix.docker/quantgrid/destination-dial:{{ .Values.global.mergeid }}"
+    SYNC_DESTINATION_SECRET: "epm-rtc-registry-test"
+    SYNC_DIAL_SOURCE_IMAGE: "registry-test.deltixhub.com/deltix.docker/quantgrid/source-dial:{{ .Values.global.mergeid }}"
+    SYNC_DIAL_SOURCE_SECRET: "epm-rtc-registry-test"
+    SYNC_DIAL_SOURCE_ENABLED: "true"
+    SYNC_K8S_NAMESPACE: quantgrid-review
 
   secret:
     SOME_SECRET_ENV: secret_env
 
   resources:
     requests:
-      cpu: 0.5
+      cpu: 0.25
       memory: 1Gi
     limits:
       cpu: 1
@@ -40,6 +46,9 @@ backendControl:
 
   persistence:
     enabled: false
+
+  rbac:
+    create: true
 
 backendCompute:
   enabled: true
@@ -59,11 +68,11 @@ backendCompute:
     SECURITY_ENABLED: "true"
     JWKS_URI: "https://chatbot-ui-staging.eu.auth0.com/.well-known/jwks.json"
     WEB_STORAGE_DIAL_ENABLED: "true"
-    WEB_STORAGE_DIAL_BASE_URL: "https://core-{{ .Values.global.url }}"
+    WEB_STORAGE_DIAL_BASE_URL: "http://dial-{{ .Values.global.mergeid }}-core.quantgrid-review.svc.cluster.local"
     JAVA_OPTS: |
       -server
       -Djava.awt.headless=true
-      -Xms1600m
+      -Xms2g
       -Xmx2g
       -XX:+AlwaysActAsServerClassMachine
       -XX:+AlwaysPreTouch
@@ -76,16 +85,16 @@ backendCompute:
 
   resources:
     requests:
-      cpu: 4
+      cpu: 1
       memory: 4Gi
     limits:
-      cpu: 4
+      cpu: 2
       memory: 4Gi
 
   hpa:
     enabled: true
-    minReplicas: 2
-    maxReplicas: 2
+    minReplicas: 1
+    maxReplicas: 1
 
   persistence:
     enabled: false
@@ -102,13 +111,16 @@ frontend:
   updateStrategy:
     type: Recreate
 
+  env:
+    CORE_HOST: "dial-{{ .Values.global.mergeid }}-core.quantgrid-review.svc.cluster.local"
+
   config: |
     const dialOverlayUrl = 'https://chat-{{ .Values.global.url }}';
     const authAuthority = 'https://chatbot-ui-staging.eu.auth0.com';
     const authClientId = 'CWg7UOOe8VuN5yTX23GiUs3fxW5BVqU8';
     const authProvider = 'auth0';
-    const authScope = 'openid profile email offline_access';
-    const dialBaseUrl = 'https://core-{{ .Values.global.url }}';
+    const authScope = 'openid profile email';
+    const dialBaseUrl = "https://{{ .Values.global.url }}/core";
     const defaultLogoUrl = '';
     const qgBotDeploymentName = 'qg';
     const adminRoles = ['admin'];

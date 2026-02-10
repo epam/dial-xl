@@ -127,10 +127,10 @@ public class CompilePython {
 
     private ResultType type(String type) {
         return switch (type) {
-            case "str" -> new ResultType(null, null, ColumnType.STRING, GeneralFormat.INSTANCE, false);
-            case "float" -> new ResultType(null, null, ColumnType.DOUBLE, GeneralFormat.INSTANCE, false);
-            case "list[str]" -> new ResultType(null, null, ColumnType.STRING, GeneralFormat.INSTANCE, true);
-            case "list[float]" -> new ResultType(null, null, ColumnType.DOUBLE, GeneralFormat.INSTANCE, true);
+            case "str" -> new ResultType(null, null, ColumnType.STRING, GeneralFormat.INSTANCE, false, true);
+            case "float" -> new ResultType(null, null, ColumnType.DOUBLE, GeneralFormat.INSTANCE, false, true);
+            case "list[str]" -> new ResultType(null, null, ColumnType.STRING, GeneralFormat.INSTANCE, true, true);
+            case "list[float]" -> new ResultType(null, null, ColumnType.DOUBLE, GeneralFormat.INSTANCE, true, true);
             default -> throw new IllegalArgumentException("Unsupported type: " + type
                     + ". Supported types: str, float, list[str], list[float]");
         };

@@ -135,7 +135,7 @@ class DialFileApiTest {
             CompletableFuture<Throwable> future = new CompletableFuture<>();
             BlockingQueue<DialFileApi.FileEvent> events = new LinkedBlockingQueue<>();
 
-            DialFileApi.FileSubscriber subscriber = new DialFileApi.FileSubscriber() {
+            DialFileApi.FileEventSubscriber subscriber = new DialFileApi.FileEventSubscriber() {
                 @Override
                 public void onOpen() {
                     DialFileApi.FileEvent event = new DialFileApi.FileEvent("on_open", "0", DialFileApi.FileAction.CREATE, 0);

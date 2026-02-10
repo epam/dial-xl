@@ -1,5 +1,6 @@
 import { Dropdown } from 'antd';
-import { useCallback, useContext } from 'react';
+import { useCallback } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 
 import Icon from '@ant-design/icons';
 import {
@@ -9,10 +10,16 @@ import {
   MenuItem,
 } from '@frontend/common';
 
-import { AppContext } from '../../../context';
+import { useFormulaBarStore } from '../../../store';
 
 export function FormulaBarMenu() {
-  const { formulaBarMode, setFormulaBarMode } = useContext(AppContext);
+  const { formulaBarMode, setFormulaBarMode } = useFormulaBarStore(
+    useShallow((s) => ({
+      formulaBarMode: s.formulaBarMode,
+      setFormulaBarMode: s.setFormulaBarMode,
+    })),
+  );
+
   const items = [
     getDropdownItem({
       key: 'formula',
@@ -35,7 +42,7 @@ export function FormulaBarMenu() {
           break;
       }
     },
-    [setFormulaBarMode]
+    [setFormulaBarMode],
   );
 
   return (

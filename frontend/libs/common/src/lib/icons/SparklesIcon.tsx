@@ -1,11 +1,11 @@
-export const SparklesIcon = ({ strokeWidth = 2 }) => {
+export const SparklesIcon = () => {
   return (
     <svg
       fill="none"
       stroke="currentColor"
       strokeLinecap="round"
       strokeLinejoin="round"
-      strokeWidth={strokeWidth}
+      strokeWidth={2}
       vectorEffect="non-scaling-stroke"
       viewBox="0 0 24 24"
       width="100%"

@@ -1,0 +1,41 @@
+{% if original_content %}
+{{ original_content | trim("\r\n") }}
+
+{% endif %}
+# Workspace #
+{% for sheet_name, sheet in project_data | items %}
+
+## Sheet: "{{ sheet_name | trim }}" ##
+
+```XL
+{{ project_code[sheet_name] | trim("\r\n") }}
+```
+{% for table_name, table in sheet | items %}
+{% set row_count = table.row_count() %}
+
+### Table: "{{ table_name | trim }}" ({{ row_count }} rows) ###
+{% if table.fields | length %}
+{% if table.has_embeddings() %}
+
+#### Semantically Close Table Values (Unaligned) ####
+
+{{ table.markdown_embeddings() | trim("\r\n") }}
+{% endif %}
+{% if row_count <= visible_rows %}
+
+#### Table Data ####
+{% else %}
+
+#### Table Data Preview ({{ [visible_rows, row_count] | min }} / {{ row_count }} rows) ####
+{% endif %}
+
+{{ table.markdown_values() | trim("\r\n") }}
+
+{% for field_name, field in table.fields | items %}
+{% if field.values and field.values.compilation_error %}
+{{ field.values.compilation_error }}
+{% endif %}
+{% endfor %}
+{% endif %}
+{% endfor %}
+{% endfor %}

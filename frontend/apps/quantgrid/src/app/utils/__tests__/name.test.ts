@@ -92,7 +92,7 @@ describe('name utils', () => {
 
       // Mix of regular text and emoji
       expect(safeEncodeURIComponent(`test ${emoji} name`)).toBe(
-        `test%20${emoji}%20name`
+        `test%20${emoji}%20name`,
       );
     });
   });
@@ -100,10 +100,10 @@ describe('name utils', () => {
   describe('encodeApiUrl', () => {
     it('should encode each part of the path separately', () => {
       expect(encodeApiUrl('path/to file/resource')).toBe(
-        'path/to%20file/resource'
+        'path/to%20file/resource',
       );
       expect(encodeApiUrl('path/to?file/resource')).toBe(
-        'path/to%3Ffile/resource'
+        'path/to%3Ffile/resource',
       );
     });
 
@@ -119,10 +119,10 @@ describe('name utils', () => {
   describe('decodeApiUrl', () => {
     it('should decode each part of the path separately', () => {
       expect(decodeApiUrl('path/to%20file/resource')).toBe(
-        'path/to file/resource'
+        'path/to file/resource',
       );
       expect(decodeApiUrl('path/to%3Ffile/resource')).toBe(
-        'path/to?file/resource'
+        'path/to?file/resource',
       );
     });
 
@@ -142,7 +142,7 @@ describe('name utils', () => {
 
     it('should filter out null and undefined values', () => {
       expect(constructPath(['path', null, 'to', undefined, 'file'])).toBe(
-        'path/to/file'
+        'path/to/file',
       );
     });
 
@@ -232,7 +232,7 @@ describe('name utils', () => {
           resourceType: 'FILE',
           nodeType: 'ITEM',
           name: 'project.txt',
-        } as ResourceMetadata)
+        } as ResourceMetadata),
       ).toBe(false);
 
       // Wrong resource type
@@ -241,7 +241,7 @@ describe('name utils', () => {
           resourceType: 'CONVERSATION',
           nodeType: 'ITEM',
           name: 'project.qg',
-        } as ResourceMetadata)
+        } as ResourceMetadata),
       ).toBe(false);
 
       // Wrong node type
@@ -250,7 +250,7 @@ describe('name utils', () => {
           resourceType: 'FILE',
           nodeType: 'FOLDER',
           name: 'project.qg',
-        } as ResourceMetadata)
+        } as ResourceMetadata),
       ).toBe(false);
     });
   });

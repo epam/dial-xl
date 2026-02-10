@@ -3,7 +3,9 @@ import classNames from 'classnames';
 import { format } from 'date-fns';
 import { useContext, useMemo } from 'react';
 
+import Icon from '@ant-design/icons';
 import {
+  CloudUploadIcon,
   dialProjectFileExtension,
   formatBytes,
   MetadataNodeType,
@@ -13,6 +15,7 @@ import { DashboardContext } from '../../../context';
 import { DashboardItem, DashboardListColumn } from '../../../types/dashboard';
 import { normalizePermissionsLabels } from '../../../utils';
 import { Chip } from '../../Chip';
+import { useDashboardActions, useDashboardDragAndDrop } from '../hooks';
 import { DashboardFileListBreadcrumb } from './DashboardFileListBreadcrumb';
 import { DashboardFileListFilter } from './DashboardFileListFilter';
 import { DashboardFileListHeader } from './DashboardFileListHeader';
@@ -29,6 +32,14 @@ export function DashboardFileList() {
     sortType,
     selectedItems,
   } = useContext(DashboardContext);
+  const { handleUploadFiles } = useDashboardActions([]);
+  const {
+    isDragInProgress,
+    isOver,
+    handleDragEnter,
+    handleDragLeave,
+    handleDrop,
+  } = useDashboardDragAndDrop({ onUpload: handleUploadFiles });
 
   const columns: DashboardListColumn[] = useMemo(() => {
     const nameCol: DashboardListColumn = {
@@ -129,9 +140,12 @@ export function DashboardFileList() {
             <span className="inline-flex items-center gap-1">
               <Popover
                 content={
-                  <span className="flex flex-col gap-2">
+                  <span className="flex flex-col gap-2 p-2">
                     {sharedWith.map((user) => (
-                      <span className="flex items-center gap-2 text-text-primary">
+                      <span
+                        className="flex items-center gap-2 text-text-primary"
+                        key={user.user}
+                      >
                         <div className="flex gap-1 items-center">
                           {normalizePermissionsLabels(user.permissions).map(
                             (permission) => (
@@ -145,12 +159,12 @@ export function DashboardFileList() {
                                       permission === 'View',
                                     'bg-bg-accent-tertiary':
                                       permission === 'Share',
-                                  }
+                                  },
                                 )}
                                 key={permission}
                                 label={permission}
                               />
-                            )
+                            ),
                           )}
                         </div>
                         {user.user}
@@ -197,10 +211,29 @@ export function DashboardFileList() {
             <DashboardFileListSelectionToolbar />
           )}
         </div>
-        <div className="thin-scrollbar overflow-y-auto overflow-x-auto md:overflow-x-hidden grow flex flex-col">
+        <div className="thin-scrollbar overflow-y-auto overflow-x-auto md:overflow-x-hidden grow flex flex-col relative">
           {loadingDashboard ? (
             <div className="size-full flex items-center justify-center">
               <Spin className="z-50" size="large"></Spin>
+            </div>
+          ) : isDragInProgress ? (
+            <div
+              className={classNames(
+                'absolute left-0 top-0 size-full bg-bg-layer-2 flex flex-col gap-3 items-center justify-center border border-dashed',
+                isOver
+                  ? 'border-stroke-accent-secondary text-text-accent-secondary'
+                  : 'text-text-secondary',
+              )}
+              id="dashboard-drop"
+              onDragEnter={handleDragEnter}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+            >
+              <Icon
+                className="w-[64px]"
+                component={() => <CloudUploadIcon />}
+              />
+              <span className="text-3xl">Drop your files here</span>
             </div>
           ) : (
             <>
@@ -210,7 +243,7 @@ export function DashboardFileList() {
                     <div
                       className={classNames(
                         'shrink-0 md:shrink-1 flex items-center',
-                        item.classNames
+                        item.classNames,
                       )}
                       key={item.sortKey}
                     >
@@ -224,7 +257,10 @@ export function DashboardFileList() {
                   ))}
                 </div>
               </div>
-              <DashboardFileListItems columns={columns} />
+              <DashboardFileListItems
+                columns={columns}
+                onUpload={handleUploadFiles}
+              />
             </>
           )}
         </div>

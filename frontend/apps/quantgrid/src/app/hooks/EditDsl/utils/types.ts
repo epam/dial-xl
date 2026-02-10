@@ -23,4 +23,5 @@ export type CreateExpandedTableParams = {
   // additional parameters
   keyValues?: string | number;
   isSourceDimField?: boolean;
+  createInNewSheet?: boolean;
 };

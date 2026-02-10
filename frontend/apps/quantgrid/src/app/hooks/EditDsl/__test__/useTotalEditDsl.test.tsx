@@ -1,3 +1,5 @@
+import { vi } from 'vitest';
+
 import { act, RenderHookResult } from '@testing-library/react';
 
 import { ViewGridData } from '../../../context';
@@ -20,7 +22,7 @@ describe('useTotalEditDsl', () => {
   });
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     const hookRender = hookTestSetup(useTotalEditDsl, Wrapper);
     hook = hookRender.result;
@@ -247,7 +249,7 @@ describe('useTotalEditDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Add all totals to t1[f1]`,
-        [{ sheetName: props.sheetName, content: expectedDsl }]
+        [{ sheetName: props.sheetName, content: expectedDsl }],
       );
 
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
@@ -284,7 +286,7 @@ describe('useTotalEditDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Add all totals to t1[f1]`,
-        [{ sheetName: props.sheetName, content: expectedDsl }]
+        [{ sheetName: props.sheetName, content: expectedDsl }],
       );
 
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
@@ -320,7 +322,7 @@ describe('useTotalEditDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Add all totals to t1[f1]`,
-        [{ sheetName: props.sheetName, content: expectedDsl }]
+        [{ sheetName: props.sheetName, content: expectedDsl }],
       );
 
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
@@ -356,7 +358,7 @@ describe('useTotalEditDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Add all totals to t1[f1]`,
-        [{ sheetName: props.sheetName, content: expectedDsl }]
+        [{ sheetName: props.sheetName, content: expectedDsl }],
       );
 
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([

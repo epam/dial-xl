@@ -5,7 +5,7 @@ from aidial_sdk.chat_completion import Role, Status
 from dial_xl.project import Project
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
 from langchain_core.runnables import Runnable, RunnableLambda
-from openai import RateLimitError
+from openai import InternalServerError, RateLimitError
 
 from quantgrid.graph.helpers.solver import build_actions
 from quantgrid.models import ProjectHint
@@ -22,12 +22,23 @@ from quantgrid_1.utils.action_stream_splitter import JSONStreamSplitter
 from quantgrid_1.utils.actions import parse_actions, process_actions
 from quantgrid_1.utils.create_exception_stage import create_exception_stage
 from quantgrid_1.utils.errors import output_errors, smart_filter_errors
+from quantgrid_1.utils.filter_stream import create_stream_filter
 from quantgrid_1.utils.formatting import format_sheets
 from quantgrid_1.utils.project_utils import create_project
-from quantgrid_1.utils.stages import append_duration, replicate_stages
-from quantgrid_1.utils.stream_content import get_token_error, stream_content
+from quantgrid_1.utils.stages import (
+    append_duration,
+    append_token_info,
+    replicate_stages,
+)
+from quantgrid_1.utils.stream_content import (
+    delay_retry,
+    get_rate_error,
+    get_token_error,
+    stream_content,
+)
 
 STAGE_NAME = "Generate Actions"
+ATTEMPTS = 3
 
 
 async def _generate_predefined_solution(
@@ -88,7 +99,9 @@ async def _generate_thinking_by_solution(inputs: dict, actions: list[Action]):
     choice.append_content("\n\n💡 **Thinking**\n\n")
     for attempt in range(3):
         try:
-            iterator = model.astream(
+            stream_filter = create_stream_filter("💡 **Thinking**")
+            runnable = model | stream_filter
+            iterator = runnable.astream(
                 [
                     SystemMessage(THINKING_REGENERATION),
                     *langchain_history_messages,
@@ -96,7 +109,7 @@ async def _generate_thinking_by_solution(inputs: dict, actions: list[Action]):
                 ]
             )
 
-            content, _ = await stream_content(iterator, choice)
+            content, _, _ = await stream_content(iterator, choice)
             return
         except RateLimitError as error:
             raise get_token_error(error)
@@ -178,7 +191,7 @@ async def generate_actions_and_thinking(inputs: dict):
     history.add_message(HumanMessage(human_message))
 
     choice.append_content("\n\n💡 **Thinking**\n\n")
-    for retry_id in range(3):
+    for retry_id in range(ATTEMPTS):
         stage_name = (
             STAGE_NAME if retry_id == 0 else f"{STAGE_NAME} (Retry #{retry_id})"
         )
@@ -187,9 +200,9 @@ async def generate_actions_and_thinking(inputs: dict):
             start_time = time()
 
             try:
-                iterator = ChainParameters.get_main_model(inputs).astream(
-                    input=history.messages,
-                )
+                stream_filter = create_stream_filter("💡 **Thinking**")
+                runnable = ChainParameters.get_main_model(inputs) | stream_filter
+                iterator = runnable.astream(input=history.messages)
 
                 splitter = JSONStreamSplitter(
                     choice,
@@ -198,12 +211,19 @@ async def generate_actions_and_thinking(inputs: dict):
                 )
 
                 action_generation_stage.append_content("```json\n")
-                total_content, total_output_tokens = await stream_content(
+                total_content, input_tokens, output_tokens = await stream_content(
                     iterator, splitter
                 )
                 action_generation_stage.append_content("\n```\n")
+
+                append_token_info(
+                    action_generation_stage,
+                    input_token_count=input_tokens,
+                    output_token_count=output_tokens,
+                )
+
                 action_generation_stage.add_attachment(
-                    title="generation_output_tokens", data=str(total_output_tokens)
+                    title="generation_output_tokens", data=str(output_tokens)
                 )
 
                 actions = await parse_actions(
@@ -218,6 +238,9 @@ async def generate_actions_and_thinking(inputs: dict):
 
             except RateLimitError as error:
                 raise get_token_error(error)
+            except InternalServerError as error:
+                await delay_retry(retry_id, ATTEMPTS, 30)
+                raise get_rate_error(error)
             except Exception as exception:
                 create_exception_stage(choice, exception)
                 logger.exception(exception)

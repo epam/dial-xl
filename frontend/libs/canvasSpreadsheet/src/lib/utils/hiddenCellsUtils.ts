@@ -2,7 +2,7 @@ import { GridCell } from '../types';
 
 export function isHiddenFieldCell(
   cell: GridCell | undefined,
-  isBottomCell: boolean
+  isBottomCell: boolean,
 ): boolean {
   if (!cell) return false;
 

@@ -1,4 +1,5 @@
 import {
+  type JSX,
   PropsWithChildren,
   useCallback,
   useContext,
@@ -23,15 +24,19 @@ import {
 } from '@frontend/common';
 
 import {
+  CreateTableFromImportModal,
   PreUploadFile,
   SelectFile,
+  ViewImportVersionsModal,
   WithCustomProgressBar,
 } from '../../components';
 import {
   useApiRequests,
   useFieldEditDsl,
+  useImports,
   useRequestDimTable,
 } from '../../hooks';
+import { useUserSettingsStore } from '../../store';
 import {
   constructPath,
   encodeApiUrl,
@@ -44,8 +49,13 @@ import { Inputs, InputsContext } from './InputsContext';
 export function InputsContextProvider({
   children,
 }: PropsWithChildren<Record<string, unknown>>): JSX.Element {
-  const { projectName, projectBucket, projectPath, projectSheets } =
-    useContext(ProjectContext);
+  const {
+    projectName,
+    projectBucket,
+    projectPath,
+    projectSheets,
+    setProjectDataLoadingError,
+  } = useContext(ProjectContext);
   const {
     createFile,
     getFiles,
@@ -57,6 +67,19 @@ export function InputsContextProvider({
   const { requestDimSchemaForDimFormula } = useRequestDimTable();
   const { editExpression } = useFieldEditDsl();
 
+  const {
+    importSources,
+    importCatalogs,
+    importDatasets,
+    isImportSourcesLoading,
+    getImportSources,
+    expandImportSource,
+    expandImportCatalog,
+    syncAllImports,
+    syncSingleImportField,
+    onRenameImportSource,
+  } = useImports();
+
   const [inputsFolder, setInputsFolder] = useState<{
     path: string | null | undefined;
     bucket: string | undefined;
@@ -66,6 +89,7 @@ export function InputsContextProvider({
   >(null);
   const [inputs, setInputs] = useState<Inputs>({});
   const [isInputsLoading, setIsInputsLoading] = useState(true);
+
   const [isPreUploadOpen, setIsPreUploadOpen] = useState(false);
   const [isImportInputOpen, setIsImportInputOpen] = useState(false);
   const [switchInputOptions, setSwitchInputOptions] = useState<{
@@ -76,8 +100,10 @@ export function InputsContextProvider({
     FileList | undefined
   >();
   const [isDragAndDrop, setIsDragAndDrop] = useState(false);
-  const uploadColRef = useRef<number>();
-  const uploadRowRef = useRef<number>();
+  const uploadColRef = useRef<number>(undefined);
+  const uploadRowRef = useRef<number>(undefined);
+
+  const showHiddenFiles = useUserSettingsStore((s) => s.data.showHiddenFiles);
 
   const fullProjectInputsFolder = useMemo(() => {
     return constructPath([projectFoldersRootPrefix, projectPath, projectName]);
@@ -92,7 +118,7 @@ export function InputsContextProvider({
 
       const fileName = formula.slice(
         formula.indexOf('"') + 1,
-        formula.lastIndexOf('"')
+        formula.lastIndexOf('"'),
       );
       const shortFileName = fileName.split('/').pop();
 
@@ -100,8 +126,8 @@ export function InputsContextProvider({
         toast.error(
           appMessages.fileUploadSchemaError(
             shortFileName ?? fileName,
-            errorMessage
-          )
+            errorMessage,
+          ),
         );
 
         return;
@@ -111,7 +137,7 @@ export function InputsContextProvider({
         return { ...prevInputs, [fileName]: { fields: schema } };
       });
     },
-    []
+    [],
   );
 
   const requestInput = useCallback(
@@ -132,7 +158,7 @@ export function InputsContextProvider({
 
       if (!dimensionalSchema) {
         toast.error(
-          `Error happened during creating schema for file "${file.name}". Recheck file structure and reupload it.`
+          `Error happened during creating schema for file "${file.name}". Recheck file structure and reupload it.`,
         );
 
         return;
@@ -146,7 +172,7 @@ export function InputsContextProvider({
       onDimensionalSchemaResponse,
       projectName,
       projectSheets,
-    ]
+    ],
   );
 
   const getInputs = useCallback(async () => {
@@ -156,28 +182,38 @@ export function InputsContextProvider({
     let files: (ResourceMetadata | SharedWithMeMetadata)[] | undefined;
 
     if (inputsFolder?.bucket) {
-      files = await getFiles({
+      const filesRes = await getFiles({
         path: `${constructPath([inputsFolder?.bucket, inputsFolder?.path])}/`,
-        suppressErrors: true,
       });
+      files = filesRes.success ? filesRes.data : [];
+
+      if (!filesRes.success) {
+        setProjectDataLoadingError(filesRes.error);
+      }
     } else {
-      files = await getSharedWithMeResources({
+      const sharedResources = await getSharedWithMeResources({
         resourceType: MetadataResourceType.FILE,
       });
+      files = sharedResources.success ? sharedResources.data : [];
+
+      if (!sharedResources.success) {
+        setProjectDataLoadingError(sharedResources.error);
+      }
     }
 
     setIsInputsLoading(false);
 
     const filterFiles = (
-      files: (ResourceMetadata | SharedWithMeMetadata)[]
+      files: (ResourceMetadata | SharedWithMeMetadata)[],
     ): (ResourceMetadata | SharedWithMeMetadata)[] =>
       files
         .filter((file) => file?.name)
         .filter(
           (file) =>
             file.name.endsWith(csvFileExtension) ||
-            file.nodeType === MetadataNodeType.FOLDER
+            file.nodeType === MetadataNodeType.FOLDER,
         )
+        .filter((file) => showHiddenFiles || !file.name.startsWith('.'))
         .map((file) => ({
           ...file,
           items: file.items ? filterFiles(file.items) : file.items,
@@ -191,13 +227,15 @@ export function InputsContextProvider({
     getSharedWithMeResources,
     inputsFolder?.bucket,
     inputsFolder?.path,
+    setProjectDataLoadingError,
+    showHiddenFiles,
   ]);
 
   const expandFile = useCallback(
     (file: CommonMetadata) => {
       requestInput(file);
     },
-    [requestInput]
+    [requestInput],
   );
 
   const updateInputsFolder = useCallback(
@@ -213,7 +251,7 @@ export function InputsContextProvider({
         bucket,
       });
     },
-    []
+    [],
   );
 
   const uploadFiles = useCallback(
@@ -234,7 +272,7 @@ export function InputsContextProvider({
 
       setIsPreUploadOpen(true);
     },
-    [inputsFolder?.bucket]
+    [inputsFolder?.bucket],
   );
 
   const importInput = useCallback(() => {
@@ -264,21 +302,19 @@ export function InputsContextProvider({
       projectBucket,
       projectName,
       projectPath,
-    ]
+    ],
   );
 
   const handleUploadFiles = useCallback(
     async (
       parentPath: string | null | undefined,
       uploadBucket: string,
-      files: { file: File; name: string; extension: string }[]
+      files: { file: File; name: string; extension: string }[],
     ) => {
       setIsPreUploadOpen(false);
 
       const bucket = uploadBucket ?? inputsFolder?.bucket;
       if (!bucket || !files) return;
-
-      toast.dismiss();
 
       const requests = files.map(async (file) => {
         const uploadingToast = toast(WithCustomProgressBar, {
@@ -325,11 +361,11 @@ export function InputsContextProvider({
 
           if (uploadColRef.current && uploadRowRef.current) {
             const formula = `:INPUT("${result.value.url}")`;
-            requestDimSchemaForDimFormula(
-              uploadColRef.current,
-              uploadRowRef.current,
-              formula
-            );
+            requestDimSchemaForDimFormula({
+              col: uploadColRef.current,
+              row: uploadRowRef.current,
+              value: formula,
+            });
           }
         }
       });
@@ -344,7 +380,7 @@ export function InputsContextProvider({
       getInputs,
       inputsFolder?.bucket,
       viewGridData,
-    ]
+    ],
   );
 
   const onSwitchInput = useCallback((tableName: string, fieldName: string) => {
@@ -358,32 +394,30 @@ export function InputsContextProvider({
       const { tableName, fieldName } = switchInputOptions;
 
       const expression = `INPUT("${encodeApiUrl(
-        constructPath([filesEndpointType, bucket, parentPath, name])
+        constructPath([filesEndpointType, bucket, parentPath, name]),
       )}")`;
       editExpression(tableName, fieldName, expression);
 
       setSwitchInputOptions(null);
     },
-    [editExpression, switchInputOptions]
+    [editExpression, switchInputOptions],
   );
 
   useEffect(() => {
-    if (inputsFolder) {
-      getInputs();
-    }
+    if (!inputsFolder) return;
+
+    getInputs();
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [inputsFolder]);
 
   useEffect(() => {
-    if (projectBucket) {
-      setInputsFolder({
-        path: fullProjectInputsFolder,
-        bucket: projectBucket,
-      });
-    }
+    if (!projectBucket) return;
 
-    // below triggers, not dependencies
+    setInputsFolder({
+      path: fullProjectInputsFolder,
+      bucket: projectBucket,
+    });
   }, [projectBucket, fullProjectInputsFolder]);
 
   const value = useMemo(
@@ -399,6 +433,16 @@ export function InputsContextProvider({
       expandFile,
       importInput,
       onSwitchInput,
+      importSources,
+      importCatalogs,
+      importDatasets,
+      isImportSourcesLoading,
+      getImportSources,
+      expandImportSource,
+      expandImportCatalog,
+      syncAllImports,
+      syncSingleImportField,
+      onRenameImportSource,
     }),
     [
       inputList,
@@ -412,7 +456,17 @@ export function InputsContextProvider({
       expandFile,
       importInput,
       onSwitchInput,
-    ]
+      importSources,
+      importCatalogs,
+      importDatasets,
+      isImportSourcesLoading,
+      getImportSources,
+      expandImportSource,
+      expandImportCatalog,
+      syncAllImports,
+      syncSingleImportField,
+      onRenameImportSource,
+    ],
   );
 
   return (
@@ -454,6 +508,9 @@ export function InputsContextProvider({
           onOk={handleSwitchInput}
         />
       )}
+
+      <ViewImportVersionsModal />
+      <CreateTableFromImportModal />
     </InputsContext.Provider>
   );
 }

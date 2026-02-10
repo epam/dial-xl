@@ -7,7 +7,7 @@ export default {
   },
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx'],
   coverageDirectory: 'test-output/jest/coverage',
-  setupFilesAfterEnv: ['../../jest-canvas.js'],
+  setupFilesAfterEnv: ['../../jest-setup.js'],
   moduleNameMapper: {
     '^monaco-editor$':
       '<rootDir>/../../apps/quantgrid/__mocks__/monaco-editor.ts',

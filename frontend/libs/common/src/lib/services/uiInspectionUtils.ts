@@ -7,7 +7,7 @@ import {
 
 export function isModalOpen() {
   const modals = document.querySelectorAll(
-    '.ant-modal'
+    '.ant-modal',
   ) as NodeListOf<HTMLElement>;
 
   for (let i = 0; i < modals.length; i++) {
@@ -31,14 +31,17 @@ export const isCodeEditorMonacoInputFocused = (): boolean => {
 
   // Regular Monaco text-area focus
   const { classList } = activeElement;
-  const isMonacoEditorFocused =
+  const isInputArea =
     classList.contains('inputarea') &&
-    classList.contains('monaco-mouse-cursor-text') &&
+    classList.contains('monaco-mouse-cursor-text');
+  const isNativeEditor = classList.contains('native-edit-context');
+  const isMonacoEditorFocused =
+    (isInputArea || isNativeEditor) &&
     codeEditorInputContainer.contains(activeElement);
 
   // Focus inside the “find & replace” widget that is rendered inside Monaco
   const findWidget = (activeElement as HTMLElement).closest(
-    '.find-widget.replaceToggled'
+    '.find-widget.replaceToggled',
   ) as HTMLElement | null;
   const isFindWidgetFocused =
     !!findWidget && codeEditorInputContainer.contains(findWidget);
@@ -54,9 +57,11 @@ export const isFormulaBarMonacoInputFocused = (): boolean => {
   const formulaInputContainer = document.getElementById(formulaEditorId);
 
   const { classList } = activeElement;
-  const isMonacoEditorFocused =
+  const isInputArea =
     classList.contains('inputarea') &&
     classList.contains('monaco-mouse-cursor-text');
+  const isNativeEditor = classList.contains('native-edit-context');
+  const isMonacoEditorFocused = isInputArea || isNativeEditor;
 
   return (
     isMonacoEditorFocused && !!formulaInputContainer?.contains(activeElement)
@@ -73,18 +78,9 @@ export const isFormulaBarInputFocused = (): boolean => {
   return !!formulaInputContainer?.contains(activeElement);
 };
 
-export const isMonacoEditorEvent = (event: KeyboardEvent): boolean => {
-  const { classList } = event.target as HTMLElement;
-
-  return (
-    classList.contains('inputarea') &&
-    classList.contains('monaco-mouse-cursor-text')
-  );
-};
-
 export const isContextMenuOpen = (): boolean => {
   const contextMenu = document.querySelector(
-    '.grid-context-menu'
+    '.grid-context-menu',
   ) as HTMLElement;
 
   if (!contextMenu) return false;

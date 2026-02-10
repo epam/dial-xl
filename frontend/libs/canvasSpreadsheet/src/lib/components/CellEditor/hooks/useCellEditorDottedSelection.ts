@@ -1,4 +1,4 @@
-import { MutableRefObject, RefObject, useCallback } from 'react';
+import { RefObject, useCallback } from 'react';
 
 import { GridApi, GridCell } from '../../../types';
 import {
@@ -9,8 +9,8 @@ import { GridCellEditorMode } from '../types';
 import { isCellEditorValueFormula } from '../utils';
 
 type Props = {
-  apiRef: RefObject<GridApi>;
-  isDottedSelection: MutableRefObject<boolean>;
+  apiRef: RefObject<GridApi | null>;
+  isDottedSelection: RefObject<boolean>;
 };
 
 export function useCellEditorDottedSelection({
@@ -22,7 +22,7 @@ export function useCellEditorDottedSelection({
       col: number | undefined,
       row: number | undefined,
       editMode: GridCellEditorMode,
-      codeValue: string
+      codeValue: string,
     ) => {
       if (!apiRef.current || !col || !row) return;
 
@@ -31,7 +31,7 @@ export function useCellEditorDottedSelection({
       const isEmptyCellEditMode = editMode === 'empty_cell';
       const isFormulaInEmptyCell = isCellEditorValueFormula(
         codeValue,
-        isEmptyCellEditMode
+        isEmptyCellEditMode,
       );
 
       const isEditingFieldOrCellExpression =
@@ -41,7 +41,7 @@ export function useCellEditorDottedSelection({
 
       const shouldShowDottedSelectionForAdjacentCell = (
         adjacentCell: GridCell | undefined,
-        isHorizontal: boolean
+        isHorizontal: boolean,
       ): boolean => {
         return !!(
           !cell?.table &&
@@ -60,7 +60,7 @@ export function useCellEditorDottedSelection({
           { col, row },
           leftCell.table,
           leftCell.endCol,
-          api
+          api,
         );
         isDottedSelection.current = true;
 
@@ -76,7 +76,7 @@ export function useCellEditorDottedSelection({
           { col, row },
           topCell.table,
           topCell.endCol,
-          api
+          api,
         );
         isDottedSelection.current = true;
 
@@ -99,7 +99,7 @@ export function useCellEditorDottedSelection({
         return;
       }
     },
-    [apiRef, isDottedSelection]
+    [apiRef, isDottedSelection],
   );
 
   return {

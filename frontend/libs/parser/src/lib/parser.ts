@@ -1,6 +1,7 @@
 import { ParsedSheet } from './ParsedSheet';
 
 export const dynamicFieldName = '*';
+export const unknownDynamicNamePrefix = '__dyn__';
 export const defaultRowKey = 'row';
 export const keyKeyword = 'key';
 export const dimKeyword = 'dim';
@@ -16,23 +17,21 @@ export const currentTableRef = '$';
 export const naExpression = 'NA';
 export const naValue = 'N/A';
 export const errorFunction = 'ERR';
+export const legendPositionDecoratorName = 'legendPosition';
+export const showVisualMapDecoratorName = 'showVisualMap';
 export const visualizationDecoratorName = 'visualization';
-export const visualizationDecorator = '!visualization';
 export const chartSizeDecoratorName = 'size';
-export const chartSizeDecorator = '!size';
 export const layoutDecoratorName = 'layout';
 export const fieldColSizeDecoratorName = 'size';
-export const chartSelectorDecorator = '!selector';
+export const tableControlDecoratorName = 'control';
 export const chartSelectorDecoratorName = 'selector';
 export const chartSeriesColorDecoratorName = 'color';
 export const chartXAxisDecoratorName = 'x';
 export const chartSeparatorDecoratorName = 'separator';
-export const chartSeparatorDecorator = '!separator()';
 export const chartDotColorDecoratorName = 'dotcolor';
 export const chartDotSizeDecoratorName = 'dotsize';
 export const chartHorizontalDecoratorArg = 'column-wise';
 export const manualTableDecoratorName = 'manual';
-export const manualTableDecorator = '!manual()';
 export const formatDecoratorName = `format`;
 export const indexDecoratorName = 'index';
 export const descriptionDecoratorName = 'description';
@@ -48,7 +47,7 @@ export const getLayoutDecorator = (
   col: number,
   row: number,
   includeDecoratorName: boolean,
-  args?: string[]
+  args?: string[],
 ) => {
   return `${
     includeDecoratorName ? `!${layoutDecoratorName}` : ''
@@ -58,7 +57,7 @@ export const getLayoutDecorator = (
 };
 
 export function getFormatDecoratorArgs(
-  formatParams: (string | number | boolean)[]
+  formatParams: (string | number | boolean)[],
 ): string {
   return `(${formatParams
     .map((item) => (typeof item === 'boolean' ? (item ? 1 : 0) : item))
@@ -112,6 +111,8 @@ export type TotalItem = {
 export type TotalItems = Record<number, TotalItem>;
 export type TableTotals = Record<string, TotalItems>;
 
+export type ControlType = 'dropdown' | 'checkbox';
+
 export interface ExpressionMetadata {
   text: string;
   start: number;
@@ -154,8 +155,9 @@ export enum ChartType {
   HEATMAP = 'heat-map',
   SCATTER_PLOT = 'scatter-plot',
   PIE = 'pie-chart',
-  BAR = 'bar-chart',
-  FLAT_BAR = '2d-bar-chart',
+  CLUSTERED_BAR = 'clustered-bar-chart',
   STACKED_BAR = 'stacked-bar-chart',
+  CLUSTERED_COLUMN = 'clustered-column-chart',
+  STACKED_COLUMN = 'stacked-column-chart',
   HISTOGRAM = 'histogram',
 }

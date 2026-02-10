@@ -1,5 +1,4 @@
 import cx from 'classnames';
-import { DefaultOptionType } from 'rc-select/lib/Select';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Select, {
   components,
@@ -16,6 +15,7 @@ import {
   histogramChartSeriesSelector,
   SelectClasses,
 } from '@frontend/common';
+import { DefaultOptionType } from '@rc-component/select/lib/Select';
 
 import {
   defaultFontSize,
@@ -44,7 +44,7 @@ export function ToolBarSelect({
       chartConfig.gridChart;
 
     return (
-      (chartType === ChartType.PIE || chartType === ChartType.BAR) &&
+      chartType === ChartType.PIE &&
       chartOrientation === 'vertical' &&
       keyName === chartRowNumberSelector &&
       !!chartSections?.[0]?.xAxisFieldName
@@ -87,7 +87,7 @@ export function ToolBarSelect({
       ...sortedKeys.map((key, idx) =>
         isRowLabelMapping
           ? { value: (idx + 1).toString(), label: key }
-          : { value: key, label: key }
+          : { value: key, label: key },
       ),
     ];
   }, [chartConfig.gridChart, keyName, isRowLabelMapping]);
@@ -117,7 +117,7 @@ export function ToolBarSelect({
 
       onSelectKey(chartConfig.tableName, keyName, value, isNoDataKey);
     },
-    [chartConfig, keyName, onSelectKey]
+    [chartConfig, keyName, onSelectKey],
   );
 
   const handleFilterInputChange = useCallback((newValue: string) => {
@@ -146,8 +146,7 @@ export function ToolBarSelect({
     const { gridChart } = chartConfig;
     const { chartType, chartOrientation } = gridChart;
     const isHorizontalPieOrBar =
-      (chartType === ChartType.BAR || chartType === ChartType.PIE) &&
-      chartOrientation === 'horizontal';
+      chartType === ChartType.PIE && chartOrientation === 'horizontal';
     if (keyName === chartRowNumberSelector && isHorizontalPieOrBar)
       return 'value column';
     if (keyName === chartRowNumberSelector) return 'row';
@@ -161,7 +160,7 @@ export function ToolBarSelect({
       DefaultOptionType,
       false,
       GroupBase<DefaultOptionType>
-    >
+    >,
   ) => {
     return (
       <components.DropdownIndicator {...props}>
@@ -187,7 +186,7 @@ export function ToolBarSelect({
               'bg-bg-layer-2! text-text-primary! hover:border-stroke-accent-primary! shadow-none! text-[13px]',
               menuIsOpen
                 ? 'border-stroke-accent-primary!'
-                : 'border-stroke-primary!'
+                : 'border-stroke-primary!',
             ),
           dropdownIndicator: () =>
             'text-text-primary! hover:text-stroke-hover! pl-0!',

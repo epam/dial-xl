@@ -47,7 +47,7 @@ let browserContext: BrowserContext;
 
 let page: Page;
 
-const storagePath = `playwright/${projectName}.json`;
+const storagePath = TestFixtures.getStoragePath();
 
 //let table3Size = 4;
 
@@ -71,13 +71,13 @@ test.beforeAll(async ({ browser }) => {
   if (dataType !== 'default') {
     spreadsheet = getProjectSpreadSheeet(dataType, spreadsheet);
   }
+  browserContext = await browser.newContext({ storageState: storagePath });
   await TestFixtures.createProjectNew(
     storagePath,
-    browser,
+    browserContext,
     projectName,
-    spreadsheet
+    spreadsheet,
   );
-  browserContext = await browser.newContext({ storageState: storagePath });
 });
 
 test.beforeEach(async () => {
@@ -98,8 +98,8 @@ test.afterEach(async () => {
 });
 
 test.afterAll(async ({ browser }) => {
+  await TestFixtures.deleteProject(browserContext, projectName);
   await browserContext.close();
-  await TestFixtures.deleteProject(browser, projectName);
 });
 
 test.describe('formatting tests', () => {
@@ -114,16 +114,16 @@ test.describe('formatting tests', () => {
         .getVisualization()
         .clickOnCell(
           spreadsheet.getTable(1).getFirstCellCoord(),
-          spreadsheet.getTable(1).getLeft()
+          spreadsheet.getTable(1).getLeft(),
         );
       await projectPage.selectFormat(Formats.General);
       await projectPage.expectLastHistoryRecord(
         `Set format "general" to column "${spreadsheet
           .getTable(1)
           .getField(0)
-          .getName()}" of table "${spreadsheet.getTable(1).getName()}"`
+          .getName()}" of table "${spreadsheet.getTable(1).getName()}"`,
       );
-    }
+    },
   );
 
   test(
@@ -137,16 +137,16 @@ test.describe('formatting tests', () => {
         .getVisualization()
         .clickOnCell(
           spreadsheet.getTable(1).getFirstCellCoord(),
-          spreadsheet.getTable(1).getLeft()
+          spreadsheet.getTable(1).getLeft(),
         );
       await projectPage.selectFormat(Formats.Number);
       await projectPage.expectLastHistoryRecord(
         `Set format "number" to column "${spreadsheet
           .getTable(1)
           .getField(0)
-          .getName()}" of table "${spreadsheet.getTable(1).getName()}"`
+          .getName()}" of table "${spreadsheet.getTable(1).getName()}"`,
       );
-    }
+    },
   );
 
   test(
@@ -160,16 +160,16 @@ test.describe('formatting tests', () => {
         .getVisualization()
         .clickOnCell(
           spreadsheet.getTable(1).getFirstCellCoord(),
-          spreadsheet.getTable(1).getLeft()
+          spreadsheet.getTable(1).getLeft(),
         );
       await projectPage.selectFormat(Formats.Integer);
       await projectPage.expectLastHistoryRecord(
         `Set format "number" to column "${spreadsheet
           .getTable(1)
           .getField(0)
-          .getName()}" of table "${spreadsheet.getTable(1).getName()}"`
+          .getName()}" of table "${spreadsheet.getTable(1).getName()}"`,
       );
-    }
+    },
   );
 
   test(
@@ -183,16 +183,16 @@ test.describe('formatting tests', () => {
         .getVisualization()
         .clickOnCell(
           spreadsheet.getTable(1).getFirstCellCoord(),
-          spreadsheet.getTable(1).getLeft()
+          spreadsheet.getTable(1).getLeft(),
         );
       await projectPage.selectFormat(Formats.Number);
       await projectPage.expectLastHistoryRecord(
         `Set format "number" to column "${spreadsheet
           .getTable(1)
           .getField(0)
-          .getName()}" of table "${spreadsheet.getTable(1).getName()}"`
+          .getName()}" of table "${spreadsheet.getTable(1).getName()}"`,
       );
-    }
+    },
   );
 
   test(
@@ -206,16 +206,16 @@ test.describe('formatting tests', () => {
         .getVisualization()
         .clickOnCell(
           spreadsheet.getTable(0).getFirstCellCoord(),
-          spreadsheet.getTable(0).getLeft()
+          spreadsheet.getTable(0).getLeft(),
         );
       await projectPage.selectFormat(Formats.Scientific);
       await projectPage.expectLastHistoryRecord(
         `Set format "scientific" to column "${spreadsheet
           .getTable(0)
           .getField(0)
-          .getName()}" of table "${spreadsheet.getTable(0).getName()}"`
+          .getName()}" of table "${spreadsheet.getTable(0).getName()}"`,
       );
-    }
+    },
   );
 
   test(
@@ -229,19 +229,19 @@ test.describe('formatting tests', () => {
         .getVisualization()
         .clickOnCell(
           spreadsheet.getTable(1).getFirstCellCoord(),
-          spreadsheet.getTable(1).getLeft()
+          spreadsheet.getTable(1).getLeft(),
         );
       await projectPage.selectFormatWithSubItem(
         Formats.Currency,
-        Currencies.EUR
+        Currencies.EUR,
       );
       await projectPage.expectLastHistoryRecord(
         `Set format "currency" to column "${spreadsheet
           .getTable(1)
           .getField(0)
-          .getName()}" of table "${spreadsheet.getTable(1).getName()}"`
+          .getName()}" of table "${spreadsheet.getTable(1).getName()}"`,
       );
-    }
+    },
   );
 
   test(
@@ -255,19 +255,19 @@ test.describe('formatting tests', () => {
         .getVisualization()
         .clickOnCell(
           spreadsheet.getTable(0).getFirstCellCoord(),
-          spreadsheet.getTable(0).getLeft()
+          spreadsheet.getTable(0).getLeft(),
         );
       await projectPage.selectFormatWithSubItem(
         Formats.Currency,
-        Currencies.EUR
+        Currencies.EUR,
       );
       await projectPage.expectLastHistoryRecord(
         `Set format "currency" to column "${spreadsheet
           .getTable(0)
           .getField(0)
-          .getName()}" of table "${spreadsheet.getTable(0).getName()}"`
+          .getName()}" of table "${spreadsheet.getTable(0).getName()}"`,
       );
-    }
+    },
   );
 
   test(
@@ -281,16 +281,16 @@ test.describe('formatting tests', () => {
         .getVisualization()
         .clickOnCell(
           spreadsheet.getTable(2).getFirstCellCoord(),
-          spreadsheet.getTable(2).getLeft()
+          spreadsheet.getTable(2).getLeft(),
         );
       await projectPage.selectFormatWithSubItem(Formats.Date, '14/11/2024');
       await projectPage.expectLastHistoryRecord(
         `Set format "date" to column "${spreadsheet
           .getTable(2)
           .getField(0)
-          .getName()}" of table "${spreadsheet.getTable(2).getName()}"`
+          .getName()}" of table "${spreadsheet.getTable(2).getName()}"`,
       );
-    }
+    },
   );
 
   test(
@@ -304,16 +304,16 @@ test.describe('formatting tests', () => {
         .getVisualization()
         .clickOnCell(
           spreadsheet.getTable(2).getFirstCellCoord(),
-          spreadsheet.getTable(2).getLeft() + 1
+          spreadsheet.getTable(2).getLeft() + 1,
         );
       await projectPage.selectFormatWithSubItem(Formats.Time, '14:30');
       await projectPage.expectLastHistoryRecord(
         `Set format "date" to column "${spreadsheet
           .getTable(2)
           .getField(1)
-          .getName()}" of table "${spreadsheet.getTable(2).getName()}"`
+          .getName()}" of table "${spreadsheet.getTable(2).getName()}"`,
       );
-    }
+    },
   );
 
   test(
@@ -327,19 +327,19 @@ test.describe('formatting tests', () => {
         .getVisualization()
         .clickOnCell(
           spreadsheet.getTable(2).getFirstCellCoord(),
-          spreadsheet.getTable(2).getLeft() + 2
+          spreadsheet.getTable(2).getLeft() + 2,
         );
       await projectPage.selectFormatWithSubItem(
         Formats.DateTime,
-        '14/11/2024 14:30'
+        '14/11/2024 14:30',
       );
       await projectPage.expectLastHistoryRecord(
         `Set format "date" to column "${spreadsheet
           .getTable(2)
           .getField(2)
-          .getName()}" of table "${spreadsheet.getTable(2).getName()}"`
+          .getName()}" of table "${spreadsheet.getTable(2).getName()}"`,
       );
-    }
+    },
   );
 
   test(
@@ -353,15 +353,15 @@ test.describe('formatting tests', () => {
         .getVisualization()
         .clickOnCell(
           spreadsheet.getTable(0).getFirstCellCoord(),
-          spreadsheet.getTable(0).getLeft() + 1
+          spreadsheet.getTable(0).getLeft() + 1,
         );
       await projectPage.selectFormat(Formats.Percents);
       await projectPage.expectLastHistoryRecord(
         `Set format "percentage" to column "${spreadsheet
           .getTable(0)
           .getField(1)
-          .getName()}" of table "${spreadsheet.getTable(0).getName()}"`
+          .getName()}" of table "${spreadsheet.getTable(0).getName()}"`,
       );
-    }
+    },
   );
 });

@@ -14,7 +14,7 @@ import {
 import { LongCalcStatuses } from '../../../common';
 import { ProjectContext } from '../../../context';
 import { useApiRequests } from '../../../hooks';
-import { constructPath, encodeApiUrl } from '../../../utils';
+import { constructPath, encodeApiUrl, webNotify } from '../../../utils';
 
 export function LongCalculation() {
   const {
@@ -24,6 +24,7 @@ export function LongCalculation() {
     projectBucket,
     projectName,
     hasEditPermissions,
+    cancelAllImportSyncRequests,
   } = useContext(ProjectContext);
   const { sendProjectCancel, sendProjectCalculate } = useApiRequests();
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
@@ -31,7 +32,7 @@ export function LongCalculation() {
   const onAcceptLongCalc = useCallback(async () => {
     const res = await sendProjectCalculate({
       projectPath: encodeApiUrl(
-        constructPath(['files', projectBucket, projectPath, projectName])
+        constructPath(['files', projectBucket, projectPath, projectName]),
       ),
     });
 
@@ -49,9 +50,11 @@ export function LongCalculation() {
   const onCancelLongCalc = useCallback(async () => {
     const res = await sendProjectCancel({
       projectPath: encodeApiUrl(
-        constructPath(['files', projectBucket, projectPath, projectName])
+        constructPath(['files', projectBucket, projectPath, projectName]),
       ),
     });
+
+    cancelAllImportSyncRequests();
 
     if (!res) return;
 
@@ -62,11 +65,21 @@ export function LongCalculation() {
     projectPath,
     sendProjectCancel,
     setLongCalcStatus,
+    cancelAllImportSyncRequests,
   ]);
+
+  useEffect(() => {
+    if (longCalcStatus !== LongCalcStatuses.NeedAccept || !document.hidden)
+      return;
+
+    webNotify('Long computation', {
+      body: 'A long computation is in progress. Return to DIAL XL to continue or cancel it.',
+    });
+  }, [longCalcStatus]);
 
   const content = useMemo(() => {
     return (
-      <div className="max-h-[50vh] max-w-[200px] overflow-auto thin-scrollbar flex flex-col gap-2">
+      <div className="max-h-[50vh] max-w-[200px] overflow-auto thin-scrollbar flex flex-col gap-2 p-2">
         {longCalcStatus === LongCalcStatuses.NeedAccept && (
           <>
             <span className="text-[13px] text-text-primary">
@@ -80,7 +93,7 @@ export function LongCalculation() {
               className={classNames(
                 primaryButtonClasses,
                 primaryDisabledButtonClasses,
-                'h-7'
+                'h-7',
               )}
               onClick={onAcceptLongCalc}
             >
@@ -98,7 +111,7 @@ export function LongCalculation() {
               className={classNames(
                 primaryButtonClasses,
                 primaryDisabledButtonClasses,
-                'h-7'
+                'h-7',
               )}
               onClick={onCancelLongCalc}
             >
@@ -118,7 +131,7 @@ export function LongCalculation() {
             'w-[18px]',
             longCalcStatus === LongCalcStatuses.NeedAccept
               ? 'text-text-error'
-              : 'text-text-warning'
+              : 'text-text-warning',
           )}
           component={() =>
             longCalcStatus === LongCalcStatuses.NeedAccept ? (

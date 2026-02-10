@@ -21,8 +21,12 @@ import {
   overrideKeyFieldMessage,
 } from '@frontend/common';
 
-import { GridApi, GridCallbacks, GridCell } from '../../../types';
-import { getCellContext, shouldNotOverrideCell } from '../../../utils';
+import { GridApi, GridCell } from '../../../types';
+import {
+  getCellContext,
+  GridEventBus,
+  shouldNotOverrideCell,
+} from '../../../utils';
 import {
   useCellEditorDottedSelection,
   useCellEditorMode,
@@ -47,8 +51,8 @@ import {
 import { CellEditorContext } from './CellEditorContext';
 
 type CellEditorContextProps = {
-  apiRef: RefObject<GridApi>;
-  gridCallbacksRef: RefObject<GridCallbacks>;
+  apiRef: RefObject<GridApi | null>;
+  eventBus: GridEventBus;
   formulaBarMode: FormulaBarMode;
   isReadOnly: boolean;
   zoom: number;
@@ -57,7 +61,7 @@ type CellEditorContextProps = {
 export function CellEditorContextProvider({
   apiRef,
   children,
-  gridCallbacksRef,
+  eventBus,
   formulaBarMode,
   isReadOnly,
   zoom,
@@ -126,7 +130,9 @@ export function CellEditorContextProvider({
       isDottedSelection.current = false;
     }
 
-    gridCallbacksRef?.current?.onStopPointClick?.();
+    eventBus.emit({
+      type: 'selection/point-click-stopped',
+    });
 
     // A way to remove focus from the formula bar, because focusing canvas element is not really working
     if (!isCodeEditorMonacoInputFocused()) {
@@ -134,7 +140,7 @@ export function CellEditorContextProvider({
       // @ts-ignore
       document.activeElement?.blur();
     }
-  }, [restoreCellValue, restoreSelection, gridCallbacksRef, apiRef]);
+  }, [restoreCellValue, restoreSelection, eventBus, apiRef]);
 
   const { updateDottedSelectionVisibility } = useCellEditorDottedSelection({
     apiRef,
@@ -153,8 +159,6 @@ export function CellEditorContextProvider({
 
   const onCodeChange = useCallback(
     (code: string) => {
-      if (!gridCallbacksRef.current) return;
-
       updateCellEditorStyle(code);
       updateEditModeOnCodeChange(code, codeValue.current);
       setSaveOnArrowEnabled(isSaveOnArrowEnabled(code, openedWithNextChar));
@@ -163,20 +167,23 @@ export function CellEditorContextProvider({
 
       if (!shouldSendUpdateEvent(editMode) || !isCellEditorHasFocus()) return;
 
-      gridCallbacksRef.current.onCellEditorUpdateValue?.(
-        code,
-        false,
-        dimFieldName
-      );
+      eventBus.emit({
+        type: 'editor/value-updated',
+        payload: {
+          value: code,
+          cancelEdit: false,
+          dimFieldName,
+        },
+      });
     },
     [
       dimFieldName,
       editMode,
-      gridCallbacksRef,
+      eventBus,
       updateCellEditorStyle,
       updateEditModeOnCodeChange,
       openedWithNextChar,
-    ]
+    ],
   );
 
   const openCellEditor = useCallback(
@@ -199,7 +206,7 @@ export function CellEditorContextProvider({
       setEditorStyle(style);
       setIsOpen(true);
     },
-    [apiRef, zoom]
+    [apiRef, zoom],
   );
 
   const showErrorMessage = useCallback(
@@ -217,12 +224,15 @@ export function CellEditorContextProvider({
       }
 
       if (message) {
-        gridCallbacksRef?.current?.onMessage?.(message);
+        eventBus.emit({
+          type: 'system/message',
+          payload: message,
+        });
       }
 
       return !!message;
     },
-    [editMode, gridCallbacksRef]
+    [editMode, eventBus],
   );
 
   const displayCellEditor = useCallback(
@@ -280,14 +290,20 @@ export function CellEditorContextProvider({
       if (shouldTriggerSuggest) {
         setTimeout(
           () => codeEditor.getAction('editor.action.triggerSuggest')?.run(),
-          10
+          10,
         );
       }
 
       updateDottedSelectionVisibility(col, row, nextEditMode, value);
 
       if (shouldSendUpdateEvent(nextEditMode) && onKeyDown) {
-        gridCallbacksRef?.current?.onCellEditorUpdateValue?.(value, false);
+        eventBus.emit({
+          type: 'editor/value-updated',
+          payload: {
+            value,
+            cancelEdit: false,
+          },
+        });
       }
 
       // Hide value for table cell when editor opened
@@ -301,11 +317,11 @@ export function CellEditorContextProvider({
       const { width } = gridSizes.cell;
       const initialWidth = isTableHeader ? 0 : Math.max(0, width);
 
-      // Case when we are writing formula to the right or bottom of vertical or horizontal table
+      // Case when we are writing formula to the right or bottom of a vertical or horizontal table
       const contextCell = getCellContext(api.getCell, col, row);
 
       setCurrentTableName(
-        cell?.table?.tableName ?? contextCell?.table?.tableName ?? ''
+        cell?.table?.tableName ?? contextCell?.table?.tableName ?? '',
       );
       setCurrentFieldName(cell?.field?.fieldName || '');
       setCurrentCell({ col, row });
@@ -329,17 +345,17 @@ export function CellEditorContextProvider({
       codeEditor,
       updateDottedSelectionVisibility,
       openCellEditor,
-      gridCallbacksRef,
+      eventBus,
       showErrorMessage,
       isReadOnly,
-    ]
+    ],
   );
 
   // Additional effect to check enable/disable save on arrow
   // onCodeChange() doesn't set correct value on typing first character
   useEffect(() => {
     setSaveOnArrowEnabled(
-      isSaveOnArrowEnabled(codeValue.current, openedWithNextChar)
+      isSaveOnArrowEnabled(codeValue.current, openedWithNextChar),
     );
   }, [openedWithNextChar]);
 
@@ -396,7 +412,7 @@ export function CellEditorContextProvider({
       openedWithNextChar,
       restoreCellValue,
       saveOnArrowEnabled,
-    ]
+    ],
   );
 
   return (

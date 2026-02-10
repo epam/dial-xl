@@ -3,4 +3,5 @@ export enum CollapseSection {
   Hints = 'hints',
   Inputs = 'inputs',
   Conversations = 'conversations',
+  Questions = 'questions',
 }

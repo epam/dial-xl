@@ -1,14 +1,15 @@
 import { useCallback, useContext, useEffect } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 
 import {
-  dynamicFieldName,
   Expression,
   findFunctionExpressions,
   ParsedTable,
   SheetReader,
 } from '@frontend/parser';
 
-import { AppContext, ProjectContext } from '../../../../context';
+import { ProjectContext } from '../../../../context';
+import { usePivotStore } from '../../../../store';
 import { PivotWizardContext } from '../PivotWizardContext';
 import {
   defaultAggregationOption,
@@ -19,7 +20,14 @@ import { FieldItem } from '../utils';
 
 export function usePivotTableSetup() {
   const { pivotTableName, pivotTableWizardMode, changePivotTableWizardMode } =
-    useContext(AppContext);
+    usePivotStore(
+      useShallow((s) => ({
+        pivotTableName: s.pivotTableName,
+        pivotTableWizardMode: s.pivotTableWizardMode,
+        changePivotTableWizardMode: s.changePivotTableWizardMode,
+      })),
+    );
+
   const { parsedSheets } = useContext(ProjectContext);
   const {
     setAvailableFields,
@@ -46,8 +54,8 @@ export function usePivotTableSetup() {
           (f) =>
             f.expression &&
             findFunctionExpressions(f.expression).some(
-              (func) => func.name === 'PIVOT'
-            )
+              (func) => func.name === 'PIVOT',
+            ),
         );
 
         if (!pivotField || !pivotField.expressionMetadata) {
@@ -55,7 +63,7 @@ export function usePivotTableSetup() {
         }
 
         const parsed = SheetReader.parseFormula(
-          pivotField.expressionMetadata.text
+          pivotField.expressionMetadata.text,
         );
         const fns = findFunctionExpressions(parsed);
         const pivotFn = fns.find((fn) => fn.name === 'PIVOT');
@@ -82,7 +90,7 @@ export function usePivotTableSetup() {
         setSelectedTableName(toSelectOption(tableName));
 
         const fields =
-          sourceTable?.fields.map(({ key }) => ({
+          sourceTable?.getUserVisibleFields().map(({ key }) => ({
             id: key.fieldName,
             name: key.fieldName,
           })) || [];
@@ -90,7 +98,7 @@ export function usePivotTableSetup() {
         if (aggregations.length > 0) {
           // Set the first aggregation as selected
           setSelectedAggregation(
-            toSelectOption(aggregations[0].id, aggregations[0].name)
+            toSelectOption(aggregations[0].id, aggregations[0].name),
           );
         }
 
@@ -98,8 +106,7 @@ export function usePivotTableSetup() {
           (f: FieldItem) =>
             !rows.some((rf) => rf.id === f.id) &&
             !columns.some((cf) => cf.id === f.id) &&
-            !values.some((vf) => vf.id === f.id) &&
-            f.name !== dynamicFieldName
+            !values.some((vf) => vf.id === f.id),
         );
 
         return {
@@ -118,7 +125,7 @@ export function usePivotTableSetup() {
       parsedSheets,
       setSelectedTableName,
       setSelectedAggregation,
-    ]
+    ],
   );
 
   const initializeFields = useCallback(() => {
@@ -143,12 +150,10 @@ export function usePivotTableSetup() {
       setValueFields(values);
     } else {
       const fields =
-        foundTable?.fields
-          .filter(({ key }) => key.fieldName !== dynamicFieldName)
-          .map(({ key }) => ({
-            id: key.fieldName,
-            name: key.fieldName,
-          })) || [];
+        foundTable?.getUserVisibleFields().map(({ key }) => ({
+          id: key.fieldName,
+          name: key.fieldName,
+        })) || [];
 
       setAvailableFields(fields);
       setRowFields([]);

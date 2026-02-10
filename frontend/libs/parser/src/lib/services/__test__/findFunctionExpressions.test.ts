@@ -27,14 +27,14 @@ describe('findFunctionExpressions', () => {
         end: 4,
         start: 0,
         name: 'RANGE',
-      })
+      }),
     );
   });
 
   it('should find multiple functions', () => {
     // Arrange
     const expression = SheetReader.parseFormula(
-      `'some table'.FILTER([Name] = $[Name]).COUNT() > 0`
+      `'some table'.FILTER([Name] = $[Name]).COUNT() > 0`,
     );
 
     // Act
@@ -47,21 +47,21 @@ describe('findFunctionExpressions', () => {
         start: 38,
         end: 42,
         name: 'COUNT',
-      })
+      }),
     );
     expect(result[1]).toEqual(
       expect.objectContaining({
         start: 13,
         end: 18,
         name: 'FILTER',
-      })
+      }),
     );
   });
 
   it('should find input function', () => {
     // Arrange
     const expression = SheetReader.parseFormula(
-      `INPUT("files/abc123/appdata/xl/project/input.csv")[[id], [name], [country]]`
+      `INPUT("files/abc123/appdata/xl/project/input.csv")[[id], [name], [country]]`,
     );
 
     // Act
@@ -74,14 +74,14 @@ describe('findFunctionExpressions', () => {
         start: 0,
         end: 4,
         name: 'INPUT',
-      })
+      }),
     );
   });
 
   it('should find nested functions', () => {
     // Arrange
     const expression = SheetReader.parseFormula(
-      'SORT(UNIQUE(InputData[indicator]))'
+      'SORT(UNIQUE(InputData[indicator]))',
     );
 
     // Act
@@ -94,14 +94,14 @@ describe('findFunctionExpressions', () => {
         start: 0,
         end: 3,
         name: 'SORT',
-      })
+      }),
     );
     expect(result[1]).toEqual(
       expect.objectContaining({
         start: 5,
         end: 10,
         name: 'UNIQUE',
-      })
+      }),
     );
   });
 

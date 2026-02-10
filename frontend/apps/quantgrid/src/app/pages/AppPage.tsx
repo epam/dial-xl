@@ -1,50 +1,79 @@
-import { useContext, useEffect, useMemo } from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useEffect } from 'react';
+import { useAuth } from 'react-oidc-context';
+import { useLocation, useNavigate } from 'react-router';
 
-import { Project } from '../components';
-import { LayoutContextProvider, ProjectContext } from '../context';
-import { routeParams, routes } from '../types';
+import {
+  shareIdStorageKey,
+  shareProjectBucketStorageKey,
+  shareProjectNameStorageKey,
+  shareProjectPathStorageKey,
+} from '../common';
+import { useUIStore } from '../store';
+import { routes } from '../types';
+import {
+  getDashboardNavigateUrl,
+  getFilesShareUrl,
+  getProjectShareUrl,
+} from '../utils';
 
 export function AppPage() {
+  const hideLoading = useUIStore((s) => s.hideLoading);
+  const { pathname, search } = useLocation();
   const navigate = useNavigate();
-  const { projectName, openProject } = useContext(ProjectContext);
-
-  const { projectName: urlProjectName, sheetName: urlProjectSheetName } =
-    useParams();
-  const [searchParams] = useSearchParams();
-
-  const urlProjectPath = useMemo(
-    () => searchParams.get(routeParams.projectPath),
-    [searchParams]
-  );
-  const urlProjectBucket = useMemo(
-    () => searchParams.get(routeParams.projectBucket),
-    [searchParams]
-  );
+  const auth = useAuth();
 
   useEffect(() => {
-    if (!urlProjectName || !urlProjectBucket) {
-      navigate(routes.home);
+    hideLoading();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (auth.isLoading) return;
+
+    if (!auth.isAuthenticated) {
+      navigate(routes.login);
 
       return;
     }
 
-    openProject({
-      path: urlProjectPath ?? '',
-      bucket: urlProjectBucket,
-      projectName: urlProjectName,
-      projectSheetName: urlProjectSheetName,
-    });
+    const shareId = sessionStorage.getItem(shareIdStorageKey);
+    const shareBucket = sessionStorage.getItem(shareProjectBucketStorageKey);
+    const shareName = sessionStorage.getItem(shareProjectNameStorageKey);
+    const sharePath = sessionStorage.getItem(shareProjectPathStorageKey);
 
-    // below triggers, not dependencies
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [urlProjectPath, urlProjectBucket, urlProjectName]);
+    if (!shareId) {
+      navigate(
+        getDashboardNavigateUrl({
+          folderPath: null,
+          folderBucket: null,
+          tab: 'home',
+        }),
+      );
 
-  if (!projectName) return null;
+      return;
+    }
 
-  return (
-    <LayoutContextProvider>
-      <Project />
-    </LayoutContextProvider>
-  );
+    if (!shareBucket || !shareName || !sharePath) {
+      navigate(
+        getFilesShareUrl({
+          invitationId: shareId,
+          relative: true,
+        }),
+      );
+
+      return;
+    }
+
+    navigate(
+      getProjectShareUrl({
+        projectName: shareName,
+        projectBucket: shareBucket,
+        projectPath: sharePath,
+        invitationId: shareId,
+        relative: true,
+      }),
+    );
+  }, [pathname, search, navigate, auth.isLoading, auth.isAuthenticated]);
+
+  return null;
 }

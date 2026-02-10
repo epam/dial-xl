@@ -1,3 +1,5 @@
+import { ItemType } from 'antd/es/menu/interface';
+
 import Icon from '@ant-design/icons';
 import {
   EditFilledIcon,
@@ -14,15 +16,16 @@ import {
   Shortcut,
   shortcutApi,
   TableArrowIcon,
-  TagIcon,
   TotalOffIcon,
 } from '@frontend/common';
 import { naExpression } from '@frontend/parser';
 
-import { GridCallbacks, GridCell } from '../../../../types';
+import { GridCell } from '../../../../types';
+import { GridEventBus } from '../../../../utils';
 import { spreadsheetMenuKeys as menuKey } from '../config';
 import { ContextMenuKeyData } from '../types';
 import {
+  aiRegenerateItem,
   arrangeTableItems,
   askAIItem,
   deleteItem,
@@ -34,9 +37,11 @@ import {
   insertItem,
   noteEditItem,
   noteRemoveItem,
+  openDetails,
   orientationItem,
   sortItem,
   switchInput,
+  syncImport,
   totalItem,
 } from './commonItem';
 
@@ -44,9 +49,9 @@ export const getTableCellMenuItems = (
   col: number,
   row: number,
   cell: GridCell,
-  gridCallbacks: GridCallbacks,
-  filterList: GridListFilter[]
-) => {
+  eventBus: GridEventBus,
+  filterList: GridListFilter[],
+): ItemType[] => {
   const { field, table, totalIndex, totalExpression } = cell;
 
   if (!table || !field) return [];
@@ -71,7 +76,9 @@ export const getTableCellMenuItems = (
     isIndex,
     isDescription,
     isInput,
+    isImport,
     hasOverrides: fieldHasOverrides,
+    isControl,
   } = field;
 
   const isNumeric = isNumericType(type);
@@ -94,23 +101,27 @@ export const getTableCellMenuItems = (
     ? cell.isOverride || fieldHasOverrides
     : false;
 
-  const filterSortItems = [
-    !isComplexOrDynamic ? sortItem(col, row, isNumeric) : null,
-    filterType && !isComplexOrDynamic
-      ? filterItem(col, row, cell, gridCallbacks, filterList)
+  const filterSortItems: ItemType[] = [
+    !isComplexOrDynamic && !isControl ? sortItem(col, row, isNumeric) : null,
+    filterType && !isComplexOrDynamic && !isControl
+      ? filterItem(col, row, cell, eventBus, filterList)
       : null,
-    totalItem(col, row, totalFieldTypes, isComplex),
+    !isControl ? totalItem(col, row, totalFieldTypes, isComplex) : null,
   ].filter(Boolean);
+
+  const hasAIFunction = cell.overrideAIFunctions || field?.isAIFunctions;
 
   return [
     isShowAIPrompt ? askAIItem(col, row) : null,
-    isShowAIPrompt ? getDropdownDivider() : null,
+    hasAIFunction ? aiRegenerateItem(col, row) : null,
+    isShowAIPrompt || hasAIFunction ? getDropdownDivider() : null,
     getDropdownItem({
       label: 'Move table',
       key: getDropdownMenuKey<ContextMenuKeyData>(menuKey.moveTable, {
         col,
         row,
       }),
+      shortcut: shortcutApi.getLabel(Shortcut.SelectAll),
       icon: (
         <Icon
           className="text-text-secondary w-[18px]"
@@ -140,18 +151,21 @@ export const getTableCellMenuItems = (
       shortcut: shortcutApi.getLabel(Shortcut.Rename),
     }),
     isInput ? switchInput(col, row) : null,
-    fieldTagsItem(
-      col,
-      row,
-      isKey,
-      isDynamic,
-      isManual,
-      isFieldHasOverrides,
-      isIndex,
-      isDescription,
-      isText,
-      fieldNames
-    ),
+    isImport ? syncImport(col, row) : null,
+    !isControl
+      ? fieldTagsItem(
+          col,
+          row,
+          isKey,
+          isDynamic,
+          isManual,
+          isFieldHasOverrides,
+          isIndex,
+          isDescription,
+          isText,
+          fieldNames,
+        )
+      : null,
     showPromoteRow
       ? getDropdownItem({
           label: 'Set header',
@@ -219,21 +233,9 @@ export const getTableCellMenuItems = (
       row,
       isTableNameHeaderHidden,
       isTableFieldsHeaderHidden,
-      isChart
+      isChart,
     ),
     getDropdownDivider(),
-    getDropdownItem({
-      label: 'Open in Editor',
-      key: getDropdownMenuKey<ContextMenuKeyData>(
-        isOverride ? menuKey.openOverrideInEditor : menuKey.openFieldInEditor,
-        { col, row }
-      ),
-      icon: (
-        <Icon
-          className="text-text-secondary w-[18px]"
-          component={() => <TagIcon />}
-        />
-      ),
-    }),
+    ...(openDetails(col, row, false, isOverride) || []),
   ];
 };

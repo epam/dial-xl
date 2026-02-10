@@ -258,10 +258,10 @@ public class CompilePivot {
     private List<ResultValidator<CompiledNestedColumn>> valueValidators(AggregateType type) {
         return switch (type) {
             case COUNT, FIRST, LAST, SINGLE -> List.of(NestedColumnValidators.ANY);
-            case SUM, AVERAGE, MIN, MAX, STDEVP, STDEVS, GEOMEAN, MEDIAN -> List.of(NestedColumnValidators.DOUBLE);
+            case SUM, AVERAGE, STDEVP, STDEVS, GEOMEAN, MEDIAN -> List.of(NestedColumnValidators.DOUBLE);
             case CORREL, PERCENTILE, PERCENTILE_EXC, QUARTILE, QUARTILE_EXC ->
                     List.of(NestedColumnValidators.DOUBLE, NestedColumnValidators.DOUBLE);
-            case MODE -> List.of(NestedColumnValidators.STRING_OR_DOUBLE, NestedColumnValidators.STRING_OR_DOUBLE);
+            case MIN, MAX, MODE -> List.of(NestedColumnValidators.STRING_OR_DOUBLE);
             case INDEX, MINBY, MAXBY -> List.of(NestedColumnValidators.ANY, NestedColumnValidators.DOUBLE);
             case PERIODSERIES -> List.of(NestedColumnValidators.DOUBLE, NestedColumnValidators.DOUBLE,
                     NestedColumnValidators.STRING);

@@ -52,7 +52,7 @@ export interface CodeEditorProps {
   codeEditorPlace: CodeEditorPlace;
   onCodeChange?: (code: string) => void;
   onEditorReady?: (
-    codeEditor: editor.IStandaloneCodeEditor | undefined
+    codeEditor: editor.IStandaloneCodeEditor | undefined,
   ) => void;
   onSaveButton?: OnSaveButton;
   onEnter?: OnEnter;

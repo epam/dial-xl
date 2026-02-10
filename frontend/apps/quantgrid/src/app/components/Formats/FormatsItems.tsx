@@ -29,7 +29,7 @@ import {
 
 export const getFormatsItems = (
   value: string | undefined,
-  isResetExplicitFormat: boolean
+  isResetExplicitFormat: boolean,
 ): MenuItem[] => {
   const currencies = getGroupedCurrencies();
 
@@ -344,7 +344,7 @@ export const getFormatsItems = (
             } as CurrencyKeyData),
             label: item.currency,
             shortcut: `${item.symbol} (${item.code})`,
-          })
+          }),
         ),
         getDropdownDivider(),
         ...currencies.otherCurrencies.map((item) =>
@@ -357,7 +357,7 @@ export const getFormatsItems = (
             } as CurrencyKeyData),
             label: item.currency,
             shortcut: `${item.symbol} (${item.code})`,
-          })
+          }),
         ),
       ],
       label: 'Currency',
@@ -372,7 +372,7 @@ export const getFormatsItems = (
             value && isValidDate(value)
               ? formatValue(value, item.labelFormat)
               : item.labelDefault,
-        })
+        }),
       ),
     }),
     getDropdownItem({
@@ -385,7 +385,7 @@ export const getFormatsItems = (
             value && isValidDate(value)
               ? formatValue(value, item.labelFormat)
               : item.labelDefault,
-        })
+        }),
       ),
     }),
     getDropdownItem({
@@ -398,7 +398,7 @@ export const getFormatsItems = (
             value && isValidDate(value)
               ? formatValue(value, item.labelFormat)
               : item.labelDefault,
-        })
+        }),
       ),
     }),
     getDropdownItem({

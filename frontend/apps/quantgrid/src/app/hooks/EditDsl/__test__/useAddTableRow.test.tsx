@@ -1,3 +1,5 @@
+import { vi } from 'vitest';
+
 import { act, RenderHookResult } from '@testing-library/react';
 
 import { useAddTableRow } from '../useAddTableRow';
@@ -32,7 +34,7 @@ describe('useAddTableRow', () => {
   });
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     const hookRender = hookTestSetup(useAddTableRow, Wrapper);
     hook = hookRender.result;
     setDsl = hookRender.setDsl;
@@ -72,7 +74,7 @@ describe('useAddTableRow', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Add override "33" to table "t1"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }]
+        [{ sheetName: props.sheetName, content: expectedDsl }],
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -95,7 +97,7 @@ describe('useAddTableRow', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Add override "33" to table "t1"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }]
+        [{ sheetName: props.sheetName, content: expectedDsl }],
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -115,13 +117,14 @@ describe('useAddTableRow', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Add override "33" to table "t1"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }]
+        [{ sheetName: props.sheetName, content: expectedDsl }],
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
       ]);
     });
   });
+
   describe('insertTableRowAfter', () => {
     it('should add new row to overrides to field', () => {
       // Arrange
@@ -137,7 +140,7 @@ describe('useAddTableRow', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Add override "33" to table "t1"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }]
+        [{ sheetName: props.sheetName, content: expectedDsl }],
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -157,7 +160,7 @@ describe('useAddTableRow', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Add override "33" to table "t1"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }]
+        [{ sheetName: props.sheetName, content: expectedDsl }],
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },

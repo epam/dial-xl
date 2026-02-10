@@ -69,7 +69,7 @@ public class CompiledNestedColumn extends CompiledAbstractTable implements Compi
     }
 
     @Override
-    public CompiledColumn transform(UnaryOperator<Expression> transform, ColumnFormat format) {
+    public CompiledNestedColumn transform(UnaryOperator<Expression> transform, ColumnFormat format) {
         Expression newColumn = transform.apply(new Get(node, column));
         SelectLocal select = currentRef == REF_NA
                 ? new SelectLocal(newColumn)

@@ -1,5 +1,5 @@
-export * from './BarChartIcon';
-export * from './FlatBarChartIcon';
+export * from './ClusteredBarChartIcon';
+export * from './ClusteredColumnChartIcon';
 export * from './HeatmapChartIcon';
 export * from './HistogramChartIcon';
 export * from './LineChartIcon';
@@ -7,3 +7,4 @@ export * from './PeriodSeriesChartIcon';
 export * from './PieChartIcon';
 export * from './ScatterPlotChartIcon';
 export * from './StackedBarChartIcon';
+export * from './StackedColumnChartIcon';

@@ -13,7 +13,7 @@ export class Reader {
     dsl: string,
     allPositions: number[],
     entity: any,
-    position: number
+    position: number,
   ) {
     this.dsl = dsl;
     this.allPositions = allPositions;

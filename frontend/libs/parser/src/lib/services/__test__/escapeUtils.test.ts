@@ -73,6 +73,39 @@ describe('escapeTableName', () => {
       // Assert
       expect(result).toEqual(expectedResult);
     });
+    it('should quote name if it contains only numeric', () => {
+      // Arrange
+      const name = '1';
+      const expectedResult = "'1'";
+
+      // Act
+      const result = escapeTableName(name, true);
+
+      // Assert
+      expect(result).toEqual(expectedResult);
+    });
+    it('should not quote name if it contains numeric at the beginning with other normal characters', () => {
+      // Arrange
+      const name = '1asd';
+      const expectedResult = '1asd';
+
+      // Act
+      const result = escapeTableName(name, true);
+
+      // Assert
+      expect(result).toEqual(expectedResult);
+    });
+    it('should not quote name if it contains numeric at the end with other normal characters', () => {
+      // Arrange
+      const name = 'asd1';
+      const expectedResult = 'asd1';
+
+      // Act
+      const result = escapeTableName(name, true);
+
+      // Assert
+      expect(result).toEqual(expectedResult);
+    });
   });
 
   describe('Partial escaping', () => {
@@ -135,6 +168,39 @@ describe('escapeTableName', () => {
       // Arrange
       const name = 'Table';
       const expectedResult = 'Table';
+
+      // Act
+      const result = escapeTableName(name);
+
+      // Assert
+      expect(result).toEqual(expectedResult);
+    });
+    it('should quote name if it contains only numeric', () => {
+      // Arrange
+      const name = '1';
+      const expectedResult = "'1'";
+
+      // Act
+      const result = escapeTableName(name);
+
+      // Assert
+      expect(result).toEqual(expectedResult);
+    });
+    it('should not quote name if it contains numeric at the beginning with other normal characters', () => {
+      // Arrange
+      const name = '1asd';
+      const expectedResult = '1asd';
+
+      // Act
+      const result = escapeTableName(name);
+
+      // Assert
+      expect(result).toEqual(expectedResult);
+    });
+    it('should not quote name if it contains numeric at the end with other normal characters', () => {
+      // Arrange
+      const name = 'asd1';
+      const expectedResult = 'asd1';
 
       // Act
       const result = escapeTableName(name);

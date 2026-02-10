@@ -4,7 +4,7 @@ import { GridStateContext } from '../context';
 import { Edges, GridApi } from '../types';
 import { getTableRowDottedSelection, showFieldDottedSelection } from '../utils';
 
-export function useDottedSelection(gridApi: RefObject<GridApi>) {
+export function useDottedSelection(gridApi: RefObject<GridApi | null>) {
   const { selection$, getCell } = useContext(GridStateContext);
 
   const updateDottedSelection = useCallback(
@@ -49,7 +49,7 @@ export function useDottedSelection(gridApi: RefObject<GridApi>) {
           { col, row },
           leftTableCell.table,
           leftTableCell.endCol,
-          api
+          api,
         );
 
         return;
@@ -66,7 +66,7 @@ export function useDottedSelection(gridApi: RefObject<GridApi>) {
       ) {
         const dottedSelection = getTableRowDottedSelection(
           { col, row },
-          topTableCell.table
+          topTableCell.table,
         );
         api.showDottedSelection(dottedSelection);
 
@@ -86,7 +86,7 @@ export function useDottedSelection(gridApi: RefObject<GridApi>) {
           { col, row },
           topTableCell.table,
           topTableCell.endCol,
-          api
+          api,
         );
 
         return;
@@ -104,7 +104,7 @@ export function useDottedSelection(gridApi: RefObject<GridApi>) {
       ) {
         const dottedSelection = getTableRowDottedSelection(
           { col, row },
-          leftTableCell.table
+          leftTableCell.table,
         );
         api.showDottedSelection(dottedSelection);
 
@@ -113,7 +113,7 @@ export function useDottedSelection(gridApi: RefObject<GridApi>) {
 
       api.hideDottedSelection();
     },
-    [gridApi]
+    [gridApi],
   );
 
   useEffect(() => {

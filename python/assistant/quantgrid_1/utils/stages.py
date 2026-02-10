@@ -17,3 +17,13 @@ def replicate_stages(choice: Choice, stages: Iterable[Stage], prefix: str) -> No
 
 def append_duration(stage: ChoiceStage, start_time: float):
     stage.append_name(f" ({round(time() - start_time, 2)} s)")
+
+
+def append_token_info(
+    stage: ChoiceStage, *, input_token_count: int | None, output_token_count: int | None
+) -> None:
+    if input_token_count is not None:
+        stage.add_attachment(title="input_token_count", data=str(input_token_count))
+
+    if output_token_count is not None:
+        stage.add_attachment(title="output_token_count", data=str(output_token_count))

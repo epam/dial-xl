@@ -1,13 +1,14 @@
-import { Container } from '@pixi/react';
-
-import { ComponentLayer } from '../../constants';
 import { Arrow } from './Arrow';
 import { Thumb } from './Thumb';
 import { Track } from './Track';
 
-export function ScrollBar() {
+type Props = {
+  zIndex: number;
+};
+
+export function ScrollBar({ zIndex }: Props) {
   return (
-    <Container zIndex={ComponentLayer.ScrollBar}>
+    <pixiContainer label="ScrollBar" zIndex={zIndex}>
       <Track direction="vertical" />
       <Track direction="horizontal" />
       <Thumb direction="vertical" />
@@ -16,6 +17,6 @@ export function ScrollBar() {
       <Arrow place="right" />
       <Arrow place="up" />
       <Arrow place="down" />
-    </Container>
+    </pixiContainer>
   );
 }

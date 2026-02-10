@@ -2,6 +2,8 @@ package com.epam.deltix.quantgrid.engine.service.input.storage;
 
 import com.epam.deltix.quantgrid.engine.Util;
 import com.epam.deltix.quantgrid.engine.node.plan.spark.util.DatasetUtil;
+import com.epam.deltix.quantgrid.engine.service.input.CsvColumn;
+import com.epam.deltix.quantgrid.engine.service.input.CsvInputMetadata;
 import com.epam.deltix.quantgrid.engine.service.input.InputMetadata;
 import com.epam.deltix.quantgrid.engine.spark.ScalaUtil;
 import com.epam.deltix.quantgrid.engine.spark.Spark;
@@ -54,11 +56,16 @@ public class SparkInputProvider implements InputProvider {
         // ensure s3a file system is used for reading
         String path = metadata.path().replace("s3://", "s3a://");
 
-        Dataset<Row> rows = switch (metadata.type()) {
-            case CSV -> readCsv(path, readColumns, metadata.columnTypes());
-        };
+        if (metadata instanceof CsvInputMetadata csvInputMetadata) {
+            LinkedHashMap<String, InputColumnType> columnTypes = new LinkedHashMap<>();
+            for (CsvColumn column : csvInputMetadata.columns()) {
+                columnTypes.put(column.name(), column.type());
+            }
+            Dataset<Row> rows = readCsv(path, readColumns, columnTypes);
+            return new SparkDatasetTable(rows);
+        }
 
-        return new SparkDatasetTable(rows);
+        throw new IllegalArgumentException("Unsupported input metadata type: " + metadata.getClass());
     }
 
     @Override
@@ -114,6 +121,9 @@ public class SparkInputProvider implements InputProvider {
             } else if (originalType == InputColumnType.DATE) {
                 Util.verify(fieldType == DataTypes.StringType);
                 readCols.add(parseDate(col).as(readColumn));
+            } else if (originalType == InputColumnType.DATE_TIME) {
+                Util.verify(fieldType == DataTypes.StringType);
+                readCols.add(parseDateTime(col).as(readColumn));
             } else if (fieldType == DataTypes.DoubleType) {
                 // ensure Double.NaN instead of null
                 readCols.add(functions.coalesce(col, functions.lit(Doubles.ERROR_NA)).as(readColumn));
@@ -133,7 +143,7 @@ public class SparkInputProvider implements InputProvider {
         return switch (calcType) {
             case STRING -> DataTypes.StringType;
             case DOUBLE -> DataTypes.DoubleType;
-            case BOOLEAN, DATE -> DataTypes.StringType; // handle parsing later
+            case BOOLEAN, DATE, DATE_TIME -> DataTypes.StringType; // handle parsing later
         };
     }
 
@@ -153,7 +163,26 @@ public class SparkInputProvider implements InputProvider {
 
     public static double parseDate(@Nullable UTF8String utf8) {
         String string = (utf8 == null) ? null : utf8.toString();
-        return Dates.from(string);
+        return Dates.fromDate(string);
+    }
+
+    private Column parseDateTime(Column source) {
+        StaticInvoke expr = new StaticInvoke(
+                SparkInputProvider.class,
+                DataTypes.DoubleType, // return type
+                "parseDateTime",
+                ScalaUtil.seq(source.expr()),
+                ScalaUtil.seq(DataTypes.StringType), // input type
+                false, // should parse null as well
+                true,
+                true
+        );
+        return new Column(expr);
+    }
+
+    public static double parseDateTime(@Nullable UTF8String utf8) {
+        String string = (utf8 == null) ? null : utf8.toString();
+        return Dates.fromDateTime(string);
     }
 
     private Column parseBoolean(Column source) {

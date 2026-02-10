@@ -5,7 +5,7 @@ from time import time
 from aidial_sdk.chat_completion import Status
 from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.runnables import Runnable, RunnableLambda
-from openai import RateLimitError
+from openai import InternalServerError, RateLimitError
 
 from quantgrid_1.chains.parameters import ChainParameters
 from quantgrid_1.log_config import qg_logger as logger
@@ -14,8 +14,17 @@ from quantgrid_1.utils.actions import parse_actions, process_actions
 from quantgrid_1.utils.create_exception_stage import create_exception_stage
 from quantgrid_1.utils.errors import output_errors, smart_filter_errors
 from quantgrid_1.utils.project_utils import create_project
-from quantgrid_1.utils.stages import append_duration, replicate_stages
-from quantgrid_1.utils.stream_content import get_token_error, stream_content
+from quantgrid_1.utils.stages import (
+    append_duration,
+    append_token_info,
+    replicate_stages,
+)
+from quantgrid_1.utils.stream_content import (
+    delay_retry,
+    get_rate_error,
+    get_token_error,
+    stream_content,
+)
 
 STAGE_NAME = "Fixing Errors"
 
@@ -60,11 +69,11 @@ async def action_fixer(inputs: dict) -> dict:
 
         with choice.create_stage(stage_name) as fixing_issues_stage:
             start_time = time()
-
             history.add_message(
                 HumanMessage(
-                    f"Please fix the errors in actions that you generated "
-                    f"to answer user's question. Follow all previous recommendations.\n"
+                    f"Please fix the errors in actions that you generated to answer user's question. "
+                    f"Generate new actions that will not contain errors.\n"
+                    f"Follow all previous recommendations.\n"
                     f"Answer should be based on the data, so do not come up with your own numbers unless directly asked."
                     f"\nErrors:\n{json.dumps(errors, indent=2)}"
                 )
@@ -77,7 +86,16 @@ async def action_fixer(inputs: dict) -> dict:
                 )
 
                 fixing_issues_stage.append_content("```json\n")
-                total_content, _ = await stream_content(iterator, fixing_issues_stage)
+                total_content, input_tokens, output_tokens = await stream_content(
+                    iterator, fixing_issues_stage
+                )
+
+                append_token_info(
+                    fixing_issues_stage,
+                    input_token_count=input_tokens,
+                    output_token_count=output_tokens,
+                )
+
                 fixing_issues_stage.append_content("\n```\n")
 
                 actions = await parse_actions(
@@ -96,6 +114,9 @@ async def action_fixer(inputs: dict) -> dict:
                 errors = await smart_filter_errors(imported_project, project, actions)
             except RateLimitError as error:
                 raise get_token_error(error)
+            except InternalServerError as error:
+                await delay_retry(retry_id, attempts, 30)
+                raise get_rate_error(error)
             except Exception as exception:
                 create_exception_stage(choice, exception)
                 logger.exception(exception)

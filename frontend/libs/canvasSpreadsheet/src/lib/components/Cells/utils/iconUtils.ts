@@ -1,241 +1,494 @@
-import * as PIXI from 'pixi.js';
+import {
+  AnimatedSprite,
+  Assets,
+  FederatedPointerEvent,
+  Sprite,
+  Texture,
+} from 'pixi.js';
 import isEqual from 'react-fast-compare';
 
 import { AppTheme, ColumnDataType } from '@frontend/common';
-import { TotalType } from '@frontend/parser';
+import { ControlType, TotalType } from '@frontend/parser';
 
 import { ComponentLayer, GridSizes } from '../../../constants';
 import {
+  CellIcon,
+  CellIconConfig,
+  CellIcons,
   GridApi,
-  GridCallbacks,
   GridCell,
-  IconCell,
   IconMetadata,
 } from '../../../types';
+import { GridEventBus } from '../../../utils';
+import { GridEvent } from '../../GridApiWrapper';
 
-export function getCellIcon(
+const primaryCellIcons: CellIconConfig[] = [
+  {
+    name: 'Field loading icon',
+    priority: 0,
+    enabled: ({ cellData }) =>
+      !!cellData.isFieldHeader &&
+      !!(!cellData.field?.hasError && cellData.field?.isLoading),
+    path: ({ themeName }) => [
+      getFullIconName('loader1', themeName),
+      getFullIconName('loader2', themeName),
+      getFullIconName('loader3', themeName),
+      getFullIconName('loader4', themeName),
+      getFullIconName('loader5', themeName),
+      getFullIconName('loader6', themeName),
+      getFullIconName('loader7', themeName),
+      getFullIconName('loader8', themeName),
+    ],
+    tooltip: 'Field is loading data',
+    iconSize: ({ gridSizes }) => gridSizes.cell.fontSize,
+    visibleModifier: 'always',
+  },
+  {
+    name: 'Field control icon',
+    priority: 1,
+    enabled: ({ cellData }) =>
+      !cellData.isFieldHeader &&
+      !cellData.isTableHeader &&
+      !!cellData.field?.controlType &&
+      !!getControlIcon(cellData.field?.controlType),
+    visibleModifier: 'always',
+    path: ({ cellData, themeName }) =>
+      getFullIconName(
+        getControlIcon(cellData!.field!.controlType!)!,
+        themeName,
+      ),
+    tooltip: ({ cellData }) =>
+      getControlIconTooltip(cellData!.field!.controlType!),
+    iconSize: ({ gridSizes }) => gridSizes.cell.controlIconSize,
+    onAddEventListeners: ({ cellData, gridApi, icon }) => {
+      icon.on('pointerdown', () => {
+        if (gridApi.isPanModeEnabled) return;
+
+        gridApi.event.emit({
+          type: GridEvent.openControl,
+          cellData,
+        });
+      });
+    },
+  },
+  {
+    name: 'Total icon',
+    priority: 2,
+    enabled: ({ cellData }) =>
+      !!cellData.totalIndex &&
+      !!cellData.totalType &&
+      !!getTotalIcon(cellData.totalType),
+    visibleModifier: 'always',
+    path: ({ cellData, themeName }) =>
+      getFullIconName(getTotalIcon(cellData.totalType!)!, themeName),
+    tooltip: ({ cellData }) => getTotalIconTooltip(cellData.totalType!),
+    iconSize: ({ gridSizes }) => gridSizes.cell.totalIconSize,
+  },
+  {
+    name: 'Nested table icon',
+    priority: 3,
+    enabled: ({ cellData }) =>
+      !cellData.isFieldHeader &&
+      !cellData.isTableHeader &&
+      !!cellData.field?.isNested,
+    visibleModifier: 'always',
+    path: ({ themeName }) => getFullIconName('table', themeName),
+    tooltip: ({ cellData }) =>
+      cellData.field?.referenceTableName
+        ? 'Nested table: ' + cellData.field?.referenceTableName
+        : '',
+    iconSize: ({ gridSizes }) => gridSizes.cell.fontSize,
+    onAddEventListeners: ({ eventBus, cellData, gridApi, icon }) => {
+      icon.on('pointerdown', () => {
+        if (gridApi.isPanModeEnabled) return;
+
+        eventBus.emit({
+          type: 'tables/expand-dim',
+          payload: {
+            tableName: cellData.table?.tableName || '',
+            fieldName: cellData.field?.fieldName || '',
+            col: cellData.col,
+            row: cellData.row,
+          },
+        });
+      });
+    },
+  },
+  {
+    name: 'Period series icon',
+    priority: 4,
+    enabled: ({ cellData }) =>
+      !cellData.isFieldHeader &&
+      !cellData.isTableHeader &&
+      !!cellData.field?.isPeriodSeries,
+    visibleModifier: 'always',
+    path: ({ themeName }) => getFullIconName('chart', themeName),
+    tooltip: 'Period series',
+    iconSize: ({ gridSizes }) => gridSizes.cell.fontSize,
+    onAddEventListeners: ({ eventBus, cellData, gridApi, icon }) => {
+      icon.on('pointerdown', () => {
+        if (gridApi.isPanModeEnabled) return;
+
+        eventBus.emit({
+          type: 'tables/expand-dim',
+          payload: {
+            tableName: cellData.table?.tableName || '',
+            fieldName: cellData.field?.fieldName || '',
+            col: cellData.col,
+            row: cellData.row,
+          },
+        });
+      });
+    },
+  },
+  {
+    name: 'Reference icon',
+    priority: 5,
+    enabled: ({ cellData }) =>
+      !cellData.isFieldHeader &&
+      !cellData.isTableHeader &&
+      cellData.field?.type === ColumnDataType.TABLE_REFERENCE &&
+      !!cellData.field?.referenceTableName,
+    visibleModifier: 'always',
+    path: ({ themeName }) => getFullIconName('reference', themeName),
+    tooltip: ({ cellData }) =>
+      cellData.field?.referenceTableName
+        ? 'Reference: ' + cellData.field?.referenceTableName
+        : '',
+    iconSize: ({ gridSizes }) => gridSizes.cell.fontSize,
+    onAddEventListeners: ({ eventBus, cellData, gridApi, icon }) => {
+      icon.on('pointerdown', () => {
+        if (gridApi.isPanModeEnabled) return;
+
+        eventBus.emit({
+          type: 'tables/show-row-ref',
+          payload: {
+            tableName: cellData.table?.tableName || '',
+            fieldName: cellData.field?.fieldName || '',
+            col: cellData.col,
+            row: cellData.row,
+          },
+        });
+      });
+    },
+  },
+];
+
+const secondaryCellIcons: CellIconConfig[] = [
+  {
+    name: 'Table header delete icon',
+    priority: 0,
+    enabled: ({ cellData }) => !!cellData.isTableHeader,
+    visibleModifier: 'hoverTable',
+    path: ({ themeName }) => getFullIconName('delete', themeName),
+    tooltip: 'Delete table',
+    iconSize: ({ gridSizes }) => gridSizes.cell.fontSize,
+    onAddEventListeners: ({ eventBus, cellData, gridApi, icon }) => {
+      icon.on('pointerdown', () => {
+        if (gridApi.isPanModeEnabled) return;
+
+        eventBus.emit({
+          type: 'tables/delete',
+          payload: {
+            tableName: cellData.table?.tableName || '',
+          },
+        });
+      });
+    },
+  },
+  {
+    name: 'Table header context menu',
+    priority: 0,
+    enabled: ({ cellData }) => !!cellData.isTableHeader,
+    visibleModifier: 'hoverTable',
+    path: ({ themeName }) => getFullIconName('contextMenu', themeName),
+    tooltip: 'Context Menu',
+    iconSize: ({ gridSizes }) => gridSizes.cell.fontSize,
+    onAddEventListeners: ({ gridApi, icon, cellData }) => {
+      icon.on('pointerdown', (e) => {
+        if (gridApi.isPanModeEnabled) return;
+
+        gridApi.openContextMenuAtCoords(
+          e.screen.x,
+          e.screen.y,
+          cellData.col,
+          cellData.row,
+        );
+      });
+    },
+  },
+  {
+    name: 'Field header context menu',
+    priority: 1,
+    enabled: ({ cellData }) =>
+      !!cellData.isFieldHeader && !cellData.field?.isDynamic,
+    visibleModifier: 'hoverField',
+    path: ({ themeName }) => getFullIconName('arrowDown', themeName),
+    tooltip: 'Field context menu',
+    iconSize: ({ gridSizes }) => gridSizes.cell.applyIconSize,
+    onAddEventListeners: ({ cellData, gridApi, icon }) => {
+      icon.on('pointerdown', (e) => {
+        if (gridApi.isPanModeEnabled) return;
+
+        gridApi.openContextMenuAtCoords(
+          e.screen.x,
+          e.screen.y,
+          cellData.col,
+          cellData.row,
+        );
+      });
+    },
+  },
+  {
+    name: 'Field header apply icon',
+    priority: 0,
+    enabled: ({ cellData }) =>
+      !!cellData.isFieldHeader &&
+      !cellData.field?.isDynamic &&
+      (!!cellData.field?.filter || !!cellData.field?.sort),
+    visibleModifier: 'always',
+    path: ({ cellData, themeName }) => getApplyIconPath(cellData, themeName),
+    tooltip: 'Sort/Filter',
+    iconSize: ({ gridSizes }) => gridSizes.cell.applyIconSize,
+    onAddEventListeners: ({ cellData, gridApi, icon }) => {
+      icon.on('pointerdown', (e) => {
+        if (gridApi.isPanModeEnabled) return;
+
+        gridApi.openContextMenuAtCoords(
+          e.screen.x,
+          e.screen.y,
+          cellData.col,
+          cellData.row,
+        );
+      });
+    },
+  },
+  {
+    name: 'Field control icon',
+    priority: 0,
+    enabled: ({ cellData }) =>
+      !cellData.isFieldHeader &&
+      !cellData.isTableHeader &&
+      !!cellData.field?.controlType,
+    visibleModifier: 'always',
+    path: ({ themeName }) => getFullIconName('arrowDown', themeName),
+    tooltip: 'Open control',
+    iconSize: ({ gridSizes }) => gridSizes.cell.applyIconSize,
+    onAddEventListeners: ({ cellData, gridApi, icon }) => {
+      icon.on('pointerdown', () => {
+        if (gridApi.isPanModeEnabled) return;
+
+        gridApi.event.emit({
+          type: GridEvent.openControl,
+          cellData,
+        });
+      });
+    },
+  },
+];
+
+export const getCellIcons = (
   cellData: GridCell,
-  iconMetadata: IconMetadata | undefined,
-  gridCallbacks: GridCallbacks,
+  previousIcons: CellIcons | undefined,
+  eventBus: GridEventBus,
   gridApi: GridApi,
   themeName: AppTheme,
-  gridSizes: GridSizes
-):
-  | { icon?: PIXI.Sprite; iconMetadata?: IconMetadata; isSameIcon?: boolean }
-  | undefined {
-  const iconOptions = getIconOptions(cellData, themeName);
-
-  if (!iconOptions) return;
-
-  const { path, tooltip } = iconOptions;
-  const isApplyIcon = isApplyFieldHeaderCell(cellData);
-  const isTotalIcon = cellData.totalIndex && cellData.totalType;
-  const { fontSize, applyIconSize, totalIconSize } = gridSizes.cell;
-  let iconSize = fontSize;
-
-  if (isApplyIcon) {
-    iconSize = applyIconSize;
-  } else if (isTotalIcon) {
-    iconSize = totalIconSize;
-  }
-
-  const newIconMetadata: IconMetadata = {
-    path,
-    tooltip,
-    iconSize,
-    tableName: cellData.table?.tableName,
-  };
-
-  if (isEqual(iconMetadata, newIconMetadata)) {
-    return { isSameIcon: true };
-  }
-
-  const icon = PIXI.Sprite.from(path);
-
-  icon.zIndex = ComponentLayer.Icon;
-  icon.roundPixels = true;
-  icon.height = iconSize;
-  icon.width = iconSize;
-  icon.eventMode = 'static';
-
-  icon.addEventListener('pointerover', (e: PIXI.FederatedPointerEvent) => {
-    icon.cursor = 'pointer';
-
-    const { x, y } = e.target as PIXI.Sprite;
-    const tooltipX = x + icon.width / 2;
-    const tooltipY = y + icon.height / 2;
-
-    tooltip && gridApi.openTooltip(tooltipX, tooltipY, tooltip);
-  });
-
-  icon.addEventListener('pointerout', () => {
-    tooltip && gridApi.closeTooltip();
-  });
-
-  const shouldAddClickEvent = isIconClickable(cellData);
-
-  if (!shouldAddClickEvent) return { icon, iconMetadata: newIconMetadata };
-
-  const { col, row } = cellData;
-
-  if (cellData.isTableHeader) {
-    icon.addEventListener(
-      'pointerdown',
-      () =>
-        !gridApi.isPanModeEnabled &&
-        gridCallbacks.onDeleteTable?.(cellData.table?.tableName || '')
-    );
-  } else if (isApplyIcon) {
-    icon.addEventListener(
-      'pointerdown',
-      (e) =>
-        !gridApi.isPanModeEnabled &&
-        gridApi.openContextMenuAtCoords(e.screen.x, e.screen.y, col, row)
-    );
-  } else if (cellData.field?.isNested || cellData.field?.isPeriodSeries) {
-    icon.addEventListener(
-      'pointerdown',
-      () =>
-        !gridApi.isPanModeEnabled &&
-        gridCallbacks.onExpandDimTable?.(
-          cellData.table?.tableName || '',
-          cellData.field?.fieldName || '',
-          col,
-          row
-        )
-    );
-  } else if (
-    cellData.field?.type === ColumnDataType.TABLE_REFERENCE &&
-    cellData.field?.referenceTableName
-  ) {
-    icon.addEventListener(
-      'pointerdown',
-      () =>
-        !gridApi.isPanModeEnabled &&
-        gridCallbacks.onShowRowReference?.(
-          cellData.table?.tableName || '',
-          cellData.field?.fieldName || '',
-          col,
-          row
-        )
-    );
-  }
-
-  return { icon, iconMetadata: newIconMetadata };
-}
-
-export function getTableHeaderContextMenuIcon(
-  col: number,
-  row: number,
-  iconMetadata: IconMetadata | undefined,
-  gridApi: GridApi,
-  themeName: AppTheme,
-  gridSizes: GridSizes
-): { icon: PIXI.Sprite; iconMetadata: IconMetadata } | undefined {
-  const { fontSize } = gridSizes.cell;
-
-  const newIconMetadata: IconMetadata = {
-    path: 'contextMenu',
-    iconSize: fontSize,
-  };
-
-  if (isEqual(iconMetadata, newIconMetadata)) {
-    return;
-  }
-
-  const icon = PIXI.Sprite.from(getFullIconName('contextMenu', themeName));
-
-  icon.zIndex = ComponentLayer.Icon;
-  icon.roundPixels = true;
-  icon.height = fontSize;
-  icon.width = fontSize;
-  icon.eventMode = 'static';
-
-  icon.addEventListener('pointerover', (e: PIXI.FederatedPointerEvent) => {
-    if (gridApi.isPanModeEnabled) return;
-
-    icon.cursor = 'pointer';
-    const { x, y } = e.target as PIXI.Sprite;
-    const tooltipX = x + icon.width / 2;
-    const tooltipY = y + icon.height / 2;
-    gridApi.openTooltip(tooltipX, tooltipY, 'Context Menu');
-  });
-
-  icon.addEventListener('pointerout', () => {
-    gridApi.closeTooltip();
-  });
-
-  icon.addEventListener(
-    'pointerdown',
-    (e) =>
-      !gridApi.isPanModeEnabled &&
-      gridApi.openContextMenuAtCoords(e.screen.x, e.screen.y, col, row)
+  gridSizes: GridSizes,
+): CellIcons & { isSameIcon?: boolean } => {
+  const visiblePrimaryIcons = primaryCellIcons.filter((icon) =>
+    icon.enabled({ cellData, eventBus, gridApi, themeName, gridSizes }),
+  );
+  const visibleSecondaryIcons = secondaryCellIcons.filter((icon) =>
+    icon.enabled({ cellData, eventBus, gridApi, themeName, gridSizes }),
   );
 
-  return { icon, iconMetadata: newIconMetadata };
-}
+  if (visiblePrimaryIcons.length === 0 && visibleSecondaryIcons.length === 0)
+    return { primaryIcons: [], secondaryIcons: [] };
 
-export function getIconOptions(
-  cell: GridCell,
-  themeName: AppTheme
-): { path: string; tooltip: string } | null {
-  const isHeader = !!cell.isTableHeader;
-  const isField = !!cell.isFieldHeader;
-  const isCell = !isHeader && !isField;
-  const isNestedIcon = isCell && cell.field?.isNested;
-  const isPeriodSeriesIcon = cell.field?.isPeriodSeries && !isField;
-  const isReferenceIcon =
-    cell.field?.type === ColumnDataType.TABLE_REFERENCE &&
-    cell.field?.referenceTableName;
+  const highestPriorityPrimaryIconPriority = Math.min(
+    ...visiblePrimaryIcons.map((icon) => icon.priority),
+  );
+  const highestPrioritySecondaryIconPriority = Math.min(
+    ...visibleSecondaryIcons.map((icon) => icon.priority),
+  );
+  const highestPriorityPrimaryIcons = visiblePrimaryIcons.filter(
+    (icon) => icon.priority === highestPriorityPrimaryIconPriority,
+  );
 
-  if (isHeader) {
-    return {
-      path: getFullIconName('delete', themeName),
-      tooltip: 'Delete table',
+  const highestPrioritySecondaryIcons = visibleSecondaryIcons.filter(
+    (icon) => icon.priority === highestPrioritySecondaryIconPriority,
+  );
+
+  if (
+    highestPriorityPrimaryIcons.length === 0 &&
+    highestPrioritySecondaryIcons.length === 0
+  )
+    return { primaryIcons: [], secondaryIcons: [] };
+
+  const iconFnArgs = { cellData, eventBus, gridApi, themeName, gridSizes };
+  const mapMetadata = (icon: CellIconConfig): IconMetadata => {
+    const path = icon.path(iconFnArgs);
+    const isAnimatedIcon = Array.isArray(path);
+    const metadata = {
+      path,
+      tooltip:
+        typeof icon.tooltip === 'function'
+          ? icon.tooltip(iconFnArgs)
+          : icon.tooltip,
+      iconSize: icon.iconSize(iconFnArgs),
+      tableName: cellData.table?.tableName,
+      visibleModifier: icon.visibleModifier,
+      isAnimatedIcon,
+      onAddEventListeners: icon.onAddEventListeners,
     };
+
+    return metadata;
+  };
+  const newPrimaryIconMetadatas = highestPriorityPrimaryIcons.map(mapMetadata);
+  const newSecondaryIconMetadatas =
+    highestPrioritySecondaryIcons.map(mapMetadata);
+
+  const previousPrimaryMetadatas = previousIcons?.primaryIcons.map(
+    (icon) => icon.metadata,
+  );
+  const previousSecondaryMetadatas = previousIcons?.secondaryIcons.map(
+    (icon) => icon.metadata,
+  );
+  if (
+    isEqual(previousPrimaryMetadatas, newPrimaryIconMetadatas) &&
+    isEqual(previousSecondaryMetadatas, newSecondaryIconMetadatas)
+  ) {
+    return { primaryIcons: [], secondaryIcons: [], isSameIcon: true };
   }
 
-  if (isApplyFieldHeaderCell(cell)) {
-    return { path: getApplyIconPath(cell, themeName), tooltip: 'Sort/Filter' };
-  }
+  const createIcon = ({
+    path,
+    iconSize,
+    tooltip,
+    isAnimatedIcon,
+    onAddEventListeners,
+  }: IconMetadata) => {
+    let icon: Sprite | AnimatedSprite | undefined;
 
-  if (cell.totalIndex) {
-    if (!cell.totalType) return null;
+    if (isAnimatedIcon) {
+      // For animated sprites, load textures first, then create sprite
+      // This ensures textures are ready before setting size
+      const texturePaths = path as string[];
+      const textures = texturePaths
+        .map((p) => {
+          const asset = Assets.get(p as string);
+          if (!asset) {
+            // eslint-disable-next-line no-console
+            console.error(`No appropriate icon for ${p}`);
 
-    const icon = getTotalIcon(cell.totalType);
+            return undefined;
+          }
 
-    if (icon) {
-      return {
-        path: getFullIconName(icon, themeName),
-        tooltip: getTotalIconTooltip(cell.totalType),
-      };
+          return asset;
+        })
+        .filter((asset) => asset !== undefined) as Texture[];
+
+      // Create animated sprite from loaded textures
+      const animatedSprite = new AnimatedSprite(textures);
+
+      // Set size immediately - textures should be loading/loaded
+      animatedSprite.height = iconSize;
+      animatedSprite.width = iconSize;
+
+      animatedSprite.zIndex = ComponentLayer.Icon;
+      animatedSprite.roundPixels = true;
+      animatedSprite.eventMode = 'static';
+      animatedSprite.animationSpeed = 0.15;
+      animatedSprite.play();
+      icon = animatedSprite;
+    } else {
+      // For regular sprites, create normally
+      const asset = Assets.get(path as string);
+      if (!asset) {
+        // eslint-disable-next-line no-console
+        console.error(`No appropriate icon for ${path}`);
+
+        return undefined;
+      }
+      icon = new Sprite(asset);
+      icon.zIndex = ComponentLayer.Icon;
+      icon.roundPixels = true;
+      icon.height = iconSize;
+      icon.width = iconSize;
+      icon.eventMode = 'static';
     }
-  } else if (isNestedIcon) {
-    const tooltip = cell.field?.referenceTableName
-      ? 'Nested Table: ' + cell.field?.referenceTableName
-      : '';
 
-    return { path: getFullIconName('table', themeName), tooltip };
-  } else if (isPeriodSeriesIcon) {
-    return {
-      path: getFullIconName('chart', themeName),
-      tooltip: 'Period series',
-    };
-  } else if (isReferenceIcon) {
-    const tooltip = cell.field?.referenceTableName
-      ? 'Reference: ' + cell.field?.referenceTableName
-      : '';
+    icon.on('pointerover', (e: FederatedPointerEvent) => {
+      icon.cursor = 'pointer';
 
-    return { path: getFullIconName('reference', themeName), tooltip };
-  }
+      const { x, y } = e.target as Sprite;
+      const tooltipX = x + icon.width / 2;
+      const tooltipY = y + icon.height / 2;
 
-  return null;
-}
+      tooltip && gridApi.openTooltip(tooltipX, tooltipY, tooltip);
+    });
+
+    icon.on('pointerout', () => {
+      tooltip && gridApi.closeTooltip();
+    });
+
+    if (onAddEventListeners) {
+      onAddEventListeners({ ...iconFnArgs, icon });
+    }
+
+    return icon;
+  };
+
+  return {
+    primaryIcons: newPrimaryIconMetadatas
+      .map((metadata) => ({
+        icon: createIcon(metadata),
+        metadata,
+      }))
+      .filter(({ icon }) => icon !== undefined) as CellIcon[],
+    secondaryIcons: newSecondaryIconMetadatas
+      .map((metadata) => ({
+        icon: createIcon(metadata),
+        metadata,
+      }))
+      .filter(({ icon }) => icon !== undefined) as CellIcon[],
+  };
+};
 
 export function getFullIconName(iconName: string, themeName: AppTheme): string {
   const theme = themeName === AppTheme.ThemeDark ? 'Dark' : 'Light';
 
-  return `icons/canvasGrid/${iconName}${theme}.svg`;
+  return `pixi-assets/icons/${iconName}${theme}.svg`;
+}
+
+function getControlIcon(controlType: ControlType): string | undefined {
+  const mapping: [ControlType, string][] = [
+    ['dropdown', 'dropdownControl'],
+    ['checkbox', 'checkboxControl'],
+  ];
+
+  for (const [type, icon] of mapping) {
+    if (type === controlType) {
+      return icon;
+    }
+  }
+
+  return;
+}
+
+export function getControlIconTooltip(controlType: ControlType): string {
+  const mapping: [ControlType, string][] = [
+    ['dropdown', 'Dropdown control'],
+    ['checkbox', 'Checkbox control'],
+  ];
+
+  for (const [type, tooltip] of mapping) {
+    if (type === controlType) {
+      return tooltip;
+    }
+  }
+
+  return 'Control';
 }
 
 function getTotalIcon(totalType: TotalType): string | undefined {
@@ -312,46 +565,7 @@ export function isFieldSortedOrFiltered(cell: GridCell): boolean {
   return !!cell.field?.sort || !!cell.field?.isFiltered;
 }
 
-export function isIconRightPlacement(cell?: GridCell): boolean {
-  if (!cell) return false;
-
-  const isTableHeader = !!cell.isTableHeader;
-
-  return isApplyFieldHeaderCell(cell) || isTableHeader;
-}
-
-function isApplyFieldHeaderCell(cell: GridCell): boolean {
-  return !!cell.isFieldHeader && !cell.field?.isDynamic;
-}
-
-function isTableReference(cell: GridCell): boolean {
-  return !!(
-    cell.field?.type === ColumnDataType.TABLE_REFERENCE &&
-    cell.field?.referenceTableName
-  );
-}
-
-function isIconClickable(cell: GridCell): boolean {
-  return (
-    !!cell.isTableHeader ||
-    !!cell.field?.isNested ||
-    !!cell.field?.isPeriodSeries ||
-    isApplyFieldHeaderCell(cell) ||
-    isTableReference(cell)
-  );
-}
-
-export function removeIcon(
-  graphics: PIXI.Graphics,
-  iconCell: IconCell,
-  iconType: 'secondaryIcon' | 'icon'
-) {
-  const icon = iconCell[iconType];
-
-  if (!icon) return;
-
-  graphics.removeChild(icon);
-  icon.destroy();
-  iconCell[iconType] = undefined;
-  iconCell[`${iconType}Metadata`] = undefined;
+export function removeIcon(iconCell: CellIcon) {
+  iconCell.icon.parent?.removeChild(iconCell.icon);
+  iconCell.icon.destroy();
 }

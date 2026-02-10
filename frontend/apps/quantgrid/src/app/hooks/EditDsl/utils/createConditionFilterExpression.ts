@@ -5,7 +5,7 @@ export function createConditionFilterExpression(
   fieldName: string,
   operator: string,
   filterType: GridFilterType,
-  value: string | string[] | null
+  value: string | string[] | null,
 ): string | null {
   if (!value) return null;
 
@@ -18,7 +18,7 @@ export function createConditionFilterExpression(
       return `BETWEEN([${fieldName}],${value1},${value2})`;
     } else if (filterType === 'text') {
       return `BETWEEN([${fieldName}],"${escapeValue(value1)}","${escapeValue(
-        value2
+        value2,
       )}")`;
     }
   }

@@ -5,6 +5,16 @@ import Icon from '@ant-design/icons';
 import { PlusIcon } from '@frontend/common';
 import { ChartType, ParsedTable } from '@frontend/parser';
 
+import { shallowEqualArray, useSettingState } from '../../../hooks';
+import {
+  ChartPanelCollapseSection as CollapseSection,
+  chartsWithOrientation,
+  chartsWithoutLegend,
+  chartsWithoutXAxis,
+  chartsWithSeparators,
+  chartsWithVisualMap,
+  defaultChartPanelSections,
+} from '../../../utils';
 import { TableNameSection } from '../TableDetails';
 import {
   ChartDataSection,
@@ -16,31 +26,16 @@ import {
   ChartXAxisSection,
   InfoHeader,
 } from './Components';
-import {
-  chartsWithOrientation,
-  chartsWithoutLegend,
-  chartsWithoutXAxis,
-  chartsWithSeparators,
-  CollapseSection,
-} from './utils';
-
-const storageKey = 'chartOptionsCollapseSections';
-const defaultSections: CollapseSection[] = [
-  CollapseSection.Title,
-  CollapseSection.ChartType,
-];
 
 export function useChartOptions({ parsedTable }: { parsedTable: ParsedTable }) {
   const [isAddingSelector, setIsAddingSelector] = useState(false);
-  const [allActiveKeys, setAllActiveKeys] = useState<CollapseSection[]>(() => {
-    try {
-      const raw = localStorage.getItem(storageKey);
-
-      return raw ? (JSON.parse(raw) as CollapseSection[]) : defaultSections;
-    } catch {
-      return defaultSections;
-    }
-  });
+  const [allActiveKeys, setAllActiveKeys] = useSettingState(
+    'chartOptionsCollapseSections',
+    {
+      fallback: defaultChartPanelSections,
+      equals: shallowEqualArray,
+    },
+  );
 
   const firstCollapseSectionActiveKeys = useMemo(() => {
     return allActiveKeys.filter((key) =>
@@ -49,7 +44,7 @@ export function useChartOptions({ parsedTable }: { parsedTable: ParsedTable }) {
         CollapseSection.ChartType,
         CollapseSection.Selectors,
         CollapseSection.SizeLocation,
-      ].includes(key)
+      ].includes(key),
     );
   }, [allActiveKeys]);
 
@@ -60,7 +55,7 @@ export function useChartOptions({ parsedTable }: { parsedTable: ParsedTable }) {
         CollapseSection.Data,
         CollapseSection.XAxis,
         CollapseSection.Orientation,
-      ].includes(key)
+      ].includes(key),
     );
   }, [allActiveKeys]);
 
@@ -76,6 +71,10 @@ export function useChartOptions({ parsedTable }: { parsedTable: ParsedTable }) {
     return chartType ? !chartsWithoutLegend.includes(chartType) : false;
   }, [chartType]);
 
+  const showVisualMapSection = useMemo(() => {
+    return chartType ? chartsWithVisualMap.includes(chartType) : false;
+  }, [chartType]);
+
   const showXAxisSection = useMemo(() => {
     return chartType ? !chartsWithoutXAxis.includes(chartType) : false;
   }, [chartType]);
@@ -88,57 +87,58 @@ export function useChartOptions({ parsedTable }: { parsedTable: ParsedTable }) {
     return chartType ? chartsWithSeparators.includes(chartType) : false;
   }, [chartType]);
 
-  const onFirstCollapseSectionChange = useCallback((activeKeys: string[]) => {
-    const typedKeys = activeKeys as CollapseSection[];
-    setAllActiveKeys((prev) => {
-      const filteredPrev = prev.filter(
-        (key) =>
-          ![
-            CollapseSection.Title,
-            CollapseSection.ChartType,
-            CollapseSection.Selectors,
-            CollapseSection.SizeLocation,
-          ].includes(key)
-      );
+  const onFirstCollapseSectionChange = useCallback(
+    (activeKeys: string[]) => {
+      const typedKeys = activeKeys as CollapseSection[];
+      setAllActiveKeys((prev) => {
+        const filteredPrev = (prev ?? []).filter(
+          (key) =>
+            ![
+              CollapseSection.Title,
+              CollapseSection.ChartType,
+              CollapseSection.Selectors,
+              CollapseSection.SizeLocation,
+            ].includes(key),
+          true,
+        );
 
-      return [...filteredPrev, ...typedKeys];
-    });
-  }, []);
+        return [...filteredPrev, ...typedKeys];
+      });
+    },
+    [setAllActiveKeys],
+  );
 
-  const onSecondCollapseSectionChange = useCallback((activeKeys: string[]) => {
-    const typedKeys = activeKeys as CollapseSection[];
-    setAllActiveKeys((prev) => {
-      const filteredPrev = prev.filter(
-        (key) =>
-          ![
-            CollapseSection.Series,
-            CollapseSection.Data,
-            CollapseSection.XAxis,
-            CollapseSection.Orientation,
-          ].includes(key)
-      );
+  const onSecondCollapseSectionChange = useCallback(
+    (activeKeys: string[]) => {
+      const typedKeys = activeKeys as CollapseSection[];
+      setAllActiveKeys((prev) => {
+        const filteredPrev = (prev ?? []).filter(
+          (key) =>
+            ![
+              CollapseSection.Series,
+              CollapseSection.Data,
+              CollapseSection.XAxis,
+              CollapseSection.Orientation,
+            ].includes(key),
+          true,
+        );
 
-      return [...filteredPrev, ...typedKeys];
-    });
-  }, []);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(storageKey, JSON.stringify(allActiveKeys));
-    } catch {
-      // empty section
-    }
-  }, [allActiveKeys]);
+        return [...filteredPrev, ...typedKeys];
+      });
+    },
+    [setAllActiveKeys],
+  );
 
   const showSeriesColumnAttributesSection = useMemo((): boolean => {
     if (chartType === ChartType.SCATTER_PLOT) return true;
 
     const isHorizontal = parsedTable.getChartOrientation() === 'horizontal';
     const horizontalChartsWithDotColor = [
-      ChartType.BAR,
       ChartType.PIE,
-      ChartType.FLAT_BAR,
+      ChartType.CLUSTERED_BAR,
       ChartType.STACKED_BAR,
+      ChartType.CLUSTERED_COLUMN,
+      ChartType.STACKED_COLUMN,
     ];
 
     return !!(
@@ -161,10 +161,11 @@ export function useChartOptions({ parsedTable }: { parsedTable: ParsedTable }) {
     const isVertical = parsedTable.getChartOrientation() === 'vertical';
 
     const verticalChartsWithDotColor = [
-      ChartType.BAR,
       ChartType.PIE,
-      ChartType.FLAT_BAR,
+      ChartType.CLUSTERED_BAR,
       ChartType.STACKED_BAR,
+      ChartType.CLUSTERED_COLUMN,
+      ChartType.STACKED_COLUMN,
     ];
 
     return !!(
@@ -179,9 +180,12 @@ export function useChartOptions({ parsedTable }: { parsedTable: ParsedTable }) {
       isAddingSelector &&
       !allActiveKeys.includes(CollapseSection.Selectors)
     ) {
-      setAllActiveKeys((prev) => [...prev, CollapseSection.Selectors]);
+      setAllActiveKeys(
+        (prev) => [...(prev ?? []), CollapseSection.Selectors],
+        true,
+      );
     }
-  }, [isAddingSelector, allActiveKeys]);
+  }, [isAddingSelector, allActiveKeys, setAllActiveKeys]);
 
   const getFirstCollapseSection = useCallback((): CollapseProps['items'] => {
     return [
@@ -294,6 +298,7 @@ export function useChartOptions({ parsedTable }: { parsedTable: ParsedTable }) {
     getFirstCollapseSection,
     getSecondCollapseSection,
     showLegendSection,
+    showVisualMapSection,
     firstCollapseSectionActiveKeys,
     onFirstCollapseSectionChange,
     secondCollapseSectionActiveKeys,

@@ -1,0 +1,60 @@
+[default.assistant]
+deployment-name = "qg"
+
+[default.assistant.url]
+dial = "https://dev-dial-core.staging.deltixhub.io"
+xl = "https://quantgrid-dev.staging.deltixhub.io"
+
+[default.assistant.mlflow]
+enabled = false
+experiment = "DIAL XL Assistant"
+
+[default.assistant.langgraph]
+debug = false
+recursion-limit = 20
+
+[default.assistant.agents.default]
+azure-api-version = "2025-06-01"
+azure-timeout = 60
+
+# TODO: Support rate_limiter
+# TODO: Support linear retry delay
+
+llm-context-limit = 120_000
+llm-max-retries = 3
+llm-name = "anthropic.claude-v4-5-sonnet-v1"
+llm-response-limit = 8_000
+llm-seed = 1813
+llm-streaming = true
+llm-structure-method = "function_calling"
+llm-temperature = 0.0
+
+[[default.assistant.agents.overrides]]
+agent = "actions"
+
+xl-dynamic-fields = true
+xl-embeddings-count = 5
+xl-embeddings-timeout = 10
+xl-row-count = 10
+
+[default.assistant.resources]
+resource-dir = "resources"
+
+[[default.assistant.resources.agents]]
+agent = "actions"
+message-files = []
+
+raw-files = [
+    { name = "system", path = "actions/system.md" },
+    { name = "doc", path = "actions/dial_xl_doc.md" }
+]
+
+template-files = [
+    {name = "human", path = "actions/human.jinja"},
+    {name = "workspace", path = "actions/workspace.jinja"},
+]
+
+[test.assistant.mlflow]
+
+enabled = true
+url = "http://127.0.0.1:8085"

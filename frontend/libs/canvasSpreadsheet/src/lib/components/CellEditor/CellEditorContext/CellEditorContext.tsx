@@ -1,4 +1,4 @@
-import { createContext, MutableRefObject } from 'react';
+import { createContext, RefObject } from 'react';
 
 import {
   editor,
@@ -21,7 +21,7 @@ type CellEditorContextActions = {
   setEditedCalculatedCellValue: (editedCalculatedCellValue: string) => void;
   setEditMode: (editMode: GridCellEditorMode) => void;
   setEditorStyle: (
-    editorStyle: EditorStyle | ((prev: EditorStyle) => EditorStyle)
+    editorStyle: EditorStyle | ((prev: EditorStyle) => EditorStyle),
   ) => void;
   setOpenedWithNextChar: (openedWithNextChar: string) => void;
   setCurrentTableName: (currentTableName: string) => void;
@@ -32,7 +32,7 @@ type CellEditorContextActions = {
   displayCellEditor: (
     col: number,
     row: number,
-    options: GridCellEditorOpenOptions
+    options: GridCellEditorOpenOptions,
   ) => void;
   hide: () => void;
 };
@@ -51,12 +51,12 @@ type CellEditorContextValues = {
   codeEditor: editor.IStandaloneCodeEditor | undefined;
   saveOnArrowEnabled: boolean;
 
-  isDottedSelection: MutableRefObject<boolean>;
-  mouseOverSwitcherTooltip: MutableRefObject<boolean>;
-  codeValue: MutableRefObject<string>;
-  setCode: MutableRefObject<SetCodeRefFunction>;
-  setFocus: MutableRefObject<SetFocusRefFunction>;
-  ignoreScrollEvent: MutableRefObject<boolean>;
+  isDottedSelection: RefObject<boolean>;
+  mouseOverSwitcherTooltip: RefObject<boolean>;
+  codeValue: RefObject<string>;
+  setCode: RefObject<SetCodeRefFunction>;
+  setFocus: RefObject<SetFocusRefFunction>;
+  ignoreScrollEvent: RefObject<boolean>;
 };
 
 export const CellEditorContext = createContext<

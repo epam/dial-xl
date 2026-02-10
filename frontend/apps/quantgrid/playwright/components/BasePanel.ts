@@ -11,7 +11,7 @@ export class BasePanel extends BaseComponent {
 
   protected getPanelRootLocator() {
     return this.innerPage.locator(
-      `#${this.panelName}-panel[data-panel-active='true']`
+      `#${this.panelName}-panel[data-panel-active='true']`,
     );
   }
 

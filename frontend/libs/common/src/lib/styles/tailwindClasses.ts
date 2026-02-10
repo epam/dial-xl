@@ -1,13 +1,14 @@
 import cx from 'classnames';
-import { DefaultOptionType } from 'rc-select/lib/Select';
 import { ClassNamesConfig, GroupBase, StylesConfig } from 'react-select';
 
+import { DefaultOptionType } from '@rc-component/select/lib/Select';
+
 export const inputClasses = cx(
-  'rounded-[3px] border border-stroke-tertiary! bg-bg-layer-3! text-text-primary ',
+  'rounded-[3px] border border-stroke-tertiary! bg-bg-layer-3! text-text-primary',
   'focus:bg-bg-layer-3! focus:border-stroke-accent-primary!',
   'focus-within:bg-bg-layer-3! focus-within:shadow-none! focus:shadow-none! focus-within:border-stroke-accent-primary!',
   'hover:bg-bg-layer-3! hover:border-stroke-accent-primary!',
-  'disabled:border-stroke-tertiary! disabled:text-controls-text-disable disabled:placeholder:text-controls-text-disable'
+  'disabled:border-stroke-tertiary! disabled:text-controls-text-disable disabled:placeholder:text-controls-text-disable',
 );
 
 export const primaryButtonClasses =
@@ -53,7 +54,7 @@ export const SelectClasses: ClassNamesConfig<
   control: ({ menuIsOpen }) =>
     cx(
       'bg-bg-layer-3! text-text-primary! hover:border-stroke-accent-primary! shadow-none! text-[13px]',
-      menuIsOpen ? 'border-stroke-accent-primary!' : 'border-stroke-tertiary!'
+      menuIsOpen ? 'border-stroke-accent-primary!' : 'border-stroke-tertiary!',
     ),
   menu: () => 'bg-bg-layer-0! text-[13px] rounded-[3px]!',
   menuList: () => 'thin-scrollbar',
@@ -68,8 +69,22 @@ export const SelectClasses: ClassNamesConfig<
           ? 'bg-bg-accent-primary-alpha! !text-controls-text-disabled'
           : 'bg-bg-accent-primary-alpha! text-text-accent-primary!'
         : isDisabled
-        ? 'bg-bg-layer-0! !text-controls-text-disabled'
-        : 'bg-bg-layer-0! text-text-primary! hover:bg-bg-accent-primary-alpha!'
+          ? 'bg-bg-layer-0! !text-controls-text-disabled'
+          : 'bg-bg-layer-0! text-text-primary! hover:bg-bg-accent-primary-alpha!',
+    ),
+};
+
+export const SelectCompactClasses: ClassNamesConfig<
+  DefaultOptionType,
+  boolean,
+  GroupBase<any>
+> = {
+  ...SelectClasses,
+  dropdownIndicator: () => 'hover:text-stroke-hover! pl-0! py-0.5!',
+  control: ({ menuIsOpen }) =>
+    cx(
+      SelectClasses.control?.({ menuIsOpen } as any),
+      'min-h-[28px]! h-[28px]!',
     ),
 };
 

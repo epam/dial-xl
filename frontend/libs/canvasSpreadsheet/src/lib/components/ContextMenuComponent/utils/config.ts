@@ -42,6 +42,7 @@ export const spreadsheetMenuKeys = {
   removeNote: 'removeNote',
   openTableInEditor: 'OpenTableInEditor',
   openFieldInEditor: 'openFieldInEditor',
+  openDetailsPanel: 'openDetailsPanel',
   openOverrideInEditor: 'openOverrideInEditor',
   flipTableToHorizontal: 'FlipTableToHorizontal',
   flipTableToVertical: 'FlipTableToVertical',
@@ -72,6 +73,10 @@ export const spreadsheetMenuKeys = {
   tableForward: 'tableForward',
   tableBackward: 'tableBackward',
   switchInput: 'SwitchInput',
+  syncImport: 'SyncImport',
+  createDropdownControlFromField: 'CreateDropdownControlFromField',
+  createCheckboxControlFromField: 'CreateCheckboxControlFromField',
+  aiRegenerate: 'AIRegenerate',
 };
 
 type TotalItem = {

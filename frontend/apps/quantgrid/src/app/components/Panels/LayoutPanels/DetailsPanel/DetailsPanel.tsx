@@ -1,10 +1,17 @@
 import { useContext, useEffect, useState } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 
 import { ParsedTable } from '@frontend/parser';
 
 import { PanelProps } from '../../../../common';
-import { AppContext, ProjectContext } from '../../../../context';
+import { ProjectContext } from '../../../../context';
+import {
+  useControlStore,
+  usePivotStore,
+  useViewStore,
+} from '../../../../store';
 import { ChartOptions } from '../../Chart';
+import { ControlWizard } from '../../ControlWizard';
 import { PanelToolbar } from '../../PanelToolbar';
 import { PivotTableWizard } from '../../PivotTableWizard';
 import { PivotWizardContextProvider } from '../../PivotTableWizard';
@@ -18,9 +25,22 @@ export function DetailsPanel({
   position,
   isActive,
 }: PanelProps) {
-  const { pivotTableWizardMode, changePivotTableWizardMode, pivotTableName } =
-    useContext(AppContext);
-  const { selectedCell, parsedSheet } = useContext(ProjectContext);
+  const { pivotTableName, pivotTableWizardMode, changePivotTableWizardMode } =
+    usePivotStore(
+      useShallow((s) => ({
+        pivotTableName: s.pivotTableName,
+        pivotTableWizardMode: s.pivotTableWizardMode,
+        changePivotTableWizardMode: s.changePivotTableWizardMode,
+      })),
+    );
+  const controlWizardIsOpen = useControlStore((s) => s.isOpen);
+  const openControlCreateWizard = useControlStore(
+    (s) => s.openControlCreateWizard,
+  );
+  const closeControlWizard = useControlStore((s) => s.closeControlWizard);
+
+  const { parsedSheet } = useContext(ProjectContext);
+  const selectedCell = useViewStore((s) => s.selectedCell);
   const [selectedParsedTable, setSelectedParsedTable] =
     useState<ParsedTable | null>(null);
 
@@ -28,16 +48,29 @@ export function DetailsPanel({
     if (!selectedCell) {
       setSelectedParsedTable(null);
       changePivotTableWizardMode(null);
+      closeControlWizard();
 
       return;
     }
 
     const timeoutId = setTimeout(() => {
       const foundTable = parsedSheet?.tables.find(
-        ({ tableName }) => tableName === selectedCell.tableName
+        ({ tableName }) => tableName === selectedCell.tableName,
       );
 
       setSelectedParsedTable(foundTable || null);
+
+      if (foundTable) {
+        const isControlTable = foundTable.isControl();
+
+        if (isControlTable) {
+          openControlCreateWizard();
+        } else {
+          closeControlWizard();
+        }
+      } else {
+        closeControlWizard();
+      }
 
       if (
         (pivotTableWizardMode === 'edit' &&
@@ -50,7 +83,9 @@ export function DetailsPanel({
 
     return () => clearTimeout(timeoutId);
   }, [
+    closeControlWizard,
     changePivotTableWizardMode,
+    openControlCreateWizard,
     parsedSheet,
     pivotTableName,
     pivotTableWizardMode,
@@ -59,11 +94,18 @@ export function DetailsPanel({
 
   return (
     <PanelWrapper isActive={isActive} panelName={panelName}>
-      <PanelToolbar panelName={panelName} position={position} title={title} />
+      <PanelToolbar
+        isActive={isActive}
+        panelName={panelName}
+        position={position}
+        title={title}
+      />
       {pivotTableWizardMode ? (
         <PivotWizardContextProvider>
           <PivotTableWizard />
         </PivotWizardContextProvider>
+      ) : controlWizardIsOpen ? (
+        <ControlWizard parsedTable={selectedParsedTable} />
       ) : selectedParsedTable && !selectedParsedTable.isChart() ? (
         <TableDetails parsedTable={selectedParsedTable} />
       ) : (

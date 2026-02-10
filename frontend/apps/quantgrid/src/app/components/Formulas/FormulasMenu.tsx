@@ -1,5 +1,4 @@
 import { Dropdown } from 'antd';
-import { MenuInfo } from 'rc-menu/lib/interface';
 import { useCallback, useContext, useEffect, useRef, useState } from 'react';
 
 import {
@@ -8,8 +7,10 @@ import {
   MenuItem,
   useClickOutside,
 } from '@frontend/common';
+import { MenuInfo } from '@rc-component/menu/lib/interface';
 
-import { InputsContext, ProjectContext } from '../../context';
+import { PanelName } from '../../common';
+import { InputsContext, LayoutContext, ProjectContext } from '../../context';
 import {
   useCreateTableAction,
   useCreateTableDsl,
@@ -18,6 +19,7 @@ import {
 } from '../../hooks';
 import useEventBus from '../../hooks/useEventBus';
 import { EventBusMessages } from '../../services';
+import { useControlStore, useViewStore } from '../../store';
 
 type Props = {
   position: { x: number; y: number } | undefined;
@@ -25,7 +27,11 @@ type Props = {
 };
 
 export function FormulasMenu({ position, place }: Props) {
-  const { selectedCell, parsedSheets } = useContext(ProjectContext);
+  const { parsedSheets } = useContext(ProjectContext);
+  const selectedCell = useViewStore((s) => s.selectedCell);
+  const openControlCreateWizard = useControlStore(
+    (s) => s.openControlCreateWizard,
+  );
   const { functions } = useContext(ProjectContext);
   const gridApi = useGridApi();
   const eventBus = useEventBus<EventBusMessages>();
@@ -33,6 +39,7 @@ export function FormulasMenu({ position, place }: Props) {
   const { createDerivedTable, createManualTable } = useCreateTableDsl();
   const { cloneTable } = useTableEditDsl();
   const { onCreateTableAction } = useCreateTableAction();
+  const { openPanel } = useContext(LayoutContext);
 
   const [contextMenuOpen, setContextMenuOpen] = useState(false);
   const [contextMenuItems, setContextMenuItems] = useState<MenuItem[]>([]);
@@ -52,6 +59,11 @@ export function FormulasMenu({ position, place }: Props) {
       const data: FormulasContextMenuKeyData = parsedKey.data;
       const action: string = parsedKey.action;
 
+      if (action === 'CreateControl') {
+        openControlCreateWizard();
+        openPanel(PanelName.Details);
+      }
+
       if (action.startsWith('Action')) {
         switch (data.type) {
           case 'copy': {
@@ -68,7 +80,7 @@ export function FormulasMenu({ position, place }: Props) {
               createDerivedTable(
                 data.tableName,
                 selectedCell?.col ?? 1,
-                selectedCell?.row ?? 1
+                selectedCell?.row ?? 1,
               );
             }
             break;
@@ -109,6 +121,8 @@ export function FormulasMenu({ position, place }: Props) {
       setContextMenuOpen(false);
     },
     [
+      openPanel,
+      openControlCreateWizard,
       createDerivedTable,
       eventBus,
       gridApi,
@@ -116,7 +130,7 @@ export function FormulasMenu({ position, place }: Props) {
       onCreateTableAction,
       place,
       selectedCell,
-    ]
+    ],
   );
 
   const handleCreateTableBySize = useCallback(
@@ -126,10 +140,10 @@ export function FormulasMenu({ position, place }: Props) {
       createManualTable(
         selectedCell?.col ?? 1,
         selectedCell?.row ?? 1,
-        rowsItems
+        rowsItems,
       );
     },
-    [createManualTable, selectedCell?.col, selectedCell?.row]
+    [createManualTable, selectedCell?.col, selectedCell?.row],
   );
 
   useEffect(() => {
@@ -142,8 +156,8 @@ export function FormulasMenu({ position, place }: Props) {
         functions,
         tableNames,
         inputList,
-        handleCreateTableBySize
-      )
+        handleCreateTableBySize,
+      ),
     );
   }, [functions, handleCreateTableBySize, inputList, parsedSheets]);
 

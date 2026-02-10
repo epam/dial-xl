@@ -20,7 +20,7 @@ import { getCellEditorColor, shouldDisableHelpers } from './utils';
 export function CellEditor({
   apiRef,
   app,
-  gridCallbacksRef,
+  eventBus,
   functions,
   parsedSheets,
   theme,
@@ -45,7 +45,7 @@ export function CellEditor({
 
   const { onStartPointClick, onStopPointClick } = usePointAndClick({
     apiRef,
-    gridCallbacksRef,
+    eventBus,
   });
   useCellEditorEvents({
     apiRef,
@@ -62,18 +62,21 @@ export function CellEditor({
     onTabCallback,
     onEscape,
     onBlur,
-  } = useCellEditorCompleteEdit({ apiRef, gridCallbacksRef, isPointClickMode });
+  } = useCellEditorCompleteEdit({ apiRef, eventBus, isPointClickMode });
   const { switchToSecondaryEditMode } = useCellEditorSwitchMode({ apiRef });
   useCellEditorViewport({ apiRef });
 
   const disableHelpers = useMemo(
     () => shouldDisableHelpers(editMode),
-    [editMode]
+    [editMode],
   );
 
   useEffect(() => {
-    gridCallbacksRef?.current?.onCellEditorChangeEditMode?.(editMode);
-  }, [editMode, gridCallbacksRef]);
+    eventBus.emit({
+      type: 'editor/mode-changed',
+      payload: editMode,
+    });
+  }, [editMode, eventBus]);
 
   return (
     <div
@@ -83,7 +86,7 @@ export function CellEditor({
       <div
         className={cx(
           'absolute z-305 outline-solid outline-[1.5px] pointer-events-auto',
-          getCellEditorColor(editMode)
+          getCellEditorColor(editMode),
         )}
         id={cellEditorWrapperId}
         style={{ display: isOpen ? 'block' : 'none', ...editorStyle }}

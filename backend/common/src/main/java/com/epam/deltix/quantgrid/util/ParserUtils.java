@@ -23,8 +23,16 @@ public class ParserUtils {
         }
 
         if (type == InputColumnType.DATE) {
-            if (Doubles.isValue(Dates.from(value))) {
+            if (Doubles.isValue(Dates.fromDate(value))) {
                 return InputColumnType.DATE;
+            } else {
+                type = missing ? InputColumnType.DATE_TIME : InputColumnType.STRING;
+            }
+        }
+
+        if (type == InputColumnType.DATE_TIME) {
+            if (Doubles.isValue(Dates.fromDateTime(value))) {
+                return InputColumnType.DATE_TIME;
             } else {
                 type = missing ? InputColumnType.DOUBLE : InputColumnType.STRING;
             }

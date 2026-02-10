@@ -1,8 +1,8 @@
+import { Application } from 'pixi.js';
 import { RefObject, useCallback, useContext, useEffect } from 'react';
 import { Subscription } from 'rxjs';
 
 import { FormulaBarMode, Shortcut, shortcutApi } from '@frontend/common';
-import { Application } from '@pixi/app';
 
 import { GridApi } from '../../../types';
 import {
@@ -35,7 +35,7 @@ import {
 
 type Props = {
   app: Application | null;
-  apiRef: RefObject<GridApi>;
+  apiRef: RefObject<GridApi | null>;
   formulaBarMode: FormulaBarMode;
 };
 
@@ -90,7 +90,7 @@ export function useCellEditorEvents({ app, apiRef, formulaBarMode }: Props) {
 
       return !isOpen;
     },
-    [isOpen, editMode, restoreCellValue]
+    [isOpen, editMode, restoreCellValue],
   );
 
   const onDblClick = useCallback(
@@ -111,6 +111,8 @@ export function useCellEditorEvents({ app, apiRef, formulaBarMode }: Props) {
       const { col: targetCol, row } = api.getCellFromCoords(x, y);
       const cellData = api.getCell(targetCol, row);
       let col = targetCol;
+
+      if (cellData?.table?.chartType) return;
 
       if (cellData && cellData.startCol !== cellData.endCol) {
         col = cellData.startCol;
@@ -137,7 +139,7 @@ export function useCellEditorEvents({ app, apiRef, formulaBarMode }: Props) {
         hasOtherOverrides,
       });
     },
-    [apiRef, displayCellEditor, setCurrentCell]
+    [apiRef, displayCellEditor, setCurrentCell],
   );
 
   const onKeydown = useCallback(
@@ -164,7 +166,7 @@ export function useCellEditorEvents({ app, apiRef, formulaBarMode }: Props) {
       const isRenameShortcut = shortcutApi.is(Shortcut.Rename, event, false);
       const isEditExpressionShortcut = shortcutApi.is(
         Shortcut.EditExpression,
-        event
+        event,
       );
       const canOpenEditor = canOpenCellEditor(event);
 
@@ -219,7 +221,7 @@ export function useCellEditorEvents({ app, apiRef, formulaBarMode }: Props) {
           isEditTotal,
           initialValue: initialValue ?? realCodeValue,
           hasOtherOverrides,
-        }
+        },
       );
     },
     [
@@ -231,7 +233,7 @@ export function useCellEditorEvents({ app, apiRef, formulaBarMode }: Props) {
       editMode,
       openedWithNextChar,
       setOpenedWithNextChar,
-    ]
+    ],
   );
 
   const openExplicitly = useCallback(
@@ -239,7 +241,7 @@ export function useCellEditorEvents({ app, apiRef, formulaBarMode }: Props) {
       col: number,
       row: number,
       value: string,
-      options?: CellEditorExplicitOpenOptions
+      options?: CellEditorExplicitOpenOptions,
     ) => {
       if (!apiRef.current) return;
 
@@ -272,7 +274,7 @@ export function useCellEditorEvents({ app, apiRef, formulaBarMode }: Props) {
       setCode,
       setDimFieldName,
       setOpenedExplicitly,
-    ]
+    ],
   );
 
   const onInsertValue = useCallback(
@@ -310,7 +312,7 @@ export function useCellEditorEvents({ app, apiRef, formulaBarMode }: Props) {
         }, 0);
       }
     },
-    [codeEditor, codeValue, setCode, setFocus]
+    [codeEditor, codeValue, setCode, setFocus],
   );
 
   useEffect(() => {
@@ -321,7 +323,7 @@ export function useCellEditorEvents({ app, apiRef, formulaBarMode }: Props) {
 
     const subscribeToCellEditorEvent = <T extends GridCellEditorEvent>(
       eventType: GridCellEditorEventType,
-      handler: (event: T) => void
+      handler: (event: T) => void,
     ) => {
       return api.cellEditorEvent$
         .pipe(filterByTypeAndCast<T>(eventType))
@@ -336,8 +338,8 @@ export function useCellEditorEvents({ app, apiRef, formulaBarMode }: Props) {
             isEditExpressionShortcut: false,
             isRenameShortcut: true,
           });
-        }
-      )
+        },
+      ),
     );
 
     subscriptions.push(
@@ -357,8 +359,8 @@ export function useCellEditorEvents({ app, apiRef, formulaBarMode }: Props) {
             isAddTotal,
             isEditTotal,
           });
-        }
-      )
+        },
+      ),
     );
 
     subscriptions.push(
@@ -368,8 +370,8 @@ export function useCellEditorEvents({ app, apiRef, formulaBarMode }: Props) {
           displayCellEditor(col, row, {
             isAddTotal: true,
           });
-        }
-      )
+        },
+      ),
     );
 
     subscriptions.push(
@@ -379,8 +381,8 @@ export function useCellEditorEvents({ app, apiRef, formulaBarMode }: Props) {
           displayCellEditor(col, row, {
             isEditTotal: true,
           });
-        }
-      )
+        },
+      ),
     );
 
     subscriptions.push(
@@ -388,8 +390,8 @@ export function useCellEditorEvents({ app, apiRef, formulaBarMode }: Props) {
         GridCellEditorEventType.OpenExplicitly,
         ({ col, row, value, options }) => {
           openExplicitly(col, row, value, options);
-        }
-      )
+        },
+      ),
     );
 
     subscriptions.push(
@@ -397,8 +399,8 @@ export function useCellEditorEvents({ app, apiRef, formulaBarMode }: Props) {
         GridCellEditorEventType.Hide,
         () => {
           hide();
-        }
-      )
+        },
+      ),
     );
 
     subscriptions.push(
@@ -406,8 +408,8 @@ export function useCellEditorEvents({ app, apiRef, formulaBarMode }: Props) {
         GridCellEditorEventType.InsertValue,
         ({ value, options }) => {
           onInsertValue(value, options);
-        }
-      )
+        },
+      ),
     );
 
     subscriptions.push(
@@ -416,8 +418,8 @@ export function useCellEditorEvents({ app, apiRef, formulaBarMode }: Props) {
         ({ value }) => {
           codeValue.current = value;
           setCode.current?.(value);
-        }
-      )
+        },
+      ),
     );
 
     subscriptions.push(
@@ -425,8 +427,8 @@ export function useCellEditorEvents({ app, apiRef, formulaBarMode }: Props) {
         GridCellEditorEventType.Focus,
         () => {
           setFocus.current?.();
-        }
-      )
+        },
+      ),
     );
 
     return () => {
@@ -445,14 +447,19 @@ export function useCellEditorEvents({ app, apiRef, formulaBarMode }: Props) {
   ]);
 
   useEffect(() => {
-    if (!app) return;
+    if (!app?.renderer) return;
 
     document.addEventListener('keydown', onKeydown as EventListener);
-    app.view.addEventListener?.('dblclick', onDblClick as EventListener);
+    app.canvas.addEventListener?.('dblclick', onDblClick as EventListener);
 
     return () => {
+      if (!app?.renderer) return;
+
       document.removeEventListener('keydown', onKeydown as EventListener);
-      app?.view?.removeEventListener?.('dblclick', onDblClick as EventListener);
+      app?.canvas?.removeEventListener?.(
+        'dblclick',
+        onDblClick as EventListener,
+      );
     };
   }, [app, onDblClick, onKeydown]);
 }

@@ -1,3 +1,5 @@
+import { vi } from 'vitest';
+
 import { act, RenderHookResult } from '@testing-library/react';
 
 import { useNoteEditDsl } from '../useNoteEditDsl';
@@ -19,7 +21,7 @@ describe('useNoteEditDsl', () => {
   });
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     const hookRender = hookTestSetup(useNoteEditDsl, Wrapper);
     result = hookRender.result;
     setDsl = hookRender.setDsl;
@@ -115,13 +117,13 @@ describe('useNoteEditDsl', () => {
             tableName: 't1',
             fieldName: 'y',
             note: 'new comment',
-          })
+          }),
         );
 
         // Assert
         expect(props.appendToFn).not.toHaveBeenCalledWith(
           `Update note for t1[b]`,
-          [{ sheetName: props.sheetName, content: expectedDsl }]
+          [{ sheetName: props.sheetName, content: expectedDsl }],
         );
         expect(props.manuallyUpdateSheetContent).not.toHaveBeenCalledWith([
           { sheetName: props.sheetName, content: expectedDsl },
@@ -140,7 +142,7 @@ describe('useNoteEditDsl', () => {
             tableName: 't1',
             fieldName: 'b',
             note: 'new comment',
-          })
+          }),
         );
 
         // Assert
@@ -164,7 +166,7 @@ describe('useNoteEditDsl', () => {
             tableName: 't1',
             fieldName: 'b',
             note: 'updated comment',
-          })
+          }),
         );
 
         // Assert
@@ -188,7 +190,7 @@ describe('useNoteEditDsl', () => {
             tableName: 't1',
             fieldName: 'b',
             note: 'comment\ncomment1\nanother line',
-          })
+          }),
         );
 
         // Assert
@@ -200,6 +202,7 @@ describe('useNoteEditDsl', () => {
         ]);
       });
     });
+
     describe('table note', () => {
       it('should not add or update comment if table not presented', () => {
         // Arrange
@@ -212,13 +215,13 @@ describe('useNoteEditDsl', () => {
           result.current.updateNote({
             tableName: 'tttttt',
             note: 'new comment',
-          })
+          }),
         );
 
         // Assert
         expect(props.appendToFn).not.toHaveBeenCalledWith(
           `Update note for t1`,
-          [{ sheetName: props.sheetName, content: expectedDsl }]
+          [{ sheetName: props.sheetName, content: expectedDsl }],
         );
         expect(props.manuallyUpdateSheetContent).not.toHaveBeenCalledWith([
           { sheetName: props.sheetName, content: expectedDsl },
@@ -235,7 +238,7 @@ describe('useNoteEditDsl', () => {
           result.current.updateNote({
             tableName: 't1',
             note: 'new comment',
-          })
+          }),
         );
 
         // Assert
@@ -257,7 +260,7 @@ describe('useNoteEditDsl', () => {
           result.current.updateNote({
             tableName: 't1',
             note: 'updated comment',
-          })
+          }),
         );
 
         // Assert
@@ -280,7 +283,7 @@ describe('useNoteEditDsl', () => {
           result.current.updateNote({
             tableName: 't1',
             note: 'comment\ncomment1\nanother line',
-          })
+          }),
         );
 
         // Assert

@@ -7,7 +7,7 @@ import { Reader } from './utils';
 export function createEditableSheet(
   sheetName: string,
   dsl: string,
-  tables: ParsedTable[]
+  tables: ParsedTable[],
 ): Sheet {
   const sortedTables = tables.slice().sort((a, b) => a.span.from - b.span.from);
 
@@ -31,7 +31,7 @@ export function createEditableSheet(
 export function collectValues(
   jsonData: any,
   key: string,
-  collected = new Set<number>()
+  collected = new Set<number>(),
 ): Set<number> {
   if (Array.isArray(jsonData)) {
     for (const item of jsonData) {

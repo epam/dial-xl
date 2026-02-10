@@ -14,7 +14,7 @@ export function addChartFiltersToDefaultViewportRequest(
   editableSheet: Sheet | null,
   viewportRequest: Viewport[],
   viewGridData: ViewGridData,
-  sheetContent: string
+  sheetContent: string,
 ) {
   let updatedSheetContent = sheetContent;
 
@@ -23,7 +23,7 @@ export function addChartFiltersToDefaultViewportRequest(
   const uniqueTableNames = new Set(
     viewportRequest
       .filter((v) => v.fieldKey?.table)
-      .map((v) => v.fieldKey!.table)
+      .map((v) => v.fieldKey!.table),
   );
 
   const selectedKeys: SelectedChartKey[] = [];
@@ -66,7 +66,7 @@ export function addChartFiltersToDefaultViewportRequest(
     const { table } = tableData;
 
     const tableSelectedKeys = selectedKeys.filter(
-      (i) => i.tableName === tableName
+      (i) => i.tableName === tableName,
     );
 
     updatedSheetContent = applySelectorFiltersToChartTables(
@@ -74,7 +74,7 @@ export function addChartFiltersToDefaultViewportRequest(
       updatedSheetContent,
       table,
       tableSelectedKeys,
-      viewGridData
+      viewGridData,
     );
   }
 

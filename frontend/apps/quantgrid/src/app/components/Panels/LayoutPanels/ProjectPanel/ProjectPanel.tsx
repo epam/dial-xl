@@ -1,38 +1,59 @@
-import { Tooltip } from 'antd';
+import { Dropdown, Tooltip } from 'antd';
 import classNames from 'classnames';
+import cx from 'classnames';
 import { useCallback, useContext, useMemo } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 
 import Icon from '@ant-design/icons';
 import { LatestExportConversationsFormat } from '@epam/ai-dial-shared';
 import {
+  CloudIcon,
+  DeviceIcon,
   ExportIcon,
+  getDropdownItem,
   iconClasses,
   ImportIcon,
+  modalFooterButtonClasses,
   PlusIcon,
+  primaryButtonClasses,
   projectPanelWrapperId,
   publicBucket,
+  QGLogoMonochrome,
+  RefreshIcon,
+  secondaryButtonClasses,
+  TablePlusIcon,
 } from '@frontend/common';
 
 import { PanelName, PanelProps } from '../../../../common';
 import {
   AIHintsContext,
   ApiContext,
-  AppContext,
   ChatOverlayContext,
   InputsContext,
   LayoutContext,
   ProjectContext,
 } from '../../../../context';
-import { useProjectActions, useProjectMode } from '../../../../hooks';
-import { displayToast, triggerUpload } from '../../../../utils';
+import { useRequestDimTable } from '../../../../hooks';
+import { useProjectMode, useWorksheetActions } from '../../../../hooks';
+import { useAntdModalStore } from '../../../../store';
+import {
+  useImportSourceModalStore,
+  useUIStore,
+  useUserSettingsStore,
+} from '../../../../store';
+import {
+  displayToast,
+  ProjectPanelCollapseSection as CollapseSection,
+  triggerUpload,
+} from '../../../../utils';
 import { AIHints } from '../../AIHints';
 import { Conversations } from '../../Conversations';
 import { Inputs } from '../../Inputs';
 import { PanelToolbar } from '../../PanelToolbar';
 import { ProjectTree } from '../../ProjectTree';
+import { Questions } from '../../Questions';
 import { PanelWrapper } from '../PanelWrapper';
 import { ProjectPanelSection } from './ProjectPanelSection';
-import { CollapseSection } from './types';
 import { useProjectPanelCollapse } from './useProjectPanelCollapse';
 
 export function ProjectPanel({
@@ -43,18 +64,41 @@ export function ProjectPanel({
 }: PanelProps) {
   const { importAIHints, exportAIHints, newHintsModal } =
     useContext(AIHintsContext);
-  const projectAction = useProjectActions();
-  const { isProjectEditable } = useContext(ProjectContext);
+  const worksheetAction = useWorksheetActions();
+  const { isProjectEditable, hasEditPermissions } = useContext(ProjectContext);
+  const { requestMultipleDimSchemas } = useRequestDimTable();
   const { isAdmin } = useContext(ApiContext);
-  const { inputsBucket, uploadFiles, importInput } = useContext(InputsContext);
+  const {
+    inputsBucket,
+    uploadFiles,
+    importInput,
+    getImportSources,
+    importSources,
+    syncAllImports,
+    inputList,
+  } = useContext(InputsContext);
   const { createConversation, overlay, isAIPreview, isAIPendingChanges } =
     useContext(ChatOverlayContext);
-  const { chatWindowPlacement, isChatOpen, toggleChat } =
-    useContext(AppContext);
+  const { open: openImport } = useImportSourceModalStore();
+  const confirmModal = useAntdModalStore((s) => s.confirm);
+
+  const { toggleChat, isChatOpen } = useUIStore(
+    useShallow((s) => ({
+      toggleChat: s.toggleChat,
+      isChatOpen: s.isChatOpen,
+    })),
+  );
+  const chatWindowPlacement = useUserSettingsStore(
+    (s) => s.data.chatWindowPlacement,
+  );
+
   const { togglePanel, openedPanels } = useContext(LayoutContext);
 
   const [activeKeys, toggleSection] = useProjectPanelCollapse();
   const { isDefaultMode } = useProjectMode();
+  const panelsAmount = useMemo(() => {
+    return hasEditPermissions ? 5 : 4;
+  }, [hasEditPermissions]);
 
   const openChatPanel = useCallback(() => {
     if (!isChatOpen && chatWindowPlacement === 'floating') {
@@ -72,10 +116,42 @@ export function ProjectPanel({
     togglePanel,
   ]);
 
+  const addAllInputsToProject = useCallback(
+    async (inNewSheet: boolean) => {
+      if (!inputList || inputList.length === 0) return;
+
+      confirmModal({
+        icon: null,
+        title: 'Confirm',
+        content: `You are about to add all ${
+          inputList.length
+        } input(s) to the project. ${
+          inNewSheet
+            ? 'Each table will create a new sheet.'
+            : 'All tables will be added to the current sheet.'
+        } Do you want to proceed?`,
+        okButtonProps: {
+          className: cx(modalFooterButtonClasses, primaryButtonClasses),
+        },
+        cancelButtonProps: {
+          className: cx(modalFooterButtonClasses, secondaryButtonClasses),
+        },
+        onOk: async () => {
+          requestMultipleDimSchemas(inputList, inNewSheet);
+        },
+      });
+    },
+    [confirmModal, inputList, requestMultipleDimSchemas],
+  );
+
   const handleCreateConversation = useCallback(() => {
     openChatPanel();
     createConversation();
   }, [createConversation, openChatPanel]);
+
+  const handleSyncAllImports = useCallback(async () => {
+    await syncAllImports();
+  }, [syncAllImports]);
 
   const handleImportConversation = useCallback(async () => {
     if (!overlay) return;
@@ -98,9 +174,119 @@ export function ProjectPanel({
     return !inputsBucket || (!isAdmin && inputsBucket === publicBucket);
   }, [inputsBucket, isAdmin]);
 
+  const createAddAllInputDropdownItems = useMemo(() => {
+    return [
+      getDropdownItem({
+        key: 'add_all_inputs_current_sheet',
+        label: (
+          <span className={classNames('flex items-center gap-1')}>
+            <span className="truncate max-w-[270px]">
+              Add all inputs to current sheet
+            </span>
+          </span>
+        ),
+        onClick: () => {
+          addAllInputsToProject(false);
+        },
+      }),
+      getDropdownItem({
+        key: 'add_all_inputs_new_sheet',
+        label: (
+          <span className={classNames('flex items-center gap-1')}>
+            <span className="truncate max-w-[270px]">
+              Add all inputs to new sheets
+            </span>
+          </span>
+        ),
+        onClick: () => {
+          addAllInputsToProject(true);
+        },
+      }),
+    ];
+  }, [addAllInputsToProject]);
+
+  const createInputDropdownItems = useMemo(() => {
+    return [
+      getDropdownItem({
+        key: 'create_input',
+        label: (
+          <span className={classNames('flex items-center gap-1')}>
+            <span className="truncate max-w-[270px]">Upload from device</span>
+          </span>
+        ),
+        icon: (
+          <Icon
+            className={classNames(iconClasses, 'w-[18px]')}
+            component={() => <DeviceIcon />}
+          />
+        ),
+        onClick: () => {
+          if (inputsAddDisabled) return;
+
+          uploadFiles();
+        },
+      }),
+      getDropdownItem({
+        key: 'import_input',
+        icon: (
+          <Icon
+            className={classNames(iconClasses, 'w-[18px]')}
+            component={() => <QGLogoMonochrome />}
+          />
+        ),
+        label: (
+          <span className={classNames('flex items-center gap-1')}>
+            <span className="truncate max-w-[270px]">
+              Select from DIALXL file
+            </span>
+          </span>
+        ),
+        onClick: () => {
+          if (inputsAddDisabled) return;
+
+          importInput();
+        },
+      }),
+      getDropdownItem({
+        key: 'create_import',
+        icon: (
+          <Icon
+            className={classNames(iconClasses, 'w-[18px]')}
+            component={() => <CloudIcon />}
+          />
+        ),
+        label: (
+          <span className={classNames('flex items-center gap-1')}>
+            <span className="truncate max-w-[270px]">
+              Import from external data source
+            </span>
+          </span>
+        ),
+        onClick: async () => {
+          if (inputsAddDisabled) return;
+
+          await openImport({});
+
+          getImportSources();
+        },
+      }),
+    ];
+  }, [
+    getImportSources,
+    inputsAddDisabled,
+    openImport,
+    uploadFiles,
+    importInput,
+  ]);
+
   return (
     <PanelWrapper isActive={isActive} panelName={panelName}>
-      <PanelToolbar panelName={panelName} position={position} title={title} />
+      <PanelToolbar
+        isActive={isActive}
+        panelName={panelName}
+        position={position}
+        title={title}
+      />
       <div
         className="w-full h-full overflow-auto thin-scrollbar bg-bg-layer-3 relative group/panel"
         id={projectPanelWrapperId}
@@ -119,14 +305,14 @@ export function ProjectPanel({
                   <Icon
                     className="w-3"
                     component={() => <PlusIcon />}
-                    onClick={projectAction.createWorksheetAction}
+                    onClick={worksheetAction.createWorksheetAction}
                   />
                 </button>
               </Tooltip>
             ) : null
           }
           index={0}
-          maxIndex={4}
+          maxIndex={panelsAmount}
           section={CollapseSection.ProjectTree}
           title="Sheets"
           onToggle={() => toggleSection(CollapseSection.ProjectTree)}
@@ -167,7 +353,7 @@ export function ProjectPanel({
             )
           }
           index={1}
-          maxIndex={4}
+          maxIndex={panelsAmount}
           section={CollapseSection.Conversations}
           title="Conversations"
           onToggle={() => toggleSection(CollapseSection.Conversations)}
@@ -221,7 +407,7 @@ export function ProjectPanel({
             </div>
           }
           index={2}
-          maxIndex={4}
+          maxIndex={panelsAmount}
           section={CollapseSection.Hints}
           title="AI Hints"
           onToggle={() => toggleSection(CollapseSection.Hints)}
@@ -232,36 +418,78 @@ export function ProjectPanel({
           content={<Inputs />}
           headerExtra={
             isDefaultMode ? (
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-2">
+                {Object.keys(importSources).length > 0 && (
+                  <Tooltip
+                    className="opacity-0 transition-opacity duration-200 ease-in-out pointer-events-none group-hover/panel:opacity-100 group-hover/panel:pointer-events-auto"
+                    placement="bottom"
+                    title="Sync all imports"
+                    destroyOnHidden
+                  >
+                    <Icon
+                      className={classNames(iconClasses, 'w-[18px]')}
+                      component={() => <RefreshIcon />}
+                      onClick={handleSyncAllImports}
+                    />
+                  </Tooltip>
+                )}
+                {inputList && inputList.length > 0 && (
+                  <Tooltip
+                    placement="bottom"
+                    title="Add all inputs to the project"
+                    destroyOnHidden
+                  >
+                    <div className="h-full">
+                      <Dropdown
+                        menu={{ items: createAddAllInputDropdownItems }}
+                        trigger={['click', 'contextMenu']}
+                      >
+                        <Icon
+                          className={classNames(iconClasses, 'w-[18px]')}
+                          component={() => <TablePlusIcon />}
+                        />
+                      </Dropdown>
+                    </div>
+                  </Tooltip>
+                )}
                 <Tooltip
-                  className="opacity-0 transition-opacity duration-200 ease-in-out pointer-events-none group-hover/panel:opacity-100 group-hover/panel:pointer-events-auto"
                   placement="bottom"
-                  title="Import input"
+                  title="Add new input or import"
                   destroyOnHidden
                 >
-                  <Icon
-                    className={classNames(iconClasses, 'w-[18px]')}
-                    component={() => <ImportIcon />}
-                    onClick={() => !inputsAddDisabled && importInput()}
-                  />
-                </Tooltip>
-                <Tooltip placement="bottom" title="Upload file" destroyOnHidden>
-                  <button
-                    className="size-[22px] flex items-center justify-center bg-bg-accent-primary-alpha text-text-accent-primary rounded-full"
-                    onClick={() => !inputsAddDisabled && uploadFiles()}
-                  >
-                    <Icon className="w-3" component={() => <PlusIcon />} />
-                  </button>
+                  <div className="h-full">
+                    <Dropdown
+                      menu={{ items: createInputDropdownItems }}
+                      trigger={['click', 'contextMenu']}
+                    >
+                      <div className="size-[22px] flex items-center justify-center bg-bg-accent-primary-alpha text-text-accent-primary rounded-full">
+                        <Icon className="w-3" component={() => <PlusIcon />} />
+                      </div>
+                    </Dropdown>
+                  </div>
                 </Tooltip>
               </div>
             ) : null
           }
           index={3}
-          maxIndex={4}
+          maxIndex={panelsAmount}
           section={CollapseSection.Inputs}
           title="Inputs"
           onToggle={() => toggleSection(CollapseSection.Inputs)}
         />
+
+        {hasEditPermissions && (
+          <ProjectPanelSection
+            activeKeys={activeKeys}
+            content={<Questions />}
+            headerExtra={null}
+            index={4}
+            maxIndex={panelsAmount}
+            section={CollapseSection.Questions}
+            title="Questions"
+            onToggle={() => toggleSection(CollapseSection.Questions)}
+          />
+        )}
       </div>
     </PanelWrapper>
   );

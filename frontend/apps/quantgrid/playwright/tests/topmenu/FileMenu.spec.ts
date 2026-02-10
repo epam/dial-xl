@@ -4,7 +4,7 @@ import { BrowserContext, expect, Page, test } from '@playwright/test';
 import { DeleteProjectForm } from '../../components/DeleteProjectForm';
 import { OpenProjectForm } from '../../components/OpenProjectForm';
 import { ProjectCreationForm } from '../../components/ProjectCreationForm';
-import { ProjectTree } from '../../components/ProjectTree';
+import { ProjectTree } from '../../components/ProjectPanel';
 import { SheetCreationForm } from '../../components/SheetCreationForm';
 import { FileMenuItems } from '../../enums/FileMenuItems';
 import { MenuItems } from '../../enums/MenuItems';
@@ -22,13 +22,25 @@ let browserContext: BrowserContext;
 
 let page: Page;
 
-const storagePath = `playwright/${projectName}.json`;
+const storagePath = TestFixtures.getStoragePath();
 
 test.beforeAll(async ({ browser }) => {
-  await TestFixtures.createEmptyProject(storagePath, browser, projectName);
-  await TestFixtures.createEmptyProject(storagePath, browser, additionalProj);
-  await TestFixtures.createEmptyProject(storagePath, browser, deleteProj);
   browserContext = await browser.newContext({ storageState: storagePath });
+  await TestFixtures.createEmptyProject(
+    storagePath,
+    browserContext,
+    projectName,
+  );
+  await TestFixtures.createEmptyProject(
+    storagePath,
+    browserContext,
+    additionalProj,
+  );
+  await TestFixtures.createEmptyProject(
+    storagePath,
+    browserContext,
+    deleteProj,
+  );
 });
 
 test.beforeEach(async () => {
@@ -41,9 +53,9 @@ test.afterEach(async () => {
 });
 
 test.afterAll(async ({ browser }) => {
+  await TestFixtures.deleteProject(browserContext, projectName);
+  await TestFixtures.deleteProject(browserContext, additionalProj);
   await browserContext.close();
-  await TestFixtures.deleteProject(browser, projectName);
-  await TestFixtures.deleteProject(browser, additionalProj);
 });
 
 test.describe('file menu', () => {
@@ -52,7 +64,7 @@ test.describe('file menu', () => {
     const projectPage = await ProjectPage.createInstance(page);
     await projectPage.performMenuCommand(
       MenuItems.File,
-      FileMenuItems.CreateProject
+      FileMenuItems.CreateProject,
     );
     const projectCreationForm = new ProjectCreationForm(page);
     const projName = TestFixtures.addGuid('autotest_newTestProject');
@@ -65,6 +77,7 @@ test.describe('file menu', () => {
     await TestFixtures.deleteProjectFromPage(secondProjectPage);
     await newPage.close();
   });
+
   //create project hotkey
   test('create new project by hotkey', async () => {
     const projectPage = await ProjectPage.createInstance(page);
@@ -87,7 +100,7 @@ test.describe('file menu', () => {
     await projectPage.showProjectPanel();
     await projectPage.performMenuCommand(
       MenuItems.File,
-      FileMenuItems.RenameProject
+      FileMenuItems.RenameProject,
     );
     const projectRenameForm = new ProjectCreationForm(page);
     const newProjName = TestFixtures.addGuid('autotest_editmenu_renamed');
@@ -102,7 +115,7 @@ test.describe('file menu', () => {
     await projectPage.showProjectPanel();
     await projectPage.performMenuCommand(
       MenuItems.File,
-      FileMenuItems.CreateWorkSheet
+      FileMenuItems.CreateWorkSheet,
     );
     const createWorkSheetForm = new SheetCreationForm(page);
     const newSheetName = 'newSheet12';
@@ -110,18 +123,19 @@ test.describe('file menu', () => {
     const projectTree = new ProjectTree(page);
     await expect(projectTree.getTreeNode(newSheetName)).toBeVisible();
   });
+
   //delete project
   test('delete project', async () => {
     const projectPage = await ProjectPage.createInstance(page);
     await projectPage.performMenuCommand(
       MenuItems.File,
-      FileMenuItems.CloseProject
+      FileMenuItems.CloseProject,
     );
     await TestFixtures.openProject(page, deleteProj);
     await projectPage.titleShouldContainProjectName(deleteProj);
     await projectPage.performMenuCommand(
       MenuItems.File,
-      FileMenuItems.DeleteProject
+      FileMenuItems.DeleteProject,
     );
     const deleteProjectForm = new DeleteProjectForm(page);
     await deleteProjectForm.confirmDelete();
@@ -130,12 +144,13 @@ test.describe('file menu', () => {
     await startPage.switchToAllProjects();
     await expect(startPage.getProjectInList(deleteProj)).toBeHidden();
   });
+
   //close project
   test('close project', async () => {
     const projectPage = await ProjectPage.createInstance(page);
     await projectPage.performMenuCommand(
       MenuItems.File,
-      FileMenuItems.CloseProject
+      FileMenuItems.CloseProject,
     );
     const startPage = new ProjectSelection(page);
     const folderName = TestFixtures.getFolderName();

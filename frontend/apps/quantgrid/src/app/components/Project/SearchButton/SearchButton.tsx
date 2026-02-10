@@ -1,19 +1,18 @@
 import { Button, Grid } from 'antd';
 import cx from 'classnames';
-import { useContext } from 'react';
 
 import Icon from '@ant-design/icons';
 import { SearchIcon, Shortcut, shortcutApi } from '@frontend/common';
 
 import { ColorSchema } from '../../../common';
-import { SearchWindowContext } from '../../../context';
+import { useSearchModalStore } from '../../../store';
 
 type Props = {
   colorSchema?: ColorSchema;
 };
 
 export function SearchButton({ colorSchema = 'default' }: Props) {
-  const { openSearchWindow } = useContext(SearchWindowContext);
+  const openSearchModal = useSearchModalStore((s) => s.open);
 
   const { xl, md } = Grid.useBreakpoint();
 
@@ -26,7 +25,7 @@ export function SearchButton({ colorSchema = 'default' }: Props) {
         colorSchema === 'read' &&
           'bg-bg-layer-4-inverted hover:!bg-bg-layer-4-inverted focus:!bg-bg-layer-4-inverted border-stroke-tertiary-inverted hover:border-stroke-tertiary-inverted! focus:border-stroke-tertiary-inverted!',
         (colorSchema === 'review' || colorSchema === 'default') &&
-          'bg-bg-layer-4! hover:bg-bg-layer-4! focus:bg-bg-layer-4! border-stroke-tertiary hover:border-stroke-tertiary! focus:border-stroke-tertiary!'
+          'bg-bg-layer-4! hover:bg-bg-layer-4! focus:bg-bg-layer-4! border-stroke-tertiary hover:border-stroke-tertiary! focus:border-stroke-tertiary!',
       )}
       icon={
         (xl || md) && (
@@ -36,7 +35,7 @@ export function SearchButton({ colorSchema = 'default' }: Props) {
           />
         )
       }
-      onClick={openSearchWindow}
+      onClick={() => openSearchModal()}
     >
       {xl ? (
         `Type ${shortcutApi.getLabel(Shortcut.SearchWindow)} to search`

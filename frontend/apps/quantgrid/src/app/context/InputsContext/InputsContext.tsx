@@ -2,6 +2,9 @@ import { createContext } from 'react';
 
 import {
   CommonMetadata,
+  ImportCatalog,
+  ImportDataset,
+  ImportSource,
   ResourceMetadata,
   SharedWithMeMetadata,
 } from '@frontend/common';
@@ -32,8 +35,24 @@ type InputsContextActions = {
   }) => void;
   expandFile: (file: CommonMetadata) => void;
   onSwitchInput: (tableName: string, fieldName: string) => void;
+  importSources: Record<string, ImportSource>;
+  getImportSources: () => Promise<void>;
+  importCatalogs: Record<string, ImportCatalog>;
+  importDatasets: Record<string, ImportDataset>;
+  isImportSourcesLoading: boolean;
+  expandImportSource: (sourceKey: string) => Promise<void>;
+  expandImportCatalog: (sourceKey: string, datasetKey: string) => Promise<void>;
+  syncAllImports: (params?: {
+    source?: string;
+    dataset?: string;
+  }) => Promise<void>;
+  syncSingleImportField: (
+    tableName: string,
+    fieldName: string,
+  ) => Promise<void>;
+  onRenameImportSource: (oldName: string, newName: string) => void;
 };
 
 export const InputsContext = createContext<InputsContextActions>(
-  {} as InputsContextActions
+  {} as InputsContextActions,
 );

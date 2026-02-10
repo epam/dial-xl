@@ -18,7 +18,7 @@ interface Props {
   onSelect: (
     bucket: string,
     path: string | null | undefined,
-    name: string | undefined
+    name: string | undefined,
   ) => void;
   onReset?: () => void;
 }
@@ -41,10 +41,10 @@ export const SelectResourceInput = ({
     return bucket === userBucket
       ? 'My Files'
       : bucket === publicBucket
-      ? 'Public'
-      : bucket
-      ? 'Shared with me'
-      : undefined;
+        ? 'Public'
+        : bucket
+          ? 'Shared with me'
+          : undefined;
   }, [bucket, userBucket]);
 
   const pathLabel = useMemo(() => {
@@ -59,7 +59,7 @@ export const SelectResourceInput = ({
 
       setIsSelectOpen(false);
     },
-    [onSelect]
+    [onSelect],
   );
 
   if (!userBucket) return;

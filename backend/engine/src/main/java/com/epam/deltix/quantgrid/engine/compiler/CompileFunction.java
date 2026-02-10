@@ -1,7 +1,9 @@
 package com.epam.deltix.quantgrid.engine.compiler;
 
 import com.epam.deltix.quantgrid.engine.SuggestionHelper;
+import com.epam.deltix.quantgrid.engine.Util;
 import com.epam.deltix.quantgrid.engine.compiler.result.CompiledColumn;
+import com.epam.deltix.quantgrid.engine.compiler.result.CompiledImportTable;
 import com.epam.deltix.quantgrid.engine.compiler.result.CompiledInputTable;
 import com.epam.deltix.quantgrid.engine.compiler.result.CompiledNestedColumn;
 import com.epam.deltix.quantgrid.engine.compiler.result.CompiledPivotColumn;
@@ -45,6 +47,7 @@ import com.epam.deltix.quantgrid.engine.node.plan.local.EvaluateModelLocal;
 import com.epam.deltix.quantgrid.engine.node.plan.local.EvaluateNLocal;
 import com.epam.deltix.quantgrid.engine.node.plan.local.Fields;
 import com.epam.deltix.quantgrid.engine.node.plan.local.FilterLocal;
+import com.epam.deltix.quantgrid.engine.node.plan.local.ImportLocal;
 import com.epam.deltix.quantgrid.engine.node.plan.local.InLocal;
 import com.epam.deltix.quantgrid.engine.node.plan.local.InputLocal;
 import com.epam.deltix.quantgrid.engine.node.plan.local.JoinSingleLocal;
@@ -60,11 +63,16 @@ import com.epam.deltix.quantgrid.engine.node.plan.local.SetOperationLocal;
 import com.epam.deltix.quantgrid.engine.node.plan.local.SplitLocal;
 import com.epam.deltix.quantgrid.engine.node.plan.local.TokensCountLocal;
 import com.epam.deltix.quantgrid.engine.node.plan.local.aggregate.AggregateType;
+import com.epam.deltix.quantgrid.engine.service.input.ImportMetadata;
 import com.epam.deltix.quantgrid.engine.service.input.InputMetadata;
+import com.epam.deltix.quantgrid.engine.service.input.storage.ImportProvider;
 import com.epam.deltix.quantgrid.engine.service.input.storage.InputProvider;
 import com.epam.deltix.quantgrid.parser.FieldKey;
+import com.epam.deltix.quantgrid.parser.ParsedFormula;
 import com.epam.deltix.quantgrid.parser.ParsedPython;
 import com.epam.deltix.quantgrid.parser.ParsedTable;
+import com.epam.deltix.quantgrid.parser.ParsingError;
+import com.epam.deltix.quantgrid.parser.SheetReader;
 import com.epam.deltix.quantgrid.parser.ast.BinaryOperation;
 import com.epam.deltix.quantgrid.parser.ast.ConstBool;
 import com.epam.deltix.quantgrid.parser.ast.ConstNumber;
@@ -75,8 +83,12 @@ import com.epam.deltix.quantgrid.parser.ast.Function;
 import com.epam.deltix.quantgrid.parser.ast.TableReference;
 import com.epam.deltix.quantgrid.parser.ast.UnaryOperation;
 import com.epam.deltix.quantgrid.type.ColumnType;
+import it.unimi.dsi.fastutil.ints.IntArrayList;
+import it.unimi.dsi.fastutil.ints.IntList;
 import lombok.experimental.UtilityClass;
+import org.apache.logging.log4j.util.Strings;
 
+import java.security.Principal;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -138,8 +150,8 @@ public class CompileFunction {
             case "SORT" -> compileSort(context);
             case "SORTBY" -> compileSortBy(context);
             case "COUNT" -> compileCount(context);
-            case "SUM", "AVERAGE", "MAX", "MIN", "STDEVS", "STDEVP", "GEOMEAN", "MEDIAN", "CORREL" ->
-                    compileDoubleAggregation(name, context);
+            case "SUM", "AVERAGE", "MAX", "MIN", "STDEVS", "STDEVP", "GEOMEAN", "MEDIAN", "CORREL", "MODE" ->
+                    compileSimpleAggregation(name, context);
             case "PERCENTILE", "PERCENTILE_EXC", "QUARTILE", "QUARTILE_EXC" ->
                     compileQuantileAggregation(name, context);
             case "MINBY", "MAXBY" -> compileRowAggregationByDouble(name, context);
@@ -148,6 +160,8 @@ public class CompileFunction {
                     : compileFirstsLasts(name, context);
             case "INDEX" -> compileIndex(context);
             case "INPUT" -> compileInput(context);
+            case "IMPORT" -> compileImport(context);
+            case "GROUPBY" -> CompileGroupBy.compile(context);
             case "PIVOT" -> CompilePivot.compile(context);
             case "UNPIVOT" -> CompileUnpivot.compile(context);
             case "FIELDS" -> compileFields(context);
@@ -155,7 +169,6 @@ public class CompileFunction {
             case "TEXT" -> compileText(context);
             case "IF" -> compileIf(context);
             case "IFNA" -> compileIfNa(context);
-            case "MODE" -> compileMode(context);
             case "PI" -> compilePi();
             case "SPLIT" -> compileSplit(context);
             case "DATERANGE" -> compileDateRange(context);
@@ -170,6 +183,11 @@ public class CompileFunction {
             case "BETWEEN" -> compileBetween(context);
             case "UNION", "INTERSECT", "SUBTRACT" -> compileSetOperation(name, context);
             case "IN" -> compileIn(context);
+            case "DROPDOWN", "CHECKBOX" -> CompileControl.compile(context).result();
+            case "AIMODELS" -> CompileAi.compileModels(context);
+            case "AILIST" -> CompileAi.compileList(context);
+            case "AIVALUE" -> CompileAi.compileValue(context);
+            case "ERR" -> compileError(context);
             default -> throw new CompileError("Unsupported function: " + name);
         };
     }
@@ -407,28 +425,64 @@ public class CompileFunction {
 
     private CompiledResult compileSort(CompileContext context) {
         CompiledNestedColumn arg = context.compileArgument(0, NestedColumnValidators.STRING_OR_DOUBLE);
-        return compileSortBy(new TableArgs(arg, List.of(arg.flat())));
+        List<Expression> keys = new ArrayList<>();
+        List<Boolean> orders = new ArrayList<>();
+        boolean order = true;
+
+        if (context.hasArgument(1)) {
+            long number = context.constIntegerArgument(1, "order must be 1 (ascending) or -1 (descending)");
+            CompileUtil.verify(number == 1 || number == -1,
+                    "Argument #2 must be 1 (ascending) or -1 (descending)");
+            order = (number == 1);
+        }
+
+        if (arg.hasCurrentReference()) {
+            keys.add(arg.currentReference());
+            orders.add(true);
+        }
+
+        keys.add(arg.expression());
+        orders.add(order);
+
+        OrderByLocal plan = new OrderByLocal(arg.node(), keys, Util.boolArray(orders));
+        return arg.withNode(plan);
     }
 
     private CompiledResult compileSortBy(CompileContext context) {
-        TableArgs args = compileTableArgs(context, SimpleOrNestedValidators.STRING_OR_DOUBLE);
-        return compileSortBy(args);
-    }
+        int argCount = context.argumentCount();
+        IntList indices = new IntArrayList();
+        List<Boolean> orders = new ArrayList<>();
+        indices.add(0);
 
-    private CompiledResult compileSortBy(TableArgs args) {
+        for (int i = 1, j = 0; i < argCount; i += 2, j++) {
+            boolean order = true;
+
+            if (context.hasArgument(i + 1)) {
+                long number = context.constIntegerArgument(i + 1, "order must be 1 (ascending) or -1 (descending)");
+                CompileUtil.verify(number == 1 || number == -1,
+                        "Argument #" + (i + 2) + " must be 1 (ascending) or -1 (descending)");
+                order = (number == 1);
+            }
+
+            indices.add(i);
+            orders.add(order);
+        }
+
+        TableArgs args = compileTableArgs(context,
+                Collections.nCopies(orders.size(), SimpleOrNestedValidators.STRING_OR_DOUBLE),
+                indices.toIntArray());
+
         CompiledTable table = args.table();
         List<Expression> keys = new ArrayList<>();
 
         if (table.hasCurrentReference()) {
             keys.add(table.currentReference());
+            orders.add(0, true);
         }
         keys.addAll(args.columns().stream().map(CompiledSimpleColumn::node).toList());
 
-        boolean[] ascending = new boolean[keys.size()];
-        Arrays.fill(ascending, true);
-
-        OrderByLocal order = new OrderByLocal(table.node(), keys, ascending);
-        return table.withNode(order);
+        OrderByLocal plan = new OrderByLocal(table.node(), keys, Util.boolArray(orders));
+        return table.withNode(plan);
     }
 
     private CompiledSimpleColumn compileCount(CompileContext context) {
@@ -450,10 +504,12 @@ public class CompileFunction {
         return new CompiledSimpleColumn(column, arg.dimensions(), GeneralFormat.INSTANCE);
     }
 
-    private CompiledResult compileDoubleAggregation(String name, CompileContext context) {
+    private CompiledResult compileSimpleAggregation(String name, CompileContext context) {
         AggregateType type = AggregateType.valueOf(name);
-        List<CompiledNestedColumn> args = compileArgs(context, NestedColumnValidators.DOUBLE);
+        ResultValidator<CompiledNestedColumn> validator = (type.schemaFunction() == AggregateType.SchemaFunction.DOUBLE)
+                ? NestedColumnValidators.DOUBLE : NestedColumnValidators.STRING_OR_DOUBLE;
 
+        List<CompiledNestedColumn> args = compileArgs(context, validator);
         CompiledNestedColumn table = args.get(0);
         Plan layout = context.layout(table.dimensions()).node().getLayout();
 
@@ -463,7 +519,7 @@ public class CompileFunction {
 
         Get column = new Get(aggregate, 0);
         return new CompiledSimpleColumn(column, table.dimensions(),
-                FormatResolver.resolveDoubleAggregationFormat(type, table.format()));
+                FormatResolver.resolveAggregationFormat(type, table.format()));
     }
 
     private CompiledResult compileQuantileAggregation(String name, CompileContext context) {
@@ -610,9 +666,8 @@ public class CompileFunction {
         }
 
         InputLocal plan = new InputLocal(metadata, provider, context.principal());
-        List<String> columnNames = plan.getReadColumns();
-        List<ColumnFormat> columnFormats = columnNames.stream()
-                .map(metadata.columnTypes()::get)
+        List<String> columnNames = metadata.names();
+        List<ColumnFormat> columnFormats = metadata.types().stream()
                 .map(type -> switch (type) {
                     case BOOLEAN -> BooleanFormat.INSTANCE;
                     case DATE -> DateFormat.DEFAULT_DATE_FORMAT;
@@ -622,6 +677,36 @@ public class CompileFunction {
 
         SelectLocal select = new SelectLocal(new RowNumber(plan));
         return new CompiledInputTable(plan, columnNames, columnFormats, select);
+    }
+
+    private CompiledResult compileImport(CompileContext context) {
+        Principal principal = context.principal();
+        String project = context.project();
+        String path = context.constStringArgument(0);
+        long version = context.constIntegerArgument(1, "version must be positive integer number");
+
+        ImportProvider provider = context.importProvider();
+        ImportMetadata meta;
+
+        try {
+            meta = provider.readMeta(principal, project, path, version);
+        } catch (Throwable e) {
+            throw new CompileError(e);
+        }
+
+        List<String> names = meta.columns().keySet().stream().toList();
+        List<ColumnFormat> formats = meta.columns().values().stream()
+                .map(type -> switch (type) {
+                    case BOOLEAN -> BooleanFormat.INSTANCE;
+                    case DATE -> DateFormat.DEFAULT_DATE_FORMAT;
+                    case DATE_TIME -> DateFormat.DEFAULT_DATE_TIME_FORMAT;
+                    default -> GeneralFormat.INSTANCE;
+                })
+                .toList();
+
+        ImportLocal plan = new ImportLocal(principal, meta, provider);
+        SelectLocal select = new SelectLocal(new RowNumber(plan));
+        return new CompiledImportTable(plan, names, formats, select);
     }
 
     private CompiledResult compileConcatenate(CompileContext context) {
@@ -670,21 +755,6 @@ public class CompileFunction {
             UnaryFunction condition = new UnaryFunction(arg1, UnaryFunction.Type.ISNA);
             return new If(condition, arg2, arg1);
         }, source.format());
-    }
-
-    private CompiledResult compileMode(CompileContext context) {
-        CompiledNestedColumn arg = context.compileArgument(0, NestedColumnValidators.STRING_OR_DOUBLE);
-
-        Plan layout = context.layout(arg.dimensions()).node().getLayout();
-        Plan plan = arg.node();
-
-        Get key = arg.hasCurrentReference() ? arg.currentReference() : null;
-        Expression value = arg.expression();
-
-        Plan aggregate = new AggregateLocal(AggregateType.MODE, layout, plan, key, value);
-        Get column = new Get(aggregate, 0);
-
-        return new CompiledSimpleColumn(column, arg.dimensions(), arg.format());
     }
 
     private CompiledResult compileFields(CompileContext context) {
@@ -1281,6 +1351,19 @@ public class CompileFunction {
         return valueColumn.transform(original -> result, BooleanFormat.INSTANCE);
     }
 
+    private CompiledColumn compileError(CompileContext context) {
+        String expression = context.constStringArgument(0);
+        ParsedFormula formula = SheetReader.parseFormula(expression);
+        List<ParsingError> errors = formula.errors();
+        String message = "Valid formula";
+
+        if (!errors.isEmpty() && !Strings.isEmpty(errors.get(0).getMessage())) {
+            message = "Invalid formula: " + errors.get(0).getMessage();
+        }
+
+        throw new CompileError(message);
+    }
+
     private TableArgs compileTableArgs(CompileContext context,
                                        ResultValidator<? extends CompiledColumn> nColumnValidator) {
         return compileTableArgs(context, Collections.nCopies(context.argumentCount() - 1, nColumnValidator));
@@ -1292,7 +1375,17 @@ public class CompileFunction {
     private TableArgs compileTableArgs(CompileContext context,
                                        List<ResultValidator<? extends CompiledColumn>> columnValidators) {
 
-        context = context.withPlaceholder(context.argument(0)); // will be removed
+        return compileTableArgs(context, columnValidators, IntStream.range(0, columnValidators.size() + 1).toArray());
+    }
+
+    /**
+     * Compiles table arg and column args and aligns them to the common layout.
+     */
+    private TableArgs compileTableArgs(CompileContext context,
+                                       List<ResultValidator<? extends CompiledColumn>> columnValidators,
+                                       int[] indices) {
+
+        context = context.withPlaceholder(context.argument(indices[0])); // will be removed
 
         List<ResultValidator<CompiledResult>> validators = new ArrayList<>();
         validators.add((ResultValidator) TableValidators.NESTED);
@@ -1301,13 +1394,13 @@ public class CompileFunction {
             validators.add((ResultValidator) validator);
         }
 
-        List<CompiledResult> results = compileArgs(context, validators);
+        List<CompiledResult> results = compileArgs(context, validators, indices);
         CompiledTable table = results.get(0).cast(CompiledTable.class);
         List<CompiledSimpleColumn> columns = results.subList(1, results.size()).stream()
                 .map(arg -> arg.cast(CompiledNestedColumn.class).flat())
                 .toList();
 
-       return new TableArgs(table, columns);
+        return new TableArgs(table, columns);
     }
 
     private record TableArgs(CompiledTable table, List<CompiledSimpleColumn> columns) {

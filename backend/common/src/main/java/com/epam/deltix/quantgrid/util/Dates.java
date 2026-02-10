@@ -1,15 +1,13 @@
 package com.epam.deltix.quantgrid.util;
 
+import lombok.experimental.UtilityClass;
+import org.jetbrains.annotations.Nullable;
+
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
-import java.util.Locale;
 import java.util.concurrent.TimeUnit;
-
-import lombok.experimental.UtilityClass;
-import org.jetbrains.annotations.Nullable;
 
 /**
  * Utilities class for Excel serial date. Note that, there are no bugged dates: 1900-02-29 and 1900-01-00.
@@ -18,24 +16,29 @@ import org.jetbrains.annotations.Nullable;
 public class Dates {
     private static final LocalDate DATE_BASE = LocalDate.of(1899, 12, 30);
 
-    public static final DateTimeFormatter EXCEL_DATE_TIME_FORMAT =
-            DateTimeFormatter.ofPattern("M/d/yyyy hh:mm:ss a", Locale.ROOT);
-
     private static final double NANOS_PER_DAY = TimeUnit.DAYS.toNanos(1);
     private static final double MILLIS_PER_DAY = TimeUnit.DAYS.toMillis(1);
     private static final long DAYS_BASE = ChronoUnit.DAYS.between(LocalDate.of(0, 1, 1), DATE_BASE);
+    private static final long EPOCH_BASE = ChronoUnit.DAYS.between(DATE_BASE, LocalDate.of(1970, 1, 1));
 
-    public static double from(@Nullable String date) {
+    public static double fromDate(@Nullable String date) {
         if (date == null || date.isEmpty()) {
             return Doubles.ERROR_NA;
         }
 
-        double value = parseDate(date);
-        if (Doubles.isValue(value)) {
-            return value;
+        return parseDate(date);
+    }
+
+    public static double fromDateTime(@Nullable String datetime) {
+        if (datetime == null || datetime.isEmpty()) {
+            return Doubles.ERROR_NA;
         }
 
-        return parseDateTime(date);
+        return parseDateTime(datetime);
+    }
+
+    public double fromEpochMillis(long epochMillis) {
+        return epochMillis / MILLIS_PER_DAY + EPOCH_BASE;
     }
 
     public static double of(double year, double month, double day) {

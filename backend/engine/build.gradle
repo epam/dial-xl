@@ -47,6 +47,7 @@ dependencies {
     implementation 'ai.djl.huggingface:tokenizers:0.33.0'
     implementation 'com.github.ben-manes.caffeine:caffeine:3.1.8'
     implementation 'com.knuddels:jtokkit:1.1.0'
+    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
 
     testImplementation 'com.squareup.okhttp3:mockwebserver:4.12.0'
     testImplementation 'org.springframework.security:spring-security-core:6.0.2'

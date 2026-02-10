@@ -1,4 +1,3 @@
-import { Modal } from 'antd';
 import cx from 'classnames';
 import { useCallback, useContext } from 'react';
 
@@ -11,6 +10,7 @@ import {
 
 import { AIHintsContext, InputsContext, ProjectContext } from '../context';
 import { deleteProjectHistory } from '../services';
+import { useAntdModalStore } from '../store';
 import { displayToast } from '../utils';
 import { useApiRequests } from './useApiRequests';
 
@@ -21,6 +21,8 @@ export function useResetProject() {
   const { getInputs } = useContext(InputsContext);
   const { resetProject: resetProjectRequest } = useApiRequests();
 
+  const confirmModal = useAntdModalStore((s) => s.confirm);
+
   const resetProject = useCallback(() => {
     if (
       projectPath === null ||
@@ -30,7 +32,7 @@ export function useResetProject() {
     )
       return;
 
-    Modal.confirm({
+    confirmModal({
       icon: null,
       title: 'Confirm',
       content:
@@ -70,6 +72,7 @@ export function useResetProject() {
     projectName,
     projectPath,
     resetProjectRequest,
+    confirmModal,
   ]);
 
   return {

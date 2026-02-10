@@ -52,6 +52,7 @@ class MetaTable(BaseMetaTable):
         # Link annotated (and possibly initialized fields).
         for var_name, annotation in annotations.items():
             annotation_origin = get_origin(annotation) or annotation
+            assert isinstance(annotation_origin, type)
             if not issubclass(annotation_origin, StaticField):
                 continue
 

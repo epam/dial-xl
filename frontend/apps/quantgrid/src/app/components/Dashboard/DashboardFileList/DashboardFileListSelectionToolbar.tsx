@@ -14,13 +14,14 @@ import {
   UnselectAllIcon,
 } from '@frontend/common';
 
-import { ApiContext, DashboardContext, ProjectContext } from '../../../context';
+import { ApiContext, DashboardContext } from '../../../context';
 import {
   useApiRequests,
   useCloneResources,
   useDeleteResources,
   useMoveResources,
 } from '../../../hooks';
+import { useShareFilesModalStore } from '../../../store';
 import { DashboardTab } from '../../../types/dashboard';
 import { CloneFile, SelectFolder } from '../../Modals';
 
@@ -34,7 +35,6 @@ export function DashboardFileListSelectionToolbar() {
     refetchData,
   } = useContext(DashboardContext);
   const { isAdmin } = useContext(ApiContext);
-  const { shareResources } = useContext(ProjectContext);
   const { deleteResources } = useDeleteResources();
   const { cloneResources } = useCloneResources();
   const { moveResources } = useMoveResources();
@@ -107,8 +107,8 @@ export function DashboardFileListSelectionToolbar() {
   const onSelectAll = useCallback(() => {
     setSelectedItems(
       displayedDashboardItems.filter(
-        (i) => i.nodeType !== MetadataNodeType.FOLDER
-      )
+        (i) => i.nodeType !== MetadataNodeType.FOLDER,
+      ),
     );
   }, [displayedDashboardItems, setSelectedItems]);
 
@@ -121,12 +121,14 @@ export function DashboardFileListSelectionToolbar() {
   }, [deleteResources, refetchData, selectedItems]);
 
   const onDownload = useCallback(async () => {
-    toast.loading(`Downloading ${selectedItems.length} files...`);
+    const toastId = toast.loading(
+      `Downloading ${selectedItems.length} files...`,
+    );
     const result = await downloadFiles({
       files: selectedItems,
     });
 
-    toast.dismiss();
+    toast.dismiss(toastId);
     if (!result) {
       toast.error('Error happened during downloading files');
     }
@@ -144,16 +146,16 @@ export function DashboardFileListSelectionToolbar() {
   }, [cloneResources, refetchData, selectedItems]);
 
   const onShare = useCallback(() => {
-    shareResources(
+    useShareFilesModalStore.getState().open(
       selectedItems.map(({ name, bucket, parentPath, nodeType }) => ({
         name,
         bucket,
         parentPath,
         nodeType,
         items: [],
-      }))
+      })),
     );
-  }, [selectedItems, shareResources]);
+  }, [selectedItems]);
 
   const onMoveTo = useCallback(() => {
     setSelectFolderModalOpen(true);
@@ -165,7 +167,7 @@ export function DashboardFileListSelectionToolbar() {
 
       await moveResources(selectedItems, path, bucket, () => refetchData());
     },
-    [moveResources, refetchData, selectedItems]
+    [moveResources, refetchData, selectedItems],
   );
 
   return (

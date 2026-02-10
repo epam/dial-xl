@@ -526,7 +526,12 @@ public class DoubleFunctions {
             return 0;
         }
 
-        double date = Dates.from(input);
+        double date = Dates.fromDate(input);
+        if (!Doubles.isNa(date)) {
+            return date;
+        }
+
+        date = Dates.fromDateTime(input);
         if (!Doubles.isNa(date)) {
             return date;
         }

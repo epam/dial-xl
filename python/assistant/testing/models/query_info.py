@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 from quantgrid.models import AnyAction
 from quantgrid_1.models.focus import Focus
 from quantgrid_1.models.stage import Attachment
+from quantgrid_1.questions.model import Question
 from testing.models.assistant_score import AssistantScore, Verdict
 from testing.models.query_stages import (
     AnyStage,
@@ -78,10 +79,10 @@ class QueryInfo(BaseModel):
         return None
 
     @property
-    def standalone_question_file(self) -> str | None:
+    def standalone_question_json(self) -> Question | None:
         for stage in reversed(self.stages):
             if isinstance(stage, StandaloneQuestionStage) and len(stage.content):
                 for attachment in stage.attachments:
-                    return attachment.url
+                    return Question.model_validate_json(attachment.data)
 
         return None

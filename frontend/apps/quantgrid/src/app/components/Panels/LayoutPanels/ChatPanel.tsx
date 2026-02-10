@@ -1,6 +1,6 @@
-import { Dropdown, Modal, Tooltip } from 'antd';
+import { Dropdown, Tooltip } from 'antd';
 import classNames from 'classnames';
-import { useCallback, useContext, useMemo, useState } from 'react';
+import { useCallback, useContext, useMemo } from 'react';
 
 import Icon from '@ant-design/icons';
 import { LatestExportConversationsFormat } from '@epam/ai-dial-shared';
@@ -23,6 +23,7 @@ import {
   playbackLabel,
   ProjectContext,
 } from '../../../context';
+import { useAntdModalStore, useChangeNameModalStore } from '../../../store';
 import {
   displayToast,
   getExportConversationFileName,
@@ -30,7 +31,6 @@ import {
   triggerUpload,
 } from '../../../utils';
 import { ChatPanelView } from '../../ChatWrapper';
-import { RenameConversation } from '../../Modals/RenameConversation';
 import { PanelToolbar } from '../PanelToolbar';
 import { PanelWrapper } from './PanelWrapper';
 
@@ -48,18 +48,29 @@ export function ChatPanel({ panelName, position, isActive }: PanelProps) {
     renameConversation,
   } = useContext(ChatOverlayContext);
   const { projectBucket } = useContext(ProjectContext);
-  const [isRenameOpened, setIsRenameOpened] = useState(false);
+  const confirmModal = useAntdModalStore((s) => s.confirm);
 
-  const handleRenameConversation = useCallback(
-    async (newName: string) => {
-      setIsRenameOpened(false);
+  const onRenameConversation = useCallback(async () => {
+    if (!overlay || !selectedConversation) return;
 
-      if (!overlay || !selectedConversation) return;
+    const open = useChangeNameModalStore.getState().open;
 
-      await renameConversation(selectedConversation.id, newName);
-    },
-    [overlay, selectedConversation, renameConversation]
-  );
+    const result = await open({
+      kind: 'renameConversation',
+      initialName: selectedConversation.name || '',
+      validate: (name) => {
+        if (!name) return 'Project name is required';
+        if (projectConversations?.some((s) => s.name === name))
+          return 'A conversation with this name already exists.';
+
+        return;
+      },
+    });
+
+    if (result) {
+      await renameConversation(selectedConversation.id, result);
+    }
+  }, [overlay, projectConversations, renameConversation, selectedConversation]);
 
   const getConversations = useCallback(() => {
     const projectConversationsItems = projectConversations
@@ -75,7 +86,7 @@ export function ChatPanel({ panelName, position, isActive }: PanelProps) {
                 className={classNames(
                   'flex items-center gap-1',
                   selectedConversation?.id === item.id &&
-                    'text-text-accent-primary'
+                    'text-text-accent-primary',
                 )}
               >
                 <span className="truncate max-w-[270px]">{formattedName}</span>
@@ -113,7 +124,7 @@ export function ChatPanel({ panelName, position, isActive }: PanelProps) {
                   className={classNames(
                     'truncate max-w-[270px]',
                     selectedConversation?.id === item.id &&
-                      'text-text-accent-primary italic'
+                      'text-text-accent-primary italic',
                   )}
                 >
                   {item.name}
@@ -126,7 +137,7 @@ export function ChatPanel({ panelName, position, isActive }: PanelProps) {
 
             overlay.selectConversation(item.id);
           },
-        })
+        }),
       );
 
     return [
@@ -152,7 +163,7 @@ export function ChatPanel({ panelName, position, isActive }: PanelProps) {
       getDropdownItem({
         key: 'rename',
         label: 'Rename',
-        onClick: () => setIsRenameOpened(true),
+        onClick: () => onRenameConversation(),
         disabled: !isSelectedConversationUserLocal && isReadOnlyProjectChats,
         tooltip:
           !isSelectedConversationUserLocal && isReadOnlyProjectChats
@@ -168,20 +179,20 @@ export function ChatPanel({ panelName, position, isActive }: PanelProps) {
             ? 'Conversation is in READ-ONLY mode - you are not allowed to edit it'
             : undefined,
         onClick: () => {
-          Modal.confirm({
+          confirmModal({
             icon: null,
             title: 'Confirm',
             content: `Confirm delete conversation "${selectedConversation.name}"?`,
             okButtonProps: {
               className: classNames(
                 modalFooterButtonClasses,
-                primaryButtonClasses
+                primaryButtonClasses,
               ),
             },
             cancelButtonProps: {
               className: classNames(
                 modalFooterButtonClasses,
-                secondaryButtonClasses
+                secondaryButtonClasses,
               ),
             },
             onOk: async () => {
@@ -211,7 +222,7 @@ export function ChatPanel({ panelName, position, isActive }: PanelProps) {
         label: 'Export',
         onClick: async () => {
           const { exportConversation } = await overlay.exportConversation(
-            selectedConversation.id
+            selectedConversation.id,
           );
 
           const fileName = getExportConversationFileName();
@@ -242,6 +253,7 @@ export function ChatPanel({ panelName, position, isActive }: PanelProps) {
         : []),
     ];
   }, [
+    confirmModal,
     selectedConversation,
     overlay,
     isAIPreview,
@@ -249,6 +261,7 @@ export function ChatPanel({ panelName, position, isActive }: PanelProps) {
     projectBucket,
     isReadOnlyProjectChats,
     createPlayback,
+    onRenameConversation,
   ]);
 
   const selectedConversationName = useMemo(() => {
@@ -260,16 +273,13 @@ export function ChatPanel({ panelName, position, isActive }: PanelProps) {
   return (
     <PanelWrapper isActive={isActive} panelName={panelName}>
       <PanelToolbar
+        isActive={isActive}
         panelName={panelName}
         position={position}
         title={
           projectConversations.length && !isAIPreview && !isAIPendingChanges ? (
-            <Dropdown
-              className="max-h-[60vh]"
-              menu={{ items: getConversations() }}
-              trigger={['hover']}
-            >
-              <span className="flex items-center overflow-hidden gap-1 cursor-pointer">
+            <Dropdown menu={{ items: getConversations() }} trigger={['hover']}>
+              <span className="max-h-[60vh] flex items-center overflow-hidden gap-1 cursor-pointer">
                 <span className="truncate leading-none">
                   {selectedConversationName}
                 </span>
@@ -280,7 +290,7 @@ export function ChatPanel({ panelName, position, isActive }: PanelProps) {
               </span>
             </Dropdown>
           ) : (
-            selectedConversationName ?? 'Chat'
+            (selectedConversationName ?? 'Chat')
           )
         }
       >
@@ -312,13 +322,6 @@ export function ChatPanel({ panelName, position, isActive }: PanelProps) {
       </PanelToolbar>
 
       <ChatPanelView />
-
-      <RenameConversation
-        isOpened={isRenameOpened}
-        oldName={selectedConversation?.name ?? ''}
-        onCancel={() => setIsRenameOpened(false)}
-        onRename={handleRenameConversation}
-      ></RenameConversation>
     </PanelWrapper>
   );
 }

@@ -13,7 +13,7 @@ import { ParsedSheet } from '../ParsedSheet';
  */
 export function isParsedSheetsEqual(
   a: Record<string, ParsedSheet>,
-  b: Record<string, ParsedSheet>
+  b: Record<string, ParsedSheet>,
 ): boolean {
   const namesA = Object.keys(a);
   const namesB = Object.keys(b);

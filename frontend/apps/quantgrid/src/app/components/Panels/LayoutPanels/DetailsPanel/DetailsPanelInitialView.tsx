@@ -7,23 +7,30 @@ import { SingleValue } from 'react-select';
 import Icon from '@ant-design/icons';
 import {
   primaryButtonClasses,
+  SelectAllIcon,
   TableHeaderIcon,
   TableIcon,
 } from '@frontend/common';
 
-import { AppContext, ProjectContext } from '../../../../context';
-import { TableSelector } from '../../PivotTableWizard/components/TableSelector';
+import { ProjectContext } from '../../../../context';
+import { useControlStore, usePivotStore } from '../../../../store';
+import { TableSelector } from '../../PivotTableWizard/components';
 import { toSelectOption } from '../../PivotTableWizard/utils';
 
 export function DetailsPanelInitialView() {
-  const { changePivotTableWizardMode } = useContext(AppContext);
+  const changePivotTableWizardMode = usePivotStore(
+    (s) => s.changePivotTableWizardMode,
+  );
+  const openControlCreateWizard = useControlStore(
+    (s) => s.openControlCreateWizard,
+  );
   const { parsedSheets } = useContext(ProjectContext);
   const [selectedTableName, setSelectedTableName] =
     useState<DefaultOptionType>();
 
   const tableNameOptions = useMemo(() => {
     return Object.values(parsedSheets ?? {}).flatMap(({ tables }) =>
-      tables.map(({ tableName }) => toSelectOption(tableName))
+      tables.map(({ tableName }) => toSelectOption(tableName)),
     );
   }, [parsedSheets]);
 
@@ -32,7 +39,7 @@ export function DetailsPanelInitialView() {
       if (!option) return;
       setSelectedTableName(option);
     },
-    []
+    [],
   );
 
   const onOpenPivotWizard = useCallback(() => {
@@ -40,6 +47,10 @@ export function DetailsPanelInitialView() {
 
     changePivotTableWizardMode('create', selectedTableName.value as string);
   }, [changePivotTableWizardMode, selectedTableName]);
+
+  const onOpenControlWizard = useCallback(() => {
+    openControlCreateWizard();
+  }, [openControlCreateWizard]);
 
   return (
     <div className="max-w-[370px] self-center grow justify-center flex flex-col items-center pb-1 px-4">
@@ -80,6 +91,26 @@ export function DetailsPanelInitialView() {
           onClick={onOpenPivotWizard}
         >
           Next
+        </Button>
+      </div>
+
+      <div className="flex items-center w-full text-sm text-text-secondary my-10">
+        <div className="grow border-t border-stroke-primary"></div>
+        <span className="px-3">OR</span>
+        <div className="grow border-t border-stroke-primary"></div>
+      </div>
+
+      <Icon
+        className="w-10 text-text-accent-primary mb-4"
+        component={() => <SelectAllIcon />}
+      />
+
+      <div className="flex justify-center w-full">
+        <Button
+          className={cx(primaryButtonClasses, 'h-9')}
+          onClick={onOpenControlWizard}
+        >
+          Create Control
         </Button>
       </div>
     </div>

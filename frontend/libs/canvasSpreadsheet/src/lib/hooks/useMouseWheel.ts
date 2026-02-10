@@ -29,16 +29,16 @@ export function useMouseWheel() {
 
       e.preventDefault();
     },
-    [moveViewport]
+    [moveViewport],
   );
 
   useEffect(() => {
-    if (!app) return;
+    if (!app?.renderer) return;
 
-    app.view.addEventListener?.('wheel', onWheel as EventListener);
+    app.canvas.addEventListener?.('wheel', onWheel as EventListener);
 
     return () => {
-      app?.view?.removeEventListener?.('wheel', onWheel as EventListener);
+      app?.canvas?.removeEventListener?.('wheel', onWheel as EventListener);
     };
   }, [app, moveViewport, onWheel]);
 }

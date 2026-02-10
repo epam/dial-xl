@@ -18,7 +18,8 @@ import {
 } from '@frontend/common';
 
 import { PanelName, PanelPosition } from '../common';
-import { AppContext, LayoutContext } from '../context';
+import { LayoutContext } from '../context';
+import { useUIStore } from '../store';
 
 export function usePanelSettings() {
   const {
@@ -30,14 +31,16 @@ export function usePanelSettings() {
     updateSplitPanelsEnabled,
     updateCollapsedPanelsTextHidden,
   } = useContext(LayoutContext);
-  const { toggleChatWindowPlacement } = useContext(AppContext);
+  const toggleChatWindowPlacement = useUIStore(
+    (s) => s.toggleChatWindowPlacement,
+  );
 
   const getPanelSettingsItems = useCallback(
     (
       panelName: PanelName,
       panelTitle: string,
       panelsPosition: PanelPosition,
-      isPanelCollapsed = false
+      isPanelCollapsed = false,
     ): MenuProps['items'] => {
       const specificItems =
         panelName === PanelName.Chat
@@ -189,7 +192,7 @@ export function usePanelSettings() {
       updateCollapsedPanelsTextHidden,
       updateSplitPanelsEnabled,
       togglePanel,
-    ]
+    ],
   );
 
   return {

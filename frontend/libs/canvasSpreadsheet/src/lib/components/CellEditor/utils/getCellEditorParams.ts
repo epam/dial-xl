@@ -23,7 +23,7 @@ const isFormulaValue = (value: string) => {
   if (tokens.length === 0) return false;
 
   const allTokensAreNonFormula = tokens.every((token) =>
-    [SheetLexer.STRING_LITERAL, SheetLexer.FLOAT].includes(token.type)
+    [SheetLexer.STRING_LITERAL, SheetLexer.FLOAT].includes(token.type),
   );
 
   return !allTokensAreNonFormula;
@@ -31,7 +31,7 @@ const isFormulaValue = (value: string) => {
 
 const getCellOptions = (
   cell: GridCell | undefined,
-  isOtherCellsInField: boolean | undefined
+  isOtherCellsInField: boolean | undefined,
 ) => ({
   isTableHeader: !!cell?.isTableHeader,
   isTableField: !!cell?.isFieldHeader,
@@ -56,7 +56,7 @@ const accumulateOverrideValue = (
   fieldValue: string,
   overrideValue: string | number,
   fieldExpression: string,
-  initialValue: string | undefined
+  initialValue: string | undefined,
 ) => {
   let value = initialValue || unescapeValue(overrideValue.toString()) || '';
   if (fieldValue !== naExpression && !initialValue && !overrideValue)
@@ -68,7 +68,7 @@ const accumulateOverrideValue = (
 const accumulateEditOverrideValue = (
   cellValue: string,
   overrideValue: string | number,
-  initialValue: string | undefined
+  initialValue: string | undefined,
 ) => {
   if (initialValue) {
     return initialValue;
@@ -81,15 +81,15 @@ const accumulateEditOverrideValue = (
   return isFormulaValue(overrideValue.toString())
     ? `=${overrideValue}`
     : !isNaN(Number(overrideValue))
-    ? overrideValue?.toString()
-    : cellValue;
+      ? overrideValue?.toString()
+      : cellValue;
 };
 
 const determineFormula = (
   hasOtherOverrides: boolean | undefined,
   overrideValue: string | number,
   cell: GridCell | undefined,
-  possibleValue: string
+  possibleValue: string,
 ) =>
   (!hasOtherOverrides &&
     !overrideValue &&
@@ -103,7 +103,7 @@ const determineCellExpressionMode = (
   isRenameShortcut: boolean | undefined,
   initialValue: string | undefined,
   isFormula: boolean,
-  possibleValue: string
+  possibleValue: string,
 ) =>
   !hasOtherOverrides &&
   (!isAlreadyOpened || !isRenameShortcut) &&
@@ -112,7 +112,7 @@ const determineCellExpressionMode = (
 
 export const getCellEditorParams = (
   cell: GridCell | undefined,
-  options: GridCellEditorOpenOptions
+  options: GridCellEditorOpenOptions,
 ): { editMode: GridCellEditorMode; value: string } => {
   const {
     isEditExpressionShortcut,
@@ -197,14 +197,14 @@ export const getCellEditorParams = (
         fieldValue,
         overrideValue,
         fieldExpression,
-        initialValue
+        initialValue,
       );
     } else if (isEditOverride) {
       editMode = 'edit_override';
       value = accumulateEditOverrideValue(
         cellValue,
         overrideValue,
-        initialValue
+        initialValue,
       );
     }
     // Check for explicit open in formula bar or single override in a manual table
@@ -223,7 +223,7 @@ export const getCellEditorParams = (
     hasOtherOverrides,
     overrideValue,
     cell,
-    possibleValue
+    possibleValue,
   );
   if (
     isTableCell &&
@@ -234,7 +234,7 @@ export const getCellEditorParams = (
         isRenameShortcut,
         initialValue,
         isFormula,
-        possibleValue
+        possibleValue,
       ))
   ) {
     editMode = 'edit_cell_expression';
@@ -253,7 +253,7 @@ export const isEditableTableCell = (cell?: GridCell): boolean => {
 
 export function getCellContextParams(
   api: GridApi,
-  cell?: GridCell
+  cell?: GridCell,
 ): GridCellParams {
   const hasOtherOverrides = !!cell?.field?.hasOverrides;
   const hasOtherCellsInField =

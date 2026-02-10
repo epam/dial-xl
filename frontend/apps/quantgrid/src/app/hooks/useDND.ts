@@ -24,12 +24,12 @@ export function useDND() {
 
       const { col, row } = gridApi.getCellFromCoords(
         mousePosition.x,
-        mousePosition.y
+        mousePosition.y,
       );
 
       return { col, row };
     },
-    [gridApi]
+    [gridApi],
   );
 
   const processDragOver = useCallback(
@@ -52,7 +52,7 @@ export function useDND() {
         endRow: Math.max(1, row),
       });
     },
-    [getDropCell, gridApi, handleDragEnd]
+    [getDropCell, gridApi, handleDragEnd],
   );
 
   const debouncedProcessDragOver = debounce(processDragOver, 0);
@@ -63,7 +63,7 @@ export function useDND() {
 
       debouncedProcessDragOver(e);
     },
-    [debouncedProcessDragOver]
+    [debouncedProcessDragOver],
   );
 
   return {

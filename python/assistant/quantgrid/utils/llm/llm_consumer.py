@@ -35,18 +35,10 @@ class LLMConsumer(StreamConsumer):
         )
 
     def on_dial_api_error(self, exception: openai.APIError):
-        self._write(
-            LLMConsumer._make_bold(
-                f"\n\nUnexpected DIAL API Error: {exception.message}.\n\nRetrying...\n\n"
-            )
-        )
+        pass
 
     def on_error(self, exception: Exception):
-        self._write(
-            LLMConsumer._make_bold(
-                f"\n\nUnexpected error: {exception}.\n\nRetrying...\n\n"
-            )
-        )
+        pass
 
     def _write(self, text: str):
         self._output.append_content(text)

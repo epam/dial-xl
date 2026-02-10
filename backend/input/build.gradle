@@ -1,0 +1,16 @@
+plugins {
+    id "io.freefair.lombok" version "8.0.1"
+    id "com.google.osdetector" version "1.7.3"
+}
+
+dependencies {
+    implementation project(':backend:common')
+    implementation project(':backend:engine')
+    implementation 'org.slf4j:slf4j-api:2.0.17'
+    implementation 'com.fasterxml.jackson.core:jackson-databind:2.13.4.2'
+    implementation 'net.snowflake:snowflake-jdbc:3.26.1'
+    implementation 'software.amazon.awssdk:s3:2.38.4'
+    implementation 'com.azure:azure-storage-blob:12.32.0'
+    implementation 'org.postgresql:postgresql:42.7.8'
+    runtimeOnly 'com.azure:azure-core-http-okhttp:1.13.2'
+}

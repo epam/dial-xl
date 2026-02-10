@@ -2,17 +2,22 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "outDir": "dist",
-    "module": "nodenext",
+    "module": "esnext",
     "types": ["node"],
     "rootDir": "src",
-    "moduleResolution": "nodenext",
-    "tsBuildInfoFile": "dist/tsconfig.app.tsbuildinfo"
+    "moduleResolution": "bundler",
+    "tsBuildInfoFile": "dist/tsconfig.app.tsbuildinfo",
+    "skipLibCheck": true,
+    "composite": false,
+    "declaration": false,
+    "declarationMap": false,
+    "emitDeclarationOnly": false
   },
   "include": ["src/**/*.ts"],
   "exclude": [
     "out-tsc",
     "dist",
-    "jest.config.ts",
+    "vitest.config.ts",
     "src/**/*.spec.ts",
     "src/**/*.test.ts",
     "eslint.config.js",

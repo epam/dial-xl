@@ -1,5 +1,9 @@
 import { lineBreak, tableKeyword } from '../parser';
-import { escapeTableName, unescapeTableName } from '../services';
+import {
+  escapeTableName,
+  unescapeFieldName,
+  unescapeTableName,
+} from '../services';
 import { Apply } from './Apply';
 import { Decorator } from './Decorator';
 import { DocLine, DocString } from './DocString';
@@ -140,7 +144,7 @@ export class Table extends ObservableObserver {
     this._applyIndex = this.setIndexedNode(
       value,
       this._applyTotals,
-      this._applyIndex
+      this._applyIndex,
     );
   }
 
@@ -372,7 +376,7 @@ export class Table extends ObservableObserver {
   public moveFieldBeforeOrAfter(
     sourceFieldName: string,
     targetFieldName: string | null,
-    isBefore: boolean
+    isBefore: boolean,
   ): void {
     // 1) Locate the source field (which group it's in, and the index inside that group).
     const { groupIndex: srcGroupIndex } =
@@ -430,7 +434,7 @@ export class Table extends ObservableObserver {
     let groupIndex = 0;
     for (const group of this._fieldGroups) {
       const nameArray = Array.from(group.fieldNames);
-      const idx = nameArray.indexOf(fieldName);
+      const idx = nameArray.indexOf(unescapeFieldName(fieldName));
       if (idx !== -1) {
         return {
           groupIndex,
@@ -512,7 +516,9 @@ export class Table extends ObservableObserver {
   public removeField(name: string, removeEmptyGroup = true): void {
     let groupIndex = 0;
     for (const group of this._fieldGroups) {
-      const index = Array.from(group.fieldNames).indexOf(name);
+      const index = Array.from(group.fieldNames).indexOf(
+        unescapeFieldName(name),
+      );
       if (index !== -1) {
         const targetField = group.getField(name);
         const shouldAddDimAfterRemove = targetField.dim;
@@ -648,7 +654,7 @@ export class Table extends ObservableObserver {
   public insertDecorator(index: number, decorator: Decorator): void {
     if (index < 0 || index > this._decorators.length) {
       throw new Error(
-        `Decorator index ${index} is out of bounds: valid indices range from 0 to ${this._decorators.length}.`
+        `Decorator index ${index} is out of bounds: valid indices range from 0 to ${this._decorators.length}.`,
       );
     }
 

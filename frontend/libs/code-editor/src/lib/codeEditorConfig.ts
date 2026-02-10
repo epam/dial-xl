@@ -31,6 +31,8 @@ export const codeEditorOptions: editor.IStandaloneEditorConstructionOptions = {
   stickyScroll: {
     enabled: false,
   },
+  minimap: { enabled: false },
+  lineNumbersMinChars: 3,
 };
 
 export const CustomCommands = {

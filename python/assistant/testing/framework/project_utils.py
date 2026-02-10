@@ -10,7 +10,7 @@ from dial_xl.table import Table
 
 from quantgrid.models import Action
 from quantgrid.utils.project import FieldGroupUtil
-from testing.framework.exceptions import MatchingError
+from testing.exceptions import MatchingError
 
 
 @overload

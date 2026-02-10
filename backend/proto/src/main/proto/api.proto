@@ -1,6 +1,8 @@
 syntax = "proto3";
 option java_package = "org.epam.deltix.proto";
 
+import "google/protobuf/struct.proto";
+
 message Request {
     // correlation id, optional only for ping requests
     optional string id = 1;
@@ -15,6 +17,22 @@ message Request {
         CancelRequest cancel_request = 9;
         ProjectCalculateRequest project_calculate_request = 10;
         ProjectCancelRequest project_cancel_request = 11;
+        ImportDefinitionList import_definition_list_request = 12;
+        ImportDefinitionGet import_definition_get_request = 13;
+        ImportSourceList import_source_list_request = 14;
+        ImportSourceGet import_source_get_request = 15;
+        ImportSourceCreate import_source_create_request = 16;
+        ImportSourceUpdate import_source_update_request = 17;
+        ImportSourceDelete import_source_delete_request = 18;
+        ImportConnectionTest import_connection_test_request = 19;
+        ImportCatalogList import_catalog_list_request = 20;
+        ImportDatasetDiscover import_dataset_discover_request = 21;
+        ImportSyncList import_sync_list_request = 22;
+        ImportSyncGet import_sync_get_request = 23;
+        ImportSyncStart import_sync_start_request = 24;
+        ImportSyncCancel import_sync_cancel_request = 25;
+        ImportRequest import_request = 26;
+        ControlValuesRequest control_values_request = 27;
     }
 }
 
@@ -25,8 +43,10 @@ message Viewport {
     }
     sint64 start_row = 3;
     sint64 end_row = 4;
-    bool is_content = 5;
-    optional bool is_raw = 6;
+    optional sint64 start_column = 5;
+    optional sint64 end_column = 6;
+    bool is_content = 7;
+    optional bool is_raw = 8;
 }
 
 message DimensionalSchemaRequest {
@@ -61,6 +81,17 @@ message Response {
         SimilaritySearchResponse similarity_search_response = 8;
         Profile profile = 9;
         Index index = 10;
+        ImportDefinitions import_definitions = 11;
+        ImportDefinition import_definition = 12;
+        ImportSources import_sources = 13;
+        ImportSource import_source = 14;
+        ImportConnection import_connection = 15;
+        ImportCatalog import_catalog = 16;
+        ImportDataset import_dataset = 17;
+        ImportSyncs import_syncs = 18;
+        ImportSync import_sync = 19;
+        ImportResponse import_response = 20;
+        ControlValuesResponse control_values_response = 21;
     }
 }
 
@@ -225,6 +256,8 @@ enum FunctionType {
     PYTHON_FUNCTIONS = 10;
     // Functions that useful for evaluation
     EVALUATION_FUNCTIONS = 11;
+    // Functions used in controls
+    CONTROL = 12;
 }
 
 message Function {
@@ -255,8 +288,18 @@ message CalculateWorksheetsRequest {
     optional bool shared = 7;
 }
 
+message ControlValuesRequest {
+    string project = 1;
+    map<string, string> sheets = 2;
+    FieldKey key = 3;
+    string query = 4;
+    int64 start_row = 5;
+    int64 end_row = 6;
+}
+
 message CompileWorksheetsRequest {
-    map<string, string> worksheets = 1;
+    string project = 1;
+    map<string, string> worksheets = 2;
 }
 
 message Reference {
@@ -276,11 +319,13 @@ message FieldInfo {
     ColumnDataType type = 4;
     // true if cell represented as collection of data (N strings, N rows)
     bool is_nested = 5;
+    // true if the result can be assigned as is, false if you need to use multi field access
+    bool is_assignable = 6;
     // name of the table in case ColumnDataType.TABLE
-    optional string reference_table_name = 6;
-    optional string hash = 7;
-    optional ColumnFormat format = 8;
-    repeated Reference references = 9;
+    optional string reference_table_name = 7;
+    optional string hash = 8;
+    optional ColumnFormat format = 9;
+    repeated Reference references = 10;
 }
 
 message ParsedSheet {
@@ -336,6 +381,11 @@ message SimilaritySearchScore {
     string value = 3;
     optional string description = 4;
     double score = 5;
+}
+
+message ControlValuesResponse {
+    ColumnData data = 1;
+    ColumnData available = 2;
 }
 
 enum FormatType {
@@ -435,4 +485,182 @@ message ProjectCalculateRequest {
 
 message ProjectCancelRequest {
     string project = 1;
+}
+
+
+message ImportDefinitionList {
+    string project = 1;
+}
+
+message ImportDefinitionGet {
+    string project = 1;
+    string definition = 2;
+}
+
+message ImportSourceList {
+    string project = 1;
+}
+
+message ImportSourceGet {
+    string project = 1;
+    string source = 2;
+}
+
+message ImportSourceCreate {
+    string project = 1;
+    string definition = 2;
+    string name = 3;
+    google.protobuf.Struct configuration = 4;
+}
+
+message ImportSourceUpdate {
+    string project = 1;
+    string source = 2;
+    string name = 3;
+    google.protobuf.Struct configuration = 4;
+}
+
+message ImportSourceDelete {
+    string project = 1;
+    string source = 2;
+}
+
+message ImportConnectionTest {
+    string project = 1;
+    string definition = 2;
+    google.protobuf.Struct configuration = 3;
+}
+
+message ImportCatalogList {
+    string project = 1;
+    string source = 2;
+    optional string token = 3;
+}
+
+message ImportDatasetDiscover {
+    string project = 1;
+    string source = 2;
+    string dataset = 3;
+}
+
+message ImportSyncList {
+    string project = 1;
+    optional string source = 2;
+    optional string dataset = 3;
+}
+
+message ImportSyncGet {
+    string project = 1;
+    string sync = 2;
+}
+
+message ImportSyncStart {
+    string project = 1;
+    string source = 2;
+    string dataset = 3;
+    ImportSchema schema = 4;
+}
+
+message ImportSyncCancel {
+    string project = 1;
+    string source = 2;
+    string sync = 3;
+}
+
+message ImportDefinitions {
+    map<string, ImportDefinition> definitions = 1;
+}
+
+message ImportDefinition {
+    string definition = 1;
+    string name = 2;
+    optional google.protobuf.Struct specification = 3;
+}
+
+message ImportSources {
+    map<string, ImportSource> sources = 1;
+}
+
+message ImportSource {
+    string definition = 1;
+    string source = 2;
+    string name = 3;
+    optional google.protobuf.Struct configuration = 4;
+}
+
+message ImportConnection {
+    string definition = 1;
+    Result result = 2;
+    optional string error = 3;
+
+    enum Result {
+        SUCCESS = 0;
+        FAILURE = 1;
+    }
+}
+
+message ImportCatalog {
+    string definition = 1;
+    string source = 2;
+    map<string, ImportDataset> datasets = 3;
+    optional string next = 4;
+}
+
+message ImportDataset {
+    string definition = 1;
+    string source = 2;
+    string dataset = 3;
+    optional ImportSchema schema = 4;
+}
+
+message ImportSyncs {
+    map<string, ImportSync> syncs = 1;
+}
+
+message ImportSync {
+    string definition = 1;
+    string source = 2;
+    string sync = 3;
+    int64 version = 4;
+    Status status = 5;
+    int64 started_at = 6;
+    int64 stopped_at = 7;
+    ImportSchema schema = 8;
+
+    enum Status {
+        RUNNING = 0;
+        SUCCEEDED = 1;
+        FAILED = 2;
+    }
+}
+
+message ImportSchema {
+    map<string, ImportColumn> columns = 1;
+}
+
+message ImportColumn {
+    string column = 1;
+    string type = 2;
+    ImportColumnType targetType = 3;
+}
+
+enum ImportColumnType {
+    IMPORT_COLUMN_TYPE_STRING = 0;
+    IMPORT_COLUMN_TYPE_DOUBLE = 1;
+    IMPORT_COLUMN_TYPE_DATE = 2;
+    IMPORT_COLUMN_TYPE_DATE_TIME = 3;
+    IMPORT_COLUMN_TYPE_BOOLEAN = 4;
+}
+
+// internal
+message ImportRequest {
+    string definition = 1;
+    string path = 2;
+    string dataset = 3;
+    ImportSchema schema = 4;
+    google.protobuf.Struct configuration = 5;
+}
+
+// internal
+message ImportResponse {
 }

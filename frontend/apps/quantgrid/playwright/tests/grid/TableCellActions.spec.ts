@@ -31,7 +31,7 @@ let browserContext: BrowserContext;
 
 let page: Page;
 
-const storagePath = `playwright/${projectName}.json`;
+const storagePath = TestFixtures.getStoragePath();
 
 const dataType = process.env['DATA_TYPE']
   ? process.env['DATA_TYPE']
@@ -53,13 +53,13 @@ test.beforeAll(async ({ browser }) => {
   if (dataType !== 'default') {
     spreadsheet = getProjectSpreadSheeet(dataType, spreadsheet);
   }
+  browserContext = await browser.newContext({ storageState: storagePath });
   await TestFixtures.createProjectNew(
     storagePath,
-    browser,
+    browserContext,
     projectName,
-    spreadsheet
+    spreadsheet,
   );
-  browserContext = await browser.newContext({ storageState: storagePath });
 });
 
 test.beforeEach(async () => {
@@ -68,7 +68,7 @@ test.beforeEach(async () => {
   await TestFixtures.expectCellTableToBeDisplayed(
     page,
     table1Row,
-    table1Column
+    table1Column,
   );
 });
 
@@ -77,8 +77,8 @@ test.afterEach(async () => {
 });
 
 test.afterAll(async ({ browser }) => {
+  await TestFixtures.deleteProject(browserContext, projectName);
   await browserContext.close();
-  await TestFixtures.deleteProject(browser, projectName);
 });
 
 test.describe('table cell actions', () => {
@@ -112,7 +112,7 @@ test.describe('table cell actions', () => {
         new Map<number, string>()
       );
       table.addOverrideValue(table.getField(2).getName(), 1, overrideValue);*/
-    }
+    },
   );
 
   /*test(

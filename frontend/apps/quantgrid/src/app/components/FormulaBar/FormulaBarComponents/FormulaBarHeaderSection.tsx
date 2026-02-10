@@ -1,19 +1,16 @@
 import { Input } from 'antd';
 import cx from 'classnames';
-import {
-  KeyboardEvent,
-  useCallback,
-  useContext,
-  useEffect,
-  useRef,
-  useState,
-} from 'react';
+import { KeyboardEvent, useCallback, useEffect, useRef, useState } from 'react';
 
 import { formulaBarInput, shouldStopPropagation } from '@frontend/common';
 
 import { SelectedCell, SelectedCellType } from '../../../common';
-import { AppContext, ProjectContext } from '../../../context';
 import { useRenameFieldDsl, useTableEditDsl } from '../../../hooks';
+import {
+  useEditorStore,
+  useFormulaBarStore,
+  useViewStore,
+} from '../../../store';
 import {
   formulaBarInputClasses,
   formulaBarTextAreaClasses,
@@ -27,8 +24,9 @@ type Props = {
 };
 
 export function FormulaBarHeaderSection({ onPanelAutoResize }: Props) {
-  const { formulaBarExpanded, editMode } = useContext(AppContext);
-  const { selectedCell } = useContext(ProjectContext);
+  const editMode = useEditorStore((s) => s.editMode);
+  const formulaBarExpanded = useFormulaBarStore((s) => s.formulaBarExpanded);
+  const selectedCell = useViewStore((s) => s.selectedCell);
 
   const { renameField } = useRenameFieldDsl();
   const { renameTable } = useTableEditDsl();
@@ -79,7 +77,15 @@ export function FormulaBarHeaderSection({ onPanelAutoResize }: Props) {
   const saveValue = useCallback(() => {
     if (!selectedCell) return;
 
-    switch (selectedCell.type) {
+    const { type, isChart } = selectedCell;
+
+    if (isChart && type === SelectedCellType.Cell) {
+      saveTableName();
+
+      return;
+    }
+
+    switch (type) {
       case SelectedCellType.EmptyCell:
         return;
       case SelectedCellType.Table:
@@ -97,16 +103,16 @@ export function FormulaBarHeaderSection({ onPanelAutoResize }: Props) {
     (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
       if (!selectedCell) return;
 
-      if (selectedCell.type === SelectedCellType.Table) {
+      const { type, isChart } = selectedCell;
+      const isChartCellSelected = isChart && type === SelectedCellType.Cell;
+
+      if (type === SelectedCellType.Table || isChartCellSelected) {
         setValue(e.target.value);
 
         return;
       }
 
-      if (
-        [SelectedCellType.EmptyCell].includes(selectedCell.type) ||
-        !inputRef.current
-      )
+      if ([SelectedCellType.EmptyCell].includes(type) || !inputRef.current)
         return;
 
       const ref =
@@ -127,7 +133,7 @@ export function FormulaBarHeaderSection({ onPanelAutoResize }: Props) {
         }, 0);
       }
     },
-    [value, selectedCell]
+    [value, selectedCell],
   );
 
   const init = useCallback(
@@ -139,10 +145,18 @@ export function FormulaBarHeaderSection({ onPanelAutoResize }: Props) {
         return;
       }
 
-      const { tableName, fieldName, row, col } = selectedCell;
+      const { tableName, fieldName, row, col, isChart, type } = selectedCell;
       const currentInputValue = inputRef.current?.input?.value || '';
 
-      switch (selectedCell.type) {
+      if (isChart && tableName && type === SelectedCellType.Cell && isChart) {
+        setValue(tableName);
+        setInputDisabled(false);
+        triggerAutoExtend(tableName, currentInputValue);
+
+        return;
+      }
+
+      switch (type) {
         case SelectedCellType.EmptyCell:
           setValue(`${row}:${col}`);
           setInputDisabled(true);
@@ -161,7 +175,7 @@ export function FormulaBarHeaderSection({ onPanelAutoResize }: Props) {
           break;
       }
     },
-    [triggerAutoExtend]
+    [triggerAutoExtend],
   );
 
   const onKeyDown = useCallback(
@@ -183,7 +197,7 @@ export function FormulaBarHeaderSection({ onPanelAutoResize }: Props) {
         return;
       }
     },
-    [init, saveValue, selectedCell]
+    [init, saveValue, selectedCell],
   );
 
   useEffect(() => {

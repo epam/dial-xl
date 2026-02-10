@@ -26,16 +26,17 @@ import { HandleContext, LayoutContext } from '../../../context';
 import { usePanelSettings } from '../../../hooks';
 
 export function PanelToolbar({
+  isActive,
   children,
   title,
   secondaryTitle,
   panelName,
   position = PanelPosition.Left,
-}: PropsWithChildren<Omit<PanelProps, 'dimensions' | 'isActive'>>) {
+}: PropsWithChildren<Omit<PanelProps, 'dimensions'>>) {
   const { togglePanel, toggleExpandPanel, expandedPanelSide } =
     useContext(LayoutContext);
-  const [isCollapseTooltipOpen, setIsCollapseTooltipOpen] = useState(false);
   const [isExpandTooltipOpen, setIsExpandTooltipOpen] = useState(false);
+  const [isMinimizeTooltipOpen, setIsMinimizeTooltipOpen] = useState(false);
 
   const expanded = expandedPanelSide === position;
 
@@ -46,9 +47,9 @@ export function PanelToolbar({
       position === PanelPosition.Right
         ? 'rotate-180'
         : position === PanelPosition.Left
-        ? ''
-        : '-rotate-90',
-    [position]
+          ? ''
+          : '-rotate-90',
+    [position],
   );
 
   return (
@@ -71,17 +72,19 @@ export function PanelToolbar({
           {children}
           {children && <div className="w-px h-5 bg-stroke-tertiary mx-2" />}
           <Tooltip
-            open={isExpandTooltipOpen}
+            open={isActive && isExpandTooltipOpen}
             placement="bottom"
             title={expanded ? `Collapse panel` : `Expand panel`}
             destroyOnHidden
-            onOpenChange={setIsExpandTooltipOpen}
+            onOpenChange={(isOpen) =>
+              setIsExpandTooltipOpen(isActive && isOpen)
+            }
           >
             <Icon
               className={cx(
                 'w-4',
                 iconClasses,
-                expanded ? 'rotate-[-135deg]' : 'rotate-45'
+                expanded ? 'rotate-[-135deg]' : 'rotate-45',
               )}
               component={() =>
                 expanded ? <ArrowNarrowUp /> : <ArrowAltIcon />
@@ -93,33 +96,33 @@ export function PanelToolbar({
             />
           </Tooltip>
           <Dropdown
-            className="cursor-pointer"
             menu={{
               items: getPanelSettingsItems(
                 panelName,
                 PanelTitle[panelName],
-                position
+                position,
               ),
             }}
           >
             <Icon
-              className={classNames(iconClasses, 'w-4 ml-2')}
+              className={classNames(iconClasses, 'w-4 ml-2 cursor-pointer')}
               component={() => <SettingsIcon />}
             />
           </Dropdown>
           <Tooltip
-            open={isCollapseTooltipOpen}
+            open={isActive && isMinimizeTooltipOpen}
             placement="bottom"
             title="Minimize panel"
             destroyOnHidden
-            onOpenChange={setIsCollapseTooltipOpen}
+            onOpenChange={(isOpen) =>
+              setIsMinimizeTooltipOpen(isActive && isOpen)
+            }
           >
             <Icon
               className={cx('w-4 ml-2', iconClasses, rotateIcon)}
               component={() => <CloseIcon />}
               data-qa="panel-hide-button"
               onClick={() => {
-                setIsCollapseTooltipOpen(false);
                 togglePanel(panelName);
               }}
             />

@@ -22,7 +22,7 @@ export function useFilterEditDsl() {
       fieldName: string,
       operator: string,
       value: string | string[] | null,
-      filterType: GridFilterType
+      filterType: GridFilterType,
     ) => {
       const context = findEditContext(tableName, fieldName);
       if (!context) return;
@@ -34,7 +34,7 @@ export function useFilterEditDsl() {
         fieldName,
         operator,
         filterType,
-        value
+        value,
       );
 
       if (!table.apply && filterExpression) {
@@ -70,7 +70,7 @@ export function useFilterEditDsl() {
         tableName,
       });
     },
-    [findEditContext, updateDSL]
+    [findEditContext, updateDSL],
   );
 
   const applyListFilter = useCallback(
@@ -78,7 +78,7 @@ export function useFilterEditDsl() {
       tableName: string,
       fieldName: string,
       values: string[],
-      isNumeric: boolean
+      isNumeric: boolean,
     ) => {
       const context = findEditContext(tableName, fieldName);
       if (!context) return;
@@ -140,7 +140,7 @@ export function useFilterEditDsl() {
         tableName,
       });
     },
-    [findEditContext, updateDSL]
+    [findEditContext, updateDSL],
   );
 
   return {

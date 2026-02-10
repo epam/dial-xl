@@ -1,19 +1,21 @@
-import * as PIXI from 'pixi.js';
-import { useCallback, useContext } from 'react';
+import { Graphics } from 'pixi.js';
+import { useCallback, useContext, useRef } from 'react';
 
-import { Container, Graphics } from '@pixi/react';
-
-import { ComponentLayer } from '../../constants';
 import { GridStateContext } from '../../context';
-import { useCellUtils } from '../../hooks';
+import { useCellUtils, useDraw } from '../../hooks';
 import { isCellEditorOpen } from '../../utils';
 import { GridEvent } from '../GridApiWrapper';
 import { NoteCell, useNotes } from './useNotes';
 
-export function NoteLabels() {
+type Props = {
+  zIndex: number;
+};
+
+export function NoteLabels({ zIndex }: Props) {
   const { theme, gridSizes, gridApi } = useContext(GridStateContext);
   const { calculateCellDimensions } = useCellUtils();
   const { notes } = useNotes();
+  const graphicsRefs = useRef<Map<string, Graphics>>(new Map());
 
   const onMouseOver = useCallback(
     (cell: NoteCell) => {
@@ -27,11 +29,14 @@ export function NoteLabels() {
         row: startRow,
       });
     },
-    [gridApi]
+    [gridApi],
   );
 
-  const draw = useCallback(
-    (graphics: PIXI.Graphics, cell: NoteCell) => {
+  const draw = useCallback(() => {
+    notes.forEach((cell) => {
+      const graphics = graphicsRefs.current.get(cell.key);
+      if (!graphics) return;
+
       const { bgColor } = theme.noteLabel;
       const { size } = gridSizes.noteLabel;
       const { borderWidth } = gridSizes.cell;
@@ -40,30 +45,43 @@ export function NoteLabels() {
 
       const { x, y, width } = calculateCellDimensions(cell);
 
+      const points = [
+        x + width - borderWidth,
+        y + borderWidth,
+        x + width - borderWidth,
+        y + size + borderWidth,
+        x + width - size - borderWidth,
+        y + borderWidth,
+      ];
+
       graphics
-        .lineStyle(1, bgColor)
-        .beginFill(bgColor)
-        .drawPolygon([
-          { x: x + width - borderWidth, y: y + borderWidth },
-          { x: x + width - borderWidth, y: y + size + borderWidth },
-          { x: x + width - size - borderWidth, y: y + borderWidth },
-        ])
-        .endFill();
-    },
-    [theme, gridSizes, calculateCellDimensions]
-  );
+        .poly(points)
+        .fill({ color: bgColor })
+        .stroke({ width: 1, color: bgColor });
+    });
+  }, [notes, theme, gridSizes, calculateCellDimensions]);
+
+  useDraw(draw);
 
   return (
-    <Container zIndex={ComponentLayer.NoteLabel}>
+    <pixiContainer label="NoteLabels" zIndex={zIndex}>
       {notes.map((cell) => (
-        <Graphics
+        <pixiGraphics
           cursor="pointer"
-          draw={(g: PIXI.Graphics) => draw(g, cell)}
+          draw={() => {}}
           eventMode="static"
           key={cell.key}
-          onmouseover={() => onMouseOver(cell)}
+          label={`NoteLabelGraphics_${cell.key}`}
+          ref={(ref: Graphics | null) => {
+            if (ref) {
+              graphicsRefs.current.set(cell.key, ref);
+            } else {
+              graphicsRefs.current.delete(cell.key);
+            }
+          }}
+          onMouseOver={() => onMouseOver(cell)}
         />
       ))}
-    </Container>
+    </pixiContainer>
   );
 }

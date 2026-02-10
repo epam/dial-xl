@@ -15,8 +15,8 @@ from quantgrid_1.models.generation_parameters import (
 from quantgrid_1.models.materialize_button import MaterializeButton
 from quantgrid_1.models.project_state import ProjectState
 from quantgrid_1.models.stage import Attachment, Stage
+from testing.exceptions import MatchError
 from testing.framework import AddTable, FrameProject, Text, code_regex, code_substr
-from testing.framework.exceptions import MatchError
 
 
 # Tests that bot works normally when underlying LLM generated two JSONs

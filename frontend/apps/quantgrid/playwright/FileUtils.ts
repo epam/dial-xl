@@ -3,7 +3,7 @@ import * as path from 'path';
 
 export async function checkFileExistsWithTimeout(
   filePath: string,
-  timeoutMs: number
+  timeoutMs: number,
 ): Promise<boolean> {
   const dirname = path.dirname(filePath);
   const searchStr = path.basename(filePath);

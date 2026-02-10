@@ -1,7 +1,7 @@
 export function uniqueId(): string {
   return btoa(crypto.getRandomValues(new Uint8Array(16)).join('')).replaceAll(
     '=',
-    ''
+    '',
   );
 }
 

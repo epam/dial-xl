@@ -6,17 +6,17 @@ import { editor, IDisposable, languages } from '../../monaco';
 
 export type FormattingRule = (
   parsedSheet: ParsedSheet,
-  model: editor.ITextModel
+  model: editor.ITextModel,
 ) => languages.TextEdit[];
 
 const formattingRules: FormattingRule[] = [shrinkEmptyLinesRule];
 
 export function registerFormattingProvider(
   monaco: Monaco,
-  language: Language
+  language: Language,
 ): IDisposable {
   return monaco.languages.registerDocumentFormattingEditProvider(language, {
-    provideDocumentFormattingEdits: (model: editor.ITextModel, _, __) => {
+    provideDocumentFormattingEdits: (model: editor.ITextModel) => {
       const sheetContent = model.getValue();
 
       try {
@@ -32,7 +32,7 @@ export function registerFormattingProvider(
 
 function shrinkEmptyLinesRule(
   parsedSheet: ParsedSheet,
-  model: editor.ITextModel
+  model: editor.ITextModel,
 ): languages.TextEdit[] {
   const textEdits: languages.TextEdit[] = [];
 
@@ -50,7 +50,7 @@ function shrinkEmptyLinesRule(
     if (lineContent.trim() !== '') continue;
 
     const isPythonBlock = pythonBlocks?.find(
-      (b) => b.dslPlacement.startLine <= i && b.dslPlacement.stopLine >= i
+      (b) => b.dslPlacement.startLine <= i && b.dslPlacement.stopLine >= i,
     );
 
     if (isPythonBlock) continue;

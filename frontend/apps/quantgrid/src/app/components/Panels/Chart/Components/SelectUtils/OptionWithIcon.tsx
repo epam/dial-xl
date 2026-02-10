@@ -1,10 +1,10 @@
-import { DefaultOptionType } from 'rc-select/lib/Select';
 import { components, GroupBase, OptionProps } from 'react-select';
 
 import Icon from '@ant-design/icons';
+import { DefaultOptionType } from '@rc-component/select/lib/Select';
 
 export const OptionWithIcon = (
-  props: OptionProps<DefaultOptionType, boolean, GroupBase<DefaultOptionType>>
+  props: OptionProps<DefaultOptionType, boolean, GroupBase<DefaultOptionType>>,
 ) => {
   return (
     <components.Option {...props}>

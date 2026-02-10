@@ -46,6 +46,10 @@ public class Pivot implements AggregateFunction {
     }
 
     private LocalTable pivot(DoubleColumn rows, StringColumn names, Column values, int size) {
+        if (names.size() == 0) {
+            return new LocalTable(size);
+        }
+
         if (values instanceof DoubleColumn doubles) {
             return pivot(rows, names, doubles, size);
         }

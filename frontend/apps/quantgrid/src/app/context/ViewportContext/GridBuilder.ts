@@ -21,12 +21,16 @@ import {
   CachedOverrideRow,
   dynamicFieldName,
   OverrideValue,
-  ParsedField,
   ParsedTable,
 } from '@frontend/parser';
 
-import { isInputFormula } from '../../hooks';
-import { getFieldErrors, getOverrideErrors, getTotalErrors } from '../../utils';
+import { getControlType, isImportFormula, isInputFormula } from '../../hooks';
+import {
+  getFieldErrors,
+  getIsAIFunctionsInExpression,
+  getOverrideErrors,
+  getTotalErrors,
+} from '../../utils';
 import { getOverrideRow } from './getOverrideRow';
 import {
   ApplyBlockGridParams,
@@ -59,7 +63,7 @@ export class GridBuilder {
     data: GridData,
     row: number,
     col: number,
-    cell: GridCell
+    cell: GridCell,
   ): GridData {
     if (!data[row]) data[row] = {};
 
@@ -76,14 +80,14 @@ export class GridBuilder {
    */
   public getTableDimensions(
     tableName: string,
-    isTableHorizontal: boolean
+    isTableHorizontal: boolean,
   ): TableDimensions {
     const tableData = this.viewGridData.getTableData(tableName);
 
     if (!tableData) {
       throw new Error(
         "[ViewGridData] getTableDimensions, table data doesn't exists requested tableName: " +
-          tableName
+          tableName,
       );
     }
 
@@ -101,7 +105,7 @@ export class GridBuilder {
         startCol,
         startRow,
         endCol: startCol + chartCols - 1,
-        endRow: startRow + chartRows - 1 + table.getTableNameHeaderHeight(),
+        endRow: startRow + chartRows - 1,
       };
     }
 
@@ -144,7 +148,7 @@ export class GridBuilder {
             startRow +
               table.getTableNameHeaderHeight() +
               table.getTableFieldsHeaderHeight() -
-              1
+              1,
           );
     const endCol =
       fieldsCount > 0 ? startCol + table.getTableFieldsSizes() - 1 : startCol;
@@ -158,7 +162,7 @@ export class GridBuilder {
   }
 
   /**
-   * Gets list of tables with dimensions needed for grid actions (actual placement of saved tables)
+   * Gets a list of tables with dimensions needed for grid actions (actual placement of saved tables)
    * @returns {GridTable[]} Actual list
    */
   public getGridTableStructure(): GridTable[] {
@@ -170,7 +174,7 @@ export class GridBuilder {
         tableName: table.tableName,
         ...this.getTableDimensions(
           table.tableName,
-          table.getIsTableDirectionHorizontal()
+          table.getIsTableDirectionHorizontal(),
         ),
         isTableNameHeaderHidden: table.getIsTableHeaderHidden(),
         isTableFieldsHeaderHidden: table.getIsTableFieldsHidden(),
@@ -181,6 +185,7 @@ export class GridBuilder {
         highlightType: diff?.tableHighlight,
         note: table.note?.text || '',
         fieldNames: table.getFieldNames(),
+        chartType: table.getChartType() || undefined,
       });
     }
 
@@ -190,10 +195,21 @@ export class GridBuilder {
   /**
    * Converts tableData to table header (tableName, buttons with option menu, field headers names, total rows, meta information which grid uses)
    * @param tableData {TableData} Table data for specified table
-   * @returns {GridData} Grid Data
+   * @returns { data: GridData; fieldMap: Map<string, GridFieldCache>; groupInfo: Map<number, GroupInfo>; commonTableProps: GridTable } Object with grid data, field cache map, group info and common table props
    */
-  public buildGridTableHeader(tableData: TableData): GridData {
-    const { table, highlightData: diff, totalRows } = tableData;
+  public buildGridTableHeader(tableData: TableData): {
+    data: GridData;
+    // This is some reusable info for buildGridTableData method
+    fieldMap: Map<string, GridFieldCache>;
+    groupInfo: Map<number, GroupInfo>;
+    commonTableProps: GridTable;
+  } {
+    const {
+      table,
+      highlightData: diff,
+      totalRows,
+      columnReferenceTableNames,
+    } = tableData;
     const { tableName } = table;
     const isTableHorizontal = table.getIsTableDirectionHorizontal();
     const isTableHeaderHidden = table.getIsTableHeaderHidden();
@@ -201,7 +217,7 @@ export class GridBuilder {
     const totalSize = table.getTotalSize();
     const tableDimensions = this.getTableDimensions(
       tableName,
-      isTableHorizontal
+      isTableHorizontal,
     );
     const { startCol, startRow, endCol } = tableDimensions;
     const parsingErrors = this.viewGridData.getParsingErrors();
@@ -227,7 +243,7 @@ export class GridBuilder {
       fieldNames: table.getFieldNames(),
     };
 
-    // Add table header (first table row with tableName)
+    // Add a table header (first table row with tableName)
     if (!isTableHeaderHidden) {
       const tableHeaderCell = {
         table: commonTableProps,
@@ -251,6 +267,7 @@ export class GridBuilder {
 
     // Add table fields headers (second table row with names of the fields)
     const fieldRow = startRow + tableHeaderHeight;
+    const fieldCacheMap = new Map<string, GridFieldCache>();
     const fieldErrorsCache = new Map<string, string | undefined>();
     let directionIndex = isTableHorizontal ? fieldRow : startCol;
 
@@ -273,13 +290,13 @@ export class GridBuilder {
       accHeaderPos += size;
     }
 
-    for (const field of table.fields) {
+    table.fields.forEach((field, index) => {
       const columnName = field.key.fieldName;
       const fieldSize = !isTableHorizontal ? field.getSize() : 1;
 
       // dynamic fields are drawing separately
       if (columnName === dynamicFieldName) {
-        continue;
+        return;
       }
 
       const isNested = tableData.nestedColumnNames.has(columnName);
@@ -289,7 +306,7 @@ export class GridBuilder {
       const expression = field.expressionMetadata?.text || '';
       const note = field.note?.text || '';
       const highlightType = diff?.fieldsHighlight?.find(
-        (field) => field.fieldName === columnName
+        (field) => field.fieldName === columnName,
       )?.highlight;
       const { sort, isFiltered, filter, isFieldUsedInSort } =
         this.getApplyBlockGridParams(tableData, table, columnName);
@@ -306,10 +323,14 @@ export class GridBuilder {
           compilationErrors,
           viewportErrorMessage,
           tableName,
-          columnName
+          columnName,
         );
         fieldErrorsCache.set(columnName, fieldErrorMessage);
       }
+
+      const { isLoading } = this.getFieldStatus(columnName, tableData);
+
+      const controlType = getControlType(expression);
 
       const cellField: GridField = {
         fieldName: columnName,
@@ -335,6 +356,12 @@ export class GridBuilder {
         descriptionField: field.getDescriptionFieldName(),
         dataLength: totalRows,
         isInput: isInputFormula(expression),
+        isImport: isImportFormula(expression),
+        isControl: !!controlType,
+        controlType,
+        referenceTableName: columnReferenceTableNames[columnName],
+        isLoading,
+        isAIFunctions: getIsAIFunctionsInExpression(expression),
       };
 
       // These iterations needed for case when table is NOT horizontal and fields sizes not 1
@@ -357,7 +384,7 @@ export class GridBuilder {
         cellField.totalFieldTypes = table.total?.getFieldTotalTypes(columnName);
 
         const { start: startGroupColOrRow, span } = groupInfo.get(
-          field.fieldGroupIndex
+          field.fieldGroupIndex,
         )!;
         const endGroupColOrRow = startGroupColOrRow + span - 1;
 
@@ -385,7 +412,7 @@ export class GridBuilder {
 
           const totalExpression = table.total?.getFieldTotalByIndex(
             columnName,
-            i
+            i,
           );
           const totalValue = tableData.total[columnName]?.[i];
           const value = totalValue && totalExpression ? totalValue : '';
@@ -394,7 +421,7 @@ export class GridBuilder {
             compilationErrors,
             tableName,
             columnName,
-            i
+            i,
           );
 
           GridBuilder.setSafeDataCell(data, row, col, {
@@ -419,39 +446,47 @@ export class GridBuilder {
         }
       }
 
-      directionIndex += fieldSize;
-    }
+      fieldCacheMap.set(columnName, {
+        field,
+        fieldIndex: index,
+        dataFieldSecondaryDirectionStart: directionIndex,
+        fieldSize,
+        isRightAligned,
+        cellField,
+      });
 
-    return data;
+      directionIndex += fieldSize;
+    });
+
+    return { data, fieldMap: fieldCacheMap, groupInfo, commonTableProps };
   }
 
   /**
    * Converts tableData to table grid values (actual values, borders, styles, meta information, etc...)
    * @param tableData {TableData} Table data
    * @param viewport {ViewportEdges} Viewport edges
+   * @param fieldMap {Map<string, GridFieldCache>} Field cache map
    * @returns {GridData} Grid data
    */
   public buildGridTableData(
     tableData: TableData,
-    viewport: ViewportEdges
+    viewport: ViewportEdges,
+    fieldMap: Map<string, GridFieldCache>,
+    groupInfo: Map<number, GroupInfo>,
+    commonTableProps: GridTable,
   ): GridData {
     const data: GridData = {};
-    const { table, highlightData: diff, totalRows } = tableData;
-    const { tableName, note } = table;
+    const { table } = tableData;
+    const { tableName } = table;
     const isTableHorizontal = table.getIsTableDirectionHorizontal();
-    const isTableHeaderHidden = table.getIsTableHeaderHidden();
-    const isFieldsHeaderHidden = table.getIsTableFieldsHidden();
-    const hasKeys = table.hasKeys();
-    const isManual = table.isManual();
     const tableNameHeaderHeight = table.getTableNameHeaderHeight();
     const tableFieldsHeaderHeight = table.getTableFieldsHeaderHeight();
     const totalSize = table.getTotalSize();
-    const tableHighlight = diff?.tableHighlight;
     const parsingErrors = this.viewGridData.getParsingErrors();
     const compilationErrors = this.viewGridData.getCompilationErrors();
     const tableDimensions = this.getTableDimensions(
       tableName,
-      isTableHorizontal
+      isTableHorizontal,
     );
     const {
       startCol: tableStartCol,
@@ -464,128 +499,28 @@ export class GridBuilder {
         tableNameHeaderHeight +
         tableFieldsHeaderHeight +
         totalSize;
-    const allDataSecondaryDirectionStart = isTableHorizontal
-      ? tableStartRow + tableNameHeaderHeight
-      : tableStartCol;
-
-    const commonTableProps: GridTable = {
-      ...tableDimensions,
-      tableName,
-      isManual,
-      hasKeys,
-      totalSize,
-      isTableHorizontal,
-      isTableNameHeaderHidden: isTableHeaderHidden,
-      isTableFieldsHeaderHidden: isFieldsHeaderHidden,
-      highlightType: tableHighlight,
-      note: note?.text || '',
-      fieldNames: table.getFieldNames(),
-    };
 
     const tableFields = table.fields.filter(
-      (f) => f.key.fieldName !== dynamicFieldName
+      (f) => f.key.fieldName !== dynamicFieldName,
     );
-    const fieldMap = new Map<string, GridFieldCache>();
 
-    let accumulatedSecondaryDirectionStart = allDataSecondaryDirectionStart;
-    const fieldErrorsCache = new Map<string, string | undefined>();
-    const applyBlockParamsCache = new Map<string, ApplyBlockGridParams>();
-
-    const groupInfo: Map<number, GroupInfo> = new Map();
-
-    tableFields.forEach((field, index) => {
-      const { fieldGroupIndex, key } = field;
-      const { fieldName } = key;
-      const fieldSize = isTableHorizontal ? 1 : field.getSize();
-      const type = tableData.types[fieldName];
-      const format = tableData.formats[fieldName];
-      const isNested = tableData.nestedColumnNames.has(fieldName);
-      const isRightAligned = this.isValueRightAligned(isNested, type, format);
-
-      let fieldErrorMessage = fieldErrorsCache.get(fieldName);
-      if (!fieldErrorMessage) {
-        const viewportErrorMessage = tableData?.fieldErrors[fieldName];
-        fieldErrorMessage = getFieldErrors(
-          parsingErrors,
-          compilationErrors,
-          viewportErrorMessage,
-          tableName,
-          fieldName
-        );
-        fieldErrorsCache.set(fieldName, fieldErrorMessage);
-      }
-
-      let applyBlockParams = applyBlockParamsCache.get(fieldName);
-      if (!applyBlockParams) {
-        applyBlockParams = this.getApplyBlockGridParams(
-          tableData,
-          table,
-          fieldName
-        );
-        applyBlockParamsCache.set(fieldName, applyBlockParams);
-      }
-
-      if (!groupInfo.has(fieldGroupIndex)) {
-        groupInfo.set(fieldGroupIndex, {
-          start: accumulatedSecondaryDirectionStart,
-          span: 0,
-        });
-      }
-      groupInfo.get(fieldGroupIndex)!.span += fieldSize;
-
-      const hasOverrides = table.overrides
-        ? table.overrides.hasColumnOverrides(fieldName)
-        : false;
-      const expression = field.expressionMetadata?.text || '';
-
-      const cellField: GridField = {
-        fieldName,
-        isNested,
-        type,
-        format,
-        hasOverrides,
-        expression,
-        note: field.note?.text || '',
-        isPeriodSeries: type === ColumnDataType.PERIOD_SERIES,
-        isKey: field.isKey,
-        isDim: field.isDim,
-        isDynamic: field.isDynamic,
-        hasError: !!fieldErrorMessage,
-        errorMessage: fieldErrorMessage,
-        isFiltered: applyBlockParams.isFiltered,
-        filter: applyBlockParams.filter,
-        isFieldUsedInSort: applyBlockParams.isFieldUsedInSort,
-        sort: applyBlockParams.sort,
-        referenceTableName: tableData.columnReferenceTableNames[fieldName],
-        highlightType: diff?.fieldsHighlight?.find(
-          (field) => field.fieldName === fieldName
-        )?.highlight,
-        isIndex: field.isIndex(),
-        isDescription: field.isDescription(),
-        descriptionField: field.getDescriptionFieldName(),
-        dataLength: totalRows,
-        isInput: isInputFormula(expression),
-      };
-
-      fieldMap.set(fieldName, {
-        field,
-        fieldIndex: index,
-        dataFieldSecondaryDirectionStart: accumulatedSecondaryDirectionStart,
-        fieldSize,
-        isRightAligned,
-        cellField,
-      });
-
-      accumulatedSecondaryDirectionStart += fieldSize;
-    });
-
-    const buildChunk = (chunk: ColumnChunk, chunkIndex: number) => {
+    const buildChunk = (resultedChunk: ColumnChunk, chunkIndex: number) => {
       let minDirectionIndex = Number.MAX_SAFE_INTEGER;
       let maxDirectionIndex = Number.MIN_SAFE_INTEGER;
       const cachedOverrideValues: Record<number, CachedOverrideRow> = {};
 
+      const keyFieldEntries: Array<readonly [string, string[]]> | null =
+        table.hasKeys() && !table.isManual()
+          ? table
+              .getKeys()
+              .map((k) => k.key.fieldName)
+              .filter((name) => name !== dynamicFieldName)
+              .map((name) => [name, (resultedChunk as any)[name]] as const)
+              .filter(([, col]) => Array.isArray(col))
+          : null;
+
       // Add cells that have data in chunks
-      for (const chunkKey of Object.keys(chunk)) {
+      for (const chunkKey of Object.keys(resultedChunk)) {
         if (chunkKey === dynamicFieldName) {
           continue;
         }
@@ -602,7 +537,7 @@ export class GridBuilder {
 
         const format = cellField.format;
         const { fieldName } = cellField;
-        const chunkData = chunk[chunkKey];
+        const chunkData = resultedChunk[chunkKey];
         const accChunkOffset = chunkIndex * chunkSize;
 
         for (
@@ -617,12 +552,16 @@ export class GridBuilder {
           minDirectionIndex = Math.min(minDirectionIndex, dataDirectionIndex);
           maxDirectionIndex = Math.max(maxDirectionIndex, dataDirectionIndex);
 
-          const tableDirectionData: Record<string, string> = {};
-
-          Object.keys(chunk).forEach((fieldName) => {
-            tableDirectionData[fieldName] =
-              chunk[fieldName][innerChunkDataIndex];
-          });
+          let tableDirectionData: Record<string, string> = {};
+          if (
+            keyFieldEntries &&
+            !cachedOverrideValues[resultedChunkDataIndex]
+          ) {
+            tableDirectionData = {};
+            for (const [keyName, keyCol] of keyFieldEntries) {
+              tableDirectionData[keyName] = keyCol[innerChunkDataIndex];
+            }
+          }
 
           let overrideValue: OverrideValue = null;
           let overrideIndex = null;
@@ -636,7 +575,7 @@ export class GridBuilder {
             chunkKey,
             resultedChunkDataIndex,
             tableDirectionData,
-            cachedOverrideValues
+            cachedOverrideValues,
           );
 
           if (overrideRow) {
@@ -652,7 +591,7 @@ export class GridBuilder {
               compilationErrors,
               tableName,
               fieldName,
-              overrideSectionIndex + 1
+              overrideSectionIndex + 1,
             );
 
           const dataIndex = resultedChunkDataIndex;
@@ -680,7 +619,7 @@ export class GridBuilder {
               : dataFieldSecondaryDirectionStart + fieldSize - 1;
 
             const currentGroup =
-              tableFields[fieldData.fieldIndex].fieldGroupIndex;
+              table.fields[fieldData.fieldIndex].fieldGroupIndex;
             const { start, span } = groupInfo.get(currentGroup)!;
 
             const startGroupColOrRow = start;
@@ -693,6 +632,8 @@ export class GridBuilder {
               // isOverrideChanged: false, // TODO: fix when bot will send this data
               overrideValue,
               overrideIndex: overrideIndex !== null ? overrideIndex : undefined,
+              overrideAIFunctions:
+                !!overrideValue && getIsAIFunctionsInExpression(overrideValue),
               value: value,
               displayValue: formattedValue,
               isUrl: isValidUrl(value),
@@ -719,7 +660,8 @@ export class GridBuilder {
       const noDataFieldNames = tableFields
         .map((f) => f.key.fieldName)
         .filter(
-          (fieldName) => !chunk[fieldName] || chunk[fieldName]?.length === 0
+          (fieldName) =>
+            !resultedChunk[fieldName] || resultedChunk[fieldName]?.length === 0,
         );
 
       for (const fieldName of noDataFieldNames) {
@@ -780,16 +722,13 @@ export class GridBuilder {
     };
 
     const existingIndexes = [
+      '0',
       ...Object.keys(tableData.fallbackChunks),
       ...Object.keys(tableData.chunks),
     ];
 
     const tableColInsideViewport =
       viewport.startCol <= tableEndCol && viewport.endCol >= tableStartCol;
-
-    if (!tableColInsideViewport) {
-      return data;
-    }
 
     const mainViewportStart = isTableHorizontal
       ? viewport.startCol - tableStartCol
@@ -802,25 +741,87 @@ export class GridBuilder {
     const startViewportChunk = Math.floor(mainViewportStart / chunkSize);
     const endViewportChunk = Math.floor(mainViewportEnd / chunkSize);
 
-    const indexes = Array.from(new Set(existingIndexes)).filter((index) => {
-      const chunkIndex = +index;
-
-      return chunkIndex >= startViewportChunk && chunkIndex <= endViewportChunk;
-    });
+    const indexes = Array.from(new Set(existingIndexes));
 
     for (const index of indexes) {
       const chunkIndex = +index;
+      const hasChunkData = !!tableData.chunks[chunkIndex];
+      const isTableRowInsideViewport =
+        chunkIndex >= startViewportChunk && chunkIndex <= endViewportChunk;
 
-      buildChunk(
-        {
-          ...tableData.chunks[chunkIndex],
-          ...tableData.fallbackChunks[chunkIndex],
+      const defaultColumnChunks = Array.from(fieldMap.keys()).reduce(
+        (acc, current) => {
+          const chunkPlaceholder = '';
+          acc[current] = [chunkPlaceholder];
+
+          return acc;
         },
-        chunkIndex
+        {} as Record<string, string[]>,
       );
+
+      const columnChunk = {
+        ...defaultColumnChunks,
+        // We don't need to have full field values cells if table is outside of viewport
+        ...(!tableColInsideViewport || !isTableRowInsideViewport
+          ? undefined
+          : {
+              ...tableData.chunks[chunkIndex],
+              ...tableData.fallbackChunks[chunkIndex],
+            }),
+      };
+
+      if (tableColInsideViewport && isTableRowInsideViewport) {
+        // Getting max length of column chunk to normalize other columns lengths
+        const maxLength = Object.values(columnChunk).reduce(
+          (acc, current) => (acc > current.length ? acc : current.length),
+          0,
+        );
+        const normalizedColumnChunk: ColumnChunk = Object.entries(
+          columnChunk,
+        ).reduce((acc, [key, values]) => {
+          const chunkPlaceholder = '';
+          acc[key] = values.concat(
+            Array(
+              Math.max(
+                maxLength,
+                hasChunkData && !fieldMap.get(key)?.cellField.hasError ? 0 : 1,
+              ) - values.length,
+            ).fill(chunkPlaceholder),
+          );
+
+          return acc;
+        }, {} as ColumnChunk);
+        buildChunk(normalizedColumnChunk, chunkIndex);
+      } else {
+        buildChunk(columnChunk, chunkIndex);
+      }
     }
 
     return data;
+  }
+
+  private getFieldStatus(fieldName: string, tableData: TableData) {
+    const { chunks, fallbackChunks, columnHashes, previousColumnHashes } =
+      tableData;
+
+    const isFieldInDataChunks = Object.values(chunks).some(
+      (chunk) => !!chunk?.[fieldName],
+    );
+    const isFieldInFallbackChunks = Object.values(fallbackChunks).some(
+      (chunk) => !!chunk?.[fieldName],
+    );
+
+    const isInitialLoading = !isFieldInDataChunks && !isFieldInFallbackChunks;
+
+    const isChangeLoading =
+      !isFieldInDataChunks &&
+      isFieldInFallbackChunks &&
+      !!columnHashes[fieldName] &&
+      columnHashes[fieldName] !== previousColumnHashes[fieldName];
+
+    return {
+      isLoading: isInitialLoading || isChangeLoading,
+    };
   }
 
   /**
@@ -837,7 +838,7 @@ export class GridBuilder {
     const totalSize = table.getTotalSize();
     const tableDimensions = this.getTableDimensions(
       tableName,
-      table.getIsTableDirectionHorizontal()
+      table.getIsTableDirectionHorizontal(),
     );
 
     const { startCol, startRow, endCol, endRow } = tableDimensions;
@@ -861,18 +862,15 @@ export class GridBuilder {
             note: table.note?.text || '',
             fieldNames,
           },
-          value:
-            row === startRow && !table.getIsTableHeaderHidden()
-              ? tableName
-              : '',
+          value: '',
           row,
           col,
-          startCol,
-          endCol,
+          startCol: col,
+          endCol: col,
           startGroupColOrRow: startCol,
           endGroupColOrRow: endCol,
           isFieldHeader: false,
-          isTableHeader: row === startRow,
+          isTableHeader: false,
         });
       }
     }
@@ -897,8 +895,19 @@ export class GridBuilder {
         continue;
       }
 
-      const gridTableHeader = this.buildGridTableHeader(tableData);
-      const gridTableData = this.buildGridTableData(tableData, viewport);
+      const {
+        data: gridTableHeader,
+        fieldMap,
+        groupInfo,
+        commonTableProps,
+      } = this.buildGridTableHeader(tableData);
+      const gridTableData = this.buildGridTableData(
+        tableData,
+        viewport,
+        fieldMap,
+        groupInfo,
+        commonTableProps,
+      );
 
       data = this.mergeGridData(data, gridTableHeader, gridTableData);
     }
@@ -916,7 +925,7 @@ export class GridBuilder {
   private getApplyBlockGridParams(
     tableData: TableData,
     table: ParsedTable,
-    columnName: string
+    columnName: string,
   ): ApplyBlockGridParams {
     if (!table.apply) {
       return {
@@ -947,31 +956,6 @@ export class GridBuilder {
     };
   }
 
-  private getGroupSizes(
-    fields: ParsedField[],
-    isTableHorizontal: boolean
-  ): Map<number, number> {
-    const fieldGroupSizes: Map<number, number> = new Map();
-
-    for (const field of fields) {
-      const { key, fieldGroupIndex } = field;
-      const { fieldName } = key;
-      if (
-        fieldGroupSizes.has(fieldGroupIndex) ||
-        fieldName === dynamicFieldName
-      )
-        continue;
-
-      const groupSize = fields
-        .filter((f) => f.fieldGroupIndex === fieldGroupIndex)
-        .reduce((acc, f) => acc + (isTableHorizontal ? 1 : f.getSize()), 0);
-
-      fieldGroupSizes.set(fieldGroupIndex, groupSize);
-    }
-
-    return fieldGroupSizes;
-  }
-
   /**
    * Check if value should be right aligned
    * @param isNested
@@ -981,7 +965,7 @@ export class GridBuilder {
   private isValueRightAligned(
     isNested: boolean,
     type: ColumnDataType,
-    format?: ColumnFormat
+    format?: ColumnFormat,
   ): boolean {
     const numberTypes = [
       FormatType.FORMAT_TYPE_NUMBER,

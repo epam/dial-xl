@@ -9,11 +9,11 @@ import { SheetSemanticProvider } from './SheetSemanticProvider';
 export function registerQuantgridLanguage(
   monaco: Monaco,
   language: string,
-  theme: AppTheme
+  theme: AppTheme,
 ) {
   const languageAlreadyRegistered = monaco.languages
     .getLanguages()
-    .find((l) => l.id === language);
+    .find((l: languages.ILanguageExtensionPoint) => l.id === language);
 
   if (languageAlreadyRegistered) return;
 
@@ -23,7 +23,7 @@ export function registerQuantgridLanguage(
   monaco.languages.setMonarchTokensProvider('plaintext', monarchLanguageDef);
   monaco.languages.registerDocumentSemanticTokensProvider(
     language,
-    new SheetSemanticProvider()
+    new SheetSemanticProvider(),
   );
 
   monaco.languages.setLanguageConfiguration(language, {
@@ -116,11 +116,11 @@ const monarchLanguageDef: languages.IMonarchLanguage = {
       // Find table with identifier. table Table1.
       [/(table )(.+)/, ['keyword', 'table']],
       // Find field as reference from table.  Table[FieldName], 'table'[FieldName]
-      [/('[a-z\sA-Z0-9"']+')(\[["a-z\sA-Z0-9:]+\])/, ['table', 'field']],
+      [/('[^']+')(\[[^\]]+])/, ['table', 'field']],
       // Find table with methods. TableName.MethodName(), 'TableName'.Method()
       [/('[a-z\sA-Z0-9]+')(.)/, ['table', '']],
       // Single field names
-      [/(\[)(['\]["a-z\sA-Z0-9\\:]+)(\])/, ['@brackets', 'field', '@brackets']],
+      [/(\[)([^\]]+)(])/, ['@brackets', 'field', '@brackets']],
       [
         /[a-zA-Z_$][\w$]*/,
         {

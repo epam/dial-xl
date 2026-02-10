@@ -12,5 +12,6 @@ public enum FunctionType {
     TEXT,
     PERIOD_SERIES,
     PYTHON,
-    EVALUATION
+    EVALUATION,
+    CONTROL
 }

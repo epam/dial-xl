@@ -21,13 +21,16 @@ backendControl:
     JWKS_URI: https://dev-dial-keycloak.staging.deltixhub.io/realms/EPAM/protocol/openid-connect/certs
     WEB_STORAGE_DIAL_ENABLED: "true"
     WEB_STORAGE_DIAL_BASE_URL: "https://dev-dial-core.staging.deltixhub.io"
+    SYNC_DESTINATION_IMAGE: "registry-dev.deltixhub.com/deltix.docker/quantgrid/destination-dial:main"
+    SYNC_DESTINATION_SECRET: "epm-rtc-registry-dev"
+    SYNC_K8S_NAMESPACE: quantgrid-dev
 
   secret:
     SOME_SECRET_ENV: secret_env
 
   resources:
     requests:
-      cpu: 1
+      cpu: 0.25
       memory: 1Gi
     limits:
       cpu: 2
@@ -40,6 +43,9 @@ backendControl:
 
   persistence:
     size: 50Gi
+
+  rbac:
+    create: true
 
 backendCompute:
   enabled: true
@@ -63,7 +69,7 @@ backendCompute:
     JAVA_OPTS: |
       -server
       -Djava.awt.headless=true
-      -Xms1600m
+      -Xms2g
       -Xmx2g
       -XX:+AlwaysActAsServerClassMachine
       -XX:+AlwaysPreTouch
@@ -76,11 +82,11 @@ backendCompute:
 
   resources:
     requests:
-      cpu: 4
-      memory: 8Gi
+      cpu: 2
+      memory: 4Gi
     limits:
       cpu: 4
-      memory: 8Gi
+      memory: 4Gi
 
   hpa:
     enabled: true
@@ -99,6 +105,9 @@ frontend:
 
   podAnnotations:
     autorestart: '{{ dateInZone "2023-01-02 15:04:05Z" (now) "UTC" }}'
+  
+  env:
+    CORE_HOST: "core.dial-development.svc.cluster.local"
 
   config: |
     const dialOverlayUrl = 'https://dev-dial-chat-overlay.staging.deltixhub.io/';
@@ -106,7 +115,7 @@ frontend:
     const authClientId = 'quantgrid';
     const authProvider = 'keycloak';
     const authScope = 'openid dial profile email offline_access';
-    const dialBaseUrl = 'https://dev-dial-core.staging.deltixhub.io';
+    const dialBaseUrl = 'https://quantgrid-dev.staging.deltixhub.io/core';
     const defaultLogoUrl = '';
     const qgBotDeploymentName = 'qgbot';
     const adminRoles = ['admin'];

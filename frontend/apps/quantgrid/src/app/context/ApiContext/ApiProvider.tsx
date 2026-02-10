@@ -1,25 +1,31 @@
 import { decodeJwt } from 'jose';
 import {
+  type JSX,
   PropsWithChildren,
-  useContext,
+  useCallback,
   useEffect,
   useMemo,
   useState,
 } from 'react';
 import { useAuth } from 'react-oidc-context';
 
+import { BucketFetchState } from '@frontend/common';
+
 import { useApiRequests } from '../../hooks';
-import { ApiContext } from '../ApiContext';
-import { AppContext } from '../AppContext';
+import { useUIStore } from '../../store';
+import { ApiContext } from './ApiContext';
 
 export function ApiContextProvider({
   children,
 }: PropsWithChildren<Record<string, unknown>>): JSX.Element {
   const auth = useAuth();
-  const { setLoading } = useContext(AppContext);
+  const setLoading = useUIStore((s) => s.setLoading);
   const { getDialBucket } = useApiRequests();
   const [userBucket, setUserBucket] = useState<string | undefined>();
   const [userRoles, setUserRoles] = useState<string[]>([]);
+  const [bucketState, setBucketState] = useState<BucketFetchState>({
+    loading: false,
+  });
 
   const isAdmin = useMemo(() => {
     const adminRoles = window.externalEnv.adminRoles ?? [];
@@ -29,18 +35,29 @@ export function ApiContextProvider({
       : false;
   }, [userRoles]);
 
-  useEffect(() => {
-    const bucketAsyncFunc = async () => {
-      setLoading(true);
-      const bucket = await getDialBucket();
-      setLoading(false);
-      if (bucket) {
-        setUserBucket(bucket);
-      }
-    };
+  const fetchBucket = useCallback(async () => {
+    setBucketState({ loading: true });
+    setLoading(true);
 
+    const result = await getDialBucket();
+
+    setLoading(false);
+
+    if (result.success) {
+      setUserBucket(result.data);
+      setBucketState({ loading: false, bucket: result.data });
+    } else {
+      setBucketState({ loading: false, error: result.error });
+    }
+  }, [getDialBucket, setLoading]);
+
+  const retryBucketFetch = useCallback(() => {
+    fetchBucket();
+  }, [fetchBucket]);
+
+  useEffect(() => {
     if (!auth.isLoading && auth.isAuthenticated) {
-      bucketAsyncFunc();
+      fetchBucket();
 
       if (auth.user?.access_token) {
         const decodedJWT = decodeJwt(auth.user?.access_token);
@@ -51,10 +68,9 @@ export function ApiContextProvider({
       }
     }
   }, [
-    getDialBucket,
+    fetchBucket,
     auth.isLoading,
     auth.isAuthenticated,
-    setLoading,
     auth.user?.access_token,
   ]);
 
@@ -63,8 +79,10 @@ export function ApiContextProvider({
       userBucket,
       userRoles,
       isAdmin,
+      bucketState,
+      retryBucketFetch,
     }),
-    [isAdmin, userBucket, userRoles]
+    [userBucket, userRoles, isAdmin, bucketState, retryBucketFetch],
   );
 
   return <ApiContext.Provider value={value}>{children}</ApiContext.Provider>;

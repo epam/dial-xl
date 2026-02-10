@@ -1,3 +1,4 @@
+import { Tooltip } from 'antd';
 import { useCallback, useContext, useMemo } from 'react';
 
 import Icon from '@ant-design/icons';
@@ -78,13 +79,15 @@ export function ErrorItem({ error, errorType }: Props) {
     const sheetToOpen =
       targetSheet && targetSheet !== sheetName ? targetSheet : sheetName;
 
-    if (fieldName) {
-      openField(sheetToOpen, tableName, fieldName);
-    } else {
-      openTable(sheetToOpen, tableName);
+    if (tableName) {
+      if (fieldName) {
+        openField(sheetToOpen, tableName, fieldName);
+      } else {
+        openTable(sheetToOpen, tableName);
+      }
     }
 
-    if (!openedPanels.editor.isActive && !fieldName) {
+    if (!openedPanels.editor.isActive && (!fieldName || !tableName)) {
       openPanel(PanelName.CodeEditor);
     }
 
@@ -120,7 +123,7 @@ export function ErrorItem({ error, errorType }: Props) {
 
   const { icon: errorIcon, title: iconTitle } = useMemo(
     () => errorItemConfig[errorType],
-    [errorType]
+    [errorType],
   );
 
   const errorLabel = useMemo(
@@ -128,19 +131,20 @@ export function ErrorItem({ error, errorType }: Props) {
       errorType === 'parsing'
         ? getLabelFromParsingError(error as ParsingError)
         : getLabelFromError(
-            error as CompilationError | RuntimeError | IndexError
+            error as CompilationError | RuntimeError | IndexError,
           ) || '[]',
-    [error, errorType]
+    [error, errorType],
   );
 
   return (
     <div className="mt-1 p-1 bg-bg-error rounded-[3px]">
       <div className="flex">
-        <Icon
-          className="mt-[3px] shrink-0 size-[18px] text-text-error mx-2"
-          component={() => errorIcon}
-          title={iconTitle}
-        />
+        <Tooltip title={iconTitle} destroyOnHidden>
+          <Icon
+            className="mt-[3px] shrink-0 size-[18px] text-text-error mx-2"
+            component={() => errorIcon}
+          />
+        </Tooltip>
         <div className="pr-2">
           <span
             className="text-text-error font-semibold text-[13px] wrap-anywhere hover:underline cursor-pointer"

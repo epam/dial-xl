@@ -1,8 +1,10 @@
 import { useCallback, useContext, useEffect, useRef } from 'react';
 
+import { EventTypeMoveChartOrTable, GridEvent } from '../components';
 import { GridStateContext, GridViewportContext } from '../context';
 import { Coordinates, GridCell } from '../types';
 import {
+  filterByTypeAndCast,
   getMousePosition,
   isClickInsideCanvas,
   normalizeCol,
@@ -14,9 +16,10 @@ const movementThreshold = 5;
 
 export function useDragTable() {
   const {
+    gridApi,
     gridSizes,
     getCell,
-    gridCallbacks,
+    eventBus,
     selection$,
     setSelectionEdges,
     setIsTableDragging,
@@ -30,6 +33,7 @@ export function useDragTable() {
   const isMouseDown = useRef(false);
   const selectedCell = useRef<GridCell | null>(null);
   const initialMousePosition = useRef<Coordinates | null>(null);
+  const dragOffset = useRef<{ col: number; row: number } | null>(null);
 
   const onMouseDown = useCallback(
     (e: MouseEvent) => {
@@ -51,8 +55,16 @@ export function useDragTable() {
       isMouseDown.current = true;
       initialMousePosition.current = { x, y };
       selectedCell.current = cell;
+
+      if (cell.table) {
+        const { startCol, startRow } = cell.table;
+        dragOffset.current = {
+          col: col - startCol,
+          row: row - startRow,
+        };
+      }
     },
-    [getCell, getCellFromCoords, gridSizes, isPanModeEnabled]
+    [getCell, getCellFromCoords, gridSizes, isPanModeEnabled],
   );
 
   const onMouseUp = useCallback(
@@ -61,6 +73,10 @@ export function useDragTable() {
 
       document.body.style.cursor = 'default';
       isMouseDown.current = false;
+
+      gridApi.event.emit({
+        type: GridEvent.stopMoveMode,
+      });
 
       if (!isDragging.current) {
         initialMousePosition.current = null;
@@ -86,16 +102,28 @@ export function useDragTable() {
       const colDelta = selectionEdges.startCol - startCol;
       const rowDelta = selectionEdges.startRow - startRow;
 
-      gridCallbacks.onMoveTable?.(tableName, rowDelta, colDelta);
+      eventBus.emit({
+        type: 'tables/move',
+        payload: {
+          tableName,
+          rowDelta,
+          colDelta,
+        },
+      });
+
+      gridApi.event.emit({
+        type: GridEvent.stopMoveEntity,
+      });
 
       selectedCell.current = null;
       isDragging.current = false;
       initialMousePosition.current = null;
+      dragOffset.current = null;
 
       setIsTableDragging(false);
       setSelectionEdges(selectionEdges);
     },
-    [gridCallbacks, selection$, setIsTableDragging, setSelectionEdges]
+    [eventBus, gridApi, selection$, setIsTableDragging, setSelectionEdges],
   );
 
   const onMouseMove = useCallback(
@@ -123,6 +151,10 @@ export function useDragTable() {
 
       if (!isDragging.current) return;
 
+      gridApi.event.emit({
+        type: GridEvent.startMoveEntity,
+      });
+
       const { col, row } = getCellFromCoords(x, y);
       const selectionEdges = selection$.getValue();
 
@@ -141,10 +173,12 @@ export function useDragTable() {
 
       const tableWidth = Math.abs(endCol - startCol);
       const tableHeight = Math.abs(endRow - startRow);
+      const offset = dragOffset.current ?? { col: 0, row: 0 };
+
       const { edges } = gridSizes;
 
-      const nextStartCol = normalizeCol(col, edges.col);
-      const nextStartRow = normalizeRow(row, edges.row);
+      const nextStartCol = normalizeCol(col - offset.col, edges.col);
+      const nextStartRow = normalizeRow(row - offset.row, edges.row);
       const nextEndCol = normalizeCol(nextStartCol + tableWidth, edges.col);
       const nextEndRow = normalizeRow(nextStartRow + tableHeight, edges.row);
 
@@ -155,20 +189,62 @@ export function useDragTable() {
           endCol: nextEndCol,
           endRow: nextEndRow,
         },
-        { selectedTable: tableName }
+        { selectedTable: tableName, silent: true },
       );
 
       moveViewportToCell(col, row);
     },
     [
+      gridApi,
       getCellFromCoords,
       gridSizes,
       moveViewportToCell,
       selection$,
       setIsTableDragging,
       setSelectionEdges,
-    ]
+    ],
   );
+
+  useEffect(() => {
+    if (!gridApi.events$) return;
+
+    const startMoveChartOrTableSubscription = gridApi.events$
+      .pipe(
+        filterByTypeAndCast<EventTypeMoveChartOrTable>(
+          GridEvent.moveChartOrTable,
+        ),
+      )
+      .subscribe(({ cell, x, y }) => {
+        if (!cell?.table) return;
+
+        isMouseDown.current = true;
+        selectedCell.current = cell;
+        initialMousePosition.current = { x, y };
+
+        const { startCol, endCol, startRow, endRow } = cell.table;
+        const { col: clickCol, row: clickRow } = getCellFromCoords(x, y);
+
+        dragOffset.current = {
+          col: clickCol - startCol,
+          row: clickRow - startRow,
+        };
+
+        setSelectionEdges({
+          startCol,
+          startRow,
+          endCol,
+          endRow,
+        });
+
+        gridApi.event.emit({
+          type: GridEvent.startMoveMode,
+        });
+      });
+
+    return () => {
+      startMoveChartOrTableSubscription.unsubscribe();
+    };
+  }, [getCellFromCoords, gridApi, setSelectionEdges]);
 
   useEffect(() => {
     document.addEventListener('mouseup', onMouseUp, false);

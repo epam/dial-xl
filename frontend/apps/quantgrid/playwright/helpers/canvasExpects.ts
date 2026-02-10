@@ -8,7 +8,7 @@ const timeout = 30000;
 export async function waitForCondition(
   conditionFn: () => boolean | Promise<boolean>,
   pollingInterval: number,
-  timeout: number
+  timeout: number,
 ): Promise<boolean> {
   const start = Date.now();
   while (Date.now() - start < timeout) {
@@ -19,7 +19,9 @@ export async function waitForCondition(
   return false;
 }
 
-async function checkCondition(conditionFn: () => boolean | Promise<boolean>) {
+export async function checkCondition(
+  conditionFn: () => boolean | Promise<boolean>,
+) {
   const result = await waitForCondition(conditionFn, interval, timeout);
   expect(result).toBeTruthy();
 }
@@ -28,7 +30,7 @@ export async function expectCellTextToBe(
   canvas: Canvas,
   row: number,
   col: number,
-  text: string
+  text: string,
 ) {
   await checkCondition(async () => {
     return (await canvas.getCellTableText(row, col)) === text;
@@ -39,7 +41,7 @@ export async function expectCellTextNotToBe(
   canvas: Canvas,
   row: number,
   col: number,
-  text: string
+  text: string,
 ) {
   await checkCondition(async () => {
     return (await canvas.getCellTableText(row, col)) !== text;
@@ -49,7 +51,7 @@ export async function expectCellTextNotToBe(
 export async function expectCellTextToBePresent(
   canvas: Canvas,
   row: number,
-  col: number
+  col: number,
 ) {
   await checkCondition(async () => {
     const text = await canvas.getCellTableText(row, col);

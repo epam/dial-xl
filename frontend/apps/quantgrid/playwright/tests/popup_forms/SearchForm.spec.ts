@@ -24,23 +24,23 @@ let browserContext: BrowserContext;
 
 let page: Page;
 
-const storagePath = `playwright/${projectName}.json`;
+const storagePath = TestFixtures.getStoragePath();
 
 test.beforeAll(async ({ browser }) => {
   const Table1 = new Table(table1Row, table1Column, tableForSearch);
   Table1.addField(new Field(fieldForSearch + '1', '5'));
   Table1.addField(new Field(fieldForSearch + '2', '7'));
   projectSpreadsheet.addTable(Table1);
+  browserContext = await browser.newContext({ storageState: storagePath });
   await TestFixtures.createProject(
     storagePath,
-    browser,
+    browserContext,
     projectName,
     table1Row,
     table1Column,
     tableForSearch,
-    projectSpreadsheet.toDsl()
+    projectSpreadsheet.toDsl(),
   );
-  browserContext = await browser.newContext({ storageState: storagePath });
 });
 
 test.beforeEach(async () => {
@@ -53,8 +53,8 @@ test.afterEach(async () => {
 });
 
 test.afterAll(async ({ browser }) => {
+  await TestFixtures.deleteProject(browserContext, projectName);
   await browserContext.close();
-  await TestFixtures.deleteProject(browser, projectName);
 });
 
 test.describe('search form', () => {
@@ -70,7 +70,7 @@ test.describe('search form', () => {
   async function testTabSwitch(
     searchForm: SearchForm,
     tabName: string,
-    searchEntry: string
+    searchEntry: string,
   ) {
     await searchForm.switchTabKeyboard();
     await searchForm.expectTabSelected(tabName);
@@ -81,7 +81,7 @@ test.describe('search form', () => {
   async function testTabSwitchReverse(
     searchForm: SearchForm,
     tabName: string,
-    searchEntry: string
+    searchEntry: string,
   ) {
     await searchForm.switchTabKeyboardReverseOrder();
     await searchForm.expectTabSelected(tabName);
@@ -99,12 +99,12 @@ test.describe('search form', () => {
     await testTabSwitch(
       searchForm,
       SearchTabs.Tables,
-      projectSpreadsheet.getTable(0).getName()
+      projectSpreadsheet.getTable(0).getName(),
     );
     await testTabSwitch(
       searchForm,
       SearchTabs.Fields,
-      projectSpreadsheet.getTable(0).getField(0).getName()
+      projectSpreadsheet.getTable(0).getField(0).getName(),
     );
   });
 
@@ -124,12 +124,12 @@ test.describe('search form', () => {
     await testTabSwitchReverse(
       searchForm,
       SearchTabs.Fields,
-      projectSpreadsheet.getTable(0).getField(0).getName()
+      projectSpreadsheet.getTable(0).getField(0).getName(),
     );
     await testTabSwitchReverse(
       searchForm,
       SearchTabs.Tables,
-      projectSpreadsheet.getTable(0).getName()
+      projectSpreadsheet.getTable(0).getName(),
     );
     await testTabSwitchReverse(searchForm, SearchTabs.Sheets, 'Sheet1');
     await testTabSwitchReverse(searchForm, SearchTabs.Projects, projectName);

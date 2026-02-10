@@ -29,7 +29,16 @@ export function getThemeColors(theme: AppTheme) {
   };
 }
 
-export function sortNumericOrText<T extends string>(array: T[]): T[] {
+// Sorts an array of strings that may contain numeric values.
+// Disabled by default to preserve the original order unless explicitly enabled.
+// Currently, all charts use the original order, but this function may be useful
+// when we add configurable sorting for charts.
+export function sortNumericOrText<T extends string>(
+  array: T[],
+  enabled = false,
+): T[] {
+  if (!enabled) return array;
+
   return array.sort((a, b) => {
     const aNum = Number(a);
     const bNum = Number(b);
@@ -50,4 +59,8 @@ export function addLineBreaks<T extends string>(array: T[]): string[] {
 
 export function isHtmlColor(color: string): boolean {
   return /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/i.test(color.trim());
+}
+
+export function makeUniqueLabel(label: string, occ: number) {
+  return occ <= 1 ? label : label + '\u200B'.repeat(occ - 1);
 }

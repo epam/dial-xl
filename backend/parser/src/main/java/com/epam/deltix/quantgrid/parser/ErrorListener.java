@@ -37,7 +37,8 @@ public class ErrorListener extends BaseErrorListener {
                     && token.getType() == SheetLexer.LINE_BREAK;
             SheetParser.Fields_definitionContext lastFieldContext = sheetReader.getLastFieldsContext();
             boolean isUnparsedAfterFormula = lastFieldContext != null
-                    && lastFieldContext.expression() != null;
+                    && lastFieldContext.expression() != null
+                    && lastFieldContext.getStop().getLine() != line;
             if (isIncompleteFormula || isUnparsedAfterFormula) {
                 msg = "Column formula is expected to fit on a single line."
                         + " Use backslash \"\\\" to continue the formula on the next line.";

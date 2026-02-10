@@ -32,7 +32,7 @@ export function FieldNameEdit({ parsedField }: { parsedField: ParsedField }) {
     (event: ChangeEvent<HTMLInputElement>) => {
       setInputFieldName(event.target.value);
     },
-    []
+    [],
   );
 
   const handleRenameField = useCallback(() => {
@@ -52,7 +52,7 @@ export function FieldNameEdit({ parsedField }: { parsedField: ParsedField }) {
 
       setInputFieldName(unescapeFieldName(parsedField.key.fieldName));
     },
-    [parsedField]
+    [parsedField],
   );
 
   useEffect(() => {

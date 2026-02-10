@@ -1,4 +1,5 @@
 export * from './clipboard';
+export * from './compare';
 export * from './dialApi';
 export * from './formula';
 export * from './keyboard';

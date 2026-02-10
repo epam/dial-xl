@@ -55,4 +55,9 @@ configure(projects) {
         jvmArgs openModules
         systemProperty "gflog.sync", "true" // sync logging to not mix up messages from different tests
     }
+
+    tasks.withType(JavaExec).configureEach {
+        // JVM arguments for all JavaExec tasks
+        jvmArgs openModules
+    }
 }

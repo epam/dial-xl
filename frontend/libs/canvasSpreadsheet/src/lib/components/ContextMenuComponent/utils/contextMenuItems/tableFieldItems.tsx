@@ -1,5 +1,9 @@
+import { ItemType } from 'antd/es/menu/interface';
+
 import Icon from '@ant-design/icons';
 import {
+  CheckboxControlIcon,
+  DropdownControlIcon,
   FormulaIcon,
   getDropdownDivider,
   getDropdownItem,
@@ -12,14 +16,14 @@ import {
   isTextType,
   Shortcut,
   shortcutApi,
-  TableArrowIcon,
-  TagIcon,
 } from '@frontend/common';
 
-import { GridCallbacks, GridCell } from '../../../../types';
+import { GridCell } from '../../../../types';
+import { GridEventBus } from '../../../../utils';
 import { spreadsheetMenuKeys as menuKey } from '../config';
 import { ContextMenuKeyData } from '../types';
 import {
+  aiRegenerateItem,
   arrangeTableItems,
   askAIItem,
   deleteItem,
@@ -29,11 +33,14 @@ import {
   filterItem,
   hideItem,
   insertItem,
+  moveTable,
   noteEditItem,
   noteRemoveItem,
+  openDetails,
   orientationItem,
   sortItem,
   switchInput,
+  syncImport,
   totalItem,
 } from './commonItem';
 
@@ -41,9 +48,9 @@ export const getTableFieldMenuItems = (
   col: number,
   row: number,
   cell: GridCell,
-  gridCallbacks: GridCallbacks,
-  filterList: GridListFilter[]
-) => {
+  eventBus: GridEventBus,
+  filterList: GridListFilter[],
+): ItemType[] => {
   const { field, table } = cell;
 
   if (!table || !field) return [];
@@ -68,7 +75,9 @@ export const getTableFieldMenuItems = (
     isIndex,
     isDescription,
     isInput,
+    isImport,
     hasOverrides: fieldHasOverrides,
+    isControl,
   } = field;
 
   const isNumeric = isNumericType(type);
@@ -86,31 +95,20 @@ export const getTableFieldMenuItems = (
     ? cell.isOverride || fieldHasOverrides
     : false;
 
+  const hasAIFunction = field?.isAIFunctions;
+
   return [
     isShowAIPrompt ? askAIItem(col, row) : null,
-    isShowAIPrompt ? getDropdownDivider() : null,
-    getDropdownItem({
-      label: 'Move table',
-      key: getDropdownMenuKey<ContextMenuKeyData>(menuKey.moveTable, {
-        col,
-        row,
-      }),
-      icon: (
-        <Icon
-          className="text-text-secondary w-[18px]"
-          component={() => (
-            <TableArrowIcon secondaryAccentCssVar="text-accent-secondary" />
-          )}
-        />
-      ),
-    }),
+    hasAIFunction ? aiRegenerateItem(col, row) : null,
+    isShowAIPrompt || hasAIFunction ? getDropdownDivider() : null,
+    moveTable(col, row, isChart),
     getDropdownDivider(),
-    !isComplexOrDynamic ? sortItem(col, row, isNumeric) : null,
-    filterType && !isComplexOrDynamic
-      ? filterItem(col, row, cell, gridCallbacks, filterList)
+    !isComplexOrDynamic && !isControl ? sortItem(col, row, isNumeric) : null,
+    filterType && !isControl && !isComplexOrDynamic
+      ? filterItem(col, row, cell, eventBus, filterList)
       : null,
-    totalItem(col, row, totalFieldTypes, isComplex),
-    !isComplexOrDynamic ? getDropdownDivider() : null,
+    !isControl ? totalItem(col, row, totalFieldTypes, isComplex) : null,
+    !isControl && !isComplexOrDynamic ? getDropdownDivider() : null,
     getDropdownItem({
       label: 'Edit formula',
       key: getDropdownMenuKey<ContextMenuKeyData>(menuKey.editFormula, {
@@ -126,6 +124,7 @@ export const getTableFieldMenuItems = (
       shortcut: shortcutApi.getLabel(Shortcut.EditExpression),
     }),
     isInput ? switchInput(col, row) : null,
+    isImport ? syncImport(col, row) : null,
     getDropdownItem({
       label: 'Rename column',
       key: getDropdownMenuKey<ContextMenuKeyData>(menuKey.renameField, {
@@ -141,18 +140,64 @@ export const getTableFieldMenuItems = (
       shortcut: shortcutApi.getLabel(Shortcut.Rename),
       disabled: isDynamic,
     }),
-    fieldTagsItem(
-      col,
-      row,
-      isKey,
-      isDynamic,
-      isManual,
-      isFieldHasOverrides,
-      isIndex,
-      isDescription,
-      isText,
-      fieldNames
-    ),
+    getDropdownItem({
+      label: 'Create control',
+      key: 'createControl',
+      icon: (
+        <Icon
+          className="text-text-accent-primary w-[18px]"
+          component={() => <CheckboxControlIcon />}
+        />
+      ),
+      children: [
+        getDropdownItem({
+          label: 'Dropdown',
+          key: getDropdownMenuKey<ContextMenuKeyData>(
+            menuKey.createDropdownControlFromField,
+            {
+              col,
+              row,
+            },
+          ),
+          icon: (
+            <Icon
+              className="text-text-accent-primary w-[18px]"
+              component={() => <DropdownControlIcon />}
+            />
+          ),
+        }),
+        getDropdownItem({
+          label: 'Checkbox',
+          key: getDropdownMenuKey<ContextMenuKeyData>(
+            menuKey.createCheckboxControlFromField,
+            {
+              col,
+              row,
+            },
+          ),
+          icon: (
+            <Icon
+              className="text-text-accent-secondary w-[18px]"
+              component={() => <CheckboxControlIcon />}
+            />
+          ),
+        }),
+      ],
+    }),
+    !isControl
+      ? fieldTagsItem(
+          col,
+          row,
+          isKey,
+          isDynamic,
+          isManual,
+          isFieldHasOverrides,
+          isIndex,
+          isDescription,
+          isText,
+          fieldNames,
+        )
+      : null,
     showCollapseNestedField || showExpandNestedField
       ? dimensionItem(col, row, showCollapseNestedField, isDynamic)
       : null,
@@ -171,21 +216,9 @@ export const getTableFieldMenuItems = (
       row,
       isTableNameHeaderHidden,
       isTableFieldsHeaderHidden,
-      isChart
+      isChart,
     ),
     getDropdownDivider(),
-    getDropdownItem({
-      label: 'Open in Editor',
-      icon: (
-        <Icon
-          className="text-text-secondary w-[18px]"
-          component={() => <TagIcon />}
-        />
-      ),
-      key: getDropdownMenuKey<ContextMenuKeyData>(menuKey.openFieldInEditor, {
-        col,
-        row,
-      }),
-    }),
+    ...(openDetails(col, row, false) || []),
   ];
 };

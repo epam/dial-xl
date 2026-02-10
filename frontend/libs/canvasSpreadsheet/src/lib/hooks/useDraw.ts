@@ -3,33 +3,64 @@ import { Subject, Subscription, throttleTime } from 'rxjs';
 
 import { GridStateContext, GridViewportContext } from '../context';
 
-const delay = 500;
 const dataThrottleDelay = 150;
+
+// Shared state for batching renders per app
+const appRenderState = new WeakMap<
+  any,
+  {
+    renderScheduled: boolean;
+    rafId: number | null;
+  }
+>();
+
+function getAppRenderState(app: any) {
+  if (!app) return null;
+  if (!appRenderState.has(app)) {
+    appRenderState.set(app, {
+      renderScheduled: false,
+      rafId: null,
+    });
+  }
+
+  return appRenderState.get(app)!;
+}
 
 export function useDraw(draw: () => void, skipOnViewportRedraw?: boolean) {
   const { app, gridSizes, columnSizes, theme, getCell } =
     useContext(GridStateContext);
   const { gridViewportSubscriber } = useContext(GridViewportContext);
-  const shouldDrawTimeout = useRef<NodeJS.Timeout | null>(null);
 
   const redraw = useCallback(() => {
-    if (shouldDrawTimeout.current) clearTimeout(shouldDrawTimeout.current);
-    if (!app?.ticker?.started && app?.renderer) {
-      app?.start?.();
-    }
-
+    // Execute draw immediately
     draw();
 
-    // When in another tab request animation frame not called
-    if (!document.hasFocus()) {
-      app?.render();
+    if (!app) return;
+
+    const renderState = getAppRenderState(app);
+    if (!renderState) return;
+
+    // If a render is already scheduled, don't schedule another one
+    if (renderState.renderScheduled) {
+      return;
     }
 
-    shouldDrawTimeout.current = setTimeout(() => {
-      if (app?.ticker?.started && app?.renderer) {
-        app?.stop?.();
+    // Schedule a single render for the next frame
+    renderState.renderScheduled = true;
+    requestAnimationFrame(() => {
+      const currentRenderState = getAppRenderState(app);
+      if (!currentRenderState || !app) return;
+
+      // Reset the scheduled flag
+      currentRenderState.renderScheduled = false;
+
+      if (!app || !app.ticker || app.ticker?.started) {
+        return;
       }
-    }, delay);
+
+      // Perform a single render
+      app.render();
+    });
   }, [app, draw]);
 
   useEffect(() => {
@@ -58,7 +89,7 @@ export function useDraw(draw: () => void, skipOnViewportRedraw?: boolean) {
         throttleTime(dataThrottleDelay, undefined, {
           leading: true,
           trailing: true,
-        })
+        }),
       )
       .subscribe(() => {
         redraw();

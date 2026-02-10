@@ -1,5 +1,6 @@
 import { useCallback, useContext, useEffect, useState } from 'react';
 
+import { GridEvent } from '../components';
 import { GridStateContext } from '../context';
 import { Edges } from '../types';
 
@@ -11,7 +12,8 @@ export function useSelection() {
     getCell,
     tableStructure,
     selectedTable,
-    gridCallbacks,
+    eventBus,
+    gridApi,
   } = useContext(GridStateContext);
 
   const [selectionEdges, setLocalSelectionEdges] = useState<Edges | null>(null);
@@ -26,13 +28,17 @@ export function useSelection() {
       endRow: startRow,
       endCol: startCol,
     });
-  }, [selectionEdges, setSelectionEdges]);
+
+    gridApi.event.emit({
+      type: GridEvent.stopMoveEntity,
+    });
+  }, [gridApi, selectionEdges, setSelectionEdges]);
 
   const completeMoveTable = useCallback(() => {
-    if (!selectedTable || !selectionEdges || !gridCallbacks) return;
+    if (!selectedTable || !selectionEdges) return;
 
     const findTable = tableStructure.find(
-      (table) => table.tableName === selectedTable
+      (table) => table.tableName === selectedTable,
     );
 
     if (!findTable) return;
@@ -42,10 +48,23 @@ export function useSelection() {
     const colDelta = selectionEdges.startCol - startCol;
     const rowDelta = selectionEdges.startRow - startRow;
 
-    gridCallbacks.onMoveTable?.(selectedTable, rowDelta, colDelta);
+    eventBus.emit({
+      type: 'tables/move',
+      payload: {
+        tableName: selectedTable,
+        rowDelta,
+        colDelta,
+      },
+    });
+
     setSelectionEdges(selectionEdges);
+
+    gridApi.event.emit({
+      type: GridEvent.stopMoveEntity,
+    });
   }, [
-    gridCallbacks,
+    gridApi,
+    eventBus,
     selectedTable,
     selectionEdges,
     setSelectionEdges,
@@ -55,7 +74,7 @@ export function useSelection() {
   const selectTableByName = useCallback(
     (tableName: string) => {
       const findTable = tableStructure.find(
-        (table) => table.tableName === tableName
+        (table) => table.tableName === tableName,
       );
 
       if (!findTable) return;
@@ -71,10 +90,14 @@ export function useSelection() {
         },
         {
           selectedTable: tableName,
-        }
+        },
       );
+
+      gridApi.event.emit({
+        type: GridEvent.startMoveEntity,
+      });
     },
-    [setSelectionEdges, tableStructure]
+    [gridApi, setSelectionEdges, tableStructure],
   );
 
   const selectTable = useCallback(() => {
@@ -97,9 +120,13 @@ export function useSelection() {
       },
       {
         selectedTable: table.tableName,
-      }
+      },
     );
-  }, [getCell, selectionEdges, setSelectionEdges]);
+
+    gridApi.event.emit({
+      type: GridEvent.startMoveEntity,
+    });
+  }, [getCell, gridApi, selectionEdges, setSelectionEdges]);
 
   const selectRow = useCallback(() => {
     if (!selectionEdges) return;
@@ -173,7 +200,7 @@ export function useSelection() {
     const selectionSubscription = selection$.subscribe(
       (edges: Edges | null) => {
         setLocalSelectionEdges(edges);
-      }
+      },
     );
 
     return () => {

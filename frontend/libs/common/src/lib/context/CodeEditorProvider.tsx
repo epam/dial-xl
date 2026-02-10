@@ -1,5 +1,11 @@
-import { editor } from 'monaco-editor/esm/vs/editor/editor.api';
-import { PropsWithChildren, useCallback, useMemo, useState } from 'react';
+import { editor } from 'monaco-editor/esm/vs/editor/editor.api.js';
+import {
+  type JSX,
+  PropsWithChildren,
+  useCallback,
+  useMemo,
+  useState,
+} from 'react';
 import { useAuth } from 'react-oidc-context';
 
 import { ParsingError } from '../services';
@@ -50,7 +56,7 @@ export function CodeEditorContextProvider({
 
       return fetch(url, { method: 'post', headers, body });
     },
-    [auth, dialBaseUrl]
+    [auth, dialBaseUrl],
   );
 
   const value = useMemo(
@@ -77,7 +83,7 @@ export function CodeEditorContextProvider({
       updateInitialOffset,
       formatDocument,
       getCompletions,
-    ]
+    ],
   );
 
   return (

@@ -1,41 +1,42 @@
 import { EChartsOption, PieSeriesOption } from 'echarts';
+import { GridOption } from 'echarts/types/dist/shared';
 import {
   OptionDataItemObject,
   OptionDataValue,
 } from 'echarts/types/src/util/types.js';
 
-import { chartRowNumberSelector, ChartsData } from '@frontend/common';
+import {
+  chartRowNumberSelector,
+  ChartsData,
+  GridChart,
+} from '@frontend/common';
 
-import { ChartConfig } from '../../types';
+import { buildLayout } from '../buildLayout';
 import { GetOptionProps, OrganizedData } from '../chartRegistry';
 import {
   getColor,
   getThemeColors,
   isHtmlColor,
+  makeUniqueLabel,
   sortNumericOrText,
 } from '../common';
 
 export function organizePieChartData(
   chartData: ChartsData,
-  chartConfig: ChartConfig
+  gridChart: GridChart,
 ): OrganizedData | undefined {
-  const data = chartData[chartConfig.tableName];
-  const { gridChart } = chartConfig;
   const {
     chartSections,
     customSeriesColors,
     selectedKeys,
     showLegend,
     chartOrientation,
+    legendPosition,
+    tableName,
   } = gridChart;
+  const data = chartData[tableName];
 
-  if (
-    !data ||
-    !Object.keys(data).length ||
-    !chartSections ||
-    !chartSections.length
-  )
-    return;
+  if (!data || !Object.keys(data).length || !chartSections?.length) return;
 
   const rowOrCol = selectedKeys[chartRowNumberSelector];
   if (typeof rowOrCol !== 'string') return;
@@ -80,7 +81,7 @@ export function organizePieChartData(
         ? (data[xAxisFieldName].rawValues as string[])
         : Array.from(
             { length: (data[numericField]?.rawValues || []).length },
-            (_, i) => `${i + 1}`
+            (_, i) => `${i + 1}`,
           );
 
     const rowLabelsDisplay: string[] | undefined =
@@ -91,6 +92,9 @@ export function organizePieChartData(
     const columnValues = data[numericField]?.rawValues || [];
     const displayValues = data[numericField]?.displayValues || [];
 
+    // track occurrences to keep duplicates as separate slices (in table order)
+    const occByDisplayLabel = new Map<string, number>();
+
     columnValues.forEach((raw: any, i: number) => {
       const num = parseFloat(raw as string);
       if (isNaN(num)) return;
@@ -98,20 +102,27 @@ export function organizePieChartData(
       const rawLabel = rowLabels[i] ?? `${i + 1}`;
       const displayLabel = rowLabelsDisplay?.[i] ?? rawLabel;
 
-      legendData.push(displayLabel);
+      const occ = (occByDisplayLabel.get(displayLabel) ?? 0) + 1;
+      occByDisplayLabel.set(displayLabel, occ);
+      const uniqueDisplayLabel = makeUniqueLabel(displayLabel, occ);
+
+      // legendData must use the SAME unique name
+      legendData.push(uniqueDisplayLabel);
+
       let sliceColor: string | undefined;
       const colorCandidate = dotColors?.[i];
 
       if (colorCandidate && isHtmlColor(colorCandidate)) {
         sliceColor = colorCandidate;
       } else {
-        const legendIdx = legendData.indexOf(displayLabel);
+        const legendIdx = legendData.indexOf(uniqueDisplayLabel);
         sliceColor =
           customSeriesColors?.[rawLabel] || getColor(legendIdx, rawLabel);
       }
 
       seriesData.push({
-        name: displayLabel,
+        name: uniqueDisplayLabel,
+        displayName: displayLabel,
         rawName: rawLabel,
         value: num,
         itemStyle: { color: sliceColor },
@@ -124,7 +135,7 @@ export function organizePieChartData(
     {
       name: '',
       type: 'pie',
-      radius: '70%',
+      radius: '80%',
       data: seriesData,
       stillShowZeroSum: false,
       itemStyle: {
@@ -147,6 +158,7 @@ export function organizePieChartData(
 
   return {
     showLegend,
+    legendPosition,
     legendData,
     series,
   };
@@ -155,16 +167,31 @@ export function organizePieChartData(
 export function getPieChartOption({
   series,
   legendData,
+  legendPosition,
   zoom,
   theme,
   showLegend,
 }: GetOptionProps): EChartsOption {
-  function getValue(value: number) {
+  function z(value: number) {
     return value * zoom;
   }
 
-  const fontSize = getValue(12);
+  const fontSize = z(12);
   const { textColor, borderColor, bgColor } = getThemeColors(theme);
+
+  const layout = buildLayout({
+    zoom,
+    textColor,
+    showLegend: !!showLegend,
+    legendPosition,
+  });
+
+  let topOffset = z(20);
+  const grid = layout.grid as GridOption;
+
+  if (typeof grid?.top === 'number') {
+    topOffset = grid.top - 10;
+  }
 
   const seriesWithStyles = series
     ? (series as PieSeriesOption[]).map(
@@ -177,15 +204,17 @@ export function getPieChartOption({
               s?.data &&
               s.data.every(
                 (item) =>
-                  (item as OptionDataItemObject<OptionDataValue>).value === 0
+                  (item as OptionDataItemObject<OptionDataValue>).value === 0,
               )
             ),
             formatter: (p: any) => {
               return p.data?.displayValue ?? p.value;
             },
           },
+          bottom: grid.bottom,
+          top: topOffset,
           labelLine: {
-            length: getValue(15),
+            length: z(15),
           },
           emphasis: {
             itemStyle: {
@@ -194,35 +223,20 @@ export function getPieChartOption({
               shadowColor: 'rgba(0, 0, 0, 0.5)',
             },
           },
-        })
+        }),
       )
     : [];
 
   return {
+    textStyle: {
+      ...layout.textStyle,
+    },
     legend: {
-      type: 'scroll',
-      orient: 'vertical',
-      left: 0,
-      top: getValue(10),
-      bottom: getValue(10),
-      itemWidth: getValue(20),
-      itemHeight: getValue(10),
+      ...layout.legend,
       data: legendData,
-      textStyle: {
-        fontSize,
-        color: textColor,
-        overflow: 'break',
-        width: getValue(70),
-      },
-      show: showLegend,
     },
     grid: {
-      borderColor: '#ccc',
-      left: showLegend ? getValue(140) : getValue(10),
-      top: getValue(10),
-      right: getValue(10),
-      bottom: getValue(10),
-      containLabel: true,
+      ...layout.grid,
     },
     series: seriesWithStyles,
     tooltip: {

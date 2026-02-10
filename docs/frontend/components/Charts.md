@@ -3,6 +3,8 @@
 ## Introduction
 This document describes how charts are configured and how data is requested and filtered through various decorators applied to fields and tables in the DSL. The charts functionality relies on decorators that modify behavior such as selecting axes, coloring series, filtering data with selectors, and more.
 
+---
+
 ## Decorators
 
 - `!x()`
@@ -29,6 +31,8 @@ This document describes how charts are configured and how data is requested and 
 - `!dotcolor()`
   - Put on a field (in scatter plots) to define the dot colors per data point if `!colors()` is not specified. This field is not part of the series itself but modifies point colors.
 
+---
+
 ## Data Request and Selectors
 
 - Initially, data is requested using existing viewport functionality (calculation request).
@@ -43,6 +47,8 @@ This document describes how charts are configured and how data is requested and 
 - When a selector value is chosen, it is saved as `selector("value")` for strings or `selector(42)` for numbers in the DSL filters.
 - For the chart data request, selected values are appended to the `apply filter` clause: apply filter (/existing clauses/) AND [selector1] = "value1" AND [selector2] = "value2"
 - For row index selectors, the viewport’s `start_row` and `end_row` are used to apply the selection.
+
+---
 
 ### Querying Selector Values
 
@@ -62,6 +68,42 @@ This document describes how charts are configured and how data is requested and 
     apply
     sort -[has_values],[Country]
 
+---
+
+### Row-Based vs Column-Based Series Orientation
+
+In many cases, users want to build charts where series are defined **by rows** rather than by columns.  
+To support this, charts can work in two orientations:
+
+- **Columns** – series are taken from **columns** (default).
+- **Rows** – series are taken from **rows**.
+
+This is controlled by a `column-wise` as a second argument in the visualization decorator, e.g.
+`!visualization("clustered-bar-chart", "column-wise")`
+
+---
+
+### Automatic Orientation Heuristic 
+
+All created charts that supports column/row orientation are horizontal by default.
+
+When the table has at least **one text column with unique values** across all rows, we:
+
+- Automatically treat that column as `!x()`.
+- If there are multiple such columns, we use the **first** one encountered.
+
+---
+
+### Manual Orientation Control (Details Panel)
+
+Users can manually override the orientation in the **Details** panel:
+
+- **Columns** – interpret **columns as series** (row values plotted across columns).
+- **Rows** – interpret **rows as series** (each row becomes its own series).
+
+This control allows the user to switch between row-based and column-based charts regardless of the automatic heuristic.
+
+---
 
 ## Chart Types
 
@@ -81,6 +123,7 @@ This document describes how charts are configured and how data is requested and 
 
 ### Scatter Plot
 - Similar to line charts, but data points are plotted as dots instead of lines.
+- X-axis scaling: linear (x position depends on numerical value).
 - `!dotsize()` on a field sets dot sizes; that field does not appear as a series.
 - `!dotcolor()` on a field sets dot colors; that field does not appear as a series.
 - `!separator()` allows defining `!x()`, `!dotcolor()`, and `!dotsize()` per group.
@@ -90,18 +133,43 @@ This document describes how charts are configured and how data is requested and 
 - `!selector()` adds dropdown filters.
 - If multiple rows remain after filtering, a row-index-based selector is added so the user can choose exactly one row.
 - `!color("#FF00FF")` sets the sector color to purple.
+- Orientation:
+  - Vertical:
+    -   Make sure !x() is supported. And if it's selected drop down shows value from !x() column instead number of row 1,2,3,4.
+  - Horizontal.
+      - Drop down allows to select numerical Column from which we are taking the data. 
+      - !x() defines name of the segments.
+      - Selected defines segment value.
+      - If !dotcolor() specified it defines color of the segment.
 
-### Bar Chart
-- Works like a pie chart but displays bar visuals instead of pie sectors.
-
-### 2D Bar Chart
-- Similar to above, but multiple rows can be selected at once.
-- Each selected row defines its own collection of bars, titled by row number.
-- If `!x()` is specified, use that field’s values as titles for each bar collection instead of row numbers.
+### Clustered Bar Chart
+- Supports selecting multiple rows at once.
+- Each selected table row forms its own **series** (a cluster of horizontal bars), labeled by row number by default.
+- For every numeric field in the section, a separate bar is drawn within the cluster; at each position (field) you see bars for all selected rows.
+- If `!x()` is specified, the values of that field are used instead of row numbers to label the series.
+- Orientation (same for all bar charts):
+  - Vertical.
+  - Horizontal.
+     - rows now define bar names, and we can apply colors to them, row names (!x() or row number) goes to legend.
+     - cols now define bar collections, and produce names to the collections.
+     - If !dotcolor() specified it defines colors of the bars.
 
 ### Stacked Bar Chart
-- Similar to a 2D bar chart, but each bar is stacked.
-- `!x()` defines the stacked bars horizontally, and each numeric field defines a segment in the stack.
+- Uses the same data layout as the Clustered Bar Chart: you can select multiple rows, and numeric fields define the bar positions.
+- For each numeric field, one horizontal bar is drawn in which the values from all selected rows are **stacked**; each row becomes its own segment in the stack.
+- If `!x()` is specified, the values of that field are used as labels for the segments/series instead of row numbers.
+
+### Clustered Column Chart
+- Uses the same configuration and data selection rules as the Clustered Bar Chart.
+- Each selected table row becomes a **category** on the X-axis (labeled by row number by default).
+- Each numeric field in the section defines a separate **series**; for every category, multiple vertical columns are drawn side by side (one per numeric field).
+- If `!x()` is specified, the values of that field are used as category labels on the X-axis instead of row numbers.
+
+### Stacked Column Chart
+- Uses the same configuration and data selection rules as the Clustered Column Chart.
+- Each selected table row is a **category** on the X-axis, and each numeric field defines a separate **series**.
+- For every category, a single vertical column is drawn where the contributions of all numeric fields are **stacked vertically**; each field becomes a segment in the stack.
+- If `!x()` is specified, the values of that field are used as category labels on the X-axis instead of row numbers.
 
 ### Histogram
 - Each numeric field defines a series.

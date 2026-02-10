@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: !param name
+  labels:
+    purpose: !param purpose
+    job-id: !param job_id
+  annotations:
+    cleanup/ttl-seconds: !param ttl
+data:
+  catalog.json: !param catalog

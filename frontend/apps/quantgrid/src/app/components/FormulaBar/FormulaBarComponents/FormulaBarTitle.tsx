@@ -1,14 +1,13 @@
 import cx from 'classnames';
-import { useContext } from 'react';
 
-import { AppContext } from '../../../context';
+import { useFormulaBarStore } from '../../../store';
 
 type Prop = {
   text: string;
 };
 
 export function FormulaBarTitle({ text }: Prop) {
-  const { formulaBarExpanded } = useContext(AppContext);
+  const formulaBarExpanded = useFormulaBarStore((s) => s.formulaBarExpanded);
 
   return (
     <div
@@ -23,7 +22,7 @@ export function FormulaBarTitle({ text }: Prop) {
           {
             'pt-2 leading-none': formulaBarExpanded,
             'leading-6': !formulaBarExpanded,
-          }
+          },
         )}
       >
         {text}

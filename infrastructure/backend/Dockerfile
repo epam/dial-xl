@@ -8,11 +8,10 @@ RUN mkdir /opt/quantgrid/
 WORKDIR /opt/quantgrid/
 
 # Copy spring boot jar and application yaml
-COPY backend/web/build/libs/server.jar /opt/quantgrid/server.jar
+COPY backend/web/build/distributions/qg-*.tar /opt/quantgrid/qg.tar
+RUN tar -xf /opt/quantgrid/qg.tar --strip-components=1 && rm /opt/quantgrid/qg.tar
 COPY backend/web/src/main/resources/application.yaml /opt/quantgrid/application.yaml
 COPY embedding_models /opt/quantgrid/embedding_models
 
-RUN chmod a+x /opt/quantgrid/server.jar
-
 EXPOSE 8080
-ENTRYPOINT /opt/quantgrid/server.jar
+ENTRYPOINT /opt/quantgrid/bin/qg

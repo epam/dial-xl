@@ -39,7 +39,7 @@ export function useSelectionMoveNextAvailable() {
 
       moveViewportToCell(finalSelection.startCol, finalSelection.startRow);
     },
-    [getCell, moveViewportToCell, setSelectionEdges]
+    [getCell, moveViewportToCell, setSelectionEdges],
   );
 
   const moveSelectionNextAvailable = useCallback(
@@ -82,7 +82,7 @@ export function useSelectionMoveNextAvailable() {
         startCol,
         startRow,
         edges.maxCol,
-        edges.maxRow
+        edges.maxRow,
       );
 
       if (target && !tablesWhichSelectionInside.length) {
@@ -93,7 +93,7 @@ export function useSelectionMoveNextAvailable() {
           startCol,
           startRow,
           edges.col,
-          edges.row
+          edges.row,
         );
 
         if (target) {
@@ -115,7 +115,7 @@ export function useSelectionMoveNextAvailable() {
       if (direction === 'up') {
         const tableWhichSelectionInside: GridTable | undefined =
           tablesWhichSelectionInside.find(
-            (table) => table.startRow !== startRow
+            (table) => table.startRow !== startRow,
           );
         if (
           target &&
@@ -167,7 +167,7 @@ export function useSelectionMoveNextAvailable() {
       if (direction === 'left') {
         const tableWhichSelectionInside: GridTable | undefined =
           tablesWhichSelectionInside.find(
-            (table) => table.startCol !== startCol
+            (table) => table.startCol !== startCol,
           );
         if (
           target &&
@@ -217,7 +217,7 @@ export function useSelectionMoveNextAvailable() {
         return;
       }
     },
-    [selection$, gridApi, tableStructure, gridSizes, selectEntireCell]
+    [selection$, gridApi, tableStructure, gridSizes, selectEntireCell],
   );
 
   return {
@@ -237,7 +237,7 @@ function findAvailableTableToMove(
   col: number,
   row: number,
   maxCols: number,
-  maxRows: number
+  maxRows: number,
 ) {
   let minDistance = Infinity;
   let result: { col: number; row: number } | null = null;

@@ -11,7 +11,7 @@ import {
   OverrideRows,
   OverrideValue,
 } from './parser';
-import { escapeValue } from './services';
+import { escapeValue, unescapeFieldName } from './services';
 import { SheetReader } from './SheetReader';
 import { Span } from './Span';
 
@@ -44,7 +44,7 @@ export class ParsedOverride {
 
   constructor(
     ctx?: Override_definitionContext | undefined,
-    params?: ParsedOverrideParams
+    params?: ParsedOverrideParams,
   ) {
     this.keys = new Set();
     this.overrideRows = this.parseOverrides(params);
@@ -62,15 +62,18 @@ export class ParsedOverride {
     keyFields.forEach((f) => this.keys.add(f));
 
     const fieldNames = overrideFields.map((field) =>
-      this.getFieldNameFromCsv(field)
+      this.getFieldNameFromCsv(field),
     );
 
     return overrideValues.map((valueRow) =>
-      valueRow.reduce((acc, curr, index) => {
-        acc[fieldNames[index]] = curr;
+      valueRow.reduce(
+        (acc, curr, index) => {
+          acc[fieldNames[index]] = curr;
 
-        return acc;
-      }, <OverrideRow>{})
+          return acc;
+        },
+        <OverrideRow>{},
+      ),
     );
   }
 
@@ -108,7 +111,7 @@ export class ParsedOverride {
     if (!this.headers) return -1;
 
     return this.headers.findIndex(
-      (header) => SheetReader.stripQuotes(header.text) === fieldName
+      (header) => SheetReader.stripQuotes(header.text) === fieldName,
     );
   }
 
@@ -166,7 +169,7 @@ export class ParsedOverride {
   }
 
   public getRowByKeys(
-    keyData: Record<string, string>
+    keyData: Record<string, string>,
   ): CachedOverrideRow | null {
     const defaultResult = { overrideRow: null, overrideIndex: null };
 
@@ -200,9 +203,9 @@ export class ParsedOverride {
     const escapedKeyValue = escapeValue(keyValue, false, true);
 
     const rowIndex = this.overrideRows.findIndex((row) =>
-      key !== defaultRowKey
-        ? row[key]?.toString() === escapedKeyValue
-        : row[key] === keyValue.toString()
+      key === defaultRowKey
+        ? row[key] === keyValue.toString()
+        : row[key]?.toString() === escapedKeyValue,
     );
 
     return rowIndex === -1 ? -1 : rowIndex;
@@ -235,7 +238,7 @@ export class ParsedOverride {
   public updateFieldValueByIndex(
     fieldName: string,
     index: number,
-    value: OverrideValue
+    value: OverrideValue,
   ) {
     let overrideIndex = index;
 
@@ -250,7 +253,7 @@ export class ParsedOverride {
       this.overrideRows[overrideIndex] &&
       Object.prototype.hasOwnProperty.call(
         this.overrideRows[overrideIndex],
-        fieldName
+        fieldName,
       )
     ) {
       this.overrideRows[overrideIndex][fieldName] = value;
@@ -260,7 +263,7 @@ export class ParsedOverride {
   public setFieldValueByIndex(
     fieldName: string,
     index: number,
-    value: OverrideValue
+    value: OverrideValue,
   ) {
     if (!this.overrideRows) {
       this.overrideRows = [];
@@ -277,7 +280,7 @@ export class ParsedOverride {
     key: string,
     keyValue: number,
     fieldName: string,
-    value: OverrideValue
+    value: OverrideValue,
   ) {
     if (!this.overrideRows) {
       this.overrideRows = [];
@@ -285,22 +288,24 @@ export class ParsedOverride {
 
     const findOverrideIndex = this.findByKey(key, keyValue);
 
-    if (findOverrideIndex !== -1) {
-      this.setFieldValueByIndex(fieldName, findOverrideIndex, value);
-    } else {
+    if (findOverrideIndex === -1) {
       this.overrideRows.push({
         [key]:
-          key !== defaultRowKey ? escapeValue(keyValue, false, true) : keyValue,
+          key !== defaultRowKey
+            ? escapeValue(keyValue, false, true)
+            : keyValue.toString(),
         [fieldName]: value,
       });
       this.keys.add(key);
+    } else {
+      this.setFieldValueByIndex(fieldName, findOverrideIndex, value);
     }
   }
 
   public setValueByKeys(
     keys: Record<string, string>,
     fieldName: string,
-    value: OverrideValue
+    value: OverrideValue,
   ) {
     if (!this.overrideRows) {
       this.overrideRows = [];
@@ -335,11 +340,14 @@ export class ParsedOverride {
       return;
 
     const defaultValue = value;
-    const newRow = Object.keys(this.overrideRows[0]).reduce((acc, key) => {
-      acc[key] = defaultValue;
+    const newRow = Object.keys(this.overrideRows[0]).reduce(
+      (acc, key) => {
+        acc[key] = defaultValue;
 
-      return acc;
-    }, <Record<string, string>>{});
+        return acc;
+      },
+      <Record<string, string>>{},
+    );
 
     this.overrideRows.splice(index, 0, newRow);
   }
@@ -372,11 +380,12 @@ export class ParsedOverride {
       header.forEach((key) => {
         const fieldName = this.getFieldNameFromCsv(key);
         const value = obj[fieldName] || '';
+        const unescapedFieldName = unescapeFieldName(fieldName);
 
         if (fieldName === defaultRowKey) {
           rowNumber = value.toString();
         } else {
-          row[fieldName] = value.toString();
+          row[unescapedFieldName] = value.toString();
         }
       });
 
@@ -478,22 +487,38 @@ export class ParsedOverride {
     rowsToRemove
       .reverse()
       .forEach(
-        (index) => this.overrideRows && this.overrideRows.splice(index, 1)
+        (index) => this.overrideRows && this.overrideRows.splice(index, 1),
       );
   }
 
   private getFieldNameFromCsv(field: string) {
-    const fieldMatch = field.match(/\[(.+)]/);
-    const isRowKeyword = field.trim() === defaultRowKey;
+    const trimmed = field.trim();
 
-    if (!isRowKeyword && (!fieldMatch || fieldMatch.length < 2)) return field;
+    const isRowKeyword = trimmed === defaultRowKey;
+    if (isRowKeyword) {
+      this.keys.add(defaultRowKey);
 
-    const isKeyField = field.trimStart().startsWith(keyKeyword);
+      return defaultRowKey;
+    }
 
-    isKeyField && fieldMatch && this.keys.add(fieldMatch[1]);
-    isRowKeyword && this.keys.add(defaultRowKey);
+    const tableFieldMatch = trimmed.match(/^'[^']*'\s*\[(.*)]$/);
+    if (tableFieldMatch) {
+      return tableFieldMatch[1];
+    }
 
-    return fieldMatch && fieldMatch[1] ? fieldMatch[1] : defaultRowKey;
+    const keyPattern = new RegExp(`^${keyKeyword}\\s*\\[(.*)]$`);
+    const keyMatch = trimmed.match(keyPattern);
+    if (keyMatch) {
+      const fieldName = keyMatch[1];
+      this.keys.add(fieldName);
+
+      return fieldName;
+    }
+
+    const simpleHeaderMatch = trimmed.match(/^\[(.*)]$/);
+    if (simpleHeaderMatch) return simpleHeaderMatch[1];
+
+    return field;
   }
 
   private from(ctx: Override_definitionContext | undefined) {

@@ -47,7 +47,7 @@ export const DropArea = ({
         <div
           className={classNames(
             'flex-1 p-2 overflow-y-auto thin-scrollbar transition-colors duration-200 h-full',
-            isOver && 'border-2 border-dashed border-stroke-accent-primary'
+            isOver && 'border-2 border-dashed border-stroke-accent-primary',
           )}
           ref={setNodeRef}
         >

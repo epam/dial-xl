@@ -17,6 +17,7 @@ import com.epam.deltix.quantgrid.engine.node.plan.Plan;
 import com.epam.deltix.quantgrid.engine.node.plan.ResultPlan;
 import com.epam.deltix.quantgrid.engine.node.plan.Running;
 import com.epam.deltix.quantgrid.engine.node.plan.local.CacheLocal;
+import com.epam.deltix.quantgrid.engine.node.plan.local.ControlValuesResultLocal;
 import com.epam.deltix.quantgrid.engine.node.plan.local.IndexResultLocal;
 import com.epam.deltix.quantgrid.engine.node.plan.local.LoadLocal;
 import com.epam.deltix.quantgrid.engine.node.plan.local.RetrieverResultLocal;
@@ -35,6 +36,9 @@ import com.epam.deltix.quantgrid.engine.rule.Reduce;
 import com.epam.deltix.quantgrid.engine.rule.Reuse;
 import com.epam.deltix.quantgrid.engine.rule.UniteAggregation;
 import com.epam.deltix.quantgrid.engine.rule.UniteJoin;
+import com.epam.deltix.quantgrid.engine.service.ai.AiProvider;
+import com.epam.deltix.quantgrid.engine.service.input.storage.DataStore;
+import com.epam.deltix.quantgrid.engine.service.input.storage.ImportProvider;
 import com.epam.deltix.quantgrid.engine.service.input.storage.InputProvider;
 import com.epam.deltix.quantgrid.engine.store.Store;
 import com.epam.deltix.quantgrid.engine.value.Table;
@@ -82,39 +86,56 @@ public class Engine implements ExecutionHandler {
     private final Cache cache;
     private final Executor executor;
     @Getter
+    private final ExecutorService executorService;
+    @Getter
     private final InputProvider inputProvider;
+    @Getter
+    private final ImportProvider importProvider;
+    @Getter
+    private final AiProvider aiProvider;
     private final GraphCallback graphCallback;
     private final Store store;
     private final Predicate<Plan> toStore;
+    @Getter
+    private final DataStore dataStore;
 
     public Engine(Cache cache,
                   ExecutorService service,
                   ExecutorService indexService,
                   GraphCallback graphCallback,
                   InputProvider inputProvider,
+                  ImportProvider importProvider,
+                  AiProvider aiProvider,
                   Store store,
-                  Predicate<Plan> toStore) {
+                  Predicate<Plan> toStore,
+                  DataStore dataStore) {
         this.cache = cache;
         this.executor = new Executor(lock, service, indexService, this);
+        this.executorService = service;
         this.graphCallback = graphCallback;
         this.inputProvider = inputProvider;
+        this.importProvider = importProvider;
+        this.aiProvider = aiProvider;
         this.store = store;
         this.toStore = toStore;
+        this.dataStore = dataStore;
     }
 
     public Computation compute(ResultListener handler,
                                List<ParsedSheet> sheets,
                                Collection<Viewport> viewports,
                                SimilarityRequest search,
+                               ControlRequest control,
                                Principal principal,
+                               String project,
                                boolean profile,
                                boolean index,
                                boolean shared) {
         long computationId = ids.incrementAndGet();
         handler.onParsing(sheets);
         ComputationType type = shared ? ComputationType.CONDITIONAL : ComputationType.OPTIONAL;
-        Compiler compiler = new Compiler(inputProvider, principal, computationId, type);
-        Compilation compilation = compiler.compile(sheets, viewports, index, search);
+        Compiler compiler = new Compiler(inputProvider, importProvider, aiProvider, principal, store, project, computationId, type);
+        Compilation compilation = compiler.compile(sheets, viewports, index, search, control);
         Graph graph = compilation.graph();
         handler.onCompilation(compilation);
         return compute(graph, handler, computationId, profile);
@@ -139,7 +160,7 @@ public class Engine implements ExecutionHandler {
             for (ParsedFields fields : table.fields()) {
                 for (ParsedField field : fields.fields()) {
                     Viewport viewport = new Viewport(new FieldKey(table.tableName(), field.fieldName()),
-                            ComputationType.REQUIRED, 0, 1000, true, false);
+                            ComputationType.REQUIRED, 0, 1000, 0, 1000, true, false);
                     viewports.add(viewport);
                 }
             }
@@ -151,14 +172,14 @@ public class Engine implements ExecutionHandler {
                     Formula formula = field.formula();
                     if (formula != null) {
                         TotalKey key = new TotalKey(table.tableName(), field.fields().get(0).fieldName(), i + 1);
-                        Viewport viewport = new Viewport(key, ComputationType.REQUIRED, 0, 1000, true, false);
+                        Viewport viewport = new Viewport(key, ComputationType.REQUIRED, 0, 1000, 0, 1000, true, false);
                         viewports.add(viewport);
                     }
                 }
             }
         }
 
-        return compute(handler, List.of(sheet), viewports, null, principal, true, true, shared);
+        return compute(handler, List.of(sheet), viewports, null, null, principal, "test", true, true, shared);
     }
 
     @TestOnly
@@ -169,8 +190,8 @@ public class Engine implements ExecutionHandler {
     @TestOnly
     public Computation compute(ResultListener handler, String dsl, Principal principal, boolean shared, FieldKey... fields) {
         ParsedSheet parsedSheet = SheetReader.parseSheet(dsl);
-        List<Viewport> viewports = Arrays.stream(fields).map(field -> new Viewport(field, ComputationType.REQUIRED, 0, 1000, true, false)).toList();
-        return compute(handler, List.of(parsedSheet), viewports, null, principal, true, true, shared);
+        List<Viewport> viewports = Arrays.stream(fields).map(field -> new Viewport(field, ComputationType.REQUIRED, 0, 1000, 0, 1000, true, false)).toList();
+        return compute(handler, List.of(parsedSheet), viewports, null, null, principal, "test", true, true, shared);
     }
 
     private Computation compute(Graph graph, ResultListener handler, long id, boolean profile) {
@@ -291,11 +312,17 @@ public class Engine implements ExecutionHandler {
             } else if (plan instanceof IndexResultLocal result) {
                 Computation computation = computations.get(result.getComputationId());
                 notify(() -> computation.onIndexResult(result.getKey(), table, error));
+            } else if (plan instanceof ControlValuesResultLocal result) {
+                Computation computation = computations.get(result.getComputationId());
+                notify(() -> computation.onControlValuesResult(result.getKey(), result.getType(),
+                        result.getStartRow(), result.getEndRow(),
+                        table, error));
             } else if (plan instanceof ViewportLocal result) {
                 Computation computation = computations.get(result.getComputationId());
                 notify(() ->
                         computation.onViewportResult(result.getKey(), result.getResultType(),
-                        result.getStart(), result.getEnd(),
+                        result.getStartRow(), result.getEndRow(),
+                        result.getStartCol(), result.getEndCol(),
                         result.isContent(), result.isRaw(),
                         table, error));
             }

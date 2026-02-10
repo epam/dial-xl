@@ -52,7 +52,7 @@ public final class CompiledUnpivotTable extends CompiledAbstractTable {
 
     @Override
     public boolean assignable() {
-        return false;
+        return true;
     }
 
     @Override

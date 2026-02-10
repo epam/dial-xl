@@ -31,7 +31,8 @@ public class CalculateController {
                     Api.CalculateWorksheetsRequest.class);
             heartbeatService.addEmitter(emitter);
 
-            ComputeService.ComputeTask task = service.compute(request, new Sender(emitter), principal);
+            SseCallback callback = new SseCallback(heartbeatService, emitter);
+            ComputeService.ComputeTask task = service.compute(request, callback, principal);
             emitter.onTimeout(task::cancel);
             emitter.onError(e -> task.cancel());
 
@@ -42,60 +43,13 @@ public class CalculateController {
         }
     }
 
-    @RequiredArgsConstructor
-    class Sender implements ComputeService.ComputeCallback {
-        private final SseEmitter emitter;
-        private boolean errored;
+    @PostMapping(value = "/v1/calculate_control_values", produces = "application/json")
+    public String calculateControlValues(Principal principal, @RequestBody String body) {
+        log.info("Received calculate control values request: {}", body);
+        Api.Request request = ApiMessageMapper.parseRequest(body, Api.Request::getControlValuesRequest,
+                Api.ControlValuesRequest.class);
 
-        @Override
-        public void onUpdate(Api.Response response) {
-            if (errored) {
-                return;
-            }
-
-            try {
-                emitter.send(ApiMessageMapper.fromApiResponse(response));
-            } catch (Throwable e) {
-                errored = true;
-                log.error("Failed to send calculation result", e);
-            }
-        }
-
-        @Override
-        public void onComplete() {
-            heartbeatService.removeEmitter(emitter);
-
-            if (errored) {
-                return;
-            }
-
-            try {
-                emitter.send("[DONE]");
-                emitter.complete();
-                log.info("Sent calculation response");
-            } catch (Throwable e) {
-                errored = true;
-                log.error("Failed to complete response", e);
-            }
-        }
-
-        @Override
-        public void onFailure(Throwable error) {
-            log.warn("Error while calculating request", error);
-            heartbeatService.removeEmitter(emitter);
-
-            if (errored) {
-                return;
-            }
-
-            try {
-                String message = (error instanceof CancellationException) ? "[CANCEL]" : "[ERROR]";
-                emitter.send(message);
-                emitter.complete();
-            } catch (Throwable e) {
-                errored = true;
-                log.error("Failed to complete response with error", e);
-            }
-        }
+        Api.Response response = service.computeControlValues(request, principal);
+        return ApiMessageMapper.fromApiResponse(response);
     }
 }

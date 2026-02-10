@@ -1,6 +1,6 @@
 import {
-  BarChartIcon,
-  FlatBarChartIcon,
+  ClusteredBarChartIcon,
+  ClusteredColumnChartIcon,
   HeatmapChartIcon,
   HistogramChartIcon,
   LineChartIcon,
@@ -8,53 +8,59 @@ import {
   PieChartIcon,
   ScatterPlotChartIcon,
   StackedBarChartIcon,
+  StackedColumnChartIcon,
 } from '../icons';
 import { ChartType } from '../types';
 
 export const chartItems = [
   {
-    label: 'Line Chart',
+    label: 'Line',
     type: ChartType.LINE,
     value: ChartType.LINE,
     icon: <LineChartIcon />,
   },
   {
-    label: 'Heatmap Chart',
+    label: 'Heatmap',
     type: ChartType.HEATMAP,
     icon: <HeatmapChartIcon />,
   },
   {
-    label: 'Scatter Plot Chart',
+    label: 'Scatter Plot',
     type: ChartType.SCATTER_PLOT,
     icon: <ScatterPlotChartIcon />,
   },
   {
-    label: 'Pie Chart',
+    label: 'Pie',
     type: ChartType.PIE,
     icon: <PieChartIcon />,
   },
   {
-    label: 'Bar Chart',
-    type: ChartType.BAR,
-    icon: <BarChartIcon />,
+    label: 'Clustered Column',
+    type: ChartType.CLUSTERED_COLUMN,
+    icon: <ClusteredColumnChartIcon />,
   },
   {
-    label: '2d Bar Chart',
-    type: ChartType.FLAT_BAR,
-    icon: <FlatBarChartIcon />,
+    label: 'Stacked Column',
+    type: ChartType.STACKED_COLUMN,
+    icon: <StackedColumnChartIcon />,
   },
   {
-    label: 'Stacked Bar Chart',
+    label: 'Clustered Bar',
+    type: ChartType.CLUSTERED_BAR,
+    icon: <ClusteredBarChartIcon />,
+  },
+  {
+    label: 'Stacked Bar',
     type: ChartType.STACKED_BAR,
     icon: <StackedBarChartIcon />,
   },
   {
-    label: 'Histogram Chart',
+    label: 'Histogram',
     type: ChartType.HISTOGRAM,
     icon: <HistogramChartIcon />,
   },
   {
-    label: 'Period Series Chart',
+    label: 'Period Series',
     type: ChartType.PERIOD_SERIES,
     icon: <PeriodSeriesChartIcon />,
   },

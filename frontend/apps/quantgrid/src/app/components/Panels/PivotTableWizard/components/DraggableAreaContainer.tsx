@@ -24,7 +24,7 @@ export function DraggableAreaContainer({
       className={classNames(
         'h-full flex flex-col bg-bg-layer-2 border rounded-[3px]',
         className,
-        errorMessage ? 'border-stroke-error' : 'border-stroke-primary'
+        errorMessage ? 'border-stroke-error' : 'border-stroke-primary',
       )}
     >
       <div className="flex justify-between p-2">

@@ -7,12 +7,10 @@ import {
   SelectedChartKey,
   Viewport,
 } from '@frontend/common';
-import { unescapeTableName } from '@frontend/parser';
+import { unescapeFieldName, unescapeTableName } from '@frontend/parser';
 
 import { TableData } from './types';
 import { ViewGridData } from './ViewGridData';
-
-const defaultChartViewportRows = 1000;
 
 /**
  * Class which is generating viewport request considering tablesData
@@ -30,7 +28,7 @@ export class ViewportChartBuilder {
 
   public buildChartViewportRequest(
     selectedKeys: SelectedChartKey[],
-    tablesWithoutSelectors: ChartTableWithoutSelectors[]
+    tablesWithoutSelectors: ChartTableWithoutSelectors[],
   ): Viewport[] {
     const viewportsToRequest: Viewport[] = [];
     const requestTableNames = new Map<string, string[]>();
@@ -65,7 +63,7 @@ export class ViewportChartBuilder {
 
       if (
         viewportsToRequest.some(
-          (v) => v?.fieldKey?.table === unescapedTableName
+          (v) => v?.fieldKey?.table === unescapedTableName,
         )
       )
         continue;
@@ -82,7 +80,7 @@ export class ViewportChartBuilder {
       if (cachedFields) {
         const fieldsToRequestSet = new Set(fieldsToRequest);
         const allFieldsCached = fieldsToRequest.every((field) =>
-          cachedFields.has(field)
+          cachedFields.has(field),
         );
         const sameSizeFields = cachedFields.size === fieldsToRequestSet.size;
 
@@ -92,7 +90,7 @@ export class ViewportChartBuilder {
       const rowNumberKey = mergedSelectedKeys.find(
         (key) =>
           key.fieldName === chartRowNumberSelector &&
-          key.tableName === tableName
+          key.tableName === tableName,
       );
 
       // Special case for horizontal pie/bar chart:
@@ -105,13 +103,14 @@ export class ViewportChartBuilder {
           rowNumberKey,
           fieldsToRequest,
           unescapedTableName,
-          viewportsToRequest
+          viewportsToRequest,
         );
       } else {
         this.addChartDefaultViewports(
+          chartType,
           fieldsToRequest,
           unescapedTableName,
-          viewportsToRequest
+          viewportsToRequest,
         );
       }
 
@@ -157,7 +156,7 @@ export class ViewportChartBuilder {
     rowNumberKey: SelectedChartKey,
     fieldsToRequest: string[],
     unescapedTableName: string,
-    viewports: Viewport[]
+    viewports: Viewport[],
   ): void {
     const { key } = rowNumberKey;
     const rowNumbers = Array.isArray(key) ? key : [key];
@@ -169,7 +168,10 @@ export class ViewportChartBuilder {
         viewports.push({
           start_row: rowIndex,
           end_row: rowIndex + 1,
-          fieldKey: { field, table: unescapedTableName },
+          fieldKey: {
+            field: unescapeFieldName(field),
+            table: unescapedTableName,
+          },
           is_raw: true,
         });
       }
@@ -177,23 +179,42 @@ export class ViewportChartBuilder {
   }
 
   private addChartDefaultViewports(
+    chartType: ChartType,
     fieldsToRequest: string[],
     unescapedTableName: string,
-    viewports: Viewport[]
+    viewports: Viewport[],
   ): void {
     for (const field of fieldsToRequest) {
       viewports.push({
         start_row: 0,
-        end_row: defaultChartViewportRows,
-        fieldKey: { field, table: unescapedTableName },
+        end_row: this.getChartViewportRowsCount(chartType),
+        fieldKey: {
+          field: unescapeFieldName(field),
+          table: unescapedTableName,
+        },
         is_raw: true,
       });
     }
   }
 
+  private getChartViewportRowsCount(chartType: ChartType): number {
+    if (
+      [
+        ChartType.PIE,
+        ChartType.STACKED_BAR,
+        ChartType.STACKED_COLUMN,
+        ChartType.CLUSTERED_COLUMN,
+        ChartType.CLUSTERED_BAR,
+      ].includes(chartType)
+    )
+      return 100;
+
+    return 1000;
+  }
+
   private buildPeriodSeriesViewportRequest(
     selectedKey: SelectedChartKey,
-    viewportsToRequest: Viewport[]
+    viewportsToRequest: Viewport[],
   ): void {
     const { tableName, fieldName, key } = selectedKey;
 
@@ -235,11 +256,11 @@ export class ViewportChartBuilder {
         end_row: row + 1,
         is_content: true,
         fieldKey: {
-          field,
+          field: unescapeFieldName(field),
           table: unescapeTableName(tableName),
         },
         is_raw: true,
-      }))
+      })),
     );
   }
 

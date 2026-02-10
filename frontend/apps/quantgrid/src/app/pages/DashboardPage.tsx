@@ -1,27 +1,23 @@
-import { useContext, useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router';
 
 import { projectFolderAppdata, projectFolderXl } from '@frontend/common';
 
-import { Dashboard } from '../components';
+import { Dashboard, DashboardModals } from '../components';
 import {
-  AppContext,
   DashboardContextProvider,
-  ProjectContext,
+  SettingsGate,
+  UserSettingsSyncProvider,
 } from '../context';
+import { useUIStore } from '../store';
 import { routes } from '../types';
 
 export function DashboardPage() {
-  const { hideLoading } = useContext(AppContext);
-  const { projectName, closeCurrentProject } = useContext(ProjectContext);
+  const hideLoading = useUIStore((s) => s.hideLoading);
   const { pathname, search } = useLocation();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (projectName) {
-      closeCurrentProject(true);
-    }
-
     hideLoading();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -47,8 +43,13 @@ export function DashboardPage() {
   }, [pathname, search, navigate]);
 
   return (
-    <DashboardContextProvider>
-      <Dashboard />
-    </DashboardContextProvider>
+    <UserSettingsSyncProvider>
+      <SettingsGate>
+        <DashboardContextProvider>
+          <Dashboard />
+          <DashboardModals />
+        </DashboardContextProvider>
+      </SettingsGate>
+    </UserSettingsSyncProvider>
   );
 }

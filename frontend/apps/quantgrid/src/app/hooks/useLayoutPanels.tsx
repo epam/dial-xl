@@ -1,4 +1,4 @@
-import { useContext, useMemo } from 'react';
+import { useMemo } from 'react';
 
 import {
   AdjustmentsIcon,
@@ -24,11 +24,13 @@ import {
   ProjectPanel,
   UndoRedoPanel,
 } from '../components';
-import { AppContext } from '../context';
-import { loadPanels, loadPanelsEnvConfig } from '../services';
+import { useUserSettingsStore } from '../store';
 
 export function useLayoutPanels() {
-  const { chatWindowPlacement } = useContext(AppContext);
+  const chatWindowPlacement = useUserSettingsStore(
+    (s) => s.data.chatWindowPlacement,
+  );
+  const panelsLayout = useUserSettingsStore((s) => s.data.panelsLayout);
 
   const initialPanels = useMemo(() => {
     const defaultAppPanelsConfig: PanelRecord = {
@@ -58,20 +60,17 @@ export function useLayoutPanels() {
       },
     };
 
-    const defaultEnvPanelsConfig = loadPanelsEnvConfig();
-    const localStoragePanelsConfig = loadPanels();
+    const defaultEnvPanelsConfig =
+      window.externalEnv.defaultPanelsSettings ?? {};
 
     const defaultPanelConfig = Object.assign(
       defaultAppPanelsConfig,
-      defaultEnvPanelsConfig
+      defaultEnvPanelsConfig,
     );
-    const finalPanelConfig = Object.assign(
-      defaultPanelConfig,
-      localStoragePanelsConfig
-    );
+    const finalPanelConfig = Object.assign(defaultPanelConfig, panelsLayout);
 
     return { openedPanels: finalPanelConfig };
-  }, []);
+  }, [panelsLayout]);
 
   const panels: PanelSettings = useMemo(
     () => ({
@@ -113,7 +112,7 @@ export function useLayoutPanels() {
         icon: <AdjustmentsIcon />,
       },
     }),
-    [chatWindowPlacement]
+    [chatWindowPlacement],
   );
 
   return { initialPanels, panels };

@@ -5,7 +5,7 @@ import { CurrentCell } from '../types';
 import { isEditableTableCell } from '../utils';
 
 type Props = {
-  apiRef: RefObject<GridApi>;
+  apiRef: RefObject<GridApi | null>;
   currentCell: CurrentCell;
   editedCalculatedCellValue: string;
   setEditedCalculatedCellValue: (value: string) => void;

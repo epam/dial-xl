@@ -2,7 +2,7 @@ import { Checkbox } from 'antd';
 import cx from 'classnames';
 import classNames from 'classnames';
 import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 
 import Icon from '@ant-design/icons';
 import {
@@ -21,8 +21,9 @@ import {
   QGLogo,
 } from '@frontend/common';
 
-import { ApiContext, AppContext, DashboardContext } from '../../../context';
+import { ApiContext, DashboardContext } from '../../../context';
 import { useApiRequests, useCreateTableDsl } from '../../../hooks';
+import { useUIStore } from '../../../store';
 import { DashboardItem, DashboardListColumn } from '../../../types/dashboard';
 import {
   constructPath,
@@ -39,7 +40,7 @@ type Props = {
 };
 
 export function FileListItem({ item, columns }: Props) {
-  const { setLoading } = useContext(AppContext);
+  const setLoading = useUIStore((s) => s.setLoading);
   const { userBucket } = useContext(ApiContext);
   const [isHovered, setIsHovered] = useState(false);
   const [isSelected, setIsSelected] = useState(false);
@@ -57,12 +58,12 @@ export function FileListItem({ item, columns }: Props) {
     () =>
       item.name.endsWith(csvFileExtension) &&
       item.nodeType === MetadataNodeType.ITEM,
-    [item]
+    [item],
   );
 
   const isFolder = useMemo(
     () => item.nodeType === MetadataNodeType.FOLDER,
-    [item]
+    [item],
   );
 
   const itemLink = useMemo(() => {
@@ -73,14 +74,14 @@ export function FileListItem({ item, columns }: Props) {
           projectPath: item.parentPath,
         })
       : isFolder
-      ? getDashboardNavigateUrl({
-          folderPath: `${item.parentPath ? item.parentPath + '/' : ''}${
-            item.name
-          }`,
-          folderBucket: item.bucket,
-          tab: currentTab!,
-        })
-      : '';
+        ? getDashboardNavigateUrl({
+            folderPath: `${item.parentPath ? item.parentPath + '/' : ''}${
+              item.name
+            }`,
+            folderBucket: item.bucket,
+            tab: currentTab!,
+          })
+        : '';
   }, [
     currentTab,
     isFolder,
@@ -127,7 +128,7 @@ export function FileListItem({ item, columns }: Props) {
 
     setLoading(true);
     const formula = `INPUT("${encodeApiUrl(
-      constructPath(['files', item.bucket, item.parentPath, item.name])
+      constructPath(['files', item.bucket, item.parentPath, item.name]),
     )}")`;
 
     const dimensionalSchema = await getDimensionalSchemaRequest({
@@ -141,17 +142,17 @@ export function FileListItem({ item, columns }: Props) {
       return;
     }
 
-    const { dsl } = getDimensionalTableFromFormula(
-      'Table1',
-      true,
-      '',
+    const { dsl } = getDimensionalTableFromFormula({
+      tableName: 'Table1',
+      isSourceDimField: true,
+      fieldName: '',
       formula,
-      dimensionalSchema.dimensionalSchemaResponse.schema,
-      dimensionalSchema.dimensionalSchemaResponse.keys,
-      1,
-      1,
-      ColumnDataType.TABLE_VALUE
-    );
+      schema: dimensionalSchema.dimensionalSchemaResponse.schema,
+      keys: dimensionalSchema.dimensionalSchemaResponse.keys,
+      row: 1,
+      col: 1,
+      type: ColumnDataType.TABLE_VALUE,
+    });
 
     const projectName = item.name.replaceAll(csvFileExtension, '');
     const projectPath = constructPath([
@@ -184,7 +185,7 @@ export function FileListItem({ item, columns }: Props) {
         projectBucket: userBucket,
         projectPath,
         projectSheetName: defaultSheetName,
-      })
+      }),
     );
   }, [
     createProjectRequest,
@@ -219,7 +220,7 @@ export function FileListItem({ item, columns }: Props) {
             {
               'cursor-pointer': isProject || isFolder || isCSV,
               'bg-bg-accent-primary-alpha': isHovered || isSelected,
-            }
+            },
           )}
           target={isProject ? '_blank' : '_self'}
           to={itemLink}
@@ -232,7 +233,7 @@ export function FileListItem({ item, columns }: Props) {
               <div
                 className={classNames(
                   'flex items-center gap-2 md:gap-4 overflow-hidden text-ellipsis',
-                  column.classNames
+                  column.classNames,
                 )}
                 key={column.title}
               >

@@ -40,7 +40,7 @@ export class ParsedFilter {
     span: Span | undefined,
     formula: ParsedText | undefined,
     public parsedExpression: Expression | undefined,
-    public text: string
+    public text: string,
   ) {
     this.span = span;
     this.formula = formula;
@@ -60,7 +60,7 @@ export class ParsedFilter {
 
     const fieldFilters: Map<string, string[]> = getModifiedFilters(
       this.parsedExpression,
-      props
+      props,
     );
 
     return Array.from(fieldFilters.entries()).map(([, filters]) => {
@@ -78,13 +78,13 @@ export class ParsedFilter {
    * @param fieldName - the field name to get the filter value
    */
   public getFieldConditionFilter(
-    fieldName: string
+    fieldName: string,
   ): ParsedConditionFilter | undefined {
     if (!this.parsedExpression) return;
 
     const expressionsWithParents = findFieldExpressionsWithParent(
       this.parsedExpression,
-      fieldName
+      fieldName,
     );
 
     if (expressionsWithParents.length === 0) return;
@@ -116,7 +116,7 @@ export class ParsedFilter {
 
     const fieldBinOpExpressions = findFieldBinOpExpressions(
       this.parsedExpression,
-      fieldName
+      fieldName,
     );
 
     if (fieldBinOpExpressions.length === 0) return [];

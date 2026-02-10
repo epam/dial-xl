@@ -1,6 +1,6 @@
 import cx from 'classnames';
 import { useContext } from 'react';
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 
 import {
   defaultTabClasses,
@@ -49,11 +49,11 @@ export function DashboardTabs() {
           className={cx(
             'h-[30px] md:h-9 px-3 md:px-5 text-sm md:text-base shrink-0',
             defaultTabClasses,
-            currentTab === tab.id ? selectedTabClasses : notSelectedTabClasses
+            currentTab === tab.id ? selectedTabClasses : notSelectedTabClasses,
           )}
           id={tab.id}
           key={tab.id}
-          to={tabToRouteMap?.[tab.id] || '/'}
+          to={`../${tabToRouteMap?.[tab.id] || '/'}`}
         >
           {tab.label}
         </Link>

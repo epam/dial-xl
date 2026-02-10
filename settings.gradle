@@ -1,3 +1,4 @@
 rootProject.name = 'quant-grid'
 
-include 'backend:engine', 'backend:web', 'backend:proto', 'backend:parser', 'backend:common'
+include 'backend:engine', 'backend:web', 'backend:proto', 'backend:parser', 'backend:common', 'backend:input',
+    'airbyte-integrations:source', 'airbyte-integrations:destination'

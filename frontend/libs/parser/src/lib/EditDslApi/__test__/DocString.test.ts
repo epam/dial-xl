@@ -44,7 +44,7 @@ describe('Doc String Tests', () => {
         '  ## field doc line 1\n',
         '  ## field doc line 2\n',
         '  [a] = 1\n',
-      ].join('')
+      ].join(''),
     );
   });
 
@@ -78,7 +78,7 @@ describe('Doc String Tests', () => {
         '  ## field doc line 2\n',
         '  ## field doc line 3\n',
         '  [a] = 1\n',
-      ].join('')
+      ].join(''),
     );
   });
 

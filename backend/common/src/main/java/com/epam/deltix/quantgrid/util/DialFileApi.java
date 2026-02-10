@@ -55,7 +55,7 @@ import java.util.stream.Collectors;
 
 @Slf4j
 public class DialFileApi implements AutoCloseable {
-    private static final ObjectMapper MAPPER = new ObjectMapper()
+    public static final ObjectMapper MAPPER = new ObjectMapper()
             .setSerializationInclusion(JsonInclude.Include.NON_NULL)
             .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
 
@@ -107,7 +107,13 @@ public class DialFileApi implements AutoCloseable {
         });
     }
 
-    public Closeable subscribeOnFileEvents(String path, FileSubscriber subscriber,
+    public Closeable subscribeOnFileContentEvents(String path, FileContentSubscriber subscriber,
+                                                  Principal principal) throws IOException {
+        FileContentAdapter adapter = new FileContentAdapter(principal, path, subscriber);
+        return subscribeOnFileEvents(path, adapter, principal);
+    }
+
+    public Closeable subscribeOnFileEvents(String path, FileEventSubscriber subscriber,
                                            Principal principal) throws IOException {
         Pair<String, String> authorization = SecurityUtils.getAuthorization(principal);
         byte[] body = MAPPER.writeValueAsBytes(new FilesSubscription(List.of(new FilePath(path))));
@@ -162,15 +168,23 @@ public class DialFileApi implements AutoCloseable {
             throws IOException {
         HttpPut httpPut = new HttpPut(baseUriV1.resolve(path));
         setAuthorizationHeader(httpPut, principal);
-        if (StringUtils.isNotBlank(etag)) {
-            httpPut.setHeader(HttpHeaders.IF_MATCH, etag);
-        } else {
+
+        if (StringUtils.isBlank(etag)) { // passes only if file does not exist
             httpPut.setHeader(HttpHeaders.IF_NONE_MATCH, "*");
+        } else if (etag.equals("*")) {
+            // passes always
+        } else {
+            httpPut.setHeader(HttpHeaders.IF_MATCH, etag); // passes only if file exists and it has this etag
         }
 
-        MultipartEntityBuilder entityBuilder = MultipartEntityBuilder.create();
-        entityBuilder.addPart("file", new BinaryBody("file.txt", contentType, writer));
-        httpPut.setEntity(entityBuilder.build());
+        if (path.startsWith("files/")) {
+            MultipartEntityBuilder entityBuilder = MultipartEntityBuilder.create();
+            entityBuilder.addPart("file", new BinaryBody("file.txt", contentType, writer));
+            httpPut.setEntity(entityBuilder.build());
+        } else {
+            StreamingEntity entity = new StreamingEntity(writer, contentType);
+            httpPut.setEntity(entity);
+        }
 
         return httpClient.execute(httpPut, response -> {
             try (InputStream ignore = response.getEntity().getContent()) {
@@ -340,11 +354,21 @@ public class DialFileApi implements AutoCloseable {
             List<String> permissions = (List<String>) metadata.getOrDefault("permissions", List.of());
             String nextToken = (String) metadata.get("nextToken");
             @SuppressWarnings("unchecked")
-            List<Attributes> items = ((List<Map<String, Object>>) metadata.getOrDefault("items", List.of())).stream()
-                    .map(Attributes::parse)
-                    .toList();
+            List<Map<String, Object>> nestedItems = (List<Map<String, Object>>) metadata.get("items");
 
+            if (nestedItems == null) {
+                nestedItems = List.of();
+            }
+
+            List<Attributes> items = nestedItems.stream().map(Attributes::parse).toList();
             return new Attributes(etag, name, parent, updatedAt, permissions, nextToken, items);
+        }
+
+        public String fullPath() {
+            if (parentPath == null) {
+                return name;
+            }
+            return parentPath + "/" + name;
         }
     }
 
@@ -361,17 +385,59 @@ public class DialFileApi implements AutoCloseable {
         CREATE, UPDATE, DELETE
     }
 
-    public interface FileSubscriber {
+    public interface FileEventSubscriber {
         void onOpen() throws Throwable;
         void onEvent(FileEvent event) throws Throwable;
         void onError(Throwable error);
+    }
+
+    public interface FileContentSubscriber {
+        void onUpdate(byte[] content) throws Throwable;
+        void onDelete() throws Throwable;
+        void onError(Throwable error);
+    }
+
+    private class FileContentAdapter implements FileEventSubscriber {
+        private final Principal principal;
+        private final String path;
+        private final FileContentSubscriber subscriber;
+
+        public FileContentAdapter(Principal principal, String path, FileContentSubscriber subscriber) {
+            this.principal = principal;
+            this.path = path;
+            this.subscriber = subscriber;
+        }
+
+        @Override
+        public synchronized void onOpen() throws Throwable {
+            sync(principal, path, subscriber);
+        }
+
+        @Override
+        public synchronized void onEvent(DialFileApi.FileEvent event) throws Throwable {
+            sync(principal, event.path(), subscriber);
+        }
+
+        @Override
+        public synchronized void onError(Throwable error) {
+            subscriber.onError(error);
+        }
+
+        private void sync(Principal principal, String path, FileContentSubscriber subscriber) throws Throwable {
+            try (EtaggedStream stream = readFile(path, principal)) {
+                byte[] content = stream.stream().readAllBytes();
+                subscriber.onUpdate(content);
+            } catch (FileNotFoundException notFound) {
+                subscriber.onDelete();
+            }
+        }
     }
 
     @RequiredArgsConstructor
     private static class FileEventListener extends EventSourceListener {
 
         private final AtomicBoolean closed;
-        private final FileSubscriber subscriber;
+        private final FileEventSubscriber subscriber;
 
         @Override
         public void onOpen(@NotNull EventSource source, @NotNull Response response) {

@@ -27,21 +27,26 @@ export const panelSize = {
   maxBottomBarSize: 300,
 };
 
-const rightBarSizeKey = 'rightBarSize';
-const leftBarSizeKey = 'leftBarSize';
-
 export function getLayoutItems({
   openedPanels,
   panels,
   expandedPanelSide,
   onResizePanelSide,
   collapsedPanelsTextHidden,
+  rightBarSize,
+  leftBarSize,
+  saveRightPanelSize,
+  saveLeftPanelSize,
 }: {
   openedPanels: PanelRecord;
   panels: PanelSettings;
   expandedPanelSide: PanelPosition | null;
   onResizePanelSide: () => void;
   collapsedPanelsTextHidden: boolean;
+  rightBarSize: number;
+  leftBarSize: number;
+  saveRightPanelSize: (e: HandlerProps) => void;
+  saveLeftPanelSize: (e: HandlerProps) => void;
 }) {
   const positions: Record<string, PanelPositionProps> = {
     [PanelPosition.Left]: {
@@ -89,7 +94,7 @@ export function getLayoutItems({
                   display: 'none',
                 }
           }
-        />
+        />,
       );
     }
     if (isActive) {
@@ -114,7 +119,7 @@ export function getLayoutItems({
             title={panel.title}
           />
         </HandleProvider>
-      </ReflexElement>
+      </ReflexElement>,
     );
 
     positions[position].minimized.push({
@@ -142,7 +147,7 @@ export function getLayoutItems({
           withHandle={true}
         >
           <div></div>
-        </ReflexElement>
+        </ReflexElement>,
       );
     }
   }
@@ -168,19 +173,19 @@ export function getLayoutItems({
           panels={leftPanelsMin}
           position={PanelPosition.Left}
         />
-      </ReflexElement>
+      </ReflexElement>,
     );
   }
   if (leftPanels.length) {
     const flex = !activeAmount[PanelPosition.Left]
       ? 0.0001
       : expandedPanelSide === PanelPosition.Left
-      ? 1
-      : undefined;
+        ? 1
+        : undefined;
     const size = activeAmount[PanelPosition.Left]
       ? expandedPanelSide === PanelPosition.Left
         ? undefined
-        : getPanelWidth(leftBarSizeKey, panelSize.leftSize)
+        : leftBarSize
       : undefined;
     const minSize = activeAmount[PanelPosition.Left]
       ? expandedPanelSide === PanelPosition.Left
@@ -204,7 +209,7 @@ export function getLayoutItems({
         <ReflexContainer orientation="horizontal" windowResizeAware>
           {leftPanels}
         </ReflexContainer>
-      </ReflexElement>
+      </ReflexElement>,
     );
     if (activeAmount[PanelPosition.Left]) {
       items.push(<ReflexSplitter key="left-splitter" />);
@@ -213,7 +218,7 @@ export function getLayoutItems({
   items.push(
     <ReflexElement className="flex flex-col w-0 relative" key="main-content">
       <SpreadsheetWrapper />
-    </ReflexElement>
+    </ReflexElement>,
   );
 
   if (rightPanels.length) {
@@ -224,12 +229,12 @@ export function getLayoutItems({
     const flex = !activeAmount[PanelPosition.Right]
       ? 0.0001
       : expandedPanelSide === PanelPosition.Right
-      ? 1
-      : undefined;
+        ? 1
+        : undefined;
     const size = activeAmount[PanelPosition.Right]
       ? expandedPanelSide === PanelPosition.Right
         ? undefined
-        : getPanelWidth(rightBarSizeKey, panelSize.rightSize)
+        : rightBarSize
       : undefined;
     const minSize = activeAmount[PanelPosition.Right]
       ? expandedPanelSide === PanelPosition.Right
@@ -253,7 +258,7 @@ export function getLayoutItems({
         <ReflexContainer orientation="horizontal">
           {rightPanels}
         </ReflexContainer>
-      </ReflexElement>
+      </ReflexElement>,
     );
   }
 
@@ -268,7 +273,7 @@ export function getLayoutItems({
           panels={rightPanelsMin}
           position={PanelPosition.Right}
         />
-      </ReflexElement>
+      </ReflexElement>,
     );
   }
 
@@ -278,27 +283,6 @@ export function getLayoutItems({
     bottomPanelsActiveLength: activeAmount[PanelPosition.Bottom],
     bottomPanelsMin: positions[PanelPosition.Bottom].minimized,
   };
-}
-
-function getPanelWidth(key: string, defaultSize: number) {
-  const size = localStorage.getItem(key);
-
-  return size ? Number(size) : defaultSize;
-}
-
-function saveRightPanelSize(e: HandlerProps) {
-  return savePanelSize(e, rightBarSizeKey);
-}
-
-function saveLeftPanelSize(e: HandlerProps) {
-  return savePanelSize(e, leftBarSizeKey);
-}
-
-function savePanelSize(e: HandlerProps, key: string) {
-  const domElement = e.domElement as HTMLElement;
-  if (domElement.offsetWidth) {
-    localStorage.setItem(key, domElement.offsetWidth.toString());
-  }
 }
 
 export const getMobileLayoutPanels = ({
@@ -336,7 +320,7 @@ export const getMobileLayoutPanels = ({
           panelName={panelName}
           title={panel.title}
         />
-      </div>
+      </div>,
     );
 
     minimizedPanels.push({

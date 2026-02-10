@@ -79,6 +79,7 @@ export const viewMenuKeys = {
 };
 
 export const insertMenuKeys = {
+  control: 'Control',
   table: 'Table',
   chart: 'Chart',
   newField: 'NewField',
@@ -105,19 +106,29 @@ const createTableMenuKeys = {
   uniqueValues: 'uniqueValues',
 };
 
-export const getCreateChartChildren = () => {
+export const getCreateChartChildren = (tableNames: string[]) => {
   return [
-    ...chartItems.map((item) => {
+    ...chartItems.map(({ label, icon, type }) => {
       return getDropdownItem({
-        label: item.label,
-        key: getDropdownMenuKey<InsertChartContextMenuKeyData>('insertChart', {
-          chartType: item.type,
-        }),
+        label: label,
+        key: getDropdownMenuKey(`insertChart-${type}`),
         icon: (
           <Icon
             className="text-text-secondary w-[18px]"
-            component={() => item.icon}
+            component={() => icon}
           />
+        ),
+        children: tableNames?.map((name) =>
+          getDropdownItem({
+            label: name,
+            key: getDropdownMenuKey<InsertChartContextMenuKeyData>(
+              ['Action', 'Chart', name, type].join('-'),
+              {
+                chartType: type,
+                tableName: name,
+              },
+            ),
+          }),
         ),
       });
     }),
@@ -126,25 +137,18 @@ export const getCreateChartChildren = () => {
 
 export const getCreateTableChildren = (
   functions: FunctionInfo[],
-  parsedSheets: ParsedSheets,
+  tableNames: string[],
   inputFiles: CommonMetadata[] | null,
-  onCreateTable: (cols: number, rows: number) => void
+  onCreateTable: (cols: number, rows: number) => void,
 ) => {
   const inputs = [...(inputFiles ?? [])].sort((a, b) =>
-    a.name < b.name ? -1 : 1
+    a.name < b.name ? -1 : 1,
   );
 
   const rangeFunction = functions.find((func) => func.name === 'RANGE');
   const filterFunction = functions.find((func) => func.name === 'FILTER');
   const sortByFunction = functions.find((func) => func.name === 'SORTBY');
   const uniqueByFunction = functions.find((func) => func.name === 'UNIQUEBY');
-
-  let tableNames: string[] = [];
-  for (const sheet of Object.values(parsedSheets)) {
-    tableNames = tableNames.concat(
-      [...sheet.tables.map((table) => table.tableName)].sort()
-    );
-  }
 
   return [
     getDropdownItem({
@@ -159,9 +163,9 @@ export const getCreateTableChildren = (
             {
               tableName: name,
               type: 'pivot',
-            }
+            },
           ),
-        })
+        }),
       ),
     }),
     getDropdownItem({
@@ -174,7 +178,7 @@ export const getCreateTableChildren = (
         ].join('-'),
         {
           insertFormula: rangeFunction?.name + '()',
-        }
+        },
       ),
     }),
     getDropdownItem({
@@ -186,7 +190,7 @@ export const getCreateTableChildren = (
             ['Action', createTableMenuKeys.bySize].join('-'),
             {
               type: 'size',
-            }
+            },
           ),
           onCreateTable,
         }),
@@ -204,9 +208,9 @@ export const getCreateTableChildren = (
             {
               tableName: name,
               type: 'copy',
-            }
+            },
           ),
-        })
+        }),
       ),
     }),
     getDropdownItem({
@@ -221,9 +225,9 @@ export const getCreateTableChildren = (
             {
               tableName: name,
               type: 'derived',
-            }
+            },
           ),
-        })
+        }),
       ),
     }),
     getDropdownItem({
@@ -237,9 +241,9 @@ export const getCreateTableChildren = (
             ['CreateTable', 'Derived', name].join('-'),
             {
               insertFormula: `INPUT("${url ?? name}")`,
-            }
+            },
           ),
-        })
+        }),
       ),
     }),
     filterFunction
@@ -254,9 +258,9 @@ export const getCreateTableChildren = (
                 ['CreateTable', 'Filter', name].join('-'),
                 {
                   insertFormula: filterFunction.name + `(${name},)`,
-                }
+                },
               ),
-            })
+            }),
           ),
         })
       : undefined,
@@ -272,9 +276,9 @@ export const getCreateTableChildren = (
                 ['CreateTable', 'Filter', name].join('-'),
                 {
                   insertFormula: sortByFunction.name + `(${name},)`,
-                }
+                },
               ),
-            })
+            }),
           ),
         })
       : undefined,
@@ -290,9 +294,9 @@ export const getCreateTableChildren = (
                 ['CreateTable', 'Filter', name].join('-'),
                 {
                   insertFormula: uniqueByFunction.name + `(${name},)`,
-                }
+                },
               ),
-            })
+            }),
           ),
         })
       : undefined,
@@ -318,6 +322,7 @@ export function getMenuItems({
   isDefaultMode,
   isAIPreviewMode,
   isProjectReadonlyByUser,
+  answerIsGenerating,
 }: {
   selectedCell: GridCell | null | undefined;
   functions: FunctionInfo[];
@@ -337,6 +342,7 @@ export function getMenuItems({
   isDefaultMode: boolean;
   isAIPreviewMode: boolean;
   isProjectReadonlyByUser: boolean;
+  answerIsGenerating: boolean;
 }) {
   const shortMenu = isReadOnlyMode || isAIPreviewMode || isCSVViewMode;
   const fullMenu = isDefaultMode;
@@ -346,6 +352,13 @@ export function getMenuItems({
   const showViewMenu = (shortMenu || fullMenu) && !isMobile;
   const showInsertMenu = fullMenu;
   const showHelpMenu = (shortMenu || fullMenu) && !isMobile;
+
+  let tableNames: string[] = [];
+  for (const sheet of Object.values(parsedSheets)) {
+    tableNames = tableNames.concat(
+      [...sheet.tables.map((table) => table.tableName)].sort(),
+    );
+  }
 
   return [
     !showFileMenu
@@ -389,9 +402,9 @@ export function getMenuItems({
                     ),
                     key: getDropdownMenuKey(
                       fileMenuKeys.openProject,
-                      recentProject
+                      recentProject,
                     ),
-                  })
+                  }),
                 ),
                 recentProjects.length ? getDropdownDivider() : undefined,
                 getDropdownItem({
@@ -494,10 +507,22 @@ export function getMenuItems({
             getDropdownItem({
               label: 'Rename Worksheet',
               key: editMenuKeys.renameWorksheet,
+              disabled: !isDefaultMode || answerIsGenerating,
+              tooltip: !isDefaultMode
+                ? disabledTooltips.notAllowedChanges
+                : answerIsGenerating
+                  ? disabledTooltips.answerIsGenerating
+                  : undefined,
             }),
             getDropdownItem({
               label: 'Delete Worksheet',
               key: editMenuKeys.deleteWorksheet,
+              disabled: !isDefaultMode || answerIsGenerating,
+              tooltip: !isDefaultMode
+                ? disabledTooltips.notAllowedChanges
+                : answerIsGenerating
+                  ? disabledTooltips.answerIsGenerating
+                  : undefined,
             }),
           ],
         },
@@ -657,19 +682,23 @@ export function getMenuItems({
           ),
           children: [
             getDropdownItem({
+              label: 'Control',
+              key: insertMenuKeys.control,
+            }),
+            getDropdownItem({
               label: 'Table',
               key: insertMenuKeys.table,
               children: getCreateTableChildren(
                 functions,
-                parsedSheets,
+                tableNames,
                 inputFiles,
-                onCreateTable
+                onCreateTable,
               ) as MenuItem[],
             }),
             getDropdownItem({
               label: 'Chart',
               key: insertMenuKeys.chart,
-              children: getCreateChartChildren() as MenuItem[],
+              children: getCreateChartChildren(tableNames) as MenuItem[],
             }),
             getDropdownDivider(),
             getDropdownItem({
@@ -710,8 +739,8 @@ export function getMenuItems({
               tooltip: !selectedCell?.table
                 ? 'No table selected'
                 : selectedCell && !selectedCell?.table?.isManual
-                ? 'Only available for manual table'
-                : undefined,
+                  ? 'Only available for manual table'
+                  : undefined,
             }),
             getDropdownItem({
               label: selectedCell?.table?.isTableHorizontal
@@ -726,8 +755,8 @@ export function getMenuItems({
                 selectedCell?.isFieldHeader || selectedCell?.isTableHeader
                   ? 'No table cell selected'
                   : selectedCell && !selectedCell?.table?.isManual
-                  ? 'Only available for manual table'
-                  : undefined,
+                    ? 'Only available for manual table'
+                    : undefined,
             }),
             getDropdownItem({
               label: selectedCell?.table?.isTableHorizontal
@@ -742,8 +771,8 @@ export function getMenuItems({
                 selectedCell?.isFieldHeader || selectedCell?.isTableHeader
                   ? 'No table cell selected'
                   : selectedCell && !selectedCell?.table?.isManual
-                  ? 'Only available for manual table'
-                  : undefined,
+                    ? 'Only available for manual table'
+                    : undefined,
             }),
           ],
         },

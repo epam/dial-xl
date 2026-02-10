@@ -50,7 +50,7 @@ export function StructureSection() {
         distance: 5,
       },
     }),
-    useSensor(KeyboardSensor)
+    useSensor(KeyboardSensor),
   );
 
   const aggregationOptions = useMemo(() => {
@@ -61,7 +61,7 @@ export function StructureSection() {
     (
       itemId: string,
       sourceContainer: ContainerId,
-      targetContainer: ContainerId
+      targetContainer: ContainerId,
     ) => {
       const item = getItemById(itemId);
       if (!item) return;
@@ -92,7 +92,7 @@ export function StructureSection() {
       ) {
         // Remove from the source container
         containerStateMap[sourceContainer].setter((prev) =>
-          prev.filter((f) => f.id !== itemId)
+          prev.filter((f) => f.id !== itemId),
         );
 
         // Add to the target container
@@ -109,7 +109,7 @@ export function StructureSection() {
       setColumnFields,
       valueFields,
       setValueFields,
-    ]
+    ],
   );
 
   const valuesTitle = useMemo(() => {

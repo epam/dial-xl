@@ -56,33 +56,33 @@ export const shortcuts: ShortcutModel[] = [
   {
     key: '10',
     shortcut: `${shortcutApi.getLabel(
-      Shortcut.RangeSelectionUp
+      Shortcut.RangeSelectionUp,
     )} or ${shortcutApi.getLabel(
-      Shortcut.RangeSelectionDown
+      Shortcut.RangeSelectionDown,
     )} or ${shortcutApi.getLabel(
-      Shortcut.RangeSelectionLeft
+      Shortcut.RangeSelectionLeft,
     )} or ${shortcutApi.getLabel(Shortcut.RangeSelectionRight)}`,
     description: 'Select a range of cells',
   },
   {
     key: '11',
     shortcut: `${shortcutApi.getLabel(
-      Shortcut.MoveSelectionNextAvailableUp
+      Shortcut.MoveSelectionNextAvailableUp,
     )} or ${shortcutApi.getLabel(
-      Shortcut.MoveSelectionNextAvailableDown
+      Shortcut.MoveSelectionNextAvailableDown,
     )} or ${shortcutApi.getLabel(
-      Shortcut.MoveSelectionNextAvailableLeft
+      Shortcut.MoveSelectionNextAvailableLeft,
     )} or ${shortcutApi.getLabel(Shortcut.MoveSelectionNextAvailableRight)}`,
     description: 'Move to the edge of the current data region',
   },
   {
     key: '12',
     shortcut: `${shortcutApi.getLabel(
-      Shortcut.ExtendRangeSelectionUp
+      Shortcut.ExtendRangeSelectionUp,
     )} or ${shortcutApi.getLabel(
-      Shortcut.ExtendRangeSelectionDown
+      Shortcut.ExtendRangeSelectionDown,
     )} or ${shortcutApi.getLabel(
-      Shortcut.ExtendRangeSelectionLeft
+      Shortcut.ExtendRangeSelectionLeft,
     )} or ${shortcutApi.getLabel(Shortcut.ExtendRangeSelectionRight)}`,
     description: 'Extends selection to the last cell of the used range',
   },

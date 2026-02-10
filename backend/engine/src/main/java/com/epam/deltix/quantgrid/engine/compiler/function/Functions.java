@@ -20,6 +20,10 @@ public class Functions {
             new Function("INPUT", "Import a table from a file",
                     List.of(CREATE_TABLE, TABLE),
                     new Argument("path", "is the location of the file to import from")),
+            new Function("IMPORT", "Import a table from a data source",
+                    List.of(CREATE_TABLE, TABLE),
+                    new Argument("path", "is the location of the dataset to import in format: source/dataset"),
+                    new Argument("version", "is the version of the dataset to import")),
             new Function("FILTER", "Filter a table or an array",
                     List.of(CREATE_TABLE, TABLE, LOOKUP),
                     new Argument("table_or_array", "the table or  the array to filter"),
@@ -34,10 +38,12 @@ public class Functions {
             new Function("SORTBY", "Sort a table or an array",
                     List.of(CREATE_TABLE, TABLE),
                     new Argument("table_or_array", "the table or the array to sort"),
-                    new Argument("keys", "the keys to sort by", true)),
+                    new Argument("array", "the array to sort by", true),
+                    new Argument("order", "the order to sort by, 1 - ascending, -1 - descending", true, true)),
             new Function("SORT", "Sort an array",
                     List.of(ARRAY),
-                    new Argument("array", "the array to sort")),
+                    new Argument("array", "the array to sort"),
+                    new Argument("order", "the order to sort by, 1 - ascending, -1 - descending", false, true)),
             new Function("FIND", "Find a row of a table by its keys or by row number if table doesn't have keys",
                     List.of(LOOKUP),
                     new Argument("table", "the table to find in"),
@@ -49,6 +55,12 @@ public class Functions {
                     List.of(AGGREGATIONS),
                     new Argument("table", "the table where the total is defined"),
                     new Argument("position", "the total row position in the table. Default: 1", false, true)),
+            new Function("GROUPBY", "Make an aggregated table from a table",
+                    List.of(CREATE_TABLE, TABLE),
+                    new Argument("rows", "a table or array to make rows from"),
+                    new Argument("values", "a table or array to make aggregations from"),
+                    new Argument("functions", "aggregation functions. Example: \"SUM\" or {\"SUM\", \"COUNT\"}"),
+                    new Argument("filter", "condition to filter data before aggregation", false, true)),
             new Function("UNPIVOT", "Make a pivot longer table from a table",
                     List.of(CREATE_TABLE, TABLE),
                     new Argument("table", "the table to unpivot"),
@@ -368,7 +380,28 @@ public class Functions {
                         1 - First quartile (25th percentile)
                         2 - Second quartile (median, 50th percentile)
                         3 - Third quartile (75th percentile)
-                        """)));
+                        """)),
+            new Function("DROPDOWN", "Creates a single-element control", List.of(CONTROL),
+                    new Argument("dependency", "Specifies if the control depends on the other selected controls for the same table"),
+                    new Argument("values", "Array of texts or numbers to specify all available values to select from"),
+                    new Argument("selected", "A constant text or number selected from the all available values")),
+            new Function("CHECKBOX", "Creates a multi-element control", List.of(CONTROL),
+                    new Argument("dependency", "Specifies if the control depends on the other selected controls for the same table"),
+                    new Argument("values", "Array of texts or numbers to specify all available values to select from"),
+                    new Argument("selected", "A constant list of texts or numbers selected from the all available values")),
+            new Function("AIMODELS", "Lists all available models", List.of(ARRAY)),
+            new Function("AILIST", "Generates a text list", List.of(ARRAY),
+                    new Argument("model", "Model"),
+                    new Argument("generation", "Use a different number or text to generate a new answer. Default is 0", false, true),
+                    new Argument("prompt", "Prompt or context", true)),
+            new Function("AIVALUE", "Generates a text value", List.of(TEXT),
+                    new Argument("model", "Model"),
+                    new Argument("version", "Use a different number or text to generate a new answer. Default is 0", false, true),
+                    new Argument("prompt", "Prompt or context", true)),
+            new Function("ERR", "Produces a compilation error if the expression cannot be parsed as a formula",
+                    List.of(TEXT),
+                    new Argument("expression", "Expression to parse"))
+            );
 
     private static final Map<String, Function> FUNCTION_MAP = FUNCTIONS.stream()
             .collect(Collectors.toUnmodifiableMap(Function::name, java.util.function.Function.identity()));

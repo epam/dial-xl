@@ -676,7 +676,8 @@ class EngineTest {
         ResultListener callback = new ResultListener() {
             @Override
             @SneakyThrows
-            public void onUpdate(ParsedKey key, long start, long end, boolean content, boolean raw,
+            public void onUpdate(ParsedKey key, long startRow, long endRow, long startCol, long endCol,
+                                 boolean content, boolean raw,
                                  @Nullable Table value, @Nullable String error, @Nullable ResultType resultType) {
                 Computation computation = future.get(5, TimeUnit.SECONDS);
                 computation.cancel();

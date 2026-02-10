@@ -1,13 +1,13 @@
-import { useContext, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { SelectedCellType } from '../../../common';
-import { AppContext, ProjectContext } from '../../../context';
 import { useDSLUtils } from '../../../hooks';
+import { useFormulaBarStore, useViewStore } from '../../../store';
 import { useFormulaInput } from './useFormulaInput';
 
 export function useFormulaBarWrapper() {
-  const { formulaBarMode } = useContext(AppContext);
-  const { selectedCell } = useContext(ProjectContext);
+  const formulaBarMode = useFormulaBarStore((s) => s.formulaBarMode);
+  const selectedCell = useViewStore((s) => s.selectedCell);
 
   const [fields, setFields] = useState<string[]>([]);
   const { findTable } = useDSLUtils();
@@ -39,7 +39,7 @@ export function useFormulaBarWrapper() {
           (f, idx, arr) =>
             f.isDim &&
             arr.findIndex((e) => e.fieldGroupIndex === f.fieldGroupIndex) ===
-              idx
+              idx,
         )
         .map((f) => f.key.fieldName);
 

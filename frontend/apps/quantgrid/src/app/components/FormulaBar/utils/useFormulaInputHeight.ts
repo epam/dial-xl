@@ -1,17 +1,19 @@
-import { RefObject, useContext, useEffect, useMemo, useState } from 'react';
+import { RefObject, useEffect, useMemo, useState } from 'react';
 import { debounce } from 'ts-debounce';
 
 import { getPx } from '@frontend/canvas-spreadsheet';
 
-import { AppContext } from '../../../context';
+import { useFormulaBarStore } from '../../../store';
 
 const defaultHeight = 29;
 const largeHeight = 41;
 const expandedHeight = 100;
 const notStrictWidthOffset = 2;
 
-export function useFormulaInputHeight(containerRef: RefObject<HTMLDivElement>) {
-  const { formulaBarExpanded } = useContext(AppContext);
+export function useFormulaInputHeight(
+  containerRef: RefObject<HTMLDivElement | null>,
+) {
+  const formulaBarExpanded = useFormulaBarStore((s) => s.formulaBarExpanded);
 
   const [height, setHeight] = useState(defaultHeight);
 
@@ -34,7 +36,7 @@ export function useFormulaInputHeight(containerRef: RefObject<HTMLDivElement>) {
 
           setHeight(adjustedHeight);
         });
-      }, 500)
+      }, 500),
     );
 
     observer.observe(containerRef.current);
@@ -46,7 +48,7 @@ export function useFormulaInputHeight(containerRef: RefObject<HTMLDivElement>) {
 
   const containerHeight = useMemo(
     () => getPx(formulaBarExpanded ? height + expandedHeight : height),
-    [formulaBarExpanded, height]
+    [formulaBarExpanded, height],
   );
 
   return {

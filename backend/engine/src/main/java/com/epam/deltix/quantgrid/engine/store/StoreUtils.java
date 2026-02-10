@@ -32,12 +32,16 @@ import java.util.stream.IntStream;
 public class StoreUtils {
     private static final int MAX_COLUMNS = 100_000;
 
-    public Table readTable(InputStream stream, List<ColumnType> columnTypes) {
+    public Table readTable(InputStream stream, List<ColumnType> columnTypes, boolean withHeaders) {
         CsvParserSettings settings = Csv.parseRfc4180();
         settings.setLineSeparatorDetectionEnabled(true);
         settings.setMaxColumns(MAX_COLUMNS);
         settings.setMaxCharsPerColumn(-1);
         settings.setEmptyValue("");
+
+        if (withHeaders) {
+            settings.setHeaderExtractionEnabled(true);
+        }
 
         ColumnBuilder[] builders = columnTypes.stream()
                 .map(StoreUtils::createColumnBuilder)
@@ -56,7 +60,7 @@ public class StoreUtils {
         return new LocalTable(columns);
     }
 
-    public void writeTable(OutputStream stream, Table table) {
+    public void writeTable(OutputStream stream, Table table, boolean withHeaders) {
         CsvWriterSettings settings = new CsvWriterSettings();
         settings.setMaxColumns(MAX_COLUMNS);
         settings.setMaxCharsPerColumn(-1);
@@ -73,6 +77,13 @@ public class StoreUtils {
         ColumnSerializer[] serializers = Arrays.stream(table.getColumns())
                 .map(StoreUtils::createColumnSerializer)
                 .toArray(ColumnSerializer[]::new);
+
+        if (withHeaders) {
+            String[] headers = IntStream.range(0, table.getColumnCount())
+                    .mapToObj(String::valueOf)
+                    .toArray(String[]::new);
+            writer.writeHeaders(headers);
+        }
 
         for (int i = 0; i < table.size(); i++) {
             for (int j = 0; j < values.length; j++) {

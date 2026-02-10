@@ -33,7 +33,7 @@ export const getExpandedTextSize = ({
 
   const limit = useMaxLimit ? tableNameSizeLimit : fieldNameSizeLimit;
   const columnWidths: Record<string, Record<string, number>> = JSON.parse(
-    localStorage.getItem('columnWidths') || '{}'
+    localStorage.getItem('columnWidths') || '{}',
   );
   const columnSizes = columnWidths[projectName + '/' + sheetName] ?? {};
 

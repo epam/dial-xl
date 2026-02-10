@@ -1,0 +1,71 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: !param name
+  labels:
+    purpose: !param purpose
+spec:
+  activeDeadlineSeconds: !param ttl
+  restartPolicy: Never
+  volumes:
+    - name: shared-data
+      emptyDir: {}
+    - name: config
+      configMap:
+        name: !param config
+    - name: source-secret
+      secret:
+        secretName: !param source_secret
+    - name: destination-secret
+      secret:
+        secretName: !param destination_secret
+  imagePullSecrets: !param pull_secrets
+  initContainers:
+    - name: create-pipe
+      image: busybox
+      command: ["sh", "-c", "mkfifo /shared-data/data-pipe && chown 1000:1000 /shared-data/data-pipe"]
+      volumeMounts:
+        - name: shared-data
+          mountPath: /shared-data
+  containers:
+    - name: source
+      image: !param source_image
+      imagePullPolicy: !param pull_policy
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+      command:
+        - sh
+        - -c
+        - |
+          exec $AIRBYTE_ENTRYPOINT read \
+            --config /secrets/.config.json \
+            --catalog /configs/catalog.json | tee /shared-data/data-pipe
+      volumeMounts:
+        - name: source-secret
+          mountPath: /secrets
+        - name: config
+          mountPath: /configs
+        - name: shared-data
+          mountPath: /shared-data
+
+    - name: destination
+      image: !param destination_image
+      imagePullPolicy: !param pull_policy
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+      command:
+        - sh
+        - -c
+        - |
+          exec $AIRBYTE_ENTRYPOINT write \
+            --config /secrets/.config.json \
+            --catalog /configs/catalog.json < /shared-data/data-pipe
+      volumeMounts:
+        - name: destination-secret
+          mountPath: /secrets
+        - name: config
+          mountPath: /configs
+        - name: shared-data
+          mountPath: /shared-data

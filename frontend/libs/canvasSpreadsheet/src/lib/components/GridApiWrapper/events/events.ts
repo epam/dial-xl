@@ -1,3 +1,5 @@
+import { GridCell } from '../../../types';
+
 export enum GridEvent {
   // header
   columnResize = 'columnResize',
@@ -12,6 +14,12 @@ export enum GridEvent {
   selectAll = 'selectAll',
   startMoveMode = 'startMoveMode',
   stopMoveMode = 'stopMoveMode',
+  // control
+  openControl = 'openControl',
+  // move table/chart
+  moveChartOrTable = 'moveChartOrTable',
+  startMoveEntity = 'startMoveEntity',
+  stopMoveEntity = 'stopMoveEntity',
 }
 
 export type EventTypeColumnResize = {
@@ -35,6 +43,12 @@ export type EventTypeOpenNote = {
 
   col: number;
   row: number;
+};
+
+export type EventTypeOpenControl = {
+  type: GridEvent.openControl;
+
+  cellData: GridCell;
 };
 
 export type EventTypeOpenAIPrompt = {
@@ -63,6 +77,22 @@ export type EventTypeStopMoveMode = {
   type: GridEvent.stopMoveMode;
 };
 
+export type EventTypeMoveChartOrTable = {
+  type: GridEvent.moveChartOrTable;
+
+  cell: GridCell;
+  x: number;
+  y: number;
+};
+
+export type EventTypeStartMoveEntity = {
+  type: GridEvent.startMoveEntity;
+};
+
+export type EventTypeStopMoveEntity = {
+  type: GridEvent.stopMoveEntity;
+};
+
 export type EventType =
   | EventTypeColumnResize
   | EventTypeColumnResizeDbClick
@@ -72,4 +102,8 @@ export type EventType =
   | EventTypeExpandAIPrompt
   | EventTypeSelectAll
   | EventTypeStartMoveMode
-  | EventTypeStopMoveMode;
+  | EventTypeStopMoveMode
+  | EventTypeOpenControl
+  | EventTypeMoveChartOrTable
+  | EventTypeStartMoveEntity
+  | EventTypeStopMoveEntity;

@@ -27,7 +27,7 @@ export const addOverridesToTable = ({
     parsedTable.getTableNameHeaderHeight() +
     (isTableHorizontal ? 0 : parsedTable.getTableFieldsHeaderHeight());
   const totalSize = parsedTable.getTotalSize();
-  const selectedCellFieldIndex = isTableHorizontal
+  const initialSelectedCellFieldIndex = isTableHorizontal
     ? selectedRow - startRow - (parsedTable.getIsTableHeaderHidden() ? 0 : 1)
     : Math.abs(selectedCol - startCol);
   const selectedCellDataRow = isTableHorizontal
@@ -50,16 +50,22 @@ export const addOverridesToTable = ({
   const { overrides, fields } = parsedTable;
 
   for (let row = 0; row < cells.length; row++) {
+    let selectedCellFieldIndex = initialSelectedCellFieldIndex;
+
     for (let col = 0; col < cells[row].length; col++) {
       const value = cells[row][col];
-      const targetField = parsedTable?.getFieldByColumnIndex(
-        selectedCellFieldIndex + col
-      );
 
+      const targetField = parsedTable?.getFieldByColumnIndex(
+        selectedCellFieldIndex + col,
+      );
       if (!targetField) {
         continue;
       }
 
+      const targetFieldSize = targetField.getSize();
+      if (!isTableHorizontal && targetFieldSize > 1) {
+        selectedCellFieldIndex += targetFieldSize - 1;
+      }
       const { fieldName } = targetField.key;
       const tableRow = row + selectedCellDataRow;
 
@@ -81,7 +87,7 @@ export const addOverridesToTable = ({
 
         overrides.keys.forEach((key) => {
           const tableFieldIndex = fields.findIndex(
-            (f) => f.key.fieldName === key
+            (f) => f.key.fieldName === key,
           );
           let sheetRow;
           let sheetCol;
@@ -105,7 +111,7 @@ export const addOverridesToTable = ({
           defaultRowKey,
           tableRow + 1,
           fieldName,
-          value
+          value,
         );
       }
     }

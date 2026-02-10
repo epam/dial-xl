@@ -45,7 +45,7 @@ const fits = (text: string, limit: number): boolean => text.length <= limit;
  */
 const convertToBigLetterNotation = (
   value: number,
-  cellLimit: number
+  cellLimit: number,
 ): string => {
   let divisor = 0;
   let modifier: 'K' | 'M' | 'B' | undefined;
@@ -100,7 +100,7 @@ const convertToBigLetterNotation = (
 export const formatNumberGeneral = (
   sourceValue: string,
   columnWidth: number,
-  symbolWidth: number
+  symbolWidth: number,
 ): string | undefined => {
   try {
     const value = Number(sourceValue);

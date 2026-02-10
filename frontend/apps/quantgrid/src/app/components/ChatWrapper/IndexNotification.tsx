@@ -25,13 +25,13 @@ export const IndexNotification = () => {
         if (requests.length && !profiles.length) return;
 
         setIsIndexComputing(
-          profiles.some((p) => p.type === ExecutionType.INDEX)
+          profiles.some((p) => p.type === ExecutionType.INDEX),
         );
 
         if (profiles.length === 0) {
           setIsNotificationClosed(false);
         }
-      }
+      },
     );
 
     return () => subscription.unsubscribe();

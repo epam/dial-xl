@@ -1,8 +1,8 @@
 import { RefObject, useCallback, useContext, useEffect, useRef } from 'react';
 import { Subscription } from 'rxjs';
 
-import { GridApi, GridCallbacks } from '../../../types';
-import { filterByTypeAndCast } from '../../../utils';
+import { GridApi } from '../../../types';
+import { filterByTypeAndCast, GridEventBus } from '../../../utils';
 import { CellEditorContext } from '../CellEditorContext';
 import {
   GridCellEditorEventSetPointClickValue,
@@ -10,11 +10,11 @@ import {
 } from '../types';
 
 type Props = {
-  apiRef: RefObject<GridApi>;
-  gridCallbacksRef: RefObject<GridCallbacks>;
+  apiRef: RefObject<GridApi | null>;
+  eventBus: GridEventBus;
 };
 
-export function usePointAndClick({ apiRef, gridCallbacksRef }: Props) {
+export function usePointAndClick({ apiRef, eventBus }: Props) {
   const { setFocus, setCode, codeValue, onCodeChange } =
     useContext(CellEditorContext);
 
@@ -25,9 +25,11 @@ export function usePointAndClick({ apiRef, gridCallbacksRef }: Props) {
   const onStartPointClick = useCallback(
     (offset: number) => {
       cursorOffset.current = offset;
-      gridCallbacksRef?.current?.onStartPointClick?.();
+      eventBus.emit({
+        type: 'selection/point-click-started',
+      });
     },
-    [gridCallbacksRef]
+    [eventBus],
   );
 
   const onStopPointClick = useCallback(
@@ -48,9 +50,11 @@ export function usePointAndClick({ apiRef, gridCallbacksRef }: Props) {
       cursorOffset.current = 0;
 
       apiRef.current.updateSelection(null, { silent: true });
-      gridCallbacksRef?.current?.onStopPointClick?.();
+      eventBus.emit({
+        type: 'selection/point-click-stopped',
+      });
     },
-    [apiRef, codeValue, gridCallbacksRef]
+    [apiRef, codeValue, eventBus],
   );
 
   const onSetPointClickValue = useCallback(
@@ -75,7 +79,7 @@ export function usePointAndClick({ apiRef, gridCallbacksRef }: Props) {
         onCodeChange(updatedValue);
       }, 0);
     },
-    [codeValue, onCodeChange, setCode, setFocus]
+    [codeValue, onCodeChange, setCode, setFocus],
   );
 
   useEffect(() => {
@@ -88,12 +92,12 @@ export function usePointAndClick({ apiRef, gridCallbacksRef }: Props) {
       api.cellEditorEvent$
         .pipe(
           filterByTypeAndCast<GridCellEditorEventSetPointClickValue>(
-            GridCellEditorEventType.SetPointClickValue
-          )
+            GridCellEditorEventType.SetPointClickValue,
+          ),
         )
         .subscribe(({ value }) => {
           onSetPointClickValue(value);
-        })
+        }),
     );
 
     return () => {

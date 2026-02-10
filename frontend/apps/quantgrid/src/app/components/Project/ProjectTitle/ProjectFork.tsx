@@ -57,7 +57,7 @@ export function ProjectFork({ className }: Props) {
           : name,
       });
     },
-    [projectBucket, projectName, projectPath, updateForkedProjectMetadata]
+    [projectBucket, projectName, projectPath, updateForkedProjectMetadata],
   );
 
   const items: MenuProps['items'] = forkedProject?.isExists
@@ -98,15 +98,14 @@ export function ProjectFork({ className }: Props) {
   return (
     <>
       <Dropdown
-        className="h-full flex items-center"
         menu={{ items }}
         open={isMenuOpened}
         onOpenChange={setIsMenuOpened}
       >
         <Icon
           className={cx(
-            'ml-2 h-[18px] w-[18px] cursor-pointer hover:opacity-80',
-            forkedProject?.isExists ? className : 'text-text-error'
+            'ml-2 h-[18px] w-[18px] cursor-pointer hover:opacity-80 shrink-0',
+            forkedProject?.isExists ? className : 'text-text-error',
           )}
           component={() =>
             forkedProject?.isExists ? <ForkIcon /> : <ForkExclamationIcon />

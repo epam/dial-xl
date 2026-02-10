@@ -2,27 +2,27 @@ import { AIHint, AIHintTrigger } from '@frontend/common';
 
 export const isHintNameValid = (
   hint: AIHint,
-  otherHints: AIHint[]
+  otherHints: AIHint[],
 ): boolean => {
   if (!hint.name) return false;
 
   return otherHints.every(
-    (otherHint) => otherHint.name.trim() !== hint.name.trim()
+    (otherHint) => otherHint.name.trim() !== hint.name.trim(),
   );
 };
 
 export const isTriggerValid = (
   trigger: AIHintTrigger,
-  otherTriggers: AIHintTrigger[]
+  otherTriggers: AIHintTrigger[],
 ): boolean => {
   return otherTriggers.every(
-    (otherHint) => otherHint.value.trim() !== trigger.value.trim()
+    (otherHint) => otherHint.value.trim() !== trigger.value.trim(),
   );
 };
 
 export const isHintTriggersValid = (
   hint: AIHint,
-  otherHints: AIHint[]
+  otherHints: AIHint[],
 ): boolean => {
   const hintTriggers = hint.triggers;
   const otherHintsTriggers = otherHints.map((hint) => hint.triggers).flat();

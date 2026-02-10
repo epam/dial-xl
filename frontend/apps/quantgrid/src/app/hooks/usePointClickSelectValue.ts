@@ -1,10 +1,11 @@
-import { useCallback, useContext } from 'react';
+import { useCallback } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 
 import { SelectionEdges } from '@frontend/canvas-spreadsheet';
 import { escapeTableName } from '@frontend/parser';
 
-import { AppContext, ProjectContext } from '../context';
 import { EventBusMessages } from '../services';
+import { useEditorStore, useViewStore } from '../store';
 import { useDSLUtils } from './EditDsl';
 import useEventBus from './useEventBus';
 import { useFindTableKeys } from './useFindTableKeys';
@@ -16,8 +17,13 @@ type ExternalValueOptions = {
 };
 
 export function usePointClickSelectValue() {
-  const { isPointClickMode, pointClickModeSource } = useContext(AppContext);
-  const { selectedCell } = useContext(ProjectContext);
+  const { isPointClickMode, pointClickModeSource } = useEditorStore(
+    useShallow((s) => ({
+      isPointClickMode: s.isPointClickMode,
+      pointClickModeSource: s.pointClickModeSource,
+    })),
+  );
+  const selectedCell = useViewStore((s) => s.selectedCell);
   const gridApi = useGridApi();
 
   const { findTableKeys } = useFindTableKeys();
@@ -85,7 +91,7 @@ export function usePointClickSelectValue() {
 
       return;
     },
-    [getSelectedCellContext, gridApi, selectedCell]
+    [getSelectedCellContext, gridApi, selectedCell],
   );
 
   /**
@@ -96,7 +102,7 @@ export function usePointClickSelectValue() {
   const getSingleSelectionPointClickValue = useCallback(
     (
       pointClickSelection: SelectionEdges,
-      isRangeSelection = false
+      isRangeSelection = false,
     ): string | undefined => {
       if (!gridApi || !selectedCell) return;
 
@@ -125,6 +131,7 @@ export function usePointClickSelectValue() {
       const isTableCell = !isTableHeader && !isTableField;
       const sanitizedTargetTableName = escapeTableName(targetTableName);
       const tableHasKeys = currentTable?.hasKeys();
+      const isControl = targetCell?.field?.isControl;
 
       let isFieldHeaderEditing = false;
 
@@ -144,6 +151,10 @@ export function usePointClickSelectValue() {
         return `TOTAL(${sanitizedTargetTableName}, ${targetCell.totalIndex})[${targetFieldName}]`;
       }
 
+      if (isControl) {
+        return `${sanitizedTargetTableName}[${targetFieldName}]`;
+      }
+
       if (
         isTableField ||
         isRangeSelection ||
@@ -160,7 +171,7 @@ export function usePointClickSelectValue() {
           const findKeys = findTableKeys(
             targetTable,
             targetStartCol,
-            targetStartRow
+            targetStartRow,
           );
 
           return `${sanitizedTargetTableName}(${findKeys})[${targetFieldName}]`;
@@ -176,7 +187,7 @@ export function usePointClickSelectValue() {
         const findKeys = findTableKeys(
           targetTable,
           targetStartCol,
-          targetStartRow
+          targetStartRow,
         );
 
         return `${sanitizedTargetTableName}(${findKeys})[${targetFieldName}]`;
@@ -184,7 +195,7 @@ export function usePointClickSelectValue() {
 
       return;
     },
-    [findTable, findTableKeys, getSelectedCellContext, gridApi, selectedCell]
+    [findTable, findTableKeys, getSelectedCellContext, gridApi, selectedCell],
   );
 
   /**
@@ -230,13 +241,13 @@ export function usePointClickSelectValue() {
             startCol,
             endCol: startCol,
           },
-          startRow !== endRow
+          startRow !== endRow,
         );
       }
 
       return;
     },
-    [getSingleSelectionPointClickValue, gridApi, selectedCell]
+    [getSingleSelectionPointClickValue, gridApi, selectedCell],
   );
 
   /**
@@ -264,7 +275,7 @@ export function usePointClickSelectValue() {
       gridApi,
       isPointClickMode,
       selectedCell,
-    ]
+    ],
   );
 
   /**
@@ -275,7 +286,7 @@ export function usePointClickSelectValue() {
   const handlePointClickSelectValue = useCallback(
     (
       externalValue?: ExternalValueOptions | null,
-      pointClickSelection: SelectionEdges | null = null
+      pointClickSelection: SelectionEdges | null = null,
     ) => {
       if (!gridApi || !isPointClickMode || !selectedCell) return;
 
@@ -302,7 +313,7 @@ export function usePointClickSelectValue() {
       pointClickModeSource,
       publish,
       selectedCell,
-    ]
+    ],
   );
 
   return {

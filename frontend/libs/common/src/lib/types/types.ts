@@ -1,6 +1,7 @@
 import { MenuProps } from 'antd';
 
 import {
+  ColumnData,
   CompilationError,
   FieldKey,
   ParsingError,
@@ -15,6 +16,7 @@ export type FormulasContextMenuKeyData = {
 
 export type InsertChartContextMenuKeyData = {
   chartType: ChartType;
+  tableName: string;
   col?: number;
   row?: number;
 };
@@ -125,9 +127,10 @@ export enum ChartType {
   HEATMAP = 'heat-map',
   SCATTER_PLOT = 'scatter-plot',
   PIE = 'pie-chart',
-  BAR = 'bar-chart',
-  FLAT_BAR = '2d-bar-chart',
+  CLUSTERED_BAR = 'clustered-bar-chart',
   STACKED_BAR = 'stacked-bar-chart',
+  CLUSTERED_COLUMN = 'clustered-column-chart',
+  STACKED_COLUMN = 'stacked-column-chart',
   HISTOGRAM = 'histogram',
 }
 export type FieldSortOrder = 'asc' | 'desc' | null;
@@ -136,6 +139,12 @@ export type GridListFilter = {
   value: string;
   isSelected: boolean;
   isFiltered?: boolean;
+};
+
+export type ControlData = {
+  data: ColumnData;
+  available: ColumnData;
+  selectedValues: string[];
 };
 
 export enum Highlight {
@@ -177,12 +186,15 @@ export type GridChart = {
 
   customSeriesColors: Record<string, string>;
 
+  showVisualMap: boolean;
   showLegend: boolean;
-  isEmpty: boolean;
+  showTitle: boolean;
   chartOrientation: ChartOrientation;
+  legendPosition: ChartLegendPosition;
 };
 
 export type ChartOrientation = 'horizontal' | 'vertical';
+export type ChartLegendPosition = 'top' | 'bottom' | 'left' | 'right';
 
 export type FormulaBarMode = 'formula' | 'value';
 

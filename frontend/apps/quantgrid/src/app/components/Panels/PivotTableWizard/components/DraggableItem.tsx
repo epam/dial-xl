@@ -54,7 +54,7 @@ export const DraggableItem = ({ item, containerId, onMoveItem }: Props) => {
           key: 'move-to-values',
           label: 'Move to Values',
           onClick: () => onMoveItem(item.id, containerId, 'value-fields'),
-        })
+        }),
       );
     } else if (
       ['row-fields', 'column-fields', 'value-fields'].includes(containerId)
@@ -65,7 +65,7 @@ export const DraggableItem = ({ item, containerId, onMoveItem }: Props) => {
           key: 'remove-field',
           label: 'Remove',
           onClick: () => onMoveItem(item.id, containerId, 'available-fields'),
-        })
+        }),
       );
 
       // Move to other areas
@@ -75,7 +75,7 @@ export const DraggableItem = ({ item, containerId, onMoveItem }: Props) => {
             key: 'move-to-rows',
             label: 'Move to Rows',
             onClick: () => onMoveItem(item.id, containerId, 'row-fields'),
-          })
+          }),
         );
       }
 
@@ -85,7 +85,7 @@ export const DraggableItem = ({ item, containerId, onMoveItem }: Props) => {
             key: 'move-to-columns',
             label: 'Move to Columns',
             onClick: () => onMoveItem(item.id, containerId, 'column-fields'),
-          })
+          }),
         );
       }
 
@@ -95,7 +95,7 @@ export const DraggableItem = ({ item, containerId, onMoveItem }: Props) => {
             key: 'move-to-values',
             label: 'Move to Values',
             onClick: () => onMoveItem(item.id, containerId, 'value-fields'),
-          })
+          }),
         );
       }
     }
@@ -115,7 +115,7 @@ export const DraggableItem = ({ item, containerId, onMoveItem }: Props) => {
         {...attributes}
         className={classNames(
           'px-2 py-1 mb-2 rounded-[3px] text-[13px] flex items-center bg-bg-layer-4 hover:opacity-80 cursor-grab group',
-          isDragging ? 'opacity-50' : 'opacity-100'
+          isDragging ? 'opacity-50' : 'opacity-100',
         )}
       >
         <Icon

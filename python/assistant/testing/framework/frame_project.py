@@ -23,8 +23,8 @@ from quantgrid.utils.dial import DIALApi
 from quantgrid.utils.project import FieldGroupUtil, ProjectUtil
 from quantgrid_1.models.config_parameters import ConfigParametersDTO
 from quantgrid_1.models.stage import Attachment
+from testing.exceptions import CompileError
 from testing.framework.answer import Answer
-from testing.framework.exceptions.compile_error import CompileError
 from testing.framework.models import Output, TextAction
 from testing.framework.project_utils import (
     change_project_sheet,

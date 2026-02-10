@@ -7,6 +7,6 @@ export default {
   },
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx'],
   coverageDirectory: 'test-output/jest/coverage',
-  setupFilesAfterEnv: ['../../jest-canvas.js'],
+  setupFilesAfterEnv: ['../../jest-setup.js'],
   passWithNoTests: true,
 };

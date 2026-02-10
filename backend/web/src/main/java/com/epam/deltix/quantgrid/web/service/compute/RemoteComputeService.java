@@ -55,6 +55,16 @@ public class RemoteComputeService implements ComputeService {
     }
 
     @Override
+    public boolean isReady() {
+        try {
+            return cluster.countComputeNodes() > 0;
+        } catch (Throwable e) {
+            log.warn("Failed to query compute nodes", e);
+            return false;
+        }
+    }
+
+    @Override
     public long timeout() {
         return settings.getNodeOperationTimeout() + OPERATION_EXPIRATION_DELAY;
     }
@@ -113,6 +123,22 @@ public class RemoteComputeService implements ComputeService {
     }
 
     @Override
+    public Api.Response computeControlValues(Api.Request apiRequest, Principal principal) {
+        String projectId = apiRequest.getSimilaritySearchRequest().getProject();
+        return exec(principal, apiRequest, projectId, "/v1/calculate_control_values", (endpoint, request, future) -> {
+            try (Response response = okHttpClient.newCall(request).execute()) {
+                String body = response.body().string();
+
+                if (!response.isSuccessful()) {
+                    throw new ResponseStatusException(HttpStatusCode.valueOf(response.code()), body);
+                }
+
+                return ApiMessageMapper.toApiResponse(body);
+            }
+        }, true);
+    }
+
+    @Override
     public Api.Response search(Api.Request apiRequest, Principal principal) {
         String projectId = apiRequest.getSimilaritySearchRequest().getProject();
         return exec(principal, apiRequest, projectId, "/v1/similarity_search", (endpoint, request, future) -> {
@@ -161,6 +187,17 @@ public class RemoteComputeService implements ComputeService {
                 return body;
             }
         }, true);
+    }
+
+    @Override
+    public ComputeTask importData(Api.Request apiRequest, ComputeCallback callback, Principal principal) {
+        String projectId = apiRequest.getCalculateWorksheetsRequest().getProjectName();
+        return exec(principal, apiRequest, projectId, "/v1/import", (endpoint, request, future) -> {
+            ComputationListener listener = new ComputationListener(future, callback);
+            EventSource.Factory factory = EventSources.createFactory(okHttpClient);
+            EventSource source = factory.newEventSource(request, listener);
+            return source::cancel;
+        }, false);
     }
 
     @SneakyThrows

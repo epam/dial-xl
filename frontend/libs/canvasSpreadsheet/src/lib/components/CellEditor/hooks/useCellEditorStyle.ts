@@ -5,11 +5,11 @@ import { CurrentCell, EditorStyle } from '../types';
 import { getCellEditorWidthPx } from '../utils';
 
 type Props = {
-  apiRef: RefObject<GridApi>;
+  apiRef: RefObject<GridApi | null>;
   currentCell: CurrentCell;
   editorStyle: EditorStyle;
   setEditorStyle: (
-    editorStyle: EditorStyle | ((prev: EditorStyle) => EditorStyle)
+    editorStyle: EditorStyle | ((prev: EditorStyle) => EditorStyle),
   ) => void;
   zoom: number;
 };
@@ -35,12 +35,12 @@ export function useCellEditorStyle({
         newCode,
         zoom,
         false,
-        currentWidth
+        currentWidth,
       );
 
       setEditorStyle((prev) => ({ ...prev, width }));
     },
-    [apiRef, currentCell, editorStyle.width, setEditorStyle, zoom]
+    [apiRef, currentCell, editorStyle.width, setEditorStyle, zoom],
   );
 
   return {

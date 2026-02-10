@@ -1,5 +1,4 @@
 import cx from 'classnames';
-import { DefaultOptionType } from 'rc-select/lib/Select';
 import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import Select, { components, SingleValue } from 'react-select';
 
@@ -13,6 +12,7 @@ import {
   SelectClasses,
   selectStyles,
 } from '@frontend/common';
+import { DefaultOptionType } from '@rc-component/select/lib/Select';
 
 import { DashboardContext } from '../../../context';
 import { DashboardFilter } from '../../../types/dashboard';
@@ -100,12 +100,12 @@ export function DashboardFileListFilter() {
   const { filter, setFilter } = useContext(DashboardContext);
 
   const [selectedFilter, setSelectedFilter] = useState<DefaultOptionType>(
-    filterOptions[0]
+    filterOptions[0],
   );
 
   useEffect(() => {
     setSelectedFilter(
-      filterOptions.find((i) => i.value === filter) || filterOptions[0]
+      filterOptions.find((i) => i.value === filter) || filterOptions[0],
     );
   }, [filter]);
 
@@ -113,7 +113,7 @@ export function DashboardFileListFilter() {
     (option: SingleValue<DefaultOptionType>) => {
       setFilter(option?.value as DashboardFilter);
     },
-    [setFilter]
+    [setFilter],
   );
 
   return (
@@ -128,7 +128,7 @@ export function DashboardFileListFilter() {
           ...SelectClasses,
           control: () =>
             cx(
-              'bg-bg-layer-3! border-0! hover:border-none! shadow-none! text-[14px]'
+              'bg-bg-layer-3! border-0! hover:border-none! shadow-none! text-[14px]',
             ),
           valueContainer: () => 'pr-0!',
           menu: () => 'bg-bg-layer-0! text-[14px] rounded-[3px]! min-w-[120px]',

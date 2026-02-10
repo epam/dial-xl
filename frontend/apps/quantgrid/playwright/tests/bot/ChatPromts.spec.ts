@@ -17,20 +17,20 @@ let browserContext: BrowserContext;
 
 let page: Page;
 
-const storagePath = `playwright/${projectName}.json`;
+const storagePath = TestFixtures.getStoragePath();
 
 test.beforeAll(async ({ browser }) => {
   const Table1 = new Table(2, 2, 'X');
   Table1.addField(new Field('Field1', 'RANGE(6)'));
   Table1.addField(new Field('Field2', '7'));
   spreadsheet.addTable(Table1);
+  browserContext = await browser.newContext({ storageState: storagePath });
   await TestFixtures.createProjectNew(
     storagePath,
-    browser,
+    browserContext,
     projectName,
-    spreadsheet
+    spreadsheet,
   );
-  browserContext = await browser.newContext({ storageState: storagePath });
 });
 
 test.beforeEach(async () => {
@@ -44,8 +44,8 @@ test.afterEach(async () => {
 });
 
 test.afterAll(async ({ browser }) => {
+  await TestFixtures.deleteProject(browserContext, projectName);
   await browserContext.close();
-  await TestFixtures.deleteProject(browser, projectName);
 });
 
 async function prepareChat() {

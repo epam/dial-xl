@@ -1,18 +1,61 @@
-import { useContext, useEffect } from 'react';
+import { Button } from 'antd';
+import classNames from 'classnames';
+import { Fragment, useEffect } from 'react';
+import { useSearchParams } from 'react-router';
 
-import { AppContext } from '../context';
+import Icon from '@ant-design/icons';
+import { primaryButtonClasses, QGLogo } from '@frontend/common/lib';
 
-export function ErrorPage() {
-  const { setLoading } = useContext(AppContext);
+import { useUIStore } from '../store';
+
+export const ErrorPage = () => {
+  const [searchParams] = useSearchParams();
+  const setLoading = useUIStore((s) => s.setLoading);
 
   useEffect(() => {
     setLoading(false);
-  }, [setLoading]);
+
+    // eslint-disable-next-line no-console
+    console.error('Error', {
+      ...Array.from(searchParams.entries()).reduce(
+        (acc, [key, value]) => {
+          acc[key] = value;
+
+          return acc;
+        },
+        {} as Record<string, any>,
+      ),
+    });
+  }, [searchParams, setLoading]);
 
   return (
-    <div className="flex flex-col items-center justify-center flex-1">
-      <h1 className="text-4xl font-bold text-gray-700">404</h1>
-      <h2 className="text-2xl font-bold text-gray-700">Page not found</h2>
+    <div className="size-full flex flex-col items-center pt-[15dvh] max-w-dvw">
+      <div className="flex flex-col gap-7 items-center p-3 max-w-full">
+        <Icon className="w-[48px]" component={() => <QGLogo />} />
+        <div className="flex flex-col gap-3 items-center">
+          <h1 className="text-5xl">Error</h1>
+          <span className="text-lg">Something went wrong.</span>
+        </div>
+        {process.env.NODE_ENV === 'development' && (
+          <span className="p-3 bg-bg-layer-2 break-words max-w-full">
+            {Array.from(searchParams.entries()).map(([key, value]) => (
+              <Fragment key={key}>
+                {key}:{' '}
+                <span className="bg-bg-layer-4">
+                  {decodeURIComponent(value)}
+                </span>
+                <br />
+              </Fragment>
+            ))}
+          </span>
+        )}
+        <Button
+          className={classNames(primaryButtonClasses)}
+          href={decodeURIComponent(searchParams.get('redirectTo') ?? '/')}
+        >
+          Try again
+        </Button>
+      </div>
     </div>
   );
-}
+};

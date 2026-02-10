@@ -1,14 +1,14 @@
-import { DefaultOptionType } from 'rc-select/lib/Select';
 import { components, GroupBase, SingleValueProps } from 'react-select';
 
 import Icon from '@ant-design/icons';
+import { DefaultOptionType } from '@rc-component/select/lib/Select';
 
 export const CustomSingleValueWithIcon = (
   props: SingleValueProps<
     DefaultOptionType,
     boolean,
     GroupBase<DefaultOptionType>
-  >
+  >,
 ) => {
   return (
     <components.SingleValue {...props}>

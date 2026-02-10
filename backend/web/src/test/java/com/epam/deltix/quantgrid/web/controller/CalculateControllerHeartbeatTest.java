@@ -1,6 +1,5 @@
 package com.epam.deltix.quantgrid.web.controller;
 
-import com.epam.deltix.quantgrid.web.controller.CalculateController.Sender;
 import com.epam.deltix.quantgrid.web.service.HeartbeatService;
 import com.epam.deltix.quantgrid.web.service.compute.ComputeService;
 import com.google.protobuf.util.JsonFormat;
@@ -48,7 +47,7 @@ class CalculateControllerHeartbeatTest {
     private ArgumentCaptor<SseEmitter> emitter;
 
     @Captor
-    private ArgumentCaptor<Sender> sender;
+    private ArgumentCaptor<SseCallback> sender;
 
     @Test
     void testCalculateHeartbeat() throws Exception {

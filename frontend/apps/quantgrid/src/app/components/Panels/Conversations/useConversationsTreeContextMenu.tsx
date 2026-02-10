@@ -1,7 +1,5 @@
-import { Modal } from 'antd';
 import { DataNode, EventDataNode } from 'antd/es/tree';
 import cx from 'classnames';
-import { MenuInfo } from 'rc-menu/lib/interface';
 import { useCallback, useContext, useState } from 'react';
 
 import {
@@ -12,8 +10,10 @@ import {
   primaryButtonClasses,
   secondaryButtonClasses,
 } from '@frontend/common';
+import { MenuInfo } from '@rc-component/menu/lib/interface';
 
 import { ChatOverlayContext } from '../../../context';
+import { useAntdModalStore, useChangeNameModalStore } from '../../../store';
 import {
   getExportConversationFileName,
   triggerDownloadContent,
@@ -43,13 +43,15 @@ function parseContextMenuKey(key: string): {
   return JSON.parse(key);
 }
 
-export const useConversationTreeContextMenu = (
-  renameConversationCallback: React.MutableRefObject<
-    ((data: ConversationsTreeChildData[string]) => void) | undefined
-  >
-) => {
-  const { overlay, isReadOnlyProjectChats, createPlayback } =
-    useContext(ChatOverlayContext);
+export const useConversationTreeContextMenu = () => {
+  const {
+    overlay,
+    isReadOnlyProjectChats,
+    createPlayback,
+    projectConversations,
+    renameConversation,
+  } = useContext(ChatOverlayContext);
+  const confirmModal = useAntdModalStore((s) => s.confirm);
 
   const [items, setItems] = useState<MenuItem[]>([]);
 
@@ -59,7 +61,7 @@ export const useConversationTreeContextMenu = (
         getDropdownItem({
           key: getDropdownMenuKey<ConversationsTreeData>(
             contextMenuActionKeys.rename,
-            childData
+            childData,
           ),
           label: 'Rename Conversation',
           disabled: !childData.isUserLocal && isReadOnlyProjectChats,
@@ -71,7 +73,7 @@ export const useConversationTreeContextMenu = (
         getDropdownItem({
           key: getDropdownMenuKey<ConversationsTreeData>(
             contextMenuActionKeys.delete,
-            childData
+            childData,
           ),
           label: 'Delete Conversation',
           disabled: !childData.isUserLocal && isReadOnlyProjectChats,
@@ -83,20 +85,20 @@ export const useConversationTreeContextMenu = (
         getDropdownItem({
           key: getDropdownMenuKey<ConversationsTreeData>(
             contextMenuActionKeys.playback,
-            childData
+            childData,
           ),
           label: 'Playback Conversation',
         }),
         getDropdownItem({
           key: getDropdownMenuKey<ConversationsTreeData>(
             contextMenuActionKeys.export,
-            childData
+            childData,
           ),
           label: 'Export Conversation',
         }),
       ];
     },
-    [isReadOnlyProjectChats]
+    [isReadOnlyProjectChats],
   );
 
   const createContextMenuItems = useCallback(
@@ -105,7 +107,7 @@ export const useConversationTreeContextMenu = (
         event: React.MouseEvent<Element, MouseEvent>;
         node: EventDataNode<DataNode>;
       },
-      childData: ConversationsTreeChildData
+      childData: ConversationsTreeChildData,
     ) => {
       const key = info.node.key as string;
       let menuItems: MenuItem[] = [];
@@ -116,7 +118,32 @@ export const useConversationTreeContextMenu = (
 
       setItems(menuItems);
     },
-    [getConversationActions]
+    [getConversationActions],
+  );
+
+  const onRenameConversation = useCallback(
+    async (data: ConversationsTreeData) => {
+      if (!overlay || !data?.conversationId) return;
+
+      const open = useChangeNameModalStore.getState().open;
+
+      const result = await open({
+        kind: 'renameConversation',
+        initialName: data.conversationName || '',
+        validate: (name) => {
+          if (!name) return 'Conversation name is required';
+          if (projectConversations?.some((s) => s.name === name))
+            return 'A conversation with this name already exists.';
+
+          return;
+        },
+      });
+
+      if (result) {
+        await renameConversation(data.conversationId, result);
+      }
+    },
+    [overlay, projectConversations, renameConversation],
   );
 
   const onContextMenuClick = useCallback(
@@ -125,11 +152,11 @@ export const useConversationTreeContextMenu = (
 
       switch (action) {
         case contextMenuActionKeys.rename:
-          renameConversationCallback.current?.(data);
+          onRenameConversation(data);
           break;
         case contextMenuActionKeys.delete:
           if (overlay && data.conversationId) {
-            Modal.confirm({
+            confirmModal({
               icon: null,
               title: 'Confirm',
               content: `Confirm delete conversation "${data.conversationName}"?`,
@@ -153,13 +180,13 @@ export const useConversationTreeContextMenu = (
         case contextMenuActionKeys.export:
           if (overlay && data.conversationId) {
             const { exportConversation } = await overlay.exportConversation(
-              data.conversationId
+              data.conversationId,
             );
 
             const fileName = getExportConversationFileName();
             triggerDownloadContent(
               JSON.stringify(exportConversation),
-              fileName
+              fileName,
             );
           }
           break;
@@ -167,7 +194,7 @@ export const useConversationTreeContextMenu = (
           break;
       }
     },
-    [overlay, renameConversationCallback, createPlayback]
+    [overlay, createPlayback, onRenameConversation, confirmModal],
   );
 
   return { items, onContextMenuClick, createContextMenuItems };

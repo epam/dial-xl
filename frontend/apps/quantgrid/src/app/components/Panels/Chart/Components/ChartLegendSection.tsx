@@ -54,7 +54,7 @@ export function ChartLegendSection({
   }, [parsedTable]);
 
   return (
-    <div className="flex justify-between items-center px-3 py-4">
+    <div className="flex justify-between items-center px-3 pb-4">
       <span className="text-[13px] text-text-primary font-semibold">
         Legend
       </span>

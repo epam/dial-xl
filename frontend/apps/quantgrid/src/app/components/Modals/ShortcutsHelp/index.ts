@@ -1,1 +1,1 @@
-export * from './ShortcutsHelp';
+export * from './ShortcutsHelpModal';

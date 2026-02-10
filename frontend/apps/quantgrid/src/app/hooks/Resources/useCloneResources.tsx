@@ -10,6 +10,7 @@ import {
   schemaFileExtension,
 } from '@frontend/common';
 
+import { WithCustomProgressBar } from '../../components';
 import { ApiContext } from '../../context';
 import { displayToast } from '../../utils';
 import { useApiRequests } from '..';
@@ -24,11 +25,17 @@ export function useCloneResources() {
   const { cloneFile, cloneProject } = useApiRequests();
 
   const handleCloneProject = useCallback(
-    async (
-      item: CloneItem,
-      targetBucket?: string,
-      targetPath?: string | null
-    ) => {
+    async ({
+      item,
+      targetBucket,
+      targetPath,
+      onProgress,
+    }: {
+      item: CloneItem;
+      targetBucket?: string;
+      targetPath?: string | null;
+      onProgress?: (progress: number) => void;
+    }) => {
       const { bucket, name, parentPath, newName } = item;
 
       if (!userBucket) {
@@ -36,6 +43,7 @@ export function useCloneResources() {
 
         return;
       }
+      onProgress?.(0);
 
       const res = await cloneProject({
         bucket: bucket,
@@ -43,29 +51,34 @@ export function useCloneResources() {
         parentPath,
         targetBucket: targetBucket ?? userBucket,
         targetPath:
-          targetPath ?? bucket === userBucket ? parentPath ?? null : null,
+          (targetPath ?? bucket === userBucket) ? (parentPath ?? null) : null,
         isReadOnly: !!(
           item?.permissions?.includes('READ') &&
           !item.permissions.includes('WRITE')
         ),
         newName,
+        onProgress,
       });
 
       if (!res) return;
 
-      displayToast(
-        'success',
-        appMessages.projectCloneSuccess(
-          name.replaceAll(dialProjectFileExtension, ''),
-          res.newClonedProjectName.replaceAll(dialProjectFileExtension, '')
-        )
-      );
+      onProgress?.(100);
     },
-    [cloneProject, userBucket]
+    [cloneProject, userBucket],
   );
 
   const handleCloneFile = useCallback(
-    async (item: CloneItem, targetBucket?: string, targetPath?: string) => {
+    async ({
+      item,
+      targetBucket,
+      targetPath,
+      onProgress,
+    }: {
+      item: CloneItem;
+      targetBucket?: string;
+      targetPath?: string;
+      onProgress?: (progress: number) => void;
+    }) => {
       const { bucket, name, parentPath, newName } = item;
       const isCsvFile = name.endsWith(csvFileExtension);
 
@@ -75,19 +88,29 @@ export function useCloneResources() {
         return;
       }
 
+      onProgress?.(0);
+
       const res = await cloneFile({
         bucket,
         name,
         parentPath,
         targetBucket: targetBucket ?? userBucket,
         targetPath:
-          targetPath ?? bucket === userBucket ? parentPath ?? null : null,
+          (targetPath ?? bucket === userBucket) ? (parentPath ?? null) : null,
         newName,
       });
 
-      if (!isCsvFile) return;
+      if (!isCsvFile) {
+        onProgress?.(100);
+
+        return;
+      }
+
+      onProgress?.(50);
 
       function toSchemaFileName(name: string) {
+        onProgress?.(50);
+
         return '.' + name.replaceAll(csvFileExtension, schemaFileExtension);
       }
 
@@ -97,16 +120,16 @@ export function useCloneResources() {
         parentPath,
         targetBucket: targetBucket ?? userBucket,
         targetPath:
-          targetPath ?? bucket === userBucket ? parentPath ?? null : null,
+          (targetPath ?? bucket === userBucket) ? (parentPath ?? null) : null,
         suppressErrors: true,
         newName: newName ? toSchemaFileName(newName) : undefined,
       });
 
       if (!res) return;
 
-      displayToast('success', appMessages.fileCloneSuccess);
+      onProgress?.(100);
     },
-    [cloneFile, userBucket]
+    [cloneFile, userBucket],
   );
 
   const cloneResources = useCallback(
@@ -119,24 +142,51 @@ export function useCloneResources() {
       targetBucket?: string;
       targetPath?: string;
     }) => {
-      toast.loading(
-        `Cloning ${items.length} file${items.length > 1 ? 's' : ''}...`,
-        { toastId: 'loading' }
-      );
+      const uploadingToast = toast(WithCustomProgressBar, {
+        customProgressBar: true,
+        data: {
+          message: `Cloning ${items.length} file${
+            items.length > 1 ? 's' : ''
+          }...`,
+        },
+      });
 
+      let processingIndex = 0;
       for (const item of items) {
         const isProject = item.name.endsWith(dialProjectFileExtension);
+        const processingProgress = processingIndex / items.length;
 
         if (isProject) {
-          await handleCloneProject(item, targetBucket, targetPath);
+          await handleCloneProject({
+            item,
+            targetBucket,
+            targetPath,
+            onProgress: (progress: number) => {
+              toast.update(uploadingToast, {
+                progress: processingProgress + progress / items.length / 100,
+              });
+            },
+          });
         } else {
-          await handleCloneFile(item, targetBucket, targetPath);
+          await handleCloneFile({
+            item,
+            targetBucket,
+            targetPath,
+            onProgress: (progress: number) => {
+              toast.update(uploadingToast, {
+                progress: processingProgress + progress / items.length / 100,
+              });
+            },
+          });
         }
+
+        processingIndex++;
       }
 
-      toast.dismiss('loading');
+      displayToast('success', appMessages.fileCloneSuccess);
+      toast.dismiss(uploadingToast);
     },
-    [handleCloneFile, handleCloneProject]
+    [handleCloneFile, handleCloneProject],
   );
 
   return {

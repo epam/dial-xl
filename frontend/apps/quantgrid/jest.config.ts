@@ -19,6 +19,6 @@ export default {
     '^monaco-editor(/.*)?$': '<rootDir>/__mocks__/monaco-editor.ts',
     '^jose$': '<rootDir>/__mocks__/jose.ts',
   },
-  setupFilesAfterEnv: ['../../jest-canvas.js'],
+  setupFilesAfterEnv: ['../../jest-setup.js'],
   testPathIgnorePatterns: ['apps/quantgrid/playwright/'],
 };

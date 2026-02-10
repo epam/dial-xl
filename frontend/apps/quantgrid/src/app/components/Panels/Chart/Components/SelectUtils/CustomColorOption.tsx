@@ -1,8 +1,9 @@
-import { DefaultOptionType } from 'rc-select/lib/Select';
 import { components, GroupBase, OptionProps } from 'react-select';
 
+import { DefaultOptionType } from '@rc-component/select/lib/Select';
+
 export const CustomColorOption = (
-  props: OptionProps<DefaultOptionType, boolean, GroupBase<DefaultOptionType>>
+  props: OptionProps<DefaultOptionType, boolean, GroupBase<DefaultOptionType>>,
 ) => {
   return (
     <components.Option {...props}>

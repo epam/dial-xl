@@ -23,7 +23,7 @@ import { askAIItem } from './commonItem';
 export const getEmptyCellMenuItems = (
   col: number,
   row: number,
-  contextCell: GridCell
+  contextCell: GridCell,
 ) => {
   const { table } = contextCell;
 
@@ -62,7 +62,7 @@ export const getEmptyCellWithoutContextMenuItem = (
   inputFiles: CommonMetadata[] | null,
   onCreateTable: (cols: number, rows: number) => void,
   col: number,
-  row: number
+  row: number,
 ) => {
   const isShowAIPrompt = isFeatureFlagEnabled('askAI');
 
@@ -78,7 +78,7 @@ export const getEmptyCellWithoutContextMenuItem = (
       tableNames,
       inputFiles,
       onCreateTable,
-      false
+      false,
     ),
     getDropdownItem({
       label: 'Create Chart',
@@ -92,22 +92,29 @@ export const getEmptyCellWithoutContextMenuItem = (
         />
       ),
       children: [
-        ...chartItems.map((item) => {
+        ...chartItems.map(({ label, type, icon }) => {
           return getDropdownItem({
-            label: item.label,
-            key: getDropdownMenuKey<InsertChartContextMenuKeyData>(
-              menuKey.insertChart,
-              {
-                col,
-                row,
-                chartType: item.type,
-              }
-            ),
+            label: label,
+            key: getDropdownMenuKey(`${menuKey.insertChart}-${type}`),
             icon: (
               <Icon
                 className="text-text-secondary w-[18px]"
-                component={() => item.icon}
+                component={() => icon}
               />
+            ),
+            children: tableNames?.map((name) =>
+              getDropdownItem({
+                label: name,
+                key: getDropdownMenuKey<InsertChartContextMenuKeyData>(
+                  ['CreateChart', name, type].join('-'),
+                  {
+                    tableName: name,
+                    chartType: type,
+                    col,
+                    row,
+                  },
+                ),
+              }),
             ),
           });
         }),

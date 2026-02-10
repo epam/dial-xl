@@ -1,18 +1,18 @@
 import { InputRef } from 'antd';
-import { RefObject, useCallback, useContext, useRef } from 'react';
+import { RefObject, useCallback, useRef } from 'react';
 
-import { AppContext } from '../../../context';
+import { useFormulaBarStore } from '../../../store';
 
 type Props = {
   onPanelAutoResize: (size: number) => void;
-  inputRef: RefObject<InputRef>;
+  inputRef: RefObject<InputRef | null>;
 };
 
 export function useFormulaBarHeaderAutoExtend({
   onPanelAutoResize,
   inputRef,
 }: Props) {
-  const { formulaBarExpanded } = useContext(AppContext);
+  const formulaBarExpanded = useFormulaBarStore((s) => s.formulaBarExpanded);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   const triggerAutoExtend = useCallback(
@@ -46,7 +46,7 @@ export function useFormulaBarHeaderAutoExtend({
 
       onPanelAutoResize(fullTextWidth);
     },
-    [formulaBarExpanded, inputRef, onPanelAutoResize]
+    [formulaBarExpanded, inputRef, onPanelAutoResize],
   );
 
   return { triggerAutoExtend };

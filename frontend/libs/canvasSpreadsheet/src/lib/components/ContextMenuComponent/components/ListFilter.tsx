@@ -1,7 +1,14 @@
 import { Button, Checkbox, CheckboxProps, Input, Spin } from 'antd';
 import cx from 'classnames';
 import classNames from 'classnames';
-import { ChangeEvent, useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  ChangeEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import isEqual from 'react-fast-compare';
 import { debounce } from 'ts-debounce';
 
@@ -13,22 +20,29 @@ import {
   SortDescendingIcon,
   SortIcon,
 } from '@frontend/common';
+import VirtualList, { ListRef } from '@rc-component/virtual-list';
 
-import { GridCallbacks, GridCell } from '../../../types';
+import { GridCell } from '../../../types';
+import { GridEventBus } from '../../../utils';
 
-const CheckboxGroup = Checkbox.Group;
+const listMaxHeight = 200;
+const listItemHeight = 40;
+
+type VirtualRow =
+  | { kind: 'selectAll' }
+  | { kind: 'value'; value: string; isFiltered: boolean };
 
 type Props = {
   listFilter: GridListFilter[];
   cell: GridCell | null;
-  gridCallbacks: GridCallbacks;
+  eventBus: GridEventBus;
   isNumeric?: boolean;
 };
 
 export function ListFilter({
   listFilter,
   cell,
-  gridCallbacks,
+  eventBus,
   isNumeric = false,
 }: Props) {
   const [textFilter, setTextFilter] = useState<GridListFilter[]>([]);
@@ -38,37 +52,51 @@ export function ListFilter({
   const [isLoading, setIsLoading] = useState(false);
   const [searchValue, setSearchValue] = useState('');
   const [sort, setSort] = useState<1 | -1>(1);
+  const [resetScrollSignal, setResetScrollSignal] = useState(false);
+
+  const listRef = useRef<ListRef | null>(null);
+
+  const checkedSet = useMemo(() => new Set(checkedList), [checkedList]);
+
+  useEffect(() => {
+    if (!resetScrollSignal) return;
+
+    listRef.current?.scrollTo({ top: 0 });
+    setResetScrollSignal(false);
+  }, [resetScrollSignal]);
 
   const onTextFilterApply = useCallback(() => {
     if (!cell?.field || !cell.table) return;
 
-    gridCallbacks.onApplyListFilter?.(
-      cell.table.tableName,
-      cell.field.fieldName,
-      checkedList,
-      isNumeric
-    );
-  }, [cell, checkedList, gridCallbacks, isNumeric]);
+    eventBus.emit({
+      type: 'filters/list-applied',
+      payload: {
+        tableName: cell.table.tableName,
+        fieldName: cell.field.fieldName,
+        values: checkedList,
+        isNumeric,
+      },
+    });
+  }, [cell, checkedList, eventBus, isNumeric]);
 
-  const onChange = (list: string[]) => {
-    setCheckedList(list);
-  };
+  const toggleValue = useCallback((value: string, nextChecked: boolean) => {
+    setCheckedList((prev) => {
+      const has = prev.includes(value);
+      if (nextChecked) {
+        return has ? prev : prev.concat(value);
+      }
+
+      return has ? prev.filter((v) => v !== value) : prev;
+    });
+  }, []);
 
   const checkAll = useMemo(() => {
     return textFilter.length === checkedList.length;
   }, [checkedList, textFilter]);
 
-  const checkboxItems = useMemo(() => {
+  const filterItems = useMemo(() => {
     return textFilter
-      .map((i) => ({
-        label: (
-          <span className={classNames(i.isFiltered && 'text-text-secondary')}>
-            {i.value}
-          </span>
-        ),
-        value: i.value,
-        isFiltered: i.isFiltered,
-      }))
+      .map((i) => ({ value: i.value, isFiltered: i.isFiltered }))
       .sort((a, b) => {
         const aValue = a.isFiltered ? 1 : -1;
         const bValue = b.isFiltered ? 1 : -1;
@@ -76,6 +104,17 @@ export function ListFilter({
         return aValue - bValue;
       });
   }, [textFilter]);
+
+  const virtualRows: VirtualRow[] = useMemo(() => {
+    return [
+      { kind: 'selectAll' as const },
+      ...filterItems.map((i) => ({
+        kind: 'value' as const,
+        value: i.value,
+        isFiltered: !!i.isFiltered,
+      })),
+    ];
+  }, [filterItems]);
 
   const onCheckAllChange: CheckboxProps['onChange'] = (e) => {
     setCheckedList(e.target.checked ? textFilter.map((t) => t.value) : []);
@@ -91,35 +130,44 @@ export function ListFilter({
         searchValue: string;
         sort: 1 | -1;
       }) => {
-        gridCallbacks.onUpdateFieldFilterList?.(args);
+        eventBus.emit({
+          type: 'filters/update-list',
+          payload: {
+            ...args,
+          },
+        });
       },
-      500
+      500,
     ),
-    [gridCallbacks]
+    [eventBus],
   );
 
-  const handleScrollToBottom: React.UIEventHandler<HTMLDivElement> =
-    useCallback(
-      (event) => {
-        if (!cell?.field || !cell?.table) return;
+  const handleScrollToBottom: React.UIEventHandler<HTMLElement> = useCallback(
+    (event) => {
+      if (!cell?.field || !cell?.table) return;
 
-        const { scrollHeight, scrollTop, clientHeight } = event.currentTarget;
+      const { scrollHeight, scrollTop, clientHeight } = event.currentTarget;
 
-        const diff = Math.abs(scrollHeight - clientHeight - scrollTop);
+      if (scrollHeight <= clientHeight + 1) return;
 
-        if (diff < 1) {
-          setIsFirstTimeDataRequested(true);
-          gridCallbacks.onUpdateFieldFilterList?.({
+      const diff = Math.abs(scrollHeight - clientHeight - scrollTop);
+
+      if (diff < 1) {
+        setIsFirstTimeDataRequested(true);
+        eventBus.emit({
+          type: 'filters/update-list',
+          payload: {
             tableName: cell.table.tableName,
             fieldName: cell.field.fieldName,
             getMoreValues: true,
             searchValue,
             sort,
-          });
-        }
-      },
-      [cell?.field, cell?.table, gridCallbacks, searchValue, sort]
-    );
+          },
+        });
+      }
+    },
+    [cell?.field, cell?.table, eventBus, searchValue, sort],
+  );
 
   const handleChangeSearch = useCallback((e: ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -138,6 +186,7 @@ export function ListFilter({
     setCheckedList([]);
     setSearchValue('');
     setSort(1);
+    setResetScrollSignal(true);
 
     if (!cell.table || !cell.field) return;
 
@@ -151,13 +200,14 @@ export function ListFilter({
       sort,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cell, gridCallbacks]);
+  }, [cell, eventBus]);
 
   useEffect(() => {
     if (!cell || !isFirstTimeDataRequested) return;
 
     setTextFilter([]);
     setCheckedList([]);
+    setResetScrollSignal(true);
 
     if (!cell.table || !cell.field) return;
 
@@ -174,9 +224,9 @@ export function ListFilter({
   useEffect(() => {
     if (listFilter && !isFirstTimeDataRequested) return;
 
-    if (isEqual(listFilter, textFilter)) return;
-
     setIsLoading(false);
+
+    if (isEqual(listFilter, textFilter)) return;
 
     if (listFilter.length === 0) {
       setTextFilter([]);
@@ -193,8 +243,8 @@ export function ListFilter({
         listFilter
           ?.slice(prevListFilterLength)
           .filter((i) => i.isSelected)
-          .map((i) => i.value) ?? []
-      )
+          .map((i) => i.value) ?? [],
+      ),
     );
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -225,37 +275,62 @@ export function ListFilter({
           />
         </button>
       </div>
-      <div
-        className="thin-scrollbar flex max-h-[150px] w-[220px] overflow-auto"
-        onScroll={handleScrollToBottom}
-      >
-        <div className="flex flex-col grow">
-          {checkboxItems.length > 0 ? (
-            <>
-              <Checkbox
-                checked={checkAll}
-                rootClassName="flex items-center"
-                onChange={onCheckAllChange}
-              >
-                Select All
-              </Checkbox>
-              <CheckboxGroup
-                options={checkboxItems}
-                rootClassName="flex flex-col"
-                style={{ width: '100%' }}
-                value={checkedList}
-                onChange={onChange}
-              />
-            </>
-          ) : isLoading ? (
-            <div className="flex items-center justify-center min-h-[75px] w-full">
-              <Spin />
-            </div>
-          ) : (
-            <span>No values to filter</span>
-          )}
+
+      {filterItems.length > 0 ? (
+        <VirtualList<VirtualRow>
+          className="thin-scrollbar w-[220px]"
+          data={virtualRows}
+          height={Math.min(listMaxHeight, virtualRows.length * listItemHeight)}
+          itemHeight={listItemHeight}
+          itemKey={(row) =>
+            row.kind === 'selectAll' ? '__select_all__' : row.value
+          }
+          ref={listRef}
+          onScroll={handleScrollToBottom}
+        >
+          {(row) => {
+            if (row.kind === 'selectAll') {
+              return (
+                <div className="w-full px-2 py-1 flex items-center">
+                  <Checkbox
+                    checked={checkAll}
+                    rootClassName="flex items-center"
+                    onChange={onCheckAllChange}
+                  >
+                    Select All
+                  </Checkbox>
+                </div>
+              );
+            }
+
+            const isChecked = checkedSet.has(row.value);
+
+            return (
+              <label className="w-full px-2 py-1 text-[13px] flex items-start gap-1 cursor-pointer rounded">
+                <Checkbox
+                  checked={isChecked}
+                  onChange={(e) => toggleValue(row.value, e.target.checked)}
+                />
+                <span
+                  className={cx(
+                    'min-w-0 flex-1 pl-1 text-left break-words line-clamp-2',
+                    row.isFiltered && 'text-text-secondary',
+                  )}
+                  title={row.value}
+                >
+                  {row.value}
+                </span>
+              </label>
+            );
+          }}
+        </VirtualList>
+      ) : isLoading ? (
+        <div className="flex items-center justify-center min-h-[75px] w-full">
+          <Spin />
         </div>
-      </div>
+      ) : (
+        <span>No values to filter</span>
+      )}
 
       <Button
         className={cx('h-8 px-2 text-[13px] w-16 mt-4', secondaryButtonClasses)}

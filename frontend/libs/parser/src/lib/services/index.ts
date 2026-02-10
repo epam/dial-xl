@@ -10,6 +10,7 @@ export * from './findFunctionExpressions';
 export * from './findTableNameInExpression';
 export * from './getTokens';
 export * from './getTotalType';
+export * from './hasGlobalOffsets';
 export * from './layoutDecorator';
 export * from './placementUtils';
 export * from './sanitizeExpressionOrOverride';

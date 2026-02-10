@@ -8,7 +8,7 @@ import { ExecutionType, Profile } from '@frontend/common';
  */
 export function generateProfileEntityKey(
   requestId: string,
-  p: Profile
+  p: Profile,
 ): string | undefined {
   const typePrefix = p.type ? `${p.type}:` : '';
 

@@ -1,4 +1,3 @@
-import { Modal } from 'antd';
 import cx from 'classnames';
 import { useCallback } from 'react';
 
@@ -14,9 +13,12 @@ import {
 } from '@frontend/common';
 
 import { useApiRequests } from '../../../hooks';
+import { useAntdModalStore } from '../../../store';
 import { constructPath, displayToast } from '../../../utils';
 
 export function useDashboardDiscardAccessResource() {
+  const confirmModal = useAntdModalStore((s) => s.confirm);
+
   const { discardResourcesAccess: discardResourcesAccessRequest } =
     useApiRequests();
 
@@ -31,7 +33,7 @@ export function useDashboardDiscardAccessResource() {
 
       return `Do you want to discard shared with you ${resourceName} "${fileName}"?`;
     },
-    []
+    [],
   );
 
   const handleDiscardProject = useCallback(
@@ -39,7 +41,7 @@ export function useDashboardDiscardAccessResource() {
       item: Pick<
         ResourceMetadata,
         'name' | 'bucket' | 'nodeType' | 'parentPath' | 'resourceType'
-      >
+      >,
     ) => {
       return Promise.allSettled([
         discardResourcesAccessRequest([
@@ -63,7 +65,7 @@ export function useDashboardDiscardAccessResource() {
         ]),
       ]);
     },
-    [discardResourcesAccessRequest]
+    [discardResourcesAccessRequest],
   );
 
   const discardResourceAccess = useCallback(
@@ -72,9 +74,9 @@ export function useDashboardDiscardAccessResource() {
         ResourceMetadata,
         'name' | 'bucket' | 'nodeType' | 'parentPath' | 'resourceType'
       >,
-      onSuccess?: () => void
+      onSuccess?: () => void,
     ) => {
-      Modal.confirm({
+      confirmModal({
         icon: null,
         title: 'Confirm',
         content: getContent(item),
@@ -110,7 +112,12 @@ export function useDashboardDiscardAccessResource() {
         },
       });
     },
-    [getContent, handleDiscardProject, discardResourcesAccessRequest]
+    [
+      getContent,
+      handleDiscardProject,
+      discardResourcesAccessRequest,
+      confirmModal,
+    ],
   );
 
   return {

@@ -1,27 +1,29 @@
 import { EChartsOption } from 'echarts';
 
-import { AppTheme, ChartsData, ChartType } from '@frontend/common';
+import {
+  AppTheme,
+  ChartLegendPosition,
+  ChartOrientation,
+  ChartsData,
+  ChartType,
+  GridChart,
+} from '@frontend/common';
 
-import { ChartConfig } from '../types';
 import {
   getBarChartOption,
-  getFlatBarChartOption,
   getHeatMapChartOption,
   getHistogramChartOption,
   getLineChartOption,
   getPeriodSeriesChartOption,
   getPieChartOption,
   getScatterPlotChartOption,
-  getStackedBarChartOption,
   organizeBarChartData,
-  organizeFlatBarChartData,
   organizeHeatMapChartData,
   organizeHistogramChartData,
   organizeLineChartData,
   organizePeriodSeriesChartData,
   organizePieChartData,
   organizeScatterPlotChartData,
-  organizeStackedBarChartData,
 } from './chartOptions';
 
 export interface OrganizedData {
@@ -32,12 +34,16 @@ export interface OrganizedData {
   seriesData?: Array<[number, number, number | null, string]>;
   visualMapMax?: number;
   showLegend?: boolean;
+  showVisualMap?: boolean;
   isHorizontal?: boolean;
+  isNumericXAxis?: boolean;
+  orientation?: ChartOrientation;
+  legendPosition?: ChartLegendPosition;
 }
 
 type OrganizeDataFn = (
   data: ChartsData,
-  config: ChartConfig
+  gridChart: GridChart,
 ) => OrganizedData | undefined;
 
 export type GetOptionProps = {
@@ -50,7 +56,11 @@ export type GetOptionProps = {
   seriesData?: Array<[number, number, number | null, string]>;
   visualMapMax?: number;
   showLegend?: boolean;
+  showVisualMap?: boolean;
   isHorizontal?: boolean;
+  isNumericXAxis?: boolean;
+  orientation?: ChartOrientation;
+  legendPosition?: ChartLegendPosition;
 };
 
 type GetOptionFn = (options: GetOptionProps) => EChartsOption;
@@ -61,10 +71,6 @@ interface ChartBuilder {
 }
 
 export const chartRegistry: Record<ChartType, ChartBuilder> = {
-  [ChartType.BAR]: {
-    organizeData: organizeBarChartData,
-    getOption: getBarChartOption,
-  },
   [ChartType.LINE]: {
     organizeData: organizeLineChartData,
     getOption: getLineChartOption,
@@ -86,12 +92,20 @@ export const chartRegistry: Record<ChartType, ChartBuilder> = {
     getOption: getScatterPlotChartOption,
   },
   [ChartType.STACKED_BAR]: {
-    organizeData: organizeStackedBarChartData,
-    getOption: getStackedBarChartOption,
+    organizeData: organizeBarChartData,
+    getOption: getBarChartOption,
   },
-  [ChartType.FLAT_BAR]: {
-    organizeData: organizeFlatBarChartData,
-    getOption: getFlatBarChartOption,
+  [ChartType.CLUSTERED_BAR]: {
+    organizeData: organizeBarChartData,
+    getOption: getBarChartOption,
+  },
+  [ChartType.CLUSTERED_COLUMN]: {
+    organizeData: organizeBarChartData,
+    getOption: getBarChartOption,
+  },
+  [ChartType.STACKED_COLUMN]: {
+    organizeData: organizeBarChartData,
+    getOption: getBarChartOption,
   },
   [ChartType.HEATMAP]: {
     organizeData: organizeHeatMapChartData,

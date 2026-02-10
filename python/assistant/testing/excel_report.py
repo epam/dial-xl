@@ -8,8 +8,9 @@ from xlsxwriter.workbook import Workbook
 from xlsxwriter.worksheet import Worksheet
 
 from quantgrid_1.models.stage import Attachment
-from testing.framework.exceptions import CompileError, MatchError, ScoreError
+from testing.exceptions import CompileError, MatchError, MatchingError, ScoreError
 from testing.models import QGReport, QueryInfo, Verdict
+from testing.utils.stats import CaseStats, Conclusion, GlobalStats
 
 
 class XLSXReport:
@@ -41,7 +42,16 @@ class XLSXReport:
         self.details_sheet = self.workbook.add_worksheet("Details")
         self._prepare_details_sheet(self.details_sheet)
 
-    def write(self, tests: dict[str, list[QGReport]]) -> None:
+        self.sha_sheet = self.workbook.add_worksheet("Commit SHA")
+        self._prepare_details_sheet(self.sha_sheet)
+
+    def write(
+        self,
+        tests: dict[str, list[QGReport]],
+        global_stats: GlobalStats,
+        stats_by_case: dict[str, CaseStats],
+        prior_stats_by_case: dict[str, CaseStats],
+    ) -> None:
         sorted_tests: list[tuple[str, list[QGReport]]] = sorted(
             tests.items(), key=lambda x: x[0]
         )
@@ -50,15 +60,41 @@ class XLSXReport:
             if case_reports[-1].status != "skipped":
                 self._write_details_case(case_name, case_reports)
 
-            self._write_summary_case(case_name, case_reports)
+            self._write_summary_case(
+                case_name,
+                case_reports,
+                stats_by_case[case_name] if case_name in stats_by_case else None,
+                (
+                    prior_stats_by_case[case_name]
+                    if case_name in prior_stats_by_case
+                    else None
+                ),
+            )
             self._update_statistic(case_reports)
 
+        self._filter_lists()
         # if no scores were calculated, columns are made more narrow
         if not self._statistic.llm_score_runs_count:
             self.summary_sheet.set_column_pixels(first_col=2, last_col=2, width=20)
         if not self._statistic.redundancy_score_runs_count:
             self.summary_sheet.set_column_pixels(first_col=3, last_col=3, width=20)
+        self._write_commit_shas(global_stats.history_commits)
+        self._statistic.global_stats = global_stats
         self._summary_line += 1
+
+    def _filter_lists(self):
+        self._statistic.generation_avg_tokens = list(
+            filter(lambda x: x is not None, self._statistic.generation_avg_tokens)
+        )
+        self._statistic.summary_avg_tokens = list(
+            filter(lambda x: x is not None, self._statistic.summary_avg_tokens)
+        )
+        self._statistic.redundancy_avg_scores = list(
+            filter(lambda x: x is not None, self._statistic.redundancy_avg_scores)
+        )
+        self._statistic.llm_avg_scores = list(
+            filter(lambda x: x is not None, self._statistic.llm_avg_scores)
+        )
 
     def __enter__(self) -> "XLSXReport":
         return self
@@ -158,6 +194,20 @@ class XLSXReport:
             else None
         )
 
+    @staticmethod
+    def _get_sum_tokens(reports: list[QGReport], key: str) -> float | None:
+        counts = []
+        for report in reports:
+            counts += [
+                int(stage.get_attachment(key).data)
+                for query in report.queries
+                for stage in query.stages
+                if key in stage.attachment_titles
+                and int(stage.get_attachment(key).data) > 0
+            ]
+
+        return sum(counts) if counts else None
+
     def _write_legend(self) -> None:
         self.summary_sheet.merge_range(
             self._summary_line,
@@ -202,6 +252,45 @@ class XLSXReport:
             ("RLLMS", "RLLMS", "Redundant facts LLM score"),
             ("GAAT", "GAAT", "Generate Actions average output tokens"),
             ("SAT", "SAT", "Summary average output tokens"),
+            ("ITC", "ITC", "Input token count (total)"),
+            ("OTC", "OTC", "Output token count (total)"),
+            (
+                "PREV PROBA",
+                "PREV PROBA",
+                CaseStats.model_fields["history_probability"].description or "",
+            ),
+            ("PROBA", "PROBA", CaseStats.model_fields["probability"].description or ""),
+            ("PVAL", "PVAL", CaseStats.model_fields["pvalue"].description or ""),
+            (
+                "ALPHA",
+                "ALPHA",
+                str(self._statistic.global_stats.alpha)
+                + ","
+                + (GlobalStats.model_fields["alpha"].description or ""),
+            ),
+            ("BETA", "BETA", GlobalStats.model_fields["beta"].description or ""),
+            (
+                "DELTA",
+                "DELTA",
+                str(self._statistic.global_stats.delta)
+                + ","
+                + (GlobalStats.model_fields["delta"].description or ""),
+            ),
+            (
+                "H_LEN",
+                "H_LEN",
+                CaseStats.model_fields["history_size"].description or "",
+            ),
+            (
+                "R_LEN",
+                "R_LEN",
+                CaseStats.model_fields["size"].description or "",
+            ),
+            (
+                "PRIOR",
+                "PRIOR",
+                "The PRIOR prefix indicates that the comparison is between the main commit at the time of the fork(prior commit) and the history",
+            ),
         ):
             _write_legend_meaning(_status, _symbol, _meaning)
 
@@ -239,9 +328,11 @@ class XLSXReport:
 
         self._summary_line += 1
 
-        def _write_statistic_value(name: str, value: str) -> None:
-            self.summary_sheet.write(self._summary_line, 0, name, self.default_style)
-            self.summary_sheet.write(self._summary_line, 1, value, self.default_style)
+        def _write_statistic_value(
+            name: str, value: str, style=self.default_style
+        ) -> None:
+            self.summary_sheet.write(self._summary_line, 0, name, style)
+            self.summary_sheet.write(self._summary_line, 1, value, style)
             self._summary_line += 1
 
         _write_statistic_value(
@@ -249,7 +340,9 @@ class XLSXReport:
         )
 
         total_success_rate = (
-            self._statistic.success_test_count / self._statistic.total_test_count
+            (self._statistic.success_test_count / self._statistic.total_test_count)
+            if self._statistic.total_test_count > 0
+            else float("nan")
         )
 
         _write_statistic_value(
@@ -258,8 +351,12 @@ class XLSXReport:
         )
 
         partial_success_rate = (
-            self._statistic.partial_success_case_count
-            / self._statistic.total_test_case_count
+            (
+                self._statistic.partial_success_case_count
+                / self._statistic.total_test_case_count
+            )
+            if self._statistic.total_test_count > 0
+            else float("nan")
         )
 
         _write_statistic_value(
@@ -268,8 +365,12 @@ class XLSXReport:
         )
 
         full_success_rate = (
-            self._statistic.full_success_case_count
-            / self._statistic.total_test_case_count
+            (
+                self._statistic.full_success_case_count
+                / self._statistic.total_test_case_count
+            )
+            if self._statistic.total_test_count > 0
+            else float("nan")
         )
 
         _write_statistic_value(
@@ -310,6 +411,27 @@ class XLSXReport:
             f"Average output tokens count (generate action tokens/summary tokens):",
             f"{generation_tokens_avg}/{summary_tokens_avg}",
         )
+        if (
+            self._statistic.global_stats.fisher_pvalue
+            < self._statistic.global_stats.alpha
+        ):
+            if self._statistic.global_stats.n_higher < 0.5:
+                if self._statistic.global_stats.n_lower < 0.5:
+                    pvalue_verdict = "skipped"
+                else:
+                    pvalue_verdict = Verdict.FAILED
+            else:
+                if self._statistic.global_stats.n_lower < 0.5:
+                    pvalue_verdict = Verdict.PASSED
+                else:
+                    pvalue_verdict = Verdict.PARTIAL
+        else:
+            pvalue_verdict = "skipped"
+        _write_statistic_value(
+            f"Combined p-value across all cases using Fisher's method to detect shift in {self._statistic.global_stats.fraction_failed * 100} % cases with alpha: {self._statistic.global_stats.alpha}, beta: {self._statistic.global_stats.beta}, delta: {self._statistic.global_stats.delta}(statistical significance may fail to be reached if the run count equals the maximum run count):",
+            str(self._statistic.global_stats.fisher_pvalue),
+            self.apply_color(self.default_style, pvalue_verdict),
+        )
 
     def _write_env_variables(self) -> None:
         def _write_variable(name: str) -> None:
@@ -343,7 +465,13 @@ class XLSXReport:
         ):
             _write_variable(env_name)
 
-    def _write_summary_case(self, name: str, reports: list[QGReport]) -> None:
+    def _write_summary_case(
+        self,
+        name: str,
+        reports: list[QGReport],
+        stats: CaseStats | None,
+        prior_stats: CaseStats | None,
+    ) -> None:
         test_cell_style = self.apply_color(
             self.default_style, QGReport.general_status(reports)
         )
@@ -408,6 +536,121 @@ class XLSXReport:
             avg_summary_output_tokens,
             self.default_style,
         )
+
+        sum_input_tokens = XLSXReport._get_sum_tokens(reports, "input_token_count")
+        self.summary_sheet.write(
+            self._summary_line,
+            self._CASE_RESULT_START_COLUMN + 22,
+            sum_input_tokens,
+            self.default_style,
+        )
+
+        sum_output_token = XLSXReport._get_sum_tokens(reports, "output_token_count")
+        self.summary_sheet.write(
+            self._summary_line,
+            self._CASE_RESULT_START_COLUMN + 23,
+            sum_output_token,
+            self.default_style,
+        )
+
+        if stats is not None:
+            self.summary_sheet.write(
+                self._summary_line,
+                self._CASE_RESULT_START_COLUMN + 24,
+                str(stats.history_probability),
+                self.default_style,
+            )
+
+            self.summary_sheet.write(
+                self._summary_line,
+                self._CASE_RESULT_START_COLUMN + 25,
+                str(stats.probability),
+                self.default_style,
+            )
+            pvalue_verdict: Verdict | str = "skipped"
+            if (
+                prior_stats is not None
+                and (stats.conclusion == prior_stats.conclusion)
+                and stats.conclusion != Conclusion.STABLE
+            ):
+                pvalue_verdict = Verdict.PARTIAL
+            elif stats.conclusion == Conclusion.NEGATIVE_SHIFT:
+                pvalue_verdict = Verdict.FAILED
+            elif stats.conclusion == Conclusion.POSITIVE_SHIFT:
+                pvalue_verdict = Verdict.PASSED
+            pvalue_test_cell_style = self.apply_color(
+                self.default_style, pvalue_verdict
+            )
+            self.summary_sheet.write(
+                self._summary_line,
+                self._CASE_RESULT_START_COLUMN + 26,
+                str(stats.pvalue),
+                pvalue_test_cell_style,
+            )
+
+            self.summary_sheet.write(
+                self._summary_line,
+                self._CASE_RESULT_START_COLUMN + 27,
+                str(stats.beta),
+                self.default_style,
+            )
+
+            self.summary_sheet.write(
+                self._summary_line,
+                self._CASE_RESULT_START_COLUMN + 28,
+                str(stats.history_size),
+                self.default_style,
+            )
+
+            self.summary_sheet.write(
+                self._summary_line,
+                self._CASE_RESULT_START_COLUMN + 29,
+                str(stats.size),
+                self.default_style,
+            )
+        if prior_stats is not None:
+            self.summary_sheet.write(
+                self._summary_line,
+                self._CASE_RESULT_START_COLUMN + 31,
+                str(prior_stats.history_probability),
+                self.default_style,
+            )
+
+            self.summary_sheet.write(
+                self._summary_line,
+                self._CASE_RESULT_START_COLUMN + 32,
+                str(prior_stats.probability),
+                self.default_style,
+            )
+            prior_pvalue_verdict: Verdict | str = "skipped"
+            if prior_stats.conclusion == Conclusion.NEGATIVE_SHIFT:
+                prior_pvalue_verdict = Verdict.FAILED
+            elif prior_stats.conclusion == Conclusion.POSITIVE_SHIFT:
+                prior_pvalue_verdict = Verdict.PASSED
+            pvalue_test_cell_style = self.apply_color(
+                self.default_style, prior_pvalue_verdict
+            )
+            self.summary_sheet.write(
+                self._summary_line,
+                self._CASE_RESULT_START_COLUMN + 33,
+                str(prior_stats.pvalue),
+                pvalue_test_cell_style,
+            )
+
+            self.summary_sheet.write(
+                self._summary_line,
+                self._CASE_RESULT_START_COLUMN + 34,
+                str(prior_stats.beta),
+                self.default_style,
+            )
+
+            self.summary_sheet.write(
+                self._summary_line,
+                self._CASE_RESULT_START_COLUMN + 35,
+                str(prior_stats.size),
+                self.default_style,
+            )
+
         self._summary_line += 1
 
     def _write_summary_report(self, run_index: int, report: QGReport) -> None:
@@ -424,7 +667,7 @@ class XLSXReport:
                 )
 
             case Verdict.FAILED:
-                verdict_code = self._get_verdict_code(report.exception_name)
+                verdict_code = self.get_verdict_code(report.exception_name)
                 self.summary_sheet.write(
                     self._summary_line,
                     run_index + self._CASE_RESULT_START_COLUMN,
@@ -449,16 +692,23 @@ class XLSXReport:
                 )
 
     @staticmethod
-    def _get_verdict_code(exception_name: str | None) -> str:
+    def get_verdict_code(exception_name: str | None) -> str:
         match exception_name:
             case CompileError.__name__:
                 return "CE"
             case MatchError.__name__:
                 return "ME"
+            case MatchingError.__name__:
+                return "ME"
             case ScoreError.__name__:
                 return "SE"
+            case AssertionError.__name__:
+                return "RE"
 
         return "RE"
+
+    def _write_commit_shas(self, sha_list: list[str]) -> None:
+        self.sha_sheet.write(0, 0, str(sha_list), self.default_style)
 
     def _write_details_case(self, name: str, reports: list[QGReport]) -> None:
         self._write_details_sheet_test_header(name, reports)
@@ -766,9 +1016,81 @@ class XLSXReport:
             "SAT",
             self.header_style,
         )
+        sheet.write(self._summary_line, self._CASE_RESULT_START_COLUMN + 22, "ITC")
+        sheet.write(
+            self._summary_line,
+            self._CASE_RESULT_START_COLUMN + 23,
+            "OTC",
+        )
+        sheet.write(
+            self._summary_line,
+            self._CASE_RESULT_START_COLUMN + 24,
+            "PREV PROBA",
+            self.header_style,
+        )
+        sheet.write(
+            self._summary_line,
+            self._CASE_RESULT_START_COLUMN + 25,
+            "PROBA",
+            self.header_style,
+        )
+        sheet.write(
+            self._summary_line,
+            self._CASE_RESULT_START_COLUMN + 26,
+            "PVAL",
+            self.header_style,
+        )
+        sheet.write(
+            self._summary_line,
+            self._CASE_RESULT_START_COLUMN + 27,
+            "BETA",
+            self.header_style,
+        )
+        sheet.write(
+            self._summary_line,
+            self._CASE_RESULT_START_COLUMN + 28,
+            "H_LEN",
+            self.header_style,
+        )
+        sheet.write(
+            self._summary_line,
+            self._CASE_RESULT_START_COLUMN + 29,
+            "R_LEN",
+            self.header_style,
+        )
+        sheet.write(
+            self._summary_line,
+            self._CASE_RESULT_START_COLUMN + 31,
+            "PRIOR PREV PROBA",
+            self.header_style,
+        )
+        sheet.write(
+            self._summary_line,
+            self._CASE_RESULT_START_COLUMN + 32,
+            "PRIOR PROBA",
+            self.header_style,
+        )
+        sheet.write(
+            self._summary_line,
+            self._CASE_RESULT_START_COLUMN + 33,
+            "PRIOR PVAL",
+            self.header_style,
+        )
+        sheet.write(
+            self._summary_line,
+            self._CASE_RESULT_START_COLUMN + 34,
+            "PRIOR BETA",
+            self.header_style,
+        )
+        sheet.write(
+            self._summary_line,
+            self._CASE_RESULT_START_COLUMN + 35,
+            "PRIOR R_LEN",
+            self.header_style,
+        )
         sheet.set_column_pixels(
             self._CASE_RESULT_START_COLUMN + 20,
-            self._CASE_RESULT_START_COLUMN + 21,
+            self._CASE_RESULT_START_COLUMN + 35,
             width=50,
         )
         sheet.set_column(0, 0, width=140)
@@ -800,3 +1122,15 @@ class ReportStatistic(BaseModel):
 
     total_test_count: int = 0
     success_test_count: int = 0
+
+    global_stats: GlobalStats = GlobalStats(
+        fisher_pvalue=0.0,
+        history_commits=[],
+        n_higher=0.0,
+        n_lower=0.0,
+        n_same=0.0,
+        alpha=0.2,
+        beta=0.2,
+        delta=0.2,
+        fraction_failed=0.33,
+    )

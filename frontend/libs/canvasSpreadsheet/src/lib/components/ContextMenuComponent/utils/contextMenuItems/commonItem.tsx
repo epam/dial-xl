@@ -20,17 +20,22 @@ import {
   NoteIcon,
   NoteOffIcon,
   OrientationIcon,
+  ReloadIcon,
+  SettingsIcon,
   Shortcut,
   shortcutApi,
   SortIcon,
   SparklesIcon,
+  TableArrowIcon,
+  TagIcon,
   TotalIcon,
   TrashFilledIcon,
   UncollapseIcon,
 } from '@frontend/common';
 import { TotalType } from '@frontend/parser';
 
-import { GridCallbacks, GridCell, GridTable } from '../../../../types';
+import { GridCell, GridTable } from '../../../../types';
+import { GridEventBus } from '../../../../utils';
 import { ConditionFilter, ListFilter } from '../../components';
 import {
   spreadsheetMenuKeys as menuKey,
@@ -101,10 +106,26 @@ export function askAIItem(col: number, row: number): MenuItem {
   });
 }
 
+export function aiRegenerateItem(col: number, row: number): MenuItem {
+  return getDropdownItem({
+    label: 'Regenerate AI result',
+    key: getDropdownMenuKey<ContextMenuKeyData>(menuKey.aiRegenerate, {
+      col,
+      row,
+    }),
+    icon: (
+      <Icon
+        className="text-text-secondary w-[18px]"
+        component={() => <ReloadIcon />}
+      />
+    ),
+  });
+}
+
 export function noteEditItem(
   col: number,
   row: number,
-  note?: string
+  note?: string,
 ): MenuItem {
   return getDropdownItem({
     label: note ? 'Edit Note' : 'Add Note',
@@ -113,7 +134,7 @@ export function noteEditItem(
       {
         col,
         row,
-      }
+      },
     ),
     icon: (
       <Icon
@@ -144,7 +165,7 @@ export function noteRemoveItem(col: number, row: number): MenuItem {
 export function orientationItem(
   col: number,
   row: number,
-  isTableHorizontal: boolean
+  isTableHorizontal: boolean,
 ): MenuItem {
   return getDropdownItem({
     label: 'Orientation',
@@ -163,10 +184,10 @@ export function orientationItem(
           label: 'Horizontal',
           key: getDropdownMenuKey<ContextMenuKeyData>(
             menuKey.flipTableToVertical,
-            { col, row }
+            { col, row },
           ),
         },
-        isTableHorizontal
+        isTableHorizontal,
       ),
       getCheckboxDropdownSubmenuItem(
         {
@@ -176,10 +197,10 @@ export function orientationItem(
             {
               col,
               row,
-            }
+            },
           ),
         },
-        !isTableHorizontal
+        !isTableHorizontal,
       ),
     ],
   });
@@ -190,7 +211,7 @@ export function hideItem(
   row: number,
   isTableNameHeaderHidden: boolean,
   isTableFieldsHeaderHidden: boolean,
-  isChart: boolean
+  isChart: boolean,
 ): MenuItem {
   return getDropdownItem({
     label: 'Hide',
@@ -206,11 +227,15 @@ export function hideItem(
     children: [
       getDropdownItem({
         label: isTableNameHeaderHidden
-          ? 'Show table header'
-          : 'Hide table header',
+          ? isChart
+            ? 'Show chart title'
+            : 'Show table header'
+          : isChart
+            ? 'Hide chart title'
+            : 'Hide table header',
         key: getDropdownMenuKey<ContextMenuKeyData>(
           menuKey.toggleTableNameHeader,
-          { col, row }
+          { col, row },
         ),
       }),
       getDropdownItem({
@@ -219,14 +244,14 @@ export function hideItem(
             ? 'Show chart legend'
             : 'Show fields header'
           : isChart
-          ? 'Hide chart legend'
-          : 'Hide fields header',
+            ? 'Hide chart legend'
+            : 'Hide fields header',
         key: getDropdownMenuKey<ContextMenuKeyData>(
           menuKey.toggleTableFieldsHeader,
           {
             col,
             row,
-          }
+          },
         ),
       }),
     ],
@@ -236,7 +261,7 @@ export function hideItem(
 export function sortItem(
   col: number,
   row: number,
-  isNumeric: boolean
+  isNumeric: boolean,
 ): MenuItem {
   return getDropdownItem({
     key: 'SortMenu',
@@ -285,7 +310,7 @@ export function fieldTagsItem(
   isIndex: boolean,
   isDescription: boolean,
   isText: boolean,
-  fieldNames: string[]
+  fieldNames: string[],
 ): MenuItem {
   return getDropdownItem({
     key: 'Indices',
@@ -304,7 +329,7 @@ export function fieldTagsItem(
           {
             col,
             row,
-          }
+          },
         ),
         disabled: isDynamic || (isHasOverrides && !isManual && !isKey),
         tooltip:
@@ -319,7 +344,7 @@ export function fieldTagsItem(
           {
             col,
             row,
-          }
+          },
         ),
         disabled: !isIndex && !isText,
         tooltip:
@@ -342,9 +367,9 @@ export function fieldTagsItem(
                 col,
                 row,
                 fieldName,
-              }
+              },
             ),
-          })
+          }),
         ),
       }),
       isDescription
@@ -355,7 +380,7 @@ export function fieldTagsItem(
               {
                 col,
                 row,
-              }
+              },
             ),
           })
         : null,
@@ -367,13 +392,13 @@ export function dimensionItem(
   col: number,
   row: number,
   showCollapseNestedField: boolean,
-  isDynamic: boolean
+  isDynamic: boolean,
 ): MenuItem {
   return getDropdownItem({
     label: showCollapseNestedField ? 'Collapse all' : 'Expand all',
     key: getDropdownMenuKey<ContextMenuKeyData>(
       showCollapseNestedField ? menuKey.removeDimension : menuKey.addDimension,
-      { col, row }
+      { col, row },
     ),
     icon: (
       <Icon
@@ -395,7 +420,7 @@ export function insertItem(
   col: number,
   row: number,
   isTableHorizontal: boolean,
-  isManual: boolean
+  isManual: boolean,
 ): MenuItem {
   return getDropdownItem({
     key: 'InsertMenu',
@@ -418,7 +443,7 @@ export function insertItem(
         label: isTableHorizontal ? 'Column below' : 'Column to the right',
         key: getDropdownMenuKey<ContextMenuKeyData>(
           menuKey.insertFieldToRight,
-          { col, row }
+          { col, row },
         ),
       }),
       getDropdownItem({
@@ -439,7 +464,7 @@ export function fieldItem(
   row: number,
   cell: GridCell,
   table: GridTable,
-  isDynamic: boolean
+  isDynamic: boolean,
 ): MenuItem {
   const { endCol, startCol } = cell;
   const { isTableHorizontal, isTableNameHeaderHidden } = table;
@@ -487,7 +512,7 @@ export function fieldItem(
             label: 'Increase column width',
             key: getDropdownMenuKey<ContextMenuKeyData>(
               menuKey.increaseFieldWidth,
-              { col, row }
+              { col, row },
             ),
           })
         : null,
@@ -496,7 +521,7 @@ export function fieldItem(
             label: 'Decrease column width',
             key: getDropdownMenuKey<ContextMenuKeyData>(
               menuKey.decreaseFieldWidth,
-              { col, row }
+              { col, row },
             ),
             disabled: colSize <= 1,
           })
@@ -516,7 +541,7 @@ export function fieldItem(
             label: 'Remove custom column widths',
             key: getDropdownMenuKey<ContextMenuKeyData>(
               menuKey.removeFieldSizes,
-              { col, row }
+              { col, row },
             ),
           })
         : null,
@@ -528,7 +553,7 @@ export function deleteItem(
   col: number,
   row: number,
   table: GridTable,
-  isTableCell: boolean
+  isTableCell: boolean,
 ): MenuItem {
   return getDropdownItem({
     label: 'Delete',
@@ -571,7 +596,7 @@ export function totalItem(
   col: number,
   row: number,
   totalFieldTypes: TotalType[] | undefined,
-  isComplex: boolean
+  isComplex: boolean,
 ): MenuItem {
   const complexTotalKeys = [spreadsheetMenuKeys.countTotal];
   const filteredTotalItems = isComplex
@@ -608,7 +633,7 @@ export function totalItem(
               {
                 col,
                 row,
-              }
+              },
             ),
           }),
         ],
@@ -623,7 +648,7 @@ export function totalItem(
                 row,
               }),
             },
-            totalFieldTypes?.includes(totalItem.type) ?? false
+            totalFieldTypes?.includes(totalItem.type) ?? false,
           );
         }
 
@@ -643,8 +668,8 @@ export function filterItem(
   col: number,
   row: number,
   cell: GridCell,
-  gridCallbacks: GridCallbacks,
-  filterList: GridListFilter[]
+  eventBus: GridEventBus,
+  filterList: GridListFilter[],
 ): MenuItem {
   const { field, table } = cell;
 
@@ -676,10 +701,10 @@ export function filterItem(
         stopPropagationOnClick: true,
         label: (
           <ConditionFilter
+            eventBus={eventBus}
             fieldName={fieldName}
             filter={field?.filter}
             filterType={filterType}
-            gridCallbacks={gridCallbacks}
             tableName={tableName}
           />
         ),
@@ -693,7 +718,7 @@ export function filterItem(
         label: (
           <ListFilter
             cell={cell}
-            gridCallbacks={gridCallbacks}
+            eventBus={eventBus}
             isNumeric={isNumeric}
             listFilter={filterList}
           />
@@ -714,6 +739,85 @@ export function switchInput(col: number, row: number): MenuItem {
       <Icon
         className="text-text-secondary w-[18px]"
         component={() => <FileIcon />}
+      />
+    ),
+  });
+}
+
+export function syncImport(col: number, row: number): MenuItem {
+  return getDropdownItem({
+    label: 'Sync import',
+    key: getDropdownMenuKey<ContextMenuKeyData>(menuKey.syncImport, {
+      col,
+      row,
+    }),
+    icon: (
+      <Icon
+        className="text-text-secondary w-[18px]"
+        component={() => <ReloadIcon />}
+      />
+    ),
+  });
+}
+
+export function openDetails(
+  col: number,
+  row: number,
+  isTableHeader: boolean,
+  isOverride?: boolean,
+): MenuItem[] {
+  return [
+    getDropdownItem({
+      label: 'Open in Details Panel',
+      key: getDropdownMenuKey(menuKey.openDetailsPanel, { col, row }),
+      icon: (
+        <Icon
+          className="text-text-secondary w-[18px]"
+          component={() => <SettingsIcon />}
+        />
+      ),
+    }),
+    getDropdownItem({
+      label: 'Open in Editor',
+      key: getDropdownMenuKey<ContextMenuKeyData>(
+        isOverride
+          ? menuKey.openOverrideInEditor
+          : isTableHeader
+            ? menuKey.openTableInEditor
+            : menuKey.openFieldInEditor,
+        {
+          col,
+          row,
+        },
+      ),
+      icon: (
+        <Icon
+          className="text-text-secondary w-[18px]"
+          component={() => <TagIcon />}
+        />
+      ),
+    }),
+  ];
+}
+
+export function moveTable(
+  col: number,
+  row: number,
+  isChart: boolean,
+): MenuItem {
+  return getDropdownItem({
+    label: isChart ? 'Move chart' : 'Move table',
+    shortcut: shortcutApi.getLabel(Shortcut.SelectAll),
+    key: getDropdownMenuKey<ContextMenuKeyData>(menuKey.moveTable, {
+      col,
+      row,
+    }),
+    icon: (
+      <Icon
+        className="text-text-secondary w-[18px]"
+        component={() => (
+          <TableArrowIcon secondaryAccentCssVar="text-accent-secondary" />
+        )}
       />
     ),
   });

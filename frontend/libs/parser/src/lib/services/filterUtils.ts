@@ -14,7 +14,7 @@ import { updateExpressionFieldName } from './updateExpressionFieldName';
 
 export function getModifiedFilters(
   expression: Expression,
-  props: ModifyFilterProps
+  props: ModifyFilterProps,
 ): Map<string, string[]> {
   const fieldFilters: Map<string, string[]> = new Map();
 
@@ -45,7 +45,7 @@ export function getModifiedFilters(
           updateExpressionFieldName(
             expr,
             props.oldFieldName,
-            props.newFieldName
+            props.newFieldName,
           );
         }
 
@@ -79,7 +79,7 @@ export function getModifiedFilters(
           updateExpressionFieldName(
             expr,
             props.oldFieldName,
-            props.newFieldName
+            props.newFieldName,
           );
         }
 
@@ -114,7 +114,7 @@ export function getModifiedFilters(
             updateExpressionFieldName(
               expr,
               props.oldFieldName,
-              props.newFieldName
+              props.newFieldName,
             );
           }
 
@@ -173,7 +173,7 @@ export function getModifiedFilters(
 
 export function handleBinOpExpression(
   expression: Expression,
-  parent: BinOpExpression
+  parent: BinOpExpression,
 ): ParsedConditionFilter | undefined {
   const operator = parent.operator;
 
@@ -187,8 +187,8 @@ export function handleBinOpExpression(
       functionName === 'LEFT'
         ? FilterOperator.BeginsWith
         : functionName === 'RIGHT'
-        ? FilterOperator.EndsWith
-        : undefined;
+          ? FilterOperator.EndsWith
+          : undefined;
 
     if (filterOperator) {
       return {
@@ -208,7 +208,7 @@ export function handleBinOpExpression(
 
 export function handleUniOpExpression(
   expression: Expression,
-  parent: UniOpExpression
+  parent: UniOpExpression,
 ): ParsedConditionFilter | undefined {
   if (parent.uni_op.toUpperCase() !== 'NOT') return undefined;
 
@@ -217,7 +217,7 @@ export function handleUniOpExpression(
     expression.name.toUpperCase() === 'CONTAINS'
   ) {
     const value = extractValueFromArguments(
-      expression.arguments[0] as Expression[]
+      expression.arguments[0] as Expression[],
     );
 
     return {
@@ -230,13 +230,13 @@ export function handleUniOpExpression(
 }
 
 export function handleFunctionExpression(
-  expression: FunctionExpression
+  expression: FunctionExpression,
 ): ParsedConditionFilter | undefined {
   const functionName = expression.name.toUpperCase();
 
   if (functionName === 'CONTAINS') {
     const value = extractValueFromArguments(
-      expression.arguments[0] as Expression[]
+      expression.arguments[0] as Expression[],
     );
 
     return {
@@ -247,7 +247,7 @@ export function handleFunctionExpression(
 
   if (functionName === 'BETWEEN') {
     const values = extractValuesFromArguments(
-      expression.arguments[0] as Expression[]
+      expression.arguments[0] as Expression[],
     );
 
     if (values.length === 2) {
@@ -263,7 +263,7 @@ export function handleFunctionExpression(
 }
 
 export function isConstNumberOrStringExpression(
-  arg: Expression
+  arg: Expression,
 ): arg is ConstNumberExpression | ConstStringExpression {
   return (
     arg instanceof ConstNumberExpression || arg instanceof ConstStringExpression

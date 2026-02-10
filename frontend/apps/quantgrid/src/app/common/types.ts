@@ -1,4 +1,4 @@
-import { ReactElement, ReactNode } from 'react';
+import { type JSX, ReactElement, ReactNode } from 'react';
 
 import { CommonMetadata, ForkedFrom } from '@frontend/common';
 import { OverrideValue } from '@frontend/parser';
@@ -59,48 +59,18 @@ export type LayoutPanelProps = {
 };
 
 export type PanelPositionProps = {
-  active: ReactElement[];
+  active: ReactElement<any>[];
   minimized: MinimizedPanelProps[];
 };
 
 export type PanelSettings = Record<PanelName, LayoutPanelProps>;
 
-// Modals
-
-export type ModalRefFunction = (onSuccess?: () => void) => void;
-export type NewProjectModalRefFunction = (args: {
-  projectPath?: string | null;
-  projectBucket: string;
-  existingProjectNames?: string[];
-  onSuccess?: () => void;
-  openInNewTab?: boolean;
-}) => void;
-export type RenameModalRefFunction = (name: string) => void;
-export type CloneModalRefFunction = (name: string) => void;
-export type DeleteModalRefFunction = (args: {
-  name: string;
-  onSuccess?: () => void;
-}) => void;
-export type DeleteProjectModalRefFunction = (args: {
-  name: string;
-  projectPath: string | null | undefined;
-  projectBucket: string;
-  onSuccess?: () => void;
-}) => void;
-export type ShareModalRefFunction = (
-  resources: Omit<CommonMetadata, 'resourceType' | 'url'>[]
-) => void;
-export type NewFolderModalRefFunction = (args: {
-  path: string | null;
-  bucket: string;
-  newFolderName?: string;
-  silent?: boolean;
-}) => void;
-
 export type FileReference = Pick<
   CommonMetadata,
   'name' | 'bucket' | 'parentPath'
 >;
+
+export type ResourceReference = Omit<CommonMetadata, 'resourceType' | 'url'>;
 
 export type ForkedProjectSettings = ForkedFrom & {
   isExists: boolean;

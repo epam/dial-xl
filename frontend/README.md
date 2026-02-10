@@ -68,27 +68,76 @@ To run an application with authentication, you should set `authAuthority` and `a
 
 Run `nx graph` to see a diagram of the dependencies of the projects.
 
-## Run e2e tests locally
+## E2E
 
-if the local application uses authentication, set the environment variables:  
-AUTH_TYPE to the authentication type which is used on the local env. Supported values are `auth0` and `keycloak`.  
-QUANTGRID_TEST_USERNAME to a valid user name for the application  
-QUANTGRID_TEST_PASSWORD to password for the user set in the previous variable
+### Installation
 
-run `npx nx e2e quantgrid`  
-you can change the target browsers by editing the section `projects` in `frontend\apps\quantgrid\playwright` directory
+To run tests you need to have playwright installed. Run:
 
-## Configure allure
+```bash
+yarn playwright install --with-deps
+```
 
-Go to https://github.com/allure-framework/allure2/releases/ and download the latest version selecting suitable archive type  
-Unpack the archive  
-Add allure bin directory to the PATH env variable
+### Running
 
-## Generate allure report
+By default tests run against the staging environment. To run E2E tests against a locally running quantgrid:
+
+1. Start the app:
+
+```bash
+yarn nx serve quantgrid
+```
+
+2. In a new terminal set BASE_URL to your local address and run the E2E target. Example (macOS/Linux):
+
+```bash
+BASE_URL=http://localhost:4200 yarn nx e2e quantgrid
+```
+
+PowerShell example (Windows):
+
+```powershell
+$env:BASE_URL='http://localhost:4200'; yarn nx e2e quantgrid
+```
+
+Alternatively, add BASE_URL to `apps/quantgrid/.env` and then run:
+
+```bash
+yarn nx e2e quantgrid
+```
+
+It will run in headless mode by default, to have it in ui mode pass `--ui` argument to previous command
+
+```bash
+yarn nx e2e quantgrid --ui
+```
+
+_Note_: you can change the target browsers by editing the section `projects` in `frontend\apps\quantgrid\playwright` directory
+
+### Environment variables
+
+You should set next environment variables globally or create `.env` file in `apps/quantgrid` folder:  
+| Variable | Description | Supported values |
+|---|---|---|
+| `BASE_URL` | Url to test | Can be empty |
+| `AUTH_TYPE` | Authentication type used on the local environment | `auth0`, `keycloak` |
+| `QUANTGRID_TEST_USERNAME` | Valid username for the application | any valid username |
+| `QUANTGRID_TEST_PASSWORD` | Password for the user specified in `QUANTGRID_TEST_USERNAME` | corresponding password |
+| `WORKER_COUNT` | Amount of workers where tests run | number |
+
+### Allure
+
+#### Installation
+
+1. Go to [releases](https://github.com/allure-framework/allure2/releases/) and download the latest version selecting suitable archive type  
+   Unpack the archive
+2. Add allure bin directory to the PATH env variable
+
+#### Generate allure report
 
 run `allure generate ./allure-results -o ./allure-report --clean`
 
-## Open allure report
+#### Open allure report
 
 in the case of report generated locally, run `allure open allure-report`  
 in the case of gitlab report, extract the report to some directory and run `allure open "path_to_extracted_directory"`

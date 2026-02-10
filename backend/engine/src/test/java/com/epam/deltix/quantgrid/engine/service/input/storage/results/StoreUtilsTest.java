@@ -37,7 +37,7 @@ class StoreUtilsTest {
     void testRead() throws IOException {
         List<ColumnType> columnTypes = List.of(ColumnType.STRING, ColumnType.DOUBLE);
         try (InputStream stream = new ByteArrayInputStream(CSV.getBytes())) {
-            Table table = StoreUtils.readTable(stream, columnTypes);
+            Table table = StoreUtils.readTable(stream, columnTypes, false);
 
             assertThat(table.getColumnCount()).isEqualTo(2);
             assertThat(table.getColumn(0))
@@ -57,7 +57,7 @@ class StoreUtilsTest {
                 new StringDirectColumn(STRINGS),
                 new DoubleDirectColumn(DOUBLES));
         try (ByteArrayOutputStream stream = new ByteArrayOutputStream()) {
-            StoreUtils.writeTable(stream, table);
+            StoreUtils.writeTable(stream, table, false);
 
             assertThat(stream.toString()).isEqualToNormalizingNewlines(CSV);
         }

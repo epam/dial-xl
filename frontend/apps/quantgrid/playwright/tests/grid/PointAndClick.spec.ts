@@ -3,7 +3,7 @@
 import test, { BrowserContext, expect, Page } from '@playwright/test';
 
 import { Canvas } from '../../components/Canvas';
-import { ProjectTree } from '../../components/ProjectTree';
+import { ProjectTree } from '../../components/ProjectPanel';
 import { expectCellTextToBe } from '../../helpers/canvasExpects';
 import { Field } from '../../logic-entities/Field';
 import { SpreadSheet } from '../../logic-entities/SpreadSheet';
@@ -25,13 +25,14 @@ let browserContext: BrowserContext;
 
 let page: Page;
 
-const storagePath = `playwright/${projectName}.json`;
+const storagePath = TestFixtures.getStoragePath();
 
 test.beforeAll(async ({ browser }) => {
   const Table1 = new Table(table1Row, table1Column, table1Name);
   Table1.addField(new Field('Field1', '5'));
   Table1.addField(new Field('Field2', '7'));
   const table2 = new Table(2, 2, 'SameRowTable');
+
   table2.addField(new Field('KeyField', 'RANGE(10)', false, true));
   table2.addField(new Field('Field1', '5'));
   table2.addOverrideValue('Field1', 3, '8');
@@ -41,13 +42,13 @@ test.beforeAll(async ({ browser }) => {
   spreadsheet.addTable(Table1);
   spreadsheet.addTable(table2);
   spreadsheet.addTable(table3);
+  browserContext = await browser.newContext({ storageState: storagePath });
   await TestFixtures.createProjectNew(
     storagePath,
-    browser,
+    browserContext,
     projectName,
-    spreadsheet
+    spreadsheet,
   );
-  browserContext = await browser.newContext({ storageState: storagePath });
 });
 
 test.beforeEach(async () => {
@@ -61,8 +62,8 @@ test.afterEach(async () => {
 });
 
 test.afterAll(async ({ browser }) => {
+  await TestFixtures.deleteProject(browserContext, projectName);
   await browserContext.close();
-  await TestFixtures.deleteProject(browser, projectName);
 });
 
 test.describe('point and click', () => {
@@ -71,19 +72,19 @@ test.describe('point and click', () => {
     const table = spreadsheet.getTable(1);
     await projectPage.clickOnGridCell(
       table.getFirstCellCoord() + 2,
-      table.getLeft() + 1
+      table.getLeft() + 1,
     );
     await projectPage.getVisualization().getCellEditor().typeValue('7', false);
     await projectPage.clickOnGridCell(
       spreadsheet.getTable(0).getFirstCellCoord(),
-      spreadsheet.getTable(0).getLeft()
+      spreadsheet.getTable(0).getLeft(),
     );
     await projectPage.getVisualization().getCellEditor().shouldBeHidden();
     await expectCellTextToBe(
       <Canvas>projectPage.getVisualization(),
       table.getFirstCellCoord() + 2,
       table.getLeft() + 1,
-      '7'
+      '7',
     );
     table.addOverrideValue(table.getField(1).getName(), 3, '7');
   });
@@ -93,19 +94,19 @@ test.describe('point and click', () => {
     const table = spreadsheet.getTable(2);
     await projectPage.clickOnGridCell(
       table.getFirstCellCoord(),
-      table.getLeft() + 1
+      table.getLeft() + 1,
     );
     await projectPage.getVisualization().getCellEditor().typeValue('23', false);
     await projectPage.clickOnGridCell(
       spreadsheet.getTable(0).getFirstCellCoord(),
-      spreadsheet.getTable(0).getLeft()
+      spreadsheet.getTable(0).getLeft(),
     );
     await projectPage.getVisualization().getCellEditor().shouldBeHidden();
     await expectCellTextToBe(
       <Canvas>projectPage.getVisualization(),
       table.getFirstCellCoord(),
       table.getLeft() + 1,
-      '23'
+      '23',
     );
     table.addField(new Field('Field1', 'NA'));
     table.addOverrideValue('Field1', 1, '23.0');
@@ -152,7 +153,7 @@ test.describe('point and click', () => {
     const targetTable = spreadsheet.getTable(2);
     await projectPage.clickOnGridCell(
       table.getFirstCellCoord(),
-      table.getLeft()
+      table.getLeft(),
     );
     await projectPage
       .getVisualization()
@@ -160,12 +161,12 @@ test.describe('point and click', () => {
       .typeValue('=', false, true);
     await projectPage.clickOnGridCell(
       targetTable.getFirstCellCoord(),
-      targetTable.getLeft()
+      targetTable.getLeft(),
     );
     await expect(
-      projectPage.getVisualization().getCellEditor().getValueLocator()
+      projectPage.getVisualization().getCellEditor().getValueLocator(),
     ).toContainText(
-      `${targetTable.getName()}(1)[${targetTable.getField(0).getName()}]`
+      `${targetTable.getName()}(1)[${targetTable.getField(0).getName()}]`,
     );
     await projectPage.getVisualization().getCellEditor().finishLine();
     await expectCellTextToBe(
@@ -176,8 +177,8 @@ test.describe('point and click', () => {
         .getVisualization()
         .getCellTableText(
           targetTable.getFirstCellCoord(),
-          targetTable.getLeft()
-        )
+          targetTable.getLeft(),
+        ),
     );
   });
 
@@ -186,7 +187,7 @@ test.describe('point and click', () => {
     const table = spreadsheet.getTable(1);
     await projectPage.clickOnGridCell(
       table.getFirstCellCoord() + 6,
-      table.getLeft() + 1
+      table.getLeft() + 1,
     );
     await projectPage
       .getVisualization()
@@ -194,12 +195,12 @@ test.describe('point and click', () => {
       .typeValue('=', false, true);
     await projectPage.clickOnGridCell(
       table.getFirstCellCoord() + 4,
-      table.getLeft()
+      table.getLeft(),
     );
     await expect(
-      projectPage.getVisualization().getCellEditor().getValueLocator()
+      projectPage.getVisualization().getCellEditor().getValueLocator(),
     ).toContainText(
-      `${table.getName()}(ROW() - 2)[${table.getField(0).getName()}]`
+      `${table.getName()}(ROW() - 2)[${table.getField(0).getName()}]`,
     );
     await projectPage.getVisualization().getCellEditor().finishLine();
     await expectCellTextToBe(
@@ -208,7 +209,7 @@ test.describe('point and click', () => {
       table.getLeft() + 1,
       await projectPage
         .getVisualization()
-        .getCellTableText(table.getFirstCellCoord() + 4, table.getLeft())
+        .getCellTableText(table.getFirstCellCoord() + 4, table.getLeft()),
     );
   });
 
@@ -217,7 +218,7 @@ test.describe('point and click', () => {
     const table = spreadsheet.getTable(1);
     await projectPage.clickOnGridCell(
       table.getFirstCellCoord() + 5,
-      table.getLeft() + 1
+      table.getLeft() + 1,
     );
     await projectPage
       .getVisualization()
@@ -225,10 +226,10 @@ test.describe('point and click', () => {
       .typeValue('=', false, true);
     await projectPage.clickOnGridCell(
       table.getFirstCellCoord() + 5,
-      table.getLeft()
+      table.getLeft(),
     );
     await expect(
-      projectPage.getVisualization().getCellEditor().getValueLocator()
+      projectPage.getVisualization().getCellEditor().getValueLocator(),
     ).toContainText(`[${table.getField(0).getName()}]`);
     await projectPage.getVisualization().getCellEditor().finishLine();
     await expectCellTextToBe(
@@ -237,7 +238,7 @@ test.describe('point and click', () => {
       table.getLeft() + 1,
       await projectPage
         .getVisualization()
-        .getCellTableText(table.getFirstCellCoord() + 5, table.getLeft())
+        .getCellTableText(table.getFirstCellCoord() + 5, table.getLeft()),
     );
   });
 
@@ -246,7 +247,7 @@ test.describe('point and click', () => {
     const table = spreadsheet.getTable(1);
     await projectPage.clickOnGridCell(
       table.getFirstCellCoord() + 3,
-      table.getLeft() + 1
+      table.getLeft() + 1,
     );
     await projectPage
       .getVisualization()
@@ -254,10 +255,10 @@ test.describe('point and click', () => {
       .typeValue('=', false, true);
     await projectPage.clickOnGridCell(
       table.getFieldHeadersRow(),
-      table.getLeft()
+      table.getLeft(),
     );
     await expect(
-      projectPage.getVisualization().getCellEditor().getValueLocator()
+      projectPage.getVisualization().getCellEditor().getValueLocator(),
     ).toContainText(`[${table.getField(0).getName()}]`);
     await projectPage.getVisualization().getCellEditor().finishLine();
     await expectCellTextToBe(
@@ -266,7 +267,7 @@ test.describe('point and click', () => {
       table.getLeft() + 1,
       await projectPage
         .getVisualization()
-        .getCellTableText(table.getFirstCellCoord() + 3, table.getLeft())
+        .getCellTableText(table.getFirstCellCoord() + 3, table.getLeft()),
     );
   });
 
@@ -279,7 +280,7 @@ test.describe('point and click', () => {
       .getCellTableText(table.getFirstCellCoord() + 1, table.getLeft() + 1);
     await projectPage.clickOnGridCell(
       table.getFirstCellCoord() + 1,
-      table.getLeft() + 1
+      table.getLeft() + 1,
     );
     await projectPage
       .getVisualization()
@@ -288,14 +289,14 @@ test.describe('point and click', () => {
     await projectPage.clickOnGridCell(table.getTop(), table.getLeft());
     //  await new Promise((resolve) => setTimeout(resolve, 1000));
     await expect(
-      projectPage.getVisualization().getCellEditor().getValueLocator()
+      projectPage.getVisualization().getCellEditor().getValueLocator(),
     ).toHaveText(`=${table.getName()}`);
     await projectPage.getVisualization().getCellEditor().cancelSettingValue();
     await expectCellTextToBe(
       <Canvas>projectPage.getVisualization(),
       table.getFirstCellCoord() + 1,
       table.getLeft() + 1,
-      oldValue
+      oldValue,
     );
   });
 
@@ -305,7 +306,7 @@ test.describe('point and click', () => {
     const targetTable = spreadsheet.getTable(1);
     await projectPage.clickOnGridCell(
       sourceTable.getFirstCellCoord(),
-      sourceTable.getLeft() + 1
+      sourceTable.getLeft() + 1,
     );
     await projectPage
       .getVisualization()
@@ -313,13 +314,13 @@ test.describe('point and click', () => {
       .typeValue('=', false, true);
     await projectPage.clickOnGridCell(
       targetTable.getFirstCellCoord() + 3,
-      targetTable.getLeft()
+      targetTable.getLeft(),
     );
     //SameRowTable(3)[KeyField]
     await expect(
-      projectPage.getVisualization().getCellEditor().getValueLocator()
+      projectPage.getVisualization().getCellEditor().getValueLocator(),
     ).toHaveText(
-      `=${targetTable.getName()}(4)[${targetTable.getField(0).getName()}]`
+      `=${targetTable.getName()}(4)[${targetTable.getField(0).getName()}]`,
     );
     await projectPage.getVisualization().getCellEditor().finishLine();
     await expectCellTextToBe(
@@ -330,8 +331,8 @@ test.describe('point and click', () => {
         .getVisualization()
         .getCellTableText(
           targetTable.getFirstCellCoord() + 3,
-          targetTable.getLeft()
-        )
+          targetTable.getLeft(),
+        ),
     );
   });
 
@@ -341,7 +342,7 @@ test.describe('point and click', () => {
     const targetTable = spreadsheet.getTable(1);
     await projectPage.clickOnGridCell(
       sourceTable.getFirstCellCoord(),
-      sourceTable.getLeft() + 1
+      sourceTable.getLeft() + 1,
     );
     await projectPage
       .getVisualization()
@@ -349,19 +350,19 @@ test.describe('point and click', () => {
       .typeValue('=', false, true);
     await projectPage.clickOnGridCell(
       targetTable.getFieldHeadersRow(),
-      targetTable.getLeft() + 1
+      targetTable.getLeft() + 1,
     );
     await expect(
-      projectPage.getVisualization().getCellEditor().getValueLocator()
+      projectPage.getVisualization().getCellEditor().getValueLocator(),
     ).toHaveText(
-      `=${targetTable.getName()}[${targetTable.getField(1).getName()}]`
+      `=${targetTable.getName()}[${targetTable.getField(1).getName()}]`,
     );
     await projectPage.getVisualization().getCellEditor().finishLine();
     await projectPage
       .getVisualization()
       .expectCellToBeDim(
         sourceTable.getFirstCellCoord(),
-        sourceTable.getLeft() + 1
+        sourceTable.getLeft() + 1,
       );
   });
 
@@ -371,7 +372,7 @@ test.describe('point and click', () => {
     const targetTable = spreadsheet.getTable(1);
     await projectPage.clickOnGridCell(
       sourceTable.getFirstCellCoord(),
-      sourceTable.getLeft()
+      sourceTable.getLeft(),
     );
     await projectPage
       .getVisualization()
@@ -379,17 +380,17 @@ test.describe('point and click', () => {
       .typeValue('=', false, true);
     await projectPage.clickOnGridCell(
       targetTable.getTop(),
-      targetTable.getLeft()
+      targetTable.getLeft(),
     );
     await expect(
-      projectPage.getVisualization().getCellEditor().getValueLocator()
+      projectPage.getVisualization().getCellEditor().getValueLocator(),
     ).toHaveText(`=${targetTable.getName()}`);
     await projectPage.getVisualization().getCellEditor().finishLine();
     await projectPage
       .getVisualization()
       .expectCellToBeDim(
         sourceTable.getFirstCellCoord(),
-        sourceTable.getLeft()
+        sourceTable.getLeft(),
       );
   });
 
@@ -401,7 +402,7 @@ test.describe('point and click', () => {
       .getCellTableText(table.getFirstCellCoord() + 4, table.getLeft() + 1);
     await projectPage.clickOnGridCell(
       table.getFirstCellCoord() + 4,
-      table.getLeft() + 1
+      table.getLeft() + 1,
     );
     await projectPage
       .getVisualization()
@@ -413,17 +414,17 @@ test.describe('point and click', () => {
         table.getFirstCellCoord(),
         table.getLeft(),
         table.getFirstCellCoord(),
-        table.getLeft() + 1
+        table.getLeft() + 1,
       );
     await expect(
-      projectPage.getVisualization().getCellEditor().getValueLocator()
+      projectPage.getVisualization().getCellEditor().getValueLocator(),
     ).toHaveText('=');
     await projectPage.getVisualization().getCellEditor().cancelSettingValue();
     await expectCellTextToBe(
       <Canvas>projectPage.getVisualization(),
       table.getFirstCellCoord() + 4,
       table.getLeft() + 1,
-      oldValue
+      oldValue,
     );
   });
 
@@ -435,7 +436,7 @@ test.describe('point and click', () => {
       .getCellTableText(table.getFirstCellCoord() + 4, table.getLeft() + 1);
     await projectPage.clickOnGridCell(
       table.getFirstCellCoord() + 4,
-      table.getLeft() + 1
+      table.getLeft() + 1,
     );
     await projectPage
       .getVisualization()
@@ -447,17 +448,17 @@ test.describe('point and click', () => {
         table.getFirstCellCoord() + 5,
         table.getLeft() + 3,
         table.getFirstCellCoord() + 8,
-        table.getLeft() + 3
+        table.getLeft() + 3,
       );
     await expect(
-      projectPage.getVisualization().getCellEditor().getValueLocator()
+      projectPage.getVisualization().getCellEditor().getValueLocator(),
     ).toHaveText('=');
     await projectPage.getVisualization().getCellEditor().cancelSettingValue();
     await expectCellTextToBe(
       <Canvas>projectPage.getVisualization(),
       table.getFirstCellCoord() + 4,
       table.getLeft() + 1,
-      oldValue
+      oldValue,
     );
   });
   /*
@@ -585,7 +586,7 @@ test.describe('point and click', () => {
       .getCellTableText(sourceTable.getFirstCellCoord(), sourceTable.getLeft());
     await projectPage.clickOnGridCell(
       sourceTable.getFieldHeadersRow(),
-      sourceTable.getLeft()
+      sourceTable.getLeft(),
     );
     await projectPage
       .getVisualization()
@@ -594,14 +595,14 @@ test.describe('point and click', () => {
     const projectTree = new ProjectTree(page);
     await projectTree.clickOnNode(spreadsheet.getTable(2).getName());
     await expect(
-      projectPage.getVisualization().getCellEditor().getValueLocator()
+      projectPage.getVisualization().getCellEditor().getValueLocator(),
     ).toHaveText(`=${spreadsheet.getTable(2).getName()}`);
     await projectPage.getVisualization().getCellEditor().cancelSettingValue();
     await expectCellTextToBe(
       <Canvas>projectPage.getVisualization(),
       sourceTable.getFirstCellCoord(),
       sourceTable.getLeft(),
-      oldValue
+      oldValue,
     );
   });
 
@@ -616,7 +617,7 @@ test.describe('point and click', () => {
     await projectTree.expandItem(sourceTable.getName());
     await projectPage.clickOnGridCell(
       sourceTable.getFirstCellCoord(),
-      sourceTable.getLeft()
+      sourceTable.getLeft(),
     );
     await projectPage
       .getVisualization()
@@ -624,14 +625,14 @@ test.describe('point and click', () => {
       .typeValue('=', false, true);
     await projectTree.clickOnNode(sourceTable.getField(1).getName());
     await expect(
-      projectPage.getVisualization().getCellEditor().getValueLocator()
+      projectPage.getVisualization().getCellEditor().getValueLocator(),
     ).toHaveText(`=[${sourceTable.getField(1).getName()}]`);
     await projectPage.getVisualization().getCellEditor().cancelSettingValue();
     await expectCellTextToBe(
       <Canvas>projectPage.getVisualization(),
       sourceTable.getFirstCellCoord(),
       sourceTable.getLeft(),
-      oldValue
+      oldValue,
     );
   });
 
@@ -647,7 +648,7 @@ test.describe('point and click', () => {
     await projectTree.expandItem(targetTable.getName());
     await projectPage.clickOnGridCell(
       sourceTable.getFirstCellCoord(),
-      sourceTable.getLeft()
+      sourceTable.getLeft(),
     );
     await projectPage
       .getVisualization()
@@ -655,16 +656,16 @@ test.describe('point and click', () => {
       .typeValue('=', false, true);
     await projectTree.clickOnNode(targetTable.getField(0).getName());
     await expect(
-      projectPage.getVisualization().getCellEditor().getValueLocator()
+      projectPage.getVisualization().getCellEditor().getValueLocator(),
     ).toHaveText(
-      `=${targetTable.getName()}[${targetTable.getField(0).getName()}]`
+      `=${targetTable.getName()}[${targetTable.getField(0).getName()}]`,
     );
     await projectPage.getVisualization().getCellEditor().cancelSettingValue();
     await expectCellTextToBe(
       <Canvas>projectPage.getVisualization(),
       sourceTable.getFirstCellCoord(),
       sourceTable.getLeft(),
-      oldValue
+      oldValue,
     );
   });
 
@@ -676,17 +677,17 @@ test.describe('point and click', () => {
     const table = spreadsheet.getTable(1);
     await projectPage.clickOnGridCell(
       table.getFirstCellCoord(),
-      table.getLeft() + 1
+      table.getLeft() + 1,
     );
     await expect(
-      projectPage.getVisualization().getCellEditor().getValueLocator()
+      projectPage.getVisualization().getCellEditor().getValueLocator(),
     ).toHaveText(`=${table.getName()}(1)[${table.getField(1).getName()}]`);
     await projectPage.clickOnGridCell(
       table.getFirstCellCoord(),
-      table.getLeft()
+      table.getLeft(),
     );
     await expect(
-      projectPage.getVisualization().getCellEditor().getValueLocator()
+      projectPage.getVisualization().getCellEditor().getValueLocator(),
     ).toHaveText(`=${table.getName()}(1)[${table.getField(0).getName()}]`);
     await projectPage.getVisualization().getCellEditor().cancelSettingValue();
   });
@@ -701,10 +702,10 @@ test.describe('point and click', () => {
     const table = spreadsheet.getTable(1);
     await projectPage.clickOnGridCell(
       table.getFirstCellCoord(),
-      table.getLeft() + 1
+      table.getLeft() + 1,
     );
     await expect(
-      projectPage.getVisualization().getCellEditor().getValueLocator()
+      projectPage.getVisualization().getCellEditor().getValueLocator(),
     ).toHaveText(`53 &${table.getName()}(1)[${table.getField(1).getName()}]`);
     await projectPage.getVisualization().getCellEditor().cancelSettingValue();
   });

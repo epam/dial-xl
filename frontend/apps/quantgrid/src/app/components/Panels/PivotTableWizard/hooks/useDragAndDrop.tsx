@@ -37,12 +37,12 @@ export function useDragAndDrop() {
       };
 
       const foundEntry = Object.entries(containerMapping).find(([_, items]) =>
-        items.some((item) => item.id === id)
+        items.some((item) => item.id === id),
       );
 
       return foundEntry ? (foundEntry[0] as FieldContainerId) : null;
     },
-    [availableFields, rowFields, columnFields, valueFields]
+    [availableFields, rowFields, columnFields, valueFields],
   );
 
   const handleDragStart = useCallback(
@@ -51,7 +51,7 @@ export function useDragAndDrop() {
       const item = getItemById(active.id as string);
       setActiveField(item);
     },
-    [getItemById]
+    [getItemById],
   );
 
   const handleDragEnd = useCallback(
@@ -128,7 +128,7 @@ export function useDragAndDrop() {
       // Move between containers. Remove from source
       if (containerMapping[sourceContainerId]) {
         containerMapping[sourceContainerId].setter((prev) =>
-          prev.filter((item) => item.id !== activeId)
+          prev.filter((item) => item.id !== activeId),
         );
       }
 
@@ -151,7 +151,7 @@ export function useDragAndDrop() {
       setRowFields,
       setColumnFields,
       setValueFields,
-    ]
+    ],
   );
 
   return {

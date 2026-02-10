@@ -19,14 +19,15 @@ import {
   FieldGroup,
   lineBreak,
   ParsedTable,
-  unescapeFieldName,
   unescapeTableName,
   visualizationDecoratorName,
 } from '@frontend/parser';
 
+import { PanelName } from '../../common';
 import { ChartOrientationValues } from '../../components/Panels/Chart/Components';
-import { chartsWithRowNumber } from '../../components/Panels/Chart/utils';
-import { ProjectContext, ViewportContext } from '../../context';
+import { LayoutContext, ProjectContext, ViewportContext } from '../../context';
+import { chartsWithRowNumber, getChartInitialOrientation } from '../../utils';
+import { useGridApi } from '../useGridApi';
 import { useSafeCallback } from '../useSafeCallback';
 import { useDSLUtils } from './useDSLUtils';
 import {
@@ -34,12 +35,15 @@ import {
   editFieldDecorator,
   editTableDecorator,
   getFormulaFromSourceTable,
+  getNewTablePlacementFromSourceTable,
 } from './utils';
 
 export function useChartEditDsl() {
   const { viewGridData } = useContext(ViewportContext);
   const { parsedSheets } = useContext(ProjectContext);
+  const { openPanel } = useContext(LayoutContext);
   const { updateDSL, findEditContext } = useDSLUtils();
+  const gridApi = useGridApi();
 
   const getInitialRowNumberArgs = useCallback(
     (parsedTable: ParsedTable, orientation: ChartOrientation): string => {
@@ -63,7 +67,7 @@ export function useChartEditDsl() {
 
       return args;
     },
-    [viewGridData]
+    [viewGridData],
   );
 
   const chartResize = useCallback(
@@ -89,8 +93,16 @@ export function useChartEditDsl() {
         historyTitle,
         sheetNameToChange: sheetName,
       });
+
+      const [row, col] = parsedTable.getPlacement();
+      gridApi?.updateSelectionAfterDataChanged({
+        startCol: col,
+        startRow: row,
+        endRow: row + rows - 1,
+        endCol: col + cols - 1,
+      });
     },
-    [findEditContext, updateDSL]
+    [gridApi, findEditContext, updateDSL],
   );
 
   const updateSelectorValue = useCallback(
@@ -98,7 +110,7 @@ export function useChartEditDsl() {
       tableName: string,
       fieldName: string,
       value: number | string,
-      hasNoData: boolean
+      hasNoData: boolean,
     ) => {
       const context = findEditContext(tableName, fieldName);
 
@@ -120,18 +132,16 @@ export function useChartEditDsl() {
           const success = editFieldDecorator(
             field,
             chartSelectorDecoratorName,
-            decoratorArgs
+            decoratorArgs,
           );
           if (!success) return;
         } else {
           const decoratorArgs = '()' + lineBreak;
-          const fieldToRemoveSelector = table.getField(
-            unescapeFieldName(currentFieldName)
-          );
+          const fieldToRemoveSelector = table.getField(currentFieldName);
           const success = editFieldDecorator(
             fieldToRemoveSelector,
             chartSelectorDecoratorName,
-            decoratorArgs
+            decoratorArgs,
           );
           if (!success) return;
         }
@@ -144,38 +154,44 @@ export function useChartEditDsl() {
         historyTitle,
       });
     },
-    [findEditContext, updateDSL]
+    [findEditContext, updateDSL],
   );
 
   const addChart = useCallback(
-    (tableName: string, chartType: ChartType) => {
+    (tableName: string, chartType: ChartType, col?: number, row?: number) => {
       const context = findEditContext(tableName);
       if (!context) return;
 
       const { parsedTable, sheet, sheetName } = context;
       const { fields } = parsedTable;
-      const initialOrientation = viewGridData.getChartInitialOrientation(
-        parsedTable,
-        chartType
-      );
+      const initialOrientation = getChartInitialOrientation(chartType);
 
       const textFieldNameWithAllUnique =
         viewGridData.findFirstTextColumnWithAllUniques(parsedTable);
       const unescapedTableName = unescapeTableName(tableName);
       const baseName = `${unescapedTableName}_${chartType}`;
-      const [row, col] = parsedTable.getPlacement();
-      const newCol = col + fields.length + 1;
       const visualizationArgs =
         initialOrientation === 'horizontal'
           ? `("${chartType}","${chartHorizontalDecoratorArg}")`
           : `("${chartType}")`;
 
+      let targetCol = col;
+      let targetRow = row;
+
+      if (targetCol === undefined || targetRow === undefined) {
+        [targetCol, targetRow] = getNewTablePlacementFromSourceTable(
+          tableName,
+          viewGridData,
+          parsedSheets,
+        );
+      }
+
       const { table, tableName: newChartName } = createAndPlaceTable({
         sheet,
         baseName,
         parsedSheets,
-        col: newCol,
-        row,
+        col: targetCol,
+        row: targetRow,
         layoutOptions: {
           showTableHeader: true,
           showFieldHeaders: true,
@@ -220,53 +236,25 @@ export function useChartEditDsl() {
         sheetNameToChange: sheetName,
         historyTitle,
       });
+
+      gridApi?.moveViewportToCell(targetCol, targetRow);
+      gridApi?.updateSelectionAfterDataChanged({
+        startCol: targetCol,
+        startRow: targetRow,
+        endCol: targetCol + defaultChartCols - 1,
+        endRow: targetRow + defaultChartRows - 1,
+      });
+      openPanel?.(PanelName.Details);
     },
     [
       findEditContext,
+      viewGridData,
       parsedSheets,
       updateDSL,
-      viewGridData,
+      gridApi,
       getInitialRowNumberArgs,
-    ]
-  );
-
-  const selectTableForChart = useCallback(
-    (sourceTableName: string, targetTableName: string) => {
-      const sourceContext = findEditContext(sourceTableName);
-      const targetContext = findEditContext(targetTableName);
-
-      if (!sourceContext || !targetContext) return;
-
-      const { parsedTable: sourceParsedTable } = sourceContext;
-      const { table, sheet } = targetContext;
-      const { fields } = sourceParsedTable;
-
-      const { formula, shouldAddDim } =
-        getFormulaFromSourceTable(sourceParsedTable);
-      const fieldGroup = new FieldGroup(formula);
-
-      fields
-        .filter((f) => !f.isDynamic)
-        .forEach((parsedField, index) => {
-          const { fieldName } = parsedField.key;
-          const field = new Field(fieldName);
-
-          if (index === 0 && shouldAddDim) {
-            field.dim = true;
-          }
-
-          fieldGroup.addField(field);
-        });
-      table.fieldGroups.append(fieldGroup);
-
-      const historyTitle = `Select table "${sourceTableName}" for chart "${targetTableName}"`;
-      updateDSL({
-        updatedSheetContent: sheet.toDSL(),
-        tableName: targetTableName,
-        historyTitle,
-      });
-    },
-    [findEditContext, updateDSL]
+      openPanel,
+    ],
   );
 
   const updateChartSections = useCallback(
@@ -298,7 +286,7 @@ export function useChartEditDsl() {
             table.moveFieldBeforeOrAfter(
               sourceFieldName,
               validTarget ? targetFieldName : null,
-              true
+              true,
             );
 
             currentFieldOrder.splice(sourceIndex, 1);
@@ -339,7 +327,7 @@ export function useChartEditDsl() {
         tableName,
       });
     },
-    [findEditContext, updateDSL]
+    [findEditContext, updateDSL],
   );
 
   const updateChartOrientation = useCallback(
@@ -369,7 +357,7 @@ export function useChartEditDsl() {
         const success = editTableDecorator(
           table,
           visualizationDecoratorName,
-          args
+          args,
         );
         if (!success) return;
       }
@@ -379,7 +367,7 @@ export function useChartEditDsl() {
         const success = editTableDecorator(
           table,
           visualizationDecoratorName,
-          args
+          args,
         );
         if (!success) return;
       }
@@ -398,7 +386,7 @@ export function useChartEditDsl() {
         historyTitle,
       });
     },
-    [findEditContext, getInitialRowNumberArgs, updateDSL]
+    [findEditContext, getInitialRowNumberArgs, updateDSL],
   );
 
   const setChartType = useCallback(
@@ -410,10 +398,7 @@ export function useChartEditDsl() {
       const currentChartType = parsedTable.getChartType();
       if (currentChartType === chartType) return;
 
-      const initialOrientation = viewGridData.getChartInitialOrientation(
-        parsedTable,
-        chartType
-      );
+      const initialOrientation = getChartInitialOrientation(chartType);
       const isRowNumber = chartsWithRowNumber.includes(chartType);
       const textFieldNameWithAllUnique =
         viewGridData.findFirstTextColumnWithAllUniques(parsedTable);
@@ -426,7 +411,7 @@ export function useChartEditDsl() {
       const success = editTableDecorator(
         table,
         visualizationDecoratorName,
-        visualizationArgs
+        visualizationArgs,
       );
 
       if (!success) return;
@@ -460,7 +445,7 @@ export function useChartEditDsl() {
         tableName,
       });
     },
-    [findEditContext, getInitialRowNumberArgs, updateDSL, viewGridData]
+    [findEditContext, getInitialRowNumberArgs, updateDSL, viewGridData],
   );
 
   return {
@@ -468,7 +453,6 @@ export function useChartEditDsl() {
     chartResize: useSafeCallback(chartResize),
     setChartType: useSafeCallback(setChartType),
     updateChartOrientation: useSafeCallback(updateChartOrientation),
-    selectTableForChart: useSafeCallback(selectTableForChart),
     updateChartSections: useSafeCallback(updateChartSections),
     updateSelectorValue: useSafeCallback(updateSelectorValue),
   };

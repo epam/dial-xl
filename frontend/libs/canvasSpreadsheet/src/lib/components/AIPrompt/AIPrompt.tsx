@@ -2,7 +2,7 @@ import { Button, Modal, Popover, Tooltip } from 'antd';
 import { Input } from 'antd';
 import classNames from 'classnames';
 import {
-  MutableRefObject,
+  RefObject,
   useCallback,
   useEffect,
   useMemo,
@@ -16,6 +16,7 @@ import {
   ExclamationCircleIcon,
   getFocusColumns,
   getSuggestions,
+  GPTState,
   Markdown,
   MinimizeIcon,
   primaryButtonClasses,
@@ -26,13 +27,17 @@ import {
   shouldStopPropagation,
   SparklesIcon,
   StopFilledIcon,
-  SystemMessageParsedContent,
   useClickOutside,
 } from '@frontend/common';
 
 import { defaultGridSizes } from '../../constants';
-import { Edges, GridApi, GridCallbacks } from '../../types';
-import { filterByTypeAndCast, focusSpreadsheet, getPx } from '../../utils';
+import { Edges, GridApi } from '../../types';
+import {
+  filterByTypeAndCast,
+  focusSpreadsheet,
+  getPx,
+  GridEventBus,
+} from '../../utils';
 import {
   EventTypeExpandAIPrompt,
   EventTypeOpenAIPrompt,
@@ -47,18 +52,18 @@ const aiPromptWidth = 400;
 const { TextArea } = Input;
 
 type Props = {
-  systemMessageContent: SystemMessageParsedContent | undefined;
-  gridCallbacksRef: MutableRefObject<GridCallbacks>;
-  api: GridApi | null;
+  systemMessageContent: GPTState | undefined;
+  eventBus: GridEventBus;
+  apiRef: RefObject<GridApi | null>;
   zoom?: number;
   currentSheetName: string | null;
 };
 
 export function AIPrompt({
   systemMessageContent,
-  gridCallbacksRef,
+  eventBus,
   currentSheetName,
-  api,
+  apiRef,
   zoom = 1,
 }: Props) {
   const clickRef = useRef<HTMLDivElement>(null);
@@ -99,7 +104,7 @@ export function AIPrompt({
       setPrompt(prompt);
       promptAreaRef.current?.focus();
     },
-    [isOpened]
+    [isOpened],
   );
 
   const onResponseUpdate = useCallback((currentMessage: Message) => {
@@ -186,7 +191,7 @@ export function AIPrompt({
       isLoading,
       isSuggestionReview,
       isWaitForAIPromptOpened,
-    ]
+    ],
   );
 
   useClickOutside(clickRef, onClickOutside, [
@@ -208,11 +213,14 @@ export function AIPrompt({
     if (!isSuggestionReview) return;
 
     sendDislike(responseId);
-    gridCallbacksRef.current.onUndo?.();
+    eventBus.emit({
+      type: 'system/undo',
+    });
     // TODO: return this as ai prompt will be needed again
     // gridCallbacksRef.current.onAIPendingChanges?.(false, {});
+
     hide();
-  }, [gridCallbacksRef, hide, isSuggestionReview, responseId, sendDislike]);
+  }, [eventBus, hide, isSuggestionReview, responseId, sendDislike]);
 
   const handleTryAgain = useCallback(() => {
     if (!isSuggestionReview && !assistantTextAnswer && !isError) return;
@@ -223,7 +231,9 @@ export function AIPrompt({
     if (isSuggestionReview) {
       setIsSuggestionReview(false);
       sendDislike(responseId);
-      gridCallbacksRef.current.onUndo?.();
+      eventBus.emit({
+        type: 'system/undo',
+      });
       // TODO: return this as ai prompt will be needed again
       // gridCallbacksRef.current.onAIPendingChanges?.(false, {});
     }
@@ -235,7 +245,7 @@ export function AIPrompt({
     }, 0);
   }, [
     assistantTextAnswer,
-    gridCallbacksRef,
+    eventBus,
     isError,
     isSuggestionReview,
     resetRequestResults,
@@ -261,6 +271,7 @@ export function AIPrompt({
 
   const show = useCallback(
     (x: number, y: number, width: number) => {
+      const api = apiRef.current;
       if (!api) return;
 
       const {
@@ -299,11 +310,12 @@ export function AIPrompt({
       setInitialScrollTop(top);
       setMaxHeight(Math.min(Math.max(rootHeight * 0.4, 300), 600));
     },
-    [api]
+    [apiRef],
   );
 
   const showAIPromptExplicitly = useCallback(
     (col: number, row: number) => {
+      const api = apiRef.current;
       if (!api) return;
 
       const cellX = api.getCellX(col);
@@ -317,10 +329,11 @@ export function AIPrompt({
         promptAreaRef.current?.focus();
       }, 0);
     },
-    [api, show]
+    [apiRef, show],
   );
 
   const handleSendAIPrompt = useCallback(async () => {
+    const api = apiRef.current;
     if (!api || !prompt) return;
 
     setAssistantTextAnswer('');
@@ -330,7 +343,7 @@ export function AIPrompt({
     setPreviousPrompts((prev) =>
       [prompt]
         .concat((prev ?? []).filter((item) => item !== prompt))
-        .slice(0, 5)
+        .slice(0, 5),
     );
 
     const userMessage: Message = {
@@ -352,16 +365,21 @@ export function AIPrompt({
       setSheetSuggestionsName(currentSheetName ?? '');
       // TODO: return this as ai prompt will be needed again
       // gridCallbacksRef.current.onAIPendingChanges?.(true, {});
-      gridCallbacksRef.current.onApplySuggestion?.(suggestions, focusColumns);
-
+      eventBus.emit({
+        type: 'system/apply-suggestion',
+        payload: {
+          GPTSuggestions: suggestions,
+          GPTFocusColumn: focusColumns,
+        },
+      });
       setResponseId(resultMessage.responseId);
     } else {
       setAssistantTextAnswer(resultMessage.content);
     }
   }, [
-    api,
+    apiRef,
     currentSheetName,
-    gridCallbacksRef,
+    eventBus,
     prompt,
     resetRequestResults,
     sendRequest,
@@ -376,29 +394,33 @@ export function AIPrompt({
       event.preventDefault();
       handleSendAIPrompt();
     },
-    [handleSendAIPrompt]
+    [handleSendAIPrompt],
   );
 
   const handleAddNote = useCallback(() => {
     if (!assistantTextAnswer || !selection) return;
 
+    const api = apiRef.current;
     const cell = api?.getCell(selection.startCol, selection.startRow);
 
     if (!cell?.table?.tableName) return;
 
-    gridCallbacksRef.current?.onUpdateNote?.({
-      tableName: cell.table.tableName,
-      fieldName: cell.field?.fieldName,
-      note: assistantTextAnswer,
+    eventBus.emit({
+      type: 'notes/update',
+      payload: {
+        tableName: cell.table.tableName,
+        fieldName: cell.field?.fieldName,
+        note: assistantTextAnswer,
+      },
     });
     // TODO: return this as ai prompt will be needed again
     // gridCallbacksRef.current.onAIPendingChanges?.(false, {});
 
     hide();
-  }, [api, assistantTextAnswer, gridCallbacksRef, hide, selection]);
+  }, [apiRef, assistantTextAnswer, eventBus, hide, selection]);
 
   const { contextMenuItems } = useAIPromptSuggestions({
-    api,
+    apiRef,
     selection,
     previousPrompts,
     isSuggestionReview,
@@ -462,15 +484,15 @@ export function AIPrompt({
         .map((section) => section.items)
         .flat();
       const prevIndex = filteredItems.findIndex(
-        (item) => item.key === selectedPromptKey
+        (item) => item.key === selectedPromptKey,
       );
       if (isArrowDown) {
         setSelectedPromptKey(
           prevIndex === -1
             ? filteredItems.at(0)?.key
             : prevIndex === filteredItems.length - 1
-            ? filteredItems.at(0)?.key
-            : filteredItems.at(prevIndex + 1)?.key
+              ? filteredItems.at(0)?.key
+              : filteredItems.at(prevIndex + 1)?.key,
         );
 
         return;
@@ -480,8 +502,8 @@ export function AIPrompt({
           prevIndex === -1
             ? filteredItems.at(0)?.key
             : prevIndex === 0
-            ? filteredItems.at(filteredItems.length - 1)?.key
-            : filteredItems.at(prevIndex - 1)?.key
+              ? filteredItems.at(filteredItems.length - 1)?.key
+              : filteredItems.at(prevIndex - 1)?.key,
         );
 
         return;
@@ -498,16 +520,20 @@ export function AIPrompt({
       isOpened,
       isSuggestionReview,
       selectedPromptKey,
-    ]
+    ],
   );
 
   const handleExpandCollapseAIPrompt = useCallback(() => {
+    const api = apiRef.current;
     if (!selection || !api) return;
 
     setIsCollapsed(false);
     if (sheetSuggestionsName && currentSheetName !== sheetSuggestionsName) {
-      gridCallbacksRef.current.onOpenSheet?.({
-        sheetName: sheetSuggestionsName,
+      eventBus.emit({
+        type: 'system/open-sheet',
+        payload: {
+          args: { sheetName: sheetSuggestionsName },
+        },
       });
     }
     // TODO: return this as ai prompt will be needed again
@@ -536,18 +562,19 @@ export function AIPrompt({
 
     api.moveViewport(
       cellX - 3 * gridSizes.cell.width,
-      cellY - 5 * gridSizes.cell.height
+      cellY - 5 * gridSizes.cell.height,
     );
   }, [
-    api,
+    apiRef,
     currentSheetName,
-    gridCallbacksRef,
+    eventBus,
     selection,
     sheetSuggestionsName,
     showAIPromptExplicitly,
   ]);
 
   const onViewportChange = useCallback(() => {
+    const api = apiRef.current;
     if (!api || !isOpened || isCollapsed) return;
 
     const { x1, y1, y2, x2 } = api.getViewportCoords();
@@ -577,7 +604,7 @@ export function AIPrompt({
       y: top,
     });
   }, [
-    api,
+    apiRef,
     handleCollapseAIPrompt,
     initialPosition.x,
     initialPosition.y,
@@ -636,6 +663,7 @@ export function AIPrompt({
   ]);
 
   useEffect(() => {
+    const api = apiRef.current;
     if (!api) return;
 
     const openNoteSubscription = api.events$
@@ -650,7 +678,7 @@ export function AIPrompt({
 
     const expandSubscription = api.events$
       .pipe(
-        filterByTypeAndCast<EventTypeExpandAIPrompt>(GridEvent.expandAIPrompt)
+        filterByTypeAndCast<EventTypeExpandAIPrompt>(GridEvent.expandAIPrompt),
       )
       .subscribe(() => {
         if (isCollapsed) {
@@ -660,11 +688,11 @@ export function AIPrompt({
 
     return () => {
       [openNoteSubscription, expandSubscription].forEach((s) =>
-        s.unsubscribe()
+        s.unsubscribe(),
       );
     };
   }, [
-    api,
+    apiRef,
     handleExpandCollapseAIPrompt,
     isCollapsed,
     selection?.endCol,
@@ -675,6 +703,7 @@ export function AIPrompt({
   ]);
 
   useEffect(() => {
+    const api = apiRef.current;
     if (!api) return;
 
     const subscription = api.selection$.subscribe((selection) => {
@@ -682,7 +711,7 @@ export function AIPrompt({
     });
 
     return () => subscription.unsubscribe();
-  }, [api]);
+  }, [apiRef]);
 
   useEffect(() => {
     document.addEventListener('keydown', onKeydown);
@@ -696,7 +725,7 @@ export function AIPrompt({
     if (previousPrompts.length > 0) {
       localStorage.setItem(
         'inlinePromptsHistory',
-        JSON.stringify(previousPrompts)
+        JSON.stringify(previousPrompts),
       );
     }
   }, [previousPrompts]);
@@ -713,6 +742,7 @@ export function AIPrompt({
   }, []);
 
   useEffect(() => {
+    const api = apiRef.current;
     if (!api) return;
 
     const unsubscribe = api.gridViewportSubscription(onViewportChange);
@@ -720,7 +750,7 @@ export function AIPrompt({
     return () => {
       unsubscribe();
     };
-  }, [api, onViewportChange]);
+  }, [apiRef, onViewportChange]);
 
   if (!isOpened) return null;
 
@@ -885,7 +915,7 @@ export function AIPrompt({
                               className={classNames(
                                 'flex px-3 gap-2 truncate items-center justify-between py-1 hover:bg-bg-accent-primary-alpha',
                                 selectedPromptKey === item.key &&
-                                  'bg-bg-accent-primary-alpha-2'
+                                  'bg-bg-accent-primary-alpha-2',
                               )}
                               key={item.key}
                               onClick={() => item.onClick?.()}
@@ -907,7 +937,7 @@ export function AIPrompt({
                           ))}
                         </div>
                       </div>
-                    ) : null
+                    ) : null,
                   )}
                 </div>
               </div>

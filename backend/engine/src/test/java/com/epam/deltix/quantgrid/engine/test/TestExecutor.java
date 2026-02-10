@@ -9,6 +9,9 @@ import com.epam.deltix.quantgrid.engine.node.Node;
 import com.epam.deltix.quantgrid.engine.node.expression.Expression;
 import com.epam.deltix.quantgrid.engine.node.plan.Plan;
 import com.epam.deltix.quantgrid.engine.rule.ProjectionVerifier;
+import com.epam.deltix.quantgrid.engine.service.ai.LocalAiProvider;
+import com.epam.deltix.quantgrid.engine.service.input.storage.local.LocalDataStore;
+import com.epam.deltix.quantgrid.engine.service.input.storage.local.LocalImportProvider;
 import com.epam.deltix.quantgrid.engine.service.input.storage.local.LocalInputProvider;
 import com.epam.deltix.quantgrid.engine.store.local.LocalStore;
 import com.epam.deltix.quantgrid.engine.value.Column;
@@ -129,10 +132,23 @@ public class TestExecutor {
     @SneakyThrows
     private static Engine engine(ExecutorService service, GraphCallback graphCallback, Predicate<Plan> toStore) {
         LocalInputProvider inputProvider = new LocalInputProvider(TestInputs.INPUTS_PATH);
+        LocalImportProvider importProvider = new LocalImportProvider();
+        LocalAiProvider aiProvider = new LocalAiProvider();
         LocalStore resultStore = new LocalStore(TestInputs.RESULTS_PATH);
         FileUtils.deleteQuietly(TestInputs.RESULTS_PATH.toFile());
         resultStore.init();
-        return new Engine(new LocalCache(), service, service, graphCallback, inputProvider, resultStore, toStore);
+        LocalDataStore dataStore = new LocalDataStore();
+        return new Engine(
+                new LocalCache(),
+                service,
+                service,
+                graphCallback,
+                inputProvider,
+                importProvider,
+                aiProvider,
+                resultStore,
+                toStore,
+                dataStore);
     }
 
     private static void validateSheet(String dsl) {

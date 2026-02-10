@@ -1,16 +1,19 @@
 import { EChartsOption } from 'echarts';
 
-import { ChartsData, histogramChartSeriesSelector } from '@frontend/common';
+import {
+  ChartsData,
+  GridChart,
+  histogramChartSeriesSelector,
+} from '@frontend/common';
 
-import { ChartConfig } from '../../types';
+import { buildLayout } from '../buildLayout';
 import { GetOptionProps, OrganizedData } from '../chartRegistry';
 import { getColor, getThemeColors } from '../common';
 
 export function organizeHistogramChartData(
   chartData: ChartsData,
-  chartConfig: ChartConfig
+  gridChart: GridChart,
 ): OrganizedData | undefined {
-  const { gridChart } = chartConfig;
   const { chartSections, customSeriesColors, selectedKeys } = gridChart;
   const selectedSeries = selectedKeys[histogramChartSeriesSelector] as string;
 
@@ -43,7 +46,7 @@ export function organizeHistogramChartData(
     return;
 
   const xAxisData = bucketNumbers.map(
-    (_, i) => `${lowerBounds[i]} -\n ${upperBounds[i]}`
+    (_, i) => `${lowerBounds[i]} -\n ${upperBounds[i]}`,
   );
 
   const series: EChartsOption['series'] = [
@@ -69,21 +72,24 @@ export function getHistogramChartOption({
   zoom,
   theme,
 }: GetOptionProps): EChartsOption {
-  function getValue(value: number) {
+  function z(value: number) {
     return value * zoom;
   }
 
-  const fontSize = getValue(12);
+  const fontSize = z(12);
   const { textColor, borderColor, bgColor } = getThemeColors(theme);
 
+  const layout = buildLayout({
+    zoom,
+    textColor,
+  });
+
   return {
+    textStyle: {
+      ...layout.textStyle,
+    },
     grid: {
-      borderColor: '#ccc',
-      left: getValue(20),
-      top: getValue(20),
-      right: getValue(10),
-      bottom: getValue(20),
-      containLabel: true,
+      ...layout.grid,
     },
     xAxis: {
       type: 'category',
@@ -92,8 +98,11 @@ export function getHistogramChartOption({
         fontSize,
       },
       axisLabel: {
-        fontSize: getValue(10),
+        fontSize: z(10),
         color: textColor,
+      },
+      axisTick: {
+        alignWithLabel: true,
       },
     },
     yAxis: {
@@ -103,7 +112,7 @@ export function getHistogramChartOption({
       },
       axisLabel: {
         color: textColor,
-        fontSize: getValue(10),
+        fontSize: z(10),
       },
       splitLine: {
         lineStyle: {

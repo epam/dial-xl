@@ -59,7 +59,7 @@ export function ChartDataSection({
       const { tableName } = parsedTable;
 
       const nextSectionKey = Object.keys(sections).find(
-        (key, index) => index === sectionIndex + 1
+        (key, index) => index === sectionIndex + 1,
       );
 
       if (!nextSectionKey || !sections[nextSectionKey].length) return;
@@ -70,12 +70,12 @@ export function ChartDataSection({
         tableName,
         fieldName,
         chartSeparatorDecoratorName,
-        historyTitle
+        historyTitle,
       );
 
       openTable(sheetName, tableName);
     },
-    [openTable, parsedTable, removeFieldDecorator, sections, sheetName]
+    [openTable, parsedTable, removeFieldDecorator, sections, sheetName],
   );
 
   const handleAddSeparator = useCallback(
@@ -90,12 +90,12 @@ export function ChartDataSection({
         fieldName as string,
         chartSeparatorDecoratorName,
         '',
-        historyTitle
+        historyTitle,
       );
 
       openTable(sheetName, tableName);
     },
-    [setFieldDecorator, openTable, parsedTable, sheetName]
+    [setFieldDecorator, openTable, parsedTable, sheetName],
   );
 
   const handleDragStart = useCallback((event: DragStartEvent) => {
@@ -109,10 +109,10 @@ export function ChartDataSection({
       }
 
       return Object.keys(sections).find((key) =>
-        sections[key].includes(id as string)
+        sections[key].includes(id as string),
       );
     },
-    [sections]
+    [sections],
   );
 
   const handleDragEnd = useCallback(
@@ -139,7 +139,7 @@ export function ChartDataSection({
 
       if (overContainer) {
         const activeIndex = sections[activeContainer].indexOf(
-          active.id as string
+          active.id as string,
         );
         const overIndex = sections[overContainer].indexOf(overId as string);
 
@@ -149,7 +149,7 @@ export function ChartDataSection({
             [overContainer]: arrayMove(
               sections[overContainer],
               activeIndex,
-              overIndex
+              overIndex,
             ),
           };
 
@@ -163,7 +163,7 @@ export function ChartDataSection({
 
       setActiveId(null);
     },
-    [findContainer, parsedTable, sections, updateChartSections]
+    [findContainer, parsedTable, sections, updateChartSections],
   );
 
   const handleDragOver = useCallback(
@@ -210,21 +210,21 @@ export function ChartDataSection({
           return {
             ...items,
             [activeContainer]: items[activeContainer].filter(
-              (item) => item !== active.id
+              (item) => item !== active.id,
             ),
             [overContainer]: [
               ...items[overContainer].slice(0, newIndex),
               items[activeContainer][activeIndex],
               ...items[overContainer].slice(
                 newIndex,
-                items[overContainer].length
+                items[overContainer].length,
               ),
             ],
           };
         });
       }
     },
-    [findContainer, sections]
+    [findContainer, sections],
   );
 
   useEffect(() => {
@@ -290,7 +290,7 @@ export function ChartDataSection({
                         className="relative group w-full hover:cursor-pointer"
                         onClick={() =>
                           handleAddSeparator(
-                            sections[sectionKey][fieldIndex + 1]
+                            sections[sectionKey][fieldIndex + 1],
                           )
                         }
                       >

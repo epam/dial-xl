@@ -19,7 +19,7 @@ import {
 const defaultPosition = { x: -9999, y: -9999 };
 
 type Props = {
-  apiRef: RefObject<GridApi>;
+  apiRef: RefObject<GridApi | null>;
 };
 
 export function Tooltip({ apiRef }: Props) {
@@ -71,7 +71,7 @@ export function Tooltip({ apiRef }: Props) {
         setTooltipOpen(true);
       }, 1000);
     },
-    [restrictOpening, targetPos]
+    [restrictOpening, targetPos],
   );
 
   useEffect(() => {
@@ -82,41 +82,43 @@ export function Tooltip({ apiRef }: Props) {
     subscriptions.push(
       api.tooltipEvent$
         .pipe(
-          filterByTypeAndCast<GridTooltipEventOpen>(GridTooltipEventType.Open)
+          filterByTypeAndCast<GridTooltipEventOpen>(GridTooltipEventType.Open),
         )
         .subscribe(({ x, y, content }) => {
           showTooltip(x, y, content);
-        })
+        }),
     );
 
     subscriptions.push(
       api.tooltipEvent$
         .pipe(
-          filterByTypeAndCast<GridTooltipEventClose>(GridTooltipEventType.Close)
+          filterByTypeAndCast<GridTooltipEventClose>(
+            GridTooltipEventType.Close,
+          ),
         )
         .subscribe(() => {
           clear();
-        })
+        }),
     );
 
     subscriptions.push(
       api.events$
         .pipe(
-          filterByTypeAndCast<EventTypeStartMoveMode>(GridEvent.startMoveMode)
+          filterByTypeAndCast<EventTypeStartMoveMode>(GridEvent.startMoveMode),
         )
         .subscribe(() => {
           setRestrictOpening(true);
-        })
+        }),
     );
 
     subscriptions.push(
       api.events$
         .pipe(
-          filterByTypeAndCast<EventTypeStopMoveMode>(GridEvent.stopMoveMode)
+          filterByTypeAndCast<EventTypeStopMoveMode>(GridEvent.stopMoveMode),
         )
         .subscribe(() => {
           setRestrictOpening(false);
-        })
+        }),
     );
 
     return () => {

@@ -24,7 +24,8 @@ public class RuleTestUtil {
         } else {
             throw new UnsupportedOperationException("Unsupported node: " + node.getClass().getSimpleName());
         }
-        return new ViewportLocal(data, null, new FieldKey(TEST_TABLE, TEST_FIELD), 0, 100, true, false, -1,
+        return new ViewportLocal(data, null, new FieldKey(TEST_TABLE, TEST_FIELD), 0, 100,
+                0, 100, true, false, -1,
                 ComputationType.REQUIRED);
     }
 }

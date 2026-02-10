@@ -2,9 +2,9 @@ import textwrap
 
 import pytest
 
-from dial_xl.compile import GeneralFormat, PrimitiveFieldType
+from dial_xl.compile import PrimitiveFieldType, GeneralFormat
 from dial_xl.overrides import Override, Overrides
-from tests.common import SHEET_NAME, create_project, create_sheet
+from tests.common import create_sheet, create_project, SHEET_NAME
 
 
 @pytest.mark.asyncio

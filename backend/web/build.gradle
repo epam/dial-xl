@@ -1,4 +1,5 @@
 plugins {
+    id "application"
     id "org.springframework.boot" version "3.4.5"
     id "io.freefair.lombok" version "8.0.1"
 }
@@ -21,6 +22,7 @@ dependencies {
     implementation project(':backend:engine')
     implementation project(':backend:parser')
     implementation project(':backend:common')
+    implementation project(':backend:input')
     implementation "org.springframework.boot:spring-boot-starter-web:3.4.5"
     implementation 'org.springframework.boot:spring-boot-starter-undertow:3.4.5'
     implementation "org.springframework.boot:spring-boot-starter-security:3.4.5"
@@ -35,6 +37,7 @@ dependencies {
     implementation 'com.squareup.okhttp3:okhttp-sse:4.12.0'
     implementation 'org.redisson:redisson:3.32.0'
     implementation 'javax.annotation:javax.annotation-api:1.2'
+    implementation 'io.kubernetes:client-java:24.0.0'
 
     testImplementation 'org.springframework.boot:spring-boot-starter-test:3.4.5'
     testImplementation "org.springframework.boot:spring-boot-starter-oauth2-resource-server:3.4.5"
@@ -47,8 +50,7 @@ dependencies {
 }
 
 bootJar {
-    archiveFileName = "server.jar"
-    launchScript()
+    archiveFileName = 'qg.jar'
 }
 
 bootRun {
@@ -58,4 +60,27 @@ bootRun {
 test {
     systemProperty "qg.embedding.models.path", "../../embedding_models"
     systemProperty "qg.embedding.execution.mode", "ACCURACY"
+}
+
+def openModules = [
+        '--add-opens', 'java.base/java.lang=ALL-UNNAMED',
+        '--add-opens', 'java.base/java.lang.invoke=ALL-UNNAMED',
+        '--add-opens', 'java.base/java.lang.reflect=ALL-UNNAMED',
+        '--add-opens', 'java.base/java.io=ALL-UNNAMED',
+        '--add-opens', 'java.base/java.net=ALL-UNNAMED',
+        '--add-opens', 'java.base/java.nio=ALL-UNNAMED',
+        '--add-opens', 'java.base/java.util=ALL-UNNAMED',
+        '--add-opens', 'java.base/java.util.concurrent=ALL-UNNAMED',
+        '--add-opens', 'java.base/java.util.concurrent.atomic=ALL-UNNAMED',
+        '--add-opens', 'java.base/sun.nio.ch=ALL-UNNAMED',
+        '--add-opens', 'java.base/sun.nio.cs=ALL-UNNAMED',
+        '--add-opens', 'java.base/sun.security.action=ALL-UNNAMED',
+        '--add-opens', 'java.base/sun.util.calendar=ALL-UNNAMED',
+        '--add-opens', 'java.security.jgss/sun.security.krb5=ALL-UNNAMED'
+]
+
+application {
+    applicationName = 'qg'
+    mainClass = 'com.epam.deltix.quantgrid.ApplicationStarter'
+    applicationDefaultJvmArgs = openModules
 }

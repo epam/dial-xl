@@ -2,21 +2,21 @@ import { RefObject, useCallback, useContext, useRef } from 'react';
 
 import { isFormulaBarMonacoInputFocused, isModalOpen } from '@frontend/common';
 
-import { GridApi, GridCallbacks } from '../../../types';
-import { isCellEditorOpen } from '../../../utils';
+import { GridApi } from '../../../types';
+import { GridEventBus, isCellEditorOpen } from '../../../utils';
 import { CellEditorContext } from '../CellEditorContext';
 import { SelectionEffectAfterSave } from '../types';
 import { isCellEditorHasFocus } from '../utils';
 
 type Props = {
-  apiRef: RefObject<GridApi>;
-  gridCallbacksRef: RefObject<GridCallbacks>;
+  apiRef: RefObject<GridApi | null>;
+  eventBus: GridEventBus;
   isPointClickMode: boolean;
 };
 
 export function useCellEditorCompleteEdit({
   apiRef,
-  gridCallbacksRef,
+  eventBus,
   isPointClickMode,
 }: Props) {
   const {
@@ -35,26 +35,26 @@ export function useCellEditorCompleteEdit({
   const skipSaveOnBlur = useRef<boolean>(false);
 
   const save = useCallback(
-    (value: string) => {
-      if (!apiRef.current || !gridCallbacksRef.current || !currentCell) return;
+    async (value: string) => {
+      if (!apiRef.current || !currentCell) return;
 
       skipSaveOnBlur.current = true;
       const { col, row } = currentCell;
       const cell = apiRef.current.getCell(col, row);
 
-      const requiredHide = gridCallbacksRef.current.onCellEditorSubmit?.({
-        editMode,
-        currentCell,
-        cell,
-        value,
-        dimFieldName,
+      const requiredHide = await new Promise<boolean>((resolve) => {
+        eventBus.emit({
+          type: 'editor/submit',
+          payload: { editMode, currentCell, cell, value, dimFieldName },
+          reply: resolve,
+        });
       });
 
       if (requiredHide) {
         hide();
       }
     },
-    [apiRef, currentCell, dimFieldName, editMode, gridCallbacksRef, hide]
+    [apiRef, currentCell, dimFieldName, editMode, eventBus, hide],
   );
 
   const onEscape = useCallback(() => {
@@ -68,15 +68,18 @@ export function useCellEditorCompleteEdit({
 
     if (openedExplicitly && !isCellEditorHasFocus()) return;
 
-    gridCallbacksRef?.current?.onCellEditorUpdateValue?.(
-      codeValue.current,
-      true
-    );
+    eventBus.emit({
+      type: 'editor/value-updated',
+      payload: {
+        value: codeValue.current,
+        cancelEdit: true,
+      },
+    });
 
     hide();
   }, [
     codeValue,
-    gridCallbacksRef,
+    eventBus,
     hide,
     ignoreScrollEvent,
     openedExplicitly,
@@ -149,7 +152,7 @@ export function useCellEditorCompleteEdit({
           break;
       }
     },
-    [apiRef]
+    [apiRef],
   );
 
   const onSave = useCallback(
@@ -162,7 +165,7 @@ export function useCellEditorCompleteEdit({
         moveSelectionAfterSave(moveSelection);
       }, 0);
     },
-    [codeValue, moveSelectionAfterSave, save]
+    [codeValue, moveSelectionAfterSave, save],
   );
 
   const onSaveCallback = useCallback(() => {

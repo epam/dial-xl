@@ -9,8 +9,8 @@ import com.epam.deltix.quantgrid.engine.compiler.CompileError;
 import com.epam.deltix.quantgrid.engine.compiler.function.Argument;
 import com.epam.deltix.quantgrid.engine.compiler.function.Function;
 import com.epam.deltix.quantgrid.engine.compiler.function.FunctionType;
-import com.epam.deltix.quantgrid.engine.compiler.result.format.ColumnFormat;
 import com.epam.deltix.quantgrid.engine.compiler.result.format.BooleanFormat;
+import com.epam.deltix.quantgrid.engine.compiler.result.format.ColumnFormat;
 import com.epam.deltix.quantgrid.engine.compiler.result.format.CurrencyFormat;
 import com.epam.deltix.quantgrid.engine.compiler.result.format.DateFormat;
 import com.epam.deltix.quantgrid.engine.compiler.result.format.GeneralFormat;
@@ -18,6 +18,8 @@ import com.epam.deltix.quantgrid.engine.compiler.result.format.NumberFormat;
 import com.epam.deltix.quantgrid.engine.compiler.result.format.PercentageFormat;
 import com.epam.deltix.quantgrid.engine.compiler.result.format.ScientificFormat;
 import com.epam.deltix.quantgrid.engine.node.Trace;
+import com.epam.deltix.quantgrid.engine.service.input.DataSchema;
+import com.epam.deltix.quantgrid.engine.service.input.storage.dial.DialImportProvider;
 import com.epam.deltix.quantgrid.engine.value.Column;
 import com.epam.deltix.quantgrid.engine.value.Period;
 import com.epam.deltix.quantgrid.engine.value.PeriodSeries;
@@ -32,10 +34,12 @@ import com.epam.deltix.quantgrid.parser.ParsingError;
 import com.epam.deltix.quantgrid.parser.TableKey;
 import com.epam.deltix.quantgrid.parser.TotalKey;
 import com.epam.deltix.quantgrid.type.ColumnType;
+import com.epam.deltix.quantgrid.type.InputColumnType;
 import com.epam.deltix.quantgrid.util.Doubles;
 import com.epam.deltix.quantgrid.util.Strings;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Message;
+import com.google.protobuf.MessageOrBuilder;
 import com.google.protobuf.util.JsonFormat;
 import lombok.SneakyThrows;
 import lombok.experimental.UtilityClass;
@@ -59,6 +63,17 @@ public class ApiMessageMapper {
 
     public static final FieldKey DIMENSIONAL_SCHEMA_REQUEST_FIELD =
             new FieldKey("__DimensionalSchemaRequestTable", "__formula");
+
+    @SneakyThrows
+    public String toJson(MessageOrBuilder message) {
+        return PRINTER.print(message);
+    }
+
+    @SneakyThrows
+    public <T extends Message.Builder> T fromJson(String json, T message) {
+        PARSER.merge(json, message);
+        return message;
+    }
 
     @SneakyThrows
     public Api.Request toApiRequest(String text) {
@@ -114,7 +129,7 @@ public class ApiMessageMapper {
             String error = entry.getValue().getMessage();
 
             Api.CompilationError.Builder builder = Api.CompilationError.newBuilder()
-                    .setMessage(error);
+                    .setMessage(error == null ? "" : error);
 
             if (key instanceof TableKey tableKey) {
                 builder.setTableKey(toTableKey(tableKey));
@@ -183,6 +198,7 @@ public class ApiMessageMapper {
         }
 
         builder.setIsNested(resultType.isNested());
+        builder.setIsAssignable(resultType.isAssignable());
         if (hash != null) {
             builder.setHash(hash);
         }
@@ -218,12 +234,12 @@ public class ApiMessageMapper {
                 .collect(Collectors.toList());
     }
 
-    public Api.ColumnData toColumnData(ParsedKey key, long start, long end, boolean content, boolean raw,
+    public Api.ColumnData toColumnData(ParsedKey key, long startRow, long endRow, boolean content, boolean raw,
                                        Table table, String error, ResultType resultType) {
 
         Api.ColumnData.Builder builder = Api.ColumnData.newBuilder()
-                .setStartRow(start)
-                .setEndRow(end)
+                .setStartRow(startRow)
+                .setEndRow(endRow)
                 .setTotalRows(table == null ? 0 : table.size());
 
         if (key instanceof FieldKey fieldKey) {
@@ -241,7 +257,7 @@ public class ApiMessageMapper {
         }
 
         if (table != null) {
-            fillData(table, start, end, content, builder);
+            fillData(table, startRow, endRow, content, builder);
         }
 
         if (error != null) {
@@ -380,7 +396,7 @@ public class ApiMessageMapper {
             case STRING -> Api.ColumnDataType.STRING;
             case DOUBLE -> Api.ColumnDataType.DOUBLE;
             case PERIOD_SERIES -> Api.ColumnDataType.PERIOD_SERIES;
-            case STRUCT -> throw new IllegalArgumentException("Not expected: " + type);
+            case STRUCT -> throw new IllegalArgumentException("struct is not supported");
         };
     }
 
@@ -403,6 +419,7 @@ public class ApiMessageMapper {
             case PERIOD_SERIES -> Api.FunctionType.PERIOD_SERIES_FUNCTIONS;
             case PYTHON -> Api.FunctionType.PYTHON_FUNCTIONS;
             case EVALUATION -> Api.FunctionType.EVALUATION_FUNCTIONS;
+            case CONTROL -> Api.FunctionType.CONTROL;
         };
     }
 
@@ -555,6 +572,8 @@ public class ApiMessageMapper {
 
         return new Viewport(key, ComputationType.REQUIRED,
                 viewport.getStartRow(), viewport.getEndRow(),
+                viewport.hasStartColumn() ? viewport.getStartColumn() : -1,
+                viewport.hasEndColumn() ? viewport.getEndColumn() : -1,
                 viewport.getIsContent(), viewport.getIsRaw());
     }
 
@@ -574,5 +593,75 @@ public class ApiMessageMapper {
         } catch (InvalidProtocolBufferException | NullPointerException e) {
             throw new IllegalArgumentException("Expected Api.Request with %s".formatted(type.getSimpleName()), e);
         }
+    }
+
+    public Api.ImportColumnType toImportColumnType(InputColumnType type) {
+        return switch (type) {
+            case STRING -> Api.ImportColumnType.IMPORT_COLUMN_TYPE_STRING;
+            case DOUBLE -> Api.ImportColumnType.IMPORT_COLUMN_TYPE_DOUBLE;
+            case DATE -> Api.ImportColumnType.IMPORT_COLUMN_TYPE_DATE;
+            case DATE_TIME -> Api.ImportColumnType.IMPORT_COLUMN_TYPE_DATE_TIME;
+            case BOOLEAN -> Api.ImportColumnType.IMPORT_COLUMN_TYPE_BOOLEAN;
+        };
+    }
+
+    public InputColumnType fromImportColumnType(Api.ImportColumnType type) {
+        return switch (type) {
+            case IMPORT_COLUMN_TYPE_STRING -> InputColumnType.STRING;
+            case IMPORT_COLUMN_TYPE_DOUBLE -> InputColumnType.DOUBLE;
+            case IMPORT_COLUMN_TYPE_DATE -> InputColumnType.DATE;
+            case IMPORT_COLUMN_TYPE_DATE_TIME -> InputColumnType.DATE_TIME;
+            case IMPORT_COLUMN_TYPE_BOOLEAN -> InputColumnType.BOOLEAN;
+            default -> throw new IllegalArgumentException("Unsupported import column type: " + type);
+        };
+    }
+
+    public Api.ImportSchema toImportSchema(DataSchema schema) {
+        Api.ImportSchema.Builder builder = Api.ImportSchema.newBuilder();
+        for (DataSchema.Column column : schema.getColumns().values()) {
+            builder.putColumns(column.getColumn(),
+                    Api.ImportColumn.newBuilder()
+                            .setColumn(column.getColumn())
+                            .setType(column.getType())
+                            .setTargetType(ApiMessageMapper.toImportColumnType(column.getTarget()))
+                            .build());
+        }
+
+        return builder.build();
+    }
+
+    public DataSchema fromImportSchema(Api.ImportSchema importDataset) {
+        DataSchema result = new DataSchema();
+        importDataset.getColumnsMap().forEach((name, column) ->
+                result.addColumn(new DataSchema.Column(
+                        name, column.getType(), fromImportColumnType(column.getTargetType()))));
+
+        return result;
+    }
+
+    public Api.ImportSyncs toImportSyncs(DialImportProvider.Syncs syncs) {
+        Api.ImportSyncs.Builder builder = Api.ImportSyncs.newBuilder();
+        syncs.getSyncs().forEach((id, sync) ->
+                builder.putSyncs(id, toImportSync(sync)));
+
+        return builder.build();
+    }
+
+    public Api.ImportSync toImportSync(DialImportProvider.Sync sync) {
+        Api.ImportSync.Builder builder = Api.ImportSync.newBuilder();
+        builder.setDefinition(sync.getDefinition());
+        builder.setSource(sync.getSource());
+        builder.setSync(sync.getSync());
+        builder.setVersion(sync.getVersion());
+        builder.setStatus(Api.ImportSync.Status.valueOf(sync.getStatus().name()));
+        if (sync.getStartedAt() != null) {
+            builder.setStartedAt(sync.getStartedAt());
+        }
+        if (sync.getStoppedAt() != null) {
+            builder.setStoppedAt(sync.getStoppedAt());
+        }
+        builder.setSchema(toImportSchema(sync.getSchema()));
+
+        return builder.build();
     }
 }

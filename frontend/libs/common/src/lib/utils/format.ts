@@ -66,7 +66,7 @@ function excelDateToJsMilliseconds(sheetDateNumber: number) {
 const formatNumberDecimalDigits = (
   value: number,
   decimalDigits: number,
-  useThousandsSeparator: boolean
+  useThousandsSeparator: boolean,
 ) => {
   return new Intl.NumberFormat(numberLocale, {
     minimumFractionDigits: decimalDigits,
@@ -78,7 +78,7 @@ const formatNumberDecimalDigits = (
 const formatCompact = (
   value: number,
   compactType: string,
-  useThousandsSeparator: boolean
+  useThousandsSeparator: boolean,
 ) => {
   let divisor = 0;
 
@@ -115,7 +115,7 @@ const formatCompact = (
 const formatTotalCompact = (
   value: number,
   totalDigits: number,
-  useThousandsSeparator: boolean
+  useThousandsSeparator: boolean,
 ) => {
   const compacts = [
     { divisor: 1e3, modifier: 'K' },
@@ -152,7 +152,7 @@ const formatNumberTotalDigits = (
   value: number,
   totalDigits: number,
   useThousandsSeparator: boolean,
-  isExpFormat?: boolean
+  isExpFormat?: boolean,
 ) => {
   const normalizedTotalDigits = Math.abs(Math.min(-4, totalDigits));
 
@@ -177,7 +177,7 @@ const formatNumberTotalDigits = (
     const resultedValue = formatTotalCompact(
       value,
       normalizedTotalDigits,
-      useThousandsSeparator
+      useThousandsSeparator,
     );
 
     if (resultedValue) return resultedValue;
@@ -212,7 +212,7 @@ const formatNumberDigits = (
   value: number,
   decimalDigits: number | string,
   useThousandsSeparator: boolean,
-  isExpFormat?: boolean
+  isExpFormat?: boolean,
 ) => {
   const parsedDecimalDigits =
     typeof decimalDigits === 'string'
@@ -223,13 +223,13 @@ const formatNumberDigits = (
     ? formatNumberDecimalDigits(
         value,
         parsedDecimalDigits,
-        useThousandsSeparator
+        useThousandsSeparator,
       )
     : formatNumberTotalDigits(
         value,
         parsedDecimalDigits,
         useThousandsSeparator,
-        isExpFormat
+        isExpFormat,
       );
 };
 
@@ -257,12 +257,12 @@ export const formatValue = (value: string, format: ColumnFormat): string => {
           ? formatCompact(
               numberValue,
               argsFormat,
-              typedArgs.useThousandsSeparator
+              typedArgs.useThousandsSeparator,
             )
           : formatNumberDigits(
               numberValue,
               argsFormat,
-              typedArgs.useThousandsSeparator
+              typedArgs.useThousandsSeparator,
             );
 
         return computedValue;
@@ -299,12 +299,12 @@ export const formatValue = (value: string, format: ColumnFormat): string => {
             ? formatCompact(
                 numberValue,
                 argsFormat,
-                typedArgs.useThousandsSeparator
+                typedArgs.useThousandsSeparator,
               )
             : formatNumberDigits(
                 numberValue * 100,
                 argsFormat,
-                typedArgs.useThousandsSeparator
+                typedArgs.useThousandsSeparator,
               )) + '%';
 
         return computedValue;
@@ -326,12 +326,12 @@ export const formatValue = (value: string, format: ColumnFormat): string => {
             ? formatCompact(
                 numberValue,
                 argsFormat,
-                typedArgs.useThousandsSeparator
+                typedArgs.useThousandsSeparator,
               )
             : formatNumberDigits(
                 numberValue,
                 argsFormat,
-                typedArgs.useThousandsSeparator
+                typedArgs.useThousandsSeparator,
               ));
 
         return computedValue;
@@ -366,7 +366,7 @@ export const formatValue = (value: string, format: ColumnFormat): string => {
 
 export function isGeneralFormatting(
   type: ColumnDataType,
-  format?: ColumnFormat
+  format?: ColumnFormat,
 ) {
   return (
     type === ColumnDataType.DOUBLE &&

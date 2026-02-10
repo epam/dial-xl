@@ -35,8 +35,8 @@ type ExecutableFuncAdditionalParams = {
 
 export type ExecutableFunc = (
   qgFileContent: string,
-  additionalParams: ExecutableFuncAdditionalParams
-) => Promise<string>;
+  additionalParams?: ExecutableFuncAdditionalParams,
+) => string | Promise<string>;
 
 // Utility to convert stream to string
 const streamToString = async (stream: Readable): Promise<string> => {
@@ -51,7 +51,7 @@ const streamToString = async (stream: Readable): Promise<string> => {
 // Retrieve file content as string
 async function getFileContentAsString(
   { bucketName, s3Client }: S3Instance,
-  key: string
+  key: string,
 ): Promise<string> {
   const params = { Bucket: bucketName, Key: key };
   const data = await s3Client.send(new GetObjectCommand(params));
@@ -64,7 +64,7 @@ async function getFileContentAsString(
 async function updateFileContent(
   { bucketName, s3Client }: S3Instance,
   key: string,
-  newContent: string
+  newContent: string,
 ): Promise<void> {
   const params = { Bucket: bucketName, Key: key, Body: newContent };
   await s3Client.send(new PutObjectCommand(params));
@@ -74,15 +74,15 @@ function saveFileContent(
   fileContent: string,
   { bucketName }: S3Instance,
   key: string,
-  dirName: string
-): string {
+  dirName: string,
+): string | undefined {
   try {
     const localPath = path.join(dirName, bucketName, key);
     const dir = path.dirname(localPath);
 
     // Note: Skip users with the auth0 prefix in the bucket name
     // it causes issues (in Windows) that the "|" is not allowed in the file path
-    if (dir.includes('auth0|')) return;
+    if (dir.includes('auth0|')) return undefined;
 
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true });
@@ -94,7 +94,7 @@ function saveFileContent(
   } catch (error) {
     console.error(`Error saving file content for ${bucketName}/${key}:`, error);
     console.error(
-      `Failed to create directory structure: ${dirName}/${bucketName}/${key}`
+      `Failed to create directory structure: ${dirName}/${bucketName}/${key}`,
     );
     throw error;
   }
@@ -104,8 +104,8 @@ function saveFileContent(
 async function downloadFile(
   s3Instance: S3Instance,
   key: string,
-  dirName: string = TEMP_DIR
-): Promise<string> {
+  dirName: string = TEMP_DIR,
+): Promise<string | undefined> {
   const fileContent = await getFileContentAsString(s3Instance, key);
 
   return saveFileContent(fileContent, s3Instance, key, dirName);
@@ -118,7 +118,7 @@ function archiveFiles(): Promise<void> {
     const archive = create('zip', { zlib: { level: 9 } });
 
     output.on('close', () => resolve());
-    archive.on('error', (err) => reject(err));
+    archive.on('error', (err: Error) => reject(err));
 
     archive.pipe(output);
     archive.directory(TEMP_DIR, false);
@@ -138,10 +138,10 @@ async function collectFiles(s3Instance: S3Instance): Promise<string[]> {
       ContinuationToken: continuationToken,
     };
     const objectsResponse = await s3Instance.s3Client.send(
-      new ListObjectsV2Command(params)
+      new ListObjectsV2Command(params),
     );
     const contents = (objectsResponse.Contents || []).filter((item) =>
-      ALLOWED_FILE_KEY_PREFIXES.some((prefix) => item.Key?.startsWith(prefix))
+      ALLOWED_FILE_KEY_PREFIXES.some((prefix) => item.Key?.startsWith(prefix)),
     );
 
     for (const item of contents) {
@@ -163,7 +163,7 @@ async function collectFiles(s3Instance: S3Instance): Promise<string[]> {
 // Process files for backup
 async function processForBackup(
   s3Instance: S3Instance,
-  files: string[]
+  files: string[],
 ): Promise<void> {
   console.log('[Backup] Downloading files...');
 
@@ -185,7 +185,7 @@ async function processForTestMigration(
   s3Instance: S3Instance,
   files: string[],
   functionToExecute: ExecutableFunc,
-  functionAdditionalArgs: ExecutableFuncAdditionalParams
+  functionAdditionalArgs: ExecutableFuncAdditionalParams,
 ): Promise<void> {
   console.log('[migration-TEST] Started migrating files in bucket...');
 
@@ -212,19 +212,19 @@ async function processForTestMigration(
       if (localPercentage !== percentage) {
         percentage = localPercentage;
         console.log(
-          `[migration-TEST] ${percentage}% finished (${i}/${files.length})`
+          `[migration-TEST] ${percentage}% finished (${i}/${files.length})`,
         );
       }
     } catch (e) {
       console.log(e);
       console.error(
-        `[migration-TEST] File failed for test migration ${file}- ${e}`
+        `[migration-TEST] File failed for test migration ${file}- ${e}`,
       );
     }
   }
 
   console.log(
-    `[migration-TEST] Migration performed for ${filesMigrated} files`
+    `[migration-TEST] Migration performed for ${filesMigrated} files`,
   );
 }
 
@@ -233,7 +233,7 @@ async function processForMigration(
   s3Instance: S3Instance,
   files: string[],
   functionToExecute: ExecutableFunc,
-  functionAdditionalArgs: ExecutableFuncAdditionalParams
+  functionAdditionalArgs: ExecutableFuncAdditionalParams,
 ): Promise<void> {
   console.log('[migration] Started migrating files in bucket...');
 
@@ -259,7 +259,7 @@ async function processForMigration(
       if (localPercentage !== percentage) {
         percentage = localPercentage;
         console.log(
-          `[migration] ${percentage}% finished (${i}/${files.length})`
+          `[migration] ${percentage}% finished (${i}/${files.length})`,
         );
       }
     } catch (e) {
@@ -334,7 +334,7 @@ export async function executeMigration({
     await archiveFiles();
 
     console.log(
-      `[Backup] Backup completed, archived and available by this path: ${OUTPUT_ZIP_FILE}.`
+      `[Backup] Backup completed, archived and available by this path: ${OUTPUT_ZIP_FILE}.`,
     );
   }
 
@@ -360,7 +360,7 @@ export async function executeMigration({
     });
 
     console.log(
-      `[migration-TEST] Migration completed. Files can be found by this path: ${TEST_MIGRATION_DIR}`
+      `[migration-TEST] Migration completed. Files can be found by this path: ${TEST_MIGRATION_DIR}`,
     );
   }
 

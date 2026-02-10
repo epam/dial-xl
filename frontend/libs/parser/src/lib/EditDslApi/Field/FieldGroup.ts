@@ -1,4 +1,5 @@
 import { lineBreak } from '../../parser';
+import { unescapeFieldName } from '../../services';
 import {
   Event,
   notifyObserver,
@@ -307,7 +308,7 @@ export class FieldGroup extends ObservableObserver {
    * @param name - The field name to look for.
    */
   private findField(name: string): number {
-    return this._fieldIndices[name] ?? -1;
+    return this._fieldIndices[unescapeFieldName(name)] ?? -1;
   }
 
   /**

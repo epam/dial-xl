@@ -1,6 +1,6 @@
 import Icon from '@ant-design/icons';
 
-import { TablePlusIcon } from '../icons';
+import { SelectAllIcon, TablePlusIcon } from '../icons';
 import { CommonMetadata, FunctionInfo, FunctionType } from '../services';
 import { FormulasContextMenuKeyData, MenuItem } from '../types';
 import { getDropdownItem, getDropdownMenuKey } from './getDropdownItem';
@@ -19,24 +19,27 @@ const menuKey = {
 };
 
 const getFunctionsMap = (
-  functions: FunctionInfo[]
+  functions: FunctionInfo[],
 ): Record<string, FunctionInfo[]> => {
-  return functions.reduce((acc, curr) => {
-    (curr.functionType ?? []).forEach((type) => {
-      if (!acc[type]) {
-        acc[type] = [] as FunctionInfo[];
-      }
+  return functions.reduce(
+    (acc, curr) => {
+      (curr.functionType ?? []).forEach((type) => {
+        if (!acc[type]) {
+          acc[type] = [] as FunctionInfo[];
+        }
 
-      acc[type].push(curr);
-    });
+        acc[type].push(curr);
+      });
 
-    return acc;
-  }, {} as Record<string, FunctionInfo[]>);
+      return acc;
+    },
+    {} as Record<string, FunctionInfo[]>,
+  );
 };
 
 const getSubmenuItemsByFunctionType = (
   funcMap: Record<string, FunctionInfo[]>,
-  type: FunctionType
+  type: FunctionType,
 ): MenuItem[] => {
   return funcMap[type]?.map((func) =>
     getDropdownItem({
@@ -45,9 +48,9 @@ const getSubmenuItemsByFunctionType = (
         [type, func.name].join(','),
         {
           insertFormula: func.name + '()',
-        }
+        },
       ),
-    })
+    }),
   );
 };
 
@@ -55,10 +58,10 @@ export const getCreateTableChildren = (
   functions: FunctionInfo[],
   tableNames: string[],
   inputFiles: CommonMetadata[] | null,
-  onCreateTable: (cols: number, rows: number) => void
+  onCreateTable: (cols: number, rows: number) => void,
 ): MenuItem[] => {
   const inputs = [...(inputFiles ?? [])].sort((a, b) =>
-    a.name < b.name ? -1 : 1
+    a.name < b.name ? -1 : 1,
   );
 
   const rangeFunction = functions.find((func) => func.name === 'RANGE');
@@ -79,9 +82,9 @@ export const getCreateTableChildren = (
             {
               tableName: name,
               type: 'pivot',
-            }
+            },
           ),
-        })
+        }),
       ),
     }),
     getDropdownItem({
@@ -91,7 +94,7 @@ export const getCreateTableChildren = (
         ['CreateTable', menuKey.byRowRange, rangeFunction?.name].join('-'),
         {
           insertFormula: rangeFunction?.name + '()',
-        }
+        },
       ),
     }),
     getDropdownItem({
@@ -104,7 +107,7 @@ export const getCreateTableChildren = (
             {
               insertFormula: menuKey.bySize,
               type: 'size',
-            }
+            },
           ),
           onCreateTable,
         }),
@@ -122,9 +125,9 @@ export const getCreateTableChildren = (
             {
               tableName: name,
               type: 'copy',
-            }
+            },
           ),
-        })
+        }),
       ),
     }),
     getDropdownItem({
@@ -139,9 +142,9 @@ export const getCreateTableChildren = (
             {
               tableName: name,
               type: 'derived',
-            }
+            },
           ),
-        })
+        }),
       ),
     }),
     getDropdownItem({
@@ -154,9 +157,9 @@ export const getCreateTableChildren = (
             ['CreateTable', 'Derived', name].join('-'),
             {
               insertFormula: `INPUT("${url ?? name}")`,
-            }
+            },
           ),
-        })
+        }),
       ),
     }),
     getDropdownItem({
@@ -170,9 +173,9 @@ export const getCreateTableChildren = (
             ['CreateTable', 'Filter', name].join('-'),
             {
               insertFormula: filterFunction?.name + `(${name},)`,
-            }
+            },
           ),
-        })
+        }),
       ),
     }),
     getDropdownItem({
@@ -186,9 +189,9 @@ export const getCreateTableChildren = (
             ['CreateTable', 'Filter', name].join('-'),
             {
               insertFormula: sortByFunction?.name + `(${name},)`,
-            }
+            },
           ),
-        })
+        }),
       ),
     }),
     getDropdownItem({
@@ -202,9 +205,9 @@ export const getCreateTableChildren = (
             ['CreateTable', 'Filter', name].join('-'),
             {
               insertFormula: uniqueByFunction?.name + `(${name},)`,
-            }
+            },
           ),
-        })
+        }),
       ),
     }),
   ];
@@ -215,12 +218,12 @@ export const getFormulasMenuItems = (
   tableNames: string[],
   inputFiles: CommonMetadata[] | null,
   onCreateTable: (cols: number, rows: number) => void,
-  withFunctions = true
+  withFunctions = true,
 ): MenuItem[] => {
   const functionsMap = getFunctionsMap(functions);
   const pythonChildrenElements = getSubmenuItemsByFunctionType(
     functionsMap,
-    FunctionType.Python
+    FunctionType.Python,
   );
 
   const createTableMenuItem = getDropdownItem({
@@ -238,20 +241,32 @@ export const getFormulasMenuItems = (
       functions,
       tableNames,
       inputFiles,
-      onCreateTable
+      onCreateTable,
     ),
   });
 
-  if (!withFunctions) return [createTableMenuItem];
+  const createControlMenuItem = getDropdownItem({
+    key: getDropdownMenuKey('CreateControl', {}),
+    label: 'Create Control',
+    icon: (
+      <Icon
+        className="text-text-accent-primary w-[18px]"
+        component={() => <SelectAllIcon />}
+      />
+    ),
+  });
+
+  if (!withFunctions) return [createControlMenuItem, createTableMenuItem];
 
   return [
+    createControlMenuItem,
     createTableMenuItem,
     getDropdownItem({
       key: 'Aggregations',
       label: 'Aggregations',
       children: getSubmenuItemsByFunctionType(
         functionsMap,
-        FunctionType.Aggregations
+        FunctionType.Aggregations,
       ),
     }),
     getDropdownItem({
@@ -264,7 +279,7 @@ export const getFormulasMenuItems = (
       label: 'Logical',
       children: getSubmenuItemsByFunctionType(
         functionsMap,
-        FunctionType.Logical
+        FunctionType.Logical,
       ),
     }),
     getDropdownItem({
@@ -282,7 +297,7 @@ export const getFormulasMenuItems = (
       label: 'Lookup',
       children: getSubmenuItemsByFunctionType(
         functionsMap,
-        FunctionType.Lookup
+        FunctionType.Lookup,
       ),
     }),
     getDropdownItem({
@@ -300,7 +315,7 @@ export const getFormulasMenuItems = (
       label: 'Period Series',
       children: getSubmenuItemsByFunctionType(
         functionsMap,
-        FunctionType.PeriodSeries
+        FunctionType.PeriodSeries,
       ),
     }),
     getDropdownItem({
@@ -312,7 +327,7 @@ export const getFormulasMenuItems = (
         : undefined,
       children: getSubmenuItemsByFunctionType(
         functionsMap,
-        FunctionType.Python
+        FunctionType.Python,
       ),
     }),
   ];

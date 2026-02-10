@@ -1,1 +1,4 @@
-export const logoSrcStorageKey = 'logoSrc';
+export const shareIdStorageKey = 'shareId';
+export const shareProjectBucketStorageKey = 'shareProjectBucket';
+export const shareProjectNameStorageKey = 'shareProjectName';
+export const shareProjectPathStorageKey = 'shareProjectPath';

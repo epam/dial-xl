@@ -1,9 +1,10 @@
 import { Dropdown } from 'antd';
-import { MenuInfo } from 'rc-menu/lib/interface';
+import { Application } from 'pixi.js';
 import {
   RefObject,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -23,14 +24,15 @@ import {
   useIsMobile,
 } from '@frontend/common';
 import { ParsedSheets } from '@frontend/parser';
-import { Application } from '@pixi/app';
+import { MenuInfo } from '@rc-component/menu/lib/interface';
 
 import { canvasId, mouseRightButton } from '../../constants';
-import { GridApi, GridCallbacks } from '../../types';
+import { GridApi } from '../../types';
 import {
   filterByTypeAndCast,
   getCellContext,
   getMousePosition,
+  GridEventBus,
 } from '../../utils';
 import {
   getEmptyCellMenuItems,
@@ -46,8 +48,8 @@ import {
 
 type Props = {
   app: Application | null;
-  apiRef: RefObject<GridApi>;
-  gridCallbacksRef: RefObject<GridCallbacks>;
+  apiRef: RefObject<GridApi | null>;
+  eventBus: GridEventBus;
   functions: FunctionInfo[];
   parsedSheets: ParsedSheets;
   inputFiles: (ResourceMetadata | SharedWithMeMetadata)[] | null;
@@ -55,11 +57,12 @@ type Props = {
 };
 
 const gridContextMenuRootClass = 'grid-context-menu';
+type OpenReason = 'mouse' | 'keyboard' | 'api';
 
 export function ContextMenu({
   app,
   apiRef,
-  gridCallbacksRef,
+  eventBus,
   functions,
   parsedSheets,
   inputFiles,
@@ -72,9 +75,10 @@ export function ContextMenu({
     useState<OpenContextMenuParams>();
   const isMobile = useIsMobile();
 
+  const [openReason, setOpenReason] = useState<OpenReason>('mouse');
   const openedExplicitly = useRef(false);
   const explicitSource = useRef<'canvas-element' | 'html-element' | undefined>(
-    undefined
+    undefined,
   );
   const clickRef = useRef<HTMLDivElement>(null);
   const isRightMouseDown = useRef(false);
@@ -82,17 +86,10 @@ export function ContextMenu({
   const didRightDrag = useRef(false);
   const contextMenuTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const api = useMemo(() => {
-    return apiRef.current;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [apiRef.current]);
-
-  const gridCallbacks = useMemo(() => {
-    return gridCallbacksRef.current;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gridCallbacksRef.current]);
-
-  const { onClickContextMenu } = useOnClickContextMenu({ api, gridCallbacks });
+  const { onClickContextMenu } = useOnClickContextMenu({
+    apiRef,
+    eventBus,
+  });
 
   const onClickOutside = useCallback(() => {
     if (
@@ -112,90 +109,85 @@ export function ContextMenu({
 
   const handleCreateTableBySize = useCallback(
     (cols: number, rows: number) => {
-      if (!gridCallbacks || !api) return;
+      const api = apiRef.current;
+      if (!api) return;
 
       const colsItems = new Array(cols).fill('');
       const rowsItems = new Array(rows).fill(colsItems);
       const selectionEdges = api.selection$.getValue();
 
-      gridCallbacks.onCreateManualTable?.(
-        selectionEdges?.startCol ?? 1,
-        selectionEdges?.startRow ?? 1,
-        rowsItems
-      );
+      eventBus.emit({
+        type: 'tables/create-manual',
+        payload: {
+          col: selectionEdges?.startCol ?? 1,
+          row: selectionEdges?.startRow ?? 1,
+          cells: rowsItems,
+        },
+      });
     },
-    [gridCallbacks, api]
+    [apiRef, eventBus],
   );
 
   useClickOutside(clickRef, onClickOutside, ['click', 'contextmenu'], true);
 
-  const openContextMenu = useCallback(
-    (params: OpenContextMenuParams | null) => {
-      if (!params || !api) return;
+  const buildContextMenuItems = useCallback(
+    (params: OpenContextMenuParams, api: GridApi): MenuItem[] => {
+      const { col, row } = params;
+      const cellData = api.getCell(col, row);
 
-      const { x, y } = params;
-
-      setContextMenuOpen(true);
-      setContextMenuPos({ x, y });
-      setOpenContextMenuParams(params);
-    },
-    [api]
-  );
-
-  useEffect(() => {
-    if (!contextMenuOpen || !openContextMenuParams || !api) return;
-
-    const { col, row } = openContextMenuParams;
-    const cellData = api.getCell(col, row);
-
-    setTimeout(() => {
-      if (!cellData?.table && api) {
+      if (!cellData?.table) {
         const contextCell = getCellContext(api.getCell, col, row);
 
         if (!contextCell?.table) {
-          setContextMenuItems(
-            getEmptyCellWithoutContextMenuItem(
-              functions,
-              parsedSheets,
-              inputFiles,
-              handleCreateTableBySize,
-              col,
-              row
-            )
+          return getEmptyCellWithoutContextMenuItem(
+            functions,
+            parsedSheets,
+            inputFiles,
+            handleCreateTableBySize,
+            col,
+            row,
           );
-        } else {
-          setContextMenuItems(getEmptyCellMenuItems(col, row, contextCell));
         }
 
-        return;
+        return getEmptyCellMenuItems(col, row, contextCell);
       }
 
-      if (!cellData) return;
-
-      if (cellData.isTableHeader) {
-        setContextMenuItems(getTableHeaderMenuItems(cellData));
-      } else if (cellData.isFieldHeader && cellData.field && gridCallbacks) {
-        setContextMenuItems(
-          getTableFieldMenuItems(col, row, cellData, gridCallbacks, filterList)
-        );
-      } else if (gridCallbacks) {
-        setContextMenuItems(
-          getTableCellMenuItems(col, row, cellData, gridCallbacks, filterList)
-        );
+      if (cellData.isTableHeader || cellData.table?.chartType) {
+        return getTableHeaderMenuItems(cellData);
       }
-    });
-  }, [
-    api,
-    apiRef,
-    contextMenuOpen,
-    filterList,
-    functions,
-    gridCallbacks,
-    handleCreateTableBySize,
-    inputFiles,
-    openContextMenuParams,
-    parsedSheets,
-  ]);
+
+      if (cellData.isFieldHeader && cellData.field) {
+        return getTableFieldMenuItems(col, row, cellData, eventBus, filterList);
+      }
+
+      return getTableCellMenuItems(col, row, cellData, eventBus, filterList);
+    },
+    [
+      eventBus,
+      filterList,
+      functions,
+      handleCreateTableBySize,
+      inputFiles,
+      parsedSheets,
+    ],
+  );
+
+  const openContextMenu = useCallback(
+    (params: OpenContextMenuParams | null, reason: OpenReason = 'mouse') => {
+      const api = apiRef.current;
+      if (!params || !api) return;
+
+      const { x, y } = params;
+      const items = buildContextMenuItems(params, api);
+
+      setContextMenuItems(items);
+      setContextMenuPos({ x, y });
+      setOpenContextMenuParams(params);
+      setOpenReason(reason);
+      setContextMenuOpen(true);
+    },
+    [apiRef, buildContextMenuItems],
+  );
 
   const onContextMenu = useCallback(
     (e: Event) => {
@@ -208,6 +200,8 @@ export function ContextMenu({
       }
 
       const mousePosition = getMousePosition(e as MouseEvent);
+
+      const api = apiRef.current;
 
       if (!mousePosition || !api) return;
 
@@ -222,10 +216,10 @@ export function ContextMenu({
       contextMenuTimeout.current = setTimeout(() => {
         if (didRightDrag.current) return;
 
-        openContextMenu({ x, y, col, row });
+        openContextMenu({ x, y, col, row }, 'mouse');
       }, 150);
     },
-    [api, openContextMenu]
+    [apiRef, openContextMenu],
   );
 
   const onMouseDown = useCallback(
@@ -238,7 +232,7 @@ export function ContextMenu({
         onContextMenu(e);
       }
     },
-    [isMobile, onContextMenu]
+    [isMobile, onContextMenu],
   );
 
   const onMouseUp = useCallback(
@@ -252,7 +246,7 @@ export function ContextMenu({
         contextMenuTimeout.current = null;
       }
     },
-    [isMobile]
+    [isMobile],
   );
 
   const onMouseMove = useCallback((e: MouseEvent) => {
@@ -289,7 +283,7 @@ export function ContextMenu({
         onClickContextMenu(info);
       }, 0);
     },
-    [onClickContextMenu]
+    [onClickContextMenu],
   );
 
   const onKeyUp = useCallback(
@@ -311,6 +305,8 @@ export function ContextMenu({
       event.preventDefault();
       event.stopPropagation();
 
+      const api = apiRef.current;
+
       if (!api) return;
 
       const selection = api.selection$.getValue();
@@ -322,26 +318,37 @@ export function ContextMenu({
       const y = api.getCellY(startRow);
       const visibleStartCol = Math.max(
         Math.min(startCol, endCol),
-        viewport.startCol
+        viewport.startCol,
       );
       const visibleEndCol = Math.min(
         Math.max(startCol, endCol),
-        viewport.endCol
+        viewport.endCol,
       );
       const middleVisibleCol = Math.floor(
-        (visibleStartCol + visibleEndCol) / 2
+        (visibleStartCol + visibleEndCol) / 2,
       );
       const x = api.getCellX(middleVisibleCol);
 
-      openContextMenu({
-        x,
-        y,
-        col: startCol,
-        row: startRow,
-      });
+      openContextMenu({ x, y, col: startCol, row: startRow }, 'keyboard');
     },
-    [api, contextMenuOpen, openContextMenu]
+    [apiRef, contextMenuOpen, openContextMenu],
   );
+
+  // Update menu items to show current filter values
+  useEffect(() => {
+    const api = apiRef.current;
+
+    if (!api || !contextMenuOpen || !openContextMenuParams) return;
+
+    const items = buildContextMenuItems(openContextMenuParams, api);
+    setContextMenuItems(items);
+  }, [
+    contextMenuOpen,
+    openContextMenuParams,
+    buildContextMenuItems,
+    apiRef,
+    filterList,
+  ]);
 
   useEffect(() => {
     document.addEventListener('keyup', onKeyUp);
@@ -352,18 +359,20 @@ export function ContextMenu({
   }, [onKeyUp]);
 
   useEffect(() => {
-    if (!app) return;
+    if (!app?.renderer) return;
 
-    app.view.addEventListener?.('contextmenu', onContextMenu);
-    app.view.addEventListener?.('pointerdown', onMouseDown as EventListener);
+    app.canvas.addEventListener?.('contextmenu', onContextMenu);
+    app.canvas.addEventListener?.('pointerdown', onMouseDown as EventListener);
     window.addEventListener?.('pointermove', onMouseMove);
     window.addEventListener?.('pointerup', onMouseUp);
 
     return () => {
-      app?.view?.removeEventListener?.('contextmenu', onContextMenu);
-      app?.view?.removeEventListener?.(
+      if (!app?.renderer) return;
+
+      app?.canvas?.removeEventListener?.('contextmenu', onContextMenu);
+      app?.canvas?.removeEventListener?.(
         'pointerdown',
-        onMouseDown as EventListener
+        onMouseDown as EventListener,
       );
       window.removeEventListener?.('pointermove', onMouseMove);
       window.removeEventListener?.('pointerup', onMouseUp);
@@ -371,6 +380,8 @@ export function ContextMenu({
   }, [app, onContextMenu, onMouseDown, onMouseMove, onMouseUp]);
 
   useEffect(() => {
+    const api = apiRef.current;
+
     if (!api) return;
 
     const subscriptions: Subscription[] = [];
@@ -379,35 +390,31 @@ export function ContextMenu({
       api.contextMenuEvent$
         .pipe(
           filterByTypeAndCast<GridContextMenuEventOpen>(
-            GridContextMenuEventType.Open
-          )
+            GridContextMenuEventType.Open,
+          ),
         )
         .subscribe(({ x, y, col, row, source }) => {
-          setContextMenuOpen(false);
           openedExplicitly.current = true;
           explicitSource.current = source;
           openContextMenu({ x, y, col, row });
-        })
+        }),
     );
 
     return () => {
       subscriptions.forEach((subscription) => subscription.unsubscribe());
     };
-  }, [api, openContextMenu]);
+  }, [apiRef, openContextMenu]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!contextMenuOpen) return;
+    if (openReason !== 'keyboard') return;
 
-    setTimeout(() => {
-      const menuContainer = document.querySelector(
-        `.${gridContextMenuRootClass} .ant-dropdown-menu`
-      );
+    const menuContainer = document.querySelector(
+      `.${gridContextMenuRootClass} .ant-dropdown-menu`,
+    ) as HTMLDivElement | null;
 
-      if (!menuContainer) return;
-
-      (menuContainer as HTMLDivElement).focus();
-    }, 0);
-  }, [contextMenuOpen]);
+    menuContainer?.focus();
+  }, [contextMenuOpen, openReason]);
 
   /*
    * Calculate max-height for a dropdown in case of a small screen
@@ -415,48 +422,59 @@ export function ContextMenu({
    * when it's opened near the corner of the screen
    * https://github.com/ant-design/ant-design/issues/51916
    */
-  useEffect(() => {
-    setTimeout(() => {
-      const menuContainer = document.querySelector(
-        `.${gridContextMenuRootClass}`
-      );
+  useLayoutEffect(() => {
+    const menuContainer = document.querySelector(
+      `.${gridContextMenuRootClass}`,
+    ) as HTMLDivElement | null;
 
-      if (!contextMenuOpen || !menuContainer) return;
+    if (!contextMenuOpen || !menuContainer) return;
 
-      const padding = 15;
-      const topOffset = contextMenuPos.y;
-      const container = document.getElementById(canvasId);
-      if (!container) return;
+    const padding = 15;
+    const topOffset = contextMenuPos.y;
+    const container = document.getElementById(canvasId);
+    if (!container) return;
 
-      const { top: canvasTopOffset } = container.getBoundingClientRect();
-      const absoluteTopPos = topOffset + canvasTopOffset;
+    const { top: canvasTopOffset } = container.getBoundingClientRect();
+    const absoluteTopPos = topOffset + canvasTopOffset;
 
-      const willOpenDown = window.innerHeight / 2 > absoluteTopPos;
+    const willOpenDown = window.innerHeight / 2 > absoluteTopPos;
 
-      const availableSpace = willOpenDown
-        ? window.innerHeight - absoluteTopPos - padding
-        : absoluteTopPos - padding;
+    const availableSpace = willOpenDown
+      ? window.innerHeight - absoluteTopPos - padding
+      : absoluteTopPos - padding;
 
-      const ulElement = menuContainer.querySelector('ul');
+    const ulElement = menuContainer.querySelector(
+      'ul',
+    ) as HTMLUListElement | null;
+    if (!ulElement) return;
 
-      if (!ulElement) return;
-      const actualContentHeight = ulElement.scrollHeight;
+    const actualContentHeight = ulElement.scrollHeight;
 
-      if (actualContentHeight > availableSpace) {
-        ulElement.style.maxHeight = `${availableSpace}px`;
-      } else {
-        ulElement.style.maxHeight = '100vh';
-      }
-    }, 0);
+    ulElement.style.maxHeight =
+      actualContentHeight > availableSpace ? `${availableSpace}px` : '100vh';
   }, [contextMenuOpen, contextMenuPos]);
+
+  // Use React way to force re-rendering Dropdown when the menu position changes
+  const dropdownKey = useMemo(() => {
+    if (openContextMenuParams)
+      return `${openContextMenuParams.col}-${openContextMenuParams.row}`;
+
+    return 'closed-canvas-dropdown';
+  }, [openContextMenuParams]);
 
   return (
     <Dropdown
       align={{ offset: [3, -3] }}
       autoAdjustOverflow={true}
       destroyOnHidden={true}
-      forceRender={true}
-      menu={{ items: contextMenuItems, onClick }}
+      key={dropdownKey}
+      menu={{
+        items: contextMenuItems,
+        onClick,
+        triggerSubMenuAction: 'hover',
+        subMenuOpenDelay: 0,
+        subMenuCloseDelay: 0.3,
+      }}
       open={contextMenuOpen}
       rootClassName={gridContextMenuRootClass}
     >

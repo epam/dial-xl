@@ -221,13 +221,12 @@ table DateExampleTable
 `[month] = MONTH([full_date])` extracts month from date as a number.  
 `[day] = DAY([full_date])` extracts day from date as a number.
 ## Aggregations
-Supported aggregations for arrays are `AVERAGE, SUM, COUNT, MAX, MIN, FIRST, LAST, MODE (most frequent value), STDEVP, STDEVS`.  
-`COUNT, FIRST, LAST, MODE` can be applied to tables, text and numeric arrays.  
-`AVERAGE, SUM, MAX, MIN, STDEVP, STDEVS` can be used only for numeric arrays.  
+Aggregations for numeric arrays: `AVERAGE, SUM, STDEVP, STDEVS`.  
+Aggregations for tables and arrays of any type: `COUNT, FIRST, LAST, MAX, MIN, MODE`.
 
 All these aggregations can be used in two ways: `COUNT(table_or_array)` or `table_or_array.COUNT()`.
 
-Aggregation functions must be applied to arrays like this: `MAX(Table[column])`.
+Aggregation functions for arrays must be applied like this: `MAX(Table[column])`.
 
 Example:
 ```
@@ -239,9 +238,9 @@ table TBase
 table TAggregations
   [tbase_row_count] = COUNT(TBase)
   [a_count] = COUNT(TBase[a])
-  [a_sum] = SUM(TBase[a])
+  [a_sum] = SUM(TBase[a]) # TBase[a] is numeric
   [b_first] = FIRST(TBase[b])
-  [b_avg] = AVERAGE(TBase[b])
+  [b_avg] = AVERAGE(TBase[b]) # TBase[b] is numeric
   [b_max] = MAX(TBase[b])
   [b_2nd] = TBase[b].INDEX(2)
 ```
@@ -249,9 +248,9 @@ Explanation:
 Table `TAggregations` doesn't have `dim` column which means it has only one row.
 `[tbase_row_count] = COUNT(TBase)` equals number of rows in TBase.  
 `[a_count] = COUNT(TBase[a])` alternative version of count with the same result.  
-`[a_sum] = SUM(TBase[a])` equals total sum of all elements in TBase[a].  
+`[a_sum] = SUM(TBase[a])` equals total sum of all elements in TBase[a]. TBase[a] is a numeric array, so we can apply `SUM` aggregation.  
 `[b_first] = FIRST(TBase[b])` equals to first value of column TBase[b].  
-`[b_avg] = AVERAGE(TBase[b])` equals to the average of all values in column TBase[b].  
+`[b_avg] = AVERAGE(TBase[b])` equals to the average of all values in column TBase[b]. TBase[b] is a numeric array, so we can apply `AVERAGE` aggregation.  
 `[b_max] = MAX(TBase[b])` equals to the max of all values in column TBase[b].  
 `[b_2nd] = TBase[b].INDEX(2)` equals to 2nd element in column TBase[b].
 
@@ -300,8 +299,16 @@ Explanation:
 
 Example:
 ```
+table TSortedColumn
+  dim [a] = SORTBY(T0, T0[a], -1)[a]
+```
+Explanation:  
+`TSortedColumn` has one column [a] that contains all values of `T0[a]` sorted in descending order. Table `TSortedColumn` has the same length as `T0`.
+
+Example:
+```
 table TSortedTable
-  dim [source] = SORTBY(T0, T0[a], -T0[b])
+  dim [source] = SORTBY(T0, T0[a], 1, T0[b], -1)
   [a] = [source][a]
   [b] = [source][b]
 ```
@@ -414,7 +421,7 @@ table TPurchasesFrequency
   [purchases_count] = TPurchases.FILTER(TPurchases[clothes_id] = [clothes_id]).COUNT()
   
 table MostFrequentTable
-  [most_frequent_clothes_id] = SORTBY(TPurchasesFrequency, -TPurchasesFrequency[purchases_count]).FIRST()
+  [most_frequent_clothes_id] = SORTBY(TPurchasesFrequency, TPurchasesFrequency[purchases_count], -1).FIRST()
   
 table MostFrequentTableAlternative
   [most_frequent_clothes_id] = MODE(TPurchases[clothes_id])
@@ -423,7 +430,7 @@ Explanation:
 Helper table `TPurchasesFrequency` is created to gather clothes ids and number of times they were purchased.
 `dim [clothes_id] = UNIQUE(TPurchases[clothes_id])` [clothes_id] column is based on unique values of `TPurchases[clothes_id])`.  
 `[purchases_count] = TPurchases.FILTER(TPurchases[clothes_id] = [clothes_id]).COUNT()` here `TPurchases` is filtered based on condition and resulting number of rows is counted. Condition is `TPurchases[clothes_id] = [clothes_id]`, where `TPurchases[clothes_id]` is a value from the column of the table we're filtering. [clothes_id] is a value of column [clothes_id] from `TPurchasesFrequency` on the current row.  
-Resulting table `MostFrequentTable` has one column with a one value that contains first row from sorted `TPurchasesFrequency`. Note, that there is no `dim` keyword, because there is one value for one row.  
+Resulting table `MostFrequentTable` has one column with a one value that contains first row from `TPurchasesFrequency` sorted in descending order. Note, that there is no `dim` keyword, because there is one value for one row.  
 Additionally, `MostFrequentTableAlternative` table shows simpler way of getting one most frequently purchased item.
 
 Like in this example, `SORTBY` and `FILTER` should always be on separate lines.
@@ -431,10 +438,12 @@ Like in this example, `SORTBY` and `FILTER` should always be on separate lines.
 Here we find the number of jackets sold in the last two weeks of June:
 ```
 table TLateJuneJackets
-  [jackets_count] = TPurchases.FILTER(MONTH(TPurchases[purchase_date]) = 6 AND DAY(TPurchases[purchase_date]) >= 15 AND TPurchases[clothes_id] = 4).COUNT()
+  [jackets_count] = TPurchases.FILTER(MONTH(TPurchases[purchase_date]) = 6 AND \
+   DAY(TPurchases[purchase_date]) >= 15 AND \
+   TPurchases[clothes_id] = 4).COUNT()
 ```
 Explanation:
-`[jackets_count] = TPurchases.FILTER(MONTH(TPurchases[purchase_date]) = 6 AND DAY(TPurchases[purchase_date]) >= 15 AND TPurchases[clothes_id] = 4).COUNT()` filters purchases in `TPurchases` by month and day. Additionally, it checks for the purchased clothes id to be the one for jacket. For the result of this filter we calculate the number of rows.
+`[jackets_count] = TPurchases.FILTER(MONTH(TPurchases[purchase_date]) = 6 AND DAY(TPurchases[purchase_date]) >= 15 AND TPurchases[clothes_id] = 4).COUNT()` filters purchases in `TPurchases` by month and day. Additionally, it checks for the purchased clothes id to be the one for jacket. For the result of this filter we calculate the number of rows. `\` serves as a new line separator.  
 
 ## Decorators
 Existing decorators:  

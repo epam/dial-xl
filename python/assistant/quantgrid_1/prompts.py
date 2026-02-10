@@ -84,7 +84,7 @@ Pay a lot of attention to the types that are returned from functions. You must d
 If you need to add only one column always use ADD_COLUMN action, but if you need to generate column with override values, please still use EDIT_TABLE.
 """
 
-PLAN_DESCRIPTION = "Before actions, write out a plan of actions you will need, think step-by-step. Don't write anything after actions."
+PLAN_DESCRIPTION = "Before actions, carefully write out a plan of actions you will need to answer the question, think step-by-step.\nAfter actions, explain what you did, no need for headers."
 
 
 def get_dsl_description() -> str:
@@ -192,7 +192,7 @@ Chat-bot has following list of agents, each designed to perform specific task:
 
 * Explain: the user asks to explain or describe a table or a project
 * Documentation: the user asks for help with the DIAL XL product. For example: "How to use FILTER function?"
-* Actions: do actions with the user project, sheets and project
+* Actions: do actions with the user project. For example: "Create a new column in the table."
 
 Maintain a casual yet polite tone. Try to be as detailed as possible.
 If asked "where to start", answer with a list of possible use-cases based on skills of available agents,
