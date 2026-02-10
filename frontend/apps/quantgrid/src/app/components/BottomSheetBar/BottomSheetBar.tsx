@@ -25,7 +25,7 @@ export const BottomSheetBar = () => {
     }
 
     const getCellsFromSelection = (
-      selection: SelectionEdges | null,
+      selection: SelectionEdges | null
     ): GridCell[] => {
       if (!selection) return [];
 
@@ -51,7 +51,7 @@ export const BottomSheetBar = () => {
 
     const selectionOrDataChange$ = merge(
       selection$,
-      viewGridData.shouldUpdate$.pipe(map(() => api.selection$.value)),
+      viewGridData.shouldUpdate$.pipe(map(() => api.selection$.value))
     );
 
     const sub = selectionOrDataChange$
@@ -61,20 +61,17 @@ export const BottomSheetBar = () => {
 
           const cells = getCellsFromSelection(selection);
 
-          const selectionFieldsByTable = cells.reduce(
-            (acc, curr) => {
-              if (!curr.field || !curr.table) return acc;
-              const tableName = curr.table.tableName;
-              const fieldName = curr.field.fieldName;
-              const fieldsForTable = acc[tableName] ?? [];
-              if (!fieldsForTable.includes(fieldName)) {
-                acc[tableName] = [...fieldsForTable, fieldName];
-              }
+          const selectionFieldsByTable = cells.reduce((acc, curr) => {
+            if (!curr.field || !curr.table) return acc;
+            const tableName = curr.table.tableName;
+            const fieldName = curr.field.fieldName;
+            const fieldsForTable = acc[tableName] ?? [];
+            if (!fieldsForTable.includes(fieldName)) {
+              acc[tableName] = [...fieldsForTable, fieldName];
+            }
 
-              return acc;
-            },
-            {} as Record<string, string[]>,
-          );
+            return acc;
+          }, {} as Record<string, string[]>);
 
           const tableNames = Object.keys(selectionFieldsByTable);
           if (tableNames.length !== 1) return null;
@@ -85,7 +82,7 @@ export const BottomSheetBar = () => {
             ? tableData.totalRows
             : null;
         }),
-        distinctUntilChanged(),
+        distinctUntilChanged()
       )
       .subscribe((size) => setFieldSize(size));
 

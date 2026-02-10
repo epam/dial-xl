@@ -1,19 +1,10 @@
 import { decodeJwt } from 'jose';
-import {
-  type JSX,
-  PropsWithChildren,
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from 'react';
+import { PropsWithChildren, useEffect, useMemo, useState } from 'react';
 import { useAuth } from 'react-oidc-context';
-
-import { BucketFetchState } from '@frontend/common';
 
 import { useApiRequests } from '../../hooks';
 import { useUIStore } from '../../store';
-import { ApiContext } from './ApiContext';
+import { ApiContext } from '../ApiContext';
 
 export function ApiContextProvider({
   children,
@@ -23,9 +14,6 @@ export function ApiContextProvider({
   const { getDialBucket } = useApiRequests();
   const [userBucket, setUserBucket] = useState<string | undefined>();
   const [userRoles, setUserRoles] = useState<string[]>([]);
-  const [bucketState, setBucketState] = useState<BucketFetchState>({
-    loading: false,
-  });
 
   const isAdmin = useMemo(() => {
     const adminRoles = window.externalEnv.adminRoles ?? [];
@@ -35,29 +23,18 @@ export function ApiContextProvider({
       : false;
   }, [userRoles]);
 
-  const fetchBucket = useCallback(async () => {
-    setBucketState({ loading: true });
-    setLoading(true);
-
-    const result = await getDialBucket();
-
-    setLoading(false);
-
-    if (result.success) {
-      setUserBucket(result.data);
-      setBucketState({ loading: false, bucket: result.data });
-    } else {
-      setBucketState({ loading: false, error: result.error });
-    }
-  }, [getDialBucket, setLoading]);
-
-  const retryBucketFetch = useCallback(() => {
-    fetchBucket();
-  }, [fetchBucket]);
-
   useEffect(() => {
+    const bucketAsyncFunc = async () => {
+      setLoading(true);
+      const bucket = await getDialBucket();
+      setLoading(false);
+      if (bucket) {
+        setUserBucket(bucket);
+      }
+    };
+
     if (!auth.isLoading && auth.isAuthenticated) {
-      fetchBucket();
+      bucketAsyncFunc();
 
       if (auth.user?.access_token) {
         const decodedJWT = decodeJwt(auth.user?.access_token);
@@ -68,9 +45,10 @@ export function ApiContextProvider({
       }
     }
   }, [
-    fetchBucket,
+    getDialBucket,
     auth.isLoading,
     auth.isAuthenticated,
+    setLoading,
     auth.user?.access_token,
   ]);
 
@@ -79,10 +57,8 @@ export function ApiContextProvider({
       userBucket,
       userRoles,
       isAdmin,
-      bucketState,
-      retryBucketFetch,
     }),
-    [userBucket, userRoles, isAdmin, bucketState, retryBucketFetch],
+    [isAdmin, userBucket, userRoles]
   );
 
   return <ApiContext.Provider value={value}>{children}</ApiContext.Provider>;

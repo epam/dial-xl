@@ -1,4 +1,4 @@
-import { Route, Routes } from 'react-router';
+import { Route, Routes } from 'react-router-dom';
 
 import {
   AppPage,
@@ -20,21 +20,17 @@ export function AppRoutes() {
         element={<LoginRedirectingPage isAutoRedirect={false} />}
         path={routes.login}
       />
-      <Route element={<ProtectedDashboardPage />} path={routes.recent}>
-        <Route element={<ProtectedDashboardPage />} path="*" />
-      </Route>
-      <Route element={<ProtectedDashboardPage />} path={routes.home}>
-        <Route element={<ProtectedDashboardPage />} path="*" />
-      </Route>
-      <Route element={<ProtectedDashboardPage />} path={routes.sharedByMe}>
-        <Route element={<ProtectedDashboardPage />} path="*" />
-      </Route>
-      <Route element={<ProtectedDashboardPage />} path={routes.sharedWithMe}>
-        <Route element={<ProtectedDashboardPage />} path="*" />
-      </Route>
-      <Route element={<ProtectedDashboardPage />} path={routes.public}>
-        <Route element={<ProtectedDashboardPage />} path="*" />
-      </Route>
+      <Route element={<ProtectedDashboardPage />} path={routes.recent + '/*'} />
+      <Route element={<ProtectedDashboardPage />} path={routes.home + '/*'} />
+      <Route
+        element={<ProtectedDashboardPage />}
+        path={routes.sharedByMe + '/*'}
+      />
+      <Route
+        element={<ProtectedDashboardPage />}
+        path={routes.sharedWithMe + '/*'}
+      />
+      <Route element={<ProtectedDashboardPage />} path={routes.public + '/*'} />
       <Route
         element={<ProtectedProjectPage />}
         path={routes.project + '/:projectName/:sheetName?'}

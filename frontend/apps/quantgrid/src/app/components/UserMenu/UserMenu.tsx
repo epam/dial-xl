@@ -1,6 +1,6 @@
 import { Dropdown, MenuProps, Modal } from 'antd';
 import cx from 'classnames';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useAuth } from 'react-oidc-context';
 import { toast } from 'react-toastify';
 
@@ -15,7 +15,7 @@ import {
 } from '@frontend/common';
 
 import { ColorSchema } from '../../common';
-import { useLogout } from '../../hooks';
+import { ProjectContext } from '../../context';
 import { Settings } from '../Modals';
 
 type Props = {
@@ -25,10 +25,39 @@ type Props = {
 
 export function UserMenu({ placement, colorSchema = 'default' }: Props) {
   const auth = useAuth();
-  const { logoutWithRedirect } = useLogout();
+  const { projectName, closeCurrentProject } = useContext(ProjectContext);
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isUserMenuOpened, setIsUserMenuOpened] = useState(false);
+
+  const logoutWithRedirect = useCallback(async () => {
+    if (projectName) {
+      closeCurrentProject();
+    }
+
+    const isAuth0 = window.externalEnv.authAuthority?.includes('auth0');
+
+    if (isAuth0) {
+      // Remove all oidc tokens from local storage because auth.removeUser() can't do this properly
+      for (const key in localStorage) {
+        if (key.startsWith('oidc.')) {
+          localStorage.removeItem(key);
+        }
+      }
+
+      // Custom flow for auth0 logout
+      const returnUrl = encodeURIComponent(window.location.origin);
+
+      window.location.href = `${window.externalEnv.authAuthority}/v2/logout?client_id=${window.externalEnv.authClientId}&returnTo=${returnUrl}`;
+    } else {
+      await auth.revokeTokens();
+      await auth.removeUser();
+      await auth.signoutRedirect({
+        post_logout_redirect_uri: window.location.href,
+        id_token_hint: auth.user?.id_token,
+      });
+    }
+  }, [auth, closeCurrentProject, projectName]);
 
   const userName = useMemo(() => {
     return auth?.user
@@ -96,18 +125,15 @@ export function UserMenu({ placement, colorSchema = 'default' }: Props) {
         align={{
           offset: [0, 12],
         }}
+        className={cx('h-full flex items-center', {
+          'xl:min-w-[150px] md:min-w-[50px]': placement === 'dashboard',
+          'md:min-w-[36px]': placement === 'project',
+        })}
         menu={{ items }}
         open={isUserMenuOpened}
         onOpenChange={setIsUserMenuOpened}
       >
-        <a
-          className={cx('group h-full flex items-center', {
-            'xl:min-w-[150px] md:min-w-[50px]': placement === 'dashboard',
-            'md:min-w-[36px]': placement === 'project',
-          })}
-          href="/"
-          onClick={(e) => e.preventDefault()}
-        >
+        <a className="group" href="/" onClick={(e) => e.preventDefault()}>
           {auth.user?.profile?.picture ? (
             <img
               alt="User"
@@ -120,7 +146,7 @@ export function UserMenu({ placement, colorSchema = 'default' }: Props) {
                 'size-[18px]',
                 colorSchema === 'read' && 'text-text-secondary',
                 colorSchema === 'review' && 'text-text-inverted',
-                colorSchema === 'default' && 'text-text-secondary',
+                colorSchema === 'default' && 'text-text-secondary'
               )}
               component={() => <UserAvatar />}
             />
@@ -137,7 +163,7 @@ export function UserMenu({ placement, colorSchema = 'default' }: Props) {
               isUserMenuOpened && 'rotate-180',
               colorSchema === 'read' && 'text-text-inverted',
               colorSchema === 'review' && 'text-text-inverted',
-              colorSchema === 'default' && 'text-text-primary',
+              colorSchema === 'default' && 'text-text-primary'
             )}
             component={() => <ChevronDown />}
           />

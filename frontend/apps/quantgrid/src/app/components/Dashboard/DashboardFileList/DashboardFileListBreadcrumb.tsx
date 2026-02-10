@@ -1,5 +1,5 @@
 import { useCallback, useContext, useEffect, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import {
   projectFolderAppdata,
@@ -40,10 +40,10 @@ export function DashboardFileListBreadcrumb() {
           folderPath: index === 0 ? null : breadcrumb.path,
           folderBucket: index === 0 ? null : breadcrumb.bucket,
           tab: currentTab,
-        }),
+        })
       );
     },
-    [currentTab, navigate],
+    [currentTab, navigate]
   );
 
   useEffect(() => {
@@ -67,7 +67,7 @@ export function DashboardFileListBreadcrumb() {
     // Do not show appdata > xl breadcrumbs in shared tabs
     if (
       [breadcrumbLabels.sharedByMe, breadcrumbLabels.sharedWithMe].includes(
-        mainBreadcrumbLabel,
+        mainBreadcrumbLabel
       )
     ) {
       updatedBreadcrumbs = updatedBreadcrumbs.filter((b) => {

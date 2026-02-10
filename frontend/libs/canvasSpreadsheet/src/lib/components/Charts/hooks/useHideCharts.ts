@@ -1,16 +1,15 @@
-import { RefObject, useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import { GridApi } from '../../../types';
 import { ChartConfig } from '../types';
 
 export const useHideCharts = (
-  apiRef: RefObject<GridApi | null>,
-  chartConfigs: ChartConfig[],
+  api: GridApi | null,
+  chartConfigs: ChartConfig[]
 ) => {
   const [hiddenCharts, setHiddenCharts] = useState<string[]>([]);
 
   const updateHiddenCharts = useCallback(() => {
-    const api = apiRef.current;
     if (!api || chartConfigs.length === 0) return;
 
     const {
@@ -38,10 +37,9 @@ export const useHideCharts = (
     }
 
     setHiddenCharts(hidden);
-  }, [apiRef, chartConfigs]);
+  }, [api, chartConfigs]);
 
   useEffect(() => {
-    const api = apiRef.current;
     if (!api) return;
 
     updateHiddenCharts();
@@ -53,7 +51,7 @@ export const useHideCharts = (
     return () => {
       unsubscribe();
     };
-  }, [apiRef, updateHiddenCharts]);
+  }, [api, updateHiddenCharts]);
 
   useEffect(() => {
     updateHiddenCharts();

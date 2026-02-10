@@ -26,7 +26,7 @@ export const ProjectPanelSectionHeader = ({
     <div
       className={classNames(
         'sticky select-none cursor-pointer h-[42px] flex gap-1 items-center overflow-hidden z-10 bg-bg-layer-3 text-text-primary px-3 py-3 not-first:border-t border-stroke-primary',
-        projectPanelSectionHeaderClass,
+        projectPanelSectionHeaderClass
       )}
       style={{
         top: index * 42,
@@ -37,7 +37,7 @@ export const ProjectPanelSectionHeader = ({
       <Icon
         className={classNames(
           'w-[18px] transition-transform shrink-0',
-          isCollapsed ? '-rotate-90' : 'rotate-0',
+          isCollapsed ? '-rotate-90' : 'rotate-0'
         )}
         component={() => <ChevronDown />}
       />

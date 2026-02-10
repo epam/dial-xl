@@ -50,7 +50,7 @@ export const getTableCellMenuItems = (
   row: number,
   cell: GridCell,
   eventBus: GridEventBus,
-  filterList: GridListFilter[],
+  filterList: GridListFilter[]
 ): ItemType[] => {
   const { field, table, totalIndex, totalExpression } = cell;
 
@@ -163,7 +163,7 @@ export const getTableCellMenuItems = (
           isIndex,
           isDescription,
           isText,
-          fieldNames,
+          fieldNames
         )
       : null,
     showPromoteRow
@@ -233,7 +233,7 @@ export const getTableCellMenuItems = (
       row,
       isTableNameHeaderHidden,
       isTableFieldsHeaderHidden,
-      isChart,
+      isChart
     ),
     getDropdownDivider(),
     ...(openDetails(col, row, false, isOverride) || []),

@@ -9,7 +9,7 @@ export class Missing {
   constructor(
     span: Span,
     public globalOffsetStart: number,
-    public globalOffsetEnd: number,
+    public globalOffsetEnd: number
   ) {
     this.span = span;
   }

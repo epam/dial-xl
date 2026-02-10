@@ -25,7 +25,7 @@ describe('Apply', () => {
     expect(apply.sort?.getItem(0)).toBe('-A[a]');
     expect(apply.sort?.getItem(1)).toBe('A[b]');
     expect(sheet.toDSL()).toEqual(
-      'table A\n  [a] = 1\n  [b] = 2\napply\nsort -A[a], A[b]\nfilter A[b] = 2\n',
+      'table A\n  [a] = 1\n  [b] = 2\napply\nsort -A[a], A[b]\nfilter A[b] = 2\n'
     );
   });
 
@@ -46,7 +46,7 @@ describe('Apply', () => {
 
     // Assert
     expect(sheet.toDSL()).toEqual(
-      'table A\n  [a] = 1\n  [b] = 2\napply\nsort A[a]\nfilter A[a] = 1\n',
+      'table A\n  [a] = 1\n  [b] = 2\napply\nsort A[a]\nfilter A[a] = 1\n'
     );
   });
 
@@ -62,7 +62,7 @@ describe('Apply', () => {
 
     // Assert
     expect(sheet.toDSL()).toEqual(
-      'table A\n  [a] = 1\n  [b] = 2\napply\nsort A[a], A[b]\n',
+      'table A\n  [a] = 1\n  [b] = 2\napply\nsort A[a], A[b]\n'
     );
   });
 
@@ -78,7 +78,7 @@ describe('Apply', () => {
 
     // Assert
     expect(sheet.toDSL()).toEqual(
-      'table A\n  [a] = 1\n  [b] = 2\napply\nfilter A[b] = 2\n',
+      'table A\n  [a] = 1\n  [b] = 2\napply\nfilter A[b] = 2\n'
     );
   });
 
@@ -94,7 +94,7 @@ describe('Apply', () => {
 
     // Assert
     expect(sheet.toDSL()).toEqual(
-      'table A\n  [a] = 1\n  [b] = 2\napply\nsort -A[a], A[b]\n',
+      'table A\n  [a] = 1\n  [b] = 2\napply\nsort -A[a], A[b]\n'
     );
   });
 
@@ -112,7 +112,7 @@ describe('Apply', () => {
     // Assert
     expect(table.totals.getItem(0)).toBe(oldTotal);
     expect(sheet.toDSL()).toEqual(
-      'table A\n  [a] = 1\ntotal\n  [a] = A[a].SUM()\n',
+      'table A\n  [a] = 1\ntotal\n  [a] = A[a].SUM()\n'
     );
   });
 });

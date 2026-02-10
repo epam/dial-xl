@@ -103,7 +103,7 @@ export function ChartPlacementSection({
 
       return;
     },
-    [initFieldValues],
+    [initFieldValues]
   );
 
   useEffect(() => {

@@ -67,5 +67,5 @@ export const useNewProjectModalStore = create<NewProjectModalStore>()(
 
     setBucket: (bucket) => set({ bucket }),
     setPath: (path) => set({ path }),
-  }),
+  })
 );

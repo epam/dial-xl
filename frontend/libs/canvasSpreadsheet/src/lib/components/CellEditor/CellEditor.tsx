@@ -68,7 +68,7 @@ export function CellEditor({
 
   const disableHelpers = useMemo(
     () => shouldDisableHelpers(editMode),
-    [editMode],
+    [editMode]
   );
 
   useEffect(() => {
@@ -86,7 +86,7 @@ export function CellEditor({
       <div
         className={cx(
           'absolute z-305 outline-solid outline-[1.5px] pointer-events-auto',
-          getCellEditorColor(editMode),
+          getCellEditorColor(editMode)
         )}
         id={cellEditorWrapperId}
         style={{ display: isOpen ? 'block' : 'none', ...editorStyle }}

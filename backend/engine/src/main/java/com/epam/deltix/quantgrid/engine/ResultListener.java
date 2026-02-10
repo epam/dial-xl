@@ -29,9 +29,10 @@ public interface ResultListener {
     }
 
     default void onUpdate(ParsedKey key,
-                          long startRow, long endRow,
-                          long startCol, long endCol,
-                          boolean content, boolean raw,
+                          long start,
+                          long end,
+                          boolean content,
+                          boolean raw,
                           @Nullable Table value,
                           @Nullable String error,
                           @Nullable ResultType resultType) {

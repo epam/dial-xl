@@ -1,14 +1,7 @@
 import { Button, Modal, Popover, Tooltip } from 'antd';
 import { Input } from 'antd';
 import classNames from 'classnames';
-import {
-  RefObject,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import Icon from '@ant-design/icons';
 import { Message, Role } from '@epam/ai-dial-overlay';
@@ -16,7 +9,6 @@ import {
   ExclamationCircleIcon,
   getFocusColumns,
   getSuggestions,
-  GPTState,
   Markdown,
   MinimizeIcon,
   primaryButtonClasses,
@@ -27,6 +19,7 @@ import {
   shouldStopPropagation,
   SparklesIcon,
   StopFilledIcon,
+  SystemMessageParsedContent,
   useClickOutside,
 } from '@frontend/common';
 
@@ -52,9 +45,9 @@ const aiPromptWidth = 400;
 const { TextArea } = Input;
 
 type Props = {
-  systemMessageContent: GPTState | undefined;
+  systemMessageContent: SystemMessageParsedContent | undefined;
   eventBus: GridEventBus;
-  apiRef: RefObject<GridApi | null>;
+  api: GridApi | null;
   zoom?: number;
   currentSheetName: string | null;
 };
@@ -63,7 +56,7 @@ export function AIPrompt({
   systemMessageContent,
   eventBus,
   currentSheetName,
-  apiRef,
+  api,
   zoom = 1,
 }: Props) {
   const clickRef = useRef<HTMLDivElement>(null);
@@ -104,7 +97,7 @@ export function AIPrompt({
       setPrompt(prompt);
       promptAreaRef.current?.focus();
     },
-    [isOpened],
+    [isOpened]
   );
 
   const onResponseUpdate = useCallback((currentMessage: Message) => {
@@ -191,7 +184,7 @@ export function AIPrompt({
       isLoading,
       isSuggestionReview,
       isWaitForAIPromptOpened,
-    ],
+    ]
   );
 
   useClickOutside(clickRef, onClickOutside, [
@@ -271,7 +264,6 @@ export function AIPrompt({
 
   const show = useCallback(
     (x: number, y: number, width: number) => {
-      const api = apiRef.current;
       if (!api) return;
 
       const {
@@ -310,12 +302,11 @@ export function AIPrompt({
       setInitialScrollTop(top);
       setMaxHeight(Math.min(Math.max(rootHeight * 0.4, 300), 600));
     },
-    [apiRef],
+    [api]
   );
 
   const showAIPromptExplicitly = useCallback(
     (col: number, row: number) => {
-      const api = apiRef.current;
       if (!api) return;
 
       const cellX = api.getCellX(col);
@@ -329,11 +320,10 @@ export function AIPrompt({
         promptAreaRef.current?.focus();
       }, 0);
     },
-    [apiRef, show],
+    [api, show]
   );
 
   const handleSendAIPrompt = useCallback(async () => {
-    const api = apiRef.current;
     if (!api || !prompt) return;
 
     setAssistantTextAnswer('');
@@ -343,7 +333,7 @@ export function AIPrompt({
     setPreviousPrompts((prev) =>
       [prompt]
         .concat((prev ?? []).filter((item) => item !== prompt))
-        .slice(0, 5),
+        .slice(0, 5)
     );
 
     const userMessage: Message = {
@@ -377,7 +367,7 @@ export function AIPrompt({
       setAssistantTextAnswer(resultMessage.content);
     }
   }, [
-    apiRef,
+    api,
     currentSheetName,
     eventBus,
     prompt,
@@ -394,13 +384,12 @@ export function AIPrompt({
       event.preventDefault();
       handleSendAIPrompt();
     },
-    [handleSendAIPrompt],
+    [handleSendAIPrompt]
   );
 
   const handleAddNote = useCallback(() => {
     if (!assistantTextAnswer || !selection) return;
 
-    const api = apiRef.current;
     const cell = api?.getCell(selection.startCol, selection.startRow);
 
     if (!cell?.table?.tableName) return;
@@ -417,10 +406,10 @@ export function AIPrompt({
     // gridCallbacksRef.current.onAIPendingChanges?.(false, {});
 
     hide();
-  }, [apiRef, assistantTextAnswer, eventBus, hide, selection]);
+  }, [api, assistantTextAnswer, eventBus, hide, selection]);
 
   const { contextMenuItems } = useAIPromptSuggestions({
-    apiRef,
+    api,
     selection,
     previousPrompts,
     isSuggestionReview,
@@ -484,15 +473,15 @@ export function AIPrompt({
         .map((section) => section.items)
         .flat();
       const prevIndex = filteredItems.findIndex(
-        (item) => item.key === selectedPromptKey,
+        (item) => item.key === selectedPromptKey
       );
       if (isArrowDown) {
         setSelectedPromptKey(
           prevIndex === -1
             ? filteredItems.at(0)?.key
             : prevIndex === filteredItems.length - 1
-              ? filteredItems.at(0)?.key
-              : filteredItems.at(prevIndex + 1)?.key,
+            ? filteredItems.at(0)?.key
+            : filteredItems.at(prevIndex + 1)?.key
         );
 
         return;
@@ -502,8 +491,8 @@ export function AIPrompt({
           prevIndex === -1
             ? filteredItems.at(0)?.key
             : prevIndex === 0
-              ? filteredItems.at(filteredItems.length - 1)?.key
-              : filteredItems.at(prevIndex - 1)?.key,
+            ? filteredItems.at(filteredItems.length - 1)?.key
+            : filteredItems.at(prevIndex - 1)?.key
         );
 
         return;
@@ -520,11 +509,10 @@ export function AIPrompt({
       isOpened,
       isSuggestionReview,
       selectedPromptKey,
-    ],
+    ]
   );
 
   const handleExpandCollapseAIPrompt = useCallback(() => {
-    const api = apiRef.current;
     if (!selection || !api) return;
 
     setIsCollapsed(false);
@@ -562,10 +550,10 @@ export function AIPrompt({
 
     api.moveViewport(
       cellX - 3 * gridSizes.cell.width,
-      cellY - 5 * gridSizes.cell.height,
+      cellY - 5 * gridSizes.cell.height
     );
   }, [
-    apiRef,
+    api,
     currentSheetName,
     eventBus,
     selection,
@@ -574,7 +562,6 @@ export function AIPrompt({
   ]);
 
   const onViewportChange = useCallback(() => {
-    const api = apiRef.current;
     if (!api || !isOpened || isCollapsed) return;
 
     const { x1, y1, y2, x2 } = api.getViewportCoords();
@@ -604,7 +591,7 @@ export function AIPrompt({
       y: top,
     });
   }, [
-    apiRef,
+    api,
     handleCollapseAIPrompt,
     initialPosition.x,
     initialPosition.y,
@@ -663,7 +650,6 @@ export function AIPrompt({
   ]);
 
   useEffect(() => {
-    const api = apiRef.current;
     if (!api) return;
 
     const openNoteSubscription = api.events$
@@ -678,7 +664,7 @@ export function AIPrompt({
 
     const expandSubscription = api.events$
       .pipe(
-        filterByTypeAndCast<EventTypeExpandAIPrompt>(GridEvent.expandAIPrompt),
+        filterByTypeAndCast<EventTypeExpandAIPrompt>(GridEvent.expandAIPrompt)
       )
       .subscribe(() => {
         if (isCollapsed) {
@@ -688,11 +674,11 @@ export function AIPrompt({
 
     return () => {
       [openNoteSubscription, expandSubscription].forEach((s) =>
-        s.unsubscribe(),
+        s.unsubscribe()
       );
     };
   }, [
-    apiRef,
+    api,
     handleExpandCollapseAIPrompt,
     isCollapsed,
     selection?.endCol,
@@ -703,7 +689,6 @@ export function AIPrompt({
   ]);
 
   useEffect(() => {
-    const api = apiRef.current;
     if (!api) return;
 
     const subscription = api.selection$.subscribe((selection) => {
@@ -711,7 +696,7 @@ export function AIPrompt({
     });
 
     return () => subscription.unsubscribe();
-  }, [apiRef]);
+  }, [api]);
 
   useEffect(() => {
     document.addEventListener('keydown', onKeydown);
@@ -725,7 +710,7 @@ export function AIPrompt({
     if (previousPrompts.length > 0) {
       localStorage.setItem(
         'inlinePromptsHistory',
-        JSON.stringify(previousPrompts),
+        JSON.stringify(previousPrompts)
       );
     }
   }, [previousPrompts]);
@@ -742,7 +727,6 @@ export function AIPrompt({
   }, []);
 
   useEffect(() => {
-    const api = apiRef.current;
     if (!api) return;
 
     const unsubscribe = api.gridViewportSubscription(onViewportChange);
@@ -750,7 +734,7 @@ export function AIPrompt({
     return () => {
       unsubscribe();
     };
-  }, [apiRef, onViewportChange]);
+  }, [api, onViewportChange]);
 
   if (!isOpened) return null;
 
@@ -915,7 +899,7 @@ export function AIPrompt({
                               className={classNames(
                                 'flex px-3 gap-2 truncate items-center justify-between py-1 hover:bg-bg-accent-primary-alpha',
                                 selectedPromptKey === item.key &&
-                                  'bg-bg-accent-primary-alpha-2',
+                                  'bg-bg-accent-primary-alpha-2'
                               )}
                               key={item.key}
                               onClick={() => item.onClick?.()}
@@ -937,7 +921,7 @@ export function AIPrompt({
                           ))}
                         </div>
                       </div>
-                    ) : null,
+                    ) : null
                   )}
                 </div>
               </div>

@@ -1,5 +1,3 @@
-import { vi } from 'vitest';
-
 import { act, RenderHookResult } from '@testing-library/react';
 
 import { useSortEditDsl } from '../useSortEditDsl';
@@ -21,7 +19,7 @@ describe('useSortEditDsl', () => {
   });
 
   beforeEach(() => {
-    vi.clearAllMocks();
+    jest.clearAllMocks();
     const hookRender = hookTestSetup(useSortEditDsl, Wrapper);
     hook = hookRender.result;
     setDsl = hookRender.setDsl;
@@ -31,7 +29,7 @@ describe('useSortEditDsl', () => {
     it('should add apply and sort block', () => {
       // Arrange
       const dsl = 'table t1 [f1]=1 [f2]=2';
-      const expectedDsl = 'table t1 [f1]=1 [f2]=2\r\napply\nsort [f1], 1\r\n';
+      const expectedDsl = 'table t1 [f1]=1 [f2]=2\r\napply\nsort [f1]\r\n';
       setDsl(dsl);
 
       // Act
@@ -46,8 +44,7 @@ describe('useSortEditDsl', () => {
     it('should add sort block', () => {
       // Arrange
       const dsl = 'table t1 [f1]=1 [f2]=2\napply\nsort [f2]';
-      const expectedDsl =
-        'table t1 [f1]=1 [f2]=2\napply\nsort [f2], 1, [f1], 1\r\n';
+      const expectedDsl = 'table t1 [f1]=1 [f2]=2\napply\nsort [f2], [f1]\r\n';
       setDsl(dsl);
 
       // Act
@@ -62,7 +59,7 @@ describe('useSortEditDsl', () => {
     it('should change sort block', () => {
       // Arrange
       const dsl = 'table t1 [f1]=1 [f2]=2\napply\nsort [f2]';
-      const expectedDsl = 'table t1 [f1]=1 [f2]=2\napply\nsort [f2], -1\r\n';
+      const expectedDsl = 'table t1 [f1]=1 [f2]=2\napply\nsort -[f2]\r\n';
       setDsl(dsl);
 
       // Act

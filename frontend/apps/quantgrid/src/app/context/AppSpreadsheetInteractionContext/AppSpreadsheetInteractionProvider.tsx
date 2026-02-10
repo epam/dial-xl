@@ -13,10 +13,8 @@ import {
   GridCellEditorEventType,
   GridTable,
 } from '@frontend/canvas-spreadsheet';
-import { useIsMobile } from '@frontend/common/lib';
 
 import { useGridApi, useTableModifyDsl } from '../../hooks';
-import { CommonContext } from '../CommonContext';
 import { ProjectContext } from '../ProjectContext';
 import { ViewportContext } from '../ViewportContext';
 import {
@@ -34,8 +32,6 @@ export function AppSpreadsheetInteractionContextProvider({
   const { sheetName, projectName, parsedSheet, openSheet } =
     useContext(ProjectContext);
   const { viewGridData } = useContext(ViewportContext);
-  const { sharedRef } = useContext(CommonContext);
-  const isMobile = useIsMobile();
 
   const gridApi = useGridApi();
   const { autoCleanUpTableDSL } = useTableModifyDsl();
@@ -59,7 +55,7 @@ export function AppSpreadsheetInteractionContextProvider({
     (
       openSheetName: string,
       tableName: string,
-      sideEffect?: OpenTableSideEffect,
+      sideEffect?: OpenTableSideEffect
     ) => {
       if (!projectName) return;
 
@@ -74,7 +70,7 @@ export function AppSpreadsheetInteractionContextProvider({
         setOpenTableSideEffect(sideEffect);
       }
     },
-    [openSheet, projectName, sheetName],
+    [openSheet, projectName, sheetName]
   );
 
   const openField = useCallback(
@@ -82,7 +78,7 @@ export function AppSpreadsheetInteractionContextProvider({
       openSheetName: string,
       tableName: string,
       fieldName: string,
-      sideEffect?: OpenFieldSideEffect,
+      sideEffect?: OpenFieldSideEffect
     ) => {
       if (!projectName) return;
 
@@ -98,7 +94,7 @@ export function AppSpreadsheetInteractionContextProvider({
         setOpenFieldSideEffect(sideEffect);
       }
     },
-    [openSheet, projectName, sheetName],
+    [openSheet, projectName, sheetName]
   );
 
   const openCellEditor = useCallback((options: CellEditorOpenOptions) => {
@@ -120,11 +116,6 @@ export function AppSpreadsheetInteractionContextProvider({
     let tableStructure: GridTable | undefined;
 
     focusSpreadsheet();
-    if (isMobile) {
-      sharedRef.current.layoutContext?.closeAllPanels?.();
-    } else if (sharedRef.current.layoutContext?.expandedPanelSide) {
-      sharedRef.current.layoutContext.collapseExpandedPanelSide?.();
-    }
 
     if (openTableSideEffect) {
       switch (openTableSideEffect) {
@@ -135,7 +126,7 @@ export function AppSpreadsheetInteractionContextProvider({
             setTimeout(() => {
               structure = viewGridData.getGridTableStructure();
               tableStructure = structure.find(
-                (t) => t.tableName === tableToOpen,
+                (t) => t.tableName === tableToOpen
               );
 
               gridApi.updateSelection(
@@ -145,7 +136,7 @@ export function AppSpreadsheetInteractionContextProvider({
                   endCol: tableStructure ? tableStructure.endCol : col,
                   endRow: tableStructure ? tableStructure.endRow : row,
                 },
-                { selectedTable: tableToOpen },
+                { selectedTable: tableToOpen }
               );
             }, spreadsheetRenderWait);
           }, spreadsheetRenderWait);
@@ -230,11 +221,9 @@ export function AppSpreadsheetInteractionContextProvider({
   }, [
     fieldToOpen,
     gridApi,
-    isMobile,
     openFieldSideEffect,
     openTableSideEffect,
     parsedSheet,
-    sharedRef,
     sheetName,
     sheetToOpen,
     tableToOpen,
@@ -310,7 +299,7 @@ export function AppSpreadsheetInteractionContextProvider({
       openCellEditor,
       autoCleanUpTable,
     }),
-    [openField, openTable, openCellEditor, autoCleanUpTable],
+    [openField, openTable, openCellEditor, autoCleanUpTable]
   );
 
   return (

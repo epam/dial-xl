@@ -98,7 +98,7 @@ describe('autoTablePlacement', () => {
       tableStructures,
       grid as GridApi,
       'projectName',
-      'sheetName',
+      'sheetName'
     );
 
     // Assert

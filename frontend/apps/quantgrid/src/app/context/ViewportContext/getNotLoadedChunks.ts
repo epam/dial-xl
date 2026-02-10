@@ -6,7 +6,7 @@ export function getNotLoadedChunks(
   chunks: { [index: number]: ColumnChunk },
   fields: string[],
   startRow: number,
-  endRow: number,
+  endRow: number
 ) {
   const start = Math.floor(startRow / chunkSize);
   const end = Math.floor(endRow / chunkSize);
@@ -19,7 +19,7 @@ export function getNotLoadedChunks(
     const allFieldsLoaded =
       fields &&
       fields.every(
-        (field) => chunks[chunkIndex] && field in chunks[chunkIndex],
+        (field) => chunks[chunkIndex] && field in chunks[chunkIndex]
       );
 
     fields.forEach((f) => {

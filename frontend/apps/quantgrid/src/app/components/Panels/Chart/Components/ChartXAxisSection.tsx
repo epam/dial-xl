@@ -1,3 +1,4 @@
+import { DefaultOptionType } from 'rc-select/lib/Select';
 import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import Select, { SingleValue } from 'react-select';
 
@@ -11,7 +12,6 @@ import {
   ParsedField,
   ParsedTable,
 } from '@frontend/parser';
-import { DefaultOptionType } from '@rc-component/select/lib/Select';
 
 import {
   AppSpreadsheetInteractionContext,
@@ -56,7 +56,7 @@ export function ChartXAxisSection({
           tableName,
           fieldName,
           chartXAxisDecoratorName,
-          historyTitle,
+          historyTitle
         );
       } else if (option.value) {
         const { fields } = section;
@@ -71,7 +71,7 @@ export function ChartXAxisSection({
             fieldName,
             chartXAxisDecoratorName,
             '',
-            historyTitle,
+            historyTitle
           );
         } else {
           setFieldDecorator(
@@ -79,7 +79,7 @@ export function ChartXAxisSection({
             fieldName,
             chartXAxisDecoratorName,
             '',
-            historyTitle,
+            historyTitle
           );
         }
       }
@@ -94,7 +94,7 @@ export function ChartXAxisSection({
       removeFieldDecorator,
       sheetName,
       swapFieldDecorators,
-    ],
+    ]
   );
 
   useEffect(() => {

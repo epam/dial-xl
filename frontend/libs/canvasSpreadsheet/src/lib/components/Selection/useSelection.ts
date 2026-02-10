@@ -5,7 +5,6 @@ import {
   isFormulaBarInputFocused,
   isFormulaBarMonacoInputFocused,
   useInterval,
-  useStateWithRef,
 } from '@frontend/common';
 
 import { canvasId } from '../../constants';
@@ -41,20 +40,17 @@ export function useSelection() {
     useContext(GridViewportContext);
 
   const isMouseDown = useRef<boolean>(false);
-  const [documentScrollInterval, setDocumentScrollInterval] = useState<
-    number | null
-  >(null);
+  const documentScrollInterval = useRef<number | null>(null);
   const documentScrollOptions = useRef<DocumentScrollOptions | null>(null);
   const anchorRef = useRef<{ startCol: number; startRow: number } | null>(null);
 
-  const [selectionEdges, setLocalSelectionEdges, selectionEdgesRef] =
-    useStateWithRef<Edges | null>(null);
+  const [selectionEdges, setLocalSelectionEdges] = useState<Edges | null>(null);
   const [isColumnSelection, setIsColumnSelection] = useState(false);
   const [isRowSelection, setIsRowSelection] = useState(false);
 
   const onDocumentMouseClick = useCallback(() => {
     isMouseDown.current = false;
-    setDocumentScrollInterval(null);
+    documentScrollInterval.current = null;
     anchorRef.current = null;
     setIsColumnSelection(false);
     setIsRowSelection(false);
@@ -131,12 +127,12 @@ export function useSelection() {
       pointClickMode,
       selectionEdges,
       setSelectionEdges,
-    ],
+    ]
   );
 
   const onDocumentMouseMove = useCallback(
     (e: MouseEvent) => {
-      setDocumentScrollInterval(null);
+      documentScrollInterval.current = null;
       const container = document.getElementById(canvasId);
 
       if (!container || !isMouseDown.current || isTableDragging) return;
@@ -168,7 +164,10 @@ export function useSelection() {
         onCanvasMouseMove(e);
       }
 
-      setDocumentScrollInterval(Math.max(interval * maxInterval, minInterval));
+      documentScrollInterval.current = Math.max(
+        interval * maxInterval,
+        minInterval
+      );
       documentScrollOptions.current = {
         pageX,
         pageY,
@@ -179,7 +178,7 @@ export function useSelection() {
       };
       e.preventDefault();
     },
-    [isColumnSelection, isRowSelection, isTableDragging, onCanvasMouseMove],
+    [isColumnSelection, isRowSelection, isTableDragging, onCanvasMouseMove]
   );
 
   const onCanvasMouseDown = useCallback(
@@ -278,7 +277,7 @@ export function useSelection() {
       pointClickMode,
       setSelectionEdges,
       isPanModeEnabled,
-    ],
+    ]
   );
 
   const onCanvasMouseClick = useCallback(() => {
@@ -337,7 +336,7 @@ export function useSelection() {
       if ((e.target as HTMLElement).tagName === 'CANVAS') {
         eventBus.emit({
           type: 'selection/point-click-value-picked',
-          payload: selectionEdgesRef.current,
+          payload: selectionEdges,
         });
       }
       setIsColumnSelection(false);
@@ -345,18 +344,18 @@ export function useSelection() {
       anchorRef.current = null;
       document.body.style.userSelect = 'auto';
     },
-    [eventBus, pointClickMode, selectionEdgesRef],
+    [eventBus, pointClickMode, selectionEdges]
   );
 
   useInterval(() => {
     documentAutoScroll();
-  }, documentScrollInterval);
+  }, documentScrollInterval.current);
 
   useEffect(() => {
     const selectionSubscription = selection$.subscribe(
       (edges: Edges | null) => {
         setLocalSelectionEdges(edges);
-      },
+      }
     );
 
     return () => {
@@ -377,18 +376,16 @@ export function useSelection() {
   }, [onDocumentMouseUp, onDocumentMouseClick, onDocumentMouseMove]);
 
   useEffect(() => {
-    if (!app?.renderer) return;
+    if (!app) return;
 
-    app.canvas.addEventListener?.('pointerdown', onCanvasMouseDown);
-    app.canvas.addEventListener?.('pointermove', onCanvasMouseMove);
-    app.canvas.addEventListener?.('click', onCanvasMouseClick);
+    app.view.addEventListener?.('pointerdown', onCanvasMouseDown);
+    app.view.addEventListener?.('mousemove', onCanvasMouseMove);
+    app.view.addEventListener?.('click', onCanvasMouseClick);
 
     return () => {
-      if (!app?.renderer) return;
-
-      app?.canvas?.removeEventListener?.('pointerdown', onCanvasMouseDown);
-      app?.canvas?.removeEventListener?.('pointermove', onCanvasMouseMove);
-      app?.canvas?.removeEventListener?.('click', onCanvasMouseClick);
+      app?.view?.removeEventListener?.('pointerdown', onCanvasMouseDown);
+      app?.view?.removeEventListener?.('mousemove', onCanvasMouseMove);
+      app?.view?.removeEventListener?.('click', onCanvasMouseClick);
     };
   }, [app, onCanvasMouseClick, onCanvasMouseDown, onCanvasMouseMove]);
 

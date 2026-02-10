@@ -51,7 +51,7 @@ export function useCloneResources() {
         parentPath,
         targetBucket: targetBucket ?? userBucket,
         targetPath:
-          (targetPath ?? bucket === userBucket) ? (parentPath ?? null) : null,
+          targetPath ?? bucket === userBucket ? parentPath ?? null : null,
         isReadOnly: !!(
           item?.permissions?.includes('READ') &&
           !item.permissions.includes('WRITE')
@@ -64,7 +64,7 @@ export function useCloneResources() {
 
       onProgress?.(100);
     },
-    [cloneProject, userBucket],
+    [cloneProject, userBucket]
   );
 
   const handleCloneFile = useCallback(
@@ -96,7 +96,7 @@ export function useCloneResources() {
         parentPath,
         targetBucket: targetBucket ?? userBucket,
         targetPath:
-          (targetPath ?? bucket === userBucket) ? (parentPath ?? null) : null,
+          targetPath ?? bucket === userBucket ? parentPath ?? null : null,
         newName,
       });
 
@@ -120,7 +120,7 @@ export function useCloneResources() {
         parentPath,
         targetBucket: targetBucket ?? userBucket,
         targetPath:
-          (targetPath ?? bucket === userBucket) ? (parentPath ?? null) : null,
+          targetPath ?? bucket === userBucket ? parentPath ?? null : null,
         suppressErrors: true,
         newName: newName ? toSchemaFileName(newName) : undefined,
       });
@@ -129,7 +129,7 @@ export function useCloneResources() {
 
       onProgress?.(100);
     },
-    [cloneFile, userBucket],
+    [cloneFile, userBucket]
   );
 
   const cloneResources = useCallback(
@@ -186,7 +186,7 @@ export function useCloneResources() {
       displayToast('success', appMessages.fileCloneSuccess);
       toast.dismiss(uploadingToast);
     },
-    [handleCloneFile, handleCloneProject],
+    [handleCloneFile, handleCloneProject]
   );
 
   return {

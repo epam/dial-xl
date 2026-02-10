@@ -42,7 +42,7 @@ export function useCharts() {
       tableName: string,
       fieldName: string,
       key: string | string[],
-      hasNoData = false,
+      hasNoData = false
     ) => {
       if (!projectName || !projectBucket) return;
 
@@ -61,14 +61,14 @@ export function useCharts() {
         updateTableDecoratorValue(
           tableName,
           selectorValue,
-          chartSelectorDecoratorName,
+          chartSelectorDecoratorName
         );
       } else if (fieldName === histogramChartSeriesSelector) {
         const selectorValue = typeof key === 'string' ? escapeValue(key) : key;
         updateTableDecoratorValue(
           tableName,
           selectorValue,
-          chartSelectorDecoratorName,
+          chartSelectorDecoratorName
         );
       } else {
         const selectorValue =
@@ -89,7 +89,7 @@ export function useCharts() {
       updateSelectorValue,
       updateTableDecoratorValue,
       viewGridData,
-    ],
+    ]
   );
 
   useEffect(() => {
@@ -143,72 +143,59 @@ export function useCharts() {
         if (!isKeyUpdate || !chartName) continue;
 
         const currentChart = charts.find(
-          (chart) => chart.tableName === chartName,
+          (chart) => chart.tableName === chartName
         );
 
         if (!currentChart) continue;
 
         const { selectedKeys, selectorFieldNames, chartType } = currentChart;
 
-        const isEmptySelectorValue = (v: unknown) => {
-          if (v === null || v === undefined) return true;
-          if (Array.isArray(v)) return v.length === 0;
+        const selectedSelectors = Object.keys(selectedKeys);
 
-          return v === '';
-        };
+        const addToTablesWithoutSelectors =
+          selectorFieldNames.length === 0 &&
+          !tablesWithoutSelectors.some((i) => i.tableName === chartName);
 
-        // Pick only selectors that actually have a value
-        const nonEmptySelectorFieldNames = selectorFieldNames.filter(
-          (name) => !isEmptySelectorValue(selectedKeys[name]),
-        );
+        if (addToTablesWithoutSelectors) {
+          tablesWithoutSelectors.push({ tableName: chartName, chartType });
+        }
 
-        const hasAnyNonEmptySelector = nonEmptySelectorFieldNames.length > 0;
-
-        // If there are no selectors OR all selectors are empty — we consider that there are no selectors
-        if (!hasAnyNonEmptySelector) {
-          // Special case: empty rowNumber selector, but the table has 1 row -> show chart with 1 row
-          const hasRowNumberSelector = selectorFieldNames.includes(
-            chartRowNumberSelector,
+        // All selectors must have values to request chart data
+        if (selectorFieldNames.length !== selectedSelectors.length) {
+          // Special case: empty rowNumber selector, but table has 1 row -> show chart with 1 row
+          const hasRowNumberSelector = selectorFieldNames.some(
+            (i) => i === chartRowNumberSelector
           );
           const itemExists = selectedChartKeys.some(
             (i) =>
               i.tableName === chartName &&
-              i.fieldName === chartRowNumberSelector,
+              i.fieldName === chartRowNumberSelector
           );
 
-          if (hasRowNumberSelector && !itemExists) {
-            const tableData = viewGridData.getTableData(chartName);
+          if (!hasRowNumberSelector || itemExists) continue;
 
-            if (tableData.totalRows === 1) {
-              selectedChartKeys.push({
-                tableName: chartName,
-                fieldName: chartRowNumberSelector,
-                key: '1',
-                chartType,
-              });
+          const tableData = viewGridData.getTableData(chartName);
 
-              continue;
-            }
-          }
-
-          // In case there are no selectors at all
-          const alreadyAdded = tablesWithoutSelectors.some(
-            (i) => i.tableName === chartName,
-          );
-          if (!alreadyAdded) {
-            tablesWithoutSelectors.push({ tableName: chartName, chartType });
+          if (tableData.totalRows === 1) {
+            selectedChartKeys.push({
+              tableName: chartName,
+              fieldName: chartRowNumberSelector,
+              key: '1',
+              chartType,
+            });
           }
 
           continue;
         }
 
-        // Request chart data only for non-empty selectors
-        for (const selectorFieldName of nonEmptySelectorFieldNames) {
+        for (const selectorFieldName of selectedSelectors) {
           const currentSelectedKey = selectedKeys[selectorFieldName];
+
+          if (!currentSelectedKey) continue;
 
           const itemExists = selectedChartKeys.some(
             (i) =>
-              i.fieldName === selectorFieldName && i.tableName === chartName,
+              i.fieldName === selectorFieldName && i.tableName === chartName
           );
           if (itemExists) continue;
 
@@ -216,15 +203,11 @@ export function useCharts() {
             ? currentSelectedKey.map((k) =>
                 typeof k === 'number'
                   ? k
-                  : escapeName(k, stringShouldBeEscapedChars, false),
+                  : escapeName(k, stringShouldBeEscapedChars, false)
               )
             : typeof currentSelectedKey === 'number'
-              ? currentSelectedKey
-              : escapeName(
-                  currentSelectedKey,
-                  stringShouldBeEscapedChars,
-                  false,
-                );
+            ? currentSelectedKey
+            : escapeName(currentSelectedKey, stringShouldBeEscapedChars, false);
 
           selectedChartKeys.push({
             tableName: chartName,
@@ -243,7 +226,7 @@ export function useCharts() {
     setCharts(viewGridData.getCharts());
 
     const chartUpdateStructureSubscription = viewGridData.chartUpdate.subscribe(
-      handleUpdateChartStructure,
+      handleUpdateChartStructure
     );
 
     return () => {

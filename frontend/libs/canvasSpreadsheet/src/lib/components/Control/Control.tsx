@@ -1,4 +1,4 @@
-import { RefObject, useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import {
   ControlData,
@@ -22,12 +22,12 @@ type Props = {
   controlData: ControlData | null;
   controlIsLoading: boolean;
   eventBus: GridEventBus;
-  apiRef: RefObject<GridApi | null>;
+  api: GridApi | null;
   zoom?: number;
 };
 
 export function Control({
-  apiRef,
+  api,
   controlData,
   controlIsLoading,
   eventBus,
@@ -69,7 +69,7 @@ export function Control({
 
       if (onEscape) return;
     },
-    [controlOpened, eventBus],
+    [controlOpened, eventBus]
   );
 
   useClickOutside(
@@ -77,12 +77,11 @@ export function Control({
     () => hideControl(),
     ['mousedown', 'contextmenu'],
     false,
-    enableClickOutside,
+    enableClickOutside
   );
 
   const showControl = useCallback(
     (cellData: GridCell) => {
-      const api = apiRef.current;
       if (!api) return;
 
       if (controlOpened) {
@@ -136,7 +135,7 @@ export function Control({
         });
       }, 0);
     },
-    [apiRef, controlOpened, hideControl, zoom, eventBus],
+    [api, controlOpened, hideControl, zoom, eventBus]
   );
 
   const onKeydown = useCallback(
@@ -147,7 +146,7 @@ export function Control({
 
       hideControl(true);
     },
-    [hideControl],
+    [hideControl]
   );
 
   useEffect(() => {
@@ -159,11 +158,10 @@ export function Control({
   }, [onKeydown]);
 
   useEffect(() => {
-    const api = apiRef.current;
     if (!api) return;
 
     const gridViewportUnsubscribe = api.gridViewportSubscription(() =>
-      hideControl(),
+      hideControl()
     );
     const openControlSubscription = api.events$
       .pipe(filterByTypeAndCast<EventTypeOpenControl>(GridEvent.openControl))
@@ -179,15 +177,15 @@ export function Control({
         clearTimeout(timeoutRef.current);
       }
     };
-  }, [apiRef, hideControl, showControl]);
+  }, [api, hideControl, showControl]);
 
   return (
     <div
-      className="h-full w-full absolute left-0 top-0 pointer-events-none overflow-hidden z-305"
+      className="h-full w-full absolute left-0 top-0 pointer-events-none overflow-hidden z-[305]"
       id="controlContainer"
     >
       <div
-        className="rounded-md wrap-break-word z-600 absolute transition-opacity p-2 bg-bg-layer-0 border border-stroke-primary shadow-lg"
+        className="rounded-md break-words z-600 absolute transition-opacity p-2 bg-bg-layer-0 border border-stroke-primary shadow-lg"
         ref={clickRef}
         style={{
           top: controlPosition.y,

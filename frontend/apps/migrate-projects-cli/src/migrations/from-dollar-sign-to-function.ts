@@ -1,4 +1,3 @@
-// @ts-nocheck
 import isEqual from 'react-fast-compare';
 import yaml from 'yaml';
 
@@ -32,7 +31,7 @@ const functionNames = [
 function findFunctionExpressions(
   expression: Expression,
   expressionText: string,
-  result: FunctionExpression[] = [],
+  result: FunctionExpression[] = []
 ): FunctionExpression[] {
   if (!expression) {
     return result;
@@ -73,7 +72,7 @@ function findFunctionExpressions(
 function findDollarTableNameExpression(
   expression: Expression,
   result: { start: number; stop: number }[],
-  isInitial = false,
+  isInitial = false
 ): { start: number; stop: number }[] {
   if (!expression) {
     return result;
@@ -123,7 +122,7 @@ function findDollarTableNameExpression(
 }
 
 const getReplacements = (
-  expression: string,
+  expression: string
 ): {
   newValue: string;
   expr: { start: number; stop: number };
@@ -143,7 +142,7 @@ const getReplacements = (
     [];
 
   const filteredFunctionExpressions = functionExpressions.filter((funcExpr) =>
-    functionNames.includes(funcExpr.name),
+    functionNames.includes(funcExpr.name)
   );
   for (const functionExpression of filteredFunctionExpressions) {
     const res = findDollarTableNameExpression(functionExpression, [], true);
@@ -191,7 +190,7 @@ const getReplacements = (
             stop: tableExpr.stop,
           },
         };
-      }),
+      })
     );
   }
 
@@ -200,7 +199,7 @@ const getReplacements = (
 
 function replaceContent(
   str: string,
-  replacements: { newValue: string; start: number; end: number }[],
+  replacements: { newValue: string; start: number; end: number }[]
 ) {
   let result = str;
   replacements.sort((a, b) => b.start - a.start); // sort in descending order to avoid conflicts.
@@ -216,7 +215,7 @@ export const updateSheetContent = (
   additionalContext: { fileName: string; sheetName: string } = {
     fileName: 'test file name',
     sheetName: 'test sheet name',
-  },
+  }
 ): string => {
   const parsedSheet = SheetReader.parseSheet(sheetContent);
 
@@ -269,7 +268,7 @@ export const updateSheetContent = (
         }
       } catch (e) {
         console.error(
-          `Error during field parsing ${fieldName} of sheet ${additionalContext.sheetName} of file ${additionalContext.fileName}\n${e.message}`,
+          `Error during field parsing ${fieldName} of sheet ${additionalContext.sheetName} of file ${additionalContext.fileName}\n${e.message}`
         );
       }
     }
@@ -344,7 +343,7 @@ export const fromDollarSignToFunctionName: ExecutableFunc = async (
     qgAccessToken: string;
     fileKey: string;
     isTestMigration?: boolean;
-  },
+  }
 ) => {
   if (!additionalParams.qgAccessToken) {
     throw new Error('no_qg_access_token_presented');
@@ -370,11 +369,11 @@ export const fromDollarSignToFunctionName: ExecutableFunc = async (
     const resText = await res.text();
 
     console.error(
-      `Error while getting compilation information before migration, ${res.status} - ${resText}`,
+      `Error while getting compilation information before migration, ${res.status} - ${resText}`
     );
 
     throw new Error(
-      `Error while getting compilation information before migration, ${res.status} - ${resText}`,
+      `Error while getting compilation information before migration, ${res.status} - ${resText}`
     );
   }
 
@@ -417,11 +416,11 @@ export const fromDollarSignToFunctionName: ExecutableFunc = async (
   if (!updatedRes.ok) {
     const resText = await updatedRes.text();
     console.error(
-      `Error while getting compilation information after migration, ${updatedRes.status} - ${resText}`,
+      `Error while getting compilation information after migration, ${updatedRes.status} - ${resText}`
     );
 
     throw new Error(
-      `Error while getting compilation information after migration, ${updatedRes.status} - ${resText}`,
+      `Error while getting compilation information after migration, ${updatedRes.status} - ${resText}`
     );
   }
   const updatedJson = await updatedRes.json();
@@ -429,14 +428,14 @@ export const fromDollarSignToFunctionName: ExecutableFunc = async (
 
   afterCompilationErrors.forEach(({ fieldKey }) => {
     const isPresentedBefore = beforeCompilationErrors.some((before) =>
-      isEqual(before.fieldKey, fieldKey),
+      isEqual(before.fieldKey, fieldKey)
     );
 
     if (!isPresentedBefore) {
       const message = `new_compilation_error, \nfile: ${
         additionalParams.fileKey
       }\nbeforeCompilationErrors: ${JSON.stringify(
-        beforeCompilationErrors,
+        beforeCompilationErrors
       )},\nafterCompilationErrors: ${JSON.stringify(afterCompilationErrors)}`;
 
       if (additionalParams.isTestMigration) {

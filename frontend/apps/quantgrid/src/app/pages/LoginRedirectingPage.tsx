@@ -2,7 +2,7 @@ import { Button, Spin } from 'antd';
 import classNames from 'classnames';
 import { useEffect } from 'react';
 import { useAuth } from 'react-oidc-context';
-import { useNavigate, useParams, useSearchParams } from 'react-router';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import Icon from '@ant-design/icons';
 import { primaryButtonClasses, QGLogo } from '@frontend/common/lib';
@@ -14,7 +14,7 @@ import { getProjectNavigateUrl } from '../utils';
 export const LoginRedirectingPage = (
   { isAutoRedirect = true }: { isAutoRedirect?: boolean } = {
     isAutoRedirect: true,
-  },
+  }
 ) => {
   const navigate = useNavigate();
   const { projectName: urlProjectName, sheetName: urlProjectSheetName } =
@@ -53,12 +53,12 @@ export const LoginRedirectingPage = (
               projectBucket: urlProjectBucket,
               projectName: urlProjectName,
               projectSheetName: urlProjectSheetName,
-            }),
+            })
         );
       } else {
         errorSearchParams.set(
           'redirectTo',
-          window.location.origin + window.location.pathname,
+          window.location.origin + window.location.pathname
         );
       }
 

@@ -5,7 +5,7 @@ import { getPx } from '../../../utils';
 import { CellEditorContext } from '../CellEditorContext';
 
 type Props = {
-  apiRef: RefObject<GridApi | null>;
+  apiRef: RefObject<GridApi>;
 };
 
 export function useCellEditorViewport({ apiRef }: Props) {

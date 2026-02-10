@@ -4,9 +4,7 @@ import com.epam.deltix.quantgrid.engine.service.ai.AiProvider;
 import com.epam.deltix.quantgrid.engine.service.ai.LocalAiProvider;
 import com.epam.deltix.quantgrid.engine.service.input.storage.ImportProvider;
 import com.epam.deltix.quantgrid.engine.service.input.storage.InputProvider;
-import com.epam.deltix.quantgrid.engine.service.input.storage.InputUtils;
 import com.epam.deltix.quantgrid.engine.service.input.storage.dial.DialInputProvider;
-import com.epam.deltix.quantgrid.engine.service.input.storage.dial.DialSchemaStore;
 import com.epam.deltix.quantgrid.engine.service.input.storage.local.LocalImportProvider;
 import com.epam.deltix.quantgrid.engine.store.Store;
 import com.epam.deltix.quantgrid.engine.store.local.LocalStore;
@@ -32,6 +30,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.io.FileNotFoundException;
 import java.io.InputStream;
 import java.nio.file.Paths;
 import java.util.Comparator;
@@ -59,8 +58,8 @@ class CompileControllerTest {
     @TestConfiguration
     public static class Configuration {
         @Bean
-        public InputProvider dialInputProvider(DialFileApi fileApi, DialSchemaStore schemaStore) {
-            return new DialInputProvider(fileApi, schemaStore);
+        public InputProvider dialInputProvider(DialFileApi fileApi) {
+            return new DialInputProvider(fileApi, "input_schemas.json");
         }
 
         @Bean
@@ -81,9 +80,6 @@ class CompileControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
-
-    @MockitoBean
-    private DialSchemaStore schemaStore;
 
     @MockitoBean
     private DialFileApi dialFileApi;
@@ -124,7 +120,6 @@ class CompileControllerTest {
                                         .setTable("A")
                                         .setField("a"))
                                 .setType(Api.ColumnDataType.DOUBLE)
-                                .setIsAssignable(true)
                                 .setHash("667668fa41db37f4e12d14309f1712a49f3e1bf7e24fbb9433f842fbdb5453ca")
                                 .setFormat(Api.ColumnFormat.newBuilder()
                                         .setGeneralArgs(Api.GeneralFormatArgs.getDefaultInstance())
@@ -165,7 +160,6 @@ class CompileControllerTest {
                                         .setField("__formula"))
                                 .setType(Api.ColumnDataType.TABLE_REFERENCE)
                                 .setIsNested(true)
-                                .setIsAssignable(true)
                                 .setReferenceTableName("A")
                                 .addReferences(tableReference("A"))))
                 .build();
@@ -182,13 +176,15 @@ class CompileControllerTest {
         String etag = "test-etag";
         String prefix = "files/" + bucket + "/";
         String input = prefix + name + ".csv";
-        String schema = InputUtils.getSchemaPath(input, etag);
+        String schema = prefix + "." + name + ".schema";
         InputStream inputStream = resourceLoader.getResource("classpath:test-inputs/malformed/" + name + ".csv")
                 .getInputStream();
         when(dialFileApi.getAttributes(eq(input), eq(true), eq(false), isNull(), any()))
                 .thenReturn(new DialFileApi.Attributes(etag, input, null, null, List.of("READ"), null, List.of()));
-        when(schemaStore.loadCsvSchema(schema))
-                .thenReturn(null);
+        when(dialFileApi.readFile(eq(schema), any()))
+                .thenThrow(new FileNotFoundException());
+        when(dialFileApi.getBucket(any()))
+                .thenReturn(bucket);
         when(dialFileApi.readFile(eq(input), any()))
                 .thenReturn(new EtaggedStream(inputStream, inputStream, etag));
 

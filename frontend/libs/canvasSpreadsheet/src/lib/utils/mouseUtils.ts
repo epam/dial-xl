@@ -1,7 +1,7 @@
 import { canvasId, GridSizes } from '../constants';
 
 export function getMousePosition(
-  e: Pick<MouseEvent, 'clientX' | 'clientY'>,
+  e: Pick<MouseEvent, 'clientX' | 'clientY'>
 ): null | { x: number; y: number } {
   const container = document.getElementById(canvasId);
 
@@ -18,7 +18,7 @@ export function isClickInsideCanvas(
   y: number,
   gridSizes: GridSizes,
   skipColNumber = false,
-  skipRowNumber = false,
+  skipRowNumber = false
 ) {
   const container = document.getElementById(canvasId);
 

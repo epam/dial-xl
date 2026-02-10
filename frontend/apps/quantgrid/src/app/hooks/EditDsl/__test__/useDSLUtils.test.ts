@@ -1,5 +1,3 @@
-import { vi } from 'vitest';
-
 import { newLine } from '@frontend/parser';
 import { act, RenderHookResult } from '@testing-library/react';
 
@@ -22,7 +20,7 @@ describe('useDSLUtils', () => {
   });
 
   beforeEach(() => {
-    vi.clearAllMocks();
+    jest.clearAllMocks();
     const hookRender = hookTestSetup(useDSLUtils, Wrapper);
     hook = hookRender.result;
     setDsl = hookRender.setDsl;
@@ -44,7 +42,7 @@ describe('useDSLUtils', () => {
       expect(result).toEqual(
         expect.objectContaining({
           tableName: 't1',
-        }),
+        })
       );
     });
 
@@ -63,7 +61,7 @@ describe('useDSLUtils', () => {
       expect(result).toEqual(
         expect.objectContaining({
           tableName: `'some table'`,
-        }),
+        })
       );
     });
 
@@ -103,7 +101,7 @@ describe('useDSLUtils', () => {
             fullFieldName: '[f2]',
             tableName: 't1',
           },
-        }),
+        })
       );
     });
 
@@ -158,7 +156,7 @@ describe('useDSLUtils', () => {
             fullFieldName: '[f2]',
             tableName: 't1',
           },
-        }),
+        })
       );
     });
 
@@ -201,7 +199,7 @@ describe('useDSLUtils', () => {
 
       // Act
       await act(() =>
-        hook.current.updateDSL({ updatedSheetContent: dsl, historyTitle: '' }),
+        hook.current.updateDSL({ updatedSheetContent: dsl, historyTitle: '' })
       );
 
       // Assert
@@ -221,7 +219,7 @@ describe('useDSLUtils', () => {
 
       // Act
       await act(() =>
-        hook.current.updateDSL({ updatedSheetContent: dsl, historyTitle }),
+        hook.current.updateDSL({ updatedSheetContent: dsl, historyTitle })
       );
 
       // Assert
@@ -257,7 +255,7 @@ describe('useDSLUtils', () => {
             historyTitle,
             sheetNameToChange: sheetName2,
           },
-        ]),
+        ])
       );
 
       // Assert
@@ -299,7 +297,7 @@ describe('useDSLUtils', () => {
             historyTitle: historyTitle2,
             sheetNameToChange: sheetName2,
           },
-        ]),
+        ])
       );
 
       // Assert

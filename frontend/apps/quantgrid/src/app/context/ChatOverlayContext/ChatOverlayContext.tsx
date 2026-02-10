@@ -38,5 +38,5 @@ type ChatOverlayContextValues = {
 };
 
 export const ChatOverlayContext = createContext<ChatOverlayContextValues>(
-  {} as ChatOverlayContextValues,
+  {} as ChatOverlayContextValues
 );

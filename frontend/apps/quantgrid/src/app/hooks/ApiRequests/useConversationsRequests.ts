@@ -4,13 +4,13 @@ import { AuthContextProps } from 'react-oidc-context';
 import { Message } from '@epam/ai-dial-overlay';
 import {
   apiMessages,
-  ApiRequestFunction,
   conversationsEndpointPrefix,
   MetadataResourceType,
   ResourceMetadata,
 } from '@frontend/common';
 
 import { FileReference } from '../../common';
+import { ApiRequestFunction } from '../../types';
 import { constructPath, displayToast, encodeApiUrl } from '../../utils';
 import { useBackendRequest, useResourceRequests } from '.';
 
@@ -30,8 +30,8 @@ export const useConversationResourceRequests = (auth: AuthContextProps) => {
               bucket,
               parentPath,
               name,
-            ]),
-          ),
+            ])
+          )
         );
 
         if (!res.ok) {
@@ -47,7 +47,7 @@ export const useConversationResourceRequests = (auth: AuthContextProps) => {
         displayToast('error', apiMessages.getConversationClient);
       }
     },
-    [sendDialRequest],
+    [sendDialRequest]
   );
 
   const putConversation = useCallback<
@@ -67,12 +67,12 @@ export const useConversationResourceRequests = (auth: AuthContextProps) => {
               bucket,
               parentPath,
               name,
-            ]),
+            ])
           ),
           {
             method: 'PUT',
             body: JSON.stringify(conversation),
-          },
+          }
         );
 
         if (!res.ok) {
@@ -86,7 +86,7 @@ export const useConversationResourceRequests = (auth: AuthContextProps) => {
         displayToast('error', apiMessages.putConversationClient);
       }
     },
-    [sendDialRequest],
+    [sendDialRequest]
   );
 
   const getConversations = useCallback<
@@ -112,24 +112,24 @@ export const useConversationResourceRequests = (auth: AuthContextProps) => {
 
       return fileMetadata?.items ?? undefined;
     },
-    [getResourceMetadata],
+    [getResourceMetadata]
   );
 
   const deleteConversation = useCallback(
     async (
       bucket: string,
       parentPath: string | null | undefined,
-      name: string,
+      name: string
     ) => {
       const url = encodeApiUrl(
-        constructPath([conversationsEndpointPrefix, bucket, parentPath, name]),
+        constructPath([conversationsEndpointPrefix, bucket, parentPath, name])
       );
 
       return await sendDialRequest(url, {
         method: 'DELETE',
       });
     },
-    [sendDialRequest],
+    [sendDialRequest]
   );
 
   // Storage implementation of move conversation
@@ -140,19 +140,19 @@ export const useConversationResourceRequests = (auth: AuthContextProps) => {
       bucket: string,
       parentPath: string | null | undefined,
       name: string,
-      destinationFolder: string,
+      destinationFolder: string
     ) => {
       return await sendDialRequest('/v1/ops/resource/move', {
         method: 'POST',
         body: JSON.stringify({
           sourceUrl: encodeApiUrl(
-            constructPath(['conversations', bucket, parentPath, name]),
+            constructPath(['conversations', bucket, parentPath, name])
           ),
           destinationUrl: encodeApiUrl(`${destinationFolder}${name}`),
         }),
       });
     },
-    [sendDialRequest],
+    [sendDialRequest]
   );
 
   // Storage implementation of copy conversation
@@ -163,19 +163,19 @@ export const useConversationResourceRequests = (auth: AuthContextProps) => {
       bucket: string,
       parentPath: string | null | undefined,
       name: string,
-      destinationFolder: string,
+      destinationFolder: string
     ) => {
       return await sendDialRequest('/v1/ops/resource/copy', {
         method: 'POST',
         body: JSON.stringify({
           sourceUrl: encodeApiUrl(
-            constructPath(['conversations', bucket, parentPath, name]),
+            constructPath(['conversations', bucket, parentPath, name])
           ),
           destinationUrl: encodeApiUrl(`${destinationFolder}${name}`),
         }),
       });
     },
-    [sendDialRequest],
+    [sendDialRequest]
   );
 
   return {

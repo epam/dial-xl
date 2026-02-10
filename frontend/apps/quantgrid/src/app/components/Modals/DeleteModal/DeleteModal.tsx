@@ -38,7 +38,7 @@ export function DeleteModal() {
         submit();
       }
     },
-    [submit, isOpen],
+    [submit, isOpen]
   );
 
   useEffect(() => {
@@ -59,7 +59,7 @@ export function DeleteModal() {
         className: cx(
           modalFooterButtonClasses,
           primaryButtonClasses,
-          primaryDisabledButtonClasses,
+          primaryDisabledButtonClasses
         ),
       }}
       open={isOpen}

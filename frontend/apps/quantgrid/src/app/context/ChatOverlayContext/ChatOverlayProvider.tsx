@@ -1,5 +1,4 @@
 import {
-  type JSX,
   PropsWithChildren,
   useCallback,
   useContext,
@@ -10,7 +9,7 @@ import {
 } from 'react';
 import isEqual from 'react-fast-compare';
 import { useAuth } from 'react-oidc-context';
-import { toast } from 'react-toastify';
+// import { toast } from 'react-toastify';
 import { debounceTime, Subject, throttleTime } from 'rxjs';
 
 import {
@@ -32,7 +31,7 @@ import {
 } from '@epam/ai-dial-overlay';
 import {
   AppTheme,
-  CompletionBodyRequest,
+  // CompletionBodyRequest,
   conversationsEndpointType,
   getAffectedEntitiesHighlight,
   getFocusColumns,
@@ -50,9 +49,9 @@ import {
   Shortcut,
   shortcutApi,
   TableHighlightDataMap,
-  themesColors,
+  themeColors,
   updateChangedSheetsStage,
-  updateSummaryStage,
+  // updateSummaryStage,
   useStateWithRef,
 } from '@frontend/common';
 import { escapeTableName } from '@frontend/parser';
@@ -64,7 +63,7 @@ import {
   getProjectSelectedConversation,
   setProjectSelectedConversation,
 } from '../../services';
-import { useUserSettingsStore, useViewStore } from '../../store';
+import { useThemeStore, useViewStore } from '../../store';
 import {
   checkIcon,
   constructPath,
@@ -157,7 +156,7 @@ export function ChatOverlayContextProvider({
   const { user } = useAuth();
   const projectHashes = useMemo(
     () => fieldInfos.map((f) => f.hash),
-    [fieldInfos],
+    [fieldInfos]
   );
 
   const [isAIPendingChanges, setIsAIPendingChanges, isAIPendingChangesRef] =
@@ -176,7 +175,7 @@ export function ChatOverlayContextProvider({
   >({});
   const { inputs } = useContext(InputsContext);
   const { appendTo } = useContext(UndoRedoContext);
-  const theme = useUserSettingsStore((s) => s.data.appTheme);
+  const theme = useThemeStore((s) => s.theme);
   const gridApi = useGridApi();
   const { applySuggestion, onFocusColumns } = useApplySuggestions();
   const [customButtons, setCustomButtons] = useState<MessageButtons[]>([]);
@@ -187,7 +186,7 @@ export function ChatOverlayContextProvider({
   const overlayInitialized = useRef(false);
 
   const [overlay, setOverlay, overlayRef] = useStateWithRef<ChatOverlay | null>(
-    null,
+    null
   );
   const [GPTSuggestions, setGPTSuggestions, gptSuggestionsRef] =
     useStateWithRef<GPTSuggestion[] | null>(null);
@@ -216,7 +215,7 @@ export function ChatOverlayContextProvider({
   ] = useState(false);
   const isProjectReadonly = useMemo(
     () => !hasEditPermissions || isProjectReadonlyByUser,
-    [hasEditPermissions, isProjectReadonlyByUser],
+    [hasEditPermissions, isProjectReadonlyByUser]
   );
 
   const affectedEntitiesRef = useRef<TableHighlightDataMap | null>(null);
@@ -227,17 +226,12 @@ export function ChatOverlayContextProvider({
   const sharedWithMeConversationFolders = useMemo(async () => {
     if (!userBucket) return [];
 
-    const sharedResources = await getSharedWithMeResources({
+    const res = await getSharedWithMeResources({
       resourceType: MetadataResourceType.CONVERSATION,
     });
-    const sharedResourcesData = sharedResources.success
-      ? sharedResources.data
-      : [];
 
     return (
-      sharedResourcesData.filter(
-        (item) => item.nodeType === MetadataNodeType.FOLDER,
-      ) ?? []
+      res?.filter((item) => item.nodeType === MetadataNodeType.FOLDER) ?? []
     );
   }, [getSharedWithMeResources, userBucket]);
 
@@ -251,7 +245,7 @@ export function ChatOverlayContextProvider({
           projectName,
         }),
       ]),
-    [projectBucket, projectName, projectPath],
+    [projectBucket, projectName, projectPath]
   );
 
   // TODO: too long names - can be a problem on BE to save this
@@ -266,7 +260,7 @@ export function ChatOverlayContextProvider({
           projectName,
         }),
       ]),
-    [projectBucket, projectName, projectPath, userBucket],
+    [projectBucket, projectName, projectPath, userBucket]
   );
 
   const canInitOverlay =
@@ -281,8 +275,8 @@ export function ChatOverlayContextProvider({
     return folders.some(
       (item) =>
         encodeApiUrl(
-          constructPath([item.bucket, item.parentPath, item.name]),
-        ) === conversationsFolderId,
+          constructPath([item.bucket, item.parentPath, item.name])
+        ) === conversationsFolderId
     );
   }, [conversationsFolderId, sharedWithMeConversationFolders]);
 
@@ -317,7 +311,7 @@ export function ChatOverlayContextProvider({
       setDiffData,
       setIsAIEditPendingChanges,
       setIsTemporaryStateEditable,
-    ],
+    ]
   );
 
   const getOverlayOptions = useCallback((): ChatOverlayOptions => {
@@ -333,7 +327,6 @@ export function ChatOverlayContextProvider({
       newConversationsFolderId: resultedFolderId,
       requestTimeout: 10000,
       loaderStyles: {
-        backgroundColor: themesColors[theme].bgLayer1,
         padding: '20px',
         textAlign: 'center',
       },
@@ -362,108 +355,114 @@ export function ChatOverlayContextProvider({
   const sendAssistantStatusMessage = useCallback(
     async (
       messages: Message[],
-      status: 'ACCEPTED' | 'DISCARDED',
-      regenerateFocus?: boolean,
+      _status: 'ACCEPTED' | 'DISCARDED',
+      _regenerateFocus?: boolean
     ) => {
       if (!messages.length || !projectSheets) return;
 
-      const qgBotDeploymentName =
-        (window as any)?.externalEnv?.qgBotDeploymentName ?? 'qg';
       const lastAssistantMessage = messages[messages.length - 1];
-      const initialState = getInitialState([lastAssistantMessage]);
-      const sheets: { [key: string]: string } = {};
-      for (const sheet of projectSheets) {
-        sheets[sheet.sheetName] = sheet.content;
-      }
 
-      const stages = lastAssistantMessage.custom_content?.stages;
-      const resultingStages = stages?.map((stage) => {
-        const normalizedStageName = getNormalizedStageName(stage.name);
-        switch (normalizedStageName) {
-          case NormalizedStageNames.SUMMARY: {
-            return updateSummaryStage(stage, lastAssistantMessage.content);
-          }
-          case NormalizedStageNames.CHANGED_SHEETS: {
-            return updateChangedSheetsStage(stage, sheets);
-          }
-          default:
-            return stage;
-        }
-      });
+      // TODO: TEMPORARY CHANGE - UPDATE BEFORE MERGE
 
-      const systemMessageContent = {
-        projectState: initialState?.projectState,
-        generationParameters: {
-          question_status: status,
+      return lastAssistantMessage;
 
-          generate_actions: null,
-          generate_summary: null,
-          generate_focus: regenerateFocus === true || null,
-          generate_standalone_question: null,
-          saved_stages: resultingStages,
-        },
-      } as GPTState;
+      // const qgBotDeploymentName =
+      //   (window as any)?.externalEnv?.qgBotDeploymentName ?? 'qg';
 
-      const messagesWithoutLastAssistant = messages
-        .slice(0, -1)
-        .map((message) => ({
-          content: message.content,
-          role: message.role,
-          custom_content: message.custom_content?.state && {
-            state: message.custom_content.state,
-          },
-        }));
-      const resultedMessages = [
-        {
-          content: JSON.stringify(systemMessageContent),
-          role: Role.System,
-        },
-        ...messagesWithoutLastAssistant.slice(1),
-      ];
+      // const initialState = getInitialState([lastAssistantMessage]);
+      // const sheets: { [key: string]: string } = {};
+      // for (const sheet of projectSheets) {
+      //   sheets[sheet.sheetName] = sheet.content;
+      // }
 
-      try {
-        const res = await sendDialRequest(
-          `/openai/deployments/${encodeURI(
-            qgBotDeploymentName,
-          )}/chat/completions`,
-          {
-            body: JSON.stringify({
-              messages: resultedMessages,
-            } as CompletionBodyRequest),
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-          },
-        );
+      // const stages = lastAssistantMessage.custom_content?.stages;
+      // const resultingStages = stages?.map((stage) => {
+      //   const normalizedStageName = getNormalizedStageName(stage.name);
+      //   switch (normalizedStageName) {
+      //     case NormalizedStageNames.SUMMARY: {
+      //       return updateSummaryStage(stage, lastAssistantMessage.content);
+      //     }
+      //     case NormalizedStageNames.CHANGED_SHEETS: {
+      //       return updateChangedSheetsStage(stage, sheets);
+      //     }
+      //     default:
+      //       return stage;
+      //   }
+      // });
 
-        if (!res.ok) {
-          const errorText = await res.json();
-          throw new Error(
-            `Error ${res.status}(${res.statusText}): ${JSON.stringify(
-              errorText,
-            )}`,
-          );
-        }
+      // const systemMessageContent = {
+      //   projectState: initialState?.projectState,
+      //   generationParameters: {
+      //     question_status: status,
 
-        const respMessage = await res.json();
-        const resultedMessage: Message = {
-          responseId: respMessage.id,
-          content: respMessage.choices[0]?.message.content,
-          custom_content: respMessage.choices[0]?.message.custom_content,
-          role: Role.Assistant,
-        };
+      //     generate_actions: null,
+      //     generate_summary: null,
+      //     generate_focus: regenerateFocus === true || null,
+      //     generate_standalone_question: null,
+      //     saved_stages: resultingStages,
+      //   },
+      // } as GPTState;
 
-        return resultedMessage;
-      } catch (e) {
-        toast.warn('Failing when sending resulting completion');
-        // eslint-disable-next-line no-console
-        console.error(e);
+      // const messagesWithoutLastAssistant = messages
+      //   .slice(0, -1)
+      //   .map((message) => ({
+      //     content: message.content,
+      //     role: message.role,
+      //     custom_content: message.custom_content?.state && {
+      //       state: message.custom_content.state,
+      //     },
+      //   }));
+      // const resultedMessages = [
+      //   {
+      //     content: JSON.stringify(systemMessageContent),
+      //     role: Role.System,
+      //   },
+      //   ...messagesWithoutLastAssistant.slice(1),
+      // ];
 
-        return;
-      }
+      // try {
+      //   const res = await sendDialRequest(
+      //     `/openai/deployments/${encodeURI(
+      //       qgBotDeploymentName
+      //     )}/chat/completions`,
+      //     {
+      //       body: JSON.stringify({
+      //         messages: resultedMessages,
+      //       } as CompletionBodyRequest),
+      //       method: 'POST',
+      //       headers: {
+      //         'Content-Type': 'application/json',
+      //       },
+      //     }
+      //   );
+
+      //   if (!res.ok) {
+      //     const errorText = await res.json();
+      //     throw new Error(
+      //       `Error ${res.status}(${res.statusText}): ${JSON.stringify(
+      //         errorText
+      //       )}`
+      //     );
+      //   }
+
+      //   const respMessage = await res.json();
+      //   const resultedMessage: Message = {
+      //     responseId: respMessage.id,
+      //     content: respMessage.choices[0]?.message.content,
+      //     custom_content: respMessage.choices[0]?.message.custom_content,
+      //     role: Role.Assistant,
+      //   };
+
+      //   return resultedMessage;
+      // } catch (e) {
+      //   toast.warn('Failing when sending resulting completion');
+      //   // eslint-disable-next-line no-console
+      //   console.error(e);
+
+      //   return;
+      // }
     },
-    [projectSheets, sendDialRequest],
+    [projectSheets, sendDialRequest]
   );
 
   const acceptPendingChanges = useCallback(async () => {
@@ -478,7 +477,7 @@ export function ChatOverlayContextProvider({
         const resultedMessage = await sendAssistantStatusMessage(
           messages,
           'ACCEPTED',
-          isMajorEditManualEdit,
+          isMajorEditManualEdit
         );
         if (resultedMessage) {
           const maxMessageLength = 5000;
@@ -489,7 +488,7 @@ export function ChatOverlayContextProvider({
             resultedSuggestions.map((suggestion) => ({
               content: suggestion.dsl,
               sheetName: suggestion.sheetName,
-            })),
+            }))
           );
         }
 
@@ -564,7 +563,7 @@ export function ChatOverlayContextProvider({
 
       return userMessage;
     },
-    [overlay],
+    [overlay]
   );
 
   const loadMessageInitialState = useCallback(
@@ -576,17 +575,17 @@ export function ChatOverlayContextProvider({
       }
 
       const dslChanges = getDSLChangesFromSheets(
-        messageInitialState.projectState.sheets,
+        messageInitialState.projectState.sheets
       );
       const resultingDSLChanges = dslChanges.concat(
         (projectSheets ?? [])
           .filter(
             (sheet) =>
               !dslChanges.find(
-                (dslChange) => dslChange.sheetName === sheet.sheetName,
-              ),
+                (dslChange) => dslChange.sheetName === sheet.sheetName
+              )
           )
-          .map((item) => ({ sheetName: item.sheetName, content: undefined })),
+          .map((item) => ({ sheetName: item.sheetName, content: undefined }))
       );
 
       await updateSheetContent(resultingDSLChanges, {
@@ -594,13 +593,13 @@ export function ChatOverlayContextProvider({
         sendPutWorksheet: false,
       });
     },
-    [projectSheets, updateSheetContent],
+    [projectSheets, updateSheetContent]
   );
 
   const revertMessageChanges = useCallback(
     async (
       message: Message,
-      args: { skipHistory?: boolean; skipPut?: boolean } = {},
+      args: { skipHistory?: boolean; skipPut?: boolean } = {}
     ) => {
       const messageInitialState = getInitialState([message]);
 
@@ -609,10 +608,10 @@ export function ChatOverlayContextProvider({
       }
 
       const dslChanges = getDSLChangesFromSheets(
-        messageInitialState.projectState.sheets,
+        messageInitialState.projectState.sheets
       );
       const updatedResponsesIds = responseIds.filter(
-        ({ responseId }) => responseId !== message.responseId,
+        ({ responseId }) => responseId !== message.responseId
       );
       await updateSheetContent(dslChanges, {
         responseIds: updatedResponsesIds,
@@ -622,7 +621,7 @@ export function ChatOverlayContextProvider({
         appendTo('Revert AI changes', dslChanges);
       }
     },
-    [appendTo, responseIds, updateSheetContent],
+    [appendTo, responseIds, updateSheetContent]
   );
 
   const discardPendingChanges = useCallback(
@@ -673,14 +672,13 @@ export function ChatOverlayContextProvider({
       setDiffData,
       setIsAIPendingChanges,
       updateAIEditPendingChanges,
-    ],
+    ]
   );
 
   const exitAIPreview = useCallback(() => {
     setIsAIPreview(false);
     setAIPreviewMessageIndex(undefined);
     setDiffData(null);
-    setIsTemporaryStateEditable(false);
     resolveTemporaryState({ useServer: true });
 
     setOverlayFeatures(defaultFeatures);
@@ -698,7 +696,7 @@ export function ChatOverlayContextProvider({
       .concat(userLocalConversations)
       .find(
         ({ name, isPlayback }) =>
-          !isPlayback && name === originalConversationName,
+          !isPlayback && name === originalConversationName
       );
 
     // Fallback to the first non-playback conversation if the matching one isn't found
@@ -719,7 +717,6 @@ export function ChatOverlayContextProvider({
   }, [
     setIsAIPreview,
     setDiffData,
-    setIsTemporaryStateEditable,
     resolveTemporaryState,
     selectedConversation?.isPlayback,
     selectedConversation?.name,
@@ -757,7 +754,7 @@ export function ChatOverlayContextProvider({
       firstItem.id,
       projectName,
       projectBucket,
-      projectPath,
+      projectPath
     );
 
     if (!firstItem.isPlayback) return;
@@ -793,7 +790,7 @@ export function ChatOverlayContextProvider({
       const projectConversations = conversations
         .filter(({ folderId }) => folderId === conversationsFolderId)
         .sort((a, b) =>
-          a.updatedAt && b.updatedAt ? b.updatedAt - a.updatedAt : -1,
+          a.updatedAt && b.updatedAt ? b.updatedAt - a.updatedAt : -1
         );
       setProjectConversations(projectConversations);
       resultedConversations.push(...projectConversations);
@@ -801,14 +798,14 @@ export function ChatOverlayContextProvider({
       const userLocalConversations = conversations
         .filter(({ folderId }) => folderId === localUserConversationsFolderId)
         .sort((a, b) =>
-          a.updatedAt && b.updatedAt ? b.updatedAt - a.updatedAt : -1,
+          a.updatedAt && b.updatedAt ? b.updatedAt - a.updatedAt : -1
         );
       setUserLocalConversations(userLocalConversations);
       resultedConversations.push(...userLocalConversations);
 
       return resultedConversations;
     },
-    [conversationsFolderId, localUserConversationsFolderId],
+    [conversationsFolderId, localUserConversationsFolderId]
   );
 
   const setSystemPrompt = useCallback(
@@ -831,11 +828,11 @@ export function ChatOverlayContextProvider({
       const resultedCurrentSheetName = isProjectReadonly
         ? createUniqueName(
             defaultAISheetName,
-            resultedSheets?.map((sheet) => sheet.sheetName) ?? [],
+            resultedSheets?.map((sheet) => sheet.sheetName) ?? []
           )
         : resultedSheets.some((sheet) => sheet.sheetName === sheetName)
-          ? sheetName
-          : resultedSheets[0].sheetName;
+        ? sheetName
+        : resultedSheets[0].sheetName;
 
       let resultedProjectStateSheets: Record<string, string> | undefined =
         args?.projectSheetsState;
@@ -852,7 +849,7 @@ export function ChatOverlayContextProvider({
       const selection = gridApi.selection$.getValue();
 
       const currentProjectName = encodeApiUrl(
-        constructPath(['files', projectBucket, projectPath, projectName]),
+        constructPath(['files', projectBucket, projectPath, projectName])
       );
 
       const inputFolder = encodeApiUrl(
@@ -864,7 +861,7 @@ export function ChatOverlayContextProvider({
             projectPath,
             projectName,
           ]),
-        ]),
+        ])
       );
 
       const state = {
@@ -877,7 +874,7 @@ export function ChatOverlayContextProvider({
         selectedTableName: selectedCell?.tableName,
       };
 
-      const finalObject: GPTState = {
+      const finalObject = {
         projectState: state,
         generationParameters: args?.generationParameters,
       };
@@ -898,7 +895,7 @@ export function ChatOverlayContextProvider({
       projectSheets,
       selectedCell?.tableName,
       sheetName,
-    ],
+    ]
   );
 
   const regenerateSummary = useCallback(async () => {
@@ -971,14 +968,15 @@ export function ChatOverlayContextProvider({
     async (conversationId: string) => {
       if (!overlay) return;
 
-      const { conversation } =
-        await overlay.createPlaybackConversation(conversationId);
+      const { conversation } = await overlay.createPlaybackConversation(
+        conversationId
+      );
 
       if (conversation?.id) {
         await overlay.selectConversation(conversation.id);
       }
     },
-    [overlay],
+    [overlay]
   );
 
   const renameConversation = useCallback(
@@ -988,7 +986,7 @@ export function ChatOverlayContextProvider({
       await overlay.renameConversation(id, newName);
       await updateSelectedConversation();
     },
-    [overlay, projectBucket, projectName, updateSelectedConversation],
+    [overlay, projectBucket, projectName, updateSelectedConversation]
   );
 
   const updateSuggestions = useCallback(
@@ -1009,7 +1007,7 @@ export function ChatOverlayContextProvider({
         defaultHighlight: Highlight.DIMMED,
       };
     },
-    [setFocusColumns, setGPTSuggestions],
+    [setFocusColumns, setGPTSuggestions]
   );
 
   const updateCustomButtons = useCallback(async () => {
@@ -1018,7 +1016,7 @@ export function ChatOverlayContextProvider({
     const { messages } = (await overlay.getMessages()) as GetMessagesResponse;
     const sheets: { [key: string]: string } = {};
     const resultedProjectSheets = isProjectReadonly
-      ? (beforeTemporaryState?.sheets ?? projectSheets)
+      ? beforeTemporaryState?.sheets ?? projectSheets
       : projectSheets;
     for (const sheet of resultedProjectSheets) {
       sheets[sheet.sheetName] = sheet.content;
@@ -1078,11 +1076,11 @@ export function ChatOverlayContextProvider({
             : '';
           const focusParsedTable = escapedFocusTableName
             ? tablesInSheet.find(
-                (table) => table.tableName === escapedFocusTableName,
+                (table) => table.tableName === escapedFocusTableName
               )
             : undefined;
           const focusParsedField = focusParsedTable?.fields.find(
-            (f) => f.key.fieldName === focus?.columnName,
+            (f) => f.key.fieldName === focus?.columnName
           );
           const responseIdExists =
             msg.responseId &&
@@ -1095,41 +1093,35 @@ export function ChatOverlayContextProvider({
           const focusTooltip = isFocusable
             ? ''
             : !focusParsedTable
-              ? 'The tables suggested by the bot are not included in the project and cannot receive focus.'
-              : !focusParsedField
-                ? 'The columns suggested by the bot are not included in the project and cannot receive focus.'
-                : !responseIdExists
-                  ? 'This suggestion has not been applied to the project.'
-                  : '';
+            ? 'The tables suggested by the bot are not included in the project and cannot receive focus.'
+            : !focusParsedField
+            ? 'The columns suggested by the bot are not included in the project and cannot receive focus.'
+            : !responseIdExists
+            ? 'This suggestion has not been applied to the project.'
+            : '';
 
           const isHidePreviewButton =
             isAIPreview && aiPreviewMessageIndex === index;
 
-          const suggestionSheets = suggestions.reduce(
-            (acc, curr) => {
-              acc[curr.sheetName] = curr.dsl;
+          const suggestionSheets = suggestions.reduce((acc, curr) => {
+            acc[curr.sheetName] = curr.dsl;
+
+            return acc;
+          }, {} as Record<string, string>);
+          const beforeSuggestionsSheets =
+            resultedProjectSheets.reduce((acc, curr) => {
+              acc[curr.sheetName] = curr.content;
 
               return acc;
-            },
-            {} as Record<string, string>,
-          );
-          const beforeSuggestionsSheets =
-            resultedProjectSheets.reduce(
-              (acc, curr) => {
-                acc[curr.sheetName] = curr.content;
-
-                return acc;
-              },
-              {} as Record<string, string>,
-            ) ?? {};
+            }, {} as Record<string, string>) ?? {};
           const suggestionsSameAsState =
             isEqual(
               Object.keys(suggestionSheets),
-              Object.keys(beforeSuggestionsSheets),
+              Object.keys(beforeSuggestionsSheets)
             ) &&
             Object.entries(suggestionSheets).every(
               ([key, value]) =>
-                value.trim() === beforeSuggestionsSheets[key].trim(),
+                value.trim() === beforeSuggestionsSheets[key].trim()
             );
           const isMsgStateOnScreen =
             msg.responseId ===
@@ -1160,12 +1152,12 @@ export function ChatOverlayContextProvider({
                     iconSvg: isHidePreviewButton ? eyeOffIcon : eyeIcon,
                     styles: {
                       backgroundColor:
-                        themesColors[theme].controlsBgAccentSecondary,
-                      color: themesColors[theme].controlsTextPermanent,
+                        themeColors[theme].controlsBgAccentSecondary,
+                      color: themeColors[theme].controlsTextPermanent,
                     },
                     hoverStyles: {
                       backgroundColor:
-                        themesColors[theme].controlsBgAccentHoverSecondary,
+                        themeColors[theme].controlsBgAccentHoverSecondary,
                     },
                   },
               hasFocus
@@ -1173,12 +1165,12 @@ export function ChatOverlayContextProvider({
                     buttonKey: focusButtonKey,
                     events: ['click'],
                     title: 'Focus',
-                    iconSvg: `<span style="color:${themesColors[theme].textSecondary}">${focusIcon}</span>`,
+                    iconSvg: `<span style="color:${themeColors[theme].textSecondary}">${focusIcon}</span>`,
                     styles: {
-                      backgroundColor: themesColors[theme].bgLayer3,
+                      backgroundColor: themeColors[theme].bgLayer3,
                     },
                     hoverStyles: {
-                      backgroundColor: themesColors[theme].bgLayer2,
+                      backgroundColor: themeColors[theme].bgLayer2,
                     },
                     disabled: !isFocusable,
                     tooltip: !isFocusable ? focusTooltip : undefined,
@@ -1232,7 +1224,7 @@ export function ChatOverlayContextProvider({
       const savedSelectedConversation = getProjectSelectedConversation(
         projectName,
         projectBucket,
-        projectPath,
+        projectPath
       );
 
       const { conversations } = await overlay.getConversations();
@@ -1241,7 +1233,7 @@ export function ChatOverlayContextProvider({
 
       // Clean up playback conversations on initialization
       const playbackConversationsToRemove = allProjectConversations.filter(
-        (conversation) => conversation.isPlayback,
+        (conversation) => conversation.isPlayback
       );
 
       for (const playbackConversation of playbackConversationsToRemove) {
@@ -1249,7 +1241,7 @@ export function ChatOverlayContextProvider({
       }
 
       const updatedConversations = allProjectConversations.filter(
-        (conversation) => !conversation.isPlayback,
+        (conversation) => !conversation.isPlayback
       );
 
       // Replace the original array contents
@@ -1283,7 +1275,7 @@ export function ChatOverlayContextProvider({
       projectName,
       projectPath,
       updateConversationsList,
-    ],
+    ]
   );
 
   const onApplySuggestion = useCallback(async () => {
@@ -1363,7 +1355,7 @@ export function ChatOverlayContextProvider({
           selectedConversationIds[0],
           projectName,
           projectBucket,
-          projectPath,
+          projectPath
         );
       }
 
@@ -1377,7 +1369,7 @@ export function ChatOverlayContextProvider({
       projectName,
       projectPath,
       updateSelectedConversation,
-    ],
+    ]
   );
 
   const handleSubConversationsUpdated = useCallback(async () => {
@@ -1400,20 +1392,13 @@ export function ChatOverlayContextProvider({
         defaultHighlight: Highlight.DIMMED,
       });
       startTemporaryState();
-      setIsTemporaryStateEditable(true);
       applySuggestion(suggestions, focusColumns, {
         withPut: false,
         withHistoryItem: false,
         ignoreViewportWhenPlacing: true,
       });
     },
-    [
-      applySuggestion,
-      setDiffData,
-      setIsAIPreview,
-      startTemporaryState,
-      setIsTemporaryStateEditable,
-    ],
+    [applySuggestion, setDiffData, setIsAIPreview, startTemporaryState]
   );
 
   const handleSubNextPlaybackMessage = useCallback(
@@ -1426,7 +1411,7 @@ export function ChatOverlayContextProvider({
 
       onReviewChanges(newActiveIndex, message);
     },
-    [onReviewChanges, overlay, overlayRef],
+    [onReviewChanges, overlay, overlayRef]
   );
 
   const handleSubPrevPlaybackMessage = useCallback(
@@ -1440,7 +1425,7 @@ export function ChatOverlayContextProvider({
       // Load initial playback state if returned to initial playback
       if (activeIndex === 0) {
         const message = playbackState.messagesStack.find(
-          (message) => message.role === Role.Assistant,
+          (message) => message.role === Role.Assistant
         );
         if (!message) return;
 
@@ -1463,7 +1448,7 @@ export function ChatOverlayContextProvider({
 
       onReviewChanges(activeIndex, activeMessage);
     },
-    [loadMessageInitialState, onReviewChanges, overlay, overlayRef],
+    [loadMessageInitialState, onReviewChanges, overlay, overlayRef]
   );
 
   const handleSubMessageCustomButton = useCallback(
@@ -1508,7 +1493,7 @@ export function ChatOverlayContextProvider({
           openField(
             focusedTable.sheetName ?? sheetName,
             escapeTableName(focusedTable.tableName),
-            focusedTable.columnName,
+            focusedTable.columnName
           );
 
           break;
@@ -1604,14 +1589,11 @@ export function ChatOverlayContextProvider({
           const discardedMessage = await discardUserMessage();
           if (!discardedMessage) return;
 
-          const suggestionSheets = suggestions.reduce(
-            (acc, curr) => {
-              acc[curr.sheetName] = curr.dsl;
+          const suggestionSheets = suggestions.reduce((acc, curr) => {
+            acc[curr.sheetName] = curr.dsl;
 
-              return acc;
-            },
-            {} as Record<string, string>,
-          );
+            return acc;
+          }, {} as Record<string, string>);
           const sheets =
             (beforeTemporaryState?.sheets ?? projectSheets).reduce(
               (acc, curr) => {
@@ -1619,12 +1601,12 @@ export function ChatOverlayContextProvider({
 
                 return acc;
               },
-              {} as Record<string, string>,
+              {} as Record<string, string>
             ) ?? {};
           const suggestionsSameAsState =
             isEqual(Object.keys(suggestionSheets), Object.keys(sheets)) &&
             Object.entries(suggestionSheets).every(
-              ([key, value]) => value.trim() === sheets[key].trim(),
+              ([key, value]) => value.trim() === sheets[key].trim()
             );
           const isSuggestionIsProjectState =
             assistantMessage &&
@@ -1685,7 +1667,7 @@ export function ChatOverlayContextProvider({
       projectSheets,
       beforeTemporaryState?.sheets,
       responseIds,
-    ],
+    ]
   );
 
   const handleSubEditMessage = useCallback(
@@ -1704,7 +1686,7 @@ export function ChatOverlayContextProvider({
         setAIProjectHashes(null);
       }
     },
-    [isAIEditPendingChanges, isMajorChangedAIAnswer, overlay, overlayRef],
+    [isAIEditPendingChanges, isMajorChangedAIAnswer, overlay, overlayRef]
   );
 
   const handleSubStopGenerating = useCallback(async () => {
@@ -1730,7 +1712,7 @@ export function ChatOverlayContextProvider({
 
     const unsubscribe = overlay.subscribe(
       `@DIAL_OVERLAY/${OverlayEvents.gptStartGenerating}`,
-      handleSubStartGenerating,
+      handleSubStartGenerating
     );
 
     return () => unsubscribe();
@@ -1741,7 +1723,7 @@ export function ChatOverlayContextProvider({
 
     const unsubscribe = overlay.subscribe(
       `@DIAL_OVERLAY/${OverlayEvents.gptEndGenerating}`,
-      handleSubEndGenerating,
+      handleSubEndGenerating
     );
 
     return () => unsubscribe();
@@ -1752,7 +1734,7 @@ export function ChatOverlayContextProvider({
 
     const unsubscribe = overlay.subscribe(
       `@DIAL_OVERLAY/${OverlayEvents.selectedConversationLoaded}`,
-      handleSubSelectedConversationLoaded,
+      handleSubSelectedConversationLoaded
     );
 
     return () => unsubscribe();
@@ -1767,13 +1749,13 @@ export function ChatOverlayContextProvider({
         throttleTime(conversationsUpdatedDebounceTime, undefined, {
           leading: true,
           trailing: true,
-        }),
+        })
       )
       .subscribe(handleSubConversationsUpdated);
 
     const unsubscribe = overlay.subscribe(
       `@DIAL_OVERLAY/${OverlayEvents.conversationsUpdated}`,
-      () => conversationsUpdatedSubject.next(),
+      () => conversationsUpdatedSubject.next()
     );
 
     return () => {
@@ -1787,7 +1769,7 @@ export function ChatOverlayContextProvider({
 
     const unsubscribe = overlay.subscribe(
       `@DIAL_OVERLAY/${OverlayEvents.messageCustomButton}`,
-      handleSubMessageCustomButton,
+      handleSubMessageCustomButton
     );
 
     return () => unsubscribe();
@@ -1798,7 +1780,7 @@ export function ChatOverlayContextProvider({
 
     const unsubscribe = overlay.subscribe(
       `@DIAL_OVERLAY/${OverlayEvents.editMessage}`,
-      handleSubEditMessage,
+      handleSubEditMessage
     );
 
     return () => unsubscribe();
@@ -1809,7 +1791,7 @@ export function ChatOverlayContextProvider({
 
     const unsubscribe = overlay.subscribe(
       `@DIAL_OVERLAY/${OverlayEvents.stopGenerating}`,
-      handleSubStopGenerating,
+      handleSubStopGenerating
     );
 
     return () => unsubscribe();
@@ -1820,7 +1802,7 @@ export function ChatOverlayContextProvider({
 
     const unsubscribe = overlay.subscribe(
       `@DIAL_OVERLAY/${OverlayEvents.prevPlaybackMessage}`,
-      handleSubPrevPlaybackMessage,
+      handleSubPrevPlaybackMessage
     );
 
     return () => unsubscribe();
@@ -1831,7 +1813,7 @@ export function ChatOverlayContextProvider({
 
     const unsubscribe = overlay.subscribe(
       `@DIAL_OVERLAY/${OverlayEvents.nextPlaybackMessage}`,
-      handleSubNextPlaybackMessage,
+      handleSubNextPlaybackMessage
     );
 
     return () => unsubscribe();
@@ -1897,7 +1879,7 @@ export function ChatOverlayContextProvider({
       };
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [overlayHostElement, projectName, projectBucket, projectPath],
+    [overlayHostElement, projectName, projectBucket, projectPath]
   );
 
   // Set sheets state from the current project into the system prompt, so the gpt knows about sheets
@@ -2022,7 +2004,7 @@ export function ChatOverlayContextProvider({
         event.stopPropagation();
       }
     },
-    [isAIPendingChangesRef, isAIPreview],
+    [isAIPendingChangesRef, isAIPreview]
   );
 
   useEffect(() => {
@@ -2090,7 +2072,7 @@ export function ChatOverlayContextProvider({
       exitAIPreview,
       isConversationsLoading,
       renameConversation,
-    ],
+    ]
   );
 
   return (

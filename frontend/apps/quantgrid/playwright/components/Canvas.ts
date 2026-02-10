@@ -1,5 +1,5 @@
 /* eslint-disable no-console */
-import { expect, Page } from '@playwright/test';
+import { Page } from '@playwright/test';
 
 import { MoveDirection } from '../enums/MoveDirection';
 import { getCellCoordinates, getCellText } from '../helpers/canvasGridApiUtil';
@@ -19,7 +19,7 @@ export class Canvas extends BaseComponent implements WorkArea {
     super(page);
     this.canvasCellEditor = new Editor(
       page,
-      page.locator(this.canvasCellEditorRootLocator),
+      page.locator(this.canvasCellEditorRootLocator)
     );
   }
 
@@ -50,7 +50,7 @@ export class Canvas extends BaseComponent implements WorkArea {
     rowStart: number,
     columnStrart: number,
     rowEnd: number,
-    columnEnd: number,
+    columnEnd: number
   ) {
     await this.innerPage.locator(this.rootLocator).getAttribute('class');
   }
@@ -77,14 +77,14 @@ export class Canvas extends BaseComponent implements WorkArea {
   }
   public async verifyGridDimensionsEqualsTo(
     expectedRows: number,
-    expectedColumns: number,
+    expectedColumns: number
   ) {
     await this.innerPage.locator(this.rootLocator).getAttribute('class');
   }
   public async performMenuAction(
     row: number,
     column: number,
-    actionText: string,
+    actionText: string
   ) {
     await this.innerPage.locator(this.rootLocator).getAttribute('class');
   }
@@ -102,7 +102,7 @@ export class Canvas extends BaseComponent implements WorkArea {
   public async performCellAction(
     row: number,
     column: number,
-    actionText: string,
+    actionText: string
   ) {
     const coords = await getCellCoordinates(this.innerPage, {
       col: column,
@@ -117,31 +117,16 @@ export class Canvas extends BaseComponent implements WorkArea {
     row: number,
     column: number,
     groupText: string,
-    actionText: string,
+    actionText: string
   ) {
-    const subItem = this.innerPage.getByText(actionText, { exact: true });
-    let retries = 0;
-    let successfull = false;
-    do {
-      try {
-        do {
-          await this.hoverCellMenuAction(row, column, groupText);
-          await expect(subItem).toBeVisible();
-        } while (!(await subItem.boundingBox()) && retries++ < 5);
-        await subItem.click();
-        successfull = true;
-      } catch (error) {
-        console.log(
-          `Error performing cell sub action '${actionText}': ${error}`,
-        );
-      }
-    } while (!successfull && retries++ < 5);
+    await this.hoverCellMenuAction(row, column, groupText);
+    await this.innerPage.getByText(actionText, { exact: true }).click();
   }
 
   public async hoverCellMenuAction(
     row: number,
     column: number,
-    groupText: string,
+    groupText: string
   ) {
     const coords = await getCellCoordinates(this.innerPage, {
       col: column,
@@ -150,17 +135,14 @@ export class Canvas extends BaseComponent implements WorkArea {
     await this.innerPage
       .locator(this.rootLocator)
       .click({ position: coords, button: 'right' });
-    const item = this.innerPage.getByText(groupText, { exact: true });
-    await expect(item).toBeVisible();
-    const box = await item.boundingBox();
-    await item.hover();
+    await this.innerPage.getByText(groupText, { exact: true }).hover();
   }
 
   public async performMenuSubAction(
     row: number,
     column: number,
     groupText: string,
-    actionText: string,
+    actionText: string
   ) {
     await this.performCellSubAction(row, column, groupText, actionText);
   }
@@ -168,7 +150,7 @@ export class Canvas extends BaseComponent implements WorkArea {
   public async expectCellTextChange(
     row: number,
     column: number,
-    newCellText: string,
+    newCellText: string
   ) {
     await this.innerPage.locator(this.rootLocator).getAttribute('class');
   }
@@ -212,7 +194,7 @@ export class Canvas extends BaseComponent implements WorkArea {
     initialRow: number,
     initialColumn: number,
     text: string,
-    direction: MoveDirection,
+    direction: MoveDirection
   ) {
     await this.innerPage.locator(this.rootLocator).getAttribute('class');
   }

@@ -7,7 +7,7 @@ import { CurrentCell, GridCellEditorMode } from '../types';
 import { isCellEditorValueFormula, isCellValueTypeChanged } from '../utils';
 
 type Props = {
-  apiRef: RefObject<GridApi | null>;
+  apiRef: RefObject<GridApi>;
   formulaBarMode: FormulaBarMode;
   openedExplicitly: boolean;
   currentCell: CurrentCell;
@@ -17,7 +17,7 @@ type Props = {
     col: number | undefined,
     row: number | undefined,
     editMode: GridCellEditorMode,
-    codeValue: string,
+    codeValue: string
   ) => void;
 };
 
@@ -42,7 +42,7 @@ export function useCellEditorMode({
       const isRenaming = ['rename_table', 'rename_field'].includes(editMode);
       const isEmptyCellEditMode = editMode === 'empty_cell';
       const isEditingOverride = ['edit_override', 'add_override'].includes(
-        editMode,
+        editMode
       );
       const isEditingExpression =
         editMode === 'edit_cell_expression' ||
@@ -64,7 +64,7 @@ export function useCellEditorMode({
             col,
             row,
             'edit_cell_expression',
-            newCodeValue,
+            newCodeValue
           );
 
           return;
@@ -96,7 +96,7 @@ export function useCellEditorMode({
             col,
             row,
             'edit_cell_expression',
-            newCodeValue,
+            newCodeValue
           );
 
           return;
@@ -121,7 +121,7 @@ export function useCellEditorMode({
       openedExplicitly,
       setEditMode,
       updateDottedSelectionVisibility,
-    ],
+    ]
   );
 
   return {

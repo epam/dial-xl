@@ -1,14 +1,14 @@
 import { RefObject, useEffect } from 'react';
 
 export const useClickOutside = (
-  ref: RefObject<HTMLDivElement | null>,
+  ref: RefObject<HTMLDivElement>,
   callback: (e: MouseEvent) => void,
   events: ('click' | 'mousedown' | 'contextmenu' | 'dblclick')[] = [
     'click',
     'contextmenu',
   ],
   contextMenuCheckEnabled = false,
-  isEnabled = true,
+  isEnabled = true
 ) => {
   const handleClick = (e: MouseEvent) => {
     // Click on custom Context Menu submenu items (e.g. Filters) should not close the context menu

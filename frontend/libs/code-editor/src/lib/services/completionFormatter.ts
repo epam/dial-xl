@@ -27,7 +27,7 @@ export class CompletionFormatter {
       this._cursorPosition.lineNumber,
       this._cursorPosition.column,
       lineEndPosition?.lineNumber ?? 1,
-      lineEndPosition?.column ?? 1,
+      lineEndPosition?.column ?? 1
     );
     this._lineText = editor.getLineContent(this._cursorPosition.lineNumber);
     this._textAfterCursor = editor.getValueInRange(textAfterRange);
@@ -100,8 +100,8 @@ export class CompletionFormatter {
           1,
           1,
           this._cursorPosition.lineNumber,
-          this._cursorPosition.column,
-        ),
+          this._cursorPosition.column
+        )
       )
       .trim();
 
@@ -163,7 +163,7 @@ export class CompletionFormatter {
   private removeUnnecessaryMiddleQuote(): CompletionFormatter {
     const startsWithQuote = QUOTES.includes(this._completion[0] ?? '');
     const endsWithQuote = QUOTES.includes(
-      this._completion[this._completion.length - 1] ?? '',
+      this._completion[this._completion.length - 1] ?? ''
     );
 
     if (startsWithQuote && endsWithQuote) {
@@ -241,7 +241,7 @@ export class CompletionFormatter {
       0,
       0,
       this._cursorPosition.lineNumber,
-      this._cursorPosition.column,
+      this._cursorPosition.column
     );
 
     const textBefore = this._editor.getValueInRange(textBeforeRange);
@@ -253,11 +253,11 @@ export class CompletionFormatter {
     const isNoTextBeforeOrAfter = this.getNoTextBeforeOrAfter();
 
     const contextMatch = this._normalisedCompletion.match(
-      /\/\*\s*Language:\s*(.*)\s*\*\//,
+      /\/\*\s*Language:\s*(.*)\s*\*\//
     );
 
     const extensionContext = this._normalisedCompletion.match(
-      /\/\*\s*File extension:\s*(.*)\s*\*\//,
+      /\/\*\s*File extension:\s*(.*)\s*\*\//
     );
 
     const commentMatch = this._normalisedCompletion.match(/\/\*\s*\*\//);
@@ -294,7 +294,7 @@ export class CompletionFormatter {
 
   public format = (
     insertText: string,
-    range: IRange,
+    range: IRange
   ): { insertText: string; range: IRange } => {
     this._completion = '';
     this._normalisedCompletion = this.normalise(insertText);

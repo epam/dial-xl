@@ -6,26 +6,20 @@ import Bowser from 'bowser';
 import { WebStorageStateStore } from 'oidc-client-ts';
 import * as ReactDOM from 'react-dom/client';
 import { AuthProvider, AuthProviderProps } from 'react-oidc-context';
-import { BrowserRouter } from 'react-router';
+import { BrowserRouter } from 'react-router-dom';
 import { ToastContainer } from 'react-toastify';
 
-import { ApiContextProvider, CommonProvider } from './app';
+import { ApiContextProvider, CommonProvider, Loader } from './app';
 import { AppRoutes } from './AppRoutes';
 import { StyleProvider } from '@ant-design/cssinjs';
 import { Log } from 'oidc-client-ts';
 
 import './styles.css';
 
-const logLevel = window.externalEnv.logLevel as unknown as number;
-if (typeof logLevel === 'number' && logLevel >= 0 && logLevel <= 4) {
-  Log.setLevel(logLevel);
-} else {
-  Log.setLevel(Log.ERROR);
-}
-
+Log.setLevel(Log.ERROR);
 Log.setLogger(console);
 const root = ReactDOM.createRoot(
-  document.getElementById('root') as HTMLElement,
+  document.getElementById('root') as HTMLElement
 );
 
 const browser = Bowser.getParser(window.navigator.userAgent);
@@ -44,7 +38,6 @@ const search = new URLSearchParams(window.location.search);
 search.delete('state');
 search.delete('session_state');
 search.delete('code');
-search.delete('iss');
 const finalSearchParams = search.size > 0 ? '?' + search.toString() : '';
 //
 
@@ -52,7 +45,7 @@ const oidcConfig: AuthProviderProps = {
   authority: window.externalEnv.authAuthority || '',
   client_id: window.externalEnv.authClientId || '',
   redirect_uri: encodeURI(
-    window.location.origin + window.location.pathname + finalSearchParams,
+    window.location.origin + window.location.pathname + finalSearchParams
   ),
   automaticSilentRenew: true,
   // monitorSession: true causing 'error=login_required' in Firefox with infinite loop
@@ -72,7 +65,9 @@ root.render(
         <CommonProvider>
           <StyleProvider layer>
             <ConfigProvider
-              modal={{ mask: { enabled: true, blur: false } }}
+              theme={{
+                cssVar: true,
+              }}
               wave={{ disabled: true }}
             >
               <ApiContextProvider>
@@ -86,11 +81,13 @@ root.render(
                   theme="colored"
                   closeOnClick
                 />
+
+                <Loader />
               </ApiContextProvider>
             </ConfigProvider>
           </StyleProvider>
         </CommonProvider>
       </div>
     </BrowserRouter>
-  </AuthProvider>,
+  </AuthProvider>
 );

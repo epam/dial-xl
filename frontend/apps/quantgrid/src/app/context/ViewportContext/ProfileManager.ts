@@ -24,7 +24,7 @@ export class ProfileManager {
       throttleTime(profileUpdateThrottleTime, undefined, {
         leading: true,
         trailing: true,
-      }),
+      })
     );
   }
 
@@ -70,7 +70,7 @@ export class ProfileManager {
 
     this._requests = this._requests.filter((req) => req !== requestId);
     const requestIdProfilesKeys = Array.from(
-      this.profileEntities.keys(),
+      this.profileEntities.keys()
     ).filter((key) => key.startsWith(`req:${requestId};`));
 
     requestIdProfilesKeys.forEach((key) => {

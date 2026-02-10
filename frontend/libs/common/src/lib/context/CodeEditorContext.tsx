@@ -1,4 +1,4 @@
-import { editor } from 'monaco-editor/esm/vs/editor/editor.api.js';
+import { editor } from 'monaco-editor/esm/vs/editor/editor.api';
 import { createContext } from 'react';
 
 import { ParsingError } from '../services';
@@ -20,5 +20,5 @@ type CodeEditorContextActions = {
 };
 
 export const CodeEditorContext = createContext<CodeEditorContextActions>(
-  {} as CodeEditorContextActions,
+  {} as CodeEditorContextActions
 );

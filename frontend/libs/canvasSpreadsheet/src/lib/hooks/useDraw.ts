@@ -54,7 +54,7 @@ export function useDraw(draw: () => void, skipOnViewportRedraw?: boolean) {
       // Reset the scheduled flag
       currentRenderState.renderScheduled = false;
 
-      if (!app || !app.ticker || app.ticker?.started) {
+      if (!app || !app.ticker || app.ticker.started) {
         return;
       }
 
@@ -89,7 +89,7 @@ export function useDraw(draw: () => void, skipOnViewportRedraw?: boolean) {
         throttleTime(dataThrottleDelay, undefined, {
           leading: true,
           trailing: true,
-        }),
+        })
       )
       .subscribe(() => {
         redraw();

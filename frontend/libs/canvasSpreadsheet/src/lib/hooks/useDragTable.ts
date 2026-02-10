@@ -64,7 +64,7 @@ export function useDragTable() {
         };
       }
     },
-    [getCell, getCellFromCoords, gridSizes, isPanModeEnabled],
+    [getCell, getCellFromCoords, gridSizes, isPanModeEnabled]
   );
 
   const onMouseUp = useCallback(
@@ -123,7 +123,7 @@ export function useDragTable() {
       setIsTableDragging(false);
       setSelectionEdges(selectionEdges);
     },
-    [eventBus, gridApi, selection$, setIsTableDragging, setSelectionEdges],
+    [eventBus, gridApi, selection$, setIsTableDragging, setSelectionEdges]
   );
 
   const onMouseMove = useCallback(
@@ -189,7 +189,7 @@ export function useDragTable() {
           endCol: nextEndCol,
           endRow: nextEndRow,
         },
-        { selectedTable: tableName, silent: true },
+        { selectedTable: tableName, silent: true }
       );
 
       moveViewportToCell(col, row);
@@ -202,7 +202,7 @@ export function useDragTable() {
       selection$,
       setIsTableDragging,
       setSelectionEdges,
-    ],
+    ]
   );
 
   useEffect(() => {
@@ -211,8 +211,8 @@ export function useDragTable() {
     const startMoveChartOrTableSubscription = gridApi.events$
       .pipe(
         filterByTypeAndCast<EventTypeMoveChartOrTable>(
-          GridEvent.moveChartOrTable,
-        ),
+          GridEvent.moveChartOrTable
+        )
       )
       .subscribe(({ cell, x, y }) => {
         if (!cell?.table) return;

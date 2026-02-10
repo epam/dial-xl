@@ -2,7 +2,7 @@ import { ParsedTable, SheetReader } from '@frontend/parser';
 
 export function findLastChangedTable(
   oldDSL: string,
-  newDSL: string,
+  newDSL: string
 ): ParsedTable | null {
   try {
     const { tables: oldTables } = SheetReader.parseSheet(oldDSL);
@@ -19,20 +19,17 @@ export function findLastChangedTable(
       return null;
     }
 
-    const lastChangedTable = changedTables.reduce(
-      (acc, table) => {
-        if (!acc) {
-          return table;
-        }
+    const lastChangedTable = changedTables.reduce((acc, table) => {
+      if (!acc) {
+        return table;
+      }
 
-        if (table.span.from > acc.span.from) {
-          return table;
-        }
+      if (table.span.from > acc.span.from) {
+        return table;
+      }
 
-        return acc;
-      },
-      null as ParsedTable | null,
-    );
+      return acc;
+    }, null as ParsedTable | null);
 
     return lastChangedTable;
   } catch (e) {

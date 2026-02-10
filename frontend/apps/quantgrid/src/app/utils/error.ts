@@ -28,19 +28,19 @@ export function getFieldErrors(
   compilationError: CompilationError[] | null,
   viewportErrorMessage: string | undefined,
   tableName: string,
-  fieldName: string,
+  fieldName: string
 ): string | undefined {
   const parsingMessage = getMessageByKeyFromError(
     parsingError,
     tableName,
     fieldName,
-    'fieldKey',
+    'fieldKey'
   );
   const compilationMessage = getMessageByKeyFromError(
     compilationError,
     tableName,
     fieldName,
-    'fieldKey',
+    'fieldKey'
   );
 
   if (!parsingMessage && !compilationMessage && !viewportErrorMessage) return;
@@ -53,19 +53,19 @@ export function getTotalErrors(
   compilationError: CompilationError[] | null,
   tableName: string,
   fieldName: string,
-  totalRow: number,
+  totalRow: number
 ): string | undefined {
   const parsingMessage = getTotalErrorMessages(
     parsingError,
     tableName,
     fieldName,
-    totalRow,
+    totalRow
   );
   const compilationMessage = getTotalErrorMessages(
     compilationError,
     tableName,
     fieldName,
-    totalRow,
+    totalRow
   );
 
   if (!parsingMessage && !compilationMessage) return;
@@ -78,19 +78,19 @@ export function getOverrideErrors(
   compilationError: CompilationError[] | null,
   tableName: string,
   fieldName: string,
-  overrideIndex: number,
+  overrideIndex: number
 ): string | undefined {
   const parsingMessage = getOverrideErrorMessages(
     parsingError,
     tableName,
     fieldName,
-    overrideIndex,
+    overrideIndex
   );
   const compilationMessage = getOverrideErrorMessages(
     compilationError,
     tableName,
     fieldName,
-    overrideIndex,
+    overrideIndex
   );
 
   if (!parsingMessage && !compilationMessage) return;
@@ -102,7 +102,7 @@ function getMessageByKeyFromError(
   errors: CompilationError[] | RuntimeError[] | ParsingError[] | null,
   tableName: string,
   fieldName: string,
-  key: ErrorKeyProperty,
+  key: ErrorKeyProperty
 ): string {
   if (!errors) return '';
 
@@ -127,7 +127,7 @@ function getTotalErrorMessages(
   errors: CompilationError[] | RuntimeError[] | ParsingError[] | null,
   tableName: string,
   fieldName: string,
-  totalRow: number,
+  totalRow: number
 ): string | undefined {
   if (!errors) return '';
 
@@ -151,7 +151,7 @@ function getOverrideErrorMessages(
   errors: CompilationError[] | RuntimeError[] | ParsingError[] | null,
   tableName: string,
   fieldName: string,
-  overrideIndex: number,
+  overrideIndex: number
 ): string | undefined {
   if (!errors) return '';
 
@@ -198,7 +198,7 @@ export function getLabelFromError(error: EvaluationError): string {
 
 export function getErrorLocationInfo(
   error: EvaluationError,
-  parsedSheets: ParsedSheets,
+  parsedSheets: ParsedSheets
 ): {
   tableName: string | null;
   fieldName: string | null;
@@ -217,7 +217,7 @@ export function getErrorLocationInfo(
 
         for (const [sheetName, sheet] of Object.entries(parsedSheets)) {
           const tableExists = sheet.tables?.some(
-            (t) => t.tableName === tableName,
+            (t) => t.tableName === tableName
           );
 
           if (tableExists) {
@@ -248,7 +248,7 @@ export function getErrorLocationInfo(
 export function calculateSheetErrorPosition(
   sheetContent: string,
   text: string,
-  end: number,
+  end: number
 ) {
   const code = sheetContent.substring(0, end + 1);
   const lines = code.split('\n');

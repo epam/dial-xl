@@ -1,6 +1,5 @@
 import { DefaultOptionType } from 'antd/es/select';
 import {
-  type JSX,
   PropsWithChildren,
   useCallback,
   useContext,
@@ -13,7 +12,11 @@ import { SingleValue } from 'react-select';
 import { useShallow } from 'zustand/react/shallow';
 
 import { defaultTableName, FunctionType } from '@frontend/common';
-import { collectTableNames, findFunctionExpressions } from '@frontend/parser';
+import {
+  collectTableNames,
+  dynamicFieldName,
+  findFunctionExpressions,
+} from '@frontend/parser';
 
 import { ProjectContext } from '../../../../context';
 import { useFieldEditDsl, useRequestDimTable } from '../../../../hooks';
@@ -37,7 +40,7 @@ export function PivotWizardContextProvider({
         pivotTableName: s.pivotTableName,
         pivotTableWizardMode: s.pivotTableWizardMode,
         changePivotTableWizardMode: s.changePivotTableWizardMode,
-      })),
+      }))
     );
 
   const { functions, parsedSheets } = useContext(ProjectContext);
@@ -47,10 +50,10 @@ export function PivotWizardContextProvider({
   const { editExpression } = useFieldEditDsl();
 
   const [startRow, setStartRow] = useState<number | null>(
-    selectedCell?.row || minPlacement,
+    selectedCell?.row || minPlacement
   );
   const [startCol, setStartCol] = useState<number | null>(
-    selectedCell?.col || minPlacement,
+    selectedCell?.col || minPlacement
   );
   const [rowFields, setRowFields] = useState<FieldItem[]>([]);
   const [columnFields, setColumnFields] = useState<FieldItem[]>([]);
@@ -62,7 +65,7 @@ export function PivotWizardContextProvider({
     DefaultOptionType | undefined
   >();
   const [aggregationArgsCount, setAggregationArgsCount] = useState(
-    defaultAggregationArgsCount,
+    defaultAggregationArgsCount
   );
   const lastAppliedKeyRef = useRef<string | null>(null);
 
@@ -84,7 +87,7 @@ export function PivotWizardContextProvider({
 
       return allFields.find((f) => f.id === id) || null;
     },
-    [availableFields, rowFields, columnFields, valueFields],
+    [availableFields, rowFields, columnFields, valueFields]
   );
 
   const onChangeTableName = useCallback(
@@ -102,14 +105,16 @@ export function PivotWizardContextProvider({
       setColumnFields([]);
       setValueFields([]);
       setSelectedAggregation(defaultAggregationOption);
-      const fields = foundTable.getUserVisibleFields().map(({ key }) => ({
-        id: key.fieldName,
-        name: key.fieldName,
-      }));
+      const fields = foundTable.fields
+        .filter(({ key }) => key.fieldName !== dynamicFieldName)
+        .map(({ key }) => ({
+          id: key.fieldName,
+          name: key.fieldName,
+        }));
 
       setAvailableFields(fields);
     },
-    [parsedSheets],
+    [parsedSheets]
   );
 
   const onChangeAggregation = useCallback(
@@ -117,7 +122,7 @@ export function PivotWizardContextProvider({
       if (!option) return;
       setSelectedAggregation(option);
     },
-    [],
+    []
   );
 
   const generateFormulaArgs = useCallback(() => {
@@ -163,13 +168,13 @@ export function PivotWizardContextProvider({
     if (pivotTableWizardMode === 'create') {
       const newTableName = createUniqueName(
         defaultTableName,
-        collectTableNames(parsedSheets),
+        collectTableNames(parsedSheets)
       );
 
       requestDimSchemaForFormula(
         startCol || minPlacement,
         startRow || minPlacement,
-        `${newTableName} = ${formula}`,
+        `${newTableName} = ${formula}`
       );
       lastAppliedKeyRef.current = applyKey;
       changePivotTableWizardMode('edit', newTableName);
@@ -189,8 +194,8 @@ export function PivotWizardContextProvider({
           (f) =>
             f.expression &&
             findFunctionExpressions(f.expression).some(
-              (func) => func.name === 'PIVOT',
-            ),
+              (func) => func.name === 'PIVOT'
+            )
         );
 
         const initialFormula = pivotField?.expressionMetadata?.text
@@ -208,7 +213,7 @@ export function PivotWizardContextProvider({
         editExpression(
           pivotTableName,
           pivotField.key.fieldName,
-          `= ${formula}`,
+          `= ${formula}`
         );
         lastAppliedKeyRef.current = applyKey;
       } catch {
@@ -250,7 +255,7 @@ export function PivotWizardContextProvider({
 
     let count = defaultAggregationArgsCount;
     const aggregationFunction = functions.find(
-      (f) => f.name === selectedAggregation.value,
+      (f) => f.name === selectedAggregation.value
     );
 
     if (aggregationFunction) {
@@ -312,7 +317,7 @@ export function PivotWizardContextProvider({
       startCol,
       startRow,
       valueFields,
-    ],
+    ]
   );
 
   return (

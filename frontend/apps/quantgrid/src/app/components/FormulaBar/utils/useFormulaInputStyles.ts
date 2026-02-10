@@ -4,7 +4,7 @@ import { useEditorStore } from '../../../store';
 
 export function useFormulaInputStyles(
   fieldName: string | undefined,
-  isEditingDimField: boolean,
+  isEditingDimField: boolean
 ) {
   const editMode = useEditorStore((s) => s.editMode);
 

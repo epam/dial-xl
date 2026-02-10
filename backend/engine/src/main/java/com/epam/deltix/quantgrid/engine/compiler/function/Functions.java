@@ -55,12 +55,6 @@ public class Functions {
                     List.of(AGGREGATIONS),
                     new Argument("table", "the table where the total is defined"),
                     new Argument("position", "the total row position in the table. Default: 1", false, true)),
-            new Function("GROUPBY", "Make an aggregated table from a table",
-                    List.of(CREATE_TABLE, TABLE),
-                    new Argument("rows", "a table or array to make rows from"),
-                    new Argument("values", "a table or array to make aggregations from"),
-                    new Argument("functions", "aggregation functions. Example: \"SUM\" or {\"SUM\", \"COUNT\"}"),
-                    new Argument("filter", "condition to filter data before aggregation", false, true)),
             new Function("UNPIVOT", "Make a pivot longer table from a table",
                     List.of(CREATE_TABLE, TABLE),
                     new Argument("table", "the table to unpivot"),
@@ -397,10 +391,7 @@ public class Functions {
             new Function("AIVALUE", "Generates a text value", List.of(TEXT),
                     new Argument("model", "Model"),
                     new Argument("version", "Use a different number or text to generate a new answer. Default is 0", false, true),
-                    new Argument("prompt", "Prompt or context", true)),
-            new Function("ERR", "Produces a compilation error if the expression cannot be parsed as a formula",
-                    List.of(TEXT),
-                    new Argument("expression", "Expression to parse"))
+                    new Argument("prompt", "Prompt or context", true))
             );
 
     private static final Map<String, Function> FUNCTION_MAP = FUNCTIONS.stream()

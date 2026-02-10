@@ -28,7 +28,7 @@ import {
   autoTablePlacement,
   getDSLChangeText,
 } from '../../services';
-import { useUserSettingsStore } from '../../store';
+import { useThemeStore } from '../../store';
 import { stripNewLinesAtEnd } from '../../utils';
 
 export function CodeEditorWrapper() {
@@ -55,7 +55,7 @@ export function CodeEditorWrapper() {
   const gridApi = useGridApi();
   const { showHasUnsavedChanges } = useContext(CodeEditorContext);
   const { appendTo } = useContext(UndoRedoContext);
-  const theme = useUserSettingsStore((s) => s.data.appTheme);
+  const theme = useThemeStore((s) => s.theme);
   const { inputList } = useContext(InputsContext);
   const { expandedPanelSide, toggleExpandPanel } = useContext(LayoutContext);
   const { errors } = useDSLErrors();
@@ -109,7 +109,7 @@ export function CodeEditorWrapper() {
       hasUnsavedChangesRef.current = value;
       showHasUnsavedChanges(value);
     },
-    [projectVersion, showHasUnsavedChanges],
+    [projectVersion, showHasUnsavedChanges]
   );
 
   const onCodeChange = useCallback(
@@ -137,7 +137,7 @@ export function CodeEditorWrapper() {
         updateHasUnsavedChanges(true);
       }
     },
-    [sheetContent, projectVersion, updateHasUnsavedChanges],
+    [sheetContent, projectVersion, updateHasUnsavedChanges]
   );
 
   const onSave = useCallback(() => {
@@ -169,7 +169,7 @@ export function CodeEditorWrapper() {
     let updatedSheetContent = autoRenameTables(
       codeRef.current,
       sheetName,
-      projectSheets,
+      projectSheets
     );
     updatedSheetContent = autoRenameFields(updatedSheetContent);
     updatedSheetContent = autoTablePlacement(
@@ -177,15 +177,15 @@ export function CodeEditorWrapper() {
       viewGridData.getGridTableStructure(),
       gridApi,
       null,
-      null,
+      null
     );
     updatedSheetContent = autoFunctionsToUppercase(
       updatedSheetContent,
-      functions,
+      functions
     );
     updatedSheetContent = autoFixSheetTableOrFieldName(
       updatedSheetContent,
-      parsedSheets,
+      parsedSheets
     );
 
     updatedSheetContent = stripNewLinesAtEnd(updatedSheetContent) + newLine;
@@ -196,14 +196,14 @@ export function CodeEditorWrapper() {
 
     manuallyUpdateSheetContent(
       [{ sheetName, content: updatedSheetContent }],
-      sendPutRequest,
+      sendPutRequest
     );
 
     gridApi?.clearSelection();
 
     const historyTitle = getDSLChangeText(
       sheetContent || '',
-      updatedSheetContent,
+      updatedSheetContent
     );
 
     appendTo(historyTitle, [{ sheetName, content: updatedSheetContent }]);
@@ -237,7 +237,7 @@ export function CodeEditorWrapper() {
       }
       openTable(sheetName, tableName);
     },
-    [expandedPanelSide, openTable, sheetName, toggleExpandPanel],
+    [expandedPanelSide, openTable, sheetName, toggleExpandPanel]
   );
 
   const onGoToField = useCallback(
@@ -255,7 +255,7 @@ export function CodeEditorWrapper() {
       }
       openField(sheetName, tableName, fieldName);
     },
-    [expandedPanelSide, openField, sheetName, toggleExpandPanel],
+    [expandedPanelSide, openField, sheetName, toggleExpandPanel]
   );
 
   return (
@@ -278,10 +278,10 @@ export function CodeEditorWrapper() {
                 value: disabledTooltips.pendingAIChanges,
               }
             : !isProjectEditable
-              ? {
-                  value: disabledTooltips.readonlyProject,
-                }
-              : undefined,
+            ? {
+                value: disabledTooltips.readonlyProject,
+              }
+            : undefined,
         }}
         parsedSheets={parsedSheets}
         setCode={setCode}

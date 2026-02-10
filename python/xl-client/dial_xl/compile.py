@@ -1,3 +1,4 @@
+from enum import StrEnum
 from typing import Any, Literal, TypeAlias
 
 import aiohttp
@@ -25,12 +26,19 @@ from dial_xl.model.api_pb2 import (
 )
 from dial_xl.utils import ImmutableModel, _auth_header
 
-PRIMITIVE_TYPE = Literal["DOUBLE", "STRING", "PERIOD_SERIES"]
-TABLE_TYPE = Literal["TABLE_REFERENCE", "TABLE_VALUE"]
 EMPTY_TABLE_KEY = TableKey()
 EMPTY_FIELD_KEY = FieldKey()
 EMPTY_TOTAL_KEY = TotalKey()
 EMPTY_OVERRIDE_KEY = OverrideKey()
+
+class PrimitiveType(StrEnum):
+    DOUBLE = "DOUBLE"
+    STRING = "STRING"
+    PERIOD_SERIES = "PERIOD_SERIES"
+
+class TableType(StrEnum):
+    TABLE_REFERENCE = "TABLE_REFERENCE"
+    TABLE_VALUE = "TABLE_VALUE"
 
 
 class GeneralFormat(ImmutableModel):
@@ -100,13 +108,13 @@ class HashableFieldType(ImmutableModel):
 
 
 class PrimitiveFieldType(HashableFieldType):
-    name: PRIMITIVE_TYPE
+    name: PrimitiveType
     is_nested: bool
     format: Format | None
 
 
 class TableFieldType(HashableFieldType):
-    name: TABLE_TYPE
+    name: TableType
     table_name: str | None
     is_nested: bool
 

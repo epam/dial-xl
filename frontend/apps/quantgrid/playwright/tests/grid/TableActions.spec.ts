@@ -32,24 +32,24 @@ let browserContext: BrowserContext;
 
 let page: Page;
 
-const storagePath = TestFixtures.getStoragePath();
+const storagePath = `playwright/${projectName}.json`;
 
 test.beforeAll(async ({ browser }) => {
   const table1Dsl = `!layout(${table1Row}, ${table1Column}, "title", "headers")\ntable ${table1Name}\n[Field1] = 1\n[Field2] = 9\n`;
   const table2Dsl = `!layout(${table2Row}, ${table2Column}, "title", "headers")\ntable ${table2Name}\n[Field1] = 5\n[Field2] = 4\n`;
   const table3Dsl = `!layout(${table3Row}, ${table3Column}, "title", "headers")\ntable ${table3Name}\n[Field1] = 5\n[Field2] = 7\n`;
-  browserContext = await browser.newContext({ storageState: storagePath });
   await TestFixtures.createProject(
     storagePath,
-    browserContext,
+    browser,
     projectName,
     table3Row,
     table3Column,
     table3Name,
     table1Dsl,
     table2Dsl,
-    table3Dsl,
+    table3Dsl
   );
+  browserContext = await browser.newContext({ storageState: storagePath });
 });
 
 test.beforeEach(async () => {
@@ -58,7 +58,7 @@ test.beforeEach(async () => {
   await TestFixtures.expectCellTableToBeDisplayed(
     page,
     table1Row,
-    table1Column,
+    table1Column
   );
 });
 
@@ -67,8 +67,8 @@ test.afterEach(async () => {
 });
 
 test.afterAll(async ({ browser }) => {
-  await TestFixtures.deleteProject(browserContext, projectName);
   await browserContext.close();
+  await TestFixtures.deleteProject(browser, projectName);
 });
 
 test.describe('table actions', () => {

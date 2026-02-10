@@ -12,8 +12,6 @@ import com.epam.deltix.quantgrid.engine.value.PeriodSeriesColumn;
 import com.epam.deltix.quantgrid.engine.value.StringColumn;
 import com.epam.deltix.quantgrid.engine.value.Table;
 import com.epam.deltix.quantgrid.engine.value.local.DoubleDirectColumn;
-import com.epam.deltix.quantgrid.engine.value.local.LocalTable;
-import com.epam.deltix.quantgrid.engine.value.local.StructColumn;
 import com.epam.deltix.quantgrid.parser.FieldKey;
 import com.epam.deltix.quantgrid.parser.OverrideKey;
 import com.epam.deltix.quantgrid.parser.ParsedField;
@@ -24,7 +22,6 @@ import com.epam.deltix.quantgrid.parser.ParsedTable;
 import com.epam.deltix.quantgrid.parser.ParsingError;
 import com.epam.deltix.quantgrid.parser.TableKey;
 import com.epam.deltix.quantgrid.parser.TotalKey;
-import com.epam.deltix.quantgrid.type.ColumnType;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.jetbrains.annotations.NotNull;
@@ -77,34 +74,21 @@ public class ResultCollector implements ResultListener {
     @Override
     public void onCompilation(Compilation compilation) {
         compilation.errors().forEach((key, error) -> {
-            onUpdate(key, -1, -1, -1, -1, true, false, null, error.getMessage(), null);
+            onUpdate(key, -1, -1, true, false, null, error.getMessage(), null);
         });
     }
 
     @Override
     public void onUpdate(ParsedKey key,
-                         long startRow, long endRow,
-                         long startCol, long endCol,
-                         boolean content, boolean raw,
+                         long start,
+                         long end,
+                         boolean content,
+                         boolean raw,
                          Table value,
                          String error,
                          ResultType resultType) {
         if (value == null) {
             errors.put(key, error);
-        } else if (resultType.pivotType() != null) {
-            FieldKey field = (FieldKey) key;
-            StructColumn column = (StructColumn) value.getColumn(0);
-            List<String> names = column.getNames();
-            Table table = column.getTable();
-            int position = positions.getOrDefault(field, 0);
-
-            for (int i = 0; i < names.size(); i++) {
-                String name = names.get(i);
-                FieldKey newKey = new FieldKey(key.table(), name);
-                LocalTable newVal = new LocalTable(table.getColumn(i));
-                values.put(newKey, newVal);
-                positions.put(newKey, position);
-            }
         } else {
             values.put(key, value);
         }
@@ -350,8 +334,7 @@ public class ResultCollector implements ResultListener {
 
         @Override
         public int compareTo(Col other) {
-            int result = Integer.compare(position, other.position);
-            return result == 0 ? name.compareTo(other.name) : result;
+            return Integer.compare(position, other.position);
         }
 
         long rows() {

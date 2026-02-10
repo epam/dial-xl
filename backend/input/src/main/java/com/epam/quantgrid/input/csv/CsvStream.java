@@ -11,7 +11,7 @@ import com.epam.quantgrid.input.api.DataStream;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.Reader;
-import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 
 
@@ -29,14 +29,12 @@ public class CsvStream implements DataStream {
     }
 
     public static CsvStream create(DataSchema schema, Reader reader) {
-        List<String> names = new ArrayList<>();
-        List<InputColumnType> types = new ArrayList<>();
+        LinkedHashMap<String, InputColumnType> columnTypes = new LinkedHashMap<>();
         for (DataSchema.Column column : schema.getColumns().values()) {
-            names.add(column.getColumn());
-            types.add(column.getTarget());
+            columnTypes.put(column.getColumn(), column.getTarget());
         }
         LocalTable table = InputUtils.toLocalTable(
-                CsvInputParser.parseCsvInput(reader, null, names, types));
+                CsvInputParser.parseCsvInput(reader, null, columnTypes));
         return new CsvStream(schema.toColumnTypes(), table);
     }
 

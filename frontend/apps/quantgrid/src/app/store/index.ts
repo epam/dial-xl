@@ -5,6 +5,6 @@ export * from './FormulaBarStore';
 export * from './FormulaMenuStore';
 export * from './Modals';
 export * from './PivotStore';
+export * from './ThemeStore';
 export * from './UIStore';
-export * from './UserSettingsStore';
 export * from './ViewStore';

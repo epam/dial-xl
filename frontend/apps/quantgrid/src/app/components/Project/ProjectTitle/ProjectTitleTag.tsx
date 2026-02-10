@@ -25,18 +25,16 @@ export function ProjectTitleTag({
     <Tooltip placement="bottom" title={tooltipText} destroyOnHidden>
       <div
         className={cx(
-          'flex items-center px-2 gap-1 leading-[18px] rounded-[30px] border',
-          containerClasses,
+          'flex items-center px-2 leading-[18px] rounded-[30px] border',
+          containerClasses
         )}
       >
-        <Icon className={cx('w-[18px]', iconClasses)} component={() => icon} />
+        <Icon
+          className={cx('w-[18px] mr-1', iconClasses)}
+          component={() => icon}
+        />
 
-        <span
-          className={cx(
-            'text-[10px] font-bold hidden lg:inline-block',
-            textClasses,
-          )}
-        >
+        <span className={cx('text-[10px] font-bold', textClasses)}>
           {title}
         </span>
       </div>

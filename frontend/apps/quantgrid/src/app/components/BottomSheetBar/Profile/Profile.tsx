@@ -51,10 +51,10 @@ export function Profile() {
 
         setDisplayProfile(displayProfile);
         setCalculateIndex(
-          displayProfile.some((p) => p.type === ExecutionType.INDEX),
+          displayProfile.some((p) => p.type === ExecutionType.INDEX)
         );
         setRequests(viewGridData.getRequests());
-      },
+      }
     );
 
     return () => subscription.unsubscribe();
@@ -64,16 +64,16 @@ export function Profile() {
     if (!displayProfile.length) return null;
 
     const indexProfiles = displayProfile.filter(
-      (p) => p.type === ExecutionType.INDEX,
+      (p) => p.type === ExecutionType.INDEX
     );
     const computeProfiles = displayProfile.filter(
-      (p) => p.type === ExecutionType.COMPUTE,
+      (p) => p.type === ExecutionType.COMPUTE
     );
 
     if (!indexProfiles.length && !computeProfiles.length) return null;
 
     return (
-      <div className="max-h-[50vh] max-w-[350px] overflow-auto thin-scrollbar flex flex-col gap-2 p-2">
+      <div className="max-h-[50vh] max-w-[350px] overflow-auto thin-scrollbar flex flex-col gap-2">
         {/* Index section */}
         {indexProfiles.length > 0 && (
           <div className="flex flex-col gap-1">
@@ -150,7 +150,7 @@ export function Profile() {
             'hidden @[500px]/bottom-bar:inline-block text-[13px] leading-[18px] select-none w-[60px]',
             {
               'font-semibold': calculateIndex,
-            },
+            }
           )}
         >
           {profileMainLabel}

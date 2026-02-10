@@ -52,7 +52,7 @@ export function FieldSizeEdit({ parsedField }: { parsedField: ParsedField }) {
 
       return;
     },
-    [initFieldValues],
+    [initFieldValues]
   );
 
   return (

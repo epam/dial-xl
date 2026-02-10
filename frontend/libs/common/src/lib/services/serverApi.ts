@@ -52,8 +52,6 @@ export interface Viewport {
   totalKey?: TotalKey;
   start_row: number;
   end_row: number;
-  start_column?: number;
-  end_column?: number;
   is_content?: boolean;
   is_raw: boolean;
 }

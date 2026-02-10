@@ -1,9 +1,4 @@
-import {
-  BitmapText,
-  Container,
-  FederatedPointerEvent,
-  Graphics,
-} from 'pixi.js';
+import * as PIXI from 'pixi.js';
 import {
   useCallback,
   useContext,
@@ -13,29 +8,20 @@ import {
   useState,
 } from 'react';
 
+import { Container, Graphics } from '@pixi/react';
+
+import { adjustmentFontMultiplier, ComponentLayer } from '../../constants';
 import { GridStateContext, GridViewportContext } from '../../context';
 import { useDraw } from '../../hooks';
 import { Cell, Edges } from '../../types';
-import { getMousePosition } from '../../utils';
+import { getMousePosition, getSymbolWidth } from '../../utils';
 
-type Props = {
-  zIndex: number;
-};
-
-export function ColNumbers({ zIndex }: Props) {
-  const {
-    getBitmapFontName,
-    gridSizes,
-    selection$,
-    theme,
-    columnSizes,
-    zoom,
-    canvasSymbolWidth,
-  } = useContext(GridStateContext);
+export function ColNumbers() {
+  const { getBitmapFontName, gridSizes, selection$, theme, columnSizes } =
+    useContext(GridStateContext);
   const { viewportEdges, gridViewportSubscriber, getCellX, getCellFromCoords } =
     useContext(GridViewportContext);
-  const containerRef = useRef<Container>(null);
-  const graphicsRef = useRef<Graphics>(null);
+  const graphicsRef = useRef<PIXI.Graphics>(null);
   const [selectionEdges, setSelectionEdges] = useState<Edges | null>(null);
   const [hoveredCol, setHoveredCol] = useState<number>();
 
@@ -44,10 +30,15 @@ export function ColNumbers({ zIndex }: Props) {
   const freeCells = useRef<Cell[]>([]);
 
   const fontName = useMemo(() => {
-    const { fontFamily } = theme.colNumber;
+    const { fontColorName, fontFamily } = theme.colNumber;
 
-    return getBitmapFontName(fontFamily);
+    return getBitmapFontName(fontFamily, fontColorName);
   }, [getBitmapFontName, theme]);
+
+  const symbolWidth = useMemo(
+    () => getSymbolWidth(gridSizes.colNumber.fontSize, fontName),
+    [fontName, gridSizes.colNumber.fontSize]
+  );
 
   const selectedCols = useMemo(
     () =>
@@ -56,11 +47,11 @@ export function ColNumbers({ zIndex }: Props) {
           .filter(
             ({ col }) =>
               Math.min(selectionEdges.startCol, selectionEdges.endCol) <= col &&
-              col <= Math.max(selectionEdges.startCol, selectionEdges.endCol),
+              col <= Math.max(selectionEdges.startCol, selectionEdges.endCol)
           )
           .map(({ col }) => col)) ||
       undefined,
-    [colNumbers, selectionEdges],
+    [colNumbers, selectionEdges]
   );
 
   const isFullSelectedCols = useMemo(
@@ -69,7 +60,7 @@ export function ColNumbers({ zIndex }: Props) {
       Math.min(selectionEdges.startRow, selectionEdges.endRow) === 1 &&
       gridSizes.edges.row ===
         Math.max(selectionEdges.startRow, selectionEdges.endRow),
-    [gridSizes.edges.row, selectionEdges],
+    [gridSizes.edges.row, selectionEdges]
   );
 
   const setColNumbers = useCallback((newRowNumbers: Cell[]) => {
@@ -78,7 +69,7 @@ export function ColNumbers({ zIndex }: Props) {
   }, []);
 
   const handleMouseMove = useCallback(
-    (e: FederatedPointerEvent) => {
+    (e: PIXI.FederatedPointerEvent) => {
       if (!graphicsRef.current) return;
 
       const mousePosition = getMousePosition(e);
@@ -90,7 +81,7 @@ export function ColNumbers({ zIndex }: Props) {
       setHoveredCol(col);
       graphicsRef.current.cursor = 's-resize';
     },
-    [getCellFromCoords],
+    [getCellFromCoords]
   );
 
   const handleMouseOut = useCallback(() => {
@@ -101,7 +92,7 @@ export function ColNumbers({ zIndex }: Props) {
   }, []);
 
   const drawColNumber = useCallback(
-    (col: number, text: BitmapText) => {
+    (col: number, text: PIXI.BitmapText) => {
       if (!graphicsRef.current || !text) return;
 
       const graphics = graphicsRef.current;
@@ -114,14 +105,14 @@ export function ColNumbers({ zIndex }: Props) {
         bgColor,
         borderColor,
         bgColorHover,
-        fontColor,
       } = theme.colNumber;
       const x = getCellX(col);
 
       // We need to draw rectangle with default background to have it under computed background with transparency
       graphics
-        .rect(x, 0, columnWidth, colNumber.height)
-        .fill({ color: bgColor });
+        .beginFill(bgColor)
+        .drawRect(x, 0, columnWidth, colNumber.height)
+        .endFill();
 
       // drawing additional rect with customized(potentially with alpha) background
       const isColSelected = selectedCols?.includes(col);
@@ -129,42 +120,42 @@ export function ColNumbers({ zIndex }: Props) {
         hoveredCol === col
           ? bgColorHover
           : isColSelected
-            ? isFullSelectedCols
-              ? bgColorFullSelected
-              : bgColorSelected
-            : undefined;
+          ? isFullSelectedCols
+            ? bgColorFullSelected
+            : bgColorSelected
+          : undefined;
 
       if (computedBgColor) {
         graphics
-          .rect(x, 0, columnWidth, colNumber.height)
-          .fill({ color: computedBgColor });
+          .beginFill(computedBgColor)
+          .drawRect(x, 0, columnWidth, colNumber.height)
+          .endFill();
       }
 
       const textPadding = Math.floor(
         Math.max(
           colNumber.padding,
-          (columnWidth - col.toString().length * canvasSymbolWidth) / 2,
-        ),
+          (columnWidth - col.toString().length * symbolWidth) / 2
+        )
       );
 
-      text.style.fontFamily = fontName;
-      text.style.fontSize = colNumber.fontSize;
-      text.style.lineHeight = colNumber.fontSize;
-      text.style.fill = fontColor;
+      text.fontName = fontName;
+      text.fontSize = colNumber.fontSize;
       text.text = col.toString();
       text.x = x + textPadding;
-      text.y = Math.floor((height - colNumber.fontSize) / 2 - zoom);
+      text.y = colNumber.fontSize * adjustmentFontMultiplier;
 
       graphics
+        .lineStyle({
+          width: borderWidth,
+          color: borderColor,
+          alignment: 0,
+        })
         .moveTo(x, 0)
         .lineTo(x, height)
         .moveTo(x + columnWidth, 0)
         .lineTo(x + columnWidth, height)
-        .stroke({
-          width: borderWidth,
-          color: borderColor,
-          alignment: 0,
-        });
+        .lineStyle({});
     },
     [
       columnSizes,
@@ -174,10 +165,9 @@ export function ColNumbers({ zIndex }: Props) {
       hoveredCol,
       isFullSelectedCols,
       selectedCols,
-      canvasSymbolWidth,
+      symbolWidth,
       theme.colNumber,
-      zoom,
-    ],
+    ]
   );
 
   const updateColNumbers = useCallback(() => {
@@ -222,13 +212,8 @@ export function ColNumbers({ zIndex }: Props) {
       }
 
       if (!appendedText) {
-        appendedText = new BitmapText({
-          text: '',
-          style: { fontFamily: fontName },
-        });
-        if (containerRef.current) {
-          containerRef.current.addChild(appendedText);
-        }
+        appendedText = new PIXI.BitmapText('', { fontName });
+        graphicsRef.current.addChild(appendedText);
       }
 
       updatedColNumbers.push({ col, row: 0, text: appendedText });
@@ -251,9 +236,7 @@ export function ColNumbers({ zIndex }: Props) {
     // Free bitmap text if not used
     // Due to viewport edges have different sizes every time we have 1 text as fallback to not recreate it every time
     freeCells.current.slice(1).forEach((cell) => {
-      if (cell.text.parent) {
-        cell.text.parent.removeChild(cell.text);
-      }
+      graphicsRef.current?.removeChild(cell.text);
       cell.text.destroy();
     });
     freeCells.current = freeCells.current.slice(0, 1);
@@ -280,20 +263,13 @@ export function ColNumbers({ zIndex }: Props) {
   useDraw(drawColNumbers);
 
   return (
-    <pixiContainer
-      label="ColNumbers"
-      ref={containerRef}
-      zIndex={zIndex}
-      sortableChildren
-    >
-      <pixiGraphics
-        draw={() => {}}
-        eventMode="static"
-        label="ColNumbersGraphics"
+    <Container zIndex={ComponentLayer.ColNumbers} sortableChildren>
+      <Graphics
+        onmousemove={handleMouseMove}
+        onmouseout={handleMouseOut}
         ref={graphicsRef}
-        onMouseMove={handleMouseMove}
-        onMouseOut={handleMouseOut}
+        interactive
       />
-    </pixiContainer>
+    </Container>
   );
 }

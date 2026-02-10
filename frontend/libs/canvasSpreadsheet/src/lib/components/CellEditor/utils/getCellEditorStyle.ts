@@ -16,7 +16,7 @@ export const getCellEditorWidthPx = (
   value: string,
   zoom: number,
   initial = false,
-  currentWidth = 0,
+  currentWidth = 0
 ): string => {
   return getPx(getCellEditorWidth(api, x, value, zoom, initial, currentWidth));
 };
@@ -25,7 +25,7 @@ const getRequiredCellEditorWidth = (
   api: GridApi,
   value: string,
   zoom: number,
-  currentWidth = 0,
+  currentWidth = 0
 ): number => {
   const { gridSizes } = api;
   const minWidth = gridSizes.cell.width - borderOffset;
@@ -48,7 +48,7 @@ export const getCellEditorWidth = (
   value: string,
   zoom: number,
   initial: boolean,
-  currentWidth: number,
+  currentWidth: number
 ): number => {
   const width = getRequiredCellEditorWidth(api, value, zoom, currentWidth);
   const { gridSizes } = api;
@@ -71,7 +71,7 @@ export const getCellEditorStyle = (
   y: number,
   value: string,
   zoom: number,
-  cellWidth: number,
+  cellWidth: number
 ): { style: EditorStyle; requiresIgnoreScroll: boolean } | undefined => {
   const { gridSizes } = api;
 
@@ -119,7 +119,7 @@ export const getCellEditorStyle = (
 
 export const getCellEditorColor = (
   editMode: GridCellEditorMode,
-  isLabel = false,
+  isLabel = false
 ): string => {
   switch (editMode) {
     case 'edit_field_expression':

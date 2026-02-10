@@ -7,7 +7,6 @@ export default [
     // Override or add rules here
     rules: {
       'no-console': 'off',
-      '@typescript-eslint/ban-ts-comment': 'off',
     },
   },
 ];

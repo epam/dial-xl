@@ -72,7 +72,7 @@ describe('Table', () => {
     // Assert
     expect(sheet.getTable('New table')).toBe(newTable);
     expect(sheet.toDSL()).toEqual(
-      "table A\n  [a] = 1\ntable 'New table'\n  [b] = 2\n",
+      "table A\n  [a] = 1\ntable 'New table'\n  [b] = 2\n"
     );
   });
 

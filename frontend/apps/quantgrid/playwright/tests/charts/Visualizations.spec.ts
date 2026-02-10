@@ -36,7 +36,7 @@ let browserContext: BrowserContext;
 
 let page: Page;
 
-const storagePath = TestFixtures.getStoragePath();
+const storagePath = `playwright/${projectName}.json`;
 
 const dataType = process.env['DATA_TYPE']
   ? process.env['DATA_TYPE']
@@ -57,13 +57,13 @@ test.beforeAll(async ({ browser }) => {
   if (dataType !== 'default') {
     spreadsheet = getProjectSpreadSheeet(dataType, spreadsheet);
   }
-  browserContext = await browser.newContext({ storageState: storagePath });
   await TestFixtures.createProjectNew(
     storagePath,
-    browserContext,
+    browser,
     projectName,
-    spreadsheet,
+    spreadsheet
   );
+  browserContext = await browser.newContext({ storageState: storagePath });
 });
 
 test.beforeEach(async () => {
@@ -72,7 +72,7 @@ test.beforeEach(async () => {
   await TestFixtures.expectCellTableToBeDisplayed(
     page,
     table1Row,
-    table1Column,
+    table1Column
   );
 });
 
@@ -80,9 +80,9 @@ test.afterEach(async () => {
   await page.close();
 });
 
-test.afterAll(async () => {
-  await TestFixtures.deleteProject(browserContext, projectName);
+test.afterAll(async ({ browser }) => {
   await browserContext.close();
+  await TestFixtures.deleteProject(browser, projectName);
 });
 
 test.describe('Visualizations', () => {
@@ -95,7 +95,7 @@ test.describe('Visualizations', () => {
         table.getTop(),
         table.getLeft(),
         GridMenuItem.AddChart,
-        VisualizationsMenuItems.Line,
+        VisualizationsMenuItems.Line
       );
     const detailsPanel = new DetailsPanel(page);
     await detailsPanel.closePanel();

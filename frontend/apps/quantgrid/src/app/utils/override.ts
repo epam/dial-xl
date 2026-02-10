@@ -1,7 +1,7 @@
 import { getTokens, SheetLexer } from '@frontend/parser';
 
 export function isOverrideValueFormula(
-  value: string | number | undefined | null,
+  value: string | number | undefined | null
 ) {
   if (!value || typeof value === 'number') {
     return false;

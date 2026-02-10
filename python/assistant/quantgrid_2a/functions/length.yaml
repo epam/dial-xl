@@ -1,6 +1,0 @@
-name: length
-description: Returns length of array
-signature: 'array<T>.length() => number'
-manual: >-
-  `length` returns the number of elements in array.
-original_name: count

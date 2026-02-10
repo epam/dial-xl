@@ -15,7 +15,7 @@ export interface WorkArea {
     rowStart: number,
     columnStrart: number,
     rowEnd: number,
-    columnEnd: number,
+    columnEnd: number
   ): void;
 
   expectSelectedRowToBe(row: number): void;
@@ -34,7 +34,7 @@ export interface WorkArea {
 
   verifyGridDimensionsEqualsTo(
     expectedRows: number,
-    expectedColumns: number,
+    expectedColumns: number
   ): void;
 
   getCellTableText(row: number, column: number): Promise<string>;
@@ -45,7 +45,7 @@ export interface WorkArea {
     row: number,
     column: number,
     groupText: string,
-    actionText: string,
+    actionText: string
   ): void;
 
   expectVisualizationToAppear(row: number, column: number): void;
@@ -64,7 +64,7 @@ export interface WorkArea {
     row: number,
     column: number,
     groupText: string,
-    actionText: string,
+    actionText: string
   ): void;
 
   expectCellTextChange(row: number, column: number, newCellText: string): void;
@@ -97,7 +97,7 @@ export interface WorkArea {
     initialRow: number,
     initialColumn: number,
     text: string,
-    direction: MoveDirection,
+    direction: MoveDirection
   ): void;
 
   expectContextMenuVisible(): void;

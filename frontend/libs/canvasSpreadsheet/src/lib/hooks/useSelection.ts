@@ -38,7 +38,7 @@ export function useSelection() {
     if (!selectedTable || !selectionEdges) return;
 
     const findTable = tableStructure.find(
-      (table) => table.tableName === selectedTable,
+      (table) => table.tableName === selectedTable
     );
 
     if (!findTable) return;
@@ -74,7 +74,7 @@ export function useSelection() {
   const selectTableByName = useCallback(
     (tableName: string) => {
       const findTable = tableStructure.find(
-        (table) => table.tableName === tableName,
+        (table) => table.tableName === tableName
       );
 
       if (!findTable) return;
@@ -90,14 +90,14 @@ export function useSelection() {
         },
         {
           selectedTable: tableName,
-        },
+        }
       );
 
       gridApi.event.emit({
         type: GridEvent.startMoveEntity,
       });
     },
-    [gridApi, setSelectionEdges, tableStructure],
+    [gridApi, setSelectionEdges, tableStructure]
   );
 
   const selectTable = useCallback(() => {
@@ -120,7 +120,7 @@ export function useSelection() {
       },
       {
         selectedTable: table.tableName,
-      },
+      }
     );
 
     gridApi.event.emit({
@@ -200,7 +200,7 @@ export function useSelection() {
     const selectionSubscription = selection$.subscribe(
       (edges: Edges | null) => {
         setLocalSelectionEdges(edges);
-      },
+      }
     );
 
     return () => {

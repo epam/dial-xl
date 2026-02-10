@@ -1,4 +1,3 @@
-import { Application } from 'pixi.js';
 import {
   JSX,
   PropsWithChildren,
@@ -13,6 +12,7 @@ import isEqual from 'react-fast-compare';
 import { BehaviorSubject } from 'rxjs';
 
 import { AppTheme, ViewportInteractionMode } from '@frontend/common';
+import { Application } from '@pixi/app';
 
 import {
   defaultGridSizes,
@@ -37,7 +37,6 @@ import {
   getGridDimension,
   getNextSelectionEdges,
   getSelectionAnchor,
-  getSymbolWidth,
   GridEventBus,
   SelectionAnchor,
 } from '../../utils';
@@ -45,7 +44,7 @@ import { GridStateContext } from './GridStateContext';
 
 type GridStateProps = {
   app: Application | null;
-  apiRef: RefObject<GridApi | null>;
+  apiRef: RefObject<GridApi>;
   data: GridData;
   eventBus: GridEventBus;
   gridContainerRef: RefObject<HTMLDivElement | null>;
@@ -55,7 +54,6 @@ type GridStateProps = {
   zoom: number;
   columnSizes: Record<string, number>;
   viewportInteractionMode: ViewportInteractionMode;
-  showGridLines: boolean;
 };
 
 export function GridStateContextProvider({
@@ -71,7 +69,6 @@ export function GridStateContextProvider({
   zoom,
   columnSizes,
   viewportInteractionMode,
-  showGridLines,
 }: PropsWithChildren<GridStateProps>): JSX.Element {
   const { gridWidth, gridHeight } = useGridResize({ gridContainerRef, app });
 
@@ -85,7 +82,6 @@ export function GridStateContextProvider({
     useState<SelectionEdges | null>(null);
   const [pointClickError, setPointClickError] = useState(false);
   const [selectedTable, setSelectedTable] = useState<string | null>(null);
-  const [selectedChart, setSelectedChart] = useState<string | null>(null);
   const [isTableDragging, setIsTableDragging] = useState(false);
   const [dndSelection, setDNDSelection] = useState<SelectionEdges | null>(null);
   const [hasCharts, setHasCharts] = useState(false);
@@ -102,7 +98,7 @@ export function GridStateContextProvider({
     (col: number, row: number) => {
       return data[row]?.[col];
     },
-    [data],
+    [data]
   );
 
   const setCellValue = useCallback(
@@ -111,14 +107,14 @@ export function GridStateContextProvider({
 
       data[row][col].value = value;
     },
-    [data],
+    [data]
   );
 
   const getBitmapFontName = useCallback(
-    (fontFamily: string) => {
-      return `${fontFamily},${fontNameScale}${zoom}`;
+    (fontFamily: string, fontName: string) => {
+      return `${fontFamily},${fontName},${fontNameScale}${zoom}`;
     },
-    [zoom],
+    [zoom]
   );
 
   const setRowNumberWidth = useCallback((width: number) => {
@@ -149,7 +145,7 @@ export function GridStateContextProvider({
           Math.ceil(targetCol / viewportColStep) * viewportColStep;
         newCol = Math.min(
           defaultGridSizes.edges.maxCol,
-          Math.max(desiredColEdge, currentCol),
+          Math.max(desiredColEdge, currentCol)
         );
       }
 
@@ -158,7 +154,7 @@ export function GridStateContextProvider({
           Math.ceil(targetRow / viewportRowStep) * viewportRowStep;
         newRow = Math.min(
           defaultGridSizes.edges.maxRow,
-          Math.max(desiredRowEdge, currentRow),
+          Math.max(desiredRowEdge, currentRow)
         );
       }
 
@@ -181,7 +177,7 @@ export function GridStateContextProvider({
         };
       });
     },
-    [],
+    []
   );
 
   const shrinkRowOrCol = useCallback(
@@ -226,12 +222,12 @@ export function GridStateContextProvider({
         };
       });
     },
-    [],
+    []
   );
 
   const selection$: BehaviorSubject<Edges | null> = useMemo(
     () => new BehaviorSubject<Edges | null>(null),
-    [],
+    []
   );
 
   const setSelectionEdges = useCallback(
@@ -257,21 +253,12 @@ export function GridStateContextProvider({
         });
       }
     },
-    [data, eventBus, selectedTable, selection$],
+    [data, eventBus, selectedTable, selection$]
   );
 
   const isPanModeEnabled = useMemo(() => {
     return viewportInteractionMode === 'pan';
   }, [viewportInteractionMode]);
-
-  const canvasSymbolWidth = useMemo(() => {
-    const { fontSize } = gridSizes.cell;
-    const { cellFontFamily } = theme.cell;
-
-    const fontName = getBitmapFontName(cellFontFamily);
-
-    return getSymbolWidth(fontSize, fontName);
-  }, [getBitmapFontName, gridSizes.cell, theme.cell]);
 
   useEffect(() => {
     setGridSizes((prev) => {
@@ -283,38 +270,15 @@ export function GridStateContextProvider({
 
           const scaledScope = Object.fromEntries(
             Object.entries(currentScope as Record<string, number>).map(
-              ([param, size]) => [param, Math.max(1, Math.round(size * zoom))],
-            ),
-          ) as Record<string, number>;
-
-          if (!showGridLines) {
-            if (scope === 'rowNumber') {
-              return [
-                scope,
-                {
-                  ...scaledScope,
-                  width: 0,
-                  minWidth: 0,
-                },
-              ];
-            }
-
-            if (scope === 'colNumber') {
-              return [
-                scope,
-                {
-                  ...scaledScope,
-                  height: 0,
-                },
-              ];
-            }
-          }
+              ([param, size]) => [param, Math.max(1, Math.round(size * zoom))]
+            )
+          );
 
           return [scope, scaledScope];
-        }),
+        })
       ) as GridSizes;
     });
-  }, [zoom, showGridLines]);
+  }, [zoom]);
 
   useEffect(() => {
     const { cell, edges } = gridSizes;
@@ -358,7 +322,6 @@ export function GridStateContextProvider({
   const value = useMemo(
     () => ({
       app,
-      canvasSymbolWidth,
       dottedSelectionEdges,
       dndSelection,
       fullHeight,
@@ -393,13 +356,9 @@ export function GridStateContextProvider({
       zoom,
       increaseCanvasAnimatedItems,
       decreaseCanvasAnimatedItems,
-      selectedChart,
-      setSelectedChart,
-      showGridLines,
     }),
     [
       app,
-      canvasSymbolWidth,
       dottedSelectionEdges,
       dndSelection,
       fullHeight,
@@ -430,10 +389,7 @@ export function GridStateContextProvider({
       updateMaxRowOrCol,
       shrinkRowOrCol,
       zoom,
-      selectedChart,
-      setSelectedChart,
-      showGridLines,
-    ],
+    ]
   );
 
   return (

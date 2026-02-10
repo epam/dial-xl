@@ -24,7 +24,7 @@ import { UndoRedoContext } from './UndoRedoContext';
 function getTitle(
   countChanges: number,
   newRevertedIndex: number,
-  isPlural: boolean,
+  isPlural: boolean
 ) {
   return `Undo ${countChanges} change${
     isPlural ? 's' : ''
@@ -33,15 +33,15 @@ function getTitle(
 
 function combineSheetChanges(
   oldSheets: { sheetName: string; content: string | undefined }[],
-  newSheets: { sheetName: string; content: string | undefined }[],
+  newSheets: { sheetName: string; content: string | undefined }[]
 ) {
   const changes = newSheets.concat(
     oldSheets
       .filter(
         ({ sheetName: exSheetName }) =>
-          !newSheets.some(({ sheetName }) => sheetName === exSheetName),
+          !newSheets.some(({ sheetName }) => sheetName === exSheetName)
       )
-      .map(({ sheetName }) => ({ sheetName, content: undefined })),
+      .map(({ sheetName }) => ({ sheetName, content: undefined }))
   );
 
   return changes;
@@ -71,7 +71,7 @@ export function UndoRedoProvider({ children }: PropsWithChildren) {
       const currentHistory = getProjectHistory(
         projectName,
         projectBucket,
-        projectPath,
+        projectPath
       );
 
       setRevertedIndex((revertedIndex) => {
@@ -89,23 +89,23 @@ export function UndoRedoProvider({ children }: PropsWithChildren) {
           const newLastHistoryElement = removeLastProjectHistoryElement(
             projectName,
             projectBucket,
-            projectPath,
+            projectPath
           );
 
           if (newLastHistoryElement) {
             const updatedSheets = Object.entries(
-              newLastHistoryElement.sheetsState,
+              newLastHistoryElement.sheetsState
             ).map(([key, value]) => ({ sheetName: key, content: value }));
             const changes = combineSheetChanges(
               projectSheets ?? [],
-              updatedSheets,
+              updatedSheets
             );
 
             updateSheetContent(changes);
           }
 
           setHistory(
-            getProjectHistory(projectName, projectBucket, projectPath),
+            getProjectHistory(projectName, projectBucket, projectPath)
           );
 
           return null;
@@ -123,7 +123,7 @@ export function UndoRedoProvider({ children }: PropsWithChildren) {
           isUpdate: true,
         });
         const updatedSheets = Object.entries(sheetsState).map(
-          ([key, value]) => ({ sheetName: key, content: value }),
+          ([key, value]) => ({ sheetName: key, content: value })
         );
         updateSheetContent(updatedSheets);
 
@@ -140,7 +140,7 @@ export function UndoRedoProvider({ children }: PropsWithChildren) {
       projectSheets,
       sheetName,
       updateSheetContent,
-    ],
+    ]
   );
 
   const undo = useCallback(
@@ -153,7 +153,7 @@ export function UndoRedoProvider({ children }: PropsWithChildren) {
       const currentHistory = getProjectHistory(
         projectName,
         projectBucket,
-        projectPath,
+        projectPath
       );
 
       if (currentHistory.length < 2) return;
@@ -169,7 +169,7 @@ export function UndoRedoProvider({ children }: PropsWithChildren) {
         const undoElement = currentHistory[newRevertedIndex];
 
         const updatedSheets = Object.entries(undoElement.sheetsState).map(
-          ([key, value]) => ({ sheetName: key, content: value }),
+          ([key, value]) => ({ sheetName: key, content: value })
         );
         const changes = combineSheetChanges(projectSheets ?? [], updatedSheets);
 
@@ -214,7 +214,7 @@ export function UndoRedoProvider({ children }: PropsWithChildren) {
       redo,
       sheetName,
       updateSheetContent,
-    ],
+    ]
   );
 
   const clear = useCallback(() => {
@@ -225,14 +225,14 @@ export function UndoRedoProvider({ children }: PropsWithChildren) {
     const currentHistory = getProjectHistory(
       projectName,
       projectBucket,
-      projectPath,
+      projectPath
     );
 
     clearProjectHistory(
       projectName,
       projectBucket,
       projectPath,
-      currentHistory[currentHistory.length - 1].sheetsState ?? undefined,
+      currentHistory[currentHistory.length - 1].sheetsState ?? undefined
     );
 
     setHistory(getProjectHistory(projectName, projectBucket, projectPath));
@@ -241,26 +241,23 @@ export function UndoRedoProvider({ children }: PropsWithChildren) {
   const appendTo = useCallback(
     (
       historyTitle: string,
-      changedSheets: { sheetName: string; content: string | undefined }[],
+      changedSheets: { sheetName: string; content: string | undefined }[]
     ) => {
       if (!projectName || !projectBucket) return;
 
       const sheets =
-        projectSheets?.reduce(
-          (acc, current) => {
-            const changedValue = changedSheets.find(
-              ({ sheetName }) => sheetName === current.sheetName,
-            );
-            if (!changedValue) {
-              acc[current.sheetName] = current.content;
-            } else if (changedValue.content != null) {
-              acc[current.sheetName] = changedValue.content;
-            }
+        projectSheets?.reduce((acc, current) => {
+          const changedValue = changedSheets.find(
+            ({ sheetName }) => sheetName === current.sheetName
+          );
+          if (!changedValue) {
+            acc[current.sheetName] = current.content;
+          } else if (changedValue.content != null) {
+            acc[current.sheetName] = changedValue.content;
+          }
 
-            return acc;
-          },
-          {} as Record<string, string>,
-        ) ?? {};
+          return acc;
+        }, {} as Record<string, string>) ?? {};
 
       appendToProjectHistory({
         title: historyTitle,
@@ -274,7 +271,7 @@ export function UndoRedoProvider({ children }: PropsWithChildren) {
 
       setRevertedIndex(null);
     },
-    [projectBucket, projectName, projectPath, projectSheets],
+    [projectBucket, projectName, projectPath, projectSheets]
   );
 
   useEffect(() => {

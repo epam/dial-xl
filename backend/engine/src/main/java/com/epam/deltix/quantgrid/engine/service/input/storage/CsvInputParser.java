@@ -1,7 +1,5 @@
 package com.epam.deltix.quantgrid.engine.service.input.storage;
 
-import com.epam.deltix.quantgrid.engine.Util;
-import com.epam.deltix.quantgrid.engine.service.input.CsvColumn;
 import com.epam.deltix.quantgrid.type.InputColumnType;
 import com.epam.deltix.quantgrid.util.Dates;
 import com.epam.deltix.quantgrid.util.DeduplicateSet;
@@ -15,16 +13,19 @@ import com.univocity.parsers.csv.Csv;
 import com.univocity.parsers.csv.CsvParser;
 import com.univocity.parsers.csv.CsvParserSettings;
 import it.unimi.dsi.fastutil.doubles.DoubleArrayList;
-import it.unimi.dsi.fastutil.ints.Int2ObjectLinkedOpenHashMap;
-import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
+import it.unimi.dsi.fastutil.objects.Object2IntMap;
+import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import lombok.experimental.UtilityClass;
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 
 import java.io.Reader;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -41,7 +42,7 @@ public class CsvInputParser {
     private static final int MAX_COLUMNS = 512;
     private static final int MAX_CHARS = 1_048_576;
 
-    public List<CsvColumn> inferSchema(Reader reader, boolean addMissingHeaders) {
+    public LinkedHashMap<String, InputColumnType> inferSchema(Reader reader, boolean addMissingHeaders) {
         try {
             CsvParser parser = new CsvParser(inputCsvSettings());
             IterableResult<String[], ParsingContext> rows = parser.iterate(reader);
@@ -73,20 +74,15 @@ public class CsvInputParser {
                 }
             }
 
-            List<CsvColumn> columns = new ArrayList<>();
+            LinkedHashMap<String, InputColumnType> schema = new LinkedHashMap<>();
             int index = 0;
             for (Map.Entry<String, Boolean> entry : parsedHeader.entrySet()) {
                 String columnName = entry.getKey();
-                InputColumnType columnType = columnTypes.get(index);
-                if (columnType != null) {
-                    columns.add(new CsvColumn(columnName, index, columnType));
-                } else if (entry.getValue()) {
-                    columns.add(new CsvColumn(columnName, index, InputColumnType.DOUBLE));
-                }
-                ++index;
+                InputColumnType columnType = columnTypes.get(index++);
+                schema.put(columnName, columnType == null && entry.getValue() ? InputColumnType.DOUBLE : columnType);
             }
 
-            return columns;
+            return schema;
         } catch (TextParsingException e) {
             if (e.getColumnIndex() > MAX_COLUMNS) {
                 throw new ParserException(
@@ -106,76 +102,84 @@ public class CsvInputParser {
 
     /**
      * @param reader source CSV data
-     * @param indices column indices to read
-     * @param names column names to read
-     * @param types expected column types
+     * @param orderedNames column names to read
+     * @param columnTypes full CSV schema if orderedNames is provided, otherwise only required columns
      * @return Object[] of DoubleArrayList(s) for doubles and ObjectArrayList(s) for strings
      */
     public Object[] parseCsvInput(
             Reader reader,
-            @Nullable
-            List<Integer> indices,
-            @Nullable
-            List<String> names,
-            List<InputColumnType> types) {
-        Util.verify((indices == null) != (names == null),
-                "Either indices or names should be provided, but not both.");
+            @Nullable List<String> orderedNames,
+            LinkedHashMap<String, InputColumnType> columnTypes) {
+        Map<String, ObjectArrayList<String>> stringColumns = new HashMap<>();
+        Map<String, DoubleArrayList> doubleColumns = new HashMap<>();
 
-        Int2ObjectMap<ObjectArrayList<String>> stringColumns = new Int2ObjectLinkedOpenHashMap<>();
-        Int2ObjectMap<DoubleArrayList> doubleColumns = new Int2ObjectLinkedOpenHashMap<>();
-
-        int expectedColumns = types.size();
+        Collection<String> columnsToRead = orderedNames != null ? orderedNames : columnTypes.keySet();
+        int expectedColumns = columnsToRead.size();
+        int columnIndex = 0;
         StringConsumer[] consumers = new StringConsumer[expectedColumns];
-        for (int i = 0; i < types.size(); i++) {
-            InputColumnType columnType = types.get(i);
+        for (String columnName : columnsToRead) {
+            InputColumnType columnType = columnTypes.get(columnName);
 
             if (columnType == InputColumnType.STRING) {
                 DeduplicateSet<String> set = new DeduplicateSet<>();
                 ObjectArrayList<String> stringData = new ObjectArrayList<>();
-                consumers[i] = s -> stringData.add(set.add(ParserUtils.parseString(s)));
-                stringColumns.put(i, stringData);
+                consumers[columnIndex++] = s -> stringData.add(set.add(ParserUtils.parseString(s)));
+                stringColumns.put(columnName, stringData);
             } else {
                 DoubleArrayList doubleData = new DoubleArrayList();
-                consumers[i] = switch (columnType) {
+                consumers[columnIndex++] = switch (columnType) {
                     case DATE -> s -> doubleData.add(Dates.fromDate(s));
                     case DATE_TIME -> s -> doubleData.add(Dates.fromDateTime(s));
                     case BOOLEAN -> s -> doubleData.add(ParserUtils.parseBoolean(s));
                     case DOUBLE -> s -> doubleData.add(ParserUtils.parseDouble(s));
                     default -> throw new UnsupportedOperationException("Unsupported column type: " + columnType);
                 };
-                doubleColumns.put(i, doubleData);
+                doubleColumns.put(columnName, doubleData);
             }
         }
 
-        Iterable<String[]> rows = parse(reader, indices, names);
-
+        Iterable<String[]> rows;
+        if (orderedNames != null) {
+            int index = 0;
+            Object2IntMap<String> indexMap = new Object2IntOpenHashMap<>();
+            for (String columnName : columnTypes.keySet()) {
+                indexMap.put(columnName, index++);
+            }
+            Integer[] indices = orderedNames.stream()
+                    .map(indexMap::getInt)
+                    .toArray(Integer[]::new);
+            rows = parse(reader, indices, null);
+        } else {
+            rows = parse(reader, null, columnsToRead.toArray(ArrayUtils.EMPTY_STRING_ARRAY));
+        }
         for (String[] row : rows) {
-            for (int i = 0; i < types.size(); i++) {
+            for (int i = 0; i < columnsToRead.size(); i++) {
                 consumers[i].accept(emptyIfNull(row[i]));
             }
         }
 
         Object[] columns = new Object[expectedColumns];
-        for (int i = 0; i < types.size(); i++) {
-            InputColumnType columnType = types.get(i);
+        columnIndex = 0;
+        for (String columnName : columnsToRead) {
+            InputColumnType columnType = columnTypes.get(columnName);
 
             if (columnType == InputColumnType.STRING) {
-                columns[i] = stringColumns.get(i);
+                columns[columnIndex++] = stringColumns.get(columnName);
             } else {
-                columns[i] = doubleColumns.get(i);
+                columns[columnIndex++] = doubleColumns.get(columnName);
             }
         }
 
         return columns;
     }
 
-    private Iterable<String[]> parse(Reader reader, @Nullable List<Integer> indices, @Nullable List<String> names) {
+    private Iterable<String[]> parse(Reader reader, @Nullable Integer[] indices, @Nullable String[] names) {
         CsvParserSettings settings = inputCsvSettings();
         // carry only required columns
         if (indices != null) {
-            settings.selectIndexes(indices.toArray(Integer[]::new));
+            settings.selectIndexes(indices);
         } else {
-            settings.selectFields(names.toArray(String[]::new));
+            settings.selectFields(names);
         }
 
         CsvParser parser = new CsvParser(settings);

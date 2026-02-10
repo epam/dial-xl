@@ -1,2 +1,0 @@
-class XLInvariantViolation(Exception):
-    pass

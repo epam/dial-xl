@@ -6,7 +6,6 @@ import {
   FieldSortOrder,
   HighlightData,
   TotalData,
-  Viewport,
 } from '@frontend/common';
 import {
   ParsedConditionFilter,
@@ -29,9 +28,6 @@ export type FiltersUpdate = {
 export type TableDynamicFieldsLoadUpdate = {
   tableName: string;
   dynamicFields: string[];
-  startColumn?: number;
-  endColumn?: number;
-  totalColumns?: number;
 };
 
 export type TableDimensions = {
@@ -70,7 +66,7 @@ export type TableData = {
   total: TotalData;
 
   table: ParsedTable;
-  dynamicFields?: (string | undefined)[];
+  dynamicFields?: string[];
   isDynamicFieldsRequested: boolean;
 
   totalRows: number;
@@ -93,46 +89,3 @@ export type TableData = {
 export type TablesData = {
   [tableName: string]: TableData;
 };
-
-export type DynamicColumnRange = {
-  start: number;
-  end: number;
-};
-
-export type Range = [number, number];
-export type TableFieldsPlan = {
-  fields: string[];
-  dynamicRange?: DynamicColumnRange;
-};
-
-export type ViewportWithColumnRange = Viewport & {
-  start_column?: number;
-  end_column?: number;
-};
-
-export type TableViewportCache = {
-  startRow: number;
-  endRow: number;
-
-  /** Which data-axis row ranges have been requested for this table? */
-  requestedRows: Range[];
-
-  /** Which fields have been requested at least once? */
-  fields: Set<string>;
-
-  /** Which dynamic-column ranges for '*' have been requested (relative indices). */
-  requestedDynamicColumns: Range[];
-};
-
-export type TableFieldsForViewportResult = {
-  /**
-   * Field names that should be requested for the current viewport.
-   */
-  fields: string[];
-  /**
-   * If present, indicates which dynamic columns should be resolved for '*'.
-   */
-  dynamicRange?: DynamicColumnRange;
-};
-
-export const extraDirectionOffset = 50;

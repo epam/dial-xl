@@ -4,7 +4,6 @@ import { parse as yamlParse, stringify as yamlStringify } from 'yaml';
 
 import {
   apiMessages,
-  ApiRequestFunction,
   bindConversationsRootFolder,
   defaultSheetName,
   dialProjectFileExtension,
@@ -23,6 +22,7 @@ import {
 
 import { FileReference } from '../../common';
 import { createUniqueFileName } from '../../services';
+import { ApiRequestFunction } from '../../types';
 import {
   collectFilesFromProject,
   constructPath,
@@ -43,7 +43,7 @@ import { useFileResourceRequests } from './useFileResourceRequests';
 
 export const useProjectRequests = (
   auth: AuthContextProps,
-  userBucket: string | undefined,
+  userBucket: string | undefined
 ) => {
   const { sendDialRequest } = useBackendRequest(auth);
   const {
@@ -74,7 +74,7 @@ export const useProjectRequests = (
 
     const flatFiles = (
       files: ResourceMetadata[],
-      acc: ResourceMetadata[],
+      acc: ResourceMetadata[]
     ): ResourceMetadata[] =>
       files.reduce((acc, curr) => {
         if (
@@ -165,12 +165,12 @@ export const useProjectRequests = (
 
             return acc;
           },
-          [] as WorksheetState[],
+          [] as WorksheetState[]
         ),
         version: data?.etag ?? '',
       };
     },
-    [createFile, createFolder],
+    [createFile, createFolder]
   );
 
   const checkProjectExists = useCallback<
@@ -185,8 +185,8 @@ export const useProjectRequests = (
               bucket,
               parentPath,
               name + dialProjectFileExtension,
-            ]),
-          ),
+            ])
+          )
         );
 
         return res.ok;
@@ -194,7 +194,7 @@ export const useProjectRequests = (
         return false;
       }
     },
-    [sendDialRequest],
+    [sendDialRequest]
   );
 
   const getProject = useCallback<
@@ -209,8 +209,8 @@ export const useProjectRequests = (
               bucket,
               parentPath,
               name + dialProjectFileExtension,
-            ]),
-          ),
+            ])
+          )
         );
 
         if (!res.ok) {
@@ -228,7 +228,7 @@ export const useProjectRequests = (
           name,
           bucket,
           parentPath,
-          version,
+          version
         );
       } catch {
         displayToast('error', apiMessages.getProjectClient);
@@ -236,7 +236,7 @@ export const useProjectRequests = (
         return undefined;
       }
     },
-    [sendDialRequest],
+    [sendDialRequest]
   );
 
   const putProject = useCallback<
@@ -251,7 +251,7 @@ export const useProjectRequests = (
           projectData.projectName + dialProjectFileExtension,
           {
             type: 'application/x-yaml',
-          },
+          }
         );
         const formData = new FormData();
         formData.append('attachment', file);
@@ -263,7 +263,7 @@ export const useProjectRequests = (
               projectData.bucket,
               projectData.path,
               projectData.projectName + dialProjectFileExtension,
-            ]),
+            ])
           ),
           {
             method: 'PUT',
@@ -273,7 +273,7 @@ export const useProjectRequests = (
                   'If-Match': projectData.version,
                 }
               : undefined,
-          },
+          }
         );
 
         if (!res.ok) {
@@ -299,7 +299,7 @@ export const useProjectRequests = (
         return undefined;
       }
     },
-    [sendDialRequest],
+    [sendDialRequest]
   );
 
   const deleteProjectConversations = useCallback<
@@ -330,7 +330,7 @@ export const useProjectRequests = (
 
         const queueDelete = (meta: ResourceMetadata) => {
           deleteJobs.push(
-            deleteConversation(meta.bucket, meta.parentPath, meta.name),
+            deleteConversation(meta.bucket, meta.parentPath, meta.name)
           );
         };
 
@@ -343,7 +343,7 @@ export const useProjectRequests = (
         return;
       }
     },
-    [deleteConversation, getConversations],
+    [deleteConversation, getConversations]
   );
 
   const deleteProject = useCallback<
@@ -356,11 +356,11 @@ export const useProjectRequests = (
           encodeApiUrl(
             `${filesEndpointPrefix}/${bucket}/${
               parentPath ? parentPath + '/' : ''
-            }${name}${dialProjectFileExtension}`,
+            }${name}${dialProjectFileExtension}`
           ),
           {
             method: 'DELETE',
-          },
+          }
         );
 
         if (!res.ok) {
@@ -398,7 +398,7 @@ export const useProjectRequests = (
         return undefined;
       }
     },
-    [deleteFolder, deleteProjectConversations, sendDialRequest],
+    [deleteFolder, deleteProjectConversations, sendDialRequest]
   );
 
   const moveProjectConversations = useCallback<
@@ -462,7 +462,7 @@ export const useProjectRequests = (
           const replacedMessages = updateMessagesProjectFoldersPath(
             conversationRes.messages,
             projectFolderCurrentPath,
-            projectFolderTargetPath,
+            projectFolderTargetPath
           );
 
           const putConvRes = await putConversation({
@@ -488,7 +488,7 @@ export const useProjectRequests = (
               parentPath,
               projectName,
             ]),
-            meta.name,
+            meta.name
           );
         };
 
@@ -502,7 +502,7 @@ export const useProjectRequests = (
         return;
       }
     },
-    [getConversations, getConversation, putConversation, deleteConversation],
+    [getConversations, getConversation, putConversation, deleteConversation]
   );
 
   const moveProject = useCallback<
@@ -530,8 +530,6 @@ export const useProjectRequests = (
       try {
         const projectName = name.replace(dialProjectFileExtension, '');
         const newProjectName = newProjectNameParam ?? projectName;
-
-        onProgress?.(0);
 
         // 1. Get project and update it's content
         const project = await getProject({
@@ -564,7 +562,7 @@ export const useProjectRequests = (
         const updatedProjectSheets = updateFilesPathInputsInProject(
           project.sheets,
           currentPath,
-          targetResultingPath,
+          targetResultingPath
         );
 
         onProgress?.(20);
@@ -580,14 +578,11 @@ export const useProjectRequests = (
           projectName: newProjectName,
           bucket: targetBucket,
           path: targetPath,
-          initialProjectData: updatedProjectSheets.reduce(
-            (acc, curr) => {
-              acc[curr.sheetName] = curr.content;
+          initialProjectData: updatedProjectSheets.reduce((acc, curr) => {
+            acc[curr.sheetName] = curr.content;
 
-              return acc;
-            },
-            {} as Record<string, string>,
-          ),
+            return acc;
+          }, {} as Record<string, string>),
           settingsToAdd,
           skipFolderCreation: true,
         });
@@ -668,7 +663,7 @@ export const useProjectRequests = (
       getProject,
       moveFolder,
       moveProjectConversations,
-    ],
+    ]
   );
 
   const renameProject = useCallback<
@@ -678,12 +673,11 @@ export const useProjectRequests = (
         fileName: string;
         newFileName: string;
         parentPath: string | null | undefined;
-        onProgress?: (progress: number) => void;
       },
       unknown
     >
   >(
-    async ({ bucket, fileName, newFileName, parentPath, onProgress }) => {
+    async ({ bucket, fileName, newFileName, parentPath }) => {
       return moveProject({
         bucket,
         name: fileName,
@@ -691,10 +685,9 @@ export const useProjectRequests = (
         parentPath,
         targetBucket: bucket,
         targetPath: parentPath,
-        onProgress,
       });
     },
-    [moveProject],
+    [moveProject]
   );
 
   const cloneProjectConversations = useCallback<
@@ -742,10 +735,10 @@ export const useProjectRequests = (
             suppressErrors: true,
           })) ?? [];
         const localConversations = isReadOnly
-          ? ((await getConversations({
+          ? (await getConversations({
               folder: localConversationsFolder,
               suppressErrors: true,
-            })) ?? [])
+            })) ?? []
           : [];
 
         if (!conversations) return;
@@ -782,7 +775,7 @@ export const useProjectRequests = (
           const replacedMessages = updateMessagesProjectFoldersPath(
             conversationRes.messages,
             currentProjectFolderPath,
-            projectFolderTargetPath,
+            projectFolderTargetPath
           );
 
           const putConvRes = await putConversation({
@@ -813,7 +806,7 @@ export const useProjectRequests = (
         return;
       }
     },
-    [getConversation, getConversations, putConversation, userBucket],
+    [getConversation, getConversations, putConversation, userBucket]
   );
 
   const cloneProject = useCallback<
@@ -846,10 +839,10 @@ export const useProjectRequests = (
         const folderPath = `${targetBucket}/${
           targetPath ? targetPath + '/' : ''
         }`;
-        const allFilesRes = await getFiles({
+        const allFiles = await getFiles({
           path: folderPath,
         });
-        const allFiles = allFilesRes.success ? allFilesRes.data : [];
+
         const projectName = name.replace(dialProjectFileExtension, '');
         const project = await getProject({
           name: projectName,
@@ -868,11 +861,11 @@ export const useProjectRequests = (
           newName || name,
           allFiles
             .filter((f) => f.nodeType !== MetadataNodeType.FOLDER)
-            .map((file) => file.name),
+            .map((file) => file.name)
         );
         const targetProjectName = targetProjectFileName.replace(
           dialProjectFileExtension,
-          '',
+          ''
         );
 
         const projectSheets = sheetsOverride ?? project.sheets;
@@ -891,7 +884,7 @@ export const useProjectRequests = (
         const updatedProjectSheets = updateFilesPathInputsInProject(
           projectSheets,
           currentProjectFolderPath,
-          projectFolderTargetPath,
+          projectFolderTargetPath
         );
 
         onProgress?.(20);
@@ -911,14 +904,11 @@ export const useProjectRequests = (
           projectName: targetProjectName,
           bucket: targetBucket,
           path: targetPath,
-          initialProjectData: updatedProjectSheets.reduce(
-            (acc, curr) => {
-              acc[curr.sheetName] = curr.content;
+          initialProjectData: updatedProjectSheets.reduce((acc, curr) => {
+            acc[curr.sheetName] = curr.content;
 
-              return acc;
-            },
-            {} as Record<string, string>,
-          ),
+            return acc;
+          }, {} as Record<string, string>),
           skipFolderCreation: true,
           settingsToAdd,
         });
@@ -934,7 +924,7 @@ export const useProjectRequests = (
         }
 
         const projectFilesFromSheets = (collectFilesFromProject(
-          projectSheets.map((sheet) => sheet.content),
+          projectSheets.map((sheet) => sheet.content)
         )
           ?.map(convertUrlToMetadata)
           .filter(Boolean) ?? []) as Pick<
@@ -942,23 +932,22 @@ export const useProjectRequests = (
           'bucket' | 'parentPath' | 'name'
         >[];
 
-        const projectFilesRes = await getFiles({
-          path:
-            constructPath([
-              bucket,
-              projectFoldersRootPrefix,
-              parentPath,
-              projectName,
-            ]) + '/',
-          isRecursive: true,
-        });
-        const projectFiles = projectFilesRes.success
-          ? projectFilesRes.data
-          : [];
+        const projectFiles =
+          (await getFiles({
+            path:
+              constructPath([
+                bucket,
+                projectFoldersRootPrefix,
+                parentPath,
+                projectName,
+              ]) + '/',
+            isRecursive: true,
+            suppressErrors: true,
+          })) ?? [];
 
         onProgress?.(40);
 
-        if (!projectFilesRes.success) {
+        if (!projectFiles) {
           if (suppressErrors)
             return { newClonedProjectName: targetProjectName };
 
@@ -968,7 +957,7 @@ export const useProjectRequests = (
         }
 
         const projectFilesFullPaths = projectFiles.map((file) =>
-          constructPath([file.bucket, file.parentPath, file.name]),
+          constructPath([file.bucket, file.parentPath, file.name])
         );
         const projectFilesUniqueInSheets = projectFilesFromSheets.filter(
           (file) => {
@@ -979,7 +968,7 @@ export const useProjectRequests = (
             ]);
 
             return !projectFilesFullPaths.includes(fullPath);
-          },
+          }
         );
         const projectFilesToClone =
           projectFilesUniqueInSheets.concat(projectFiles);
@@ -1048,7 +1037,7 @@ export const useProjectRequests = (
       getFiles,
       getProject,
       userBucket,
-    ],
+    ]
   );
 
   // Used SSE for response, so it should be handled on calling side
@@ -1090,7 +1079,7 @@ export const useProjectRequests = (
         return undefined;
       }
     },
-    [sendDialRequest],
+    [sendDialRequest]
   );
 
   /**
@@ -1159,7 +1148,7 @@ export const useProjectRequests = (
       const updatedSheets = updateFilesPathInputsInProject(
         sourceProject.sheets,
         sourceFolderPath,
-        currentFolderPath,
+        currentFolderPath
       );
 
       const updatedProject = await putProject({
@@ -1179,20 +1168,18 @@ export const useProjectRequests = (
       if (!updatedProject) return;
 
       /* Gather all files from source project and clone them */
-      const srcFolderFilesRes = await getFiles({
-        path:
-          constructPath([
-            sourceBucket,
-            projectFoldersRootPrefix,
-            sourcePath,
-            sourceName,
-          ]) + '/',
-        isRecursive: true,
-      });
-
-      const srcFolderFiles = srcFolderFilesRes.success
-        ? srcFolderFilesRes.data
-        : [];
+      const srcFolderFiles =
+        (await getFiles({
+          path:
+            constructPath([
+              sourceBucket,
+              projectFoldersRootPrefix,
+              sourcePath,
+              sourceName,
+            ]) + '/',
+          isRecursive: true,
+          suppressErrors: true,
+        })) ?? [];
 
       const extraFiles =
         (collectFilesFromProject(sourceProject.sheets.map((s) => s.content))
@@ -1221,7 +1208,7 @@ export const useProjectRequests = (
 
       return updatedProject;
     },
-    [getProject, deleteFolder, putProject, getFiles, cloneFile],
+    [getProject, deleteFolder, putProject, getFiles, cloneFile]
   );
 
   const updateForkedProjectMetadata = useCallback<
@@ -1285,7 +1272,7 @@ export const useProjectRequests = (
         return;
       }
     },
-    [getProject, putProject],
+    [getProject, putProject]
   );
 
   return {

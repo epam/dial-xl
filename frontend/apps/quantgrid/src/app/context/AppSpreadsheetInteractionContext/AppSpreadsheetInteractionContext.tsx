@@ -13,13 +13,13 @@ type AppSpreadsheetInteractionContextActions = {
   openTable: (
     sheetName: string,
     tableName: string,
-    sideEffect?: OpenTableSideEffect,
+    sideEffect?: OpenTableSideEffect
   ) => void;
   openField: (
     sheetName: string,
     tableName: string,
     fieldName: string,
-    sideEffect?: OpenFieldSideEffect,
+    sideEffect?: OpenFieldSideEffect
   ) => void;
   openCellEditor: (options: CellEditorOpenOptions) => void;
   autoCleanUpTable: (tableName: string) => void;
@@ -27,5 +27,5 @@ type AppSpreadsheetInteractionContextActions = {
 
 export const AppSpreadsheetInteractionContext =
   createContext<AppSpreadsheetInteractionContextActions>(
-    {} as AppSpreadsheetInteractionContextActions,
+    {} as AppSpreadsheetInteractionContextActions
   );

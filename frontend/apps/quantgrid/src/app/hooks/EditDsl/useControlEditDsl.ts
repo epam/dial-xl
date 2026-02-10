@@ -59,7 +59,7 @@ export function useControlEditDsl() {
       if (controlType === 'checkbox') {
         if (values.length > 0) {
           const formattedValues = values.map((v) =>
-            isFieldNumeric ? v : `${escapeValue(v)}`,
+            isFieldNumeric ? v : `${escapeValue(v)}`
           );
           updatedValuesString = `{${formattedValues.join(', ')}}`;
         } else {
@@ -68,7 +68,7 @@ export function useControlEditDsl() {
       }
 
       const controlExpression = findFunctionExpressions(
-        parsedField.expression,
+        parsedField.expression
       ).filter((fn) => controlType.toUpperCase() === fn.name);
 
       if (controlExpression.length !== 1) return;
@@ -107,7 +107,7 @@ export function useControlEditDsl() {
         tableName,
       });
     },
-    [findEditContext, updateDSL, viewGridData],
+    [findEditContext, updateDSL, viewGridData]
   );
 
   const createControl = useCallback(
@@ -128,7 +128,7 @@ export function useControlEditDsl() {
           null,
           null,
           controls.length,
-          3,
+          3
         );
 
         if (res) {
@@ -169,15 +169,8 @@ export function useControlEditDsl() {
       const historyTitle = `Add control "${newTableName}"`;
 
       updateDSL({ updatedSheetContent: sheet.toDSL(), historyTitle });
-
-      gridApi?.updateSelectionAfterDataChanged({
-        startCol: tableCol,
-        startRow: tableRow,
-        endCol: tableCol,
-        endRow: tableRow + 1,
-      });
     },
-    [gridApi, parsedSheet, parsedSheets, updateDSL, viewGridData],
+    [gridApi, parsedSheet, parsedSheets, updateDSL, viewGridData]
   );
 
   const createControlFromField = useCallback(
@@ -191,7 +184,7 @@ export function useControlEditDsl() {
         null,
         null,
         1,
-        3,
+        3
       ) ?? { col: 1, row: 1 };
 
       createControl(tableName, col, row, [
@@ -210,7 +203,7 @@ export function useControlEditDsl() {
         endRow: row + 1,
       });
     },
-    [createControl, gridApi, parsedSheet, viewGridData],
+    [createControl, gridApi, parsedSheet, viewGridData]
   );
 
   return {

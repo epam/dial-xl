@@ -2,7 +2,7 @@ import { ParsedTotal } from '@frontend/parser';
 
 export function findFirstEmptyTotalIndex(
   parsedTotal: ParsedTotal,
-  fieldName: string,
+  fieldName: string
 ): number | null {
   const totalSize = parsedTotal.size;
   const fieldTotals = parsedTotal.getFieldTotal(fieldName);
@@ -18,7 +18,7 @@ export function findFirstEmptyTotalIndex(
 
   const fieldTotalKeys = Object.keys(fieldTotals);
   const existingIndexes = fieldTotalKeys.sort(
-    (a, b) => parseInt(a) - parseInt(b),
+    (a, b) => parseInt(a) - parseInt(b)
   );
 
   // Search for empty placement in the existing rows

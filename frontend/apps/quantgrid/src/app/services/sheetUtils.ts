@@ -4,7 +4,7 @@ export type TableFields = Record<string, string[]>;
 
 export function getTableFields(
   parsedSheets: ParsedSheets,
-  currentSheetTables: ParsedTable[] = [],
+  currentSheetTables: ParsedTable[] = []
 ): TableFields {
   const tableFields: TableFields = {};
 

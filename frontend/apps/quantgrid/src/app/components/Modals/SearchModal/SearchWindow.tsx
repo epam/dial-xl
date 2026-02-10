@@ -1,16 +1,15 @@
 import { Input, InputRef } from 'antd';
 import cx from 'classnames';
-import { FuseResult } from 'fuse.js';
+import Fuse from 'fuse.js';
 import {
   useCallback,
   useContext,
   useEffect,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
 } from 'react';
-import { useNavigate } from 'react-router';
+import { useNavigate } from 'react-router-dom';
 import { useShallow } from 'zustand/react/shallow';
 
 import {
@@ -49,7 +48,7 @@ export function SearchWindow() {
       setFilter: s.setFilter,
       searchQuery: s.searchQuery,
       setSearchQuery: s.setQuery,
-    })),
+    }))
   );
 
   const {
@@ -65,8 +64,6 @@ export function SearchWindow() {
   const { getAllUserProjects } = useGetUserProjects();
 
   const inputRef = useRef<InputRef>(null);
-  const listRef = useRef<HTMLDivElement>(null);
-  const itemRefs = useRef<Array<HTMLDivElement | null>>([]);
 
   const [projects, setProjects] = useState<ResourceMetadata[]>([]);
   const [currentChosenIndex, setCurrentChosenIndex] = useState<number>(0);
@@ -86,7 +83,7 @@ export function SearchWindow() {
     setTimeout(() => inputRef.current?.input?.focus());
   }, [getAllProjects, isOpen]);
 
-  const results: FuseResult<ISearchResult>[] | null = useMemo(
+  const results: Fuse.FuseResult<ISearchResult>[] | null = useMemo(
     () =>
       isOpen && projectBucket
         ? search(
@@ -96,7 +93,7 @@ export function SearchWindow() {
             searchQuery,
             filter,
             projectBucket,
-            projectPath,
+            projectPath
           )
         : null,
     [
@@ -108,7 +105,7 @@ export function SearchWindow() {
       projectSheets,
       projects,
       searchQuery,
-    ],
+    ]
   );
 
   const onSubmit = useCallback(
@@ -121,7 +118,7 @@ export function SearchWindow() {
               projectName: result.path.projectName,
               projectBucket: result.path.projectBucket,
               projectPath: result.path.projectPath,
-            }),
+            })
           );
 
           break;
@@ -151,14 +148,14 @@ export function SearchWindow() {
           openField(
             result.path.sheetName,
             result.path.tableName,
-            result.path.fieldName,
+            result.path.fieldName
           );
 
           break;
         }
       }
     },
-    [closeSearchWindow, navigate, openField, openSheet, openTable, projectName],
+    [closeSearchWindow, navigate, openField, openSheet, openTable, projectName]
   );
 
   const onKeydown = useCallback((event: React.KeyboardEvent) => {
@@ -262,23 +259,6 @@ export function SearchWindow() {
     };
   }, [currentChosenIndex, filter, isOpen, onSubmit, results, setFilter]);
 
-  useEffect(() => {
-    itemRefs.current = [];
-  }, [results]);
-
-  useLayoutEffect(() => {
-    if (!results?.length) return;
-
-    const el = itemRefs.current[currentChosenIndex];
-    if (!el) return;
-
-    el.scrollIntoView({
-      block: 'nearest',
-      inline: 'nearest',
-      behavior: 'smooth',
-    });
-  }, [currentChosenIndex, results?.length]);
-
   return (
     <div className="w-full h-full pb-5">
       <Input
@@ -324,10 +304,7 @@ export function SearchWindow() {
           Tab or Shift+Tab to switch
         </span>
       </div>
-      <div
-        className="thin-scrollbar py-2 pr-2 overflow-auto h-max max-h-96 bg-bg-layer-3"
-        ref={listRef}
-      >
+      <div className="thin-scrollbar py-2 pr-2 overflow-auto h-max max-h-96 bg-bg-layer-3">
         {results && results.length === 0 && (
           <div className="text-text-primary pl-3">No results.</div>
         )}
@@ -337,12 +314,9 @@ export function SearchWindow() {
               'p-2 mb-1 cursor-pointer rounded-[3px] border-b-stroke-tertiary select-none hover:bg-bg-accent-primary-alpha',
               index === currentChosenIndex
                 ? 'border-l-2 border-l-stroke-accent-primary bg-bg-accent-primary-alpha stroke-text-primary'
-                : 'stroke-text-secondary',
+                : 'stroke-text-secondary'
             )}
             key={result.item.name + result.item.type + index}
-            ref={(el) => {
-              itemRefs.current[index] = el;
-            }}
             result={result}
             onClick={() => onSubmit(result.item)}
           />

@@ -22,10 +22,8 @@ export const appMessages = {
   fileCloneSuccess: 'File(s) successfully cloned',
   resetProjectError: 'Error happened during resetting project',
   resetProjectSuccess: 'Project successfully reset to the base project',
-  projectCreateSuccess: (newProjectName: string) =>
-    `Project "${newProjectName}" successfully created`,
-  projectCloneSuccess: (newProjectName: string) =>
-    `Project successfully cloned to '${newProjectName}'.`,
+  projectCloneSuccess: (projectToClone: string, newClonedProject: string) =>
+    `Project "${projectToClone}" successfully cloned to new project "${newClonedProject}"`,
   fileUploadSchemaError: (fileName: string, errorMessage: string) =>
     `Getting error for ${fileName}: "${errorMessage}".`,
 };

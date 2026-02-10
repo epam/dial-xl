@@ -27,7 +27,7 @@ export function ChartActions({
         'absolute pointer-events-auto flex items-center justify-center gap-2 transition-opacity duration-200 ease-in-out',
         visible
           ? 'opacity-100 pointer-events-auto'
-          : 'opacity-0 pointer-events-none',
+          : 'opacity-0 pointer-events-none'
       )}
       style={{
         top: getPx(chartConfig.top + 10),

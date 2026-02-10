@@ -2,13 +2,9 @@ import { useCallback } from 'react';
 import { AuthContextProps } from 'react-oidc-context';
 
 import {
-  ApiErrorType,
   apiMessages,
-  ApiRequestFunction,
-  ApiRequestFunctionWithError,
   conversationsEndpointType,
   filesEndpointType,
-  GetMetadataParams,
   MetadataNodeType,
   MetadataResourceType,
   ResourceMetadata,
@@ -17,12 +13,8 @@ import {
   SharedWithMeMetadata,
 } from '@frontend/common';
 
-import {
-  classifyFetchError,
-  constructPath,
-  displayToast,
-  encodeApiUrl,
-} from '../../utils';
+import { ApiRequestFunction } from '../../types';
+import { constructPath, displayToast, encodeApiUrl } from '../../utils';
 import { useBackendRequest } from './useBackendRequests';
 
 const resourceTypeToEndpoint = {
@@ -78,7 +70,7 @@ export const useResourceRequests = (auth: AuthContextProps) => {
               : undefined),
           });
           const url = `/v1/metadata/${resourceEndpointType}/${encodeApiUrl(
-            path ?? '',
+            path ?? ''
           )}?${searchParams.toString()}`;
           currentNextToken = undefined;
           const res = await sendDialRequest(url, { method: 'get' });
@@ -113,11 +105,14 @@ export const useResourceRequests = (auth: AuthContextProps) => {
         return;
       }
     },
-    [sendDialRequest],
+    [sendDialRequest]
   );
 
   const getSharedByMeResources = useCallback<
-    ApiRequestFunctionWithError<GetMetadataParams, SharedByMeMetadata[]>
+    ApiRequestFunction<
+      { resourceType: MetadataResourceType },
+      SharedByMeMetadata[]
+    >
   >(
     async ({ resourceType }) => {
       try {
@@ -132,49 +127,29 @@ export const useResourceRequests = (auth: AuthContextProps) => {
         });
 
         if (!res.ok) {
-          if (res.status === 401 || res.status === 403) {
-            return {
-              success: false,
-              error: {
-                type: ApiErrorType.Unauthorized,
-                message: apiMessages.unauthorizedRequest,
-                statusCode: res.status,
-              },
-            };
-          }
+          displayToast('error', apiMessages.getSharedByMeFilesServer);
 
-          return {
-            success: false,
-            error: {
-              type: ApiErrorType.ServerError,
-              message: apiMessages.getSharedByMeFilesServer,
-              statusCode: res.status,
-            },
-          };
+          return undefined;
         }
 
         const filesMetadata: { resources: SharedByMeMetadata[] } =
           await res.json();
 
-        return {
-          success: true,
-          data: filesMetadata.resources,
-        };
-      } catch (error) {
-        return {
-          success: false,
-          error: classifyFetchError(
-            error,
-            apiMessages.getSharedByMeFilesClient,
-          ),
-        };
+        return filesMetadata.resources;
+      } catch {
+        displayToast('error', apiMessages.getSharedByMeFilesClient);
+
+        return;
       }
     },
-    [sendDialRequest],
+    [sendDialRequest]
   );
 
   const getSharedWithMeResources = useCallback<
-    ApiRequestFunctionWithError<GetMetadataParams, SharedWithMeMetadata[]>
+    ApiRequestFunction<
+      { resourceType: MetadataResourceType },
+      SharedWithMeMetadata[]
+    >
   >(
     async ({ resourceType }) => {
       try {
@@ -189,45 +164,22 @@ export const useResourceRequests = (auth: AuthContextProps) => {
         });
 
         if (!res.ok) {
-          if (res.status === 401 || res.status === 403) {
-            return {
-              success: false,
-              error: {
-                type: ApiErrorType.Unauthorized,
-                message: apiMessages.unauthorizedRequest,
-                statusCode: res.status,
-              },
-            };
-          }
+          displayToast('error', apiMessages.getSharedWithMeFilesServer);
 
-          return {
-            success: false,
-            error: {
-              type: ApiErrorType.ServerError,
-              message: apiMessages.getSharedWithMeFilesServer,
-              statusCode: res.status,
-            },
-          };
+          return undefined;
         }
 
         const filesMetadata: { resources: SharedWithMeMetadata[] } =
           await res.json();
 
-        return {
-          success: true,
-          data: filesMetadata.resources,
-        };
-      } catch (error) {
-        return {
-          success: false,
-          error: classifyFetchError(
-            error,
-            apiMessages.getSharedWithMeFilesClient,
-          ),
-        };
+        return filesMetadata.resources;
+      } catch {
+        displayToast('error', apiMessages.getSharedWithMeFilesClient);
+
+        return;
       }
     },
-    [sendDialRequest],
+    [sendDialRequest]
   );
 
   const revokeResourcesAccess = useCallback<
@@ -253,9 +205,9 @@ export const useResourceRequests = (auth: AuthContextProps) => {
                     bucket,
                     parentPath,
                     name,
-                  ]) + (nodeType === MetadataNodeType.FOLDER ? '/' : ''),
+                  ]) + (nodeType === MetadataNodeType.FOLDER ? '/' : '')
                 ),
-              }),
+              })
             ),
           }),
         });
@@ -273,7 +225,7 @@ export const useResourceRequests = (auth: AuthContextProps) => {
         return;
       }
     },
-    [sendDialRequest],
+    [sendDialRequest]
   );
 
   const discardResourcesAccess = useCallback<
@@ -299,9 +251,9 @@ export const useResourceRequests = (auth: AuthContextProps) => {
                     bucket,
                     parentPath,
                     name,
-                  ]) + (nodeType === MetadataNodeType.FOLDER ? '/' : ''),
+                  ]) + (nodeType === MetadataNodeType.FOLDER ? '/' : '')
                 ),
-              }),
+              })
             ),
           }),
         });
@@ -319,7 +271,7 @@ export const useResourceRequests = (auth: AuthContextProps) => {
         return;
       }
     },
-    [sendDialRequest],
+    [sendDialRequest]
   );
 
   const createResourcesShare = useCallback<
@@ -362,7 +314,7 @@ export const useResourceRequests = (auth: AuthContextProps) => {
         return;
       }
     },
-    [sendDialRequest],
+    [sendDialRequest]
   );
 
   const acceptResourcesShare = useCallback<
@@ -392,7 +344,7 @@ export const useResourceRequests = (auth: AuthContextProps) => {
         return;
       }
     },
-    [sendDialRequest],
+    [sendDialRequest]
   );
 
   return {

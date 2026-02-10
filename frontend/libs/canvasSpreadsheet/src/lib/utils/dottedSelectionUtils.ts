@@ -6,7 +6,7 @@ export const showFieldDottedSelection = (
   cell: CellPlacement,
   table: GridTable,
   endCol: number,
-  api: GridApi,
+  api: GridApi
 ) => {
   const tableRowDataStart =
     table.startRow + (table.isTableNameHeaderHidden ? 0 : 1);
@@ -34,7 +34,7 @@ export const showFieldDottedSelection = (
 export const showFieldGroupDottedSelection = (
   cell: GridCell,
   table: GridTable,
-  api: GridApi,
+  api: GridApi
 ) => {
   const tableRowDataStart =
     table.startRow + (table.isTableNameHeaderHidden ? 0 : 1);
@@ -61,7 +61,7 @@ export const showFieldGroupDottedSelection = (
 
 export const getTableRowDottedSelection = (
   cell: CellPlacement,
-  table: GridTable,
+  table: GridTable
 ): Edges => {
   const tableRowDataStart =
     table.startRow + (table.isTableNameHeaderHidden ? 0 : 1);

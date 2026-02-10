@@ -4,7 +4,7 @@ import { FullDSLPlacement, ShortDSLPlacement } from '../parser';
 
 export function getFullDSLPlacement(
   ctx: ParserRuleContext | undefined,
-  withStopCalculation?: boolean,
+  withStopCalculation?: boolean
 ): FullDSLPlacement | undefined {
   if (!ctx || !ctx.stop) return;
 
@@ -21,7 +21,7 @@ export function getFullDSLPlacement(
 
 export function getShortDSLPlacement(
   ctx: ParserRuleContext | undefined,
-  stopIndexOffset = 0,
+  stopIndexOffset = 0
 ): ShortDSLPlacement | undefined {
   if (!ctx) return;
 

@@ -80,7 +80,7 @@ export const useRunImportSync = () => {
                 }
               },
             },
-            controller,
+            controller
           )
             .then(() => resolve(finalResult))
             .catch(reject);
@@ -89,7 +89,7 @@ export const useRunImportSync = () => {
         manageRequestLifecycle('end', 'importSync', controller);
       }
     },
-    [manageRequestLifecycle, startImportSync],
+    [manageRequestLifecycle, startImportSync]
   );
 
   return {
@@ -105,7 +105,7 @@ interface GetImportVersionOptions {
 type ImportSyncEvent = { importSync?: ImportSync };
 
 export function getImportVersionFromSSE(
-  opts: GetImportVersionOptions = {},
+  opts: GetImportVersionOptions = {}
 ): OnSSEHandler<number | null> {
   const { onSchemaOnce, doneIsNull = true } = opts;
   let schemaCaptured = false;

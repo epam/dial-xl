@@ -10,7 +10,7 @@ import {
 export function getNode(
   inputFile: CommonMetadata,
   fields: string[],
-  key: string,
+  key: string
 ) {
   const { name, nodeType } = inputFile;
   const LeafIcon =

@@ -21,7 +21,7 @@ const isConstNumber = (e: Expression): e is ConstNumberExpression =>
   e instanceof ConstNumberExpression;
 
 function extractImportArgs(
-  fn: FunctionExpression,
+  fn: FunctionExpression
 ): { source: string; dataset: string; version: number } | null {
   if (fn.name !== 'IMPORT' || fn.arguments.length !== 1) return null;
 
@@ -45,7 +45,7 @@ function setMaxImport(
   map: Map<string, ImportArgs>,
   source: string,
   dataset: string,
-  version: number,
+  version: number
 ) {
   const key = `${source}/${dataset}`;
   const prev = map.get(key);
@@ -55,7 +55,7 @@ function setMaxImport(
 }
 
 function splitSourceDataset(
-  input: string,
+  input: string
 ): { source: string; dataset: string } | null {
   const sep = input.indexOf('/');
   if (sep <= 0 || sep >= input.length - 1) return null;
@@ -67,7 +67,7 @@ function splitSourceDataset(
 }
 
 export function collectUsedImports(
-  parsedSheets: ParsedSheets,
+  parsedSheets: ParsedSheets
 ): Map<string, ImportArgs> {
   const used = new Map<string, ImportArgs>();
 
@@ -90,7 +90,7 @@ export function collectUsedImports(
 }
 
 export function collectSingleFieldImport(
-  parsedField: ParsedField,
+  parsedField: ParsedField
 ): ImportArgs | null {
   const expr = parsedField.expression;
 

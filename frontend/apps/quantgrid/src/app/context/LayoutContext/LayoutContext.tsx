@@ -14,9 +14,8 @@ export type LayoutContextActions = {
   panelsSplitEnabled: boolean;
   updateSplitPanelsEnabled: (value: boolean) => void;
   closeAllPanels: () => void;
-  collapseExpandedPanelSide: () => void;
 };
 
 export const LayoutContext = createContext<LayoutContextActions>(
-  {} as LayoutContextActions,
+  {} as LayoutContextActions
 );

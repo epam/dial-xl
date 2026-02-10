@@ -14,6 +14,7 @@ export * from './functionsToUppercase';
 export * from './generateFieldExpressionFromText';
 export * from './getDSLChangeText';
 export * from './history';
+export * from './recentItems';
 export * from './recentProjects';
 export * from './sanitizeExpression';
 export * from './selectedConversations';

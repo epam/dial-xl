@@ -118,7 +118,7 @@ export class Sheet extends ObservableObserver {
 
   public get tables(): Table[] {
     return this._tables.filter(
-      (entry): entry is Table => entry instanceof Table,
+      (entry): entry is Table => entry instanceof Table
     );
   }
 

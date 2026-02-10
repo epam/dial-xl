@@ -9,7 +9,7 @@ import { SelectionEffectAfterSave } from '../types';
 import { isCellEditorHasFocus } from '../utils';
 
 type Props = {
-  apiRef: RefObject<GridApi | null>;
+  apiRef: RefObject<GridApi>;
   eventBus: GridEventBus;
   isPointClickMode: boolean;
 };
@@ -54,7 +54,7 @@ export function useCellEditorCompleteEdit({
         hide();
       }
     },
-    [apiRef, currentCell, dimFieldName, editMode, eventBus, hide],
+    [apiRef, currentCell, dimFieldName, editMode, eventBus, hide]
   );
 
   const onEscape = useCallback(() => {
@@ -152,7 +152,7 @@ export function useCellEditorCompleteEdit({
           break;
       }
     },
-    [apiRef],
+    [apiRef]
   );
 
   const onSave = useCallback(
@@ -165,7 +165,7 @@ export function useCellEditorCompleteEdit({
         moveSelectionAfterSave(moveSelection);
       }, 0);
     },
-    [codeValue, moveSelectionAfterSave, save],
+    [codeValue, moveSelectionAfterSave, save]
   );
 
   const onSaveCallback = useCallback(() => {

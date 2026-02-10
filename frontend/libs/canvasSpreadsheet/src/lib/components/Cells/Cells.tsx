@@ -1,17 +1,15 @@
-import { BitmapText, Container, Graphics } from 'pixi.js';
+import * as PIXI from 'pixi.js';
 import { useCallback, useContext, useEffect, useRef, useState } from 'react';
+
+import { Container, Graphics } from '@pixi/react';
 
 import { GridStateContext, GridViewportContext } from '../../context';
 import { Cell } from '../../types';
 import { getCellPlacements } from '../../utils';
 import { getTableZIndex, useCellOptions, useDrawCells } from './utils';
 
-type Props = {
-  zIndex: number;
-};
-
-export function Cells({ zIndex }: Props) {
-  const { getCell, tableStructure, theme } = useContext(GridStateContext);
+export function Cells() {
+  const { getCell, tableStructure } = useContext(GridStateContext);
   const {
     viewportColCount,
     viewportRowCount,
@@ -19,32 +17,33 @@ export function Cells({ zIndex }: Props) {
     gridViewportSubscriber,
   } = useContext(GridViewportContext);
 
-  const cellsRef = useRef<Cell[]>([]);
-  const graphicsRef = useRef<Graphics>(null);
-  const containerRef = useRef<Container>(null);
-  const [cells, setCells] = useState<Cell[]>([]);
+  const cells = useRef<Cell[]>([]);
+  const graphicsRef = useRef<PIXI.Graphics>(null);
+  const containerRef = useRef<PIXI.Container>(null);
+  const [tableCells, setTableCells] = useState<Cell[]>([]);
   const { fontName } = useCellOptions();
 
   const allocateNeededCells = useCallback(() => {
-    cellsRef.current
-      .filter(
-        ({ col, row }) => col >= viewportColCount || row >= viewportRowCount,
-      )
-      .forEach(({ text }) => {
-        containerRef.current?.removeChild(text);
+    for (const { text, col, row } of cells.current) {
+      if (col >= viewportColCount || row >= viewportRowCount) {
         text.destroy();
-      });
-    cellsRef.current = cellsRef.current.filter(
-      ({ col, row }) => col < viewportColCount && row < viewportRowCount,
+
+        continue;
+      }
+      text.fontName = fontName;
+    }
+
+    cells.current = cells.current.filter(
+      ({ col, row }) => col < viewportColCount && row < viewportRowCount
     );
 
-    const currentCellCount = cellsRef.current.length;
+    const currentCellCount = cells.current.length;
     const requiredCellCount = viewportColCount * viewportRowCount;
 
     // If fewer cells exist than required, create new cells
     if (currentCellCount < requiredCellCount) {
       const existingCellPositions = new Set(
-        cellsRef.current.map((cell) => `${cell.col},${cell.row}`),
+        cells.current.map((cell) => `${cell.col},${cell.row}`)
       );
 
       // Helper function to create a cell and add it to the grid
@@ -52,15 +51,9 @@ export function Cells({ zIndex }: Props) {
         const cell: Cell = {
           col,
           row,
-          text: new BitmapText({
-            text: '',
-            style: { fontFamily: fontName, fill: theme.cell.cellFontColor },
-            visible: false,
-          }),
-          isVisible: false,
+          text: new PIXI.BitmapText('', { fontName }),
         };
-        containerRef.current?.addChild(cell.text);
-        cellsRef.current.push(cell);
+        cells.current.push(cell);
       };
 
       for (let row = 0; row < viewportRowCount; row++) {
@@ -72,7 +65,7 @@ export function Cells({ zIndex }: Props) {
         }
       }
     }
-  }, [fontName, theme.cell.cellFontColor, viewportColCount, viewportRowCount]);
+  }, [fontName, viewportColCount, viewportRowCount]);
 
   const updateCells = useCallback(() => {
     if (!viewportColCount || !viewportRowCount) return;
@@ -87,17 +80,27 @@ export function Cells({ zIndex }: Props) {
       vpStartRow,
       viewportColCount,
       viewportRowCount,
-      cellsRef.current,
+      cells.current
     );
-    const markedCells = visibleCells.map((cell) => {
-      const { col, row } = cell;
+
+    const tableCells = visibleCells.filter((cell) => {
+      const { col, row, text } = cell;
 
       const cellData = getCell(col, row);
 
       if (cellData?.table?.tableName) {
-        return { col, row, text: cell.text, isVisible: true };
+        graphicsRef.current?.addChild(text);
+
+        return true;
       } else {
-        return { col, row, text: cell.text, isVisible: false };
+        // We need to clear text only in case when no any table in this cell presented
+        if (!cellData?.table) {
+          text.text = '';
+        }
+
+        graphicsRef.current?.removeChild(text);
+
+        return false;
       }
     });
 
@@ -105,25 +108,21 @@ export function Cells({ zIndex }: Props) {
       cells.sort((a, b) => {
         const cellA = getCell(a.col, a.row);
         const cellB = getCell(b.col, b.row);
-
-        if (!a.isVisible) return 1;
-        if (!b.isVisible) return -1;
-
         const zIndexA = getTableZIndex(
           tableStructure,
-          cellA?.table?.tableName ?? '',
+          cellA?.table?.tableName ?? ''
         );
         const zIndexB = getTableZIndex(
           tableStructure,
-          cellB?.table?.tableName ?? '',
+          cellB?.table?.tableName ?? ''
         );
 
         return zIndexA - zIndexB;
       });
 
-    const sortedCells = sortTables(markedCells);
+    const sortedCells = sortTables(tableCells);
 
-    setCells(sortedCells);
+    setTableCells(sortedCells);
   }, [
     viewportColCount,
     viewportRowCount,
@@ -143,19 +142,14 @@ export function Cells({ zIndex }: Props) {
         updateCells();
       }),
     // below triggers, not dependencies
-    [updateCells, gridViewportSubscriber],
+    [updateCells, gridViewportSubscriber]
   );
 
-  useDrawCells({ cells: cells, graphicsRef, containerRef });
+  useDrawCells({ cells: tableCells, graphicsRef, containerRef });
 
   return (
-    <pixiContainer
-      label="Cells"
-      ref={containerRef}
-      zIndex={zIndex}
-      sortableChildren
-    >
-      <pixiGraphics draw={() => {}} label="CellsGraphics" ref={graphicsRef} />
-    </pixiContainer>
+    <Container ref={containerRef}>
+      <Graphics ref={graphicsRef} sortableChildren />
+    </Container>
   );
 }

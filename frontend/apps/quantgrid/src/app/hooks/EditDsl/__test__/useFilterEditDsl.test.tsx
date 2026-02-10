@@ -1,5 +1,3 @@
-import { vi } from 'vitest';
-
 import { FilterOperator } from '@frontend/parser';
 import { act, RenderHookResult } from '@testing-library/react';
 
@@ -22,7 +20,7 @@ describe('useFilterEditDsl', () => {
   });
 
   beforeEach(() => {
-    vi.clearAllMocks();
+    jest.clearAllMocks();
     const hookRender = hookTestSetup(useFilterEditDsl, Wrapper);
     hook = hookRender.result;
     setDsl = hookRender.setDsl;
@@ -38,7 +36,7 @@ describe('useFilterEditDsl', () => {
 
       // Act
       act(() =>
-        hook.current.applyConditionFilter('t1', 'f1', '>', '1', 'numeric'),
+        hook.current.applyConditionFilter('t1', 'f1', '>', '1', 'numeric')
       );
 
       // Assert
@@ -56,7 +54,7 @@ describe('useFilterEditDsl', () => {
 
       // Act
       act(() =>
-        hook.current.applyConditionFilter('t1', 'f1', '>=', '2', 'numeric'),
+        hook.current.applyConditionFilter('t1', 'f1', '>=', '2', 'numeric')
       );
 
       // Assert
@@ -74,7 +72,7 @@ describe('useFilterEditDsl', () => {
 
       // Act
       act(() =>
-        hook.current.applyConditionFilter('t1', 'f2', '>', '1', 'numeric'),
+        hook.current.applyConditionFilter('t1', 'f2', '>', '1', 'numeric')
       );
 
       // Assert
@@ -93,7 +91,7 @@ describe('useFilterEditDsl', () => {
 
       // Act
       act(() =>
-        hook.current.applyConditionFilter('t1', 'f2', '', null, 'numeric'),
+        hook.current.applyConditionFilter('t1', 'f2', '', null, 'numeric')
       );
 
       // Assert
@@ -112,7 +110,7 @@ describe('useFilterEditDsl', () => {
 
       // Act
       act(() =>
-        hook.current.applyConditionFilter('t1', 'f2', '>', '1', 'numeric'),
+        hook.current.applyConditionFilter('t1', 'f2', '>', '1', 'numeric')
       );
 
       // Assert
@@ -135,8 +133,8 @@ describe('useFilterEditDsl', () => {
           'f1',
           FilterOperator.Between,
           ['1', '3'],
-          'numeric',
-        ),
+          'numeric'
+        )
       );
 
       // Assert
@@ -161,8 +159,8 @@ describe('useFilterEditDsl', () => {
           'f1',
           FilterOperator.Contains,
           '1',
-          'text',
-        ),
+          'text'
+        )
       );
 
       // Assert
@@ -185,8 +183,8 @@ describe('useFilterEditDsl', () => {
           'f1',
           FilterOperator.NotContains,
           '1',
-          'text',
-        ),
+          'text'
+        )
       );
 
       // Assert
@@ -209,8 +207,8 @@ describe('useFilterEditDsl', () => {
           'f1',
           FilterOperator.BeginsWith,
           '1',
-          'text',
-        ),
+          'text'
+        )
       );
 
       // Assert
@@ -233,8 +231,8 @@ describe('useFilterEditDsl', () => {
           'f1',
           FilterOperator.Between,
           ['1', '3'],
-          'text',
-        ),
+          'text'
+        )
       );
 
       // Assert
@@ -258,8 +256,8 @@ describe('useFilterEditDsl', () => {
           'f2',
           FilterOperator.Equals,
           '2',
-          'text',
-        ),
+          'text'
+        )
       );
 
       // Assert
@@ -296,7 +294,7 @@ describe('useFilterEditDsl', () => {
 
       // Act
       act(() =>
-        hook.current.applyListFilter('t1', 'f1', ['text1', 'text2'], false),
+        hook.current.applyListFilter('t1', 'f1', ['text1', 'text2'], false)
       );
 
       // Assert
@@ -314,7 +312,7 @@ describe('useFilterEditDsl', () => {
 
       // Act
       act(() =>
-        hook.current.applyListFilter('t1', 'f1', ['some_filter'], false),
+        hook.current.applyListFilter('t1', 'f1', ['some_filter'], false)
       );
 
       // Assert

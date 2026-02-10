@@ -1,25 +1,37 @@
-import { useCallback, useContext, useEffect } from 'react';
+import { useCallback, useContext, useEffect, useMemo } from 'react';
 
 import { GridStateContext, GridViewportContext } from '../context';
-import { getFirstVisibleColOrRow } from '../utils';
+import { getFirstVisibleColOrRow, getSymbolWidth } from '../utils';
 
 export const useRowNumberWidth = () => {
-  const { gridSizes, setRowNumberWidth, showGridLines, canvasSymbolWidth } =
+  const { gridSizes, theme, setRowNumberWidth, getBitmapFontName } =
     useContext(GridStateContext);
   const { gridViewportSubscriber, viewportCoords } =
     useContext(GridViewportContext);
 
-  const handleViewportChange = useCallback(() => {
-    if (!showGridLines) return;
+  const fontName = useMemo(() => {
+    return getBitmapFontName(
+      theme.cell.cellFontFamily,
+      theme.cell.cellFontColorName
+    );
+  }, [
+    getBitmapFontName,
+    theme.cell.cellFontColorName,
+    theme.cell.cellFontFamily,
+  ]);
+  const symbolWidth = useMemo(() => {
+    return getSymbolWidth(gridSizes.cell.fontSize, fontName);
+  }, [fontName, gridSizes.cell.fontSize]);
 
+  const handleViewportChange = useCallback(() => {
     const y2 = viewportCoords.current.y2;
     const firstVisibleEndRow = getFirstVisibleColOrRow(
       y2,
       {},
-      gridSizes.cell.height,
+      gridSizes.cell.height
     );
 
-    let newWidth = ((firstVisibleEndRow + '').length + 2) * canvasSymbolWidth;
+    let newWidth = ((firstVisibleEndRow + '').length + 2) * symbolWidth;
 
     newWidth = Math.max(newWidth, gridSizes.rowNumber.minWidth);
 
@@ -27,12 +39,11 @@ export const useRowNumberWidth = () => {
       setRowNumberWidth(newWidth);
     }
   }, [
-    showGridLines,
     viewportCoords,
     gridSizes.cell.height,
     gridSizes.rowNumber.minWidth,
     gridSizes.rowNumber.width,
-    canvasSymbolWidth,
+    symbolWidth,
     setRowNumberWidth,
   ]);
 

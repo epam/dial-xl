@@ -1,10 +1,10 @@
-import { RefObject, useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { ChartType, GridChart } from '@frontend/common';
+import { GridChart } from '@frontend/common';
 
 import { canvasId } from '../../../constants';
 import { GridApi } from '../../../types';
-import { getPx, snap } from '../../../utils';
+import { getPx, round } from '../../../utils';
 import { filterSelectorNames } from '../toolBar';
 import { ChartConfig } from '../types';
 
@@ -14,14 +14,14 @@ const minRows = 8;
 const minCols = 7;
 
 type UseChartsLayerArgs = {
-  apiRef: RefObject<GridApi | null>;
+  api: GridApi | null;
   charts: GridChart[];
   zoom: number;
   columnSizes: Record<number, number>;
 };
 
 export function useChartsLayer({
-  apiRef,
+  api,
   charts,
   zoom,
   columnSizes,
@@ -31,9 +31,9 @@ export function useChartsLayer({
   const containerRef = useRef<HTMLDivElement>(null);
   const baseViewportRef = useRef<{ x: number; y: number } | null>(null);
 
+  const currentGridSizes = api?.gridSizes;
+
   const computeChartConfigs = useCallback(() => {
-    const api = apiRef.current;
-    const currentGridSizes = apiRef.current?.gridSizes;
     if (charts?.length === 0 || !api || !currentGridSizes) {
       baseViewportRef.current = null;
       setChartConfigs([]);
@@ -51,10 +51,7 @@ export function useChartsLayer({
     const { rowNumber, colNumber, gridLine } = currentGridSizes;
     const xOffset = rowNumber.width;
     const yOffset = colNumber.height;
-    const lineW = gridLine.width;
-
-    const gx = (col: number) => snap(api.getCellX(col) - xOffset);
-    const gy = (row: number) => snap(api.getCellY(row) - yOffset);
+    const inset = gridLine.width;
 
     charts.forEach((chart) => {
       const { startCol, startRow, endRow, endCol, tableName } = chart;
@@ -66,78 +63,64 @@ export function useChartsLayer({
       const finalToolbarRows = showToolbar ? toolbarRows : 0;
       const totalHeaderRows = finalTitleRows + finalToolbarRows;
 
-      // Outer boundaries
-      const outerLeft = gx(startCol) - lineW;
-      const outerTop = gy(startRow);
-      const outerRight = gx(endCol) - lineW / 2;
-      const outerBottom = gy(endRow) + lineW / 2;
+      // Chart body position (below title and toolbar)
+      const x1 = api.getCellX(startCol) - xOffset + inset;
+      const y1 = api.getCellY(startRow + totalHeaderRows) - yOffset + inset;
 
-      // Body block
-      const bodyTop = gy(startRow + totalHeaderRows);
-      const bodyLeft = outerLeft;
-      const bodyRight = outerRight;
-      const bodyBottom = outerBottom;
+      const x2 = api.getCellX(endCol) - xOffset - inset;
+      const y2 = api.getCellY(endRow) - yOffset - inset;
 
-      // Body dimensions
-      const width = snap(Math.max(0, bodyRight - bodyLeft));
-      const height = snap(Math.max(0, bodyBottom - bodyTop));
+      // Top position (for title or toolbar)
+      const x3 = api.getCellX(startCol) - xOffset + inset;
+      const y3 = api.getCellY(startRow) - yOffset + inset;
 
-      // Title block
-      const titleTop = outerTop;
-      const titleBottom = showTitle ? gy(startRow + finalTitleRows) : outerTop;
-      const titleHeight = snap(Math.max(0, titleBottom - titleTop));
+      // Toolbar position (below title if both exist)
+      const toolbarStartRow = startRow + finalTitleRows;
+      const yToolbar = api.getCellY(toolbarStartRow) - yOffset + inset;
 
-      // Toolbar block
-      const toolBarTop = showTitle ? titleBottom : outerTop;
-      const toolBarBottom = showToolbar
-        ? gy(startRow + totalHeaderRows)
-        : toolBarTop;
-      const toolBarHeight = snap(Math.max(0, toolBarBottom - toolBarTop));
+      // Title position
+      const yTitle = y3;
 
-      // Min resize constraints
-      const minRight = gx(startCol + minCols);
-      const minBottom = gy(startRow + minRows);
-      const minResizeWidth = snap(
-        Math.min(Math.max(0, minRight - outerLeft), width),
-      );
-      const outerHeight = snap(Math.max(0, outerBottom - outerTop));
-      const minResizeHeight = snap(
-        Math.min(Math.max(0, minBottom - outerTop), outerHeight),
-      );
+      const x4 = api.getCellX(startCol + minCols) - xOffset - inset;
+      const y4 = api.getCellY(startRow + minRows) - yOffset - inset;
+
+      const width = round(Math.abs(x2 - x1));
+      const height = round(Math.abs(y2 - y1));
+
+      const titleHeight = showTitle ? round(Math.abs(yToolbar - yTitle)) : 0;
+      const toolBarHeight = showToolbar ? round(Math.abs(y1 - yToolbar)) : 0;
+
+      const minResizeWidth = Math.min(round(Math.abs(x4 - x3)), width);
+      const minResizeHeight = Math.min(round(Math.abs(y4 - y3)), height);
 
       newChartConfigs.push({
-        left: bodyLeft,
-        top: bodyTop,
+        left: round(x1),
+        top: round(y1),
         width,
         height,
-
         toolBarHeight,
-        toolBarTop: snap(toolBarTop),
-        toolBarLeft: snap(outerLeft),
-
+        toolBarTop: round(yToolbar),
+        toolBarLeft: round(x3),
         titleHeight,
-        titleTop: snap(titleTop),
-        titleLeft: snap(outerLeft),
-
+        titleTop: round(yTitle),
+        titleLeft: round(x3),
         minResizeWidth,
         minResizeHeight,
-
         tableName,
         showToolbar,
         showTitle,
         gridChart: chart,
       });
     });
+
     setChartConfigs(newChartConfigs);
 
     if (containerRef.current) {
       containerRef.current.style.transform = 'translate3d(0px, 0px, 0px)';
     }
-  }, [apiRef, charts]);
+  }, [api, charts, currentGridSizes]);
 
   const setLayerPosition = useCallback(() => {
-    const api = apiRef.current;
-    const currentGridSizes = apiRef.current?.gridSizes;
     if (!api) return;
 
     const dataContainer = document.getElementById(canvasId);
@@ -153,12 +136,12 @@ export function useChartsLayer({
     const { width, height, top, left } = dataContainer.getBoundingClientRect();
     const { scrollBar, rowNumber, colNumber } = currentGridSizes;
     const { trackSize } = scrollBar;
-    const containerWidth = snap(width - rowNumber.width - trackSize);
-    const containerHeight = snap(height - colNumber.height - trackSize);
-    const translateX = snap(left + rowNumber.width);
-    const translateY = snap(top + rowNumber.height);
+    const containerWidth = round(width - rowNumber.width - trackSize);
+    const containerHeight = round(height - colNumber.height - trackSize);
+    const translateX = round(left + rowNumber.width);
+    const translateY = round(top + rowNumber.height);
     viewportRef.current.style.transform = `translate(${getPx(
-      translateX,
+      translateX
     )}, ${getPx(translateY)})`;
     viewportRef.current.style.width = getPx(containerWidth);
     viewportRef.current.style.height = getPx(containerHeight);
@@ -170,25 +153,15 @@ export function useChartsLayer({
     } else {
       viewportRef.current.style.display = 'block';
     }
-  }, [apiRef]);
+  }, [api, currentGridSizes]);
 
   // Allow scrolling spreadsheet when the mouse is over charts
   useEffect(() => {
-    const api = apiRef.current;
     if (!api) return;
 
     const container = containerRef.current;
 
     const onWheel = (e: WheelEvent) => {
-      const target = e.target as HTMLElement | null;
-      const isOverLineChart = !!target?.closest(
-        `[data-chart-type="${ChartType.LINE}"]`,
-      );
-
-      const isZoomGesture = isOverLineChart && (e.ctrlKey || e.metaKey);
-
-      if (isZoomGesture) return;
-
       if (e.deltaY) {
         api.moveViewport(0, e.deltaY / 2);
       } else if (e.deltaX) {
@@ -202,7 +175,7 @@ export function useChartsLayer({
     return () => {
       container?.removeEventListener('wheel', onWheel, true);
     };
-  }, [apiRef]);
+  }, [api]);
 
   useEffect(() => {
     setLayerPosition();
@@ -227,7 +200,6 @@ export function useChartsLayer({
   }, [zoom, charts, columnSizes, computeChartConfigs]);
 
   useEffect(() => {
-    const api = apiRef.current;
     if (!api) return;
 
     const viewportUnsubscribe = api.gridViewportSubscription(() => {
@@ -235,8 +207,8 @@ export function useChartsLayer({
 
       const viewport = api.getViewportCoords();
       const { x: baseX, y: baseY } = baseViewportRef.current;
-      const dx = snap(baseX - viewport.x1);
-      const dy = snap(baseY - viewport.y1);
+      const dx = baseX - viewport.x1;
+      const dy = baseY - viewport.y1;
 
       containerRef.current.style.transform = `translate3d(${dx}px, ${dy}px, 0)`;
     });
@@ -244,7 +216,7 @@ export function useChartsLayer({
     return () => {
       viewportUnsubscribe();
     };
-  }, [apiRef]);
+  }, [api]);
 
   return {
     chartConfigs,

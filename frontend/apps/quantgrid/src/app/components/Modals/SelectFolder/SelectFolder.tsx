@@ -1,7 +1,7 @@
 import { Button, Input, Modal, Spin } from 'antd';
 import classNames from 'classnames';
 import cx from 'classnames';
-import Fuse, { IFuseOptions } from 'fuse.js';
+import Fuse from 'fuse.js';
 import {
   ChangeEvent,
   useCallback,
@@ -41,7 +41,7 @@ type Folder = Pick<ResourceMetadata, 'name' | 'parentPath'> & {
   bucket: string | undefined;
 };
 
-const fuseOptions: IFuseOptions<any> = {
+const fuseOptions: Fuse.IFuseOptions<any> = {
   includeScore: true,
   includeMatches: true,
   threshold: 0.2,
@@ -67,10 +67,10 @@ export function SelectFolder({
   const [isOpen, setIsOpen] = useState(true);
 
   const [currentPath, setCurrentPath] = useState<string | null | undefined>(
-    initialPath,
+    initialPath
   );
   const [currentBucket, setCurrentBucket] = useState<string | undefined>(
-    initialBucket,
+    initialBucket
   );
   const [storageFolders, setStorageFolders] = useState<Folder[]>([]);
   const [displayedFolders, setDisplayedFolders] = useState<Folder[]>([]);
@@ -95,7 +95,7 @@ export function SelectFolder({
 
       setRenameValue(event.target.value);
     },
-    [],
+    []
   );
 
   const handleClose = useCallback(() => {
@@ -110,23 +110,23 @@ export function SelectFolder({
 
     let files: (SharedWithMeMetadata | ResourceMetadata)[];
     if (currentBucket) {
-      const filesRes = await getFiles({
-        path: `${currentBucket}/${currentPath ? currentPath + '/' : ''}`,
-      });
-
-      files = filesRes.success ? filesRes.data : [];
+      files =
+        (await getFiles({
+          path: `${currentBucket}/${currentPath ? currentPath + '/' : ''}`,
+          suppressErrors: true,
+        })) ?? [];
     } else {
-      const sharedResources = await getSharedWithMeResources({
-        resourceType: MetadataResourceType.FILE,
-      });
-      files = sharedResources.success ? sharedResources.data : [];
+      files =
+        (await getSharedWithMeResources({
+          resourceType: MetadataResourceType.FILE,
+        })) ?? [];
     }
 
     setIsLoading(false);
 
     let folders: Folder[] = [];
     folders = folders.concat(
-      files.filter((file) => file.nodeType === MetadataNodeType.FOLDER),
+      files.filter((file) => file.nodeType === MetadataNodeType.FOLDER)
     );
 
     setStorageFolders(folders);
@@ -136,7 +136,7 @@ export function SelectFolder({
     setSearchValue('');
     setStorageFolders([]);
     setCurrentPath(
-      `${folder.parentPath ? folder.parentPath + '/' : ''}${folder.name}`,
+      `${folder.parentPath ? folder.parentPath + '/' : ''}${folder.name}`
     );
     setCurrentBucket(folder.bucket);
     setBreadcrumbs((breadcrumbs) => [
@@ -176,8 +176,8 @@ export function SelectFolder({
             currentBucket === userBucket
               ? 'My Files'
               : currentBucket === publicBucket
-                ? 'Public'
-                : 'Shared with me',
+              ? 'Public'
+              : 'Shared with me',
           path: null,
           icon: <HomeIcon />,
           dropdownItems: [
@@ -216,7 +216,7 @@ export function SelectFolder({
             }),
           ],
         },
-      ] as Breadcrumb[],
+      ] as Breadcrumb[]
     );
 
     setBreadcrumbs(breadcrumbs);
@@ -225,7 +225,7 @@ export function SelectFolder({
   const addNewFolder = useCallback(() => {
     const newFolderName = createUniqueName(
       'New folder',
-      storageFolders.map((folder) => folder.name),
+      storageFolders.map((folder) => folder.name)
     );
     const folder: Folder = {
       name: newFolderName,
@@ -254,7 +254,7 @@ export function SelectFolder({
 
       handleGetFolders();
     },
-    [createFolder, renameValue, handleGetFolders],
+    [createFolder, renameValue, handleGetFolders]
   );
 
   useEffect(() => {
@@ -319,7 +319,7 @@ export function SelectFolder({
                     'flex items-center text-text-primary gap-2 py-1.5 px-3 h-[30px] hover:bg-bg-accent-primary-alpha rounded-sm cursor-pointer border-l-2 border-transparent select-none',
                     selectedFolder?.name === folder.name &&
                       selectedFolder.parentPath === folder.parentPath &&
-                      'border-l-stroke-accent-primary bg-bg-accent-primary-alpha',
+                      'border-l-stroke-accent-primary bg-bg-accent-primary-alpha'
                   )}
                   key={folder.parentPath + folder.name}
                   onClick={() => setSelectedFolder(folder)}
@@ -386,7 +386,7 @@ export function SelectFolder({
                   ? [selectedFolder.parentPath, selectedFolder.name]
                       .filter(Boolean)
                       .join('/')
-                  : currentPath,
+                  : currentPath
               )
             }
           >

@@ -5,6 +5,11 @@ description = ""
 authors = ["Alexey Klimov <alexey_klimov@epam.com>"]
 readme = "README.md"
 
+# TODO: Move dial_xl to src/ dir to avoid
+#  shadowing others tests/ folders on "develop" install
+include = ["dial_xl"]
+exclude = ["tests"]
+
 [tool.poetry.dependencies]
 python = "^3.11"
 pydantic = "^2.7.1"

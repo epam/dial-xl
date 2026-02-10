@@ -1,5 +1,6 @@
 import { Button, Input } from 'antd';
 import cx from 'classnames';
+import { DefaultOptionType } from 'rc-select/lib/Select';
 import {
   ChangeEvent,
   MouseEvent,
@@ -17,7 +18,6 @@ import {
   selectStyles,
 } from '@frontend/common';
 import { FilterOperator, ParsedConditionFilter } from '@frontend/parser';
-import { DefaultOptionType } from '@rc-component/select/lib/Select';
 
 import { GridEventBus } from '../../../utils';
 
@@ -83,7 +83,7 @@ export function ConditionFilter({
     (option: SingleValue<DefaultOptionType>) => {
       setSelectedOperator(option);
     },
-    [],
+    []
   );
 
   const onChangeInput = useCallback((e: ChangeEvent) => {
@@ -147,7 +147,7 @@ export function ConditionFilter({
       secondaryExpressionValue,
       selectedOperator,
       tableName,
-    ],
+    ]
   );
 
   const onClear = useCallback(() => {
@@ -172,7 +172,7 @@ export function ConditionFilter({
 
     const { value, secondaryValue, operator } = filter;
     const operatorOption = operatorOptions.find(
-      (option) => option.value === operator,
+      (option) => option.value === operator
     );
 
     if (!operatorOption) return;
@@ -241,7 +241,7 @@ export function ConditionFilter({
         <Button
           className={cx(
             'h-8 px-2 text-[13px] w-16 ml-2',
-            secondaryButtonClasses,
+            secondaryButtonClasses
           )}
           onClick={onClear}
         >

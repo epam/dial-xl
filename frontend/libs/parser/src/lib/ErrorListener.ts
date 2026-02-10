@@ -8,7 +8,7 @@ export class ErrorListener implements ANTLRErrorListener<any> {
     offendingSymbol: any | undefined,
     line: number,
     charPositionInLine: number,
-    msg: string,
+    msg: string
   ) {
     this.errors.push(`line ${line}:${charPositionInLine} ${msg}`);
   }

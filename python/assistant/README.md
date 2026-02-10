@@ -76,7 +76,8 @@ PyCharm supports both MyPy real time and on-demand analysis via [MyPy Plugin](ht
 2. `CTRL + ALT + S` → MyPy → Path to config file: set to `pyproject.toml`.
 3. Now, real time MyPy inspection will be enabled.
 4. For on-demand project / module / file MyPy scanning: 
-   ![Mypy Icon](readme/mypy_icon.png)
+   
+    ![Mypy Icon](docs/mypy_icon.png)
 
 ### Potential Setup Issues
 1. Slow PyCharm debug: 

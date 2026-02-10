@@ -6,9 +6,5 @@ dist/
 *.ans
 *.log
 .nox
+.secrets.toml
 ~*
-
-# Specific files
-assistant/Report.xlsx
-assistant/~$Report.xlsx
-assistant/.vscode/launch.json

@@ -30,7 +30,7 @@ table virtualTableName
   dim [f1] = virtualTableName_clone_source_table_without_full_apply[f1].UNIQUE()
   [f1_filtered] = IN([f1], virtualTableName_clone_source_table_with_other_apply[f1])
 apply
-sort [f1], 1`.replaceAll('\r\n', '\n');
+sort [f1]`.replaceAll('\r\n', '\n');
 
     expect(result.replaceAll('\r\n', '\n').trim()).toBe(expectedDSL.trim());
   });
@@ -68,7 +68,7 @@ table virtualTableName
   dim [f1] = virtualTableName_clone_source_table_without_full_apply[f1].UNIQUE()
   [f1_filtered] = IN([f1], virtualTableName_clone_source_table_with_other_apply[f1])
 apply
-sort [f1], 1`.replaceAll('\r\n', '\n');
+sort [f1]`.replaceAll('\r\n', '\n');
     expect(result.replaceAll('\r\n', '\n').trim()).toBe(expectedDSL.trim());
   });
 
@@ -104,7 +104,7 @@ table virtualTableName
   [f1_filtered] = IN([f1], virtualTableName_clone_source_table_with_other_apply[f1])
 apply
 filter CONTAINS([f1].LOWER(),12)
-sort [f1], 1`.replaceAll('\r\n', '\n');
+sort [f1]`.replaceAll('\r\n', '\n');
     expect(result.replaceAll('\r\n', '\n').trim()).toBe(expectedDSL.trim());
   });
   it('should create new virtual tables with negative sorting', () => {
@@ -138,7 +138,7 @@ table virtualTableName
   dim [f1] = virtualTableName_clone_source_table_without_full_apply[f1].UNIQUE()
   [f1_filtered] = IN([f1], virtualTableName_clone_source_table_with_other_apply[f1])
 apply
-sort [f1], -1`.replaceAll('\r\n', '\n');
+sort -[f1]`.replaceAll('\r\n', '\n');
     expect(result.replaceAll('\r\n', '\n').trim()).toBe(expectedDSL.trim());
   });
 });

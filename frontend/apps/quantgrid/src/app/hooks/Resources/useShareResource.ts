@@ -45,12 +45,12 @@ export function useShareResources() {
       const schemaFileName =
         '.' + name.replaceAll(csvFileExtension, schemaFileExtension);
       const schemaFileUrl = encodeApiUrl(
-        constructPath(['files', bucket, parentPath, schemaFileName]),
+        constructPath(['files', bucket, parentPath, schemaFileName])
       );
 
       return [schemaFileUrl];
     },
-    [],
+    []
   );
 
   const getProjectDependentFiles = useCallback(
@@ -76,7 +76,7 @@ export function useShareResources() {
       if (!project) return;
 
       projectFilesUrlsInSheets = collectFilesFromProject(
-        project.sheets.map((sheet) => sheet.content),
+        project.sheets.map((sheet) => sheet.content)
       );
 
       if (!projectFilesUrlsInSheets) return;
@@ -88,12 +88,12 @@ export function useShareResources() {
           projectFoldersRootPrefix,
           parentPath,
           projectName,
-        ]) + '/',
+        ]) + '/'
       );
 
       return [sharedFolderUrl, ...projectFilesUrlsInSheets];
     },
-    [getProjectRequest],
+    [getProjectRequest]
   );
 
   const collectResourceAndDependentFileUrls = useCallback(
@@ -105,7 +105,7 @@ export function useShareResources() {
         nodeType: MetadataNodeType.FOLDER | MetadataNodeType.ITEM;
       }[],
       ignoreResourceItself = false,
-      shareProjectConnectedChats = false,
+      shareProjectConnectedChats = false
     ) => {
       const resourceUrlsSet: Set<string> = new Set();
 
@@ -120,7 +120,7 @@ export function useShareResources() {
             resource.bucket,
             resource.parentPath,
             resource.name,
-          ]) + (resource.nodeType === MetadataNodeType.FOLDER ? '/' : ''),
+          ]) + (resource.nodeType === MetadataNodeType.FOLDER ? '/' : '')
         );
 
         if (!ignoreResourceItself) {
@@ -136,13 +136,14 @@ export function useShareResources() {
                 bindConversationsRootFolder,
                 resource.parentPath,
                 safeEncodeURIComponent(
-                  resource.name.replaceAll(dialProjectFileExtension, ''),
+                  resource.name.replaceAll(dialProjectFileExtension, '')
                 ),
-              ]) + '/',
+              ]) + '/'
             );
           }
-          const projectFilesUrlsInSheets =
-            await getProjectDependentFiles(resource);
+          const projectFilesUrlsInSheets = await getProjectDependentFiles(
+            resource
+          );
 
           if (!projectFilesUrlsInSheets) return;
 
@@ -152,7 +153,7 @@ export function useShareResources() {
 
           csvFiles.forEach((url) => resourceUrlsSet.add(url));
         } else if (isFolder) {
-          const folderFilesRes = await getFilesRequest({
+          const folderFiles = await getFilesRequest({
             path:
               constructPath([
                 resource.bucket,
@@ -160,14 +161,15 @@ export function useShareResources() {
                 resource.name,
               ]) + '/',
             isRecursive: true,
+            suppressErrors: true,
           });
 
-          if (!folderFilesRes.success) return;
+          if (!folderFiles) return;
 
           const resolvedFolderFiles = await collectResourceAndDependentFileUrls(
-            folderFilesRes.data,
+            folderFiles,
             true,
-            shareProjectConnectedChats,
+            shareProjectConnectedChats
           );
 
           if (!resolvedFolderFiles) return;
@@ -178,7 +180,7 @@ export function useShareResources() {
 
       return Array.from(resourceUrlsSet);
     },
-    [getFilesRequest, getCsvFileDependentFiles, getProjectDependentFiles],
+    [getFilesRequest, getCsvFileDependentFiles, getProjectDependentFiles]
   );
 
   const getShareLink = useCallback(
@@ -187,7 +189,7 @@ export function useShareResources() {
       options: {
         permissions: ResourcePermission[];
         shareConnectedChat?: boolean;
-      },
+      }
     ): Promise<string | undefined> => {
       if (!resourcesUrls.length) return;
 
@@ -204,7 +206,7 @@ export function useShareResources() {
 
       const resourceMetadata = convertUrlToMetadata(resourcesUrls[0]);
       const projectResources = resourcesUrls.filter((url) =>
-        url.endsWith(dialProjectFileExtension),
+        url.endsWith(dialProjectFileExtension)
       );
       const isSingleProjectSharing =
         projectResources.length === 1 &&
@@ -219,7 +221,7 @@ export function useShareResources() {
           invitationId: invitationId,
           projectName: resourceMetadata.name.replace(
             dialProjectFileExtension,
-            '',
+            ''
           ),
           projectBucket: resourceMetadata.bucket,
           projectPath: resourceMetadata.parentPath,
@@ -232,7 +234,7 @@ export function useShareResources() {
 
       return finalShareLink;
     },
-    [shareFilesRequest],
+    [shareFilesRequest]
   );
 
   return {

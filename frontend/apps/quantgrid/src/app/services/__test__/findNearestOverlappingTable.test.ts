@@ -6,7 +6,7 @@ describe('findNearestOverlappingTable', () => {
     startRow: number,
     endRow: number,
     startCol: number,
-    endCol: number,
+    endCol: number
   ): any => ({
     tableName,
     startRow,
@@ -18,7 +18,7 @@ describe('findNearestOverlappingTable', () => {
   const createParsedTable = (
     tableName: string,
     from: number,
-    to: number,
+    to: number
   ): any => ({
     tableName,
     span: {
@@ -42,7 +42,7 @@ describe('findNearestOverlappingTable', () => {
       targetParsedTable,
       tableStructures,
       parsedTables,
-      isForward,
+      isForward
     );
 
     // Assert
@@ -67,7 +67,7 @@ describe('findNearestOverlappingTable', () => {
       targetParsedTable,
       tableStructures,
       parsedTables,
-      isForward,
+      isForward
     );
 
     // Assert
@@ -92,7 +92,7 @@ describe('findNearestOverlappingTable', () => {
       targetParsedTable,
       tableStructures,
       parsedTables,
-      isForward,
+      isForward
     );
 
     // Assert
@@ -128,7 +128,7 @@ describe('findNearestOverlappingTable', () => {
       targetParsedTable,
       tableStructures,
       parsedTables,
-      isForward,
+      isForward
     );
 
     // Assert
@@ -163,7 +163,7 @@ describe('findNearestOverlappingTable', () => {
       targetParsedTable,
       tableStructures,
       parsedTables,
-      true, // isForward
+      true // isForward
     );
     expect(result).toEqual(overlappingParsedTable2);
 
@@ -173,7 +173,7 @@ describe('findNearestOverlappingTable', () => {
       targetParsedTable,
       tableStructures,
       parsedTables,
-      false, // isForward
+      false // isForward
     );
     expect(result).toEqual(overlappingParsedTable1);
   });
@@ -206,7 +206,7 @@ describe('findNearestOverlappingTable', () => {
       targetParsedTable,
       tableStructures,
       parsedTables,
-      true,
+      true
     );
     expect(result).toEqual(overlappingParsedTable2);
 
@@ -216,7 +216,7 @@ describe('findNearestOverlappingTable', () => {
       targetParsedTable,
       tableStructures,
       parsedTables,
-      false,
+      false
     );
     expect(result).toEqual(overlappingParsedTable1);
   });

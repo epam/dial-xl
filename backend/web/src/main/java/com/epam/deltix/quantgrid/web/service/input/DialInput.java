@@ -2,6 +2,7 @@ package com.epam.deltix.quantgrid.web.service.input;
 
 import com.epam.deltix.quantgrid.engine.service.input.DataSchema;
 import com.epam.deltix.quantgrid.engine.service.input.InputMetadata;
+import com.epam.deltix.quantgrid.engine.service.input.InputType;
 import com.epam.deltix.quantgrid.engine.service.input.storage.dial.DialInputProvider;
 import com.epam.deltix.quantgrid.engine.value.Table;
 import com.epam.deltix.quantgrid.engine.value.local.LocalTable;
@@ -18,7 +19,9 @@ import lombok.Data;
 import lombok.RequiredArgsConstructor;
 
 import java.security.Principal;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Data
 @Input(name = "dial", title = "DIAL")
@@ -38,7 +41,7 @@ public class DialInput implements DataInput {
         String bucket = dial.getBucket(principal);
 
         for (DialFileApi.Attributes attributes : dial.listAttributes("files/" + bucket + "/", principal)) {
-            String path = attributes.fullPath();
+            String path = (attributes.parentPath() == null ? "" : (attributes.parentPath() + "/")) + attributes.name();
             boolean hidden = path.startsWith(".") || path.contains("/.");
             boolean appdata = path.startsWith("appdata/");
             boolean csv = path.endsWith(".csv");
@@ -61,12 +64,8 @@ public class DialInput implements DataInput {
         String path = "files/" + bucket + "/" + encode(dataset);
         InputMetadata metadata = provider.readMetadata(path, principal);
 
-        List<String> columnNames = metadata.names();
-        List<InputColumnType> columnTypes = metadata.types();
-        for (int i = 0; i < columnNames.size(); i++) {
-            String columnName = columnNames.get(i);
-            InputColumnType columnType = columnTypes.get(i);
-            DataSchema.Column column = new DataSchema.Column(columnName, columnType.name(), columnType);
+        for (Map.Entry<String, InputColumnType> entry : metadata.columnTypes().entrySet()) {
+            DataSchema.Column column = new DataSchema.Column(entry.getKey(), entry.getValue().name(), entry.getValue());
             schema.addColumn(column);
         }
 
@@ -79,8 +78,13 @@ public class DialInput implements DataInput {
         String path = "files/" + bucket + "/" + encode(dataset);
 
         List<String> names = List.copyOf(schema.getColumns().keySet());
+        LinkedHashMap<String, InputColumnType> types = new LinkedHashMap<>();
 
-        InputMetadata metadata = provider.readMetadata(path, principal);
+        for (DataSchema.Column column : schema.getColumns().values()) {
+            types.put(column.getColumn(), column.getTarget());
+        }
+
+        InputMetadata metadata = new InputMetadata(path, path, "*", InputType.CSV, types);
         LocalTable table = provider.readData(names, metadata, principal);
 
         return new Stream(schema, table);

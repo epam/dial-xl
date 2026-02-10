@@ -69,7 +69,7 @@ backendCompute:
     JAVA_OPTS: |
       -server
       -Djava.awt.headless=true
-      -Xms2g
+      -Xms1600m
       -Xmx2g
       -XX:+AlwaysActAsServerClassMachine
       -XX:+AlwaysPreTouch
@@ -114,7 +114,7 @@ frontend:
     const authAuthority = 'https://dev-dial-keycloak.staging.deltixhub.io/realms/EPAM';
     const authClientId = 'quantgrid';
     const authProvider = 'keycloak';
-    const authScope = 'openid dial profile email offline_access';
+    const authScope = 'openid dial profile email';
     const dialBaseUrl = 'https://quantgrid-dev.staging.deltixhub.io/core';
     const defaultLogoUrl = '';
     const qgBotDeploymentName = 'qgbot';

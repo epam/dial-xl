@@ -9,19 +9,19 @@ type Props = {
 export function useProjectSelectors({ projectState }: Props) {
   const projectName = useMemo(
     () => projectState?.projectName ?? null,
-    [projectState?.projectName],
+    [projectState?.projectName]
   );
   const projectBucket = useMemo(
     () => projectState?.bucket ?? null,
-    [projectState?.bucket],
+    [projectState?.bucket]
   );
   const projectPath = useMemo(
     () => projectState?.path ?? null,
-    [projectState?.path],
+    [projectState?.path]
   );
   const projectVersion = useMemo(
     () => projectState?.version ?? null,
-    [projectState?.version],
+    [projectState?.version]
   );
 
   return {

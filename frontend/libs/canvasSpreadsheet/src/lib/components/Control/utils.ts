@@ -27,7 +27,7 @@ export type AvailabilityItemBase = {
 };
 
 export function buildItems(
-  controlData: ControlData | null,
+  controlData: ControlData | null
 ): AvailabilityItemBase[] {
   if (!controlData?.data || !controlData?.available) return [];
   const { data: values, format } = controlData.data;

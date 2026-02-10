@@ -2,14 +2,14 @@ package com.epam.deltix.quantgrid.engine.service.input.storage;
 
 import com.epam.deltix.quantgrid.engine.Util;
 import com.epam.deltix.quantgrid.engine.node.plan.spark.util.DatasetUtil;
-import com.epam.deltix.quantgrid.engine.service.input.CsvColumn;
-import com.epam.deltix.quantgrid.engine.service.input.CsvInputMetadata;
 import com.epam.deltix.quantgrid.engine.service.input.InputMetadata;
 import com.epam.deltix.quantgrid.engine.spark.ScalaUtil;
 import com.epam.deltix.quantgrid.engine.spark.Spark;
 import com.epam.deltix.quantgrid.engine.value.StringColumn;
+import com.epam.deltix.quantgrid.engine.value.Table;
 import com.epam.deltix.quantgrid.engine.value.spark.SparkDatasetTable;
 import com.epam.deltix.quantgrid.engine.value.spark.SparkValue;
+import com.epam.deltix.quantgrid.type.ColumnType;
 import com.epam.deltix.quantgrid.type.InputColumnType;
 import com.epam.deltix.quantgrid.util.Dates;
 import com.epam.deltix.quantgrid.util.Doubles;
@@ -56,16 +56,11 @@ public class SparkInputProvider implements InputProvider {
         // ensure s3a file system is used for reading
         String path = metadata.path().replace("s3://", "s3a://");
 
-        if (metadata instanceof CsvInputMetadata csvInputMetadata) {
-            LinkedHashMap<String, InputColumnType> columnTypes = new LinkedHashMap<>();
-            for (CsvColumn column : csvInputMetadata.columns()) {
-                columnTypes.put(column.name(), column.type());
-            }
-            Dataset<Row> rows = readCsv(path, readColumns, columnTypes);
-            return new SparkDatasetTable(rows);
-        }
+        Dataset<Row> rows = switch (metadata.type()) {
+            case CSV -> readCsv(path, readColumns, metadata.columnTypes());
+        };
 
-        throw new IllegalArgumentException("Unsupported input metadata type: " + metadata.getClass());
+        return new SparkDatasetTable(rows);
     }
 
     @Override

@@ -24,7 +24,7 @@ export const useDNDSpreadsheetFile = () => {
 
       handleDragEnd();
     },
-    [getDropCell, handleDragEnd, uploadFiles],
+    [getDropCell, handleDragEnd, uploadFiles]
   );
 
   useEffect(() => {

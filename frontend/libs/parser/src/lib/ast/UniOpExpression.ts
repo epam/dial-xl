@@ -6,7 +6,7 @@ export class UniOpExpression implements Expression {
     public exp: Expression,
     public uni_op: UnaryOperation,
     public globalOffsetStart: number,
-    public globalOffsetEnd: number,
+    public globalOffsetEnd: number
   ) {}
 
   toString(): string {

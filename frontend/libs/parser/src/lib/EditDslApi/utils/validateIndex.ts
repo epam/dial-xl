@@ -10,7 +10,7 @@ export function validateIndex(index: number, end: number, name: string): void {
   if (index < 0 || index >= end) {
     throw new Error(
       `${name} index ${index} is out of bounds: valid indices start from 0, ` +
-        `the current range is [0, ${end}).`,
+        `the current range is [0, ${end}).`
     );
   }
 }

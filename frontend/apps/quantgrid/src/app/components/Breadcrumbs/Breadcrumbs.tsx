@@ -35,7 +35,7 @@ const BreadcrumbTemplate = ({
         isLast && 'min-w-[120px] overflow-hidden',
         (!isLast || breadcrumb.dropdownItems) &&
           'hover:text-text-primary cursor-pointer',
-        !isLast ? 'text-text-secondary' : 'text-text-primary',
+        !isLast ? 'text-text-secondary' : 'text-text-primary'
       )}
       onClick={() =>
         !isLast && !breadcrumb.dropdownItems && onSelectBreadcrumb()
@@ -47,16 +47,17 @@ const BreadcrumbTemplate = ({
       <span
         className={classNames(
           'inline-block truncate',
-          !isLast && 'max-w-[120px]',
+          !isLast && 'max-w-[120px]'
         )}
         title={breadcrumb.name}
       >
         {breadcrumb.dropdownItems ? (
           <Dropdown
+            className="flex items-center"
             menu={{ items: breadcrumb.dropdownItems }}
             trigger={['click']}
           >
-            <span className="flex items-center gap-1">
+            <span className="flex gap-1">
               <span>{breadcrumb.name}</span>
 
               {isSingle && (
@@ -88,7 +89,7 @@ export const Breadcrumbs = ({
 }: Props) => {
   const ref = useRef<HTMLDivElement | null>(null);
   const parentRef = useRef<HTMLDivElement | null>(null);
-  const resizeObserverRef = useRef<ResizeObserver | undefined>(undefined);
+  const resizeObserverRef = useRef<ResizeObserver | undefined>();
   const [shouldHideBreadcrumbs, setShouldHideBreadcrumbs] = useState(false);
   const [initialized, setInitialized] = useState(false);
 
@@ -102,10 +103,10 @@ export const Breadcrumbs = ({
             label: breadcrumb.name,
             icon: breadcrumb.icon,
             onClick: () => onSelectBreadcrumb(breadcrumb, index + 1),
-          }),
+          })
         )
         .filter(Boolean) as MenuProps['items'],
-    [breadcrumbs, onSelectBreadcrumb],
+    [breadcrumbs, onSelectBreadcrumb]
   );
 
   const handleRecheckSizes = useCallback(() => {
@@ -191,10 +192,11 @@ export const Breadcrumbs = ({
                 index === 1 && (
                   <>
                     <Dropdown
+                      className="flex items-center"
                       menu={{ items: dropdownItems }}
                       trigger={['click']}
                     >
-                      <span className="flex items-center cursor-pointer text-text-secondary hover:text-text-primary">
+                      <span className="cursor-pointer text-text-secondary hover:text-text-primary">
                         ...
                       </span>
                     </Dropdown>

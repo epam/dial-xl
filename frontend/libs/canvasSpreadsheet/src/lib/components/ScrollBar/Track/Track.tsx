@@ -1,5 +1,7 @@
-import { FederatedPointerEvent, Graphics } from 'pixi.js';
+import * as PIXI from 'pixi.js';
 import { useCallback, useContext, useMemo, useRef } from 'react';
+
+import { Graphics } from '@pixi/react';
 
 import { GridStateContext, GridViewportContext } from '../../../context';
 import { useDraw } from '../../../hooks';
@@ -23,7 +25,7 @@ export function Track({ direction }: Props) {
   } = useContext(GridStateContext);
   const { moveViewport, viewportCoords } = useContext(GridViewportContext);
 
-  const graphicsRef = useRef<Graphics>(null);
+  const graphicsRef = useRef<PIXI.Graphics>(null);
   const isHorizontal = direction === 'horizontal';
   const gridSize = isHorizontal ? gridWidth : gridHeight;
   const fullSize = isHorizontal ? fullWidth : fullHeight;
@@ -32,14 +34,14 @@ export function Track({ direction }: Props) {
   const exponent = useMemo(
     () =>
       calculateExponent(
-        isHorizontal ? gridSizes.edges.col : gridSizes.edges.row,
+        isHorizontal ? gridSizes.edges.col : gridSizes.edges.row
       ),
-    [gridSizes, isHorizontal],
+    [gridSizes, isHorizontal]
   );
 
   const totalScrollableSize = useMemo(
     () => fullSize - gridSize,
-    [fullSize, gridSize],
+    [fullSize, gridSize]
   );
 
   const trackWidth = useMemo(
@@ -47,7 +49,7 @@ export function Track({ direction }: Props) {
       gridSize -
       gridSizes.scrollBar.trackSize -
       2 * gridSizes.scrollBar.arrowWrapperSize,
-    [gridSize, gridSizes],
+    [gridSize, gridSizes]
   );
 
   const onMouseDown = useCallback(() => {
@@ -57,11 +59,10 @@ export function Track({ direction }: Props) {
   }, [isPanModeEnabled]);
 
   const onMouseUp = useCallback(
-    (e: FederatedPointerEvent) => {
-      if (!app?.renderer || !isTrackClicked.current) return;
+    (e: PIXI.FederatedPointerEvent) => {
+      if (!app || !isTrackClicked.current) return;
 
-      const clientViewportRect =
-        app.canvas.getBoundingClientRect?.() as DOMRect;
+      const clientViewportRect = app.view.getBoundingClientRect?.() as DOMRect;
 
       const cursorX =
         e.client.x -
@@ -77,14 +78,14 @@ export function Track({ direction }: Props) {
         totalScrollableSize,
         cursorX,
         exponent,
-        0,
+        0
       );
       const newY = getViewportPosition(
         trackWidth,
         totalScrollableSize,
         cursorY,
         exponent,
-        0,
+        0
       );
 
       const deltaX = isHorizontal ? newX - viewportCoords.current.x1 : 0;
@@ -102,7 +103,7 @@ export function Track({ direction }: Props) {
       totalScrollableSize,
       trackWidth,
       viewportCoords,
-    ],
+    ]
   );
 
   const draw = useCallback(() => {
@@ -128,25 +129,24 @@ export function Track({ direction }: Props) {
 
     g.clear();
 
-    g.rect(rect.x, rect.y, rect.width, rect.height).fill({
-      color: theme.scrollBar.trackColor,
-    });
-
-    g.moveTo(line.x1, line.y1).lineTo(line.x2, line.y2).stroke({
-      width: 1,
-      color: theme.scrollBar.trackStrokeColor,
-    });
+    g.beginFill(theme.scrollBar.trackColor)
+      .drawRect(rect.x, rect.y, rect.width, rect.height)
+      .moveTo(line.x1, line.y1)
+      .lineStyle({
+        width: 1,
+        color: theme.scrollBar.trackStrokeColor,
+      })
+      .lineTo(line.x2, line.y2);
   }, [gridHeight, gridSizes, gridWidth, isHorizontal, theme]);
 
   useDraw(draw);
 
   return (
-    <pixiGraphics
-      draw={() => {}}
+    <Graphics
       eventMode="static"
+      onpointerdown={onMouseDown}
+      onpointerup={onMouseUp}
       ref={graphicsRef}
-      onPointerDown={onMouseDown}
-      onPointerUp={onMouseUp}
     />
   );
 }

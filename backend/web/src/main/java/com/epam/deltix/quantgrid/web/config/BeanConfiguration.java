@@ -14,7 +14,6 @@ import com.epam.deltix.quantgrid.engine.service.input.storage.InputProvider;
 import com.epam.deltix.quantgrid.engine.service.input.storage.dial.DialDataStore;
 import com.epam.deltix.quantgrid.engine.service.input.storage.dial.DialImportProvider;
 import com.epam.deltix.quantgrid.engine.service.input.storage.dial.DialInputProvider;
-import com.epam.deltix.quantgrid.engine.service.input.storage.dial.DialSchemaStore;
 import com.epam.deltix.quantgrid.engine.service.input.storage.local.LocalDataStore;
 import com.epam.deltix.quantgrid.engine.service.input.storage.local.LocalImportProvider;
 import com.epam.deltix.quantgrid.engine.service.input.storage.local.LocalInputProvider;
@@ -71,8 +70,10 @@ public class BeanConfiguration {
 
     @Bean
     @ConditionalOnDialStorageEnabled
-    public InputProvider dialInputProvider(DialFileApi dialFileApi, DialSchemaStore schemaStore) {
-        return new DialInputProvider(dialFileApi, schemaStore);
+    public InputProvider dialInputProvider(
+            DialFileApi dialFileApi,
+            @Value("${web.storage.dial.schemaFile:appdata/xl/input_schemas.json}") String schemaFile) {
+        return new DialInputProvider(dialFileApi, schemaFile);
     }
 
     @Bean
@@ -183,7 +184,7 @@ public class BeanConfiguration {
 
     @Bean
     @ConditionalOnMissingBean(DataStore.class)
-    public LocalDataStore localDataStore() {
+    public LocalDataStore localDataStore(@Value("${web.storage.local.resultsFolder}") String resultsFolder) {
         return new LocalDataStore();
     }
 
@@ -196,18 +197,5 @@ public class BeanConfiguration {
     @Lazy
     public ApiClient kubernetesApiClient() throws IOException {
         return io.kubernetes.client.util.Config.defaultClient();
-    }
-
-    @Bean
-    @ConditionalOnDialStorageEnabled
-    public DialSchemaStore schemaStoreApi(
-            Clock clock,
-            DialFileApi dialFileApi,
-            @Value("${web.storage.dial.appKey}") String key,
-            @Value("${web.storage.dial.input_metadata.path:.input_metadata/}") String path,
-            @Value("${web.storage.dial.input_metadata.cleanup.updateAfter:15d}") Duration updateAfter,
-            @Value("${web.storage.dial.input_metadata.cleanup.deleteAfter:30d}") Duration deleteAfter) {
-        DialToken dialToken = new DialToken("api-key", key);
-        return new DialSchemaStore(clock, dialFileApi, dialToken, path, updateAfter, deleteAfter);
     }
 }

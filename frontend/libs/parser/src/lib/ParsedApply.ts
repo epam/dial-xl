@@ -18,7 +18,7 @@ export class ParsedApply {
   constructor(
     span: Span | undefined,
     sort: ParsedSort | undefined,
-    filter: ParsedFilter | undefined,
+    filter: ParsedFilter | undefined
   ) {
     this.span = span;
     this.sort = sort;
@@ -40,7 +40,7 @@ export class ParsedApply {
   }
 
   public getFieldConditionFilter(
-    fieldName: string,
+    fieldName: string
   ): ParsedConditionFilter | undefined {
     return this.filter?.getFieldConditionFilter(fieldName);
   }

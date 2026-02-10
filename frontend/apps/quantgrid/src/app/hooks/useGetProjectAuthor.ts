@@ -37,7 +37,7 @@ export function useGetProjectAuthor({
 
     if (projectBucket === userBucket) {
       setProjectAuthor(
-        user?.profile.name ? user?.profile.name + ' (Me)' : 'Me',
+        user?.profile.name ? user?.profile.name + ' (Me)' : 'Me'
       );
 
       return;
@@ -55,18 +55,15 @@ export function useGetProjectAuthor({
         projectBucket,
         projectPath,
         projectName + dialProjectFileExtension,
-      ]),
+      ])
     );
     const sharedWithMeFiles = await getSharedWithMeFilesRequest({
       resourceType: MetadataResourceType.FILE,
     });
-    const sharedResourcesData = sharedWithMeFiles.success
-      ? sharedWithMeFiles.data
-      : [];
-    const projectSharedInfo = sharedResourcesData.find((file) =>
+    const projectSharedInfo = sharedWithMeFiles?.find((file) =>
       file.nodeType === MetadataNodeType.ITEM
         ? file.url === projectUrl
-        : projectUrl.startsWith(file.url),
+        : projectUrl.startsWith(file.url)
     );
     if (projectSharedInfo) {
       setProjectAuthor(projectSharedInfo.author ?? null);

@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useAuth } from 'react-oidc-context';
-import { useLocation, useNavigate } from 'react-router';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 import {
   shareIdStorageKey,
@@ -47,7 +47,7 @@ export function AppPage() {
           folderPath: null,
           folderBucket: null,
           tab: 'home',
-        }),
+        })
       );
 
       return;
@@ -58,7 +58,7 @@ export function AppPage() {
         getFilesShareUrl({
           invitationId: shareId,
           relative: true,
-        }),
+        })
       );
 
       return;
@@ -71,7 +71,7 @@ export function AppPage() {
         projectPath: sharePath,
         invitationId: shareId,
         relative: true,
-      }),
+      })
     );
   }, [pathname, search, navigate, auth.isLoading, auth.isAuthenticated]);
 

@@ -1,4 +1,4 @@
-import { BitmapText, Sprite, StrokeStyle } from 'pixi.js';
+import * as PIXI from 'pixi.js';
 import { BehaviorSubject, Observable, Subject } from 'rxjs';
 
 import {
@@ -12,11 +12,11 @@ import {
   FieldSortOrder,
   FormulaBarMode,
   FunctionInfo,
-  GPTState,
   GridChart,
   GridListFilter,
   ResourceMetadata,
   SharedWithMeMetadata,
+  SystemMessageParsedContent,
   ViewportInteractionMode,
 } from '@frontend/common';
 import {
@@ -36,7 +36,7 @@ import {
 } from './components';
 import { GridTooltipEvent } from './components/Tooltip/types';
 import { GridSizes } from './constants';
-import { FontFamilies } from './setup';
+import { FontColorName, FontFamilies } from './setup';
 import { GridEventBus } from './utils';
 
 export type GridApi = {
@@ -46,17 +46,15 @@ export type GridApi = {
   moveViewportToCell: (
     col: number,
     row: number,
-    centerCellInViewport?: boolean,
+    centerCellInViewport?: boolean
   ) => void;
 
   updateSelection: (
     selection: SelectionEdges | null,
-    selectionOptions?: SelectionOptions,
+    selectionOptions?: SelectionOptions
   ) => void;
   clearSelection: () => void;
   selectedTable: string | null;
-  selectedChart: string | null;
-  setSelectedChart: (chartName: string | null) => void;
 
   getCell: GetCell;
   getCellFromCoords: (x: number, y: number) => CellPlacement;
@@ -67,7 +65,7 @@ export type GridApi = {
   getColumnContentMaxSymbols: (
     col: number,
     viewportStartRow: number,
-    viewportEndRow: number,
+    viewportEndRow: number
   ) => number;
 
   setCellValue: (col: number, row: number, value: string) => void;
@@ -84,7 +82,7 @@ export type GridApi = {
     y: number,
     col: number,
     row: number,
-    source?: 'canvas-element' | 'html-element',
+    source?: 'canvas-element' | 'html-element'
   ) => void;
 
   cellEditorEvent$: Subject<GridCellEditorEvent>;
@@ -94,13 +92,13 @@ export type GridApi = {
   setCellEditorValue: (value: string) => void;
   insertCellEditorValue: (
     value: string,
-    options?: GridCellEditorEventInsertValue['options'],
+    options?: GridCellEditorEventInsertValue['options']
   ) => void;
   showCellEditor: (
     col: number,
     row: number,
     value: string,
-    options?: CellEditorExplicitOpenOptions,
+    options?: CellEditorExplicitOpenOptions
   ) => void;
 
   setPointClickValue: (value: string) => void;
@@ -151,10 +149,9 @@ export type GridProps = {
   formulaBarMode: FormulaBarMode;
   isPointClickMode: boolean;
   sheetContent: string;
-  systemMessageContent: GPTState | undefined;
+  systemMessageContent: SystemMessageParsedContent | undefined;
   currentSheetName: string | null;
   viewportInteractionMode: ViewportInteractionMode;
-  showGridLines: boolean;
 
   eventBus: GridEventBus;
 };
@@ -171,16 +168,15 @@ export type Theme = {
     tableHeaderBgColor: Color;
     fieldHeaderBgColor: Color;
     totalBgColor: Color;
-    cellFontColor: Color;
+    cellFontColorName: FontColorName;
     cellFontFamily: FontFamilies;
     boldCellFontFamily: FontFamilies;
-    boldCellFontColor: Color;
+    boldCellFontColorName: FontColorName;
     keyFontFamily: FontFamilies;
-    keyFontColor: Color;
-    linkFontColor: Color;
-    linkFontHoverColor: Color;
+    keyFontColorName: FontColorName;
+    linkFontColorName: FontColorName;
     linkFontFamily: FontFamilies;
-    indexFontColor: Color;
+    indexFontColorName: FontColorName;
     resizerHoverColor: Color;
     resizerActiveColor: Color;
   };
@@ -190,7 +186,7 @@ export type Theme = {
     bgColorSelected: Color;
     bgColorFullSelected: Color;
     bgColorHover: Color;
-    fontColor: Color;
+    fontColorName: FontColorName;
     fontFamily: FontFamilies;
     resizerHoverColor: Color;
     resizerActiveColor: Color;
@@ -200,7 +196,7 @@ export type Theme = {
     bgColorSelected: Color;
     bgColorFullSelected: Color;
     bgColorHover: Color;
-    fontColor: Color;
+    fontColorName: FontColorName;
     fontFamily: FontFamilies;
   };
   scrollBar: {
@@ -209,13 +205,7 @@ export type Theme = {
     thumbColor: Color;
     thumbColorHovered: Color;
   };
-  selection: {
-    bgColor: Color;
-    bgAlpha: number;
-    borderColor: Color;
-    alpha: number;
-    alignment: number;
-  };
+  selection: { bgColor: Color; bgAlpha: number; borderColor: Color };
   pointClickSelection: {
     color: Color;
     errorColor: Color;
@@ -246,7 +236,7 @@ export type Theme = {
     };
   };
   dndSelection: { borderColor: Color };
-  hiddenCell: { fontColor: Color; fontFamily: FontFamilies };
+  hiddenCell: { fontColorName: FontColorName; fontFamily: FontFamilies };
   tableShadow: {
     color: Color;
     alpha: number;
@@ -279,8 +269,7 @@ export type ViewportCoords = {
 export type Cell = {
   col: number;
   row: number;
-  text: BitmapText;
-  isVisible?: boolean;
+  text: PIXI.BitmapText;
 };
 
 type CellFnArgs = {
@@ -299,7 +288,7 @@ export type CellIconConfig = {
   path: (args: CellFnArgs) => string | string[];
   tooltip: ((args: CellFnArgs) => string) | string | undefined;
   iconSize: (args: CellFnArgs) => number;
-  onAddEventListeners?: (args: CellFnArgs & { icon: Sprite }) => void;
+  onAddEventListeners?: (args: CellFnArgs & { icon: PIXI.Sprite }) => void;
 };
 
 export type IconMetadata = {
@@ -309,11 +298,11 @@ export type IconMetadata = {
   visibleModifier: 'hoverField' | 'hoverTable' | 'always';
   tableName?: string;
   tooltip?: string;
-  onAddEventListeners?: (args: CellFnArgs & { icon: Sprite }) => void;
+  onAddEventListeners?: (args: CellFnArgs & { icon: PIXI.Sprite }) => void;
 };
 
 export type CellIcon = {
-  icon: Sprite;
+  icon: PIXI.Sprite;
   metadata: IconMetadata;
 };
 
@@ -330,20 +319,20 @@ export type CellStyle = {
     textAlpha: number;
   };
   border?: {
-    borderTop?: StrokeStyle;
-    borderRight?: StrokeStyle;
-    borderBottom?: StrokeStyle;
-    borderLeft?: StrokeStyle;
+    borderTop?: PIXI.ILineStyleOptions;
+    borderRight?: PIXI.ILineStyleOptions;
+    borderBottom?: PIXI.ILineStyleOptions;
+    borderLeft?: PIXI.ILineStyleOptions;
   };
   shadow?: {
-    shadowTop?: StrokeStyle[];
-    shadowTopRight?: StrokeStyle[];
-    shadowTopLeft?: StrokeStyle[];
-    shadowRight?: StrokeStyle[];
-    shadowBottom?: StrokeStyle[];
-    shadowBottomRight?: StrokeStyle[];
-    shadowBottomLeft?: StrokeStyle[];
-    shadowLeft?: StrokeStyle[];
+    shadowTop?: PIXI.ILineStyleOptions[];
+    shadowTopRight?: PIXI.ILineStyleOptions[];
+    shadowTopLeft?: PIXI.ILineStyleOptions[];
+    shadowRight?: PIXI.ILineStyleOptions[];
+    shadowBottom?: PIXI.ILineStyleOptions[];
+    shadowBottomRight?: PIXI.ILineStyleOptions[];
+    shadowBottomLeft?: PIXI.ILineStyleOptions[];
+    shadowLeft?: PIXI.ILineStyleOptions[];
   };
 };
 

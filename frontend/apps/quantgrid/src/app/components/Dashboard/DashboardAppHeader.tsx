@@ -1,23 +1,21 @@
-import { Link } from 'react-router';
+import { Link } from 'react-router-dom';
 
 import Icon from '@ant-design/icons';
 import { DialTextLogo, QGLogo } from '@frontend/common';
 
-import { useUserSettingsStore } from '../../store';
+import { logoSrcStorageKey } from '../../common';
 import { routes } from '../../types';
 import { UserMenu } from '../UserMenu';
 
 export function DashboardAppHeader() {
-  const serverLogoSrc = useUserSettingsStore((s) => s.data.logoSrc);
-
-  const logoSrc = serverLogoSrc
-    ? serverLogoSrc
-    : window.externalEnv.defaultLogoUrl || '';
+  const logoSrc =
+    localStorage.getItem(logoSrcStorageKey) ??
+    window.externalEnv.defaultLogoUrl;
 
   return (
     <div className="flex justify-between items-center px-3 md:px-5 lg:px-[20%] h-10 md:h-[48px] bg-bg-layer-3 border-b border-stroke-tertiary">
       <div className="flex items-center">
-        <Link className="flex items-center" to={`../${routes.home}`}>
+        <Link className="flex items-center" to={routes.home}>
           {logoSrc ? (
             <img
               alt="custom logo"

@@ -48,13 +48,13 @@ export function TableFieldsSection({
       {!selectedField && (
         <div
           className={classNames(
-            'h-full w-full flex flex-col gap-2 bg-bg-layer-2 border rounded-[3px] p-2',
+            'h-full w-full flex flex-col gap-2 bg-bg-layer-2 border rounded-[3px] p-2'
           )}
         >
           {fields.map((field) => (
             <div
               className={classNames(
-                'px-2 py-1 rounded-[3px] text-[13px] flex items-center bg-bg-layer-4 cursor-pointer hover:opacity-80 group',
+                'px-2 py-1 rounded-[3px] text-[13px] flex items-center bg-bg-layer-4 cursor-pointer hover:opacity-80 group'
               )}
               key={field.key.fieldName}
               onClick={() => onFieldClick(field)}

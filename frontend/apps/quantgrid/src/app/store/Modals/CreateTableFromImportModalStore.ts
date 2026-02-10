@@ -19,7 +19,7 @@ type Actions = {
     sourceName: string,
     col?: number,
     row?: number,
-    mode?: CreateTableFromImportMode,
+    mode?: CreateTableFromImportMode
   ) => void;
   close: () => void;
 };
@@ -46,7 +46,7 @@ export const useCreateTableFromImportModalStore =
       sourceName: string,
       col?: number,
       row?: number,
-      mode: CreateTableFromImportMode = 'createTable',
+      mode: CreateTableFromImportMode = 'createTable'
     ) => {
       set({
         isOpen: true,

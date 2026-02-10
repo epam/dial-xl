@@ -19,22 +19,15 @@ serviceAccount:
   create: false
 
 env:
-  DIAL_URL: "http://dial-{{ .Values.global.mergeid }}-core"
-  QG_URL: "https://{{ .Values.global.url }}" 
-  QG_REST_URL: "https://{{ .Values.global.url }}" 
-
-  BOT_VERSION: "1"
-  CORE_MODEL: "anthropic.claude-v4-5-sonnet-v1"
-  CLASSIFICATION_MODEL: "anthropic.claude-v4-5-sonnet-v1"
-  LLM_NAME: "anthropic.claude-v3-5-sonnet-v2"
-  MAX_FIX_ATTEMPTS: "5"
-  LLM_MAX_CONTEXT_TOKENS: "150000"
-
   LOG_LEVEL: "DEBUG"
 
-  CONTEXT_ROWS: "10"
-  RECURSION_LIMIT: "75"
+  ENV_TYPE: "default"
+  OVERRIDE_ASSISTANT__URL__DIAL: "http://dial-{{ .Values.global.mergeid }}-core"
+  OVERRIDE_ASSISTANT__URL__XL: "https://{{ .Values.global.url }}"
 
-  WEB_CONCURRENCY: "4"
+  PYDANTIC_V2: "True"
+  DIAL_SDK_LOG: "INFO"
+
+  WEB_CONCURRENCY: "1"
   UVICORN_LIMIT_CONCURRENCY: "512"
   UVICORN_TIMEOUT_KEEP_ALIVE: "600"

@@ -9,7 +9,7 @@ export function autoSizeTableHeader(
   col: number,
   grid: GridApi | null,
   projectName: string | undefined | null,
-  sheetName: string | undefined | null,
+  sheetName: string | undefined | null
 ) {
   const tableHeaderSize = getExpandedTextSize({
     text: table.name,

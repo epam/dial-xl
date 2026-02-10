@@ -19,7 +19,7 @@ import {
 export function TitleFieldTemplate<
   T = any,
   S extends StrictRJSFSchema = RJSFSchema,
-  F extends FormContextType = any,
+  F extends FormContextType = any
 >({
   id,
   required,
@@ -41,7 +41,7 @@ export function TitleFieldTemplate<
     }
 
     const control: HTMLLabelElement | null = document.querySelector(
-      `[id="${id}"]`,
+      `[id="${id}"]`
     );
     if (control && control.focus) {
       control.focus();
@@ -75,7 +75,7 @@ export function TitleFieldTemplate<
           <Icon
             className={classNames(
               iconClasses,
-              'w-[18px] text-text-secondary ml-1 hover:cursor-help hover:text-text-accent-primary',
+              'w-[18px] text-text-secondary ml-1 hover:cursor-help hover:text-text-accent-primary'
             )}
             component={() => <QuestionIcon />}
           />

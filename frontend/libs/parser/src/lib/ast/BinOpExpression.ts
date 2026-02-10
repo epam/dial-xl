@@ -6,7 +6,7 @@ export class BinOpExpression implements Expression {
     public right: Expression,
     public operator: string,
     public globalOffsetStart: number,
-    public globalOffsetEnd: number,
+    public globalOffsetEnd: number
   ) {}
 
   toString(): string {

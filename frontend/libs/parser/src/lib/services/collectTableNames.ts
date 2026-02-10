@@ -6,7 +6,7 @@ export const collectTableNames = (parsedSheets: ParsedSheets): string[] => {
 
   for (const sheet of Object.values(parsedSheets)) {
     tableNames = tableNames.concat(
-      sheet.tables.map((table) => unescapeTableName(table.tableName)),
+      sheet.tables.map((table) => unescapeTableName(table.tableName))
     );
   }
 

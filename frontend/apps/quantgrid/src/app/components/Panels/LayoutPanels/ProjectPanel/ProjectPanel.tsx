@@ -1,6 +1,5 @@
 import { Dropdown, Tooltip } from 'antd';
 import classNames from 'classnames';
-import cx from 'classnames';
 import { useCallback, useContext, useMemo } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 
@@ -13,15 +12,11 @@ import {
   getDropdownItem,
   iconClasses,
   ImportIcon,
-  modalFooterButtonClasses,
   PlusIcon,
-  primaryButtonClasses,
   projectPanelWrapperId,
   publicBucket,
   QGLogoMonochrome,
   RefreshIcon,
-  secondaryButtonClasses,
-  TablePlusIcon,
 } from '@frontend/common';
 
 import { PanelName, PanelProps } from '../../../../common';
@@ -33,19 +28,9 @@ import {
   LayoutContext,
   ProjectContext,
 } from '../../../../context';
-import { useRequestDimTable } from '../../../../hooks';
 import { useProjectMode, useWorksheetActions } from '../../../../hooks';
-import { useAntdModalStore } from '../../../../store';
-import {
-  useImportSourceModalStore,
-  useUIStore,
-  useUserSettingsStore,
-} from '../../../../store';
-import {
-  displayToast,
-  ProjectPanelCollapseSection as CollapseSection,
-  triggerUpload,
-} from '../../../../utils';
+import { useImportSourceModalStore, useUIStore } from '../../../../store';
+import { displayToast, triggerUpload } from '../../../../utils';
 import { AIHints } from '../../AIHints';
 import { Conversations } from '../../Conversations';
 import { Inputs } from '../../Inputs';
@@ -54,6 +39,7 @@ import { ProjectTree } from '../../ProjectTree';
 import { Questions } from '../../Questions';
 import { PanelWrapper } from '../PanelWrapper';
 import { ProjectPanelSection } from './ProjectPanelSection';
+import { CollapseSection } from './types';
 import { useProjectPanelCollapse } from './useProjectPanelCollapse';
 
 export function ProjectPanel({
@@ -66,7 +52,6 @@ export function ProjectPanel({
     useContext(AIHintsContext);
   const worksheetAction = useWorksheetActions();
   const { isProjectEditable, hasEditPermissions } = useContext(ProjectContext);
-  const { requestMultipleDimSchemas } = useRequestDimTable();
   const { isAdmin } = useContext(ApiContext);
   const {
     inputsBucket,
@@ -75,21 +60,17 @@ export function ProjectPanel({
     getImportSources,
     importSources,
     syncAllImports,
-    inputList,
   } = useContext(InputsContext);
   const { createConversation, overlay, isAIPreview, isAIPendingChanges } =
     useContext(ChatOverlayContext);
   const { open: openImport } = useImportSourceModalStore();
-  const confirmModal = useAntdModalStore((s) => s.confirm);
 
-  const { toggleChat, isChatOpen } = useUIStore(
+  const { toggleChat, isChatOpen, chatWindowPlacement } = useUIStore(
     useShallow((s) => ({
       toggleChat: s.toggleChat,
       isChatOpen: s.isChatOpen,
-    })),
-  );
-  const chatWindowPlacement = useUserSettingsStore(
-    (s) => s.data.chatWindowPlacement,
+      chatWindowPlacement: s.chatWindowPlacement,
+    }))
   );
 
   const { togglePanel, openedPanels } = useContext(LayoutContext);
@@ -115,34 +96,6 @@ export function ProjectPanel({
     toggleChat,
     togglePanel,
   ]);
-
-  const addAllInputsToProject = useCallback(
-    async (inNewSheet: boolean) => {
-      if (!inputList || inputList.length === 0) return;
-
-      confirmModal({
-        icon: null,
-        title: 'Confirm',
-        content: `You are about to add all ${
-          inputList.length
-        } input(s) to the project. ${
-          inNewSheet
-            ? 'Each table will create a new sheet.'
-            : 'All tables will be added to the current sheet.'
-        } Do you want to proceed?`,
-        okButtonProps: {
-          className: cx(modalFooterButtonClasses, primaryButtonClasses),
-        },
-        cancelButtonProps: {
-          className: cx(modalFooterButtonClasses, secondaryButtonClasses),
-        },
-        onOk: async () => {
-          requestMultipleDimSchemas(inputList, inNewSheet);
-        },
-      });
-    },
-    [confirmModal, inputList, requestMultipleDimSchemas],
-  );
 
   const handleCreateConversation = useCallback(() => {
     openChatPanel();
@@ -173,37 +126,6 @@ export function ProjectPanel({
   const inputsAddDisabled = useMemo(() => {
     return !inputsBucket || (!isAdmin && inputsBucket === publicBucket);
   }, [inputsBucket, isAdmin]);
-
-  const createAddAllInputDropdownItems = useMemo(() => {
-    return [
-      getDropdownItem({
-        key: 'add_all_inputs_current_sheet',
-        label: (
-          <span className={classNames('flex items-center gap-1')}>
-            <span className="truncate max-w-[270px]">
-              Add all inputs to current sheet
-            </span>
-          </span>
-        ),
-        onClick: () => {
-          addAllInputsToProject(false);
-        },
-      }),
-      getDropdownItem({
-        key: 'add_all_inputs_new_sheet',
-        label: (
-          <span className={classNames('flex items-center gap-1')}>
-            <span className="truncate max-w-[270px]">
-              Add all inputs to new sheets
-            </span>
-          </span>
-        ),
-        onClick: () => {
-          addAllInputsToProject(true);
-        },
-      }),
-    ];
-  }, [addAllInputsToProject]);
 
   const createInputDropdownItems = useMemo(() => {
     return [
@@ -418,7 +340,7 @@ export function ProjectPanel({
           content={<Inputs />}
           headerExtra={
             isDefaultMode ? (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1">
                 {Object.keys(importSources).length > 0 && (
                   <Tooltip
                     className="opacity-0 transition-opacity duration-200 ease-in-out pointer-events-none group-hover/panel:opacity-100 group-hover/panel:pointer-events-auto"
@@ -431,25 +353,6 @@ export function ProjectPanel({
                       component={() => <RefreshIcon />}
                       onClick={handleSyncAllImports}
                     />
-                  </Tooltip>
-                )}
-                {inputList && inputList.length > 0 && (
-                  <Tooltip
-                    placement="bottom"
-                    title="Add all inputs to the project"
-                    destroyOnHidden
-                  >
-                    <div className="h-full">
-                      <Dropdown
-                        menu={{ items: createAddAllInputDropdownItems }}
-                        trigger={['click', 'contextMenu']}
-                      >
-                        <Icon
-                          className={classNames(iconClasses, 'w-[18px]')}
-                          component={() => <TablePlusIcon />}
-                        />
-                      </Dropdown>
-                    </div>
                   </Tooltip>
                 )}
                 <Tooltip

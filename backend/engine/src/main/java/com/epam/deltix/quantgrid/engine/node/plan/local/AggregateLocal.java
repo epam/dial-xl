@@ -84,10 +84,6 @@ public class AggregateLocal extends Plan2<Table, Table, Table> {
                 ? function.aggregate(table.size(), args)
                 : function.aggregate(keys, args, size);
 
-        if (result instanceof Column column) {
-            return new LocalTable(column);
-        }
-
         if (result instanceof long[] references) {
             return LocalTable.indirectOf(table, references);
         }

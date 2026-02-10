@@ -1,9 +1,4 @@
-import {
-  BitmapText,
-  Container,
-  FederatedPointerEvent,
-  Graphics,
-} from 'pixi.js';
+import * as PIXI from 'pixi.js';
 import {
   useCallback,
   useContext,
@@ -13,34 +8,32 @@ import {
   useState,
 } from 'react';
 
+import { Container, Graphics } from '@pixi/react';
+
+import { adjustmentFontMultiplier, ComponentLayer } from '../../constants';
 import { GridStateContext, GridViewportContext } from '../../context';
 import { useDraw } from '../../hooks';
 import { Cell, Color, Edges } from '../../types';
 import { getMousePosition } from '../../utils';
 
-type Props = {
-  zIndex: number;
-};
-
-export function RowNumbers({ zIndex }: Props) {
-  const { getBitmapFontName, theme, gridSizes, selection$, zoom } =
+export function RowNumbers() {
+  const { getBitmapFontName, theme, gridSizes, selection$ } =
     useContext(GridStateContext);
   const { getCellY, viewportEdges, getCellFromCoords, gridViewportSubscriber } =
     useContext(GridViewportContext);
 
   const [selectionEdges, setSelectionEdges] = useState<Edges | null>(null);
 
-  const containerRef = useRef<Container>(null);
-  const graphicsRef = useRef<Graphics>(null);
+  const graphicsRef = useRef<PIXI.Graphics>(null);
   const [rowNumbers, _setRowNumbers] = useState<Cell[]>([]);
   const [hoveredRow, setHoveredRow] = useState<number>();
   const freeCells = useRef<Cell[]>([]);
   const rowNumbersRef = useRef<Cell[]>([]);
 
   const fontName = useMemo(() => {
-    const { fontFamily } = theme.rowNumber;
+    const { fontColorName, fontFamily } = theme.rowNumber;
 
-    return getBitmapFontName(fontFamily);
+    return getBitmapFontName(fontFamily, fontColorName);
   }, [getBitmapFontName, theme]);
 
   const selectedRows = useMemo(
@@ -50,11 +43,11 @@ export function RowNumbers({ zIndex }: Props) {
           .filter(
             ({ row }) =>
               Math.min(selectionEdges.startRow, selectionEdges.endRow) <= row &&
-              row <= Math.max(selectionEdges.startRow, selectionEdges.endRow),
+              row <= Math.max(selectionEdges.startRow, selectionEdges.endRow)
           )
           .map(({ row }) => row)) ||
       undefined,
-    [rowNumbers, selectionEdges],
+    [rowNumbers, selectionEdges]
   );
 
   const isFullSelectedRows = useMemo(
@@ -63,7 +56,7 @@ export function RowNumbers({ zIndex }: Props) {
       Math.min(selectionEdges.startCol, selectionEdges.endCol) === 1 &&
       gridSizes.edges.col ===
         Math.max(selectionEdges.startCol, selectionEdges.endCol),
-    [gridSizes.edges.col, selectionEdges],
+    [gridSizes.edges.col, selectionEdges]
   );
 
   const setRowNumbers = useCallback((newRowNumbers: Cell[]) => {
@@ -72,7 +65,7 @@ export function RowNumbers({ zIndex }: Props) {
   }, []);
 
   const handleMouseMove = useCallback(
-    (e: FederatedPointerEvent) => {
+    (e: PIXI.FederatedPointerEvent) => {
       if (!graphicsRef.current) return;
 
       const mousePosition = getMousePosition(e);
@@ -84,7 +77,7 @@ export function RowNumbers({ zIndex }: Props) {
       setHoveredRow(row);
       graphicsRef.current.cursor = 'e-resize';
     },
-    [getCellFromCoords],
+    [getCellFromCoords]
   );
 
   const handleMouseOut = useCallback(() => {
@@ -136,13 +129,8 @@ export function RowNumbers({ zIndex }: Props) {
       }
 
       if (!appendedText) {
-        appendedText = new BitmapText({
-          text: '',
-          style: { fontFamily: fontName },
-        });
-        if (containerRef.current) {
-          containerRef.current.addChild(appendedText);
-        }
+        appendedText = new PIXI.BitmapText('', { fontName });
+        graphicsRef.current.addChild(appendedText);
       }
 
       updatedRowNumbers.push({ row, col: 0, text: appendedText });
@@ -173,36 +161,27 @@ export function RowNumbers({ zIndex }: Props) {
 
     const graphics = graphicsRef.current;
     const { rowNumber, gridLine } = gridSizes;
-    const {
-      bgColorSelected,
-      bgColorFullSelected,
-      bgColorHover,
-      bgColor,
-      fontColor,
-    } = theme.rowNumber;
+    const { bgColorSelected, bgColorFullSelected, bgColorHover, bgColor } =
+      theme.rowNumber;
 
     graphics.clear();
 
     rowNumbersRef.current.forEach(({ row, text }) => {
-      drawRow({
+      drawRow(
         row,
         graphics,
         bgColor,
-        fontColor,
         rowNumber,
         gridLine,
         bgColorHover,
         bgColorFullSelected,
         bgColorSelected,
-        text,
-        zoom,
-      });
+        text
+      );
     });
 
     freeCells.current.slice(1).forEach((cell) => {
-      if (cell.text.parent) {
-        cell.text.parent.removeChild(cell.text);
-      }
+      graphicsRef.current?.removeChild(cell.text);
       cell.text.destroy();
     });
     freeCells.current = freeCells.current.slice(0, 1);
@@ -222,55 +201,40 @@ export function RowNumbers({ zIndex }: Props) {
   useDraw(draw);
 
   return (
-    <pixiContainer label="RowNumbers" ref={containerRef} zIndex={zIndex}>
-      <pixiGraphics
-        draw={() => {}}
-        eventMode="static"
-        label="RowNumbersGraphics"
+    <Container zIndex={ComponentLayer.RowNumbers}>
+      <Graphics
+        onmousemove={handleMouseMove}
+        onmouseout={handleMouseOut}
         ref={graphicsRef}
-        onMouseMove={handleMouseMove}
-        onMouseOut={handleMouseOut}
+        interactive
       />
-    </pixiContainer>
+    </Container>
   );
 
-  function drawRow({
-    row,
-    graphics,
-    bgColor,
-    fontColor,
-    rowNumber,
-    gridLine,
-    bgColorHover,
-    bgColorFullSelected,
-    bgColorSelected,
-    text,
-    zoom,
-  }: {
-    row: number;
-    graphics: Graphics;
-    bgColor: Color;
-    fontColor: Color;
+  function drawRow(
+    row: number,
+    graphics: PIXI.Graphics,
+    bgColor: Color,
     rowNumber: {
       minWidth: number;
       width: number;
       height: number;
       fontSize: number;
       padding: number;
-    };
-    gridLine: { width: number };
-    bgColorHover: Color;
-    bgColorFullSelected: Color;
-    bgColorSelected: Color;
-    text: BitmapText;
-    zoom: number;
-  }) {
+    },
+    gridLine: { width: number },
+    bgColorHover: Color,
+    bgColorFullSelected: Color,
+    bgColorSelected: Color,
+    text: PIXI.BitmapText
+  ) {
     const y = getCellY(row);
 
     // We need to draw rectangle with default background to have it under computed background with transparency
     graphics
-      .rect(0, y, rowNumber.width - gridLine.width, rowNumber.height)
-      .fill({ color: bgColor });
+      .beginFill(bgColor)
+      .drawRect(0, y, rowNumber.width - gridLine.width, rowNumber.height)
+      .endFill();
 
     // drawing additional rect with customized(potentially with alpha) background
     const isSelectedRow = selectedRows?.includes(row);
@@ -278,24 +242,23 @@ export function RowNumbers({ zIndex }: Props) {
       hoveredRow === row
         ? bgColorHover
         : isSelectedRow
-          ? isFullSelectedRows
-            ? bgColorFullSelected
-            : bgColorSelected
-          : undefined;
+        ? isFullSelectedRows
+          ? bgColorFullSelected
+          : bgColorSelected
+        : undefined;
 
     if (computedBgColor) {
       graphics
-        .rect(0, y, rowNumber.width - gridLine.width, rowNumber.height)
-        .fill({ color: computedBgColor });
+        .beginFill(computedBgColor)
+        .drawRect(0, y, rowNumber.width - gridLine.width, rowNumber.height)
+        .endFill();
     }
 
-    text.style.fontFamily = fontName;
-    text.style.fontSize = rowNumber.fontSize;
-    text.style.lineHeight = rowNumber.fontSize;
-    text.style.fill = fontColor;
+    text.fontName = fontName;
+    text.fontSize = rowNumber.fontSize;
     text.text = row.toString();
 
     text.x = rowNumber.padding;
-    text.y = y + Math.floor((rowNumber.height - rowNumber.fontSize) / 2 - zoom);
+    text.y = y + rowNumber.fontSize * adjustmentFontMultiplier;
   }
 }

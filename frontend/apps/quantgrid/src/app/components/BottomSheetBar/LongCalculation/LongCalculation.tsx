@@ -32,7 +32,7 @@ export function LongCalculation() {
   const onAcceptLongCalc = useCallback(async () => {
     const res = await sendProjectCalculate({
       projectPath: encodeApiUrl(
-        constructPath(['files', projectBucket, projectPath, projectName]),
+        constructPath(['files', projectBucket, projectPath, projectName])
       ),
     });
 
@@ -50,7 +50,7 @@ export function LongCalculation() {
   const onCancelLongCalc = useCallback(async () => {
     const res = await sendProjectCancel({
       projectPath: encodeApiUrl(
-        constructPath(['files', projectBucket, projectPath, projectName]),
+        constructPath(['files', projectBucket, projectPath, projectName])
       ),
     });
 
@@ -79,7 +79,7 @@ export function LongCalculation() {
 
   const content = useMemo(() => {
     return (
-      <div className="max-h-[50vh] max-w-[200px] overflow-auto thin-scrollbar flex flex-col gap-2 p-2">
+      <div className="max-h-[50vh] max-w-[200px] overflow-auto thin-scrollbar flex flex-col gap-2">
         {longCalcStatus === LongCalcStatuses.NeedAccept && (
           <>
             <span className="text-[13px] text-text-primary">
@@ -93,7 +93,7 @@ export function LongCalculation() {
               className={classNames(
                 primaryButtonClasses,
                 primaryDisabledButtonClasses,
-                'h-7',
+                'h-7'
               )}
               onClick={onAcceptLongCalc}
             >
@@ -111,7 +111,7 @@ export function LongCalculation() {
               className={classNames(
                 primaryButtonClasses,
                 primaryDisabledButtonClasses,
-                'h-7',
+                'h-7'
               )}
               onClick={onCancelLongCalc}
             >
@@ -131,7 +131,7 @@ export function LongCalculation() {
             'w-[18px]',
             longCalcStatus === LongCalcStatuses.NeedAccept
               ? 'text-text-error'
-              : 'text-text-warning',
+              : 'text-text-warning'
           )}
           component={() =>
             longCalcStatus === LongCalcStatuses.NeedAccept ? (

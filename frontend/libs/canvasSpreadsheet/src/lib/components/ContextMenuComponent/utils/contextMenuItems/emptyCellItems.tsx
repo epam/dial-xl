@@ -23,7 +23,7 @@ import { askAIItem } from './commonItem';
 export const getEmptyCellMenuItems = (
   col: number,
   row: number,
-  contextCell: GridCell,
+  contextCell: GridCell
 ) => {
   const { table } = contextCell;
 
@@ -62,7 +62,7 @@ export const getEmptyCellWithoutContextMenuItem = (
   inputFiles: CommonMetadata[] | null,
   onCreateTable: (cols: number, rows: number) => void,
   col: number,
-  row: number,
+  row: number
 ) => {
   const isShowAIPrompt = isFeatureFlagEnabled('askAI');
 
@@ -78,7 +78,7 @@ export const getEmptyCellWithoutContextMenuItem = (
       tableNames,
       inputFiles,
       onCreateTable,
-      false,
+      false
     ),
     getDropdownItem({
       label: 'Create Chart',
@@ -112,9 +112,9 @@ export const getEmptyCellWithoutContextMenuItem = (
                     chartType: type,
                     col,
                     row,
-                  },
+                  }
                 ),
-              }),
+              })
             ),
           });
         }),

@@ -9,7 +9,7 @@ import com.azure.storage.blob.models.ListBlobsOptions;
 import com.azure.storage.common.StorageSharedKeyCredential;
 import com.epam.deltix.quantgrid.engine.service.input.DataSchema;
 import com.epam.deltix.quantgrid.engine.service.input.storage.CsvInputParser;
-import com.epam.deltix.quantgrid.engine.service.input.CsvColumn;
+import com.epam.deltix.quantgrid.type.InputColumnType;
 import com.epam.quantgrid.input.annotate.Input;
 import com.epam.quantgrid.input.annotate.Setting;
 import com.epam.quantgrid.input.api.DataCatalog;
@@ -25,7 +25,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.Reader;
-import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @Setter
@@ -85,10 +85,10 @@ public class AzureInput implements DataInput {
 
         BlobClient blobClient = containerClient().getBlobClient(dataset);
         try (Reader reader = new BufferedReader(new InputStreamReader(blobClient.openInputStream()))) {
-            List<CsvColumn> columns = CsvInputParser.inferSchema(reader, false);
+            Map<String, InputColumnType> schema = CsvInputParser.inferSchema(reader, false);
             DataSchema result = new DataSchema();
-            columns.forEach(column ->
-                    result.addColumn(new DataSchema.Column(column.name(), column.type().getDisplayName(), column.type())));
+            schema.forEach((name, type) ->
+                    result.addColumn(new DataSchema.Column(name, type.getDisplayName(), type)));
             return result;
         }
     }

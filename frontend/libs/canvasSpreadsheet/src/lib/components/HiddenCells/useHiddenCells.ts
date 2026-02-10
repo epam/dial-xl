@@ -1,4 +1,4 @@
-import { BitmapText, Container } from 'pixi.js';
+import * as PIXI from 'pixi.js';
 import {
   RefObject,
   useCallback,
@@ -15,13 +15,14 @@ import { GridStateContext, GridViewportContext } from '../../context';
 import { Cell, Edges, GridCell, GridTable, SelectionEdges } from '../../types';
 import {
   cropText,
+  getSymbolWidth,
   isHiddenFieldCell,
   isHiddenTableHeaderCell,
 } from '../../utils';
 
 export function useHiddenCells(
-  containerRef: RefObject<Container | null> | null,
-  fontName: string,
+  graphicsRef: RefObject<PIXI.Graphics> | null,
+  fontName: string
 ) {
   const {
     selection$,
@@ -32,13 +33,13 @@ export function useHiddenCells(
     isTableDragging,
     dndSelection,
     tableStructure,
-    canvasSymbolWidth,
   } = useContext(GridStateContext);
   const { getCellX } = useContext(GridViewportContext);
   const isMobile = useIsMobile();
 
   const cells = useRef<Cell[]>([]);
   const [render, setRender] = useState(0);
+  const [symbolWidth, setSymbolWidth] = useState(0);
   const [virtualSelectionEdges, setVirtualSelectionEdges] =
     useState<SelectionEdges | null>(null);
   const selectionRef = useRef<Edges | null>(null);
@@ -53,32 +54,27 @@ export function useHiddenCells(
     cells.current = [];
     setVirtualSelectionEdges(null);
 
-    if (!containerRef?.current) return;
+    if (!graphicsRef?.current) return;
 
-    containerRef.current.removeChildren();
+    graphicsRef.current.removeChildren();
     setRender((prev) => prev + 1);
-  }, [containerRef]);
+  }, [graphicsRef]);
 
   const createCell = useCallback(
     (col: number, row: number, text: string, maxWidth: number) => {
-      if (!containerRef?.current) return;
+      if (!graphicsRef?.current) return;
 
-      const croppedText = text
-        ? cropText(text, maxWidth, canvasSymbolWidth)
-        : '';
+      const croppedText = text ? cropText(text, maxWidth, symbolWidth) : '';
 
       const cell: Cell = {
         col,
         row,
-        text: new BitmapText({
-          text: croppedText,
-          style: { fontFamily: fontName },
-        }),
+        text: new PIXI.BitmapText(croppedText, { fontName }),
       };
       cells.current.push(cell);
-      containerRef.current.addChild(cell.text);
+      graphicsRef.current.addChild(cell.text);
     },
-    [fontName, containerRef, canvasSymbolWidth],
+    [fontName, graphicsRef, symbolWidth]
   );
 
   const getCellWidth = useCallback(
@@ -88,7 +84,7 @@ export function useHiddenCells(
 
       return Math.abs(x1 - x2) - gridSizes.cell.padding;
     },
-    [getCellX, gridSizes],
+    [getCellX, gridSizes]
   );
 
   const handleBottomTableFieldHeadersHidden = useCallback(
@@ -108,7 +104,7 @@ export function useHiddenCells(
               : '';
           const maxWidth = getCellWidth(
             fieldCell.startCol,
-            fieldCell.endCol + 1,
+            fieldCell.endCol + 1
           );
 
           createCell(col, startRow, text, maxWidth);
@@ -126,7 +122,7 @@ export function useHiddenCells(
       setSelectionEdges(updatedSelection);
       setRender((prev) => prev + 1);
     },
-    [createCell, getCell, getCellWidth, setSelectionEdges],
+    [createCell, getCell, getCellWidth, setSelectionEdges]
   );
 
   const handleBottomTableHeaderHidden = useCallback(
@@ -153,7 +149,7 @@ export function useHiddenCells(
       setSelectionEdges(updatedSelection);
       setRender((prev) => prev + 1);
     },
-    [createCell, getCell, getCellWidth, setSelectionEdges],
+    [createCell, getCell, getCellWidth, setSelectionEdges]
   );
 
   const handleRightTableFieldHidden = useCallback(
@@ -166,7 +162,7 @@ export function useHiddenCells(
           const text = fieldCell.field?.fieldName || '';
           const maxWidth = getCellWidth(
             fieldCell.startCol,
-            fieldCell.endCol + 1,
+            fieldCell.endCol + 1
           );
 
           createCell(startCol, row, text, maxWidth);
@@ -174,7 +170,7 @@ export function useHiddenCells(
       }
       setRender((prev) => prev + 1);
     },
-    [createCell, getCell, getCellWidth],
+    [createCell, getCell, getCellWidth]
   );
 
   const handleEmptySheetHint = useCallback(() => {
@@ -218,7 +214,7 @@ export function useHiddenCells(
       const isBottomTableHeaderHidden = isHiddenTableHeaderCell(bottomCell);
       const isBottomTableFieldHeadersHidden = isHiddenFieldCell(
         bottomCell,
-        true,
+        true
       );
       const isRightTableFieldHidden = isHiddenFieldCell(rightCell, false);
 
@@ -253,8 +249,12 @@ export function useHiddenCells(
       handleEmptySheetHint,
       handleRightTableFieldHidden,
       isTableDragging,
-    ],
+    ]
   );
+
+  useEffect(() => {
+    setSymbolWidth(getSymbolWidth(gridSizes.cell.fontSize, fontName));
+  }, [fontName, gridSizes.cell.fontSize]);
 
   useEffect(() => {
     const subscription = selection$.subscribe((selection) => {

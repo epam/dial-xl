@@ -1,5 +1,6 @@
 import { Menu } from 'antd';
 import cx from 'classnames';
+import type { MenuInfo } from 'rc-menu/lib/interface';
 import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 
@@ -10,7 +11,6 @@ import {
   InsertChartContextMenuKeyData,
   MenuItem,
 } from '@frontend/common';
-import type { MenuInfo } from '@rc-component/menu/lib/interface';
 
 import { ColorSchema, PanelName } from '../../common';
 import {
@@ -38,7 +38,6 @@ import {
   useSearchModalStore,
   useShortcutsHelpModalStore,
   useUIStore,
-  useUserSettingsStore,
   useViewStore,
 } from '../../store';
 import { routes } from '../../types';
@@ -64,15 +63,14 @@ export function MainMenu({
   isMobile = false,
   colorSchema = 'default',
 }: Props) {
-  const { toggleChat, toggleChatWindowPlacement } = useUIStore(
-    useShallow((s) => ({
-      toggleChat: s.toggleChat,
-      toggleChatWindowPlacement: s.toggleChatWindowPlacement,
-    })),
-  );
-  const chatWindowPlacement = useUserSettingsStore(
-    (s) => s.data.chatWindowPlacement,
-  );
+  const { toggleChat, toggleChatWindowPlacement, chatWindowPlacement } =
+    useUIStore(
+      useShallow((s) => ({
+        toggleChat: s.toggleChat,
+        toggleChatWindowPlacement: s.toggleChatWindowPlacement,
+        chatWindowPlacement: s.chatWindowPlacement,
+      }))
+    );
   const selectedCell = useViewStore((s) => s.selectedCell);
   const { userBucket } = useContext(ApiContext);
   const {
@@ -87,7 +85,7 @@ export function MainMenu({
   const openSearchModal = useSearchModalStore((s) => s.open);
   const openShortcutsHelpModal = useShortcutsHelpModalStore((s) => s.open);
   const openControlCreateWizard = useControlStore(
-    (s) => s.openControlCreateWizard,
+    (s) => s.openControlCreateWizard
   );
   const gridApi = useGridApi();
   const {
@@ -132,7 +130,7 @@ export function MainMenu({
       isCSVViewMode,
       isDefaultMode,
       isAIPendingMode,
-    ],
+    ]
   );
 
   const onClickFormulaItem = useCallback(
@@ -142,13 +140,13 @@ export function MainMenu({
           action,
           data.type,
           data.insertFormula,
-          data.tableName,
+          data.tableName
         );
 
         return;
       }
     },
-    [onCreateTableAction],
+    [onCreateTableAction]
   );
 
   const onMenuItemClick = useCallback(
@@ -198,7 +196,7 @@ export function MainMenu({
               projectPath: recentProject.projectPath,
               projectSheetName: recentProject.sheetName,
             }),
-            '_blank',
+            '_blank'
           );
         }
       } catch {
@@ -291,7 +289,7 @@ export function MainMenu({
               selectedCell.col,
               selectedCell.row,
               selectedCell.tableName,
-              '',
+              ''
             );
           }
           break;
@@ -301,7 +299,7 @@ export function MainMenu({
               selectedCell.col,
               selectedCell.row,
               selectedCell.tableName,
-              '',
+              ''
             );
           }
           break;
@@ -368,7 +366,7 @@ export function MainMenu({
       panelsSplitEnabled,
       openShortcutsHelpModal,
       openControlCreateWizard,
-    ],
+    ]
   );
 
   const handleCreateTableBySize = useCallback(
@@ -378,10 +376,10 @@ export function MainMenu({
       createManualTable(
         selectedCell?.col ?? 1,
         selectedCell?.row ?? 1,
-        rowsItems,
+        rowsItems
       );
     },
-    [selectedCell?.col, selectedCell?.row, createManualTable],
+    [selectedCell?.col, selectedCell?.row, createManualTable]
   );
 
   useEffect(() => {
@@ -410,7 +408,7 @@ export function MainMenu({
         isProjectReadonlyByUser,
         permissions: projectPermissions,
         answerIsGenerating,
-      }),
+      })
     );
   }, [
     collapsedPanelsTextHidden,

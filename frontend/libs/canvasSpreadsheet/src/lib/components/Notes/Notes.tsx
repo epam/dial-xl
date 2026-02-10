@@ -1,4 +1,4 @@
-import { RefObject, useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import {
   commentToNote,
@@ -27,11 +27,11 @@ const verticalOffset = 5;
 
 type Props = {
   eventBus: GridEventBus;
-  apiRef: RefObject<GridApi | null>;
+  api: GridApi | null;
   zoom?: number;
 };
 
-export function Notes({ eventBus, apiRef, zoom = 1 }: Props) {
+export function Notes({ eventBus, api, zoom = 1 }: Props) {
   const [noteOpened, setNoteOpened] = useState(false);
   const [notePosition, setNotePosition] = useState(defaultPosition);
   const [cell, setCell] = useState<GridCell | null>(null);
@@ -66,7 +66,7 @@ export function Notes({ eventBus, apiRef, zoom = 1 }: Props) {
       setNotePosition(defaultPosition);
       focusSpreadsheet();
     },
-    [noteOpened, eventBus, cell, note, initialNote],
+    [noteOpened, eventBus, cell, note, initialNote]
   );
 
   const onClickOutside = useCallback(() => {
@@ -90,12 +90,11 @@ export function Notes({ eventBus, apiRef, zoom = 1 }: Props) {
         y: y + verticalOffset * zoom,
       });
     },
-    [zoom],
+    [zoom]
   );
 
   const showNoteExplicitly = useCallback(
     (col: number, row: number) => {
-      const api = apiRef.current;
       if (!api || restrictOpening) return;
 
       const cell = api.getCell(col, row);
@@ -113,7 +112,7 @@ export function Notes({ eventBus, apiRef, zoom = 1 }: Props) {
         noteRef.current?.focus();
       }, 0);
     },
-    [apiRef, showNote, restrictOpening],
+    [api, showNote, restrictOpening]
   );
 
   const onKeydown = useCallback(
@@ -128,7 +127,7 @@ export function Notes({ eventBus, apiRef, zoom = 1 }: Props) {
 
       hideNote(true);
     },
-    [hideNote, noteOpened],
+    [hideNote, noteOpened]
   );
 
   const handleMouseLeave = useCallback(() => {
@@ -156,7 +155,6 @@ export function Notes({ eventBus, apiRef, zoom = 1 }: Props) {
   }, [onKeydown]);
 
   useEffect(() => {
-    const api = apiRef.current;
     if (!api) return;
 
     const gridViewportUnsubscribe = api.gridViewportSubscription(onScroll);
@@ -168,7 +166,7 @@ export function Notes({ eventBus, apiRef, zoom = 1 }: Props) {
 
     const startMoveModeSubscription = api.events$
       .pipe(
-        filterByTypeAndCast<EventTypeStartMoveMode>(GridEvent.startMoveMode),
+        filterByTypeAndCast<EventTypeStartMoveMode>(GridEvent.startMoveMode)
       )
       .subscribe(() => {
         setRestrictOpening(true);
@@ -188,7 +186,7 @@ export function Notes({ eventBus, apiRef, zoom = 1 }: Props) {
         stopMoveModeSubscription,
       ].forEach((s) => s.unsubscribe());
     };
-  }, [apiRef, onScroll, showNoteExplicitly]);
+  }, [api, onScroll, showNoteExplicitly]);
 
   return (
     <div

@@ -1,4 +1,4 @@
-import { AppTheme, ThemeColors, themesColors } from '@frontend/common';
+import { AppTheme, themeColors } from '@frontend/common';
 import { Monaco } from '@monaco-editor/react';
 
 import { codeEditorTheme } from './codeEditorConfig';
@@ -6,20 +6,20 @@ import { codeEditorTheme } from './codeEditorConfig';
 export function registerTheme(
   monaco: Monaco,
   theme: AppTheme,
-  themeName: string = codeEditorTheme,
+  themeName: string = codeEditorTheme
 ) {
   monaco.editor.defineTheme(themeName, {
     base: theme === AppTheme.ThemeLight ? 'vs' : 'vs-dark',
     inherit: true,
     colors: getMonacoThemeColors(
-      theme === AppTheme.ThemeLight ? AppTheme.ThemeLight : AppTheme.ThemeDark,
+      theme === AppTheme.ThemeLight ? AppTheme.ThemeLight : AppTheme.ThemeDark
     ),
     rules:
       themeName !== codeEditorTheme
         ? []
         : theme === AppTheme.ThemeLight
-          ? lightThemeRules
-          : darkThemeRules,
+        ? lightThemeRules
+        : darkThemeRules,
   });
 }
 
@@ -28,7 +28,7 @@ export function registerTheme(
  * https://github.com/microsoft/monaco-editor/issues/3829
  */
 
-const monacoColorMap: Record<string, keyof ThemeColors> = {
+const monacoColorMap: Record<string, string> = {
   'editor.background': 'bgLayer3',
   'editorLineNumber.foreground': 'textPrimary',
   'editorSuggestWidget.selectedBackground': 'bgAccentPrimaryAlphaRGB',
@@ -52,7 +52,7 @@ const monacoColorMap: Record<string, keyof ThemeColors> = {
 };
 
 function getMonacoThemeColors(theme: AppTheme) {
-  const c = themesColors[theme];
+  const c = themeColors[theme];
   const result: Record<string, string> = {};
 
   for (const [monacoKey, tokenKey] of Object.entries(monacoColorMap)) {
@@ -125,5 +125,5 @@ const darkThemeRules = [
 
 export const tokenTypes = lightThemeRules.map((rule) => rule.token);
 export const tokensMap = new Map(
-  tokenTypes.map((token, index) => [token, index]),
+  tokenTypes.map((token, index) => [token, index])
 );

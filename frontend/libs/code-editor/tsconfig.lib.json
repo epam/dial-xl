@@ -25,7 +25,7 @@
     "**/*.test.js",
     "**/*.spec.jsx",
     "**/*.test.jsx",
-    "vitest.config.ts",
+    "jest.config.ts",
     "src/**/*.spec.ts",
     "src/**/*.test.ts",
     "eslint.config.js",

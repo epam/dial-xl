@@ -19,7 +19,7 @@ import {
 export function ArrayFieldTitleTemplate<
   T = any,
   S extends StrictRJSFSchema = RJSFSchema,
-  F extends FormContextType = any,
+  F extends FormContextType = any
 >({
   required,
   registry,
@@ -41,7 +41,7 @@ export function ArrayFieldTitleTemplate<
     }
 
     const control: HTMLLabelElement | null = document.querySelector(
-      `[id="${idSchema.$id}"]`,
+      `[id="${idSchema.$id}"]`
     );
     if (control && control.focus) {
       control.focus();
@@ -75,7 +75,7 @@ export function ArrayFieldTitleTemplate<
           <Icon
             className={classNames(
               iconClasses,
-              'w-[18px] ml-1 hover:cursor-help hover:text-text-accent-primary',
+              'w-[18px] ml-1 hover:cursor-help hover:text-text-accent-primary'
             )}
             component={() => <QuestionIcon />}
           />

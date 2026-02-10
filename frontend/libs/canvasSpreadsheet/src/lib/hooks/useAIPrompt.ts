@@ -1,19 +1,19 @@
-import { RefObject, useCallback } from 'react';
+import { useCallback } from 'react';
 
 import { GridEvent } from '../components';
 import { GridApi } from '../types';
 
-export function useAIPrompt(api: RefObject<GridApi | null>) {
+export function useAIPrompt(api: GridApi | null) {
   const openAIPrompt = useCallback(() => {
-    if (!api.current) return;
+    if (!api) return;
 
-    const selection = api.current.selection$.getValue();
+    const selection = api.selection$.getValue();
 
     if (!selection) return;
 
     const { startCol, endRow } = selection;
 
-    api.current.event.emit({
+    api.event.emit({
       type: GridEvent.openAIPrompt,
       col: startCol,
       row: endRow,

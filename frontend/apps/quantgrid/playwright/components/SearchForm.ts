@@ -60,7 +60,7 @@ export class SearchForm extends BaseComponent {
 
   public async expectSelectedItemChange(oldText: string) {
     await expect(this.innerPage.locator(this.selectedItem)).not.toHaveText(
-      oldText,
+      oldText
     );
   }
 

@@ -44,14 +44,14 @@ export class VisualizationChart {
   public async verifyAxes(axesNames: string[]) {
     axesNames.forEach(
       async (axe) =>
-        await expect(this.page.locator(this.rootElem)).toHaveText(axe),
+        await expect(this.page.locator(this.rootElem)).toHaveText(axe)
     );
   }
 
   public async verifyProperties(propertiesNames: string[]) {
     propertiesNames.forEach(
       async (property) =>
-        await expect(this.page.locator(this.rootElem)).toHaveText(property),
+        await expect(this.page.locator(this.rootElem)).toHaveText(property)
     );
   }
 
@@ -70,7 +70,7 @@ export class VisualizationChart {
     for (const { name, value } of expectedValues) {
       await expect(this.page.locator(this.canvasToolTip)).toContainText(name);
       await expect(this.page.locator(this.canvasToolTip)).toContainText(
-        String(value),
+        String(value)
       );
     }
   }

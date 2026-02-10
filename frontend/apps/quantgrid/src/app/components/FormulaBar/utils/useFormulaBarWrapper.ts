@@ -39,7 +39,7 @@ export function useFormulaBarWrapper() {
           (f, idx, arr) =>
             f.isDim &&
             arr.findIndex((e) => e.fieldGroupIndex === f.fieldGroupIndex) ===
-              idx,
+              idx
         )
         .map((f) => f.key.fieldName);
 

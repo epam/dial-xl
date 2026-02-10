@@ -38,12 +38,7 @@ export const useInputsDragDrop = (childData: InputChildData) => {
           .find((file) => file.url === path)
           ?.name.replaceAll(csvFileExtension, '');
 
-        requestDimSchemaForDimFormula({
-          col,
-          row,
-          value: formula,
-          newTableName,
-        });
+        requestDimSchemaForDimFormula(col, row, formula, newTableName);
       } else if (
         type === 'import-catalog' &&
         sourceKey &&
@@ -64,7 +59,7 @@ export const useInputsDragDrop = (childData: InputChildData) => {
       getDropCell,
       handleDragEnd,
       childData,
-    ],
+    ]
   );
 
   const onDragOver = useCallback(
@@ -74,7 +69,7 @@ export const useInputsDragDrop = (childData: InputChildData) => {
       e.preventDefault();
       handleDragOver(e);
     },
-    [draggedItem, handleDragOver],
+    [draggedItem, handleDragOver]
   );
 
   const onDragStart = useCallback(
@@ -119,7 +114,7 @@ export const useInputsDragDrop = (childData: InputChildData) => {
         path: input.url,
       });
     },
-    [childData],
+    [childData]
   );
 
   useEffect(() => {

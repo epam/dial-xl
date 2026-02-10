@@ -5,7 +5,7 @@ import { TableFields } from './sheetUtils';
 export function autoFixFieldNames(
   expression: string,
   currentTableName: string,
-  tableFields: TableFields,
+  tableFields: TableFields
 ): string {
   if (!expression) return expression;
 
@@ -26,7 +26,7 @@ export function autoFixFieldNames(
       }
 
       const correctFieldName = tableFields[tableName].find(
-        (f) => f.toLowerCase() === fieldName,
+        (f) => f.toLowerCase() === fieldName
       );
 
       if (correctFieldName) {

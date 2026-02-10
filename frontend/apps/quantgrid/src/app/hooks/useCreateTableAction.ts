@@ -15,10 +15,10 @@ function useCreateTableAction() {
   const gridApi = useGridApi();
   const selectedCell = useViewStore((s) => s.selectedCell);
   const changePivotTableWizardMode = usePivotStore(
-    (s) => s.changePivotTableWizardMode,
+    (s) => s.changePivotTableWizardMode
   );
   const openControlCreateWizard = useControlStore(
-    (s) => s.openControlCreateWizard,
+    (s) => s.openControlCreateWizard
   );
   const { openPanel } = useContext(LayoutContext);
 
@@ -27,7 +27,7 @@ function useCreateTableAction() {
       action: string,
       type: string | undefined,
       insertFormula: string | undefined,
-      tableName: string | undefined,
+      tableName: string | undefined
     ) => {
       if (action === 'CreateControl') {
         openControlCreateWizard();
@@ -81,7 +81,7 @@ function useCreateTableAction() {
       createDerivedTable,
       changePivotTableWizardMode,
       openPanel,
-    ],
+    ]
   );
 
   return {

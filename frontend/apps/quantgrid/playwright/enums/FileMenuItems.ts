@@ -5,7 +5,4 @@ export enum FileMenuItems {
   DeleteProject = 'Delete project',
   CloseProject = 'Back to projects',
   RenameProject = 'Rename project',
-  ShareProject = 'Share project',
-  CloneProject = 'Clone project',
-  DownloadProject = 'Download project',
 }

@@ -21,7 +21,7 @@ export function PositionInputs() {
         event.preventDefault();
       }
     },
-    [],
+    []
   );
 
   return (

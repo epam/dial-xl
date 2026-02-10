@@ -103,12 +103,6 @@ export default [
       'no-constant-binary-expression': 'off',
       'no-constant-condition': ['error', { checkLoops: false }],
       'eslint-comments/no-unused-disable': 'off',
-      // TODO: Enable later to fix these warnings
-      'react-hooks/set-state-in-effect': 'off',
-      // TODO: Enable React Compiler rules when babel-plugin-react-compiler or react-compiler-swc-plugin is added to the build
-      // Currently using eslint-plugin-react-hooks v7+ which includes compiler rules, but compiler is not enabled in Vite
-      'react-hooks/preserve-manual-memoization': 'off',
-      'react-hooks/immutability': 'warn',
       'no-unused-vars': 'off',
       '@typescript-eslint/no-unused-vars': [
         'error',
@@ -120,35 +114,6 @@ export default [
           caughtErrorsIgnorePattern: '^ignore',
           varsIgnorePattern: '^_',
           ignoreRestSiblings: true,
-        },
-      ],
-      'react/no-unknown-property': [
-        'error',
-        {
-          ignore: [
-            'draw',
-            'zIndex',
-            'eventMode',
-            'cursor',
-            'sortableChildren',
-            'onPointerDown',
-            'onPointerOver',
-            'onPointerOut',
-            'onPointerUp',
-            'onPointerMove',
-            'onPointerEnter',
-            'onPointerLeave',
-            'onPointerCancel',
-            'onPointerClick',
-            'onPointerDoubleClick',
-            'onPointerWheel',
-            'onPointerDrag',
-            'onPointerDrop',
-            'onPointerScroll',
-            'onPointerScrollEnd',
-            'onPointerScrollStart',
-            'onPointerScrollEnd',
-          ],
         },
       ],
     },

@@ -24,7 +24,6 @@ interface CreateAndPlaceTableOptions {
     isHorizontal?: boolean;
   };
   additionalDecorators?: Decorator[];
-  includeLayoutDecorator?: boolean;
 }
 
 export function createAndPlaceTable({
@@ -35,28 +34,25 @@ export function createAndPlaceTable({
   row = 1,
   layoutOptions = {},
   additionalDecorators = [],
-  includeLayoutDecorator = true,
 }: CreateAndPlaceTableOptions) {
   const unescapedName = unescapeTableName(baseName);
   const newTableName = createUniqueName(
     unescapedName,
-    collectTableNames(parsedSheets),
+    collectTableNames(parsedSheets)
   );
 
   const table = new Table(newTableName, true);
   sheet.addTable(table);
 
-  if (includeLayoutDecorator) {
-    const layoutArgs = updateLayoutDecorator(undefined, {
-      col: Math.max(minTablePlacement, col),
-      row: Math.max(minTablePlacement, row),
-      showTableHeader: layoutOptions.showTableHeader ?? false,
-      showFieldHeaders: layoutOptions.showFieldHeaders ?? false,
-      isHorizontal: layoutOptions.isHorizontal ?? false,
-      includeDecoratorName: false,
-    });
-    table.addDecorator(new Decorator(layoutDecoratorName, layoutArgs));
-  }
+  const layoutArgs = updateLayoutDecorator(undefined, {
+    col: Math.max(minTablePlacement, col),
+    row: Math.max(minTablePlacement, row),
+    showTableHeader: layoutOptions.showTableHeader ?? false,
+    showFieldHeaders: layoutOptions.showFieldHeaders ?? false,
+    isHorizontal: layoutOptions.isHorizontal ?? false,
+    includeDecoratorName: false,
+  });
+  table.addDecorator(new Decorator(layoutDecoratorName, layoutArgs));
 
   additionalDecorators.forEach((dec) => {
     table.addDecorator(dec);

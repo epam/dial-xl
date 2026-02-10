@@ -126,9 +126,9 @@ export const getCreateChartChildren = (tableNames: string[]) => {
               {
                 chartType: type,
                 tableName: name,
-              },
+              }
             ),
-          }),
+          })
         ),
       });
     }),
@@ -139,10 +139,10 @@ export const getCreateTableChildren = (
   functions: FunctionInfo[],
   tableNames: string[],
   inputFiles: CommonMetadata[] | null,
-  onCreateTable: (cols: number, rows: number) => void,
+  onCreateTable: (cols: number, rows: number) => void
 ) => {
   const inputs = [...(inputFiles ?? [])].sort((a, b) =>
-    a.name < b.name ? -1 : 1,
+    a.name < b.name ? -1 : 1
   );
 
   const rangeFunction = functions.find((func) => func.name === 'RANGE');
@@ -163,9 +163,9 @@ export const getCreateTableChildren = (
             {
               tableName: name,
               type: 'pivot',
-            },
+            }
           ),
-        }),
+        })
       ),
     }),
     getDropdownItem({
@@ -178,7 +178,7 @@ export const getCreateTableChildren = (
         ].join('-'),
         {
           insertFormula: rangeFunction?.name + '()',
-        },
+        }
       ),
     }),
     getDropdownItem({
@@ -190,7 +190,7 @@ export const getCreateTableChildren = (
             ['Action', createTableMenuKeys.bySize].join('-'),
             {
               type: 'size',
-            },
+            }
           ),
           onCreateTable,
         }),
@@ -208,9 +208,9 @@ export const getCreateTableChildren = (
             {
               tableName: name,
               type: 'copy',
-            },
+            }
           ),
-        }),
+        })
       ),
     }),
     getDropdownItem({
@@ -225,9 +225,9 @@ export const getCreateTableChildren = (
             {
               tableName: name,
               type: 'derived',
-            },
+            }
           ),
-        }),
+        })
       ),
     }),
     getDropdownItem({
@@ -241,9 +241,9 @@ export const getCreateTableChildren = (
             ['CreateTable', 'Derived', name].join('-'),
             {
               insertFormula: `INPUT("${url ?? name}")`,
-            },
+            }
           ),
-        }),
+        })
       ),
     }),
     filterFunction
@@ -258,9 +258,9 @@ export const getCreateTableChildren = (
                 ['CreateTable', 'Filter', name].join('-'),
                 {
                   insertFormula: filterFunction.name + `(${name},)`,
-                },
+                }
               ),
-            }),
+            })
           ),
         })
       : undefined,
@@ -276,9 +276,9 @@ export const getCreateTableChildren = (
                 ['CreateTable', 'Filter', name].join('-'),
                 {
                   insertFormula: sortByFunction.name + `(${name},)`,
-                },
+                }
               ),
-            }),
+            })
           ),
         })
       : undefined,
@@ -294,9 +294,9 @@ export const getCreateTableChildren = (
                 ['CreateTable', 'Filter', name].join('-'),
                 {
                   insertFormula: uniqueByFunction.name + `(${name},)`,
-                },
+                }
               ),
-            }),
+            })
           ),
         })
       : undefined,
@@ -356,7 +356,7 @@ export function getMenuItems({
   let tableNames: string[] = [];
   for (const sheet of Object.values(parsedSheets)) {
     tableNames = tableNames.concat(
-      [...sheet.tables.map((table) => table.tableName)].sort(),
+      [...sheet.tables.map((table) => table.tableName)].sort()
     );
   }
 
@@ -402,9 +402,9 @@ export function getMenuItems({
                     ),
                     key: getDropdownMenuKey(
                       fileMenuKeys.openProject,
-                      recentProject,
+                      recentProject
                     ),
-                  }),
+                  })
                 ),
                 recentProjects.length ? getDropdownDivider() : undefined,
                 getDropdownItem({
@@ -511,8 +511,8 @@ export function getMenuItems({
               tooltip: !isDefaultMode
                 ? disabledTooltips.notAllowedChanges
                 : answerIsGenerating
-                  ? disabledTooltips.answerIsGenerating
-                  : undefined,
+                ? disabledTooltips.answerIsGenerating
+                : undefined,
             }),
             getDropdownItem({
               label: 'Delete Worksheet',
@@ -521,8 +521,8 @@ export function getMenuItems({
               tooltip: !isDefaultMode
                 ? disabledTooltips.notAllowedChanges
                 : answerIsGenerating
-                  ? disabledTooltips.answerIsGenerating
-                  : undefined,
+                ? disabledTooltips.answerIsGenerating
+                : undefined,
             }),
           ],
         },
@@ -692,7 +692,7 @@ export function getMenuItems({
                 functions,
                 tableNames,
                 inputFiles,
-                onCreateTable,
+                onCreateTable
               ) as MenuItem[],
             }),
             getDropdownItem({
@@ -739,8 +739,8 @@ export function getMenuItems({
               tooltip: !selectedCell?.table
                 ? 'No table selected'
                 : selectedCell && !selectedCell?.table?.isManual
-                  ? 'Only available for manual table'
-                  : undefined,
+                ? 'Only available for manual table'
+                : undefined,
             }),
             getDropdownItem({
               label: selectedCell?.table?.isTableHorizontal
@@ -755,8 +755,8 @@ export function getMenuItems({
                 selectedCell?.isFieldHeader || selectedCell?.isTableHeader
                   ? 'No table cell selected'
                   : selectedCell && !selectedCell?.table?.isManual
-                    ? 'Only available for manual table'
-                    : undefined,
+                  ? 'Only available for manual table'
+                  : undefined,
             }),
             getDropdownItem({
               label: selectedCell?.table?.isTableHorizontal
@@ -771,8 +771,8 @@ export function getMenuItems({
                 selectedCell?.isFieldHeader || selectedCell?.isTableHeader
                   ? 'No table cell selected'
                   : selectedCell && !selectedCell?.table?.isManual
-                    ? 'Only available for manual table'
-                    : undefined,
+                  ? 'Only available for manual table'
+                  : undefined,
             }),
           ],
         },

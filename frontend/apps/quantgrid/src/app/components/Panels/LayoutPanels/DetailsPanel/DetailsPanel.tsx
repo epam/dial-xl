@@ -31,11 +31,11 @@ export function DetailsPanel({
         pivotTableName: s.pivotTableName,
         pivotTableWizardMode: s.pivotTableWizardMode,
         changePivotTableWizardMode: s.changePivotTableWizardMode,
-      })),
+      }))
     );
   const controlWizardIsOpen = useControlStore((s) => s.isOpen);
   const openControlCreateWizard = useControlStore(
-    (s) => s.openControlCreateWizard,
+    (s) => s.openControlCreateWizard
   );
   const closeControlWizard = useControlStore((s) => s.closeControlWizard);
 
@@ -55,7 +55,7 @@ export function DetailsPanel({
 
     const timeoutId = setTimeout(() => {
       const foundTable = parsedSheet?.tables.find(
-        ({ tableName }) => tableName === selectedCell.tableName,
+        ({ tableName }) => tableName === selectedCell.tableName
       );
 
       setSelectedParsedTable(foundTable || null);

@@ -89,13 +89,13 @@ export function getTables({
         model,
         position,
         lastToken,
-      }),
+      })
     )
     .flat();
 
   for (const sheet of Object.values(parsedSheets)) {
     const filteredTables = sheet.tables.filter(
-      (t) => !parsedSheet.tables.some((t2) => t2.tableName === t.tableName),
+      (t) => !parsedSheet.tables.some((t2) => t2.tableName === t.tableName)
     );
 
     for (const table of filteredTables) {
@@ -105,7 +105,7 @@ export function getTables({
           model,
           position,
           lastToken,
-        }),
+        })
       );
     }
   }
@@ -136,7 +136,7 @@ export function getAllTables({
           model,
           position,
           lastToken,
-        }),
+        })
       );
     }
   }
@@ -167,7 +167,7 @@ export function getInputSuggestions(inputList: CommonMetadata[]): Suggestion[] {
 export function getFunctionsSuggestions(
   previousCharacter: string,
   modelId: string,
-  functions: FunctionInfo[],
+  functions: FunctionInfo[]
 ): Suggestion[] {
   if (['['].includes(previousCharacter)) return [];
 
@@ -203,7 +203,7 @@ export function getFunctionsSuggestions(
 
 export function getCurrentInlineExpressionTable(
   tokens: Token[],
-  parsedSheets: ParsedSheets,
+  parsedSheets: ParsedSheets
 ): ParsedTable | null {
   for (let i = tokens.length - 1; i >= 0; i--) {
     const token = tokens[i];
@@ -221,7 +221,7 @@ export function getCurrentInlineExpressionTable(
 
 export function getCurrentExpressionField(
   tokens: Token[],
-  parsedTable: ParsedTable | null,
+  parsedTable: ParsedTable | null
 ): ParsedField | null {
   if (!parsedTable) {
     return null;
@@ -245,7 +245,7 @@ export function getCurrentExpressionTable(
   parsedSheets: ParsedSheets,
   tokens: Token[],
   caretOffset: number,
-  lineNumber: number,
+  lineNumber: number
 ): ParsedTable | null {
   if (!currentField || !currentTable) return null;
 
@@ -254,7 +254,7 @@ export function getCurrentExpressionTable(
       currentField.expressionMetadata &&
       i.stop <= caretOffset &&
       i.stop >= currentField.expressionMetadata.start &&
-      i.line === lineNumber,
+      i.line === lineNumber
   );
 
   if (lineTokens.length === 0) return null;
@@ -270,7 +270,7 @@ export function getCurrentExpressionTable(
     }
 
     const table = parsedSheet.tables.find((t) =>
-      compareTableNames(t.tableName, text),
+      compareTableNames(t.tableName, text)
     );
 
     if (table) return table;
@@ -279,8 +279,8 @@ export function getCurrentExpressionTable(
       const filteredTables = sheet.tables.filter(
         (t) =>
           !parsedSheet.tables.some((t2) =>
-            compareTableNames(t2.tableName, t.tableName),
-          ),
+            compareTableNames(t2.tableName, t.tableName)
+          )
       );
 
       for (const table of filteredTables) {
@@ -295,7 +295,7 @@ export function getCurrentExpressionTable(
 export function getCurrentWord(
   model: editor.ITextModel,
   position: Position,
-  triggerCharacter: string | undefined,
+  triggerCharacter: string | undefined
 ) {
   const currentWord = model.getWordUntilPosition(position);
 
@@ -318,7 +318,7 @@ export function getFieldAtExpression(
   currentTable: ParsedTable | null,
   tokens: Token[],
   wordOffset: number,
-  caretOffset: number,
+  caretOffset: number
 ): ParsedField | null {
   if (!currentTable) return null;
 
@@ -342,14 +342,14 @@ export function getFieldAtExpression(
       (f) =>
         f.dslPlacement &&
         f.dslPlacement.start <= offset &&
-        f.dslPlacement.end >= offset,
+        f.dslPlacement.end >= offset
     ) || null
   );
 }
 
 export function getTableAtPosition(
   sheet: ParsedSheet,
-  lineNumber: number,
+  lineNumber: number
 ): ParsedTable | null {
   const { tables } = sheet;
   for (let i = 0; i < tables.length; i++) {
@@ -366,7 +366,7 @@ export function getTableAtPosition(
 export function getFieldAtPosition(
   sheet: ParsedSheet,
   lineNumber: number,
-  offset: number,
+  offset: number
 ): ParsedField | null {
   const table = getTableAtPosition(sheet, lineNumber);
 
@@ -389,7 +389,7 @@ export function getPreviousCharacter(
   model: editor.ITextModel,
   position: Position,
   context: languages.CompletionContext,
-  currentWord: editor.IWordAtPosition,
+  currentWord: editor.IWordAtPosition
 ) {
   return !context.triggerCharacter ||
     (currentWord.word === '' && context.triggerCharacter === ' ')
@@ -413,7 +413,7 @@ export function getPreviousSymbol(
   context: languages.CompletionContext,
   tokens: Token[],
   caretOffset: number,
-  currentWord: editor.IWordAtPosition,
+  currentWord: editor.IWordAtPosition
 ) {
   const letterRegex = /[a-zA-Z]/;
 

@@ -55,7 +55,7 @@ export const useDashboardDragAndDrop = ({ onUpload }: Props) => {
 
       onUpload(files);
     },
-    [onUpload],
+    [onUpload]
   );
 
   useEffect(() => {

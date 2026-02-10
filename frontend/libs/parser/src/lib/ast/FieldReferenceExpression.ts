@@ -7,6 +7,6 @@ export class FieldReferenceExpression implements Expression {
     public start: number,
     public end: number,
     public globalOffsetStart: number,
-    public globalOffsetEnd: number,
+    public globalOffsetEnd: number
   ) {}
 }

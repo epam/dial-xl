@@ -28,7 +28,7 @@ export function usePasteCells() {
 
       if (tableMeta) {
         const escapedCells = cells.map((row) =>
-          row.map((cell) => escapeValue(cell)),
+          row.map((cell) => escapeValue(cell))
         );
 
         addOverrides(startCol, startRow, tableMeta.tableName, escapedCells);
@@ -38,7 +38,7 @@ export function usePasteCells() {
 
       createManualTable(startCol, startRow, cells);
     },
-    [gridApi, viewGridData, createManualTable, addOverrides],
+    [gridApi, viewGridData, createManualTable, addOverrides]
   );
 
   return {

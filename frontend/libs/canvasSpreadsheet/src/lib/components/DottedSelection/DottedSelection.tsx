@@ -1,29 +1,28 @@
-import { Graphics } from 'pixi.js';
+import * as PIXI from 'pixi.js';
 import { useCallback, useContext, useEffect, useRef, useState } from 'react';
 
+import { Graphics } from '@pixi/react';
+
+import { ComponentLayer } from '../../constants';
 import { GridStateContext, GridViewportContext } from '../../context';
 import { useCellUtils, useDraw } from '../../hooks';
 import { Edges, Rectangle } from '../../types';
 import { drawDashedRect } from '../../utils';
 
-type Props = {
-  zIndex: number;
-};
-
-export function DottedSelection({ zIndex }: Props) {
+export function DottedSelection() {
   const { gridSizes, dottedSelectionEdges, theme } =
     useContext(GridStateContext);
   const { gridViewportSubscriber, viewportEdges } =
     useContext(GridViewportContext);
 
   const [selectionCoords, setSelectionCoords] = useState<Rectangle | null>(
-    null,
+    null
   );
 
   const [viewportLimitedDottedSelection, setViewportLimitedDottedSelection] =
     useState<Edges | null>();
 
-  const graphicsRef = useRef<Graphics>(null);
+  const graphicsRef = useRef<PIXI.Graphics>(null);
 
   const { getDashedRectPolygons, calculateCellDimensions } = useCellUtils();
 
@@ -46,13 +45,13 @@ export function DottedSelection({ zIndex }: Props) {
       endCol: Math.min(
         gridSizes.edges.col,
         viewport.endCol + 1,
-        dottedSelectionEdges.endCol,
+        dottedSelectionEdges.endCol
       ),
       startRow: Math.max(0, viewport.startRow, dottedSelectionEdges.startRow),
       endRow: Math.min(
         gridSizes.edges.row,
         viewport.endRow + 1,
-        dottedSelectionEdges.endRow,
+        dottedSelectionEdges.endRow
       ),
     });
   }, [
@@ -105,8 +104,10 @@ export function DottedSelection({ zIndex }: Props) {
     const rectHeight = polygons[2].y - y;
 
     graphics
-      .rect(x, y, rectWidth, rectHeight)
-      .fill({ color, alpha: rectangleAlpha });
+      .lineStyle(0)
+      .beginFill(color, rectangleAlpha)
+      .drawRect(x, y, rectWidth, rectHeight)
+      .endFill();
   }, [
     viewportLimitedDottedSelection,
     getDashedRectPolygons,
@@ -117,12 +118,5 @@ export function DottedSelection({ zIndex }: Props) {
 
   useDraw(draw);
 
-  return (
-    <pixiGraphics
-      draw={() => {}}
-      label="DottedSelection"
-      ref={graphicsRef}
-      zIndex={zIndex}
-    />
-  );
+  return <Graphics ref={graphicsRef} zIndex={ComponentLayer.DottedSelection} />;
 }

@@ -133,7 +133,7 @@ export function FormulaBarHeaderSection({ onPanelAutoResize }: Props) {
         }, 0);
       }
     },
-    [value, selectedCell],
+    [value, selectedCell]
   );
 
   const init = useCallback(
@@ -175,7 +175,7 @@ export function FormulaBarHeaderSection({ onPanelAutoResize }: Props) {
           break;
       }
     },
-    [triggerAutoExtend],
+    [triggerAutoExtend]
   );
 
   const onKeyDown = useCallback(
@@ -197,7 +197,7 @@ export function FormulaBarHeaderSection({ onPanelAutoResize }: Props) {
         return;
       }
     },
-    [init, saveValue, selectedCell],
+    [init, saveValue, selectedCell]
   );
 
   useEffect(() => {

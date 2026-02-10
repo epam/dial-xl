@@ -6,7 +6,7 @@ import { GridEventBus } from '../../../utils';
 export function useInfiniteScrollEmit(
   eventBus: GridEventBus,
   cell: GridCell | null,
-  searchValue: string,
+  searchValue: string
 ) {
   return useCallback(() => {
     if (!searchValue && cell?.table && cell?.field) {

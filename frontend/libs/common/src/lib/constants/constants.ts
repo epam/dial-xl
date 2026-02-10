@@ -1,3 +1,5 @@
+import { AppTheme } from '../types';
+
 export const formulaEditorId = 'formulaEditor';
 export const formulaBarInput = 'formulaBarInput';
 export const codeEditorId = 'codeEditorId';
@@ -43,8 +45,6 @@ export const projectFolderAppdata = 'appdata';
 export const projectFolderXl = 'xl';
 export const projectFoldersRootPrefix =
   projectFolderAppdata + '/' + projectFolderXl;
-export const settingsFolder = projectFolderAppdata + '/.xl-settings';
-export const settingsFileName = '.xl-settings.json';
 export const csvTempFolder = '.temp';
 
 export const bindConversationsRootFolder = 'xl';
@@ -60,3 +60,4 @@ export const chartRowNumberSelector = 'rowNumber';
 export const histogramChartSeriesSelector = 'histogramSeries';
 
 export const zoomValues = [0.5, 0.75, 1, 1.25, 1.5, 2];
+export const defaultTheme: AppTheme = AppTheme.ThemeLight;

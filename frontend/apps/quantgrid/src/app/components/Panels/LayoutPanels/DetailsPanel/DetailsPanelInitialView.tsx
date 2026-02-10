@@ -19,10 +19,10 @@ import { toSelectOption } from '../../PivotTableWizard/utils';
 
 export function DetailsPanelInitialView() {
   const changePivotTableWizardMode = usePivotStore(
-    (s) => s.changePivotTableWizardMode,
+    (s) => s.changePivotTableWizardMode
   );
   const openControlCreateWizard = useControlStore(
-    (s) => s.openControlCreateWizard,
+    (s) => s.openControlCreateWizard
   );
   const { parsedSheets } = useContext(ProjectContext);
   const [selectedTableName, setSelectedTableName] =
@@ -30,7 +30,7 @@ export function DetailsPanelInitialView() {
 
   const tableNameOptions = useMemo(() => {
     return Object.values(parsedSheets ?? {}).flatMap(({ tables }) =>
-      tables.map(({ tableName }) => toSelectOption(tableName)),
+      tables.map(({ tableName }) => toSelectOption(tableName))
     );
   }, [parsedSheets]);
 
@@ -39,7 +39,7 @@ export function DetailsPanelInitialView() {
       if (!option) return;
       setSelectedTableName(option);
     },
-    [],
+    []
   );
 
   const onOpenPivotWizard = useCallback(() => {

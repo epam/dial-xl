@@ -1,6 +1,6 @@
 import { Button, Input, Spin } from 'antd';
 import classNames from 'classnames';
-import Fuse, { IFuseOptions } from 'fuse.js';
+import Fuse from 'fuse.js';
 import { useMemo, useState } from 'react';
 
 import Icon from '@ant-design/icons';
@@ -21,7 +21,7 @@ interface Props {
   onNextStep: () => void;
 }
 
-const fuseOptions: IFuseOptions<any> = {
+const fuseOptions: Fuse.IFuseOptions<any> = {
   includeScore: true,
   shouldSort: true,
   includeMatches: true,
@@ -74,7 +74,7 @@ export const ImportStep1 = ({
                   localSelectedDefinition === item.definition,
                 'border-stroke-primary hover:border-stroke-hover-focus':
                   localSelectedDefinition !== item.definition,
-              },
+              }
             )}
             key={item.definition}
             onClick={() => setLocalSelectedDefinition(item.definition)}
@@ -96,7 +96,7 @@ export const ImportStep1 = ({
           <Button
             className={classNames(
               primaryButtonClasses,
-              primaryDisabledButtonClasses,
+              primaryDisabledButtonClasses
             )}
             disabled={!localSelectedDefinition}
             onClick={() => {

@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from 'react';
 import { useAuth } from 'react-oidc-context';
-import { useNavigate, useParams, useSearchParams } from 'react-router';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 
 import {
@@ -22,15 +22,15 @@ export function SharePage() {
 
   const urlProjectPath = useMemo(
     () => searchParams.get(routeParams.projectPath),
-    [searchParams],
+    [searchParams]
   );
   const urlProjectName = useMemo(
     () => searchParams.get(routeParams.projectName),
-    [searchParams],
+    [searchParams]
   );
   const urlProjectBucket = useMemo(
     () => searchParams.get(routeParams.projectBucket),
-    [searchParams],
+    [searchParams]
   );
 
   useEffect(() => {
@@ -78,7 +78,7 @@ export function SharePage() {
       acceptShareFiles({ invitationId: resultedShareId });
     } else {
       toast.error(
-        'Share link is invalid or already expired. Please recheck it and try again',
+        'Share link is invalid or already expired. Please recheck it and try again'
       );
 
       navigate('/');

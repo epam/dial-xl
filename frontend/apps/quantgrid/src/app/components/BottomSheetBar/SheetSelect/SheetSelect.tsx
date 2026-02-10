@@ -51,16 +51,16 @@ export const SheetSelect = () => {
             onClick: async () => {
               openSheet(sheet);
             },
-          }),
+          })
         )
         .filter(Boolean) as MenuProps['items'],
-    [openSheet, projectSheets],
+    [openSheet, projectSheets]
   );
 
   const getSheetActions = useCallback(
     (name: string): MenuItem[] => {
       const projectSheet = projectSheets?.find(
-        (sheet) => sheet.sheetName === name,
+        (sheet) => sheet.sheetName === name
       );
 
       if (!projectSheet) return [];
@@ -80,8 +80,8 @@ export const SheetSelect = () => {
           tooltip: !isDefaultMode
             ? disabledTooltips.notAllowedChanges
             : answerIsGenerating
-              ? disabledTooltips.answerIsGenerating
-              : undefined,
+            ? disabledTooltips.answerIsGenerating
+            : undefined,
           onClick: () => renameWorksheetAction(projectSheet.sheetName),
         }),
         getDropdownItem({
@@ -91,8 +91,8 @@ export const SheetSelect = () => {
           tooltip: !isDefaultMode
             ? disabledTooltips.notAllowedChanges
             : answerIsGenerating
-              ? disabledTooltips.answerIsGenerating
-              : undefined,
+            ? disabledTooltips.answerIsGenerating
+            : undefined,
           onClick: () => deleteWorksheetAction(projectSheet.sheetName),
         }),
       ];
@@ -105,7 +105,7 @@ export const SheetSelect = () => {
       openSheet,
       renameWorksheetAction,
       deleteWorksheetAction,
-    ],
+    ]
   );
 
   const checkSheetWrapper = useCallback(() => {
@@ -132,7 +132,7 @@ export const SheetSelect = () => {
 
       checkSheetWrapper();
     },
-    [checkSheetWrapper],
+    [checkSheetWrapper]
   );
 
   const scrollRight = useCallback(() => {
@@ -148,7 +148,7 @@ export const SheetSelect = () => {
 
     sheetsItemsRef.current.scrollLeft = Math.max(
       0,
-      sheetsItemsRef.current.scrollLeft - defaultScrollDelta,
+      sheetsItemsRef.current.scrollLeft - defaultScrollDelta
     );
 
     checkSheetWrapper();
@@ -223,7 +223,7 @@ export const SheetSelect = () => {
                     'px-3 py-2 text-sm text-text-secondary leading-none text-nowrap h-[31px]',
                     sheetName === sheet.sheetName
                       ? 'bg-bg-accent-primary-alpha-2 border-t border-stroke-accent-primary'
-                      : 'hover:bg-bg-accent-primary-alpha',
+                      : 'hover:bg-bg-accent-primary-alpha'
                   )}
                   id={`bottom-bar-sheet-${sheet.sheetName}`}
                   onClick={() => openSheet({ sheetName: sheet.sheetName })}
@@ -249,7 +249,7 @@ export const SheetSelect = () => {
           <Tooltip placement="bottom" title="Create worksheet" destroyOnHidden>
             <button
               className={classNames(
-                'flex items-center justify-center p-2 h-full shrink-0 text-sm text-text-secondary hover:bg-bg-accent-primary-alpha',
+                'flex items-center justify-center p-2 h-full shrink-0 text-sm text-text-secondary hover:bg-bg-accent-primary-alpha'
               )}
               onClick={() => createWorksheetAction()}
             >
@@ -265,11 +265,12 @@ export const SheetSelect = () => {
       {sheetName && (
         <div className="flex @[200px]:hidden items-center h-[31px]">
           <Dropdown
+            className="flex items-center"
             menu={{ items: sheetsDropdownItems }}
             trigger={['click']}
             onOpenChange={setIsSheetSelectDropdownOpened}
           >
-            <div className="h-full flex items-center">
+            <div className="h-full">
               <Dropdown
                 key={sheetName}
                 menu={{ items: getSheetActions(sheetName) }}
@@ -280,7 +281,7 @@ export const SheetSelect = () => {
                   <Icon
                     className={classNames(
                       'w-[14px] text-text-secondary leading-none transition-all',
-                      isSheetSelectDropdownOpened && 'rotate-180',
+                      isSheetSelectDropdownOpened && 'rotate-180'
                     )}
                     component={() => <ChevronDown />}
                   />

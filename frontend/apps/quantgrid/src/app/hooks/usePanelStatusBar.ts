@@ -22,7 +22,7 @@ export function usePanelStatusBar() {
           isIndexErrors)
       );
     },
-    [isCompilationErrors, isIndexErrors, isRuntimeErrors, isSheetErrors],
+    [isCompilationErrors, isIndexErrors, isRuntimeErrors, isSheetErrors]
   );
 
   return {

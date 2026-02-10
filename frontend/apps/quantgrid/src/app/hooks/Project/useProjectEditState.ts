@@ -40,7 +40,7 @@ export function useProjectEditState({
 
   const hasEditPermissions = useMemo(() => {
     return (['READ', 'WRITE'] as ResourcePermission[]).every((permission) =>
-      projectPermissions.includes(permission),
+      projectPermissions.includes(permission)
     );
   }, [projectPermissions]);
 
@@ -55,7 +55,7 @@ export function useProjectEditState({
       isProjectEditingDisabled,
       isTemporaryState,
       isTemporaryStateEditable,
-    ],
+    ]
   );
 
   return {

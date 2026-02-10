@@ -88,7 +88,7 @@ export function Inputs() {
       // Regular file expansion
       expandFile(childData[node.key as string]);
     },
-    [childData, expandFile, expandImportSource, expandImportCatalog],
+    [childData, expandFile, expandImportSource, expandImportCatalog]
   );
 
   const onOpenFolder = useCallback(
@@ -98,7 +98,7 @@ export function Inputs() {
         parentPath: constructPath([folder.parentPath, folder.name]),
       });
     },
-    [updateInputsFolder],
+    [updateInputsFolder]
   );
 
   const handleMoveToFolder = useCallback(
@@ -113,7 +113,7 @@ export function Inputs() {
 
       setMoveItem(undefined);
     },
-    [moveItem, moveResources, viewGridData, getInputs],
+    [moveItem, moveResources, viewGridData, getInputs]
   );
 
   useEffect(() => {
@@ -164,7 +164,7 @@ export function Inputs() {
           const fullDataset = importDatasets[`${sourceKey}:${datasetKey}`];
           if (fullDataset?.schema?.columns) {
             datasetNode.children = Object.entries(
-              fullDataset.schema.columns,
+              fullDataset.schema.columns
             ).map(([columnKey, item]) => ({
               key: `${importTreeKey.column}${sourceKey}:${datasetKey}:${columnKey}`,
               title: item.column,
@@ -195,9 +195,9 @@ export function Inputs() {
           b.nodeType === MetadataNodeType.ITEM
           ? -1
           : a.nodeType === MetadataNodeType.ITEM &&
-              b.nodeType === MetadataNodeType.FOLDER
-            ? 1
-            : a.name.localeCompare(b.name);
+            b.nodeType === MetadataNodeType.FOLDER
+          ? 1
+          : a.name.localeCompare(b.name);
       })
       .forEach((input) => {
         const fields = inputs[input.url]?.fields || [];

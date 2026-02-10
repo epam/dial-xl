@@ -2,7 +2,7 @@ import { editor } from '../monaco';
 
 export function canEnablePointAndClick(
   value: string,
-  codeEditor: editor.IStandaloneCodeEditor,
+  codeEditor: editor.IStandaloneCodeEditor
 ): boolean {
   const symbols = [
     '+',
@@ -43,7 +43,7 @@ export function canEnablePointAndClick(
 }
 
 export function getCursorOffset(
-  codeEditor: editor.IStandaloneCodeEditor,
+  codeEditor: editor.IStandaloneCodeEditor
 ): number | null {
   const position = codeEditor?.getPosition();
 

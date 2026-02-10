@@ -30,7 +30,7 @@ export interface Observer {
   setIndexedNode(
     value: ObservableNode | null,
     collection: ObservableNode[],
-    index: number | null,
+    index: number | null
   ): number | null;
 }
 
@@ -54,7 +54,7 @@ export abstract class ObservableNode {
   public attach(observer: Observer): void {
     if (this._observer) {
       throw new Error(
-        `${this.constructor.name} is already attached to a parent`,
+        `${this.constructor.name} is already attached to a parent`
       );
     }
     this._observer = observer;
@@ -120,7 +120,7 @@ export class ObservableObserver extends ObservableNode implements Observer {
   public setIndexedNode(
     value: ObservableNode | null,
     collection: ObservableNode[],
-    index: number | null,
+    index: number | null
   ): number | null {
     if (value !== null) {
       // Attach the new node to this observer.

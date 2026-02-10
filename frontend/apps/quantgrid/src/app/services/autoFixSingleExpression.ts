@@ -10,7 +10,7 @@ export function autoFixSingleExpression(
   expression: string,
   functions: FunctionInfo[],
   parsedSheets: ParsedSheets,
-  currentTableName = '',
+  currentTableName = ''
 ) {
   if (!expression) return expression;
 
@@ -25,7 +25,7 @@ export function autoFixSingleExpression(
   updatedExpression = autoFixFieldNames(
     updatedExpression,
     currentTableName,
-    tableFields,
+    tableFields
   );
   updatedExpression = checkAndWrapExpression(updatedExpression);
 

@@ -16,7 +16,7 @@ describe('generateFieldExpressionFromText', () => {
       fieldText,
       targetTable,
       [],
-      {},
+      {}
     );
 
     // Assert
@@ -36,7 +36,7 @@ describe('generateFieldExpressionFromText', () => {
       fieldText,
       targetTable,
       [],
-      {},
+      {}
     );
 
     // Assert
@@ -56,7 +56,7 @@ describe('generateFieldExpressionFromText', () => {
       fieldText,
       targetTable,
       [],
-      {},
+      {}
     );
 
     // Assert
@@ -76,7 +76,7 @@ describe('generateFieldExpressionFromText', () => {
       fieldText,
       targetTable,
       [],
-      {},
+      {}
     );
 
     // Assert
@@ -96,7 +96,7 @@ describe('generateFieldExpressionFromText', () => {
       fieldText,
       targetTable,
       [],
-      {},
+      {}
     );
 
     // Assert
@@ -161,7 +161,7 @@ describe('generateFieldExpressionFromText', () => {
       fieldText,
       null,
       functionsMock,
-      {},
+      {}
     );
 
     // Assert
@@ -178,7 +178,7 @@ describe('generateFieldExpressionFromText', () => {
       fieldText,
       null,
       functionsMock,
-      {},
+      {}
     );
 
     // Assert

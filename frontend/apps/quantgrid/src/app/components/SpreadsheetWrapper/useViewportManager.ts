@@ -1,4 +1,10 @@
-import { RefObject, useCallback, useContext, useEffect, useRef } from 'react';
+import {
+  MutableRefObject,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+} from 'react';
 import isEqual from 'react-fast-compare';
 import { debounce } from 'ts-debounce';
 
@@ -14,7 +20,7 @@ import {
 } from '../../context';
 
 interface ViewportManagerResult {
-  viewportRef: RefObject<CachedViewport>;
+  viewportRef: MutableRefObject<CachedViewport>;
   triggerOnScroll: (forceRequest: boolean, withCompilation: boolean) => void;
   onScroll: (args: {
     startCol: number;
@@ -29,12 +35,17 @@ interface ViewportManagerResult {
 export function useViewportManager(
   sendChartKeyViewports: (params: { viewportRequest: Viewport[] }) => void,
   onDataUpdate: () => void,
-  currentViewport: RefObject<ViewportEdges | null>,
-  currentExtendedViewport: RefObject<ViewportEdges | null>,
+  currentViewport: MutableRefObject<ViewportEdges | null>,
+  currentExtendedViewport: MutableRefObject<ViewportEdges | null>
 ): ViewportManagerResult {
   const { viewGridData } = useContext(ViewportContext);
-  const { projectName, sheetName, projectSheets, getCurrentProjectViewport } =
-    useContext(ProjectContext);
+  const {
+    projectName,
+    sheetName,
+    sheetContent,
+    projectSheets,
+    getCurrentProjectViewport,
+  } = useContext(ProjectContext);
   const gridApiRef = useContext(CanvasSpreadsheetContext);
 
   const isCalculateRequested = useRef(false);
@@ -66,17 +77,17 @@ export function useViewportManager(
       forceRequest?: boolean;
       withCompilation: boolean;
     }) => {
-      if (!projectName || !sheetName || !projectSheets) return;
+      if (!projectName || !sheetName || !sheetContent || !projectSheets) return;
 
       if (currentViewport.current) {
         const { startRow, endRow, startCol, endCol } = currentViewport.current;
         const [extStartRow, extEndRow] = getExtendedRoundedBorders(
           startRow,
-          endRow,
+          endRow
         );
         const [extStartCol, extEndCol] = getExtendedRoundedBorders(
           startCol,
-          endCol,
+          endCol
         );
 
         const extendedViewport = {
@@ -113,12 +124,13 @@ export function useViewportManager(
     [
       projectName,
       sheetName,
+      sheetContent,
       projectSheets,
       currentViewport,
       viewGridData,
       currentExtendedViewport,
       onDataUpdate,
-    ],
+    ]
   );
 
   const triggerOnScroll = useCallback(
@@ -147,7 +159,7 @@ export function useViewportManager(
         withCompilation,
       });
     },
-    [currentViewport, gridApiRef, onScroll],
+    [currentViewport, gridApiRef, onScroll]
   );
 
   // Subscribe to viewport changes
@@ -169,7 +181,6 @@ export function useViewportManager(
     onViewportChange();
 
     return () => {
-      onViewportChange.cancel?.();
       unsubscribe?.();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -177,7 +188,6 @@ export function useViewportManager(
 
   // Reset viewport on sheet change
   useEffect(() => {
-    firstViewportChange.current = true;
     const currentCoords = gridApiRef.current?.getViewportCoords();
 
     if (!currentCoords || (currentCoords.x1 === 0 && currentCoords.y1 === 0))
@@ -185,6 +195,23 @@ export function useViewportManager(
 
     gridApiRef.current?.moveViewport(-currentCoords.x1, -currentCoords.y1);
   }, [gridApiRef, sheetName]);
+
+  // Subscribe to dynamic fields request
+  useEffect(() => {
+    if (!projectName) return;
+
+    const handleDynamicFieldsRequest = () => {
+      triggerOnScroll(false, false);
+    };
+
+    const subscription = viewGridData.tableDynamicFieldsRequest$.subscribe(
+      handleDynamicFieldsRequest
+    );
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [projectName, triggerOnScroll, viewGridData]);
 
   return {
     viewportRef,

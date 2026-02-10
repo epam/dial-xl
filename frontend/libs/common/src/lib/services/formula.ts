@@ -1,5 +1,5 @@
 export const getFormulaType = (
-  value: string,
+  value: string
 ): 'single_dim' | 'multi_dim' | 'formula' | 'const' => {
   const dimCount = stripQuotesBrackets(value).split(':').length - 1;
   if (dimCount === 1) return 'single_dim';

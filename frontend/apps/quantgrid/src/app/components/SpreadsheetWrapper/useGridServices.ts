@@ -53,7 +53,7 @@ export function useGridServices(
   onScroll: GridServices['onScroll'],
   chartFunctions: ChartFunctions,
   filterFunctions: FilterFunctions,
-  controlFunctions: ControlsFunctions,
+  controlFunctions: ControlsFunctions
 ) {
   const { onSwitchInput, syncSingleImportField } = useContext(InputsContext);
   const { undo } = useContext(UndoRedoContext);
@@ -61,7 +61,7 @@ export function useGridServices(
   const { openSheet } = useContext(ProjectContext);
 
   const changePivotTableWizardMode = usePivotStore(
-    (s) => s.changePivotTableWizardMode,
+    (s) => s.changePivotTableWizardMode
   );
   const { switchPointClickMode, setEditMode } = useEditorStore();
   const { updateSelectedCell } = useViewStore();
@@ -130,7 +130,7 @@ export function useGridServices(
         payload: { value, cancelEdit, dimFieldName },
       });
     },
-    [publish],
+    [publish]
   );
 
   const selectionServices = useMemo(
@@ -145,7 +145,7 @@ export function useGridServices(
       switchPointClickMode,
       handlePointClickSelectValue,
       deleteSelectedFieldOrTable,
-    ],
+    ]
   );
 
   const viewportServices = useMemo(
@@ -153,7 +153,7 @@ export function useGridServices(
       onScroll,
       closeAllPanels,
     }),
-    [onScroll, closeAllPanels],
+    [onScroll, closeAllPanels]
   );
 
   const editorServices = useMemo(
@@ -162,7 +162,7 @@ export function useGridServices(
       submitCellEditor,
       onCellEditorUpdateValue,
     }),
-    [setEditMode, submitCellEditor, onCellEditorUpdateValue],
+    [setEditMode, submitCellEditor, onCellEditorUpdateValue]
   );
 
   const chartsServices = useMemo(
@@ -183,7 +183,7 @@ export function useGridServices(
       selectChartKey,
       getMoreChartKeys,
       setChartType,
-    ],
+    ]
   );
 
   const clipboardServices = useMemo(() => ({ pasteCells }), [pasteCells]);
@@ -234,7 +234,7 @@ export function useGridServices(
       expandDimTable,
       showRowReference,
       convertToTable,
-    ],
+    ]
   );
 
   const fieldsServices = useMemo(
@@ -267,7 +267,7 @@ export function useGridServices(
       changeFieldIndex,
       createControlFromField,
       regenerateAIFunctions,
-    ],
+    ]
   );
 
   const totalsServices = useMemo(
@@ -282,7 +282,7 @@ export function useGridServices(
       toggleTotalByType,
       addAllFieldTotals,
       createAllTableTotals,
-    ],
+    ]
   );
 
   const controlsServices = useMemo(
@@ -291,7 +291,7 @@ export function useGridServices(
       updateSelectedControlValue,
       onCloseControl,
     }),
-    [onUpdateControlValues, updateSelectedControlValue, onCloseControl],
+    [onUpdateControlValues, updateSelectedControlValue, onCloseControl]
   );
 
   const filtersServices = useMemo(
@@ -300,7 +300,7 @@ export function useGridServices(
       applyConditionFilter,
       onUpdateFieldFilterList,
     }),
-    [applyListFilter, applyConditionFilter, onUpdateFieldFilterList],
+    [applyListFilter, applyConditionFilter, onUpdateFieldFilterList]
   );
 
   const overridesServices = useMemo(
@@ -309,7 +309,7 @@ export function useGridServices(
       removeTableOrOverrideRow,
       regenerateOverride,
     }),
-    [regenerateOverride, removeOverride, removeTableOrOverrideRow],
+    [regenerateOverride, removeOverride, removeTableOrOverrideRow]
   );
 
   const notesServices = useMemo(
@@ -317,7 +317,7 @@ export function useGridServices(
       updateNote,
       removeNote,
     }),
-    [updateNote, removeNote],
+    [updateNote, removeNote]
   );
 
   const sortServices = useMemo(() => ({ changeFieldSort }), [changeFieldSort]);
@@ -330,7 +330,7 @@ export function useGridServices(
       openInDetailsPanel,
       applySuggestion,
     }),
-    [undo, openSheet, openInEditor, openInDetailsPanel, applySuggestion],
+    [undo, openSheet, openInEditor, openInDetailsPanel, applySuggestion]
   );
 
   return useMemo(
@@ -350,7 +350,7 @@ export function useGridServices(
         overridesServices,
         notesServices,
         sortServices,
-        systemServices,
+        systemServices
       ) as Omit<GridServices, 'data'>,
     [
       selectionServices,
@@ -367,6 +367,6 @@ export function useGridServices(
       notesServices,
       sortServices,
       systemServices,
-    ],
+    ]
   );
 }

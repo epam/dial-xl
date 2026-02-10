@@ -37,7 +37,7 @@ const errorEvent = '[ERROR]';
 export async function parseSSEResponse(
   response: Response,
   options: SSEParserOptions = {},
-  controller?: AbortController,
+  controller?: AbortController
 ): Promise<void> {
   const {
     onData,

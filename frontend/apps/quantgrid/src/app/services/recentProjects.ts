@@ -44,7 +44,7 @@ export const cleanUpRecentProjects = (projectList: ResourceMetadata[]) => {
 export const deleteRecentProjectFromRecentProjects = (
   projectName: string,
   projectBucket: string,
-  projectPath: string | null | undefined,
+  projectPath: string | null | undefined
 ) => {
   const recentProjects = getRecentProjectsData();
   const fullItemPrePath = `${projectBucket}/${
@@ -73,7 +73,7 @@ export const renameRecentProject = (
   oldProjectName: string,
   newProjectName: string,
   bucket: string,
-  path?: string | null,
+  path?: string | null
 ) => {
   const recentProjects = getRecentProjectsData();
   const fullItemPrePath = `${bucket}/${path ? path + '/' : ''}`;
@@ -92,7 +92,7 @@ export const addRecentProject = (
   sheetName: string,
   projectName: string,
   projectBucket: string,
-  projectPath: string | null | undefined,
+  projectPath: string | null | undefined
 ) => {
   const recentProjects = getRecentProjectsData();
   const fullItemPrePath = `${projectBucket}/${

@@ -1,3 +1,4 @@
+import { DefaultOptionType } from 'rc-select/lib/Select';
 import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import Select, { SingleValue } from 'react-select';
 
@@ -13,7 +14,6 @@ import {
   ParsedField,
   ParsedTable,
 } from '@frontend/parser';
-import { DefaultOptionType } from '@rc-component/select/lib/Select';
 
 import {
   AppSpreadsheetInteractionContext,
@@ -57,7 +57,7 @@ export function SeriesColumnAttributesSection({
     (
       section: Section,
       option: SingleValue<DefaultOptionType>,
-      decoratorName: string,
+      decoratorName: string
     ) => {
       if (!sheetName) return;
 
@@ -87,7 +87,7 @@ export function SeriesColumnAttributesSection({
             fieldName,
             decoratorName,
             '',
-            historyTitle,
+            historyTitle
           );
         } else {
           setFieldDecorator(
@@ -95,7 +95,7 @@ export function SeriesColumnAttributesSection({
             fieldName,
             decoratorName,
             '',
-            historyTitle,
+            historyTitle
           );
         }
       }
@@ -110,7 +110,7 @@ export function SeriesColumnAttributesSection({
       removeFieldDecorator,
       sheetName,
       swapFieldDecorators,
-    ],
+    ]
   );
 
   useEffect(() => {
@@ -202,7 +202,7 @@ export function SeriesColumnAttributesSection({
                   handleChangeOption(
                     section,
                     option,
-                    chartDotColorDecoratorName,
+                    chartDotColorDecoratorName
                   )
                 }
               />
@@ -235,7 +235,7 @@ export function SeriesColumnAttributesSection({
                     handleChangeOption(
                       section,
                       option,
-                      chartDotSizeDecoratorName,
+                      chartDotSizeDecoratorName
                     )
                   }
                 />

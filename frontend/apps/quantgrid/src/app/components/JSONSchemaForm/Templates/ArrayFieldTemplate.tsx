@@ -23,7 +23,7 @@ import { ArrayFieldTitleTemplate } from './ArrayFieldTitleTemplate';
 export function ArrayFieldTemplate<
   T = any,
   S extends StrictRJSFSchema = RJSFSchema,
-  F extends FormContextType = any,
+  F extends FormContextType = any
 >(props: ArrayFieldTemplateProps<T, S, F>) {
   const {
     canAdd,
@@ -44,7 +44,7 @@ export function ArrayFieldTemplate<
   const ArrayFieldItemTemplate = getTemplate<'ArrayFieldItemTemplate', T, S, F>(
     'ArrayFieldItemTemplate',
     registry,
-    uiOptions,
+    uiOptions
   );
   // const ArrayFieldTitleTemplate = getTemplate<
   //   'ArrayFieldTitleTemplate',
@@ -64,7 +64,7 @@ export function ArrayFieldTemplate<
   const labelClsBasic = `${prefixCls}-item-label`;
   const labelColClassName = classNames(
     labelClsBasic,
-    labelAlign === 'left' && `${labelClsBasic}-left`,
+    labelAlign === 'left' && `${labelClsBasic}-left`
     // labelCol.className,
   );
 
@@ -89,7 +89,7 @@ export function ArrayFieldTemplate<
             items.map(
               ({ key, ...itemProps }: ArrayFieldTemplateItemType<T, S, F>) => (
                 <ArrayFieldItemTemplate key={key} {...itemProps} />
-              ),
+              )
             )}
         </Col>
 

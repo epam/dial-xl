@@ -1,5 +1,3 @@
-import { RefObject } from 'react';
-
 import { AppTheme, ChartsData, GridChart } from '@frontend/common';
 
 import { GridApi, GridTable } from '../../types';
@@ -7,7 +5,7 @@ import { GridEventBus } from '../../utils';
 
 export type Props = {
   eventBus: GridEventBus;
-  apiRef: RefObject<GridApi | null>;
+  api: GridApi | null;
   chartData: ChartsData;
   zoom?: number;
   charts?: GridChart[];

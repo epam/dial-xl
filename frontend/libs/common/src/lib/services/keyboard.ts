@@ -49,7 +49,7 @@ export function isCommandKey(event: KeyboardEvent | IMouseEvent) {
 }
 
 export function shouldStopPropagation(
-  event: KeyboardEvent | React.KeyboardEvent,
+  event: KeyboardEvent | React.KeyboardEvent
 ) {
   const stopKeys = [
     KeyboardCode.Backspace,

@@ -5,15 +5,12 @@ import Icon from '@ant-design/icons';
 import { PlusIcon } from '@frontend/common';
 import { ChartType, ParsedTable } from '@frontend/parser';
 
-import { shallowEqualArray, useSettingState } from '../../../hooks';
 import {
-  ChartPanelCollapseSection as CollapseSection,
   chartsWithOrientation,
   chartsWithoutLegend,
   chartsWithoutXAxis,
   chartsWithSeparators,
   chartsWithVisualMap,
-  defaultChartPanelSections,
 } from '../../../utils';
 import { TableNameSection } from '../TableDetails';
 import {
@@ -26,16 +23,25 @@ import {
   ChartXAxisSection,
   InfoHeader,
 } from './Components';
+import { CollapseSection } from './types';
+
+const storageKey = 'chartOptionsCollapseSections';
+const defaultSections: CollapseSection[] = [
+  CollapseSection.Title,
+  CollapseSection.ChartType,
+];
 
 export function useChartOptions({ parsedTable }: { parsedTable: ParsedTable }) {
   const [isAddingSelector, setIsAddingSelector] = useState(false);
-  const [allActiveKeys, setAllActiveKeys] = useSettingState(
-    'chartOptionsCollapseSections',
-    {
-      fallback: defaultChartPanelSections,
-      equals: shallowEqualArray,
-    },
-  );
+  const [allActiveKeys, setAllActiveKeys] = useState<CollapseSection[]>(() => {
+    try {
+      const raw = localStorage.getItem(storageKey);
+
+      return raw ? (JSON.parse(raw) as CollapseSection[]) : defaultSections;
+    } catch {
+      return defaultSections;
+    }
+  });
 
   const firstCollapseSectionActiveKeys = useMemo(() => {
     return allActiveKeys.filter((key) =>
@@ -44,7 +50,7 @@ export function useChartOptions({ parsedTable }: { parsedTable: ParsedTable }) {
         CollapseSection.ChartType,
         CollapseSection.Selectors,
         CollapseSection.SizeLocation,
-      ].includes(key),
+      ].includes(key)
     );
   }, [allActiveKeys]);
 
@@ -55,7 +61,7 @@ export function useChartOptions({ parsedTable }: { parsedTable: ParsedTable }) {
         CollapseSection.Data,
         CollapseSection.XAxis,
         CollapseSection.Orientation,
-      ].includes(key),
+      ].includes(key)
     );
   }, [allActiveKeys]);
 
@@ -87,47 +93,47 @@ export function useChartOptions({ parsedTable }: { parsedTable: ParsedTable }) {
     return chartType ? chartsWithSeparators.includes(chartType) : false;
   }, [chartType]);
 
-  const onFirstCollapseSectionChange = useCallback(
-    (activeKeys: string[]) => {
-      const typedKeys = activeKeys as CollapseSection[];
-      setAllActiveKeys((prev) => {
-        const filteredPrev = (prev ?? []).filter(
-          (key) =>
-            ![
-              CollapseSection.Title,
-              CollapseSection.ChartType,
-              CollapseSection.Selectors,
-              CollapseSection.SizeLocation,
-            ].includes(key),
-          true,
-        );
+  const onFirstCollapseSectionChange = useCallback((activeKeys: string[]) => {
+    const typedKeys = activeKeys as CollapseSection[];
+    setAllActiveKeys((prev) => {
+      const filteredPrev = prev.filter(
+        (key) =>
+          ![
+            CollapseSection.Title,
+            CollapseSection.ChartType,
+            CollapseSection.Selectors,
+            CollapseSection.SizeLocation,
+          ].includes(key)
+      );
 
-        return [...filteredPrev, ...typedKeys];
-      });
-    },
-    [setAllActiveKeys],
-  );
+      return [...filteredPrev, ...typedKeys];
+    });
+  }, []);
 
-  const onSecondCollapseSectionChange = useCallback(
-    (activeKeys: string[]) => {
-      const typedKeys = activeKeys as CollapseSection[];
-      setAllActiveKeys((prev) => {
-        const filteredPrev = (prev ?? []).filter(
-          (key) =>
-            ![
-              CollapseSection.Series,
-              CollapseSection.Data,
-              CollapseSection.XAxis,
-              CollapseSection.Orientation,
-            ].includes(key),
-          true,
-        );
+  const onSecondCollapseSectionChange = useCallback((activeKeys: string[]) => {
+    const typedKeys = activeKeys as CollapseSection[];
+    setAllActiveKeys((prev) => {
+      const filteredPrev = prev.filter(
+        (key) =>
+          ![
+            CollapseSection.Series,
+            CollapseSection.Data,
+            CollapseSection.XAxis,
+            CollapseSection.Orientation,
+          ].includes(key)
+      );
 
-        return [...filteredPrev, ...typedKeys];
-      });
-    },
-    [setAllActiveKeys],
-  );
+      return [...filteredPrev, ...typedKeys];
+    });
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(allActiveKeys));
+    } catch {
+      // empty section
+    }
+  }, [allActiveKeys]);
 
   const showSeriesColumnAttributesSection = useMemo((): boolean => {
     if (chartType === ChartType.SCATTER_PLOT) return true;
@@ -180,12 +186,9 @@ export function useChartOptions({ parsedTable }: { parsedTable: ParsedTable }) {
       isAddingSelector &&
       !allActiveKeys.includes(CollapseSection.Selectors)
     ) {
-      setAllActiveKeys(
-        (prev) => [...(prev ?? []), CollapseSection.Selectors],
-        true,
-      );
+      setAllActiveKeys((prev) => [...prev, CollapseSection.Selectors]);
     }
-  }, [isAddingSelector, allActiveKeys, setAllActiveKeys]);
+  }, [isAddingSelector, allActiveKeys]);
 
   const getFirstCollapseSection = useCallback((): CollapseProps['items'] => {
     return [

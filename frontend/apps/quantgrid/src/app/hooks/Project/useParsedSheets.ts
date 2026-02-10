@@ -1,4 +1,10 @@
-import { RefObject, useCallback, useContext, useEffect, useState } from 'react';
+import {
+  MutableRefObject,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+} from 'react';
 
 import {
   appMessages,
@@ -19,7 +25,7 @@ type Props = {
   isTemporaryState: boolean;
   isTemporaryStateEditable: boolean;
   projectSheets: WorksheetState[] | null;
-  diffDataRef: RefObject<TableHighlightDataMap | null>;
+  diffDataRef: MutableRefObject<TableHighlightDataMap | null>;
 };
 
 export function useParsedSheets({
@@ -44,7 +50,7 @@ export function useParsedSheets({
         viewGridData,
         content,
         isDSLChange,
-        diffDataRef.current,
+        diffDataRef.current
       );
 
       setParsedSheet(sheet);
@@ -53,7 +59,7 @@ export function useParsedSheets({
 
       displayToast('error', appMessages.parseSheetError);
     },
-    [diffDataRef, viewGridData],
+    [diffDataRef, viewGridData]
   );
 
   useEffect(() => {
@@ -62,7 +68,7 @@ export function useParsedSheets({
     for (const sheet of projectSheets || []) {
       try {
         updatedParsedSheets[sheet.sheetName] = SheetReader.parseSheet(
-          sheet.content,
+          sheet.content
         );
       } catch {
         // empty
@@ -81,24 +87,19 @@ export function useParsedSheets({
 
   useEffect(() => {
     const subscription = viewGridData.tableDynamicFieldsLoad$.subscribe(
-      ({ tableName, dynamicFields, startColumn, endColumn, totalColumns }) => {
+      ({ tableName, dynamicFields }) => {
         setParsedSheet((parsedSheet) => {
           if (!parsedSheet) return parsedSheet;
 
           const newParsedSheet = parsedSheet.clone();
 
           const tableToUpdate = newParsedSheet.tables.find(
-            (table) => table.tableName === tableName,
+            (table) => table.tableName === tableName
           );
 
           if (!tableToUpdate) return parsedSheet;
 
-          tableToUpdate.setDynamicFields(
-            dynamicFields,
-            startColumn,
-            endColumn,
-            totalColumns,
-          );
+          tableToUpdate.setDynamicFields(dynamicFields);
 
           setParsedSheets((parsedSheets) => {
             if (!parsedSheets || !currentSheetName) return parsedSheets;
@@ -110,7 +111,9 @@ export function useParsedSheets({
 
           return newParsedSheet;
         });
-      },
+
+        viewGridData.triggerTableDynamicFieldsRequest();
+      }
     );
 
     return () => {

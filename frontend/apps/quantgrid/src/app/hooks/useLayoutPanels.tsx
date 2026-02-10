@@ -24,13 +24,11 @@ import {
   ProjectPanel,
   UndoRedoPanel,
 } from '../components';
-import { useUserSettingsStore } from '../store';
+import { loadPanels, loadPanelsEnvConfig } from '../services';
+import { useUIStore } from '../store';
 
 export function useLayoutPanels() {
-  const chatWindowPlacement = useUserSettingsStore(
-    (s) => s.data.chatWindowPlacement,
-  );
-  const panelsLayout = useUserSettingsStore((s) => s.data.panelsLayout);
+  const chatWindowPlacement = useUIStore((s) => s.chatWindowPlacement);
 
   const initialPanels = useMemo(() => {
     const defaultAppPanelsConfig: PanelRecord = {
@@ -60,17 +58,20 @@ export function useLayoutPanels() {
       },
     };
 
-    const defaultEnvPanelsConfig =
-      window.externalEnv.defaultPanelsSettings ?? {};
+    const defaultEnvPanelsConfig = loadPanelsEnvConfig();
+    const localStoragePanelsConfig = loadPanels();
 
     const defaultPanelConfig = Object.assign(
       defaultAppPanelsConfig,
-      defaultEnvPanelsConfig,
+      defaultEnvPanelsConfig
     );
-    const finalPanelConfig = Object.assign(defaultPanelConfig, panelsLayout);
+    const finalPanelConfig = Object.assign(
+      defaultPanelConfig,
+      localStoragePanelsConfig
+    );
 
     return { openedPanels: finalPanelConfig };
-  }, [panelsLayout]);
+  }, []);
 
   const panels: PanelSettings = useMemo(
     () => ({
@@ -112,7 +113,7 @@ export function useLayoutPanels() {
         icon: <AdjustmentsIcon />,
       },
     }),
-    [chatWindowPlacement],
+    [chatWindowPlacement]
   );
 
   return { initialPanels, panels };

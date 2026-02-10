@@ -5,9 +5,9 @@ Bot is the DIAL application that transforms user request into natural language r
 ## Functional requirements
 1. Support of all basic features (pass [integration tests](integration_tests.md) for basic features, see section 3)
 2. Bot must solve simple questions (with reasonable success rate around 80%, see appendix):
-    - 13/18 Advertisers 1
-    - 10/10 Casualties
-    - 8/10- Failure Rates
+    - 13/18 Disney 1
+    - 10/10 Old Everest
+    - 8/10- Verizon
     - ? Ilya's Projects-Employees-Assignments
 3. Bot must know how to use MVP subset of DSL (pass [integration tests](integration_tests.md) for DSL knowledge, see section 4)
 4. Bot should respect the notes left by the user (they often describe project, tables and fields).
@@ -26,7 +26,7 @@ Bot is the DIAL application that transforms user request into natural language r
 
 ## Appendix questions
 
-### Advertiser questions
+### Disney questions
 1. What percentage of revenue in both years was linear? 
 2. What was total net booked revenue in 2023?  
 3. Was there a quarter that had more Net Booked Revenue in 2023 than it did in 2022?  
@@ -39,7 +39,7 @@ Bot is the DIAL application that transforms user request into natural language r
 10. What was YoY growth in the quarter that had the lowest net booked revenue in the beverage subcategory? 
 11. What are the dynamics of revenue by Media Type? Which sector is growing and which is declining? 
 
-### Casualties questions
+### Everest questions
 1. How many rows are there in the dataset?
 2. What is the total amount paid for all the claims?
 3. How many claims are there with a claim status of "Open"?
@@ -51,7 +51,7 @@ Bot is the DIAL application that transforms user request into natural language r
 9. What is the total legal cost for the claims in the "Energy" business segment?
 10. How many claims are there with a claim status of "Closed" and have zero outstanding reserves?
 
-### Failure Rates
+### Verizon
 1. For the first two weeks in October, please compare the first pass failure rates across all the different iPhone models tested. 
 2. Show the distribution of test run time versus iPhone model and OS version  
 3. Analyze the overall defect rate of units tested versus workstation ID 

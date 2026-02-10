@@ -20,7 +20,7 @@ type ProjectContextActions = ProjectResourceActions &
       projectName: string;
       projectSheetName?: string | undefined;
       bucket: string;
-    }) => Promise<void>;
+    }) => void;
   };
 
 export const ProjectContext = createContext<

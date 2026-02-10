@@ -22,20 +22,20 @@ let browserContext: BrowserContext;
 
 let page: Page;
 
-const storagePath = TestFixtures.getStoragePath();
+const storagePath = `playwright/${projectName}.json`;
 
 test.beforeAll(async ({ browser }) => {
   const table1Dsl = `!layout(${tableRow}, ${tableColumn}, "title", "headers")\ntable ${tableName}\n[Field1] = 1\n[Field2] = 7\n[Field3] = 3\n[Field4] = 10\n[Field5] = [Field1] + [Field3]`;
-  browserContext = await browser.newContext({ storageState: storagePath });
   await TestFixtures.createProject(
     storagePath,
-    browserContext,
+    browser,
     projectName,
     tableRow,
     tableColumn,
     tableName,
-    table1Dsl,
+    table1Dsl
   );
+  browserContext = await browser.newContext({ storageState: storagePath });
 });
 
 test.beforeEach(async () => {
@@ -48,8 +48,8 @@ test.afterEach(async () => {
 });
 
 test.afterAll(async ({ browser }) => {
-  await TestFixtures.deleteProject(browserContext, projectName);
   await browserContext.close();
+  await TestFixtures.deleteProject(browser, projectName);
 });
 
 test.describe('formula bar', () => {
@@ -157,7 +157,7 @@ test.describe('formula bar', () => {
     const projectPage = await ProjectPage.createInstance(page);
     let initialValue = await projectPage.getCellText(
       tableRow + 2,
-      tableColumn + 4,
+      tableColumn + 4
     );
     initialValue = initialValue ? initialValue : '';
     await projectPage
@@ -169,7 +169,7 @@ test.describe('formula bar', () => {
       <Canvas>projectPage.getVisualization(),
       tableRow + 2,
       tableColumn + 4,
-      initialValue,
+      initialValue
     );
   });
   //edit regular cell, not header
@@ -183,11 +183,11 @@ test.describe('formula bar', () => {
       .clickOnCell(tableRow + 2, tableColumn + 4);
     await projectPage.switchToFormulaMode();
     await expect(
-      projectPage.getFormulaEditor().getValueLocator(),
+      projectPage.getFormulaEditor().getValueLocator()
     ).toContainText('Field1');
     await projectPage.switchToValueMode();
     await expect(
-      projectPage.getFormulaEditor().getValueLocator(),
+      projectPage.getFormulaEditor().getValueLocator()
     ).not.toContainText('Field1');
     // expect(
     //   projectPage.getFormulaEditor().getValueLocator().textContent()

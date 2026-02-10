@@ -1,16 +1,11 @@
-import { createContext, RefObject } from 'react';
+import { createContext, MutableRefObject } from 'react';
 
 import { LayoutContextActions } from '../LayoutContext';
 
 export interface CommonContextValues {
-  layoutContext?: Partial<
-    Pick<
-      LayoutContextActions,
-      'closeAllPanels' | 'expandedPanelSide' | 'collapseExpandedPanelSide'
-    >
-  >;
+  layoutContext?: Partial<Pick<LayoutContextActions, 'closeAllPanels'>>;
 }
 
-type ContextValues = { sharedRef: RefObject<CommonContextValues> };
+type ContextValues = { sharedRef: MutableRefObject<CommonContextValues> };
 
 export const CommonContext = createContext<ContextValues>({} as ContextValues);

@@ -1,4 +1,5 @@
 import { Dropdown } from 'antd';
+import { MenuInfo } from 'rc-menu/lib/interface';
 import { useCallback, useContext, useEffect, useRef, useState } from 'react';
 
 import {
@@ -7,7 +8,6 @@ import {
   MenuItem,
   useClickOutside,
 } from '@frontend/common';
-import { MenuInfo } from '@rc-component/menu/lib/interface';
 
 import { PanelName } from '../../common';
 import { InputsContext, LayoutContext, ProjectContext } from '../../context';
@@ -30,7 +30,7 @@ export function FormulasMenu({ position, place }: Props) {
   const { parsedSheets } = useContext(ProjectContext);
   const selectedCell = useViewStore((s) => s.selectedCell);
   const openControlCreateWizard = useControlStore(
-    (s) => s.openControlCreateWizard,
+    (s) => s.openControlCreateWizard
   );
   const { functions } = useContext(ProjectContext);
   const gridApi = useGridApi();
@@ -80,7 +80,7 @@ export function FormulasMenu({ position, place }: Props) {
               createDerivedTable(
                 data.tableName,
                 selectedCell?.col ?? 1,
-                selectedCell?.row ?? 1,
+                selectedCell?.row ?? 1
               );
             }
             break;
@@ -130,7 +130,7 @@ export function FormulasMenu({ position, place }: Props) {
       onCreateTableAction,
       place,
       selectedCell,
-    ],
+    ]
   );
 
   const handleCreateTableBySize = useCallback(
@@ -140,10 +140,10 @@ export function FormulasMenu({ position, place }: Props) {
       createManualTable(
         selectedCell?.col ?? 1,
         selectedCell?.row ?? 1,
-        rowsItems,
+        rowsItems
       );
     },
-    [createManualTable, selectedCell?.col, selectedCell?.row],
+    [createManualTable, selectedCell?.col, selectedCell?.row]
   );
 
   useEffect(() => {
@@ -156,8 +156,8 @@ export function FormulasMenu({ position, place }: Props) {
         functions,
         tableNames,
         inputList,
-        handleCreateTableBySize,
-      ),
+        handleCreateTableBySize
+      )
     );
   }, [functions, handleCreateTableBySize, inputList, parsedSheets]);
 

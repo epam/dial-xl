@@ -1,22 +1,23 @@
-import { Graphics } from 'pixi.js';
+import * as PIXI from 'pixi.js';
 import { useCallback, useContext, useEffect, useRef, useState } from 'react';
 
 import { CellPlacement } from '@frontend/common';
-import { useApplication } from '@pixi/react';
+import { Graphics, useApp } from '@pixi/react';
 
+import { ComponentLayer } from '../../constants';
 import { GridStateContext, GridViewportContext } from '../../context';
 import { useDraw } from '../../hooks';
 import { GridCell } from '../../types';
-import { getMousePosition, isClickInsideCanvas } from '../../utils';
+import {
+  getMousePosition,
+  getSymbolWidth,
+  isClickInsideCanvas,
+} from '../../utils';
 import { GridEvent } from '../GridApiWrapper';
 
 const threshold = 5;
 
-type Props = {
-  zIndex: number;
-};
-
-export function ColResizer({ zIndex }: Props) {
+export function ColResizer() {
   const {
     columnSizes,
     gridApi,
@@ -25,15 +26,15 @@ export function ColResizer({ zIndex }: Props) {
     theme,
     getCell,
     eventBus,
+    getBitmapFontName,
     isPanModeEnabled,
     setSelectionEdges,
-    canvasSymbolWidth,
   } = useContext(GridStateContext);
   const { getCellX, getCellY, getCellFromCoords } =
     useContext(GridViewportContext);
-  const { app } = useApplication();
+  const app = useApp();
 
-  const graphicsRef = useRef<Graphics>(null);
+  const graphicsRef = useRef<PIXI.Graphics>(null);
 
   const [isHovered, setIsHovered] = useState(false);
   const [isActive, setIsActive] = useState(false);
@@ -64,16 +65,16 @@ export function ColResizer({ zIndex }: Props) {
         Math.abs(x - cellX) <= threshold
           ? { col: col - 1, row }
           : Math.abs(x - nextCellX) <= threshold
-            ? cell
-            : undefined;
+          ? cell
+          : undefined;
 
       return resizerTargetCell;
     },
-    [getCellFromCoords, getCellX],
+    [getCellFromCoords, getCellX]
   );
 
   const handleMouseMove = useCallback(
-    (e: PointerEvent) => {
+    (e: Event) => {
       if (isPanModeEnabled) return;
 
       const mousePosition = getMousePosition(e as MouseEvent);
@@ -96,7 +97,7 @@ export function ColResizer({ zIndex }: Props) {
           resizerTargetCellPlacement &&
           getCell(
             resizerTargetCellPlacement.col,
-            resizerTargetCellPlacement.row,
+            resizerTargetCellPlacement.row
           );
         const isResizableCell =
           !!resizerTargetCell?.table &&
@@ -177,23 +178,11 @@ export function ColResizer({ zIndex }: Props) {
       resizerY,
       isPanModeEnabled,
       setSelectionEdges,
-    ],
+    ]
   );
 
-  const cleanup = useCallback(() => {
-    setDeltaX(0);
-
-    setInitialCell(null);
-    setResizerX(null);
-    setResizerY(null);
-    setNextCol(null);
-    setResizeType(null);
-  }, []);
-
   const handleMouseDown = useCallback(
-    (e: PointerEvent) => {
-      setDeltaX(0);
-
+    (e: any) => {
       if (isPanModeEnabled) return;
 
       const mousePosition = getMousePosition(e);
@@ -242,15 +231,23 @@ export function ColResizer({ zIndex }: Props) {
       gridSizes,
       isPanModeEnabled,
       setSelectionEdges,
-    ],
+    ]
   );
+
+  const cleanup = useCallback(() => {
+    setDeltaX(0);
+    setInitialCell(null);
+    setResizerX(null);
+    setResizerY(null);
+    setNextCol(null);
+    setResizeType(null);
+  }, []);
 
   const handleMouseUp = useCallback(() => {
     isMouseDown.current = false;
 
     if (isActive) {
       setIsActive(false);
-
       lastMouseUpTimestamp.current = Date.now();
 
       if (
@@ -336,14 +333,15 @@ export function ColResizer({ zIndex }: Props) {
 
         const resizerTargetCellPlacement = getResizerRelatedCellByPosition(
           x,
-          y,
+          y
         );
         const resizerTargetCell =
           resizerTargetCellPlacement &&
           getCell(
             resizerTargetCellPlacement.col,
-            resizerTargetCellPlacement.row,
+            resizerTargetCellPlacement.row
           );
+        const { cellFontFamily, cellFontColorName } = theme.cell;
         const cellY = getCellY(row);
 
         if (!resizerTargetCell?.table) return;
@@ -353,6 +351,10 @@ export function ColResizer({ zIndex }: Props) {
           resizerTargetCell.table.startRow +
           (resizerTargetCell.table.isTableNameHeaderHidden ? 0 : 1);
 
+        const symbolWidth = getSymbolWidth(
+          gridSizes.cell.fontSize,
+          getBitmapFontName(cellFontFamily, cellFontColorName)
+        );
         let maxWidth = 0;
         for (let i = startRow; i <= resizerTargetCell.table.endRow; i++) {
           const cell = getCell(resizerTargetCell.startCol, i);
@@ -365,7 +367,7 @@ export function ColResizer({ zIndex }: Props) {
 
           const cellWidth =
             (cell.displayValue?.length ?? cell.value?.length ?? 0) *
-            canvasSymbolWidth;
+            symbolWidth;
 
           if (maxWidth < cellWidth) {
             maxWidth = cellWidth;
@@ -392,34 +394,34 @@ export function ColResizer({ zIndex }: Props) {
     },
     [
       isPanModeEnabled,
-      canvasSymbolWidth,
       getCellFromCoords,
       getCellX,
       gridSizes.colNumber.resizerWidth,
+      gridSizes.cell.fontSize,
       getResizerRelatedCellByPosition,
       getCell,
+      theme.cell,
       getCellY,
+      getBitmapFontName,
       eventBus,
       cleanup,
       gridApi.event,
-    ],
+    ]
   );
 
   useEffect(() => {
-    if (!app?.renderer) return;
+    if (!app) return;
 
-    app.canvas.addEventListener?.('pointermove', handleMouseMove, true);
-    app.canvas.addEventListener?.('pointerdown', handleMouseDown, true);
-    app.canvas.addEventListener?.('pointerup', handleMouseUp, true);
-    app.canvas.addEventListener?.('dblclick', handleDblClick, true);
+    app.view.addEventListener?.('mousemove', handleMouseMove, true);
+    app.view.addEventListener?.('mousedown', handleMouseDown, true);
+    app.view.addEventListener?.('mouseup', handleMouseUp, true);
+    app.view.addEventListener?.('dblclick', handleDblClick, true);
 
     return () => {
-      if (!app?.renderer) return;
-
-      app?.canvas?.removeEventListener?.('pointermove', handleMouseMove, true);
-      app?.canvas?.removeEventListener?.('pointerdown', handleMouseDown, true);
-      app?.canvas?.removeEventListener?.('pointerup', handleMouseUp, true);
-      app?.canvas?.removeEventListener?.('dblclick', handleDblClick, true);
+      app?.view?.removeEventListener?.('mousemove', handleMouseMove, true);
+      app?.view?.removeEventListener?.('mousedown', handleMouseDown, true);
+      app?.view?.removeEventListener?.('mouseup', handleMouseUp, true);
+      app?.view?.removeEventListener?.('dblclick', handleDblClick, true);
     };
   }, [app, handleDblClick, handleMouseDown, handleMouseMove, handleMouseUp]);
 
@@ -435,37 +437,40 @@ export function ColResizer({ zIndex }: Props) {
     const { resizerWidth, height } = gridSizes.cell;
     const color = isActive ? resizerActiveColor : resizerHoverColor;
 
+    graphics.beginFill(color);
+
     const resizerHeight = height * 0.7;
     const verticalOffset = (height - resizerHeight) / 2;
 
-    graphics.roundRect(
+    graphics.drawRoundedRect(
       resizerX - resizerWidth / 2 + (isActive ? deltaX : 0),
       resizerY + verticalOffset,
       resizerWidth,
       resizerHeight,
-      3,
+      3
     );
-    graphics.fill({ color });
+
+    graphics.endFill();
 
     if (isActive && initialCell?.table && resizeType === 'tableCell') {
       const { startRow, endRow, isTableNameHeaderHidden } = initialCell.table;
       const fieldStartRowY = getCellY(
-        startRow + (isTableNameHeaderHidden ? 0 : 1),
+        startRow + (isTableNameHeaderHidden ? 0 : 1)
       );
       const fieldEndRowY = getCellY(endRow + 1);
 
-      const lineHeight = Math.min(
+      const height = Math.min(
         Math.abs(fieldEndRowY - fieldStartRowY),
-        gridHeight,
+        gridHeight
       );
 
+      graphics.lineStyle(1, color);
       graphics.moveTo(resizerX + deltaX, fieldStartRowY);
-      graphics.lineTo(resizerX + deltaX, fieldStartRowY + lineHeight);
-      graphics.stroke({ width: 1, color });
+      graphics.lineTo(resizerX + deltaX, fieldStartRowY + height);
     } else if (isActive && resizeType === 'colNumber') {
+      graphics.lineStyle(1, color);
       graphics.moveTo(resizerX + deltaX, resizerY);
       graphics.lineTo(resizerX + deltaX, resizerY + gridHeight);
-      graphics.stroke({ width: 1, color });
     }
   }, [
     deltaX,
@@ -484,13 +489,11 @@ export function ColResizer({ zIndex }: Props) {
   useDraw(draw);
 
   return (
-    <pixiGraphics
+    <Graphics
       cursor={isHovered || isActive ? 'col-resize' : 'default'}
-      draw={() => {}}
       eventMode="static"
-      label="ColResizer"
       ref={graphicsRef}
-      zIndex={zIndex}
+      zIndex={ComponentLayer.Resizer}
     />
   );
 }

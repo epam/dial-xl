@@ -109,7 +109,7 @@ export class Apply extends ObservableObserver {
    */
   private _setIndexedNode(
     node: ApplySort | ApplyFilter | null,
-    currentIndex: number | null,
+    currentIndex: number | null
   ): number | null {
     if (currentIndex !== null && node === null) {
       // remove the old operation

@@ -54,7 +54,7 @@ export function useMoveResources() {
 
       onProgress?.(100);
     },
-    [moveProject],
+    [moveProject]
   );
 
   const handleMoveFile = useCallback(
@@ -102,7 +102,7 @@ export function useMoveResources() {
 
       onProgress?.(100);
     },
-    [moveFile],
+    [moveFile]
   );
 
   const handleMoveResource = useCallback(
@@ -154,7 +154,7 @@ export function useMoveResources() {
         });
       }
     },
-    [handleMoveFile, handleMoveProject, moveFolder],
+    [handleMoveFile, handleMoveProject, moveFolder]
   );
 
   const handleMoveFiles = useCallback(
@@ -200,7 +200,7 @@ export function useMoveResources() {
       displayToast('success', appMessages.fileMoveSuccess);
       toast.dismiss(uploadingToast);
     },
-    [handleMoveResource],
+    [handleMoveResource]
   );
 
   const moveResources = useCallback(
@@ -213,7 +213,7 @@ export function useMoveResources() {
       })[],
       targetPath: string | null | undefined,
       targetBucket: string,
-      onFinish?: () => void,
+      onFinish?: () => void
     ) => {
       const hasSharedFiles = items.some((item) => item.isSharedByMe);
 
@@ -253,7 +253,7 @@ export function useMoveResources() {
       });
     },
 
-    [handleMoveFiles, confirmModal],
+    [handleMoveFiles, confirmModal]
   );
 
   return {

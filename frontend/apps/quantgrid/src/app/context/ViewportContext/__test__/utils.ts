@@ -23,7 +23,7 @@ export const getTablesFromDSL = (dsl: string) => {
 
 export const generateTablesWithData = (
   sheetDSL: string,
-  tableParams: GenerateTableDataParams,
+  tableParams: GenerateTableDataParams
 ) => {
   const sheet = SheetReader.parseSheet(sheetDSL);
 

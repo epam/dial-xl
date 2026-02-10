@@ -1,4 +1,4 @@
-import Fuse, { FuseResult, IFuseOptions } from 'fuse.js';
+import Fuse from 'fuse.js';
 
 import {
   dialProjectFileExtension,
@@ -30,7 +30,7 @@ export const searchFilterTabs: Array<ISearchFilter | null> = [
 
 export type ISearchFilter = 'projects' | 'sheets' | 'tables' | 'fields';
 
-const fuseOptions: IFuseOptions<ISearchResult> = {
+const fuseOptions = {
   includeScore: true,
   shouldSort: true,
   includeMatches: true,
@@ -43,7 +43,7 @@ function computeSearchResults(results: ISearchResult[], query: string) {
     return results.map((result) => ({
       item: result,
       score: 0,
-    })) as FuseResult<ISearchResult>[];
+    })) as Fuse.FuseResult<ISearchResult>[];
 
   const fuse = new Fuse(results, fuseOptions);
 
@@ -74,7 +74,7 @@ export function search(
   query: string,
   filter: ISearchFilter | null,
   currentProjectBucket: string,
-  currentProjectPath: string | null | undefined,
+  currentProjectPath: string | null | undefined
 ) {
   const allResults: ISearchResult[] = [];
 

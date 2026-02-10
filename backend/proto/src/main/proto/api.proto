@@ -43,10 +43,8 @@ message Viewport {
     }
     sint64 start_row = 3;
     sint64 end_row = 4;
-    optional sint64 start_column = 5;
-    optional sint64 end_column = 6;
-    bool is_content = 7;
-    optional bool is_raw = 8;
+    bool is_content = 5;
+    optional bool is_raw = 6;
 }
 
 message DimensionalSchemaRequest {
@@ -319,13 +317,11 @@ message FieldInfo {
     ColumnDataType type = 4;
     // true if cell represented as collection of data (N strings, N rows)
     bool is_nested = 5;
-    // true if the result can be assigned as is, false if you need to use multi field access
-    bool is_assignable = 6;
     // name of the table in case ColumnDataType.TABLE
-    optional string reference_table_name = 7;
-    optional string hash = 8;
-    optional ColumnFormat format = 9;
-    repeated Reference references = 10;
+    optional string reference_table_name = 6;
+    optional string hash = 7;
+    optional ColumnFormat format = 8;
+    repeated Reference references = 9;
 }
 
 message ParsedSheet {

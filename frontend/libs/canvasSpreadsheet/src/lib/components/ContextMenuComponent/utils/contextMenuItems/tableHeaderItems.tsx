@@ -200,7 +200,7 @@ export const getTableHeaderMenuItems = (cell: GridCell): ItemType[] => {
                   col,
                   row,
                   chartType: item.type,
-                },
+                }
               ),
               icon: (
                 <Icon
@@ -256,7 +256,7 @@ export const getTableHeaderMenuItems = (cell: GridCell): ItemType[] => {
       row,
       isTableNameHeaderHidden,
       isTableFieldsHeaderHidden,
-      isChart,
+      isChart
     ),
     getDropdownDivider(),
     ...(openDetails(col, row, true) || []),

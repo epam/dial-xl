@@ -40,7 +40,7 @@ export function notifyObserver() {
   return function (
     target: any,
     propertyKey: string,
-    descriptor: PropertyDescriptor,
+    descriptor: PropertyDescriptor
   ): PropertyDescriptor {
     const originalSet = descriptor.set;
     if (typeof originalSet === 'function') {

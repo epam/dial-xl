@@ -1,14 +1,4 @@
-import { vi } from 'vitest';
-
 import { getExtendedRoundedBorders } from '../getExtendedRoundedBorders';
-
-vi.mock('../../../store/UserSettingsStore', () => ({
-  useUserSettingsStore: Object.assign(() => ({}), {
-    getState: () => ({ data: {} }),
-    setState: () => {},
-    subscribe: () => () => {},
-  }),
-}));
 
 describe('getExtendedRoundedBorders', () => {
   it('should return rounded-sm borders for small viewport', () => {

@@ -14,13 +14,13 @@ export type FieldItem = {
 };
 
 export type SetFieldsCallback = (
-  fields: FieldItem[] | ((prev: FieldItem[]) => FieldItem[]),
+  fields: FieldItem[] | ((prev: FieldItem[]) => FieldItem[])
 ) => void;
 
 export type OnMoveItem = (
   itemId: string,
   sourceContainer: ContainerId,
-  targetContainer: ContainerId,
+  targetContainer: ContainerId
 ) => void;
 
 export type FieldContainerId =
@@ -39,13 +39,13 @@ export const fieldContainers: FieldContainerId[] = [
 ];
 
 export const isFieldContainer = (
-  container: ContainerId,
+  container: ContainerId
 ): container is (typeof fieldContainers)[number] =>
   fieldContainers.includes(container as (typeof fieldContainers)[number]);
 
 export const formatFieldReference = (
   fields: FieldItem[],
-  tableName: string,
+  tableName: string
 ) => {
   if (!tableName) return '';
 
@@ -63,7 +63,7 @@ export const formatFieldReference = (
 
 export const parsePivotArguments = (
   args: Expression[],
-  aggregationFunctions: string[],
+  aggregationFunctions: string[]
 ) => {
   let rowsArg: Expression | undefined;
   let columnsArg: Expression | undefined;
@@ -141,7 +141,7 @@ export const parsePivotArguments = (
   if (aggregationsArg && aggregationsArg instanceof ConstStringExpression) {
     const aggregationText = aggregationsArg.text;
     const foundAggregation = aggregationFunctions.find(
-      (a) => a === aggregationText,
+      (a) => a === aggregationText
     );
 
     if (foundAggregation) {
@@ -158,11 +158,11 @@ export const parsePivotArguments = (
 };
 
 const extractFieldFromReference = (
-  fieldRef: FieldReferenceExpression,
+  fieldRef: FieldReferenceExpression
 ): FieldItem => {
   const fieldName = fieldRef.fieldName.substring(
     1,
-    fieldRef.fieldName.length - 1,
+    fieldRef.fieldName.length - 1
   );
 
   return {
@@ -172,7 +172,7 @@ const extractFieldFromReference = (
 };
 
 const extractFieldsFromReference = (
-  fieldsRef: FieldsReferenceExpression,
+  fieldsRef: FieldsReferenceExpression
 ): FieldItem[] => {
   const fieldNames = fieldsRef.fields.map((f) => f.substring(1, f.length - 1));
 
@@ -184,7 +184,7 @@ const extractFieldsFromReference = (
 
 export const toSelectOption = (
   value: string,
-  label?: string,
+  label?: string
 ): { value: string; label: string } => ({
   value,
   label: label || value,

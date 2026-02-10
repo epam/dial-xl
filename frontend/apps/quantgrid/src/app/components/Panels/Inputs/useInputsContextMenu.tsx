@@ -1,6 +1,7 @@
 import { MenuProps } from 'antd';
 import { DataNode, EventDataNode } from 'antd/es/tree';
 import classNames from 'classnames';
+import { MenuInfo } from 'rc-menu/lib/interface';
 import { useCallback, useContext, useState } from 'react';
 import { toast } from 'react-toastify';
 
@@ -27,7 +28,6 @@ import {
   TableIcon,
   TrashIcon,
 } from '@frontend/common';
-import { MenuInfo } from '@rc-component/menu/lib/interface';
 
 import { ApiContext, InputsContext, ProjectContext } from '../../../context';
 import {
@@ -52,7 +52,6 @@ export const importTreeKey = {
 
 const contextMenuActionKeys = {
   createTable: 'createTable',
-  createTableInNewSheet: 'createTableInNewSheet',
   download: 'download',
   rename: 'rename',
   clone: 'clone',
@@ -87,7 +86,7 @@ function getContextMenuKey(
   action: string,
   entityType: ContextMenuItemData['entityType'],
   entityKey: string,
-  childData?: CommonMetadata,
+  childData?: CommonMetadata
 ): string {
   return JSON.stringify({
     action,
@@ -125,7 +124,7 @@ export const useInputsContextMenu = ({
         event: React.MouseEvent<Element, MouseEvent>;
         node: EventDataNode<DataNode>;
       },
-      childData: InputChildData,
+      childData: InputChildData
     ) => {
       const key = info.node.key as string;
       const file = childData[key];
@@ -154,7 +153,7 @@ export const useInputsContextMenu = ({
               key: getContextMenuKey(
                 contextMenuActionKeys.editImportSource,
                 entityType,
-                entityKey,
+                entityKey
               ),
               label: 'Edit source',
               icon: (
@@ -168,7 +167,7 @@ export const useInputsContextMenu = ({
               key: getContextMenuKey(
                 contextMenuActionKeys.syncImportSource,
                 entityType,
-                entityKey,
+                entityKey
               ),
               label: 'Sync source',
               icon: (
@@ -182,7 +181,7 @@ export const useInputsContextMenu = ({
               key: getContextMenuKey(
                 contextMenuActionKeys.deleteImportSource,
                 entityType,
-                entityKey,
+                entityKey
               ),
               label: 'Delete source',
               icon: (
@@ -191,7 +190,7 @@ export const useInputsContextMenu = ({
                   component={() => <TrashIcon />}
                 />
               ),
-            }),
+            })
           );
           break;
         }
@@ -202,7 +201,7 @@ export const useInputsContextMenu = ({
               key: getContextMenuKey(
                 contextMenuActionKeys.createTable,
                 entityType,
-                entityKey,
+                entityKey
               ),
               label: 'Create table',
               icon: (
@@ -216,7 +215,7 @@ export const useInputsContextMenu = ({
               key: getContextMenuKey(
                 contextMenuActionKeys.syncDataset,
                 entityType,
-                entityKey,
+                entityKey
               ),
               label: 'Sync dataset',
               icon: (
@@ -230,7 +229,7 @@ export const useInputsContextMenu = ({
               key: getContextMenuKey(
                 contextMenuActionKeys.pullNewData,
                 entityType,
-                entityKey,
+                entityKey
               ),
               label: 'Pull new data',
               icon: (
@@ -244,7 +243,7 @@ export const useInputsContextMenu = ({
               key: getContextMenuKey(
                 contextMenuActionKeys.viewVersions,
                 entityType,
-                entityKey,
+                entityKey
               ),
               label: 'View versions',
               icon: (
@@ -253,7 +252,7 @@ export const useInputsContextMenu = ({
                   component={() => <HistoryIcon />}
                 />
               ),
-            }),
+            })
           );
           break;
         }
@@ -278,20 +277,11 @@ export const useInputsContextMenu = ({
                 contextMenuActionKeys.createTable,
                 entityType,
                 entityKey,
-                file,
+                file
               ),
               label: 'Create table',
             }),
-            getDropdownItem({
-              key: getContextMenuKey(
-                contextMenuActionKeys.createTableInNewSheet,
-                entityType,
-                entityKey,
-                file,
-              ),
-              label: 'Create table in new sheet',
-            }),
-            getDropdownDivider(),
+            getDropdownDivider()
           );
 
           if (!isFolder) {
@@ -301,7 +291,7 @@ export const useInputsContextMenu = ({
                   contextMenuActionKeys.download,
                   entityType,
                   entityKey,
-                  file,
+                  file
                 ),
                 label: 'Download',
                 icon: (
@@ -310,7 +300,7 @@ export const useInputsContextMenu = ({
                     component={() => <DownloadIcon />}
                   />
                 ),
-              }),
+              })
             );
           }
 
@@ -321,7 +311,7 @@ export const useInputsContextMenu = ({
                   contextMenuActionKeys.rename,
                   entityType,
                   entityKey,
-                  file,
+                  file
                 ),
                 label: 'Rename',
                 icon: (
@@ -336,7 +326,7 @@ export const useInputsContextMenu = ({
                   contextMenuActionKeys.clone,
                   entityType,
                   entityKey,
-                  file,
+                  file
                 ),
                 label: 'Clone',
                 icon: (
@@ -345,7 +335,7 @@ export const useInputsContextMenu = ({
                     component={() => <CopyIcon />}
                   />
                 ),
-              }),
+              })
             );
           }
 
@@ -356,7 +346,7 @@ export const useInputsContextMenu = ({
                   contextMenuActionKeys.moveTo,
                   entityType,
                   entityKey,
-                  file,
+                  file
                 ),
                 label: 'Move to',
                 icon: (
@@ -365,7 +355,7 @@ export const useInputsContextMenu = ({
                     component={() => <MoveToIcon />}
                   />
                 ),
-              }),
+              })
             );
           }
 
@@ -376,7 +366,7 @@ export const useInputsContextMenu = ({
                   contextMenuActionKeys.share,
                   entityType,
                   entityKey,
-                  file,
+                  file
                 ),
                 label: 'Share',
                 icon: (
@@ -385,7 +375,7 @@ export const useInputsContextMenu = ({
                     component={() => <ShareIcon />}
                   />
                 ),
-              }),
+              })
             );
           }
 
@@ -396,7 +386,7 @@ export const useInputsContextMenu = ({
                   contextMenuActionKeys.delete,
                   entityType,
                   entityKey,
-                  file,
+                  file
                 ),
                 label: 'Delete',
                 icon: (
@@ -405,7 +395,7 @@ export const useInputsContextMenu = ({
                     component={() => <TrashIcon />}
                   />
                 ),
-              }),
+              })
             );
           }
 
@@ -416,7 +406,7 @@ export const useInputsContextMenu = ({
                   contextMenuActionKeys.copyPath,
                   entityType,
                   entityKey,
-                  file,
+                  file
                 ),
                 label: 'Copy path',
                 icon: (
@@ -425,7 +415,7 @@ export const useInputsContextMenu = ({
                     component={() => <CopyIcon />}
                   />
                 ),
-              }),
+              })
             );
           }
           break;
@@ -437,7 +427,7 @@ export const useInputsContextMenu = ({
 
       setItems(items.filter(Boolean) as MenuProps['items']);
     },
-    [hasEditPermissions, isAdmin, userBucket],
+    [hasEditPermissions, isAdmin, userBucket]
   );
 
   const onContextMenuClick = useCallback(
@@ -450,20 +440,11 @@ export const useInputsContextMenu = ({
       } = parseContextMenuKey(info.key);
 
       switch (action) {
-        case contextMenuActionKeys.createTable:
-        case contextMenuActionKeys.createTableInNewSheet: {
+        case contextMenuActionKeys.createTable: {
           if (entityType === 'file' && file) {
-            const createInNewSheet =
-              action === contextMenuActionKeys.createTableInNewSheet;
             const formula = `:INPUT("${file.url}")`;
-            const newTableName = file.name.replaceAll(csvFileExtension, '');
-            requestDimSchemaForDimFormula({
-              col: 0,
-              row: 0,
-              value: formula,
-              newTableName,
-              createInNewSheet,
-            });
+            const tableName = file.name.replaceAll(csvFileExtension, '');
+            requestDimSchemaForDimFormula(0, 0, formula, tableName);
           } else if (entityType === 'import-catalog') {
             const [sourceKey, datasetKey, sourceName] = entityKey.split(':');
             useCreateTableFromImportModalStore
@@ -475,7 +456,7 @@ export const useInputsContextMenu = ({
 
         case contextMenuActionKeys.download: {
           if (entityType === 'file' && file) {
-            const toastId = toast.loading(`Downloading file '${file.name}'...`);
+            toast.loading(`Downloading file '${file.name}'...`);
             const result = await downloadFiles({
               files: [
                 {
@@ -485,7 +466,7 @@ export const useInputsContextMenu = ({
                 },
               ],
             });
-            toast.dismiss(toastId);
+            toast.dismiss();
             if (!result) {
               toast.error('Error happened during downloading file');
             }
@@ -559,13 +540,13 @@ export const useInputsContextMenu = ({
               okButtonProps: {
                 className: classNames(
                   modalFooterButtonClasses,
-                  primaryButtonClasses,
+                  primaryButtonClasses
                 ),
               },
               cancelButtonProps: {
                 className: classNames(
                   modalFooterButtonClasses,
-                  secondaryButtonClasses,
+                  secondaryButtonClasses
                 ),
               },
               onOk: async () => {
@@ -576,7 +557,7 @@ export const useInputsContextMenu = ({
                       projectBucket,
                       projectPath,
                       projectName,
-                    ]),
+                    ])
                   ),
                   source: sourceKey,
                 });
@@ -598,7 +579,7 @@ export const useInputsContextMenu = ({
                 sourceName,
                 undefined,
                 undefined,
-                'pullData',
+                'pullData'
               );
           }
 
@@ -651,7 +632,7 @@ export const useInputsContextMenu = ({
       projectPath,
       projectName,
       syncAllImports,
-    ],
+    ]
   );
 
   return { items, onContextMenuClick, createContextMenuItems };

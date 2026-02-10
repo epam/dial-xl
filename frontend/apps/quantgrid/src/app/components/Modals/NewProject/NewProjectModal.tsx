@@ -26,7 +26,7 @@ export function NewProjectModal() {
   const close = useNewProjectModalStore((s) => s.close);
   const submit = useNewProjectModalStore((s) => s.submit);
   const existingProjectNames = useNewProjectModalStore(
-    (s) => s.existingProjectNames,
+    (s) => s.existingProjectNames
   );
   const projectPath = useNewProjectModalStore((s) => s.path);
   const projectBucket = useNewProjectModalStore((s) => s.bucket);
@@ -59,7 +59,7 @@ export function NewProjectModal() {
 
       return event.target.value;
     },
-    [form],
+    [form]
   );
 
   const onKeydown = useCallback(
@@ -72,7 +72,7 @@ export function NewProjectModal() {
         handleOk();
       }
     },
-    [handleOk, isOpen],
+    [handleOk, isOpen]
   );
 
   const handleSelectFolder = useCallback(
@@ -80,7 +80,7 @@ export function NewProjectModal() {
       setProjectPath(parentPath);
       setProjectBucket(bucket);
     },
-    [setProjectBucket, setProjectPath],
+    [setProjectBucket, setProjectPath]
   );
 
   useEffect(() => {
@@ -112,7 +112,7 @@ export function NewProjectModal() {
         className: cx(
           modalFooterButtonClasses,
           primaryButtonClasses,
-          primaryDisabledButtonClasses,
+          primaryDisabledButtonClasses
         ),
       }}
       open={isOpen}
@@ -148,7 +148,7 @@ export function NewProjectModal() {
                     return result
                       ? Promise.resolve()
                       : Promise.reject(
-                          new Error('Project with this name already exists'),
+                          new Error('Project with this name already exists')
                         );
                   },
                 },

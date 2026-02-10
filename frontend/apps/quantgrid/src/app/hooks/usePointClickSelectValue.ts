@@ -21,7 +21,7 @@ export function usePointClickSelectValue() {
     useShallow((s) => ({
       isPointClickMode: s.isPointClickMode,
       pointClickModeSource: s.pointClickModeSource,
-    })),
+    }))
   );
   const selectedCell = useViewStore((s) => s.selectedCell);
   const gridApi = useGridApi();
@@ -91,7 +91,7 @@ export function usePointClickSelectValue() {
 
       return;
     },
-    [getSelectedCellContext, gridApi, selectedCell],
+    [getSelectedCellContext, gridApi, selectedCell]
   );
 
   /**
@@ -102,7 +102,7 @@ export function usePointClickSelectValue() {
   const getSingleSelectionPointClickValue = useCallback(
     (
       pointClickSelection: SelectionEdges,
-      isRangeSelection = false,
+      isRangeSelection = false
     ): string | undefined => {
       if (!gridApi || !selectedCell) return;
 
@@ -171,7 +171,7 @@ export function usePointClickSelectValue() {
           const findKeys = findTableKeys(
             targetTable,
             targetStartCol,
-            targetStartRow,
+            targetStartRow
           );
 
           return `${sanitizedTargetTableName}(${findKeys})[${targetFieldName}]`;
@@ -187,7 +187,7 @@ export function usePointClickSelectValue() {
         const findKeys = findTableKeys(
           targetTable,
           targetStartCol,
-          targetStartRow,
+          targetStartRow
         );
 
         return `${sanitizedTargetTableName}(${findKeys})[${targetFieldName}]`;
@@ -195,7 +195,7 @@ export function usePointClickSelectValue() {
 
       return;
     },
-    [findTable, findTableKeys, getSelectedCellContext, gridApi, selectedCell],
+    [findTable, findTableKeys, getSelectedCellContext, gridApi, selectedCell]
   );
 
   /**
@@ -241,13 +241,13 @@ export function usePointClickSelectValue() {
             startCol,
             endCol: startCol,
           },
-          startRow !== endRow,
+          startRow !== endRow
         );
       }
 
       return;
     },
-    [getSingleSelectionPointClickValue, gridApi, selectedCell],
+    [getSingleSelectionPointClickValue, gridApi, selectedCell]
   );
 
   /**
@@ -275,7 +275,7 @@ export function usePointClickSelectValue() {
       gridApi,
       isPointClickMode,
       selectedCell,
-    ],
+    ]
   );
 
   /**
@@ -286,7 +286,7 @@ export function usePointClickSelectValue() {
   const handlePointClickSelectValue = useCallback(
     (
       externalValue?: ExternalValueOptions | null,
-      pointClickSelection: SelectionEdges | null = null,
+      pointClickSelection: SelectionEdges | null = null
     ) => {
       if (!gridApi || !isPointClickMode || !selectedCell) return;
 
@@ -313,7 +313,7 @@ export function usePointClickSelectValue() {
       pointClickModeSource,
       publish,
       selectedCell,
-    ],
+    ]
   );
 
   return {

@@ -4,7 +4,7 @@ import { CodeEditorContext, FunctionInfo } from '@frontend/common';
 import { Monaco } from '@monaco-editor/react';
 
 import { Language } from '../codeEditorConfig';
-import { CancellationToken, editor, languages, Position } from '../monaco';
+import { CancellationToken, languages } from '../monaco';
 import {
   buildMessages,
   createSuggestion,
@@ -66,10 +66,10 @@ export function useInlineSuggestions({
       language,
       {
         provideInlineCompletions: (
-          model: editor.ITextModel,
-          position: Position,
-          context: languages.InlineCompletionContext,
-          token: CancellationToken,
+          model,
+          position,
+          _,
+          token
         ): Promise<languages.InlineCompletions | null> => {
           return new Promise((resolve, reject) => {
             if (debounceTimer.current) {
@@ -115,11 +115,11 @@ export function useInlineSuggestions({
                   codeEditorPlace,
                   sheetContent,
                   currentTableName,
-                  currentFieldName,
+                  currentFieldName
                 );
                 const suggestionText = await fetchSuggestion(
                   messages,
-                  getCompletions,
+                  getCompletions
                 );
 
                 if (!suggestionText) {
@@ -130,13 +130,13 @@ export function useInlineSuggestions({
 
                 const newSuggestion = createSuggestion(
                   suggestionText,
-                  position,
+                  position
                 );
 
                 const items = getFilteredAndFormattedSuggestions(
                   newSuggestion,
                   model,
-                  position,
+                  position
                 );
 
                 const result = {
@@ -160,7 +160,7 @@ export function useInlineSuggestions({
           inlineCompletionsEmpty = true;
           cleanUpTimers();
         },
-      },
+      }
     );
 
     return () => {

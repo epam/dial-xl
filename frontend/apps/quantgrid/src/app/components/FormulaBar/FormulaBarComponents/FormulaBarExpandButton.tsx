@@ -12,15 +12,15 @@ export function FormulaBarExpandButton() {
     useShallow((s) => ({
       formulaBarExpanded: s.formulaBarExpanded,
       setFormulaBarExpanded: s.setFormulaBarExpanded,
-    })),
+    }))
   );
 
   return (
     <div>
       <Button
         className={cx(
-          'h-[18px] flex items-center justify-center bg-transparent hover:bg-transparent! border-none focus-visible:outline-hidden! w-auto!',
-          formulaBarExpanded && 'transform rotate-180',
+          'h-full flex items-center justify-center bg-transparent hover:bg-transparent! border-none focus-visible:outline-hidden! w-auto!',
+          formulaBarExpanded && 'transform rotate-180'
         )}
         icon={
           <Icon

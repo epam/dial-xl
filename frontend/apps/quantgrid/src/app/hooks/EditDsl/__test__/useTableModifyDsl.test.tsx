@@ -1,5 +1,3 @@
-import { vi } from 'vitest';
-
 import { ColumnDataType } from '@frontend/common';
 import { act, RenderHookResult } from '@testing-library/react';
 
@@ -23,7 +21,7 @@ describe('useTableModifyDsl', () => {
   });
 
   beforeEach(() => {
-    vi.clearAllMocks();
+    jest.clearAllMocks();
     const hookRender = hookTestSetup(useTableModifyDsl, Wrapper);
     hook = hookRender.result;
     setDsl = hookRender.setDsl;
@@ -269,13 +267,13 @@ describe('useTableModifyDsl', () => {
 
       // Act
       act(() =>
-        hook.current.addTableRowWithConvertToManualTable('t1', 'f1', '2'),
+        hook.current.addTableRowWithConvertToManualTable('t1', 'f1', '2')
       );
 
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Convert table "t1" to manual table and add row`,
-        [{ sheetName: props.sheetName, content: expectedDsl }],
+        [{ sheetName: props.sheetName, content: expectedDsl }]
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -306,13 +304,13 @@ describe('useTableModifyDsl', () => {
 
       // Act
       act(() =>
-        hook.current.addTableRowWithConvertToManualTable('t1', 'f1', '2'),
+        hook.current.addTableRowWithConvertToManualTable('t1', 'f1', '2')
       );
 
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Convert table "t1" to manual table and add row`,
-        [{ sheetName: props.sheetName, content: expectedDsl }],
+        [{ sheetName: props.sheetName, content: expectedDsl }]
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -342,13 +340,13 @@ describe('useTableModifyDsl', () => {
 
       // Act
       act(() =>
-        hook.current.addTableRowWithConvertToManualTable('t1', 'f1', '2'),
+        hook.current.addTableRowWithConvertToManualTable('t1', 'f1', '2')
       );
 
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Convert table "t1" to manual table and add row`,
-        [{ sheetName: props.sheetName, content: expectedDsl }],
+        [{ sheetName: props.sheetName, content: expectedDsl }]
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -379,13 +377,13 @@ describe('useTableModifyDsl', () => {
 
       // Act
       act(() =>
-        hook.current.addTableRowWithConvertToManualTable('t1', 'f1', '2'),
+        hook.current.addTableRowWithConvertToManualTable('t1', 'f1', '2')
       );
 
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Convert table "t1" to manual table and add row`,
-        [{ sheetName: props.sheetName, content: expectedDsl }],
+        [{ sheetName: props.sheetName, content: expectedDsl }]
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },

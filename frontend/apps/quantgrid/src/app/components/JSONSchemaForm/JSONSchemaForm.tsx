@@ -43,7 +43,7 @@ const uiSchema: UiSchema = {
         modalFooterButtonClasses,
         primaryButtonClasses,
         primaryDisabledButtonClasses,
-        'right-0',
+        'right-0'
       ),
     },
     norender: true,

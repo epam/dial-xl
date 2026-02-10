@@ -4,6 +4,7 @@ import {
   DslSheetChange,
   GPTFocusColumn,
   GPTSuggestion,
+  useIsMobile,
   WorksheetState,
 } from '@frontend/common';
 import {
@@ -18,6 +19,7 @@ import {
 
 import {
   AppSpreadsheetInteractionContext,
+  CommonContext,
   ProjectContext,
   UndoRedoContext,
   ViewportContext,
@@ -42,7 +44,9 @@ export function useApplySuggestions() {
     responseIds,
   } = useContext(ProjectContext);
   const { appendTo } = useContext(UndoRedoContext);
+  const { sharedRef } = useContext(CommonContext);
   const { openTable, openField } = useContext(AppSpreadsheetInteractionContext);
+  const isMobile = useIsMobile();
 
   const getDslWithExpandedSizes = useCallback(
     (sheetChange: string, existingTableNames: string[]) => {
@@ -51,7 +55,7 @@ export function useApplySuggestions() {
         const editableSheet = createEditableSheet(
           'EditableSheet',
           sheetChange,
-          parsedSheet.tables,
+          parsedSheet.tables
         );
         editableSheet.tables.forEach((table) => {
           table.emptyLineBefore = true;
@@ -59,7 +63,7 @@ export function useApplySuggestions() {
 
           const parsedTable = parsedSheet.tables.find(
             (parsedTable) =>
-              unescapeTableName(parsedTable.tableName) === table.name,
+              unescapeTableName(parsedTable.tableName) === table.name
           );
           const col = parsedTable?.getLayoutDecorator()?.params[0][1];
           let offset = 0;
@@ -71,7 +75,7 @@ export function useApplySuggestions() {
             if (!field) return;
 
             const fieldSizeDecorator = parsedField.decorators?.find(
-              (decor) => decor.decoratorName === fieldColSizeDecoratorName,
+              (decor) => decor.decoratorName === fieldColSizeDecoratorName
             );
 
             if (
@@ -94,7 +98,7 @@ export function useApplySuggestions() {
 
             if (fieldSize && fieldSize > 1) {
               field.addDecorator(
-                new Decorator(fieldColSizeDecoratorName, `(${fieldSize})`),
+                new Decorator(fieldColSizeDecoratorName, `(${fieldSize})`)
               );
             }
 
@@ -110,7 +114,7 @@ export function useApplySuggestions() {
         return sheetChange;
       }
     },
-    [grid, projectName, sheetName],
+    [grid, projectName, sheetName]
   );
 
   const getDSLChanges = useCallback(
@@ -118,7 +122,7 @@ export function useApplySuggestions() {
       GPTSuggestions: GPTSuggestion[] | null,
       sheetName: string,
       currentSheets: WorksheetState[],
-      ignoreViewportWhenPlacing: boolean,
+      ignoreViewportWhenPlacing: boolean
     ): DslSheetChange[] => {
       if (!GPTSuggestions) return [];
 
@@ -136,21 +140,21 @@ export function useApplySuggestions() {
             ignoreViewportWhenPlacing ? [] : tableStructures,
             grid,
             projectName,
-            sheetName,
+            sheetName
           ),
-        }),
+        })
       );
 
       const newSheetNames = existingSheetsChanges.map(
-        (sheet) => sheet.sheetName,
+        (sheet) => sheet.sheetName
       );
       const oldSheetNames = currentSheets.map((sheet) => sheet.sheetName);
       const resultedChanges = Array.from(
-        new Set([...newSheetNames, ...oldSheetNames]),
+        new Set([...newSheetNames, ...oldSheetNames])
       )
         .map((sheetName) => {
           const sheetChange = existingSheetsChanges.find(
-            (sheet) => sheet.sheetName === sheetName,
+            (sheet) => sheet.sheetName === sheetName
           )?.content;
 
           return {
@@ -169,7 +173,7 @@ export function useApplySuggestions() {
 
       return resultedChanges;
     },
-    [viewGridData, parsedSheets, grid, projectName, getDslWithExpandedSizes],
+    [viewGridData, parsedSheets, grid, projectName, getDslWithExpandedSizes]
   );
 
   const onFocusColumns = useCallback(
@@ -181,30 +185,37 @@ export function useApplySuggestions() {
       openField(
         focusedColumn.sheetName,
         escapeTableName(focusedColumn.tableName),
-        escapeFieldName(focusedColumn.columnName),
+        escapeFieldName(focusedColumn.columnName)
       );
+
+      if (isMobile) {
+        sharedRef.current.layoutContext?.closeAllPanels?.();
+      }
     },
-    [openField],
+    [isMobile, openField, sharedRef]
   );
 
   const openLastChangedTable = useCallback(
     (GPTSuggestions: GPTSuggestion[], dslChanges: DslSheetChange[]) => {
       const lastSuggestion = GPTSuggestions[GPTSuggestions.length - 1];
       const lastSuggestionSheet = dslChanges?.find(
-        (s) => s.sheetName === (lastSuggestion.sheetName ?? sheetName),
+        (s) => s.sheetName === (lastSuggestion.sheetName ?? sheetName)
       );
       if (!lastSuggestionSheet?.sheetName) return;
 
       const lastChangedTable = findLastChangedTable(
         lastSuggestionSheet?.content || '',
-        lastSuggestion.dsl,
+        lastSuggestion.dsl
       );
 
       if (!lastChangedTable) return;
 
       openTable(lastSuggestionSheet.sheetName, lastChangedTable.tableName);
+      if (isMobile) {
+        sharedRef.current.layoutContext?.closeAllPanels?.();
+      }
     },
-    [openTable, sheetName],
+    [isMobile, openTable, sharedRef, sheetName]
   );
 
   const applySuggestion = useCallback(
@@ -225,7 +236,7 @@ export function useApplySuggestions() {
         withPut: true,
         withHistoryItem: true,
         ignoreViewportWhenPlacing: false,
-      },
+      }
     ) => {
       if (
         !sheetName ||
@@ -240,7 +251,7 @@ export function useApplySuggestions() {
         GPTSuggestions,
         sheetName,
         projectSheets,
-        ignoreViewportWhenPlacing,
+        ignoreViewportWhenPlacing
       );
 
       const sheetsNamesToChange = dslChanges.map((change) => change.sheetName);
@@ -251,7 +262,7 @@ export function useApplySuggestions() {
         const historyTitle = userMessage
           ? `${actionPrefix} ${userMessage.slice(0, maxMessageLength)}`
           : `${actionPrefix} change worksheets "${sheetsNamesToChange.join(
-              ', ',
+              ', '
             )}"`;
         appendTo(historyTitle, dslChanges);
       }
@@ -279,7 +290,7 @@ export function useApplySuggestions() {
       appendTo,
       onFocusColumns,
       openLastChangedTable,
-    ],
+    ]
   );
 
   return {

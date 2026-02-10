@@ -1,9 +1,9 @@
-import { Application } from 'pixi.js';
+import * as PIXI from 'pixi.js';
 import { RefObject, useCallback, useEffect, useState } from 'react';
 
 type Props = {
   gridContainerRef: RefObject<HTMLDivElement | null>;
-  app: Application | null;
+  app: PIXI.Application | null;
 };
 
 export function useGridResize({ gridContainerRef, app }: Props) {

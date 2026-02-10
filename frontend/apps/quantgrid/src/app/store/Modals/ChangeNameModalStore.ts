@@ -67,14 +67,10 @@ export const useChangeNameModalStore = create<ChangeNameModalStore>()(
 
     open: (config) => {
       return new Promise<string | null>((resolve) => {
-        const error = config?.validate
-          ? config.validate(config.initialName ?? '')
-          : undefined;
-
         set({
           isOpen: true,
           name: config.initialName ?? '',
-          error,
+          error: undefined,
           config,
           _resolver: resolve,
         });
@@ -99,5 +95,5 @@ export const useChangeNameModalStore = create<ChangeNameModalStore>()(
       _resolver?.(null);
       set(initialState);
     },
-  }),
+  })
 );

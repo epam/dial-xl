@@ -139,7 +139,7 @@ export class ApplySort extends ObservableObserver {
     if (index < 0 || index > this._formulas.length) {
       throw new Error(
         `Sort formula index ${index} is out of bounds: valid indices start from 0, ` +
-          `the current range is [0, ${this._formulas.length}].`,
+          `the current range is [0, ${this._formulas.length}].`
       );
     }
   }

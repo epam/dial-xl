@@ -7,7 +7,7 @@ import {
 } from '@frontend/common';
 
 export type DashboardItem<
-  T = ResourceMetadata | SharedWithMeMetadata | SharedByMeMetadata,
+  T = ResourceMetadata | SharedWithMeMetadata | SharedByMeMetadata
 > = T & {
   isSharedByMe?: boolean;
   owner?: 'Me' | 'Public' | 'Shared with me' | string;
@@ -46,6 +46,6 @@ export interface DashboardListColumn {
   formatValue: (
     value: DashboardItem<
       ResourceMetadata | SharedByMeMetadata | SharedWithMeMetadata
-    >,
+    >
   ) => ReactNode;
 }

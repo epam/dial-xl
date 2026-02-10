@@ -68,11 +68,8 @@ import com.epam.deltix.quantgrid.engine.service.input.InputMetadata;
 import com.epam.deltix.quantgrid.engine.service.input.storage.ImportProvider;
 import com.epam.deltix.quantgrid.engine.service.input.storage.InputProvider;
 import com.epam.deltix.quantgrid.parser.FieldKey;
-import com.epam.deltix.quantgrid.parser.ParsedFormula;
 import com.epam.deltix.quantgrid.parser.ParsedPython;
 import com.epam.deltix.quantgrid.parser.ParsedTable;
-import com.epam.deltix.quantgrid.parser.ParsingError;
-import com.epam.deltix.quantgrid.parser.SheetReader;
 import com.epam.deltix.quantgrid.parser.ast.BinaryOperation;
 import com.epam.deltix.quantgrid.parser.ast.ConstBool;
 import com.epam.deltix.quantgrid.parser.ast.ConstNumber;
@@ -86,7 +83,6 @@ import com.epam.deltix.quantgrid.type.ColumnType;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
 import lombok.experimental.UtilityClass;
-import org.apache.logging.log4j.util.Strings;
 
 import java.security.Principal;
 import java.util.ArrayList;
@@ -150,8 +146,8 @@ public class CompileFunction {
             case "SORT" -> compileSort(context);
             case "SORTBY" -> compileSortBy(context);
             case "COUNT" -> compileCount(context);
-            case "SUM", "AVERAGE", "MAX", "MIN", "STDEVS", "STDEVP", "GEOMEAN", "MEDIAN", "CORREL", "MODE" ->
-                    compileSimpleAggregation(name, context);
+            case "SUM", "AVERAGE", "MAX", "MIN", "STDEVS", "STDEVP", "GEOMEAN", "MEDIAN", "CORREL" ->
+                    compileDoubleAggregation(name, context);
             case "PERCENTILE", "PERCENTILE_EXC", "QUARTILE", "QUARTILE_EXC" ->
                     compileQuantileAggregation(name, context);
             case "MINBY", "MAXBY" -> compileRowAggregationByDouble(name, context);
@@ -161,7 +157,6 @@ public class CompileFunction {
             case "INDEX" -> compileIndex(context);
             case "INPUT" -> compileInput(context);
             case "IMPORT" -> compileImport(context);
-            case "GROUPBY" -> CompileGroupBy.compile(context);
             case "PIVOT" -> CompilePivot.compile(context);
             case "UNPIVOT" -> CompileUnpivot.compile(context);
             case "FIELDS" -> compileFields(context);
@@ -169,6 +164,7 @@ public class CompileFunction {
             case "TEXT" -> compileText(context);
             case "IF" -> compileIf(context);
             case "IFNA" -> compileIfNa(context);
+            case "MODE" -> compileMode(context);
             case "PI" -> compilePi();
             case "SPLIT" -> compileSplit(context);
             case "DATERANGE" -> compileDateRange(context);
@@ -187,7 +183,6 @@ public class CompileFunction {
             case "AIMODELS" -> CompileAi.compileModels(context);
             case "AILIST" -> CompileAi.compileList(context);
             case "AIVALUE" -> CompileAi.compileValue(context);
-            case "ERR" -> compileError(context);
             default -> throw new CompileError("Unsupported function: " + name);
         };
     }
@@ -504,12 +499,10 @@ public class CompileFunction {
         return new CompiledSimpleColumn(column, arg.dimensions(), GeneralFormat.INSTANCE);
     }
 
-    private CompiledResult compileSimpleAggregation(String name, CompileContext context) {
+    private CompiledResult compileDoubleAggregation(String name, CompileContext context) {
         AggregateType type = AggregateType.valueOf(name);
-        ResultValidator<CompiledNestedColumn> validator = (type.schemaFunction() == AggregateType.SchemaFunction.DOUBLE)
-                ? NestedColumnValidators.DOUBLE : NestedColumnValidators.STRING_OR_DOUBLE;
+        List<CompiledNestedColumn> args = compileArgs(context, NestedColumnValidators.DOUBLE);
 
-        List<CompiledNestedColumn> args = compileArgs(context, validator);
         CompiledNestedColumn table = args.get(0);
         Plan layout = context.layout(table.dimensions()).node().getLayout();
 
@@ -519,7 +512,7 @@ public class CompileFunction {
 
         Get column = new Get(aggregate, 0);
         return new CompiledSimpleColumn(column, table.dimensions(),
-                FormatResolver.resolveAggregationFormat(type, table.format()));
+                FormatResolver.resolveDoubleAggregationFormat(type, table.format()));
     }
 
     private CompiledResult compileQuantileAggregation(String name, CompileContext context) {
@@ -666,8 +659,9 @@ public class CompileFunction {
         }
 
         InputLocal plan = new InputLocal(metadata, provider, context.principal());
-        List<String> columnNames = metadata.names();
-        List<ColumnFormat> columnFormats = metadata.types().stream()
+        List<String> columnNames = plan.getReadColumns();
+        List<ColumnFormat> columnFormats = columnNames.stream()
+                .map(metadata.columnTypes()::get)
                 .map(type -> switch (type) {
                     case BOOLEAN -> BooleanFormat.INSTANCE;
                     case DATE -> DateFormat.DEFAULT_DATE_FORMAT;
@@ -755,6 +749,21 @@ public class CompileFunction {
             UnaryFunction condition = new UnaryFunction(arg1, UnaryFunction.Type.ISNA);
             return new If(condition, arg2, arg1);
         }, source.format());
+    }
+
+    private CompiledResult compileMode(CompileContext context) {
+        CompiledNestedColumn arg = context.compileArgument(0, NestedColumnValidators.STRING_OR_DOUBLE);
+
+        Plan layout = context.layout(arg.dimensions()).node().getLayout();
+        Plan plan = arg.node();
+
+        Get key = arg.hasCurrentReference() ? arg.currentReference() : null;
+        Expression value = arg.expression();
+
+        Plan aggregate = new AggregateLocal(AggregateType.MODE, layout, plan, key, value);
+        Get column = new Get(aggregate, 0);
+
+        return new CompiledSimpleColumn(column, arg.dimensions(), arg.format());
     }
 
     private CompiledResult compileFields(CompileContext context) {
@@ -1349,19 +1358,6 @@ public class CompileFunction {
 
         Expression result = new InLocal(valueKeys, sourceKeys);
         return valueColumn.transform(original -> result, BooleanFormat.INSTANCE);
-    }
-
-    private CompiledColumn compileError(CompileContext context) {
-        String expression = context.constStringArgument(0);
-        ParsedFormula formula = SheetReader.parseFormula(expression);
-        List<ParsingError> errors = formula.errors();
-        String message = "Valid formula";
-
-        if (!errors.isEmpty() && !Strings.isEmpty(errors.get(0).getMessage())) {
-            message = "Invalid formula: " + errors.get(0).getMessage();
-        }
-
-        throw new CompileError(message);
     }
 
     private TableArgs compileTableArgs(CompileContext context,

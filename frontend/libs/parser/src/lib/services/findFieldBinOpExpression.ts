@@ -2,7 +2,7 @@ import { BinOpExpression, CurrentFieldExpression, Expression } from '../ast';
 
 export function findFieldBinOpExpressions(
   parsedExpression: Expression,
-  fieldName: string,
+  fieldName: string
 ): BinOpExpression[] {
   if (!parsedExpression) return [];
 
@@ -20,7 +20,7 @@ export function findFieldBinOpExpressions(
 }
 
 export function findFieldBinOpExpression(
-  expression: Expression,
+  expression: Expression
 ): BinOpExpression[] {
   const result: BinOpExpression[] = [];
 

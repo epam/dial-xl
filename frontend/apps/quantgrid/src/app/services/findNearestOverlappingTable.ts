@@ -6,13 +6,13 @@ export function findNearestOverlappingTable(
   targetParsedTable: ParsedTable,
   tableStructures: GridTable[],
   parsedTables: ParsedTable[],
-  isForward: boolean,
+  isForward: boolean
 ): ParsedTable | undefined {
   const overlappingTables = parsedTables.filter((table) => {
     if (table.tableName === targetGridTable.tableName) return false;
 
     const otherGridTable = tableStructures.find(
-      (ts) => ts.tableName === table.tableName,
+      (ts) => ts.tableName === table.tableName
     );
 
     if (!otherGridTable) return false;
@@ -43,7 +43,7 @@ export function findNearestOverlappingTable(
     if (!table.span || !targetParsedTable.span) continue;
 
     const offsetDifference = Math.abs(
-      table.span.from - targetParsedTable.span.from,
+      table.span.from - targetParsedTable.span.from
     );
 
     if (offsetDifference < minOffsetDifference) {

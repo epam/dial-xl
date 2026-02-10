@@ -5,7 +5,7 @@ import { useFormulaBarStore } from '../../../store';
 
 type Props = {
   onPanelAutoResize: (size: number) => void;
-  inputRef: RefObject<InputRef | null>;
+  inputRef: RefObject<InputRef>;
 };
 
 export function useFormulaBarHeaderAutoExtend({
@@ -46,7 +46,7 @@ export function useFormulaBarHeaderAutoExtend({
 
       onPanelAutoResize(fullTextWidth);
     },
-    [formulaBarExpanded, inputRef, onPanelAutoResize],
+    [formulaBarExpanded, inputRef, onPanelAutoResize]
   );
 
   return { triggerAutoExtend };

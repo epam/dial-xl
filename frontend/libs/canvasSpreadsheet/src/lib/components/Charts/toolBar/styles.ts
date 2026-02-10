@@ -1,8 +1,8 @@
 import cx from 'classnames';
+import { DefaultOptionType } from 'rc-select/lib/Select';
 import { GroupBase, StylesConfig } from 'react-select';
 
 import { selectStyles } from '@frontend/common';
-import { DefaultOptionType } from '@rc-component/select/lib/Select';
 
 import { getPx } from '../../../utils';
 import { ChartConfig } from '../types';
@@ -44,8 +44,8 @@ export function getSelectStyles({
       backgroundColor: state.isSelected
         ? '#dbeafe'
         : state.isFocused
-          ? '#dde4ee'
-          : 'transparent',
+        ? '#dde4ee'
+        : 'transparent',
       color: '#000',
       fontSize: getPx(defaultFontSize * zoom),
       padding: '4px 8px',
@@ -61,7 +61,7 @@ export function getSingleSelectOptionStyles(
   isSelected: boolean,
   data: DefaultOptionType,
   keyName: string,
-  chartConfig: ChartConfig,
+  chartConfig: ChartConfig
 ): string {
   const noDataKeys = chartConfig.gridChart.keysWithNoDataPoint[keyName] || [];
   const isNoDataKey = noDataKeys.includes(data.value as string);
@@ -70,13 +70,13 @@ export function getSingleSelectOptionStyles(
     return cx(
       isSelected
         ? 'bg-bg-accent-primary-alpha! text-text-secondary!'
-        : 'bg-bg-layer-0! text-text-secondary! hover:bg-bg-accent-primary-alpha!',
+        : 'bg-bg-layer-0! text-text-secondary! hover:bg-bg-accent-primary-alpha!'
     );
   }
 
   return cx(
     isSelected
       ? 'bg-bg-accent-primary-alpha! text-text-accent-primary!'
-      : 'bg-bg-layer-0! text-text-primary! hover:bg-bg-accent-primary-alpha!',
+      : 'bg-bg-layer-0! text-text-primary! hover:bg-bg-accent-primary-alpha!'
   );
 }

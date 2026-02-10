@@ -15,7 +15,7 @@ export function useTreeHeight() {
     const observer = new ResizeObserver(() => {
       const wrapper = document.getElementById(projectPanelWrapperId);
       const headers = document.querySelectorAll(
-        `.${projectPanelSectionHeaderClass}`,
+        `.${projectPanelSectionHeaderClass}`
       );
 
       if (!wrapper || !headers.length) {

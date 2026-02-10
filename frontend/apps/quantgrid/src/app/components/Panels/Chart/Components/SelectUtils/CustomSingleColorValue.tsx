@@ -1,13 +1,12 @@
+import { DefaultOptionType } from 'rc-select/lib/Select';
 import { components, GroupBase, SingleValueProps } from 'react-select';
-
-import { DefaultOptionType } from '@rc-component/select/lib/Select';
 
 export const CustomSingleColorValue = (
   props: SingleValueProps<
     DefaultOptionType,
     boolean,
     GroupBase<DefaultOptionType>
-  >,
+  >
 ) => {
   return (
     <components.SingleValue {...props}>

@@ -1,6 +1,6 @@
 import { useContext, useEffect, useState } from 'react';
 
-import { GPTState } from '@frontend/common';
+import { SystemMessageParsedContent } from '@frontend/common';
 
 import { InputsContext, ProjectContext } from '../context';
 import { useViewStore } from '../store';
@@ -18,7 +18,8 @@ export const useSelectionSystemMessage = () => {
     endRow: number;
     endCol: number;
   } | null>(null);
-  const [systemMessageContent, setSystemMessageContent] = useState<GPTState>();
+  const [systemMessageContent, setSystemMessageContent] =
+    useState<SystemMessageParsedContent>();
 
   useEffect(() => {
     if (!projectSheets || !sheetName || !projectName || !gridApi) return;
@@ -28,15 +29,13 @@ export const useSelectionSystemMessage = () => {
       sheets[sheet.sheetName] = sheet.content;
     }
 
-    const state: GPTState = {
-      projectState: {
-        sheets,
-        inputs,
-        currentSheet: sheetName,
-        currentProjectName: projectName,
-        selection,
-        selectedTableName: selectedCell?.tableName,
-      },
+    const state: SystemMessageParsedContent = {
+      sheets,
+      inputs,
+      currentSheet: sheetName,
+      currentProjectName: projectName,
+      selection,
+      selectedTableName: selectedCell?.tableName,
     };
 
     setSystemMessageContent(state);

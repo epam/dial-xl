@@ -24,7 +24,7 @@ export const useImports = () => {
   const { listImportSources, listImportCatalog, discoverImportDataset } =
     useApiRequests();
   const openSyncImportsConfirmModal = useSyncImportsConfirmModalStore(
-    (s) => s.open,
+    (s) => s.open
   );
   const {
     syncSingleImportField: handleSyncSingleImportField,
@@ -79,7 +79,7 @@ export const useImports = () => {
         [sourceKey]: catalogResponse,
       }));
     },
-    [fullProjectPath, importCatalogs, listImportCatalog],
+    [fullProjectPath, importCatalogs, listImportCatalog]
   );
 
   const expandImportCatalog = useCallback(
@@ -102,7 +102,7 @@ export const useImports = () => {
         }));
       }
     },
-    [discoverImportDataset, fullProjectPath, importDatasets],
+    [discoverImportDataset, fullProjectPath, importDatasets]
   );
 
   const syncAllImports = useCallback(
@@ -111,8 +111,8 @@ export const useImports = () => {
       const mode: 'all' | 'source' | 'dataset' = dataset
         ? 'dataset'
         : source
-          ? 'source'
-          : 'all';
+        ? 'source'
+        : 'all';
 
       const selectedSourceName = source
         ? Object.values(importSources).find((i) => i.source === source)?.name
@@ -152,7 +152,7 @@ export const useImports = () => {
         toast.info(
           mode === 'all'
             ? 'No matching imports found. It looks like there are no IMPORT() calls in worksheet formulas.'
-            : 'No imports matched the selected filters. Nothing to sync.',
+            : 'No imports matched the selected filters. Nothing to sync.'
         );
 
         return;
@@ -181,7 +181,7 @@ export const useImports = () => {
       importSources,
       openSyncImportsConfirmModal,
       parsedSheets,
-    ],
+    ]
   );
 
   const syncSingleImportField = useCallback(
@@ -222,14 +222,14 @@ export const useImports = () => {
       importSources,
       openSyncImportsConfirmModal,
       parsedSheets,
-    ],
+    ]
   );
 
   const onRenameImportSource = useCallback(
     (oldName: string, newName: string) => {
       renameImportSourceDsl(oldName, newName);
     },
-    [renameImportSourceDsl],
+    [renameImportSourceDsl]
   );
 
   useEffect(() => {

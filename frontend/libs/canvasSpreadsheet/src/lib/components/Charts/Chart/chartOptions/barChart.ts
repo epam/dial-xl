@@ -13,7 +13,6 @@ import {
   getColor,
   getThemeColors,
   isHtmlColor,
-  makeUniqueLabel,
   sortNumericOrText,
 } from '../common';
 
@@ -22,7 +21,7 @@ const horizontalCharts = [ChartType.CLUSTERED_BAR, ChartType.STACKED_BAR];
 
 export function organizeBarChartData(
   chartData: ChartsData,
-  gridChart: GridChart,
+  gridChart: GridChart
 ): OrganizedData | undefined {
   const {
     chartSections,
@@ -35,7 +34,13 @@ export function organizeBarChartData(
   } = gridChart;
   const data = chartData[tableName];
 
-  if (!data || !Object.keys(data).length || !chartSections?.length) return;
+  if (
+    !data ||
+    !Object.keys(data).length ||
+    !chartSections ||
+    !chartSections.length
+  )
+    return;
 
   const legendData: string[] = [];
   const xAxisData: string[] = [];
@@ -46,8 +51,6 @@ export function organizeBarChartData(
   const orientation = horizontalCharts.includes(chartType)
     ? 'horizontal'
     : 'vertical';
-  // for the horizontal axis we need per-row labels in table order with duplicates preserved
-  let horizontalXAxisDisplayUnique: string[] | undefined;
 
   for (const section of chartSections) {
     const { xAxisFieldName, valueFieldNames } = section;
@@ -59,7 +62,7 @@ export function organizeBarChartData(
       : 0;
 
     const rowNumbers = Array.from({ length: rowCount }, (_, i) =>
-      (i + 1).toString(),
+      (i + 1).toString()
     );
 
     const rowLabels: string[] =
@@ -81,16 +84,6 @@ export function organizeBarChartData(
     if (chartOrientation === 'horizontal') {
       if (!xAxisData.length) {
         xAxisData.push(...rowLabels);
-
-        // build display labels per row, keep duplicates
-        const occByDisplay = new Map<string, number>();
-        horizontalXAxisDisplayUnique = rowLabels.map((raw, i) => {
-          const baseLabel = (rowLabelsDisplay?.[i] ?? raw) || raw || `${i + 1}`;
-          const occ = (occByDisplay.get(baseLabel) ?? 0) + 1;
-          occByDisplay.set(baseLabel, occ);
-
-          return makeUniqueLabel(baseLabel, occ);
-        });
       }
 
       for (const valueFieldName of sortNumericOrText(valueFieldNames)) {
@@ -165,24 +158,20 @@ export function organizeBarChartData(
     }
   }
 
-  const uniqueLegendData = [...new Set(legendData)];
+  const uniqueXAxisData = addLineBreaks(
+    [...new Set(xAxisData)]
+      .filter(Boolean)
+      .map((raw) => xDisplayByRaw.get(raw) ?? raw)
+  );
 
-  // do not dedupe x-axis in horizontal mode; preserve order + duplicates
-  const finalXAxisData =
-    chartOrientation === 'horizontal' && horizontalXAxisDisplayUnique
-      ? addLineBreaks(horizontalXAxisDisplayUnique)
-      : addLineBreaks(
-          [...new Set(xAxisData)]
-            .filter(Boolean)
-            .map((raw) => xDisplayByRaw.get(raw) ?? raw),
-        );
+  const uniqueLegendData = [...new Set(legendData)];
 
   return {
     legendPosition,
     showLegend,
     series,
     legendData: uniqueLegendData,
-    xAxisData: finalXAxisData,
+    xAxisData: uniqueXAxisData,
     orientation,
   };
 }
@@ -269,20 +258,14 @@ export function getBarChartOption({
       backgroundColor: bgColor,
       borderColor: borderColor,
       formatter: (params: any) => {
-        const axisLabel =
-          params.length > 0 ? params[0].axisValue + '</br>' : '';
-
-        return (
-          axisLabel +
-          params
-            .map(
-              ({ marker, data, seriesName }: any) =>
-                `${marker}${seriesName}<span style="float: right; margin-left: 20px"><b>${
-                  data?.displayValue || data?.value || ''
-                }</b></span>`,
-            )
-            .join('<br/>')
-        );
+        return params
+          .map(
+            ({ marker, data, seriesName }: any) =>
+              `${marker}${seriesName}<span style="float: right; margin-left: 20px"><b>${
+                data?.displayValue || data?.value || ''
+              }</b></span>`
+          )
+          .join('<br/>');
       },
     },
   };

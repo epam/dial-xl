@@ -1,5 +1,4 @@
 import { BehaviorSubject } from 'rxjs';
-import { beforeEach, describe, expect, it, Mock, vi } from 'vitest';
 
 import { renderHook } from '@testing-library/react';
 
@@ -8,18 +7,18 @@ import { Edges, GridTable } from '../../types';
 import { useNavigation } from '../useNavigation';
 import { useSelectionMoveNextAvailable } from '../useSelectionMoveNextAvailable';
 
-vi.mock('../../utils', () => ({
-  isCellEditorOpen: vi.fn(() => false),
+jest.mock('../../utils', () => ({
+  isCellEditorOpen: jest.fn(() => false),
 }));
 
-vi.mock('../useNavigation', () => ({
-  useNavigation: vi.fn(),
+jest.mock('../useNavigation', () => ({
+  useNavigation: jest.fn(),
 }));
 
 describe('useSelectionMoveNextAvailable', () => {
-  const mockMoveViewportToCell = vi.fn();
-  const mockSetSelectionEdges = vi.fn();
-  const mockGetCell = vi.fn();
+  const mockMoveViewportToCell = jest.fn();
+  const mockSetSelectionEdges = jest.fn();
+  const mockGetCell = jest.fn();
 
   const defaultGridSizes = {
     edges: {
@@ -31,7 +30,7 @@ describe('useSelectionMoveNextAvailable', () => {
   };
 
   beforeEach(() => {
-    vi.clearAllMocks();
+    jest.clearAllMocks();
     mockMoveViewportToCell.mockReset();
     mockSetSelectionEdges.mockReset();
     mockGetCell.mockReset();
@@ -42,7 +41,7 @@ describe('useSelectionMoveNextAvailable', () => {
       row,
     }));
 
-    (useNavigation as Mock).mockReturnValue({
+    (useNavigation as jest.Mock).mockReturnValue({
       moveViewportToCell: mockMoveViewportToCell,
     });
   });
@@ -50,7 +49,7 @@ describe('useSelectionMoveNextAvailable', () => {
   const createWrapper = (
     selection: Edges,
     tableStructure: GridTable[] = [],
-    gridSizes = defaultGridSizes,
+    gridSizes = defaultGridSizes
   ) => {
     const selection$ = new BehaviorSubject<Edges>(selection);
     const contextValue = {
@@ -107,7 +106,7 @@ describe('useSelectionMoveNextAvailable', () => {
         const tableStructure = createTableStructure();
         const wrapper = createWrapper(
           { startCol: 3, startRow: 3, endCol: 3, endRow: 3 },
-          tableStructure,
+          tableStructure
         );
 
         const { result } = renderHook(() => useSelectionMoveNextAvailable(), {
@@ -119,7 +118,7 @@ describe('useSelectionMoveNextAvailable', () => {
           expect.objectContaining({
             startRow: 2,
             endRow: 2,
-          }),
+          })
         );
       });
 
@@ -127,7 +126,7 @@ describe('useSelectionMoveNextAvailable', () => {
         const tableStructure = createTableStructure();
         const wrapper = createWrapper(
           { startCol: 3, startRow: 3, endCol: 3, endRow: 3 },
-          tableStructure,
+          tableStructure
         );
 
         const { result } = renderHook(() => useSelectionMoveNextAvailable(), {
@@ -139,7 +138,7 @@ describe('useSelectionMoveNextAvailable', () => {
           expect.objectContaining({
             startRow: 4,
             endRow: 4,
-          }),
+          })
         );
       });
 
@@ -147,7 +146,7 @@ describe('useSelectionMoveNextAvailable', () => {
         const tableStructure = createTableStructure();
         const wrapper = createWrapper(
           { startCol: 3, startRow: 3, endCol: 3, endRow: 3 },
-          tableStructure,
+          tableStructure
         );
 
         const { result } = renderHook(() => useSelectionMoveNextAvailable(), {
@@ -159,7 +158,7 @@ describe('useSelectionMoveNextAvailable', () => {
           expect.objectContaining({
             startCol: 2,
             endCol: 2,
-          }),
+          })
         );
       });
 
@@ -167,7 +166,7 @@ describe('useSelectionMoveNextAvailable', () => {
         const tableStructure = createTableStructure();
         const wrapper = createWrapper(
           { startCol: 3, startRow: 3, endCol: 3, endRow: 3 },
-          tableStructure,
+          tableStructure
         );
 
         const { result } = renderHook(() => useSelectionMoveNextAvailable(), {
@@ -179,7 +178,7 @@ describe('useSelectionMoveNextAvailable', () => {
           expect.objectContaining({
             startCol: 4,
             endCol: 4,
-          }),
+          })
         );
       });
     });
@@ -190,7 +189,7 @@ describe('useSelectionMoveNextAvailable', () => {
         // Starting from bottom-left table
         const wrapper = createWrapper(
           { startCol: 3, startRow: 8, endCol: 3, endRow: 8 },
-          tableStructure,
+          tableStructure
         );
 
         const { result } = renderHook(() => useSelectionMoveNextAvailable(), {
@@ -204,7 +203,7 @@ describe('useSelectionMoveNextAvailable', () => {
             startRow: 4, // Should move to the bottom row of the top-left table
             endCol: 3,
             endRow: 4,
-          }),
+          })
         );
       });
 
@@ -213,7 +212,7 @@ describe('useSelectionMoveNextAvailable', () => {
         // Starting from top-left table
         const wrapper = createWrapper(
           { startCol: 3, startRow: 4, endCol: 3, endRow: 4 },
-          tableStructure,
+          tableStructure
         );
 
         const { result } = renderHook(() => useSelectionMoveNextAvailable(), {
@@ -227,7 +226,7 @@ describe('useSelectionMoveNextAvailable', () => {
             startRow: 8, // Should move to the top row of the bottom-left table
             endCol: 3,
             endRow: 8,
-          }),
+          })
         );
       });
 
@@ -236,7 +235,7 @@ describe('useSelectionMoveNextAvailable', () => {
         // Starting from top-right table
         const wrapper = createWrapper(
           { startCol: 8, startRow: 3, endCol: 8, endRow: 3 },
-          tableStructure,
+          tableStructure
         );
 
         const { result } = renderHook(() => useSelectionMoveNextAvailable(), {
@@ -250,7 +249,7 @@ describe('useSelectionMoveNextAvailable', () => {
             startRow: 3,
             endCol: 4,
             endRow: 3,
-          }),
+          })
         );
       });
 
@@ -259,7 +258,7 @@ describe('useSelectionMoveNextAvailable', () => {
         // Starting from top-left table
         const wrapper = createWrapper(
           { startCol: 4, startRow: 3, endCol: 4, endRow: 3 },
-          tableStructure,
+          tableStructure
         );
 
         const { result } = renderHook(() => useSelectionMoveNextAvailable(), {
@@ -273,7 +272,7 @@ describe('useSelectionMoveNextAvailable', () => {
             startRow: 3,
             endCol: 8,
             endRow: 3,
-          }),
+          })
         );
       });
     });
@@ -293,7 +292,7 @@ describe('useSelectionMoveNextAvailable', () => {
         // Start from a position with no table above
         const wrapper = createWrapper(
           { startCol: 3, startRow: 5, endCol: 3, endRow: 5 },
-          tableStructure,
+          tableStructure
         );
 
         const { result } = renderHook(() => useSelectionMoveNextAvailable(), {
@@ -307,7 +306,7 @@ describe('useSelectionMoveNextAvailable', () => {
             startRow: 1, // Should move to the top edge of the spreadsheet
             endCol: 3,
             endRow: 1,
-          }),
+          })
         );
       });
 
@@ -325,7 +324,7 @@ describe('useSelectionMoveNextAvailable', () => {
         // Start from a position with no table below
         const wrapper = createWrapper(
           { startCol: 3, startRow: 5, endCol: 3, endRow: 5 },
-          tableStructure,
+          tableStructure
         );
 
         const { result } = renderHook(() => useSelectionMoveNextAvailable(), {
@@ -339,7 +338,7 @@ describe('useSelectionMoveNextAvailable', () => {
             startRow: 100, // Should move to the bottom edge of the spreadsheet
             endCol: 3,
             endRow: 100,
-          }),
+          })
         );
       });
 
@@ -357,7 +356,7 @@ describe('useSelectionMoveNextAvailable', () => {
         // Start from a position with no table to the left
         const wrapper = createWrapper(
           { startCol: 5, startRow: 3, endCol: 5, endRow: 3 },
-          tableStructure,
+          tableStructure
         );
 
         const { result } = renderHook(() => useSelectionMoveNextAvailable(), {
@@ -371,7 +370,7 @@ describe('useSelectionMoveNextAvailable', () => {
             startRow: 3,
             endCol: 1,
             endRow: 3,
-          }),
+          })
         );
       });
 
@@ -389,7 +388,7 @@ describe('useSelectionMoveNextAvailable', () => {
         // Start from a position with no table to the right
         const wrapper = createWrapper(
           { startCol: 5, startRow: 3, endCol: 5, endRow: 3 },
-          tableStructure,
+          tableStructure
         );
 
         const { result } = renderHook(() => useSelectionMoveNextAvailable(), {
@@ -403,7 +402,7 @@ describe('useSelectionMoveNextAvailable', () => {
             startRow: 3,
             endCol: 100,
             endRow: 3,
-          }),
+          })
         );
       });
 
@@ -424,7 +423,7 @@ describe('useSelectionMoveNextAvailable', () => {
         const wrapper = createWrapper(
           { startCol: 140, startRow: 140, endCol: 140, endRow: 140 },
           tableStructure,
-          customGridSizes,
+          customGridSizes
         );
 
         const { result } = renderHook(() => useSelectionMoveNextAvailable(), {
@@ -437,7 +436,7 @@ describe('useSelectionMoveNextAvailable', () => {
           expect.objectContaining({
             startCol: 100, // Should respect visible right edge (not max)
             startRow: 140,
-          }),
+          })
         );
 
         mockSetSelectionEdges.mockClear();
@@ -448,7 +447,7 @@ describe('useSelectionMoveNextAvailable', () => {
           expect.objectContaining({
             startCol: 140,
             startRow: 100, // Should respect visible bottom edge (not max)
-          }),
+          })
         );
       });
     });

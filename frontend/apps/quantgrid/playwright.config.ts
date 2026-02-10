@@ -7,9 +7,7 @@ import { defineConfig, devices } from '@playwright/test';
 import * as fs from 'fs';
 import * as path from 'path';
 
-config({
-  quiet: true,
-});
+config();
 
 const fromRoot = (...p: string[]) => path.join(workspaceRoot, ...p);
 const authFile = path.join(workspaceRoot, 'playwright', '.auth', 'user.json');
@@ -81,6 +79,7 @@ export default defineConfig({
           width: 1920,
           height: 1080,
         },
+        storageState: authFile,
       },
       dependencies: ['setup'],
     },

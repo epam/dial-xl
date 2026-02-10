@@ -7,7 +7,7 @@ import { getTableFields, TableFields } from './sheetUtils';
 
 export function autoFixSheetTableOrFieldName(
   dsl: string,
-  parsedSheets: ParsedSheets,
+  parsedSheets: ParsedSheets
 ) {
   if (!dsl) return dsl;
 
@@ -28,7 +28,7 @@ export function autoFixSheetTableOrFieldName(
           expression = autoFixFieldNames(
             expression,
             table.tableName,
-            tableFields,
+            tableFields
           );
 
           if (text !== expression) {

@@ -24,7 +24,7 @@ export const useDownloadTable = () => {
     async (
       fields: FieldInfo[],
       worksheets: Record<string, string>,
-      project: string,
+      project: string
     ) => {
       const viewportRes = await getViewport({
         projectPath: project,
@@ -37,16 +37,16 @@ export const useDownloadTable = () => {
         worksheets,
       });
 
-      if (!viewportRes.success) return;
+      if (!viewportRes) return;
 
       const resultedData: string[] = [];
       try {
-        await parseSSEResponse(viewportRes.data, {
+        await parseSSEResponse(viewportRes, {
           onData: (parsedData: Partial<ViewportResponse>) => {
             if (parsedData.columnData) {
               if (parsedData.columnData.errorMessage) {
                 throw new Error(
-                  `Failed getting information for dynamic field ${parsedData.columnData.fieldKey?.field} - ${parsedData.columnData.errorMessage}`,
+                  `Failed getting information for dynamic field ${parsedData.columnData.fieldKey?.field} - ${parsedData.columnData.errorMessage}`
                 );
               }
 
@@ -63,14 +63,14 @@ export const useDownloadTable = () => {
 
       return resultedData;
     },
-    [getViewport],
+    [getViewport]
   );
 
   const collectFields = useCallback(
     async (
       tableName: string,
       project: string,
-      sheets: Record<string, string>,
+      sheets: Record<string, string>
     ) => {
       const res = await getCompileInfo({
         projectPath: project,
@@ -91,14 +91,14 @@ export const useDownloadTable = () => {
           ![
             ColumnDataType.TABLE_VALUE,
             ColumnDataType.TABLE_REFERENCE,
-          ].includes(fieldInfo.type),
+          ].includes(fieldInfo.type)
       );
       const dynamicFields = fields?.filter(
-        (fieldInfo) => fieldInfo.fieldKey?.field === dynamicFieldName,
+        (fieldInfo) => fieldInfo.fieldKey?.field === dynamicFieldName
       );
       const staticFields =
         fields?.filter(
-          (fieldInfo) => fieldInfo.fieldKey?.field !== dynamicFieldName,
+          (fieldInfo) => fieldInfo.fieldKey?.field !== dynamicFieldName
         ) ?? [];
       const resultedFields = [
         ...staticFields.map((field) => field.fieldKey?.field),
@@ -108,7 +108,7 @@ export const useDownloadTable = () => {
         const resultedDynamicFields = await getDynamicFields(
           dynamicFields,
           sheets,
-          project,
+          project
         );
 
         if (!resultedDynamicFields) return;
@@ -118,22 +118,19 @@ export const useDownloadTable = () => {
 
       return resultedFields.filter(Boolean) as string[];
     },
-    [getCompileInfo, getDynamicFields],
+    [getCompileInfo, getDynamicFields]
   );
 
   const getDownloadLink = useCallback(
     async (tableName: string, fileName: string) => {
       const project = encodeApiUrl(
-        constructPath([projectBucket, projectPath, projectName]),
+        constructPath([projectBucket, projectPath, projectName])
       );
-      const sheets = projectSheets?.reduce(
-        (acc, sheet) => {
-          acc[sheet.sheetName] = sheet.content;
+      const sheets = projectSheets?.reduce((acc, sheet) => {
+        acc[sheet.sheetName] = sheet.content;
 
-          return acc;
-        },
-        {} as Record<string, string>,
-      );
+        return acc;
+      }, {} as Record<string, string>);
 
       if (!sheets) return;
 
@@ -168,7 +165,7 @@ export const useDownloadTable = () => {
       projectName,
       projectPath,
       projectSheets,
-    ],
+    ]
   );
 
   const downloadTable = useCallback(
@@ -189,18 +186,9 @@ export const useDownloadTable = () => {
         return;
       }
 
-      triggerDownload({
-        fileUrl: resultedLink,
-        fileName: `${unescapedTableName}${csvFileExtension}`,
-        successToast: {
-          message: `Table "${unescapedTableName}" is ready for download`,
-          onClose: () => {
-            URL.revokeObjectURL(resultedLink);
-          },
-        },
-      });
+      triggerDownload(resultedLink, `${unescapedTableName}${csvFileExtension}`);
     },
-    [getDownloadLink],
+    [getDownloadLink]
   );
 
   return { downloadTable };

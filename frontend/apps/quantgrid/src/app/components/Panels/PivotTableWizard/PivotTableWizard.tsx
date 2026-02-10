@@ -27,7 +27,7 @@ export function PivotTableWizard() {
         pivotTableName: s.pivotTableName,
         pivotTableWizardMode: s.pivotTableWizardMode,
         changePivotTableWizardMode: s.changePivotTableWizardMode,
-      })),
+      }))
     );
 
   const { parsedSheets } = useContext(ProjectContext);
@@ -38,7 +38,7 @@ export function PivotTableWizard() {
 
   const tableNameOptions = useMemo(() => {
     return Object.values(parsedSheets ?? {}).flatMap(({ tables }) =>
-      tables.map(({ tableName }) => toSelectOption(tableName)),
+      tables.map(({ tableName }) => toSelectOption(tableName))
     );
   }, [parsedSheets]);
 
@@ -107,7 +107,7 @@ export function PivotTableWizard() {
     <div className="flex flex-col w-full h-full overflow-hidden">
       <div
         className={cx(
-          'flex flex-col w-full overflow-auto thin-scrollbar bg-bg-layer-3 grow',
+          'flex flex-col w-full overflow-auto thin-scrollbar bg-bg-layer-3 grow'
         )}
       >
         <div className="flex items-center justify-between gap-2 py-2">

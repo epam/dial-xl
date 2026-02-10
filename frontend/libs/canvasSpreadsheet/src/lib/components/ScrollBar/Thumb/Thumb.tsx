@@ -1,4 +1,4 @@
-import { FederatedPointerEvent, Graphics } from 'pixi.js';
+import * as PIXI from 'pixi.js';
 import {
   useCallback,
   useContext,
@@ -7,6 +7,8 @@ import {
   useRef,
   useState,
 } from 'react';
+
+import { Graphics } from '@pixi/react';
 
 import { GridStateContext, GridViewportContext } from '../../../context';
 import { useDraw } from '../../../hooks';
@@ -39,9 +41,9 @@ export function Thumb({ direction }: Props) {
   const { moveViewport, viewportCoords, gridViewportSubscriber } =
     useContext(GridViewportContext);
 
-  const graphicsRef = useRef<Graphics>(null);
+  const graphicsRef = useRef<PIXI.Graphics>(null);
   const [isThumbHovered, setIsThumbHovered] = useState(false);
-  const mouseClickOffset = useRef<number | undefined>(undefined);
+  const mouseClickOffset = useRef<number | undefined>();
   const rafId = useRef<number | null>(null);
   const pending = useRef<{ dx: number; dy: number } | null>(null);
   const lastFlushTs = useRef<number>(0);
@@ -52,9 +54,9 @@ export function Thumb({ direction }: Props) {
   const exponent = useMemo(
     () =>
       calculateExponent(
-        isHorizontal ? gridSizes.edges.col : gridSizes.edges.row,
+        isHorizontal ? gridSizes.edges.col : gridSizes.edges.row
       ),
-    [gridSizes, isHorizontal],
+    [gridSizes, isHorizontal]
   );
 
   const trackWidth = useMemo(
@@ -62,12 +64,12 @@ export function Thumb({ direction }: Props) {
       gridSize -
       gridSizes.scrollBar.trackSize -
       2 * gridSizes.scrollBar.arrowWrapperSize,
-    [gridSize, gridSizes],
+    [gridSize, gridSizes]
   );
 
   const totalScrollableSize = useMemo(
     () => fullSize - gridSize,
-    [fullSize, gridSize],
+    [fullSize, gridSize]
   );
 
   const [thumbWidth, setThumbWidth] = useState(
@@ -75,18 +77,18 @@ export function Thumb({ direction }: Props) {
       trackWidth,
       isHorizontal ? viewportCoords.current.x1 : viewportCoords.current.y1,
       totalScrollableSize,
-      gridSizes.scrollBar.minThumbWidth,
-    ),
+      gridSizes.scrollBar.minThumbWidth
+    )
   );
 
   const [thumbPosition, setThumbPosition] = useState(
-    gridSizes.scrollBar.arrowWrapperSize,
+    gridSizes.scrollBar.arrowWrapperSize
   );
 
   // Need to throttle scrolling when there are charts on top of the grid
   const throttleInterval = useMemo(
     () => (hasCharts ? defaultThrottleInterval : 0),
-    [hasCharts],
+    [hasCharts]
   );
 
   const onMouseOver = useCallback(() => {
@@ -102,14 +104,14 @@ export function Thumb({ direction }: Props) {
   }, [isPanModeEnabled]);
 
   const onMouseDown = useCallback(
-    (e: FederatedPointerEvent) => {
+    (e: PIXI.FederatedPointerEvent) => {
       if (isPanModeEnabled) return;
 
       document.body.style.pointerEvents = 'none';
       mouseClickOffset.current =
         (isHorizontal ? e.screen.x : e.screen.y) - thumbPosition;
     },
-    [isHorizontal, isPanModeEnabled, thumbPosition],
+    [isHorizontal, isPanModeEnabled, thumbPosition]
   );
 
   const flushViewport = useCallback(() => {
@@ -128,9 +130,9 @@ export function Thumb({ direction }: Props) {
 
   const onMouseMove = useCallback(
     (e: MouseEvent) => {
-      if (mouseClickOffset.current === undefined || !app?.renderer) return;
+      if (mouseClickOffset.current === undefined || !app) return;
 
-      const { left, top } = app.canvas.getBoundingClientRect?.() as DOMRect;
+      const { left, top } = app.view.getBoundingClientRect?.() as DOMRect;
       const { arrowWrapperSize } = gridSizes.scrollBar;
       const cursorPos = isHorizontal
         ? e.clientX - arrowWrapperSize - left
@@ -144,7 +146,7 @@ export function Thumb({ direction }: Props) {
         totalScrollableSize,
         exponent,
         isHorizontal,
-        viewportCoords.current,
+        viewportCoords.current
       );
 
       pending.current = { dx: deltaX, dy: deltaY };
@@ -163,7 +165,7 @@ export function Thumb({ direction }: Props) {
       totalScrollableSize,
       trackWidth,
       viewportCoords,
-    ],
+    ]
   );
 
   const onMouseUp = useCallback(() => {
@@ -192,7 +194,7 @@ export function Thumb({ direction }: Props) {
         trackWidth,
         viewportOffset,
         totalScrollableSize,
-        minThumbWidth,
+        minThumbWidth
       );
 
       const newThumbPosition = getThumbPosition(
@@ -200,7 +202,7 @@ export function Thumb({ direction }: Props) {
         viewportOffset,
         totalScrollableSize,
         exponent,
-        arrowWrapperSize,
+        arrowWrapperSize
       );
 
       // skip bouncing frames while dragging
@@ -224,26 +226,27 @@ export function Thumb({ direction }: Props) {
       totalScrollableSize,
       trackWidth,
       viewportCoords,
-    ],
+    ]
   );
 
   const drawThumb = useCallback(
-    (rect: Rectangle, g: Graphics) => {
+    (rect: Rectangle, g: PIXI.Graphics) => {
       g.clear()
-        .roundRect(
+        .beginFill(
+          isThumbHovered
+            ? theme.scrollBar.thumbColorHovered
+            : theme.scrollBar.thumbColor,
+          1
+        )
+        .drawRoundedRect(
           rect.x,
           rect.y,
           rect.width,
           rect.height,
-          gridSizes.scrollBar.thumbBorderRadius,
-        )
-        .fill({
-          color: isThumbHovered
-            ? theme.scrollBar.thumbColorHovered
-            : theme.scrollBar.thumbColor,
-        });
+          gridSizes.scrollBar.thumbBorderRadius
+        );
     },
-    [gridSizes, isThumbHovered, theme],
+    [gridSizes, isThumbHovered, theme]
   );
 
   const draw = useCallback(() => {
@@ -283,7 +286,7 @@ export function Thumb({ direction }: Props) {
     return gridViewportSubscriber.current.subscribe(
       (dx: number, dy: number) => {
         updateThumb(dx, dy);
-      },
+      }
     );
   }, [gridViewportSubscriber, updateThumb]);
 
@@ -303,14 +306,13 @@ export function Thumb({ direction }: Props) {
   }, [onMouseMove, onMouseUp]);
 
   return (
-    <pixiGraphics
+    <Graphics
       cursor="pointer"
-      draw={() => {}}
       eventMode="static"
+      onpointerdown={onMouseDown}
+      onpointerout={onMouseOut}
+      onpointerover={onMouseOver}
       ref={graphicsRef}
-      onPointerDown={onMouseDown}
-      onPointerOut={onMouseOut}
-      onPointerOver={onMouseOver}
     />
   );
 }

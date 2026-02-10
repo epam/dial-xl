@@ -3,13 +3,9 @@ import { useCallback } from 'react';
 import { AuthContextProps } from 'react-oidc-context';
 
 import {
-  ApiErrorType,
   apiMessages,
-  ApiRequestFunction,
-  ApiRequestFunctionWithError,
   emptyFileName,
   filesEndpointPrefix,
-  GetFilesParams,
   MetadataNodeType,
   MetadataResourceType,
   ResourceMetadata,
@@ -17,8 +13,8 @@ import {
 
 import { FileReference } from '../../common';
 import { createUniqueFileName } from '../../services';
+import { ApiRequestFunction } from '../../types';
 import {
-  classifyFetchError,
   constructPath,
   displayToast,
   encodeApiUrl,
@@ -29,9 +25,10 @@ import { useResourceRequests } from './useResourceRequests';
 
 export const useFileResourceRequests = (
   auth: AuthContextProps,
-  userBucket: string | undefined,
+  userBucket: string | undefined
 ) => {
-  const { sendDialRequest, sendRequestWithProgress } = useBackendRequest(auth);
+  const { sendDialRequest, sendDialRequestWithProgress } =
+    useBackendRequest(auth);
   const { getResourceMetadata } = useResourceRequests(auth);
 
   const getFileBlob = useCallback<
@@ -40,7 +37,7 @@ export const useFileResourceRequests = (
     async ({ name, bucket, parentPath }) => {
       try {
         const url = `${filesEndpointPrefix}/${encodeApiUrl(
-          `${bucket}/${parentPath ? parentPath + '/' : ''}${name}`,
+          `${bucket}/${parentPath ? parentPath + '/' : ''}${name}`
         )}`;
         const res = await sendDialRequest(url, { method: 'get' });
 
@@ -51,7 +48,7 @@ export const useFileResourceRequests = (
         return undefined;
       }
     },
-    [sendDialRequest],
+    [sendDialRequest]
   );
 
   const downloadFiles = useCallback<
@@ -77,16 +74,7 @@ export const useFileResourceRequests = (
           const singleFile = new File([fileBlob], file.name);
           const fileUrl = window.URL.createObjectURL(singleFile);
 
-          triggerDownload({
-            fileUrl,
-            fileName: file.name,
-            successToast: {
-              message: `File "${file.name}" is ready for download`,
-              onClose: () => {
-                window.URL.revokeObjectURL(fileUrl);
-              },
-            },
-          });
+          triggerDownload(fileUrl, file.name);
         } else if (files.length > 1) {
           const zip = new JSZip();
 
@@ -105,16 +93,7 @@ export const useFileResourceRequests = (
           const zipFile = new File([content], zipFileName);
           const zipFileUrl = window.URL.createObjectURL(zipFile);
 
-          triggerDownload({
-            fileUrl: zipFileUrl,
-            fileName: zipFileName,
-            successToast: {
-              message: `Archive with files is ready for download`,
-              onClose: () => {
-                window.URL.revokeObjectURL(zipFileUrl);
-              },
-            },
-          });
+          triggerDownload(zipFileUrl, zipFileName);
         }
 
         return {};
@@ -124,48 +103,35 @@ export const useFileResourceRequests = (
         return;
       }
     },
-    [getFileBlob],
+    [getFileBlob]
   );
 
   const getFiles = useCallback<
-    ApiRequestFunctionWithError<GetFilesParams, ResourceMetadata[]>
+    ApiRequestFunction<
+      {
+        path: string | null | undefined;
+        isRecursive?: boolean;
+        suppressErrors?: boolean;
+      },
+      ResourceMetadata[]
+    >
   >(
-    async ({ path, isRecursive = false, showErrors = false }) => {
-      try {
-        const fileMetadata = await getResourceMetadata({
-          path,
-          isRecursive,
-          suppressErrors: true,
-          withPermissions: true,
-          resourceType: MetadataResourceType.FILE,
-        });
+    async ({ path, isRecursive = false, suppressErrors = false }) => {
+      const fileMetadata = await getResourceMetadata({
+        path,
+        isRecursive,
+        suppressErrors: true,
+        withPermissions: true,
+        resourceType: MetadataResourceType.FILE,
+      });
 
-        if (!fileMetadata) {
-          if (showErrors) {
-            displayToast('error', apiMessages.getFilesServer);
-          }
-
-          return {
-            success: false,
-            error: {
-              type: ApiErrorType.ServerError,
-              message: apiMessages.getFilesServer,
-            },
-          };
-        }
-
-        return {
-          success: true,
-          data: fileMetadata.items ?? [],
-        };
-      } catch (error) {
-        return {
-          success: false,
-          error: classifyFetchError(error, apiMessages.getFilesClient),
-        };
+      if (!fileMetadata && !suppressErrors) {
+        displayToast('error', apiMessages.getFilesServer);
       }
+
+      return fileMetadata?.items ?? [];
     },
-    [getResourceMetadata],
+    [getResourceMetadata]
   );
 
   const getUserFiles = useCallback<
@@ -174,11 +140,9 @@ export const useFileResourceRequests = (
     async ({ isRecursive } = {}) => {
       if (!userBucket) return;
 
-      const files = await getFiles({ path: `${userBucket}/`, isRecursive });
-
-      return files.success ? files.data : [];
+      return await getFiles({ path: `${userBucket}/`, isRecursive });
     },
-    [getFiles, userBucket],
+    [getFiles, userBucket]
   );
 
   const createFile = useCallback<
@@ -191,7 +155,7 @@ export const useFileResourceRequests = (
         fileBlob?: File;
         onProgress?: (
           progress: number,
-          event: ProgressEvent<EventTarget>,
+          event: ProgressEvent<EventTarget>
         ) => void;
         fileType?: string; // Needed if file blob omitted
         fileData?: string; // Needed if file blob omitted
@@ -220,12 +184,11 @@ export const useFileResourceRequests = (
         const formData = new FormData();
         formData.append('attachment', file);
 
-        const res = await sendRequestWithProgress(
-          window.externalEnv.dialBaseUrl!,
+        const res = await sendDialRequestWithProgress(
           encodeApiUrl(
             `${filesEndpointPrefix}/${bucket}/${
               path ? path + '/' : ''
-            }${fileName}`,
+            }${fileName}`
           ),
           {
             method: 'PUT',
@@ -236,7 +199,7 @@ export const useFileResourceRequests = (
                 }
               : {},
           },
-          onProgress,
+          onProgress
         );
 
         if (!res.ok) {
@@ -259,7 +222,7 @@ export const useFileResourceRequests = (
         return undefined;
       }
     },
-    [sendRequestWithProgress],
+    [sendDialRequestWithProgress]
   );
 
   const createFolder = useCallback<
@@ -287,7 +250,7 @@ export const useFileResourceRequests = (
         return undefined;
       }
     },
-    [createFile],
+    [createFile]
   );
 
   const deleteFile = useCallback<
@@ -307,11 +270,11 @@ export const useFileResourceRequests = (
           encodeApiUrl(
             `${filesEndpointPrefix}/${bucket}/${
               parentPath ? parentPath + '/' : ''
-            }${fileName}`,
+            }${fileName}`
           ),
           {
             method: 'DELETE',
-          },
+          }
         );
 
         if (!res.ok) {
@@ -335,7 +298,7 @@ export const useFileResourceRequests = (
         return undefined;
       }
     },
-    [sendDialRequest],
+    [sendDialRequest]
   );
 
   const deleteFolder = useCallback<
@@ -356,9 +319,10 @@ export const useFileResourceRequests = (
         const filesToDelete = await getFiles({
           path: url,
           isRecursive: true,
+          suppressErrors: true,
         });
 
-        if (!filesToDelete.success) {
+        if (!filesToDelete) {
           if (suppressErrors) return {};
 
           displayToast('error', apiMessages.deleteFolderSomethingHappened);
@@ -366,7 +330,7 @@ export const useFileResourceRequests = (
           return;
         }
 
-        const deleteRequests = filesToDelete.data.map(async (file) => {
+        const deleteRequests = filesToDelete.map(async (file) => {
           try {
             const fileUrl = encodeApiUrl(
               constructPath([
@@ -374,7 +338,7 @@ export const useFileResourceRequests = (
                 file.bucket,
                 file.parentPath,
                 file.name,
-              ]),
+              ])
             );
             const res = await sendDialRequest(fileUrl, {
               method: 'DELETE',
@@ -402,7 +366,7 @@ export const useFileResourceRequests = (
 
         if (
           results.every(
-            (result) => result.status === 'fulfilled' && result.value,
+            (result) => result.status === 'fulfilled' && result.value
           )
         ) {
           return {};
@@ -415,7 +379,7 @@ export const useFileResourceRequests = (
         return undefined;
       }
     },
-    [getFiles, sendDialRequest],
+    [getFiles, sendDialRequest]
   );
 
   const cloneFile = useCallback<
@@ -442,14 +406,12 @@ export const useFileResourceRequests = (
         const folderPath = `${targetBucket}/${
           targetPath ? targetPath + '/' : ''
         }`;
-        const allFilesInDestinationRes = await getFiles({
+        const allFilesInDestination = await getFiles({
           path: folderPath,
+          suppressErrors: true,
         });
 
-        const allFilesInDestination = allFilesInDestinationRes.success
-          ? allFilesInDestinationRes.data
-          : [];
-        const fileNamesInDestination = allFilesInDestination
+        const fileNamesInDestination = (allFilesInDestination ?? [])
           .filter((f) => f.nodeType !== MetadataNodeType.FOLDER)
           .map((file) => file.name);
         const newFileName = newName || name;
@@ -458,10 +420,10 @@ export const useFileResourceRequests = (
           : newFileName;
 
         const sourceUrl = encodeApiUrl(
-          constructPath(['files', bucket, parentPath, name]),
+          constructPath(['files', bucket, parentPath, name])
         );
         const destinationUrl = encodeApiUrl(
-          constructPath(['files', targetBucket, targetPath, targetFileName]),
+          constructPath(['files', targetBucket, targetPath, targetFileName])
         );
 
         const res = await sendDialRequest('/v1/ops/resource/copy', {
@@ -489,7 +451,7 @@ export const useFileResourceRequests = (
         return;
       }
     },
-    [getFiles, sendDialRequest],
+    [getFiles, sendDialRequest]
   );
 
   const renameFile = useCallback<
@@ -506,10 +468,10 @@ export const useFileResourceRequests = (
     async ({ bucket, fileName, newFileName, parentPath }) => {
       try {
         const sourceUrl = encodeApiUrl(
-          constructPath(['files', bucket, parentPath, fileName]),
+          constructPath(['files', bucket, parentPath, fileName])
         );
         const destinationUrl = encodeApiUrl(
-          constructPath(['files', bucket, parentPath, newFileName]),
+          constructPath(['files', bucket, parentPath, newFileName])
         );
 
         const res = await sendDialRequest('/v1/ops/resource/move', {
@@ -533,7 +495,7 @@ export const useFileResourceRequests = (
         return;
       }
     },
-    [sendDialRequest],
+    [sendDialRequest]
   );
 
   const moveFile = useCallback<
@@ -556,10 +518,10 @@ export const useFileResourceRequests = (
     }) => {
       try {
         const sourceUrl = encodeApiUrl(
-          constructPath(['files', bucket, parentPath, name]),
+          constructPath(['files', bucket, parentPath, name])
         );
         const destinationUrl = encodeApiUrl(
-          constructPath(['files', targetBucket, targetPath, name]),
+          constructPath(['files', targetBucket, targetPath, name])
         );
 
         const res = await sendDialRequest('/v1/ops/resource/move', {
@@ -585,7 +547,7 @@ export const useFileResourceRequests = (
         return undefined;
       }
     },
-    [sendDialRequest],
+    [sendDialRequest]
   );
 
   const moveFolder = useCallback<
@@ -614,17 +576,16 @@ export const useFileResourceRequests = (
       onProgress,
     }) => {
       try {
-        onProgress?.(0);
-
         const url = constructPath([bucket, parentPath, name]) + '/';
         const filesInFolder = await getFiles({
           path: url,
           isRecursive: true,
+          suppressErrors: true,
         });
 
         onProgress?.(10);
 
-        if (!filesInFolder.success) {
+        if (!filesInFolder) {
           if (suppressErrors) return {};
 
           displayToast('error', apiMessages.renameFileServer);
@@ -634,9 +595,9 @@ export const useFileResourceRequests = (
 
         const sourceRootPath = constructPath([parentPath, name]);
 
-        const totalFiles = filesInFolder.data.length;
+        const totalFiles = filesInFolder.length;
         let currentFileIndex = 0;
-        for (const file of filesInFolder.data) {
+        for (const file of filesInFolder) {
           const isFolderHiddenFile = file.name === emptyFileName;
           const relativeParentPath =
             file.parentPath && file.parentPath.startsWith(sourceRootPath)
@@ -649,7 +610,7 @@ export const useFileResourceRequests = (
           ]);
 
           if (!isFolderHiddenFile) {
-            onProgress?.(20 + (currentFileIndex / totalFiles) * 80);
+            onProgress?.(20 + currentFileIndex / totalFiles);
           }
 
           const moveRes = await moveFile({
@@ -683,7 +644,7 @@ export const useFileResourceRequests = (
         return undefined;
       }
     },
-    [getFiles, moveFile],
+    [getFiles, moveFile]
   );
 
   return {

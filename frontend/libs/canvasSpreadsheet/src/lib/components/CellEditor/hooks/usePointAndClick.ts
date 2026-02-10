@@ -10,7 +10,7 @@ import {
 } from '../types';
 
 type Props = {
-  apiRef: RefObject<GridApi | null>;
+  apiRef: RefObject<GridApi>;
   eventBus: GridEventBus;
 };
 
@@ -29,7 +29,7 @@ export function usePointAndClick({ apiRef, eventBus }: Props) {
         type: 'selection/point-click-started',
       });
     },
-    [eventBus],
+    [eventBus]
   );
 
   const onStopPointClick = useCallback(
@@ -54,7 +54,7 @@ export function usePointAndClick({ apiRef, eventBus }: Props) {
         type: 'selection/point-click-stopped',
       });
     },
-    [apiRef, codeValue, eventBus],
+    [apiRef, codeValue, eventBus]
   );
 
   const onSetPointClickValue = useCallback(
@@ -79,7 +79,7 @@ export function usePointAndClick({ apiRef, eventBus }: Props) {
         onCodeChange(updatedValue);
       }, 0);
     },
-    [codeValue, onCodeChange, setCode, setFocus],
+    [codeValue, onCodeChange, setCode, setFocus]
   );
 
   useEffect(() => {
@@ -92,12 +92,12 @@ export function usePointAndClick({ apiRef, eventBus }: Props) {
       api.cellEditorEvent$
         .pipe(
           filterByTypeAndCast<GridCellEditorEventSetPointClickValue>(
-            GridCellEditorEventType.SetPointClickValue,
-          ),
+            GridCellEditorEventType.SetPointClickValue
+          )
         )
         .subscribe(({ value }) => {
           onSetPointClickValue(value);
-        }),
+        })
     );
 
     return () => {

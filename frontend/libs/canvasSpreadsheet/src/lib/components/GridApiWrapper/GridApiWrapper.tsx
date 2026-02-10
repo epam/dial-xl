@@ -1,4 +1,5 @@
 import {
+  MutableRefObject,
   RefObject,
   useCallback,
   useContext,
@@ -20,7 +21,11 @@ import {
   useShortcuts,
 } from '../../hooks';
 import { GridApi, SelectionEdges } from '../../types';
-import { isCellEditorFocused, isCellEditorOpen } from '../../utils';
+import {
+  getSymbolWidth,
+  isCellEditorFocused,
+  isCellEditorOpen,
+} from '../../utils';
 import {
   GridCellEditorEvent,
   GridCellEditorEventInsertValue,
@@ -43,7 +48,7 @@ export const GridApiWrapper = ({
   gridApiRef,
   onGridApiInitialized,
 }: {
-  gridApiRef: RefObject<GridApi | null>;
+  gridApiRef: MutableRefObject<GridApi | null>;
   onGridApiInitialized: () => void;
 }) => {
   const {
@@ -56,13 +61,12 @@ export const GridApiWrapper = ({
     setPointClickError,
     dndSelection,
     setDNDSelection,
-    canvasSymbolWidth,
+    theme,
+    getBitmapFontName,
     isPanModeEnabled,
     hasCharts,
     setHasCharts,
     selectedTable,
-    selectedChart,
-    setSelectedChart,
   } = useContext(GridStateContext);
   const {
     viewportEdges,
@@ -78,8 +82,8 @@ export const GridApiWrapper = ({
 
   useMouseWheel();
   usePan();
-  useShortcuts(gridApiRef as RefObject<GridApi | null>);
-  useDottedSelection(gridApiRef as RefObject<GridApi | null>);
+  useShortcuts(gridApiRef as RefObject<GridApi>);
+  useDottedSelection(gridApiRef as RefObject<GridApi>);
   useSelectionEvents();
   useRowNumberWidth();
   useDragTable();
@@ -87,7 +91,7 @@ export const GridApiWrapper = ({
   const gridViewportSubscription = useCallback(
     (callback: (deltaX: number, deltaY: number) => void) =>
       gridViewportSubscriber.current.subscribe(callback),
-    [gridViewportSubscriber],
+    [gridViewportSubscriber]
   );
 
   const getViewportEdges = useCallback(() => {
@@ -113,19 +117,23 @@ export const GridApiWrapper = ({
 
         max = Math.max(
           max,
-          cell?.displayValue?.length ?? cell?.value?.length ?? 0,
+          cell?.displayValue?.length ?? cell?.value?.length ?? 0
         );
       }
 
       return max;
     },
-    [getCell],
+    [getCell]
   );
 
-  const getCanvasSymbolWidth = useCallback(
-    () => canvasSymbolWidth,
-    [canvasSymbolWidth],
-  );
+  const getCanvasSymbolWidth = useCallback(() => {
+    const { fontSize } = gridSizes.cell;
+    const { cellFontFamily, cellFontColorName } = theme.cell;
+
+    const fontName = getBitmapFontName(cellFontFamily, cellFontColorName);
+
+    return getSymbolWidth(fontSize, fontName);
+  }, [getBitmapFontName, gridSizes.cell, theme.cell]);
 
   const tooltipEvent$ = useRef<Subject<GridTooltipEvent>>(new Subject());
 
@@ -139,7 +147,7 @@ export const GridApiWrapper = ({
   }, []);
 
   const contextMenuEvent$ = useRef<Subject<GridContextMenuEvent>>(
-    new Subject(),
+    new Subject()
   );
 
   const openContextMenuAtCoords: GridApi['openContextMenuAtCoords'] =
@@ -149,7 +157,7 @@ export const GridApiWrapper = ({
         y: number,
         col: number,
         row: number,
-        source = 'canvas-element',
+        source = 'canvas-element'
       ) => {
         contextMenuEvent$.current.next({
           type: GridContextMenuEventType.Open,
@@ -160,7 +168,7 @@ export const GridApiWrapper = ({
           source,
         });
       },
-      [],
+      []
     );
 
   // TODO: move cell editor events to separate hook
@@ -193,7 +201,7 @@ export const GridApiWrapper = ({
       options?: {
         dimFieldName?: string;
         withFocus?: boolean;
-      },
+      }
     ) => {
       cellEditorEvent$.current.next({
         type: GridCellEditorEventType.OpenExplicitly,
@@ -203,7 +211,7 @@ export const GridApiWrapper = ({
         options,
       });
     },
-    [],
+    []
   );
 
   const insertCellEditorValue = useCallback(
@@ -214,7 +222,7 @@ export const GridApiWrapper = ({
         options,
       });
     },
-    [],
+    []
   );
 
   const setPointClickValue = useCallback((value: string) => {
@@ -242,7 +250,7 @@ export const GridApiWrapper = ({
     (selection: SelectionEdges) => {
       setSelectionEdges(selection);
     },
-    [setSelectionEdges],
+    [setSelectionEdges]
   );
 
   const hideDottedSelection = useCallback(() => {
@@ -253,7 +261,7 @@ export const GridApiWrapper = ({
     (selection: SelectionEdges) => {
       setDottedSelectionEdges(selection);
     },
-    [setDottedSelectionEdges],
+    [setDottedSelectionEdges]
   );
 
   useEffect(() => {
@@ -307,8 +315,6 @@ export const GridApiWrapper = ({
     gridApiRef.current.gridSizes = gridSizes;
     gridApiRef.current.hasCharts = hasCharts;
     gridApiRef.current.setHasCharts = setHasCharts;
-    gridApiRef.current.selectedChart = selectedChart;
-    gridApiRef.current.setSelectedChart = setSelectedChart;
     gridApiRef.current.selectedTable = selectedTable;
     if (!isGridApiInitialized) {
       onGridApiInitialized();
@@ -354,17 +360,15 @@ export const GridApiWrapper = ({
     hasCharts,
     setHasCharts,
     onGridApiInitialized,
-    selectedChart,
-    setSelectedChart,
   ]);
 
   useEffect(() => {
     if (!gridApiRef) return;
 
-    window.canvasGridApi = (gridApiRef as RefObject<GridApi | null>)
+    window.canvasGridApi = (gridApiRef as RefObject<GridApi>)
       .current as GridApi;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [(gridApiRef as RefObject<GridApi | null>).current]);
+  }, [(gridApiRef as RefObject<GridApi>).current]);
 
   return null;
 };

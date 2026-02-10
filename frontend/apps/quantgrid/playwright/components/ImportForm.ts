@@ -3,7 +3,7 @@ import { expect } from '@playwright/test';
 import { BaseComponent } from './BaseComponent';
 
 export class ImportForm extends BaseComponent {
-  private sourcesList = 'div.ant-modal-container div.grid';
+  private sourcesList = 'div.ant-modal-content div.grid';
 
   private buttonNext = 'button:has-text("Next")';
 
@@ -12,7 +12,7 @@ export class ImportForm extends BaseComponent {
   public async chooseDataSource(sourceName: string) {
     await this.innerPage
       .locator(this.sourcesList)
-      .getByText(sourceName, { exact: true })
+      .getByText(sourceName)
       .click();
   }
 

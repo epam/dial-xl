@@ -51,7 +51,7 @@ export function ControlShell({
         <Button
           className={cx(
             'h-8 px-2 text-[13px] w-16 mt-4',
-            secondaryButtonClasses,
+            secondaryButtonClasses
           )}
           onClick={() => onApply(false)}
         >
@@ -60,7 +60,7 @@ export function ControlShell({
         <Button
           className={cx(
             'h-8 px-2 text-[13px] w-16 mt-4',
-            secondaryButtonClasses,
+            secondaryButtonClasses
           )}
           onClick={() => onApply(true)}
         >

@@ -27,7 +27,7 @@ const INPUT_STYLE = {
 export function BaseInputTemplate<
   T = any,
   S extends StrictRJSFSchema = RJSFSchema,
-  F extends FormContextType = any,
+  F extends FormContextType = any
 >(props: BaseInputTemplateProps<T, S, F>) {
   const {
     disabled,
@@ -121,7 +121,7 @@ export function BaseInputTemplate<
               schema.default &&
                 !schema.examples.includes(schema.default.toString())
                 ? ([schema.default] as string[])
-                : [],
+                : []
             )
             .map((example) => {
               return <option key={example} value={example} />;

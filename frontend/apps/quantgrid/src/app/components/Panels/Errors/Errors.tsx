@@ -36,7 +36,7 @@ export function Errors() {
 
   const [selectedSheet, setSelectedSheet] = useState<string | null>(null);
   const [filteredErrorTypes, setFilteredErrorTypes] = useState<Set<ErrorType>>(
-    new Set(),
+    new Set()
   );
 
   const getFilteredErrors = useCallback(
@@ -53,7 +53,7 @@ export function Errors() {
           : errors
         : null;
     },
-    [filteredErrorTypes, parsedSheets, selectedSheet],
+    [filteredErrorTypes, parsedSheets, selectedSheet]
   );
 
   const filteredParsingErrors = useMemo(() => {
@@ -162,7 +162,7 @@ export function Errors() {
     }
 
     return Array.from(grouped.values()).sort((a, b) =>
-      a.sheetName.localeCompare(b.sheetName),
+      a.sheetName.localeCompare(b.sheetName)
     );
   }, [
     selectedSheet,

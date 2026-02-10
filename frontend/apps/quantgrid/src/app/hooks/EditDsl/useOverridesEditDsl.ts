@@ -21,7 +21,7 @@ export function useOverridesEditDsl() {
       tableName: string,
       fieldName: string,
       overrideIndex: number,
-      value: OverrideValue,
+      value: OverrideValue
     ) => {
       const context = findEditContext(tableName);
       if (!context) return;
@@ -47,7 +47,7 @@ export function useOverridesEditDsl() {
         tableName,
       });
     },
-    [findEditContext, updateDSL],
+    [findEditContext, updateDSL]
   );
 
   const removeOverrideRow = useCallback(
@@ -67,7 +67,7 @@ export function useOverridesEditDsl() {
         tableName,
       });
     },
-    [findEditContext, updateDSL],
+    [findEditContext, updateDSL]
   );
 
   const removeTableOrOverrideRow = useCallback(
@@ -89,7 +89,7 @@ export function useOverridesEditDsl() {
         deleteTable(tableName);
       }
     },
-    [deleteTable, findEditContext, removeOverrideRow],
+    [deleteTable, findEditContext, removeOverrideRow]
   );
 
   const editOverride = useCallback(
@@ -97,7 +97,7 @@ export function useOverridesEditDsl() {
       tableName: string,
       fieldName: string,
       overrideIndex: number,
-      value: string,
+      value: string
     ) => {
       const context = findEditContext(tableName);
       if (!context) return;
@@ -109,7 +109,7 @@ export function useOverridesEditDsl() {
 
       const currentOverride = overrides.getValueAtIndex(
         fieldName,
-        overrideIndex,
+        overrideIndex
       );
       const currentValueWrapped = currentOverride
         ?.toString()
@@ -142,7 +142,7 @@ export function useOverridesEditDsl() {
         tableName,
       });
     },
-    [requestDimSchemaForFormula, deleteTable, findEditContext, updateDSL],
+    [requestDimSchemaForFormula, deleteTable, findEditContext, updateDSL]
   );
 
   const addOverrides = useCallback(
@@ -151,7 +151,7 @@ export function useOverridesEditDsl() {
       selectedRow: number,
       tableName: string,
       cells: string[][],
-      withShifting?: boolean,
+      withShifting?: boolean
     ) => {
       const context = findEditContext(tableName);
       if (!context) return;
@@ -181,7 +181,7 @@ export function useOverridesEditDsl() {
         tableName,
       });
     },
-    [findEditContext, gridApi, updateDSL],
+    [findEditContext, gridApi, updateDSL]
   );
 
   const regenerateOverrideAIFunctions = useCallback(
@@ -200,14 +200,14 @@ export function useOverridesEditDsl() {
       } else {
         const currentOverrideIndex = overrides.getRowByKey(
           defaultRowKey,
-          overrideIndex,
+          overrideIndex
         )?.overrideIndex;
 
         if (currentOverrideIndex == null) return;
 
         currentOverride = overrides.getValueAtIndex(
           fieldName,
-          currentOverrideIndex,
+          currentOverrideIndex
         );
       }
 
@@ -219,7 +219,7 @@ export function useOverridesEditDsl() {
         editOverride(tableName, fieldName, overrideIndex, updatedValue);
       }
     },
-    [editOverride, findEditContext],
+    [editOverride, findEditContext]
   );
 
   const addOverride = useCallback(
@@ -228,11 +228,11 @@ export function useOverridesEditDsl() {
       row: number,
       tableName: string,
       value: string,
-      withShifting?: boolean,
+      withShifting?: boolean
     ) => {
       addOverrides(col, row, tableName, [[value]], withShifting);
     },
-    [addOverrides],
+    [addOverrides]
   );
 
   return {
@@ -243,7 +243,7 @@ export function useOverridesEditDsl() {
     removeOverrideRow: useSafeCallback(removeOverrideRow),
     removeTableOrOverrideRow: useSafeCallback(removeTableOrOverrideRow),
     regenerateOverrideAIFunctions: useSafeCallback(
-      regenerateOverrideAIFunctions,
+      regenerateOverrideAIFunctions
     ),
   };
 }

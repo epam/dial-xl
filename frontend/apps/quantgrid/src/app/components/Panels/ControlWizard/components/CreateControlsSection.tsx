@@ -1,18 +1,16 @@
 import { Form } from 'antd';
+import type { DefaultOptionType } from 'rc-select/lib/Select';
 import { useMemo } from 'react';
-
-import type { DefaultOptionType } from '@rc-component/select/lib/Select';
 
 import { AddControlButton } from './AddControlButton';
 import { ControlRowForm } from './ControlRowForm';
-import { ControlWizardSaveProps, TableOption } from './utils';
+import { TableOption } from './utils';
 
 type Props = {
   tables: TableOption[];
-  onSave?: (payload: ControlWizardSaveProps) => void;
 };
 
-export function CreateControlsSection({ tables, onSave }: Props) {
+export function CreateControlsSection({ tables }: Props) {
   const fieldsByTable = useMemo(() => {
     const m = new Map<string, DefaultOptionType[]>();
     tables.forEach((t) => m.set(t.value, t.fields));
@@ -22,7 +20,7 @@ export function CreateControlsSection({ tables, onSave }: Props) {
 
   const tableOptions: DefaultOptionType[] = useMemo(
     () => tables.map(({ value, label }) => ({ value, label })),
-    [tables],
+    [tables]
   );
 
   return (
@@ -38,7 +36,6 @@ export function CreateControlsSection({ tables, onSave }: Props) {
               restField={restField}
               tableOptions={tableOptions}
               onRemove={() => remove(name)}
-              onSave={onSave}
             />
           ))}
 

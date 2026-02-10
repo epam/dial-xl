@@ -1,7 +1,7 @@
 import { Input, Modal, Table } from 'antd';
 import { ColumnType } from 'antd/es/table';
 import cx from 'classnames';
-import Fuse, { IFuseOptions } from 'fuse.js';
+import Fuse from 'fuse.js';
 import { useEffect, useMemo, useState } from 'react';
 
 import {
@@ -14,7 +14,7 @@ import { inputClasses, SearchIcon } from '@frontend/common/lib';
 import { ImportArgs } from '../../../hooks';
 import { useSyncImportsConfirmModalStore } from '../../../store';
 
-const fuseOptions: IFuseOptions<ImportArgs> = {
+const fuseOptions: Fuse.IFuseOptions<ImportArgs> = {
   includeScore: true,
   shouldSort: true,
   includeMatches: true,
@@ -30,7 +30,7 @@ export function SyncImportsConfirmModal() {
   const title = useSyncImportsConfirmModalStore((s) => s.title);
   const okText = useSyncImportsConfirmModalStore((s) => s.okText);
   const primaryMessage = useSyncImportsConfirmModalStore(
-    (s) => s.primaryMessage,
+    (s) => s.primaryMessage
   );
   const listItems = useSyncImportsConfirmModalStore((s) => s.listItems);
   const submit = useSyncImportsConfirmModalStore((s) => s.submit);
@@ -61,7 +61,7 @@ export function SyncImportsConfirmModal() {
         resultedInput: `${value.source}/${value.dataset}`,
         version: value.version,
       })),
-    [filteredItems],
+    [filteredItems]
   );
 
   const columns: ColumnType[] = useMemo(
@@ -87,7 +87,7 @@ export function SyncImportsConfirmModal() {
         ellipsis: true,
       },
     ],
-    [],
+    []
   );
 
   if (!listItems.length) return null;

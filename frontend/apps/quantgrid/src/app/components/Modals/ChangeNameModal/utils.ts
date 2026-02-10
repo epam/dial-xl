@@ -57,7 +57,7 @@ export const modalUIConfig: Record<ChangeNameKind, ModalUIProps> = {
 
 export function buildChangeNameUi(
   kind: ChangeNameKind,
-  overrides?: ChangeNameUIOverrides,
+  overrides?: ChangeNameUIOverrides
 ): ModalUIProps {
   const base = modalUIConfig[kind];
 

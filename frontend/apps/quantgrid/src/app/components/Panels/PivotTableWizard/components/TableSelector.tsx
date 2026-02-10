@@ -1,7 +1,7 @@
+import { DefaultOptionType } from 'rc-select/lib/Select';
 import Select, { SingleValue } from 'react-select';
 
 import { SelectClasses, selectStyles } from '@frontend/common';
-import { DefaultOptionType } from '@rc-component/select/lib/Select';
 
 interface Props {
   selectedTableName: DefaultOptionType | undefined;

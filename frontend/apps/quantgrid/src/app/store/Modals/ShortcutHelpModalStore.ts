@@ -26,5 +26,5 @@ export const useShortcutsHelpModalStore = create<ShortcutsHelpModalStore>()(
     close: () => {
       set(initial);
     },
-  }),
+  })
 );

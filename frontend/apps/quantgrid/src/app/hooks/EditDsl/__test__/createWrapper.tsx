@@ -6,11 +6,11 @@ import {
   useMemo,
   useState,
 } from 'react';
-import { vi } from 'vitest';
 
 import { GridApi } from '@frontend/canvas-spreadsheet';
 import { WorksheetState } from '@frontend/common';
 import { ParsedSheet, ParsedSheets, SheetReader } from '@frontend/parser';
+import { jest } from '@jest/globals';
 
 import {
   ApiContext,
@@ -24,8 +24,8 @@ import {
 import { TestWrapperProps } from './types';
 
 export const initialProps: TestWrapperProps = {
-  appendToFn: vi.fn(),
-  manuallyUpdateSheetContent: vi.fn(() => Promise.resolve(true)),
+  appendToFn: jest.fn(),
+  manuallyUpdateSheetContent: jest.fn(() => Promise.resolve(true)),
   projectName: 'project1',
   sheetName: 'sheet1',
   __initialDsl: '',
@@ -129,7 +129,7 @@ export function createWrapper({
         stableProjectSheets,
         parsedSheetProp,
         parsedSheetsProp,
-      ],
+      ]
     );
 
     // Keep refs & contexts fresh — include deps!
@@ -146,14 +146,8 @@ export function createWrapper({
     const dslCtx = useMemo(() => ({ dsl, setDsl }), [dsl]);
 
     const apiCtx = useMemo(
-      () => ({
-        userBucket: 'SomeBucket',
-        userRoles: [],
-        isAdmin: false,
-        bucketState: { loading: false },
-        retryBucketFetch: () => {},
-      }),
-      [],
+      () => ({ userBucket: 'SomeBucket', userRoles: [], isAdmin: false }),
+      []
     );
 
     const viewportCtx = useMemo(
@@ -165,7 +159,7 @@ export function createWrapper({
         onIndexResponse: () => {},
       }),
       // eslint-disable-next-line react-hooks/exhaustive-deps
-      [viewGridData],
+      [viewGridData]
     );
 
     const projectCtx = useMemo(
@@ -220,7 +214,7 @@ export function createWrapper({
         fieldInfos: [],
         responseIds: [],
 
-        openProject: () => Promise.resolve(),
+        openProject: () => {},
         closeCurrentProject: () => {},
 
         acceptShareProject: () => {},
@@ -241,9 +235,6 @@ export function createWrapper({
         setIsConflictResolving: () => {},
         cancelAllImportSyncRequests: () => {},
         manageRequestLifecycle: () => {},
-        clearViewportError: () => {},
-        projectDataLoadingError: null,
-        setProjectDataLoadingError: () => {},
       }),
       // eslint-disable-next-line react-hooks/exhaustive-deps
       [
@@ -255,7 +246,7 @@ export function createWrapper({
         parsedSheets,
         updateSheetContent,
         manuallyUpdateSheetContent,
-      ],
+      ]
     );
 
     const undoCtx = useMemo(
@@ -268,7 +259,7 @@ export function createWrapper({
         clear: () => {},
       }),
       // eslint-disable-next-line react-hooks/exhaustive-deps
-      [appendToFn],
+      [appendToFn]
     );
 
     const appSpreadsheetInteractionCtx = useMemo(
@@ -278,7 +269,7 @@ export function createWrapper({
         openCellEditor: () => {},
         autoCleanUpTable: () => {},
       }),
-      [],
+      []
     );
 
     return (

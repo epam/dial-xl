@@ -17,7 +17,7 @@ export function FormulaBarMenu() {
     useShallow((s) => ({
       formulaBarMode: s.formulaBarMode,
       setFormulaBarMode: s.setFormulaBarMode,
-    })),
+    }))
   );
 
   const items = [
@@ -42,7 +42,7 @@ export function FormulaBarMenu() {
           break;
       }
     },
-    [setFormulaBarMode],
+    [setFormulaBarMode]
   );
 
   return (

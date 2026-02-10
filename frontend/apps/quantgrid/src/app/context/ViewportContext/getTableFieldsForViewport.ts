@@ -5,112 +5,95 @@ import {
   unescapeFieldName,
 } from '@frontend/parser';
 
-import {
-  DynamicColumnRange,
-  extraDirectionOffset,
-  TableFieldsForViewportResult,
-} from './types';
+const extraDirectionOffset = 50;
 
-/**
- * Selects which table fields should be requested for the current viewport.
- */
 export function getTableFieldsForViewport(
   viewport: GridViewport,
   table: ParsedTable,
-  dynamicFields?: (string | undefined)[],
-  isDynamicFieldsRequested = false,
-): TableFieldsForViewportResult {
+  dynamicFields: string[],
+  isDynamicFieldsRequested: boolean
+) {
   const [tableStartRow, tableStartCol] = table.getPlacement();
   const isTableHorizontal = table.getIsTableDirectionHorizontal();
-
-  // Fields are placed along one axis depending on table orientation.
   const directionStart = isTableHorizontal ? tableStartRow : tableStartCol;
-  const viewportDirectionStart = isTableHorizontal
-    ? viewport.startRow
-    : viewport.startCol;
   const viewportDirectionEnd = isTableHorizontal
     ? viewport.endRow
     : viewport.endCol;
-
-  const visibleStart = Math.max(
-    0,
-    viewportDirectionStart - extraDirectionOffset,
+  const viewportDirectionStart = isTableHorizontal
+    ? viewport.startRow
+    : viewport.startCol;
+  const dynamicFieldIndex = table.fields.findIndex(
+    (f) => f.key.fieldName === dynamicFieldName
   );
-  const visibleEnd = viewportDirectionEnd + extraDirectionOffset;
 
-  const tableFields = table.fields;
-  const dynamicBlockStartIndex = table.getDynamicBlockStartIndex();
-  const hasDynamic = table.hasDynamicFields() && dynamicBlockStartIndex !== -1;
-  const dynamicCount = dynamicFields?.length ?? 0;
+  const fields = table.getFieldsWithoutDynamic().map((field, index) => {
+    const fieldRealIndex = table.fields.findIndex(
+      (f) => f.key.fieldName === field.key.fieldName
+    );
 
-  // Precompute mapping to avoid repeated lookups.
-  const realIndexByField = new Map<string, number>();
-  tableFields.forEach(({ key }, i) => realIndexByField.set(key.fieldName, i));
+    let directionValue = index + directionStart;
 
-  // Static fields (everything except '*') with their absolute coordinate.
-  const staticFieldsWithCoord = table
-    .getFieldsWithoutDynamic()
-    .map(({ key }, index) => {
-      const realIndex = realIndexByField.get(key.fieldName) ?? -1;
+    if (dynamicFieldIndex !== -1 && fieldRealIndex > dynamicFieldIndex) {
+      directionValue += dynamicFields.length;
+    }
 
-      // Base coordinate if there were no dynamic columns.
-      let directionValue = index + directionStart;
+    return {
+      fieldName: unescapeFieldName(field.key.fieldName),
+      directionValue,
+    };
+  });
 
-      // If the field is positioned after '*', shift it by the dynamic column count.
-      if (hasDynamic && realIndex > dynamicBlockStartIndex) {
-        directionValue += dynamicCount;
-      }
+  if (fields.length === 0 && !table.hasDynamicFields()) return [];
 
-      return {
-        fieldName: unescapeFieldName(key.fieldName),
-        directionValue,
-      };
-    });
+  let fullFields = [];
+  const dynamicFieldsMap = dynamicFields.map((fieldName, index) => ({
+    directionValue: index + directionStart,
+    fieldName: unescapeFieldName(fieldName),
+  }));
 
-  const fieldsToRequest: string[] = staticFieldsWithCoord
-    .filter(
-      ({ directionValue }) =>
-        directionValue >= visibleStart && directionValue <= visibleEnd,
-    )
+  if (fields.length > 0) {
+    const lastField = fields[fields.length - 1];
+    const lastNonDynamicColumn = lastField.directionValue;
+
+    if (!lastNonDynamicColumn) return [];
+
+    fullFields = [...fields, ...dynamicFieldsMap];
+  } else {
+    fullFields = dynamicFieldsMap;
+  }
+
+  const fieldsToRequest = fullFields
+    .filter(({ directionValue }) => {
+      return (
+        directionValue < viewportDirectionEnd + extraDirectionOffset &&
+        directionValue >
+          Math.max(0, viewportDirectionStart - extraDirectionOffset)
+      );
+    })
     .map(({ fieldName }) => fieldName);
 
-  // Dynamic placeholder range.
-  let dynamicRange: DynamicColumnRange | undefined;
+  const shouldRequestDynamicField =
+    (!isDynamicFieldsRequested && table.hasDynamicFields()) ||
+    (isDynamicFieldsRequested && dynamicFields.length === 0);
 
-  if (hasDynamic && dynamicBlockStartIndex !== -1) {
-    const dynamicStartCoord = directionStart + dynamicBlockStartIndex;
-
-    const dynamicEndCoord =
-      dynamicCount > 0
-        ? dynamicStartCoord + dynamicCount - 1
-        : isDynamicFieldsRequested
-          ? dynamicStartCoord - 1
-          : Number.POSITIVE_INFINITY;
-
-    const overlapStartCoord = Math.max(visibleStart, dynamicStartCoord);
-    const overlapEndCoord = Math.min(visibleEnd, dynamicEndCoord);
-
-    if (overlapEndCoord >= overlapStartCoord) {
-      const start = Math.max(0, overlapStartCoord - dynamicStartCoord);
-      const end = Math.max(start + 1, overlapEndCoord - dynamicStartCoord + 1);
-      dynamicRange = { start, end };
-
-      fieldsToRequest.push(dynamicFieldName);
-    }
+  if (shouldRequestDynamicField) {
+    fieldsToRequest.push('*');
   }
 
-  // Ensure all key fields are requested.
-  // Reason: key values are used in formulas, e.g., for expanding tables.
-  for (const field of tableFields) {
-    if (!field.isKey) continue;
-    const keyFieldName = unescapeFieldName(field.key.fieldName);
-    if (!fieldsToRequest.includes(keyFieldName)) {
-      fieldsToRequest.push(keyFieldName);
-    }
-  }
+  // All key fields should be requested
+  // Cause: their values are using in the formulas, e.g. when expand table
+  table.fields
+    .filter((field) => field.isKey)
+    .map((field) => unescapeFieldName(field.key.fieldName))
+    .forEach((keyFieldName) => {
+      const findFieldIndex = fieldsToRequest.findIndex(
+        (f) => f === keyFieldName
+      );
 
-  return {
-    fields: Array.from(new Set(fieldsToRequest)),
-    dynamicRange,
-  };
+      if (findFieldIndex === -1) {
+        fieldsToRequest.push(keyFieldName);
+      }
+    });
+
+  return fieldsToRequest;
 }

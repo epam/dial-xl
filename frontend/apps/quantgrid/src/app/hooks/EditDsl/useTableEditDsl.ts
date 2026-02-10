@@ -16,7 +16,6 @@ import {
 
 import { ProjectContext, ViewportContext } from '../../context';
 import { createUniqueName, findNearestOverlappingTable } from '../../services';
-import { useGridApi } from '../useGridApi';
 import { useSafeCallback } from '../useSafeCallback';
 import { UpdateDslParams, useDSLUtils } from './useDSLUtils';
 import {
@@ -35,13 +34,12 @@ export function useTableEditDsl() {
     findFieldOnLeftOrRight,
     findTableField,
   } = useDSLUtils();
-  const gridApi = useGridApi();
 
   const renameTable = useCallback(
     (
       oldName: string,
       newName: string,
-      params?: { showHeader: boolean },
+      params?: { showHeader: boolean }
     ): string | undefined => {
       if (oldName === newName) return;
 
@@ -52,8 +50,8 @@ export function useTableEditDsl() {
       const uniqueNewTableName = escapeTableName(
         createUniqueName(
           unescapeTableName(newName),
-          collectTableNames(parsedSheets),
-        ),
+          collectTableNames(parsedSheets)
+        )
       );
 
       table.name = uniqueNewTableName;
@@ -74,7 +72,7 @@ export function useTableEditDsl() {
 
       return uniqueNewTableName;
     },
-    [findEditContext, parsedSheets, updateDSL],
+    [findEditContext, parsedSheets, updateDSL]
   );
 
   const toggleTableTitleOrHeaderVisibility = useCallback(
@@ -108,7 +106,7 @@ export function useTableEditDsl() {
         tableName,
       });
     },
-    [findEditContext, updateDSL],
+    [findEditContext, updateDSL]
   );
 
   const handleMoveTable = useCallback(
@@ -116,8 +114,7 @@ export function useTableEditDsl() {
       tableName: string,
       rowValue: number,
       colValue: number,
-      isDelta: boolean,
-      shouldUpdateSelection = false,
+      isDelta: boolean
     ) => {
       const context = findEditContext(tableName);
       if (!context) return;
@@ -130,7 +127,7 @@ export function useTableEditDsl() {
       if (layoutDecorator) {
         const [startRow, startCol] = layoutDecorator.params[0] as [
           number,
-          number,
+          number
         ];
 
         if (isDelta) {
@@ -160,47 +157,22 @@ export function useTableEditDsl() {
         historyTitle,
         tableName,
       });
-
-      if (!shouldUpdateSelection) return;
-
-      gridApi?.updateSelectionAfterDataChanged({
-        startCol: targetCol,
-        startRow: targetRow,
-        endCol: targetCol,
-        endRow: targetRow + 1,
-      });
     },
-    [findEditContext, gridApi, updateDSL],
+    [findEditContext, updateDSL]
   );
 
   const moveTable = useCallback(
-    (
-      tableName: string,
-      rowDelta: number,
-      colDelta: number,
-      shouldUpdateSelection = false,
-    ) => {
-      handleMoveTable(
-        tableName,
-        rowDelta,
-        colDelta,
-        true,
-        shouldUpdateSelection,
-      );
+    (tableName: string, rowDelta: number, colDelta: number) => {
+      handleMoveTable(tableName, rowDelta, colDelta, true);
     },
-    [handleMoveTable],
+    [handleMoveTable]
   );
 
   const moveTableTo = useCallback(
-    (
-      tableName: string,
-      row: number,
-      col: number,
-      shouldUpdateSelection = false,
-    ) => {
-      handleMoveTable(tableName, row, col, false, shouldUpdateSelection);
+    (tableName: string, row: number, col: number) => {
+      handleMoveTable(tableName, row, col, false);
     },
-    [handleMoveTable],
+    [handleMoveTable]
   );
 
   const flipTable = useCallback(
@@ -230,7 +202,7 @@ export function useTableEditDsl() {
         tableName,
       });
     },
-    [findEditContext, updateDSL],
+    [findEditContext, updateDSL]
   );
 
   const convertToTable = useCallback(
@@ -243,7 +215,7 @@ export function useTableEditDsl() {
         table,
         visualizationDecoratorName,
         '',
-        true,
+        true
       );
 
       if (!success) return;
@@ -256,7 +228,7 @@ export function useTableEditDsl() {
         tableName,
       });
     },
-    [findEditContext, updateDSL],
+    [findEditContext, updateDSL]
   );
 
   const updateTableDecoratorValue = useCallback(
@@ -265,7 +237,7 @@ export function useTableEditDsl() {
       value: string | string[],
       decoratorName: string,
       customHistoryMessage?: string,
-      shouldRemove = false,
+      shouldRemove = false
     ) => {
       const context = findEditContext(tableName);
       if (!context) return;
@@ -278,7 +250,7 @@ export function useTableEditDsl() {
         table,
         decoratorName,
         decoratorArgs,
-        shouldRemove,
+        shouldRemove
       );
 
       if (!success) return;
@@ -293,7 +265,7 @@ export function useTableEditDsl() {
         tableName,
       });
     },
-    [findEditContext, updateDSL],
+    [findEditContext, updateDSL]
   );
 
   const swapFields = useCallback(
@@ -301,7 +273,7 @@ export function useTableEditDsl() {
       tableName: string,
       rightFieldName: string,
       leftFieldName: string,
-      direction: HorizontalDirection,
+      direction: HorizontalDirection
     ) => {
       const rfContext = findEditContext(tableName, rightFieldName);
       const lfContext = findEditContext(tableName, leftFieldName);
@@ -317,14 +289,14 @@ export function useTableEditDsl() {
           leftField = findFieldOnLeftOrRight(
             tableName,
             rightFieldName,
-            direction,
+            direction
           );
           rightField = findTableField(tableName, dynamicFieldName);
         } else {
           rightField = findFieldOnLeftOrRight(
             tableName,
             leftFieldName,
-            direction,
+            direction
           );
           leftField = findTableField(tableName, dynamicFieldName);
         }
@@ -363,13 +335,13 @@ export function useTableEditDsl() {
       if (isSameGroup && formula && isFieldReferenceFormula) {
         const targetFieldGroup = parsedTable.fields.filter(
           ({ fieldGroupIndex }) =>
-            fieldGroupIndex === rightField.fieldGroupIndex,
+            fieldGroupIndex === rightField.fieldGroupIndex
         );
         const rFieldIndex = targetFieldGroup.findIndex(
-          ({ key }) => key.fieldName === rightFieldName,
+          ({ key }) => key.fieldName === rightFieldName
         );
         const lFieldIndex = targetFieldGroup.findIndex(
-          ({ key }) => key.fieldName === leftFieldName,
+          ({ key }) => key.fieldName === leftFieldName
         );
 
         const { fields } = parsedFormula;
@@ -398,7 +370,7 @@ export function useTableEditDsl() {
         tableName,
       });
     },
-    [findEditContext, findFieldOnLeftOrRight, findTableField, updateDSL],
+    [findEditContext, findFieldOnLeftOrRight, findTableField, updateDSL]
   );
 
   const swapFieldsByDirection = useCallback(
@@ -426,7 +398,7 @@ export function useTableEditDsl() {
 
       swapFields(tableName, rightFieldName, leftFieldName, direction);
     },
-    [findContext, swapFields],
+    [findContext, swapFields]
   );
 
   const deleteTables = useCallback(
@@ -471,14 +443,14 @@ export function useTableEditDsl() {
 
       updateDSL(dslChanges);
     },
-    [updateDSL, parsedSheets],
+    [updateDSL, parsedSheets]
   );
 
   const deleteTable = useCallback(
     (tableName: string) => {
       deleteTables([tableName]);
     },
-    [deleteTables],
+    [deleteTables]
   );
 
   const arrangeTable = useCallback(
@@ -502,7 +474,7 @@ export function useTableEditDsl() {
       if (arrangeType === 'forward' || arrangeType === 'backward') {
         const isForward = arrangeType === 'forward';
         const targetGridTable = tableStructures.find(
-          (table) => table.tableName === tableName,
+          (table) => table.tableName === tableName
         );
 
         if (!targetGridTable || !parsedSheet?.tables) return;
@@ -512,13 +484,13 @@ export function useTableEditDsl() {
           parsedTable,
           tableStructures,
           parsedSheet.tables,
-          isForward,
+          isForward
         );
 
         if (!overlappingTable) return;
 
         const overlappingTableIndex = sheet.findTableIndex(
-          unescapeTableName(overlappingTable.tableName),
+          unescapeTableName(overlappingTable.tableName)
         );
 
         if (isForward) {
@@ -526,7 +498,7 @@ export function useTableEditDsl() {
         } else {
           sheet.moveTableToIndex(
             unescapedTableName,
-            Math.max(0, overlappingTableIndex - 1),
+            Math.max(0, overlappingTableIndex - 1)
           );
         }
       }
@@ -534,7 +506,7 @@ export function useTableEditDsl() {
       const historyTitle = `Table "${tableName}" moved ${arrangeType}`;
       updateDSL({ updatedSheetContent: sheet.toDSL(), historyTitle });
     },
-    [findEditContext, updateDSL, viewGridData],
+    [findEditContext, updateDSL, viewGridData]
   );
 
   const cloneTable = useCallback(
@@ -550,15 +522,15 @@ export function useTableEditDsl() {
       const uniqueNewTableName = escapeTableName(
         createUniqueName(
           unescapedSourceTableName + ' clone',
-          collectTableNames(parsedSheets),
-        ),
+          collectTableNames(parsedSheets)
+        )
       );
 
       try {
         const parsedNewSheet = SheetReader.parseSheet(table.toDSL());
         const editableNewSheet = parsedNewSheet.editableSheet;
         const parsedNewTable = parsedNewSheet.tables.find(
-          (t) => t.tableName === tableName,
+          (t) => t.tableName === tableName
         );
 
         if (!editableNewSheet || !parsedNewTable) return;
@@ -590,14 +562,14 @@ export function useTableEditDsl() {
         return;
       }
     },
-    [findEditContext, parsedSheets, sheetName, updateDSL],
+    [findEditContext, parsedSheets, sheetName, updateDSL]
   );
 
   const moveTableToSheet = useCallback(
     (
       tableName: string,
       sourceSheetName: string,
-      destinationSheetName: string,
+      destinationSheetName: string
     ) => {
       if (sourceSheetName === destinationSheetName) return;
       const destinationSheet = parsedSheets[destinationSheetName].editableSheet;
@@ -626,7 +598,7 @@ export function useTableEditDsl() {
         },
       ]);
     },
-    [findEditContext, parsedSheets, updateDSL],
+    [findEditContext, parsedSheets, updateDSL]
   );
 
   return {
@@ -643,7 +615,7 @@ export function useTableEditDsl() {
     swapFields: useSafeCallback(swapFields),
     swapFieldsByDirection: useSafeCallback(swapFieldsByDirection),
     toggleTableTitleOrHeaderVisibility: useSafeCallback(
-      toggleTableTitleOrHeaderVisibility,
+      toggleTableTitleOrHeaderVisibility
     ),
     updateTableDecoratorValue: useSafeCallback(updateTableDecoratorValue),
   };

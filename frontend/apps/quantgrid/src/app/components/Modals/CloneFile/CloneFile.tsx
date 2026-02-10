@@ -42,7 +42,7 @@ export function CloneFile({ item, onModalClose }: Props) {
 
   const isProject = useMemo(
     () => item.name.endsWith(dialProjectFileExtension),
-    [item.name],
+    [item.name]
   );
 
   const initialFileName = useMemo(() => {
@@ -97,7 +97,7 @@ export function CloneFile({ item, onModalClose }: Props) {
         handleOk();
       }
     },
-    [handleOk, initialFileName, isOpen, newFileName],
+    [handleOk, initialFileName, isOpen, newFileName]
   );
 
   useEffect(() => {
@@ -127,14 +127,12 @@ export function CloneFile({ item, onModalClose }: Props) {
   const initNewFileName = useCallback(async () => {
     if (newFileName !== null) return;
 
-    const allFilesInDestinationRes = await getFiles({
+    const allFilesInDestination = await getFiles({
       path: `${item.bucket}/${item.parentPath ? item.parentPath + '/' : ''}`,
+      suppressErrors: true,
     });
 
-    const allFilesInDestination = allFilesInDestinationRes.success
-      ? allFilesInDestinationRes.data
-      : [];
-    const fileNamesInDestination = allFilesInDestination
+    const fileNamesInDestination = (allFilesInDestination ?? [])
       .filter((f) => f.nodeType !== MetadataNodeType.FOLDER)
       .map((file) => file.name);
     const targetName = fileNamesInDestination.includes(item.name)
@@ -159,7 +157,7 @@ export function CloneFile({ item, onModalClose }: Props) {
         className: cx(
           modalFooterButtonClasses,
           primaryButtonClasses,
-          primaryDisabledButtonClasses,
+          primaryDisabledButtonClasses
         ),
         disabled:
           !newFileName ||

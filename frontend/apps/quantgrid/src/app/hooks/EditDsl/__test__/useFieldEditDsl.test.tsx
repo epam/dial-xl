@@ -1,6 +1,5 @@
+import fetchMock from 'jest-fetch-mock';
 import { BehaviorSubject } from 'rxjs';
-import { vi } from 'vitest';
-import createFetchMock from 'vitest-fetch-mock';
 
 import { ColumnDataType, FormatKeys } from '@frontend/common';
 import {
@@ -13,9 +12,6 @@ import { useFieldEditDsl } from '../useFieldEditDsl';
 import { createWrapper, initialProps } from './createWrapper';
 import { hookTestSetup } from './hookTestSetup';
 import { TestWrapperProps } from './types';
-
-const fetchMock = createFetchMock(vi);
-fetchMock.enableMocks();
 
 describe('useFieldEditDsl', () => {
   let props: TestWrapperProps = { ...initialProps };
@@ -32,7 +28,7 @@ describe('useFieldEditDsl', () => {
   });
 
   beforeEach(() => {
-    vi.clearAllMocks();
+    jest.clearAllMocks();
     const hookRender = hookTestSetup(useFieldEditDsl, Wrapper);
     result = hookRender.result;
     setDsl = hookRender.setDsl;
@@ -321,7 +317,7 @@ describe('useFieldEditDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Mark as Description t1[f2]`,
-        [{ sheetName: props.sheetName, content: expectedDsl }],
+        [{ sheetName: props.sheetName, content: expectedDsl }]
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -341,7 +337,7 @@ describe('useFieldEditDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Mark as Description t1[f2]`,
-        [{ sheetName: props.sheetName, content: expectedDsl }],
+        [{ sheetName: props.sheetName, content: expectedDsl }]
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -360,7 +356,7 @@ describe('useFieldEditDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Unmark as Description t1[f2]`,
-        [{ sheetName: props.sheetName, content: expectedDsl }],
+        [{ sheetName: props.sheetName, content: expectedDsl }]
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -381,7 +377,7 @@ describe('useFieldEditDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Increase column width t1[b]`,
-        [{ sheetName: props.sheetName, content: expectedDsl }],
+        [{ sheetName: props.sheetName, content: expectedDsl }]
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -399,7 +395,7 @@ describe('useFieldEditDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Increase column width t1[b]`,
-        [{ sheetName: props.sheetName, content: expectedDsl }],
+        [{ sheetName: props.sheetName, content: expectedDsl }]
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -417,7 +413,7 @@ describe('useFieldEditDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Increase column width t1[b]`,
-        [{ sheetName: props.sheetName, content: expectedDsl }],
+        [{ sheetName: props.sheetName, content: expectedDsl }]
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -435,7 +431,7 @@ describe('useFieldEditDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Increase column width t1[a]`,
-        [{ sheetName: props.sheetName, content: expectedDsl }],
+        [{ sheetName: props.sheetName, content: expectedDsl }]
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -456,11 +452,11 @@ describe('useFieldEditDsl', () => {
       // Assert
       expect(props.appendToFn).not.toHaveBeenCalledWith(
         `Decrease column width t1[b]`,
-        [{ sheetName: props.sheetName, content: expectedDsl }],
+        [{ sheetName: props.sheetName, content: expectedDsl }]
       );
       expect(props.manuallyUpdateSheetContent).not.toHaveBeenCalledWith(
         props.sheetName,
-        expectedDsl,
+        expectedDsl
       );
     });
 
@@ -476,7 +472,7 @@ describe('useFieldEditDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Decrease column width t1[a]`,
-        [{ sheetName: props.sheetName, content: expectedDsl }],
+        [{ sheetName: props.sheetName, content: expectedDsl }]
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -497,7 +493,7 @@ describe('useFieldEditDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Decrease column width t1[a]`,
-        [{ sheetName: props.sheetName, content: expectedDsl }],
+        [{ sheetName: props.sheetName, content: expectedDsl }]
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -515,13 +511,13 @@ describe('useFieldEditDsl', () => {
 
       // Act
       act(() =>
-        result.current.setFormat('t1', 'f1', FormatKeys.Integer, [true]),
+        result.current.setFormat('t1', 'f1', FormatKeys.Integer, [true])
       );
 
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Set format "integer" to column "f1" of table "t1"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }],
+        [{ sheetName: props.sheetName, content: expectedDsl }]
       );
 
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
@@ -542,7 +538,7 @@ describe('useFieldEditDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Set format "general" to column "f1" of table "t1"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }],
+        [{ sheetName: props.sheetName, content: expectedDsl }]
       );
 
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
@@ -559,13 +555,13 @@ describe('useFieldEditDsl', () => {
 
       // Act
       act(() =>
-        result.current.setFormat('t1', 'f1', FormatKeys.Number, [22, true]),
+        result.current.setFormat('t1', 'f1', FormatKeys.Number, [22, true])
       );
 
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Set format "number" to column "f1" of table "t1"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }],
+        [{ sheetName: props.sheetName, content: expectedDsl }]
       );
 
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
@@ -585,13 +581,13 @@ describe('useFieldEditDsl', () => {
 
       // Act
       act(() =>
-        result.current.editExpressionWithOverrideRemove('t1', 'f1', '1234', 0),
+        result.current.editExpressionWithOverrideRemove('t1', 'f1', '1234', 0)
       );
 
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Update expression of field [f1] in table "t1"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }],
+        [{ sheetName: props.sheetName, content: expectedDsl }]
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -606,7 +602,7 @@ describe('useFieldEditDsl', () => {
 
       // Act
       act(() =>
-        result.current.editExpressionWithOverrideRemove('t1', 'f1', '1234', 0),
+        result.current.editExpressionWithOverrideRemove('t1', 'f1', '1234', 0)
       );
 
       // Assert
@@ -644,7 +640,7 @@ describe('useFieldEditDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Update expression of column [f1] in table "t1"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }],
+        [{ sheetName: props.sheetName, content: expectedDsl }]
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -664,7 +660,7 @@ describe('useFieldEditDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Update expression of column [f1] in table "t1"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }],
+        [{ sheetName: props.sheetName, content: expectedDsl }]
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -680,13 +676,13 @@ describe('useFieldEditDsl', () => {
 
       // Act
       await act(() =>
-        result.current.editExpression('t1', 'f1', '2 table t2 [f]=2'),
+        result.current.editExpression('t1', 'f1', '2 table t2 [f]=2')
       );
 
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Update expression of column [f1] in table "t1"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }],
+        [{ sheetName: props.sheetName, content: expectedDsl }]
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -706,7 +702,7 @@ describe('useFieldEditDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Update expression of column [f1] in table "t1"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }],
+        [{ sheetName: props.sheetName, content: expectedDsl }]
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -726,7 +722,7 @@ describe('useFieldEditDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Update expression of column [f1] in table "t1"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }],
+        [{ sheetName: props.sheetName, content: expectedDsl }]
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -749,13 +745,13 @@ describe('useFieldEditDsl', () => {
 
       // Act
       await act(() =>
-        result.current.editExpression('t1', 'x', 'T1(1)[[a],[b]]'),
+        result.current.editExpression('t1', 'x', 'T1(1)[[a],[b]]')
       );
 
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Update expression of column [x] in table "t1"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }],
+        [{ sheetName: props.sheetName, content: expectedDsl }]
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -782,7 +778,7 @@ describe('useFieldEditDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Update expression of column [x] in table "t1"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }],
+        [{ sheetName: props.sheetName, content: expectedDsl }]
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -809,7 +805,7 @@ describe('useFieldEditDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Update expression of column [x] in table "t1"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }],
+        [{ sheetName: props.sheetName, content: expectedDsl }]
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -837,7 +833,7 @@ describe('useFieldEditDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Update expression of column [x] in table "t1"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }],
+        [{ sheetName: props.sheetName, content: expectedDsl }]
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -877,7 +873,7 @@ describe('useFieldEditDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Update expression of column [x] in table "t1"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }],
+        [{ sheetName: props.sheetName, content: expectedDsl }]
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -905,14 +901,14 @@ describe('useFieldEditDsl', () => {
         result.current.editExpression(
           't1',
           'country',
-          'PIVOT(A[country], A[indicator], A[value], "AVG")',
-        ),
+          'PIVOT(A[country], A[indicator], A[value], "AVG")'
+        )
       );
 
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Update expression of column [country] in table "t1"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }],
+        [{ sheetName: props.sheetName, content: expectedDsl }]
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -935,8 +931,8 @@ describe('useFieldEditDsl', () => {
           't1',
           'f1',
           chartXAxisDecoratorName,
-          historyTitle,
-        ),
+          historyTitle
+        )
       );
 
       // Assert
@@ -959,8 +955,8 @@ describe('useFieldEditDsl', () => {
           't1',
           'f1',
           chartXAxisDecoratorName,
-          '',
-        ),
+          ''
+        )
       );
 
       // Assert
@@ -981,8 +977,8 @@ describe('useFieldEditDsl', () => {
           't1',
           'f1',
           chartXAxisDecoratorName,
-          historyTitle,
-        ),
+          historyTitle
+        )
       );
 
       // Assert
@@ -1007,8 +1003,8 @@ describe('useFieldEditDsl', () => {
           't1',
           'f1',
           chartXAxisDecoratorName,
-          historyTitle,
-        ),
+          historyTitle
+        )
       );
 
       // Assert
@@ -1033,8 +1029,8 @@ describe('useFieldEditDsl', () => {
           't1',
           'f1',
           chartXAxisDecoratorName,
-          historyTitle,
-        ),
+          historyTitle
+        )
       );
 
       // Assert
@@ -1062,8 +1058,8 @@ describe('useFieldEditDsl', () => {
           'f1',
           chartXAxisDecoratorName,
           '',
-          historyTitle,
-        ),
+          historyTitle
+        )
       );
 
       // Assert
@@ -1089,8 +1085,8 @@ describe('useFieldEditDsl', () => {
           'f1',
           chartSelectorDecoratorName,
           '"some value"',
-          historyTitle,
-        ),
+          historyTitle
+        )
       );
 
       // Assert
@@ -1116,8 +1112,8 @@ describe('useFieldEditDsl', () => {
           'f1',
           chartSelectorDecoratorName,
           '"another value"',
-          historyTitle,
-        ),
+          historyTitle
+        )
       );
 
       // Assert
@@ -1143,8 +1139,8 @@ describe('useFieldEditDsl', () => {
           'f1',
           chartXAxisDecoratorName,
           '',
-          historyTitle,
-        ),
+          historyTitle
+        )
       );
 
       // Assert
@@ -1173,8 +1169,8 @@ describe('useFieldEditDsl', () => {
           'f2',
           chartXAxisDecoratorName,
           '',
-          historyTitle,
-        ),
+          historyTitle
+        )
       );
 
       // Assert
@@ -1201,8 +1197,8 @@ describe('useFieldEditDsl', () => {
           'f1',
           chartXAxisDecoratorName,
           '',
-          historyTitle,
-        ),
+          historyTitle
+        )
       );
 
       // Assert
@@ -1229,8 +1225,8 @@ describe('useFieldEditDsl', () => {
           'f2',
           chartXAxisDecoratorName,
           '',
-          historyTitle,
-        ),
+          historyTitle
+        )
       );
 
       // Assert
@@ -1258,13 +1254,13 @@ describe('useFieldEditDsl', () => {
           overrideRow: 9,
           tableName: 't1',
           overrideValue: '33',
-        }),
+        })
       );
 
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Add new column "Field1" with override "33" to table "t1"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }],
+        [{ sheetName: props.sheetName, content: expectedDsl }]
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -1285,13 +1281,13 @@ describe('useFieldEditDsl', () => {
           overrideRow: 5,
           tableName: 't1',
           overrideValue: '33',
-        }),
+        })
       );
 
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Add new column "Field1" with override "33" to table "t1"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }],
+        [{ sheetName: props.sheetName, content: expectedDsl }]
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -1370,13 +1366,13 @@ describe('useFieldEditDsl', () => {
         result.current.addField('t1', 'field', {
           direction: 'left',
           insertFromFieldName: 'f1',
-        }),
+        })
       );
 
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Add [field] to table "t1"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }],
+        [{ sheetName: props.sheetName, content: expectedDsl }]
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -1396,13 +1392,13 @@ describe('useFieldEditDsl', () => {
         result.current.addField('t1', 'field', {
           direction: 'left',
           insertFromFieldName: 'f2',
-        }),
+        })
       );
 
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Add [field] to table "t1"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }],
+        [{ sheetName: props.sheetName, content: expectedDsl }]
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -1422,13 +1418,13 @@ describe('useFieldEditDsl', () => {
         result.current.addField('t1', 'field', {
           direction: 'right',
           insertFromFieldName: 'f1',
-        }),
+        })
       );
 
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Add [field] to table "t1"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }],
+        [{ sheetName: props.sheetName, content: expectedDsl }]
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -1447,13 +1443,13 @@ describe('useFieldEditDsl', () => {
       await act(() =>
         result.current.addField('t1', 'field', {
           direction: 'right',
-        }),
+        })
       );
 
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Add [field] to table "t1"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }],
+        [{ sheetName: props.sheetName, content: expectedDsl }]
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -1474,7 +1470,7 @@ describe('useFieldEditDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Add [field] to table "t1"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }],
+        [{ sheetName: props.sheetName, content: expectedDsl }]
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -1495,7 +1491,7 @@ describe('useFieldEditDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Add [Column3] to table "t1"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }],
+        [{ sheetName: props.sheetName, content: expectedDsl }]
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -1515,7 +1511,7 @@ describe('useFieldEditDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Add group of 1 field to table "t1"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }],
+        [{ sheetName: props.sheetName, content: expectedDsl }]
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -1536,7 +1532,7 @@ describe('useFieldEditDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Add group of 3 fields to table "t1"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }],
+        [{ sheetName: props.sheetName, content: expectedDsl }]
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -1557,7 +1553,7 @@ describe('useFieldEditDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Add group of 3 fields to table "t1"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }],
+        [{ sheetName: props.sheetName, content: expectedDsl }]
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -1578,7 +1574,7 @@ describe('useFieldEditDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Add group of 3 fields to table "t1"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }],
+        [{ sheetName: props.sheetName, content: expectedDsl }]
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -1598,7 +1594,7 @@ describe('useFieldEditDsl', () => {
             schema: ['c'],
             keys: [],
           },
-        }),
+        })
       );
 
       // Act
@@ -1607,7 +1603,7 @@ describe('useFieldEditDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Add group of 1 field to table "t1"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }],
+        [{ sheetName: props.sheetName, content: expectedDsl }]
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -1642,7 +1638,7 @@ describe('useFieldEditDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Remove column sizes for all fields in table "t1"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }],
+        [{ sheetName: props.sheetName, content: expectedDsl }]
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -1670,9 +1666,9 @@ describe('useFieldEditDsl', () => {
           },
         },
         selection$,
-        updateSelectionAfterDataChanged: vi.fn(),
+        updateSelectionAfterDataChanged: jest.fn(),
       } as any;
-      vi.clearAllMocks();
+      jest.clearAllMocks();
 
       Wrapper = createWrapper(props);
       const hookRender = hookTestSetup(useFieldEditDsl, Wrapper);
@@ -1694,7 +1690,7 @@ describe('useFieldEditDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Auto fit all fields in table "t1"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }],
+        [{ sheetName: props.sheetName, content: expectedDsl }]
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -1740,7 +1736,7 @@ describe('useFieldEditDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Update expression of column [f1] in table "t1"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }],
+        [{ sheetName: props.sheetName, content: expectedDsl }]
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -1761,7 +1757,7 @@ describe('useFieldEditDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Update expression of column [f1] in table "t1"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }],
+        [{ sheetName: props.sheetName, content: expectedDsl }]
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -1782,7 +1778,7 @@ describe('useFieldEditDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Update expression of column [f1] in table "t1"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }],
+        [{ sheetName: props.sheetName, content: expectedDsl }]
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },

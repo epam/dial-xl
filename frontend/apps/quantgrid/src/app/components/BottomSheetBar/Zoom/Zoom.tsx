@@ -1,15 +1,20 @@
 import { Dropdown, MenuProps } from 'antd';
 import cx from 'classnames';
 import { useEffect, useMemo, useState } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 
 import Icon from '@ant-design/icons';
 import { ChevronDown, getDropdownItem, zoomValues } from '@frontend/common';
 
-import { useUserSettingsStore } from '../../../store';
+import { useViewStore } from '../../../store';
 
 export function Zoom() {
-  const zoom = useUserSettingsStore((s) => s.data.zoom);
-  const setSetting = useUserSettingsStore((s) => s.patch);
+  const { zoom, setZoom } = useViewStore(
+    useShallow((s) => ({
+      zoom: s.zoom,
+      setZoom: s.setZoom,
+    }))
+  );
 
   const zoomOptions = useMemo(
     () =>
@@ -17,7 +22,7 @@ export function Zoom() {
         label: zoom * 100 + '%',
         value: zoom,
       })),
-    [],
+    []
   );
 
   const [isZoomOpened, setIsZoomOpened] = useState(false);
@@ -28,7 +33,7 @@ export function Zoom() {
 
   useEffect(() => {
     setSelectedZoom(
-      zoomOptions.find((z) => z.value === zoom) || zoomOptions[0],
+      zoomOptions.find((z) => z.value === zoom) || zoomOptions[0]
     );
   }, [zoom, zoomOptions]);
 
@@ -38,10 +43,10 @@ export function Zoom() {
         getDropdownItem({
           key: val.value,
           label: val.label,
-          onClick: () => setSetting({ zoom: val.value }),
-        }),
+          onClick: () => setZoom(val.value),
+        })
       ),
-    [setSetting, zoomOptions],
+    [setZoom, zoomOptions]
   );
 
   return (
@@ -50,18 +55,19 @@ export function Zoom() {
         align={{
           offset: [0, 12],
         }}
+        className="px-1 h-full min-w-[60px] flex items-center justify-center"
         menu={{ items }}
         open={isZoomOpened}
         onOpenChange={setIsZoomOpened}
       >
-        <div className="px-1 h-full min-w-[60px] flex items-center gap-1 group justify-center cursor-pointer">
+        <div className="cursor-pointer flex gap-1 group">
           <span className="text-[13px] text-text-primary">
             {selectedZoom.label}
           </span>
           <Icon
             className={cx(
               'text-text-primary w-[18px] transition-all group-hover:text-text-accent-primary',
-              isZoomOpened && 'rotate-180',
+              isZoomOpened && 'rotate-180'
             )}
             component={() => <ChevronDown />}
           />

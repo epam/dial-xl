@@ -5,7 +5,7 @@ import { MenuItem, MenuItemProps } from '../types';
 
 export function getDropdownMenuKey<T extends Record<string, any>>(
   action: string,
-  data?: T,
+  data?: T
 ): string {
   return JSON.stringify({
     action,
@@ -32,8 +32,7 @@ export function getDropdownItem(props: MenuItemProps): MenuItem {
   if (shortcut) {
     buildLabel = (
       <button
-        // We need to use the xl-dropdown class here to ensure that the dropdown item is styled correctly when it is inside a submenu title
-        className="xl-dropdown group flex justify-between items-center py-1 px-3 w-full"
+        className="group flex justify-between items-center py-1 px-3 w-full"
         data-label={label}
         data-qa={key}
         disabled={disabled}
@@ -64,8 +63,7 @@ export function getDropdownItem(props: MenuItemProps): MenuItem {
         {...(stopPropagationOnClick
           ? { 'data-stop-propagation': stopPropagationOnClick }
           : {})}
-        // We need to use the xl-dropdown class here to ensure that the dropdown item is styled correctly when it is inside a submenu title
-        className="xl-dropdown flex items-center py-1 px-3 gap-2 group size-full"
+        className="flex items-center py-1 px-3 gap-2 group size-full"
         data-label={label}
         data-qa={key}
         disabled={disabled}
@@ -89,11 +87,7 @@ export function getDropdownItem(props: MenuItemProps): MenuItem {
 
   buildLabel = tooltip ? (
     <Tooltip
-      className={classNames(
-        // We need to use the xl-dropdown class here to ensure that the dropdown item is styled correctly when it is inside a submenu title
-        'xl-dropdown',
-        disabled && 'hover:cursor-not-allowed',
-      )}
+      className={classNames(disabled && 'hover:cursor-not-allowed')}
       title={tooltip}
       destroyOnHidden
     >
@@ -108,7 +102,7 @@ export function getDropdownItem(props: MenuItemProps): MenuItem {
 
 export function getCheckboxDropdownSubmenuItem(
   props: MenuItemProps,
-  checked: boolean,
+  checked: boolean
 ): MenuItem {
   const { label, key } = props;
 

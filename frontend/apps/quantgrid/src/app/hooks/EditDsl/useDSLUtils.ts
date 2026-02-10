@@ -87,20 +87,17 @@ export function useDSLUtils() {
 
       const tableNamesToCleanUp = Array.from(
         new Set(
-          normalizedChangeParams.map((item) => item.tableName).filter(Boolean),
-        ),
+          normalizedChangeParams.map((item) => item.tableName).filter(Boolean)
+        )
       );
 
-      const updateDslParams = normalizedChangeParams.reduce(
-        (acc, curr) => {
-          acc[curr.historyTitle] = acc[curr.historyTitle]
-            ? acc[curr.historyTitle].concat(curr)
-            : [curr];
+      const updateDslParams = normalizedChangeParams.reduce((acc, curr) => {
+        acc[curr.historyTitle] = acc[curr.historyTitle]
+          ? acc[curr.historyTitle].concat(curr)
+          : [curr];
 
-          return acc;
-        },
-        {} as Record<string, StrictUpdateDslParams[]>,
-      );
+        return acc;
+      }, {} as Record<string, StrictUpdateDslParams[]>);
       const combinerUpdateDslParams = Object.entries(updateDslParams);
 
       if (!isAIPendingChanges) {
@@ -114,25 +111,22 @@ export function useDSLUtils() {
             changeParams.map((item) => ({
               sheetName: item.sheetNameToChange,
               content: item.updatedSheetContent,
-            })),
+            }))
           );
         }
       }
 
       // Take the last change of dsl for sheet
-      const finalDslChanges = normalizedChangeParams.reduce(
-        (acc, curr) => {
-          acc[curr.sheetNameToChange] = curr.updatedSheetContent;
+      const finalDslChanges = normalizedChangeParams.reduce((acc, curr) => {
+        acc[curr.sheetNameToChange] = curr.updatedSheetContent;
 
-          return acc;
-        },
-        {} as Record<string, string>,
-      );
+        return acc;
+      }, {} as Record<string, string>);
       await manuallyUpdateSheetContent(
         Object.entries(finalDslChanges).map((entry) => ({
           sheetName: entry[0],
           content: entry[1],
-        })),
+        }))
       );
 
       if (tableNamesToCleanUp.length > 0) {
@@ -147,7 +141,7 @@ export function useDSLUtils() {
       manuallyUpdateSheetContent,
       appendTo,
       autoCleanUpTable,
-    ],
+    ]
   );
 
   const findTable = useCallback(
@@ -156,7 +150,7 @@ export function useDSLUtils() {
 
       return parsedSheet.tables.find((table) => table.tableName === tableName);
     },
-    [parsedSheet],
+    [parsedSheet]
   );
 
   const findTableField = useCallback(
@@ -169,7 +163,7 @@ export function useDSLUtils() {
         targetTable?.fields.find((f) => f.key.fieldName === fieldName) || null
       );
     },
-    [findTable],
+    [findTable]
   );
 
   const findLastTableField = useCallback(
@@ -182,7 +176,7 @@ export function useDSLUtils() {
 
       return fields.length > 0 ? fields.at(-1) : null;
     },
-    [findTable],
+    [findTable]
   );
 
   const findFieldOnLeftOrRight = useCallback(
@@ -197,7 +191,7 @@ export function useDSLUtils() {
       const index = filteredFields.findIndex((f) =>
         currentField.isDynamic
           ? f.key.fieldName === dynamicFieldName
-          : f.key.fieldName === fieldName,
+          : f.key.fieldName === fieldName
       );
 
       if (direction === 'left') {
@@ -210,18 +204,18 @@ export function useDSLUtils() {
         return filteredFields[index + 1];
       }
     },
-    [findTable, findTableField],
+    [findTable, findTableField]
   );
 
   const findContext = useCallback(
     (tableName: string, fieldName?: string): ParsedContext | null => {
       for (const sheetName of Object.keys(parsedSheets)) {
         const table = parsedSheets[sheetName].tables.find(
-          (t) => t.tableName === tableName,
+          (t) => t.tableName === tableName
         );
 
         const sheetContent = projectSheets?.find(
-          (s) => s.sheetName === sheetName,
+          (s) => s.sheetName === sheetName
         )?.content;
 
         let field: ParsedField | undefined;
@@ -243,25 +237,25 @@ export function useDSLUtils() {
 
       return null;
     },
-    [parsedSheets, projectSheets],
+    [parsedSheets, projectSheets]
   );
 
   const findEditContext = useCallback(
     (tableName: string, fieldName?: string): ParsedEditableContext | null => {
       for (const sheetName of Object.keys(parsedSheets)) {
         const parsedTable = parsedSheets[sheetName].tables.find(
-          (t) => t.tableName === tableName,
+          (t) => t.tableName === tableName
         );
 
         const sheetContent = projectSheets?.find(
-          (s) => s.sheetName === sheetName,
+          (s) => s.sheetName === sheetName
         )?.content;
 
         let parsedField: ParsedField | undefined;
 
         if (fieldName && parsedTable) {
           parsedField = parsedTable.fields.find(
-            (f) => f.key.fieldName === fieldName,
+            (f) => f.key.fieldName === fieldName
           );
         }
 
@@ -296,12 +290,12 @@ export function useDSLUtils() {
 
       return null;
     },
-    [parsedSheets, projectSheets],
+    [parsedSheets, projectSheets]
   );
 
   const getFormulaSchema: (
     formula: string,
-    worksheets: Record<string, string>,
+    worksheets: Record<string, string>
   ) => Promise<
     | {
         schema: string[];

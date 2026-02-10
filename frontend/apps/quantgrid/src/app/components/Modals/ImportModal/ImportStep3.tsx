@@ -42,7 +42,7 @@ const states = {
     buttonDisabled: true,
     buttonClasses: classNames(
       primaryButtonClasses,
-      primaryDisabledButtonClasses,
+      primaryDisabledButtonClasses
     ),
   },
   SUCCESS: {
@@ -80,7 +80,7 @@ interface Props {
   isSaveInProgress: boolean;
   saveButtonLabel: string;
   onConnectionResult: (
-    result: ImportConnectionResult | 'IN_PROGRESS' | 'EMPTY',
+    result: ImportConnectionResult | 'IN_PROGRESS' | 'EMPTY'
   ) => void;
   onSaveSource: () => void;
   onPreviousStep: () => void;
@@ -108,9 +108,9 @@ export const ImportStep3 = ({
           projectBucket,
           projectPath,
           projectName,
-        ]),
+        ])
       ),
-    [projectBucket, projectName, projectPath],
+    [projectBucket, projectName, projectPath]
   );
 
   const handleTestConnection = useCallback(async () => {
@@ -146,8 +146,8 @@ export const ImportStep3 = ({
             connectionResult === 'SUCCESS'
               ? 'border-stroke-accent-secondary'
               : connectionResult === 'FAILURE'
-                ? 'border-stroke-error'
-                : 'border-transparent',
+              ? 'border-stroke-error'
+              : 'border-transparent'
           )}
         >
           <div className="flex flex-col gap-2 text-[13px] items-center">
@@ -183,7 +183,7 @@ export const ImportStep3 = ({
           <Button
             className={classNames(
               primaryButtonClasses,
-              primaryDisabledButtonClasses,
+              primaryDisabledButtonClasses
             )}
             disabled={connectionResult !== 'SUCCESS'}
             loading={isSaveInProgress}

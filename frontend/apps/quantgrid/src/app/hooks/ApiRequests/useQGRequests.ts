@@ -1,12 +1,8 @@
 import { useCallback } from 'react';
 import { AuthContextProps } from 'react-oidc-context';
-import { toast } from 'react-toastify';
 
 import {
-  ApiErrorType,
   apiMessages,
-  ApiRequestFunction,
-  ApiRequestFunctionWithError,
   CompileRequest,
   ControlValuesRequest,
   ControlValuesResponse,
@@ -23,22 +19,15 @@ import {
   ViewportRequest,
 } from '@frontend/common';
 
-import { WithCustomProgressBar } from '../../components';
-import { getApiUrl } from '../../services';
-import { classifyFetchError, displayToast, triggerDownload } from '../../utils';
-import { FetchResponse } from '../../utils/fetch';
-import {
-  isChromiumWithFSAccess,
-  saveStreamToFile_CHROME_ONLY,
-} from './saveStreamToFile';
+import { ApiRequestFunction } from '../../types';
+import { displayToast } from '../../utils';
 import { useBackendRequest } from './useBackendRequests';
 
 export const useQGRequests = (auth: AuthContextProps) => {
-  const { sendAuthorizedRequest, sendRequestWithProgress } =
-    useBackendRequest(auth);
+  const { sendAuthorizedRequest } = useBackendRequest(auth);
 
   const getViewport = useCallback<
-    ApiRequestFunctionWithError<
+    ApiRequestFunction<
       {
         projectPath: string;
         viewports: Viewport[];
@@ -46,7 +35,6 @@ export const useQGRequests = (auth: AuthContextProps) => {
         hasEditPermissions?: boolean;
         includeCompilation?: boolean;
         controller?: AbortController;
-        suppressErrors?: boolean;
       },
       Response
     >
@@ -57,7 +45,6 @@ export const useQGRequests = (auth: AuthContextProps) => {
       worksheets,
       hasEditPermissions = false,
       includeCompilation = true,
-      suppressErrors = true,
       controller,
     }) => {
       try {
@@ -82,71 +69,30 @@ export const useQGRequests = (auth: AuthContextProps) => {
           signal: controller?.signal,
         });
 
-        const statusErrorMap: Record<
-          number,
-          { type: ApiErrorType; message: string }
-        > = {
-          503: {
-            type: ApiErrorType.ComputationPower,
-            message: apiMessages.computationPower,
-          },
-          401: {
-            type: ApiErrorType.Unauthorized,
-            message: apiMessages.computationForbidden,
-          },
-        };
+        if (res.status === 503) {
+          displayToast('error', apiMessages.computationPower);
 
-        const statusError = statusErrorMap[res.status];
-
-        if (statusError) {
-          if (!suppressErrors) {
-            displayToast('error', statusError.message);
-          }
-
-          return {
-            success: false,
-            error: {
-              type: statusError.type,
-              message: statusError.message,
-              statusCode: res.status,
-            },
-          };
+          return;
         }
 
-        if (!res.ok) {
-          if (!suppressErrors) {
-            displayToast('error', apiMessages.computationServer);
-          }
+        if (res.status === 401) {
+          displayToast('error', apiMessages.computationForbidden);
 
-          return {
-            success: false,
-            error: {
-              type: ApiErrorType.ServerError,
-              message: apiMessages.computationServer,
-              statusCode: res.status,
-            },
-          };
+          return;
         }
 
-        return {
-          success: true,
-          data: res,
-        };
+        return res;
       } catch (error) {
-        const isAbortError =
-          error instanceof DOMException && error.name === 'AbortError';
-
-        if (!suppressErrors && !isAbortError) {
-          displayToast('error', apiMessages.computationClient);
+        // Don't show error toast if request was aborted
+        if (error instanceof DOMException && error.name === 'AbortError') {
+          return;
         }
+        displayToast('error', apiMessages.computationClient);
 
-        return {
-          success: false,
-          error: classifyFetchError(error, apiMessages.computationClient),
-        };
+        return;
       }
     },
-    [sendAuthorizedRequest],
+    [sendAuthorizedRequest]
   );
 
   const getCompileInfo = useCallback<
@@ -188,7 +134,7 @@ export const useQGRequests = (auth: AuthContextProps) => {
         return undefined;
       }
     },
-    [sendAuthorizedRequest],
+    [sendAuthorizedRequest]
   );
 
   const sendProjectCalculate = useCallback<
@@ -228,7 +174,7 @@ export const useQGRequests = (auth: AuthContextProps) => {
         return undefined;
       }
     },
-    [sendAuthorizedRequest],
+    [sendAuthorizedRequest]
   );
 
   const sendProjectCancel = useCallback<
@@ -268,7 +214,7 @@ export const useQGRequests = (auth: AuthContextProps) => {
         return undefined;
       }
     },
-    [sendAuthorizedRequest],
+    [sendAuthorizedRequest]
   );
 
   const downloadTableBlob = useCallback<
@@ -314,16 +260,13 @@ export const useQGRequests = (auth: AuthContextProps) => {
         return undefined;
       }
     },
-    [sendAuthorizedRequest],
+    [sendAuthorizedRequest]
   );
 
   const getFunctions = useCallback<
-    ApiRequestFunctionWithError<
-      { worksheets: Record<string, string>; suppressErrors?: boolean },
-      FunctionInfo[]
-    >
+    ApiRequestFunction<{ worksheets: Record<string, string> }, FunctionInfo[]>
   >(
-    async ({ worksheets, suppressErrors }) => {
+    async ({ worksheets }) => {
       try {
         const body: FunctionsRequest = {
           functionRequest: {
@@ -336,38 +279,21 @@ export const useQGRequests = (auth: AuthContextProps) => {
         });
 
         if (!res.ok) {
-          if (!suppressErrors) {
-            displayToast('error', apiMessages.getFunctionsServer);
-          }
+          displayToast('error', apiMessages.getFunctionsServer);
 
-          return {
-            success: false,
-            error: {
-              type: ApiErrorType.ServerError,
-              message: apiMessages.getFunctionsServer,
-              statusCode: res.status,
-            },
-          };
+          return undefined;
         }
 
         const resp: FunctionsResponse = await res.json();
 
-        return {
-          success: true,
-          data: resp.functionResponse.functions,
-        };
-      } catch (error) {
-        if (!suppressErrors) {
-          displayToast('error', apiMessages.getFunctionsClient);
-        }
+        return resp.functionResponse.functions;
+      } catch {
+        displayToast('error', apiMessages.getFunctionsClient);
 
-        return {
-          success: false,
-          error: classifyFetchError(error, apiMessages.getFunctionsClient),
-        };
+        return undefined;
       }
     },
-    [sendAuthorizedRequest],
+    [sendAuthorizedRequest]
   );
 
   const getDimensionalSchema = useCallback<
@@ -410,7 +336,7 @@ export const useQGRequests = (auth: AuthContextProps) => {
         }
       }
     },
-    [sendAuthorizedRequest],
+    [sendAuthorizedRequest]
   );
 
   const calculateControlValues = useCallback<
@@ -447,7 +373,7 @@ export const useQGRequests = (auth: AuthContextProps) => {
             headers: {
               'Content-Type': 'application/json',
             },
-          },
+          }
         );
 
         if (!res.ok) {
@@ -465,138 +391,7 @@ export const useQGRequests = (auth: AuthContextProps) => {
         return undefined;
       }
     },
-    [sendAuthorizedRequest],
-  );
-
-  const downloadUserBucket = useCallback<
-    ApiRequestFunction<{}, Blob>
-  >(async () => {
-    try {
-      const res = await sendAuthorizedRequest(`/v1/bucket/download`, {
-        method: 'get',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (res.status === 401 || !res.ok) {
-        displayToast('error', apiMessages.downloadFileServer);
-
-        return;
-      }
-
-      if (isChromiumWithFSAccess() && res.body) {
-        const toastId = toast.loading(
-          `Downloading. Please wait, it may take a while...`,
-        );
-
-        const result = await saveStreamToFile_CHROME_ONLY({
-          res,
-          suggestedName: 'user_bucket.zip',
-          mimeType: 'application/zip',
-        });
-
-        toast.dismiss(toastId);
-
-        if (result === 'saved') {
-          displayToast('success', 'File saved successfully');
-        }
-
-        return;
-      }
-
-      const fileBlob = await res.blob();
-      if (!fileBlob) {
-        displayToast('error', apiMessages.downloadFileServer);
-
-        return;
-      }
-
-      const fileUrl = window.URL.createObjectURL(fileBlob);
-
-      triggerDownload({
-        fileUrl,
-        fileName: 'user_bucket.zip',
-        successToast: {
-          message: `Bucket files is ready for download`,
-          onClose: () => URL.revokeObjectURL(fileUrl),
-        },
-      });
-    } catch {
-      displayToast('error', apiMessages.downloadFileClient);
-
-      return undefined;
-    }
-  }, [sendAuthorizedRequest]);
-
-  const uploadUserBucket = useCallback<
-    ApiRequestFunction<{ file: File }, FetchResponse | undefined>
-  >(
-    async ({ file }) => {
-      try {
-        if (!file) return;
-
-        const isZip =
-          file.type === 'application/zip' ||
-          file.name.toLowerCase().endsWith('.zip');
-
-        if (!isZip) {
-          displayToast('error', 'Please select a .zip archive');
-
-          return;
-        }
-
-        const formData = new FormData();
-        formData.append('file', file, file.name);
-
-        const uploadingToast = toast(WithCustomProgressBar, {
-          customProgressBar: true,
-          data: {
-            message: `Uploading bucket. Please, do not close or reload the app.`,
-          },
-        });
-
-        const res = await sendRequestWithProgress(
-          getApiUrl(),
-          '/v1/bucket/upload',
-          {
-            method: 'POST',
-            body: formData,
-            headers: {
-              Accept: 'text/plain',
-            },
-          },
-          (progress) => {
-            toast.update(uploadingToast, { progress: progress / 100 });
-          },
-        );
-
-        toast.dismiss(uploadingToast);
-
-        if (res.status === 401) {
-          displayToast('error', apiMessages.uploadFileServer);
-
-          return;
-        }
-
-        if (!res.ok) {
-          const msg = await res.text().catch(() => '');
-          displayToast('error', msg || apiMessages.uploadFileServer);
-
-          return;
-        }
-
-        const okMsg = await res.text().catch(() => 'Bucket has been updated');
-        displayToast('success', okMsg);
-
-        return res;
-      } catch {
-        displayToast('error', apiMessages.uploadFileClient);
-
-        return undefined;
-      }
-    },
-    [sendRequestWithProgress],
+    [sendAuthorizedRequest]
   );
 
   return {
@@ -608,7 +403,5 @@ export const useQGRequests = (auth: AuthContextProps) => {
     getFunctions,
     getDimensionalSchema,
     calculateControlValues,
-    downloadUserBucket,
-    uploadUserBucket,
   };
 };

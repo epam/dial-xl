@@ -1,7 +1,6 @@
 import { ParsedSheet } from './ParsedSheet';
 
 export const dynamicFieldName = '*';
-export const unknownDynamicNamePrefix = '__dyn__';
 export const defaultRowKey = 'row';
 export const keyKeyword = 'key';
 export const dimKeyword = 'dim';
@@ -47,7 +46,7 @@ export const getLayoutDecorator = (
   col: number,
   row: number,
   includeDecoratorName: boolean,
-  args?: string[],
+  args?: string[]
 ) => {
   return `${
     includeDecoratorName ? `!${layoutDecoratorName}` : ''
@@ -57,7 +56,7 @@ export const getLayoutDecorator = (
 };
 
 export function getFormatDecoratorArgs(
-  formatParams: (string | number | boolean)[],
+  formatParams: (string | number | boolean)[]
 ): string {
   return `(${formatParams
     .map((item) => (typeof item === 'boolean' ? (item ? 1 : 0) : item))

@@ -10,7 +10,6 @@ import {
   useProjectRequests,
   useQGRequests,
   useResourceRequests,
-  useUserSettingsRequests,
 } from './ApiRequests';
 import { useQuestionsRequests } from './ApiRequests/useQuestionsRequests';
 
@@ -29,7 +28,6 @@ export const useApiRequests = () => {
   const projectRequests = useProjectRequests(auth, userBucket);
   const importRequests = useImportRequests(auth);
   const questionsRequests = useQuestionsRequests(auth);
-  const userSettingsRequests = useUserSettingsRequests(auth);
 
   return {
     sendDialRequest,
@@ -43,6 +41,5 @@ export const useApiRequests = () => {
 
     ...projectRequests,
     ...questionsRequests,
-    ...userSettingsRequests,
   };
 };

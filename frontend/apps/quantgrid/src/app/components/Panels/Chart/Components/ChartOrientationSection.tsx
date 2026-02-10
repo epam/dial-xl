@@ -40,7 +40,7 @@ export function ChartOrientationSection({
         openTable(sheetName, tableName);
       });
     },
-    [updateChartOrientation, openTable, parsedTable, sheetName],
+    [updateChartOrientation, openTable, parsedTable, sheetName]
   );
 
   useEffect(() => {

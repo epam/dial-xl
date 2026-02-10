@@ -4,10 +4,11 @@ type Ctx = { tableName: string; fieldName: string };
 
 const normalize = (s: string) => s.replace(/\s+/g, '').toUpperCase();
 
-const simpleFuncPatterns = (FUNC: string) => (ctx: Ctx) => [
-  `${FUNC}(${ctx.tableName}[${ctx.fieldName}])`,
-  `${ctx.tableName}[${ctx.fieldName}].${FUNC}()`,
-];
+const simpleFuncPatterns = (FUNC: string) => (ctx: Ctx) =>
+  [
+    `${FUNC}(${ctx.tableName}[${ctx.fieldName}])`,
+    `${ctx.tableName}[${ctx.fieldName}].${FUNC}()`,
+  ];
 
 const totalRules: Record<
   Exclude<TotalType, 'custom'>,
@@ -27,7 +28,7 @@ const totalRules: Record<
 export function getTotalType(
   tableName: string,
   fieldName: string,
-  expression: string,
+  expression: string
 ): TotalType | undefined {
   if (!expression) return;
 

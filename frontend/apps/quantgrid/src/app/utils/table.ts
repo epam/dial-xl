@@ -2,7 +2,7 @@ import { GridTable, SelectionEdges } from '@frontend/canvas-spreadsheet';
 
 export function isTableInsideSelection(
   table: GridTable,
-  selection: SelectionEdges,
+  selection: SelectionEdges
 ): boolean | undefined {
   const selectionStartRow =
     selection.startRow <= selection.endRow
@@ -31,7 +31,7 @@ export function isTableInsideSelection(
 
 export function findTablesInSelection(
   tableStructure: GridTable[],
-  selection: SelectionEdges,
+  selection: SelectionEdges
 ): GridTable[] {
   return [...tableStructure].reverse().filter((table) => {
     const isSelectionInsideTable =
@@ -47,7 +47,7 @@ export function findTablesInSelection(
 
 export function findTableInSelection(
   tableStructure: GridTable[],
-  selection: SelectionEdges,
+  selection: SelectionEdges
 ): GridTable | undefined {
   return findTablesInSelection(tableStructure, selection)[0];
 }

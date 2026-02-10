@@ -27,7 +27,7 @@ const BTN_STYLE = {
 export function ArrayFieldItemTemplate<
   T = any,
   S extends StrictRJSFSchema = RJSFSchema,
-  F extends FormContextType = any,
+  F extends FormContextType = any
 >(props: ArrayFieldTemplateItemType<T, S, F>) {
   const {
     children,
@@ -66,7 +66,7 @@ export function ArrayFieldItemTemplate<
                 className={twMerge(
                   secondaryButtonClasses,
                   secondaryDisabledButtonClasses,
-                  'rounded-none first:rounded-l-sm last:rounded-r-sm',
+                  'rounded-none first:rounded-l-sm last:rounded-r-sm'
                 )}
                 disabled={disabled || readonly || !hasMoveUp}
                 registry={registry}
@@ -80,7 +80,7 @@ export function ArrayFieldItemTemplate<
                 className={twMerge(
                   secondaryButtonClasses,
                   secondaryDisabledButtonClasses,
-                  'rounded-none first:rounded-l-sm last:rounded-r-sm',
+                  'rounded-none first:rounded-l-sm last:rounded-r-sm'
                 )}
                 disabled={disabled || readonly || !hasMoveDown}
                 registry={registry}
@@ -94,7 +94,7 @@ export function ArrayFieldItemTemplate<
                 className={twMerge(
                   secondaryButtonClasses,
                   secondaryDisabledButtonClasses,
-                  'rounded-none first:rounded-l-sm last:rounded-r-sm',
+                  'rounded-none first:rounded-l-sm last:rounded-r-sm'
                 )}
                 disabled={disabled || readonly}
                 registry={registry}
@@ -108,7 +108,7 @@ export function ArrayFieldItemTemplate<
                 className={twMerge(
                   secondaryButtonClasses,
                   secondaryDisabledButtonClasses,
-                  'rounded-none first:rounded-l-sm last:rounded-r-sm !bg-bg-error',
+                  'rounded-none first:rounded-l-sm last:rounded-r-sm !bg-bg-error'
                 )}
                 disabled={disabled || readonly}
                 registry={registry}

@@ -1,11 +1,6 @@
 import { Expose } from 'class-transformer';
 
-import {
-  ConstNumberExpression,
-  CurrentFieldExpression,
-  Expression,
-  UniOpExpression,
-} from './ast';
+import { CurrentFieldExpression, Expression, UniOpExpression } from './ast';
 import { ParsedText } from './ParsedText';
 import { FieldSortOrder } from './parser';
 import { findFieldNameInExpression } from './services';
@@ -22,108 +17,73 @@ export class ParsedSort {
     span: Span | undefined,
     formulas: ParsedText[] | undefined,
     public parsedExpression: Expression[] | undefined,
-    public text: string,
+    public text: string
   ) {
     this.span = span;
     this.formula = formulas;
   }
 
-  private isSortOrderConst(
-    exp: Expression | undefined,
-  ): exp is ConstNumberExpression {
-    if (!exp || !(exp instanceof ConstNumberExpression) || !exp.text)
-      return false;
-
-    return exp.text === '1' || exp.text === '-1';
-  }
-
-  private parseSortItems(): Array<{
-    fieldName: string;
-    order: FieldSortOrder;
-  }> {
-    const result: Array<{ fieldName: string; order: FieldSortOrder }> = [];
-
-    if (!this.parsedExpression?.length) return result;
-
-    const exprs = this.parsedExpression;
-
-    for (let i = 0; i < exprs.length; i++) {
-      const exp = exprs[i];
-
-      const isCurrentFieldExpression = exp instanceof CurrentFieldExpression;
-      const isUniOpExpression =
-        exp instanceof UniOpExpression &&
-        exp.exp instanceof CurrentFieldExpression;
-
-      if (!isCurrentFieldExpression && !isUniOpExpression) continue;
-
-      let fieldName;
-
-      if (isCurrentFieldExpression) {
-        fieldName = exp.fieldName;
-      } else if (
-        isUniOpExpression &&
-        exp.exp instanceof CurrentFieldExpression
-      ) {
-        fieldName = exp.exp.fieldName;
-      }
-
-      if (!fieldName) continue;
-
-      // Base sort order determination: [field] or -[field]
-      let order: FieldSortOrder = 'asc';
-      if (isUniOpExpression && (exp as UniOpExpression).uni_op === '-') {
-        order = 'desc';
-      }
-
-      // New sort order determination: [field], 1/-1
-      const next = exprs[i + 1];
-      if (this.isSortOrderConst(next)) {
-        order = next.text === '-1' ? 'desc' : 'asc';
-        i++;
-      }
-
-      result.push({ fieldName, order });
-    }
-
-    return result;
-  }
-
-  public buildUpdatedSortArgs(
+  public getChangedFieldSort(
     targetFieldName: string,
     sortOrder: FieldSortOrder,
-    newFieldName?: string,
+    newFieldName?: string
   ): string[] {
     const sortExpression: string[] = [];
+
     if (!this.parsedExpression) return sortExpression;
 
-    const items = this.parseSortItems();
+    const sortSign = sortOrder === 'desc' ? '-' : '';
+
+    const processExpression = (expression: Expression): boolean => {
+      const isCurrentFieldExpression =
+        expression instanceof CurrentFieldExpression;
+      const isUniOpExpression = expression instanceof UniOpExpression;
+
+      if (!isCurrentFieldExpression && !isUniOpExpression) return false;
+
+      let expressionFieldName;
+
+      if (isCurrentFieldExpression) {
+        expressionFieldName = expression.fieldName;
+      } else if (
+        isUniOpExpression &&
+        expression.exp instanceof CurrentFieldExpression
+      ) {
+        expressionFieldName = expression.exp.fieldName;
+      }
+
+      if (!expressionFieldName) return false;
+
+      if (expressionFieldName === targetFieldName) {
+        if (sortOrder) {
+          sortExpression.push(
+            `${sortSign}[${newFieldName || expressionFieldName}]`
+          );
+
+          return true;
+        }
+      } else {
+        if (isUniOpExpression) {
+          sortExpression.push(`${expression.uni_op}[${expressionFieldName}]`);
+        } else {
+          sortExpression.push(`[${expressionFieldName}]`);
+        }
+
+        return false;
+      }
+
+      return false;
+    };
 
     let isFieldFound = false;
-
-    for (const item of items) {
-      if (item.fieldName === targetFieldName) {
+    for (const expression of this.parsedExpression) {
+      if (processExpression(expression)) {
         isFieldFound = true;
-
-        // remove field from sort
-        if (!sortOrder) continue;
-
-        // rename field in sort
-        const finalName = newFieldName || item.fieldName;
-        sortExpression.push(`[${finalName}]`);
-        sortExpression.push(sortOrder === 'desc' ? '-1' : '1');
-      } else {
-        // keep other fields unchanged in the new format
-        sortExpression.push(`[${item.fieldName}]`);
-        sortExpression.push(item.order === 'desc' ? '-1' : '1');
       }
     }
 
-    // add new field to sort
     if (!isFieldFound && sortOrder) {
-      const finalName = newFieldName || targetFieldName;
-      sortExpression.push(`[${finalName}]`);
-      sortExpression.push(sortOrder === 'desc' ? '-1' : '1');
+      sortExpression.push(`${sortSign}[${targetFieldName}]`);
     }
 
     return sortExpression;
@@ -132,10 +92,23 @@ export class ParsedSort {
   public getFieldSortOrder(fieldName: string): FieldSortOrder {
     if (!this.parsedExpression) return null;
 
-    const items = this.parseSortItems();
-    const item = items.find((x) => x.fieldName === fieldName);
+    for (const expression of this.parsedExpression) {
+      if (
+        expression instanceof CurrentFieldExpression &&
+        expression.fieldName === fieldName
+      )
+        return 'asc';
 
-    return item?.order ?? null;
+      if (
+        expression instanceof UniOpExpression &&
+        expression.exp instanceof CurrentFieldExpression &&
+        expression.exp.fieldName === fieldName
+      ) {
+        return 'desc';
+      }
+    }
+
+    return null;
   }
 
   public isFieldUsedInSort(fieldName: string): boolean {

@@ -41,7 +41,7 @@ export function useDeleteResources() {
       deleteProjectHistory(projectName, bucket, parentPath);
       deleteRecentProjectFromRecentProjects(projectName, bucket, parentPath);
     },
-    [deleteProject],
+    [deleteProject]
   );
 
   const handleDeleteFolder = useCallback(
@@ -56,7 +56,7 @@ export function useDeleteResources() {
 
       toast.success(`Folder '${item.name}' successfully deleted`);
     },
-    [deleteFolder],
+    [deleteFolder]
   );
 
   const handleDeleteFile = useCallback(
@@ -83,7 +83,7 @@ export function useDeleteResources() {
         suppressErrors: true,
       });
     },
-    [deleteFile],
+    [deleteFile]
   );
 
   const getContent = useCallback(
@@ -91,7 +91,7 @@ export function useDeleteResources() {
       items: Pick<
         ResourceMetadata,
         'bucket' | 'name' | 'parentPath' | 'nodeType'
-      >[],
+      >[]
     ) => {
       if (items.length > 1)
         return `Do you want to delete ${items.length} selected items?`;
@@ -106,7 +106,7 @@ export function useDeleteResources() {
 
       return `Do you want to delete ${resourceName} "${fileName}"?`;
     },
-    [],
+    []
   );
 
   const deleteResources = useCallback(
@@ -115,7 +115,7 @@ export function useDeleteResources() {
         ResourceMetadata,
         'bucket' | 'name' | 'parentPath' | 'nodeType'
       >[],
-      onFinish?: () => void,
+      onFinish?: () => void
     ) => {
       confirmModal({
         icon: null,
@@ -151,7 +151,7 @@ export function useDeleteResources() {
       handleDeleteFolder,
       handleDeleteProject,
       confirmModal,
-    ],
+    ]
   );
 
   return {

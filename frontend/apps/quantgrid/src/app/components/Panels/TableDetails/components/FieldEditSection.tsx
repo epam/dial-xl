@@ -23,7 +23,7 @@ export function FieldEditSection({
     if (!fieldName || !parsedTable) return;
 
     setParsedField(
-      parsedTable.fields.find((f) => f.key.fieldName === fieldName) || null,
+      parsedTable.fields.find((f) => f.key.fieldName === fieldName) || null
     );
   }, [fieldName, parsedTable]);
 

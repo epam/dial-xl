@@ -5,7 +5,7 @@ import { languages } from '../../monaco';
 const getFunctionDefinition = (
   name: string,
   args: Argument[],
-  isMethodInvocation: boolean,
+  isMethodInvocation: boolean
 ): string => {
   if (isMethodInvocation && args.length > 0) {
     const [firstArg, ...restArgs] = args;
@@ -35,7 +35,7 @@ const getArgumentDocs = (arg: Argument): string => {
 
 export const getFunctionSignature = (
   functionInfo: FunctionInfo,
-  isMethodInvocation = false,
+  isMethodInvocation = false
 ): languages.SignatureInformation => {
   const replaceNewlines = (content: string): string =>
     content.replaceAll('\n', '\\\n');
@@ -45,7 +45,7 @@ export const getFunctionSignature = (
 
   return {
     label: replaceNewlines(
-      getFunctionDefinition(name, allArgs, isMethodInvocation),
+      getFunctionDefinition(name, allArgs, isMethodInvocation)
     ),
     documentation: {
       value: replaceNewlines(getFunctionDescription(description)),

@@ -11,4 +11,3 @@ export * from './UndoRedoContext';
 export * from './ViewportContext';
 export * from './AIHintsContext';
 export * from './CommonContext';
-export * from './UserSettings';

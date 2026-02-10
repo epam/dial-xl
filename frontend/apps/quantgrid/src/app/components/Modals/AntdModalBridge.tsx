@@ -1,5 +1,5 @@
 import { Modal } from 'antd';
-import { type JSX, useEffect } from 'react';
+import { useEffect } from 'react';
 
 import { useAntdModalStore } from '../../store';
 

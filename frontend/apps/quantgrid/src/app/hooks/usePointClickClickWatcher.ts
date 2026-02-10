@@ -24,7 +24,7 @@ export function usePointClickClickWatcher() {
     useShallow((s) => ({
       isPointClickMode: s.isPointClickMode,
       switchPointClickMode: s.switchPointClickMode,
-    })),
+    }))
   );
   const gridApi = useGridApi();
 
@@ -39,7 +39,7 @@ export function usePointClickClickWatcher() {
           .toString()
           .includes('ant-dropdown');
       const isFormulasMenuTriggerer = !!targetElement.closest(
-        '.' + formulaBarMenuClass,
+        '.' + formulaBarMenuClass
       );
 
       if (
@@ -56,7 +56,7 @@ export function usePointClickClickWatcher() {
       switchPointClickMode(false);
       gridApi?.hideCellEditor();
     },
-    [gridApi, isPointClickMode, switchPointClickMode],
+    [gridApi, isPointClickMode, switchPointClickMode]
   );
 
   useEffect(() => {

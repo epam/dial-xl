@@ -38,13 +38,13 @@ export class Editor extends BaseComponent {
     return this.rootElement.locator(this.lineLocator);
   }
 
-  public async applyDSL(dsl: string, clickNeeded = true) {
-    await this.setValueWithoutClean(dsl, clickNeeded);
+  public async applyDSL(dsl: string) {
+    await this.setValueWithoutClean(dsl);
     await this.saveDsl();
   }
 
-  public async setValueWithoutClean(dsl: string, clickNeeded = true) {
-    await this.typeValue(dsl, clickNeeded);
+  public async setValueWithoutClean(dsl: string) {
+    await this.typeValue(dsl);
     await this.innerPage.keyboard.press('Enter');
   }
 
@@ -68,7 +68,7 @@ export class Editor extends BaseComponent {
   public async replaceTextInLine(
     lineLocator: Locator,
     oldText: string,
-    newText: string,
+    newText: string
   ) {
     await lineLocator.click();
     await this.rootElement.press('Home');
@@ -105,7 +105,7 @@ export class Editor extends BaseComponent {
   public async typeValue(
     dsl: string,
     clickNeeded = true,
-    closeIntellisense = true,
+    closeIntellisense = true
   ) {
     if (clickNeeded) await this.rootElement.click();
     const lines = dsl.split('\n');
@@ -151,7 +151,7 @@ export class Editor extends BaseComponent {
     line: number,
     column: number,
     oldLength: number,
-    newValue: string,
+    newValue: string
   ) {
     await new Promise((resolve) => setTimeout(resolve, 1000));
     //console.log(line)
@@ -173,10 +173,10 @@ export class Editor extends BaseComponent {
 
   public async expectNoSuggestionsMessageToBeVisible() {
     await expect(
-      this.innerPage.locator(this.noSuggestionsMessage),
+      this.innerPage.locator(this.noSuggestionsMessage)
     ).toBeVisible();
     await expect(
-      this.innerPage.locator(this.noSuggestionsMessage),
+      this.innerPage.locator(this.noSuggestionsMessage)
     ).toContainText('No suggestions');
   }
 

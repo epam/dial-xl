@@ -102,7 +102,7 @@ export function useCopyPaste() {
         });
       }
     },
-    [],
+    []
   );
 
   return {
@@ -119,7 +119,7 @@ function normalizeExpandedColumns(
     endRow: number;
     startCol: number;
     endCol: number;
-  },
+  }
 ): string[][] {
   const { startRow, startCol, endCol } = params;
 

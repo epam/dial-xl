@@ -75,7 +75,7 @@ export class ProjectSelection {
     const folderCreationForm = new FolderCreationForm(this.innerPage);
     await folderCreationForm.fillForm(folderName);
     await expect(
-      this.innerPage.locator(this.getFolderLocator(folderName)),
+      this.innerPage.locator(this.getFolderLocator(folderName))
     ).toBeVisible();
   }
 
@@ -88,7 +88,7 @@ export class ProjectSelection {
   public async openFolder(folderName: string) {
     await this.getProjectInList(folderName).click();
     await expect(
-      this.innerPage.locator(this.currentFolderMatchLocator(folderName)).nth(1),
+      this.innerPage.locator(this.currentFolderMatchLocator(folderName)).nth(1)
     ).toBeVisible();
   }
 
@@ -136,12 +136,13 @@ export class ProjectSelection {
         (await this.innerPage.locator(this.itemLocator(folderName)).count()) >
           0)
     ) {
-      const deletingItem =
-        await deleteProjectLocator.getAttribute('data-file-name');
+      const deletingItem = await deleteProjectLocator.getAttribute(
+        'data-file-name'
+      );
       if (deletingItem) {
         await this.deleteProject(deleteProjectLocator);
         await expect(
-          this.innerPage.locator(this.getFolderLocator(deletingItem)),
+          this.innerPage.locator(this.getFolderLocator(deletingItem))
         ).toBeHidden();
       }
     }
@@ -152,18 +153,19 @@ export class ProjectSelection {
       this.innerPage
         .locator(this.cleanMask)
         .first()
-        .or(this.innerPage.getByText('No items found')),
+        .or(this.innerPage.getByText('No items found'))
     ).toBeVisible();
     const deleteProjectLocator = this.innerPage
       .locator(this.cleanMaskWithException(currentFolder))
       .first();
     while (await deleteProjectLocator.isVisible()) {
-      const deletingItem =
-        await deleteProjectLocator.getAttribute('data-file-name');
+      const deletingItem = await deleteProjectLocator.getAttribute(
+        'data-file-name'
+      );
       if (deletingItem) {
         await this.deleteProject(deleteProjectLocator);
         await expect(
-          this.innerPage.locator(this.getFolderLocator(deletingItem)),
+          this.innerPage.locator(this.getFolderLocator(deletingItem))
         ).toBeHidden();
       }
     }
@@ -186,7 +188,7 @@ export class ProjectSelection {
     const deleteForm = new DeleteProjectForm(this.innerPage);
     await deleteForm.confirmDelete();
     await expect(
-      this.innerPage.locator(this.getFileLocator(fileName)),
+      this.innerPage.locator(this.getFileLocator(fileName))
     ).toBeHidden();
   }
 
@@ -208,7 +210,7 @@ export class ProjectSelection {
     const deleteForm = new DeleteProjectForm(this.innerPage);
     await deleteForm.confirmDelete();
     await expect(
-      this.innerPage.locator(this.getFolderLocator(folderName)),
+      this.innerPage.locator(this.getFolderLocator(folderName))
     ).toBeHidden();
   }
 

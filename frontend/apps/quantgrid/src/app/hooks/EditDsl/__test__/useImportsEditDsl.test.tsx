@@ -1,5 +1,3 @@
-import { vi } from 'vitest';
-
 import { act, RenderHookResult } from '@testing-library/react';
 
 import { useImportsEditDsl } from '../useImportsEditDsl';
@@ -21,7 +19,7 @@ describe('useImportsEditDsl', () => {
   });
 
   beforeEach(() => {
-    vi.clearAllMocks();
+    jest.clearAllMocks();
     const hookRender = hookTestSetup(useImportsEditDsl, Wrapper);
     hook = hookRender.result;
     setDsl = hookRender.setDsl;
@@ -38,7 +36,7 @@ describe('useImportsEditDsl', () => {
 
       // Act
       act(() =>
-        hook.current.renameImportSourceDsl('my_source', 'new_source_name'),
+        hook.current.renameImportSourceDsl('my_source', 'new_source_name')
       );
 
       // Assert
@@ -57,7 +55,7 @@ describe('useImportsEditDsl', () => {
 
       // Act
       act(() =>
-        hook.current.renameImportSourceDsl('my_source2', 'new_source_name'),
+        hook.current.renameImportSourceDsl('my_source2', 'new_source_name')
       );
 
       // Assert

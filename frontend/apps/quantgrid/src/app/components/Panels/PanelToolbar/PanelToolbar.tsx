@@ -47,9 +47,9 @@ export function PanelToolbar({
       position === PanelPosition.Right
         ? 'rotate-180'
         : position === PanelPosition.Left
-          ? ''
-          : '-rotate-90',
-    [position],
+        ? ''
+        : '-rotate-90',
+    [position]
   );
 
   return (
@@ -84,7 +84,7 @@ export function PanelToolbar({
               className={cx(
                 'w-4',
                 iconClasses,
-                expanded ? 'rotate-[-135deg]' : 'rotate-45',
+                expanded ? 'rotate-[-135deg]' : 'rotate-45'
               )}
               component={() =>
                 expanded ? <ArrowNarrowUp /> : <ArrowAltIcon />
@@ -96,16 +96,17 @@ export function PanelToolbar({
             />
           </Tooltip>
           <Dropdown
+            className="cursor-pointer"
             menu={{
               items: getPanelSettingsItems(
                 panelName,
                 PanelTitle[panelName],
-                position,
+                position
               ),
             }}
           >
             <Icon
-              className={classNames(iconClasses, 'w-4 ml-2 cursor-pointer')}
+              className={classNames(iconClasses, 'w-4 ml-2')}
               component={() => <SettingsIcon />}
             />
           </Dropdown>

@@ -1,5 +1,5 @@
 import { useCallback, useContext } from 'react';
-import { useNavigate } from 'react-router';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 
 import {
@@ -53,7 +53,7 @@ export function useWorksheetActions() {
 
       if (isTemporaryState && !isTemporaryStateEditable) {
         toast.info(
-          'Cannot update project due to you have pending AI changes or you are in Preview changes mode',
+          'Cannot update project due to you have pending AI changes or you are in Preview changes mode'
         );
 
         return;
@@ -61,7 +61,7 @@ export function useWorksheetActions() {
 
       if (answerIsGenerating) {
         toast.info(
-          'Cannot update project due to you have AI generating answer',
+          'Cannot update project due to you have AI generating answer'
         );
 
         return;
@@ -72,8 +72,6 @@ export function useWorksheetActions() {
 
         return;
       }
-
-      let newSheetName = newName;
 
       if (!silent) {
         const open = useChangeNameModalStore.getState().open;
@@ -90,23 +88,27 @@ export function useWorksheetActions() {
           },
         });
 
-        if (!result) return; // User cancelled - exit early
-        newSheetName = result; // Use modal result and continue
+        if (result) {
+          renameSheet({ oldName: oldName, newName: result, silent: true });
+        }
+
+        return;
       }
 
+      let newSheetName = newName;
       if (!newSheetName) {
         newSheetName = createUniqueName(
           defaultSheetName,
-          projectSheets?.map((sheet) => sheet.sheetName) ?? [],
+          projectSheets?.map((sheet) => sheet.sheetName) ?? []
         );
       }
 
       const oldSheetContent = projectState.sheets.find(
-        (sheet) => sheet.sheetName === oldName,
+        (sheet) => sheet.sheetName === oldName
       )?.content;
 
       const sheetWithSameNewName = projectState.sheets.find(
-        (sheet) => sheet.sheetName === newSheetName,
+        (sheet) => sheet.sheetName === newSheetName
       );
 
       if (sheetWithSameNewName) {
@@ -120,7 +122,7 @@ export function useWorksheetActions() {
         oldName,
         {
           sheetName: newSheetName,
-        },
+        }
       );
       await updateProjectOnServer(newProjectStateRequest, {
         isTemporaryState,
@@ -138,7 +140,7 @@ export function useWorksheetActions() {
             }),
             {
               replace: true,
-            },
+            }
           );
 
           // We don't have access to UndoRedoContext in a higher context
@@ -178,7 +180,7 @@ export function useWorksheetActions() {
       navigate,
       projectPath,
       eventBus,
-    ],
+    ]
   );
 
   const createSheet = useCallback(
@@ -188,7 +190,7 @@ export function useWorksheetActions() {
     }: { newName?: string; silent?: boolean } = {}) => {
       if (isTemporaryState && !isTemporaryStateEditable) {
         toast.info(
-          'Cannot update project due to you have pending AI changes or you are in Preview changes mode',
+          'Cannot update project due to you have pending AI changes or you are in Preview changes mode'
         );
 
         return;
@@ -196,7 +198,7 @@ export function useWorksheetActions() {
 
       if (answerIsGenerating) {
         toast.info(
-          'Cannot update project due to you have AI generating answer',
+          'Cannot update project due to you have AI generating answer'
         );
 
         return;
@@ -208,12 +210,10 @@ export function useWorksheetActions() {
         return;
       }
 
-      let newSheetName = newName;
-
       if (!silent) {
         const initialName = createUniqueName(
           defaultSheetName,
-          (projectSheets || []).map(({ sheetName }) => sheetName),
+          (projectSheets || []).map(({ sheetName }) => sheetName)
         );
 
         const open = useChangeNameModalStore.getState().open;
@@ -230,27 +230,31 @@ export function useWorksheetActions() {
           },
         });
 
-        if (!result) return; // User cancelled - exit early
-        newSheetName = result; // Use modal result and continue
+        if (result) {
+          createSheet({ newName: result, silent: true });
+        }
+
+        return;
       }
 
       if (!projectState || !projectName) return;
 
+      let newSheetName = newName;
       if (!newSheetName) {
         newSheetName = createUniqueName(
           defaultSheetName,
-          projectSheets?.map((sheet) => sheet.sheetName) ?? [],
+          projectSheets?.map((sheet) => sheet.sheetName) ?? []
         );
       }
 
       const sheetWithSameNewName = projectState.sheets.find(
-        (sheet) => sheet.sheetName === newSheetName,
+        (sheet) => sheet.sheetName === newSheetName
       );
 
       if (sheetWithSameNewName) {
         displayToast(
           'error',
-          `Sheet with same name "${newName}" already exists in project`,
+          `Sheet with same name "${newName}" already exists in project`
         );
 
         return;
@@ -301,7 +305,7 @@ export function useWorksheetActions() {
       projectSheets,
       eventBus,
       openSheet,
-    ],
+    ]
   );
 
   const deleteSheet = useCallback(
@@ -314,7 +318,7 @@ export function useWorksheetActions() {
     }) => {
       if (isTemporaryState && !isTemporaryStateEditable) {
         toast.info(
-          'Cannot update project due to you have pending AI changes or you are in Preview changes mode',
+          'Cannot update project due to you have pending AI changes or you are in Preview changes mode'
         );
 
         return;
@@ -322,7 +326,7 @@ export function useWorksheetActions() {
 
       if (answerIsGenerating) {
         toast.info(
-          'Cannot update project due to you have AI generating answer',
+          'Cannot update project due to you have AI generating answer'
         );
 
         return;
@@ -341,8 +345,11 @@ export function useWorksheetActions() {
           contentText: `Do you want to remove sheet ${sheetNameToDelete}?`,
         });
 
-        if (!result) return; // User cancelled - exit early
-        // User confirmed - continue with deletion
+        if (result) {
+          deleteSheet({ sheetNameToDelete, silent: true });
+        }
+
+        return;
       }
 
       if (!projectState) return;
@@ -350,7 +357,7 @@ export function useWorksheetActions() {
       const newProjectStateRequest: ProjectState = {
         ...projectState,
         sheets: projectState.sheets.filter(
-          (sheet) => sheet.sheetName !== sheetNameToDelete,
+          (sheet) => sheet.sheetName !== sheetNameToDelete
         ),
       };
       await updateProjectOnServer(newProjectStateRequest, {
@@ -390,7 +397,7 @@ export function useWorksheetActions() {
       eventBus,
       resetSheetState,
       openSheet,
-    ],
+    ]
   );
 
   const renameWorksheetAction = useCallback(
@@ -399,7 +406,7 @@ export function useWorksheetActions() {
         renameSheet({ oldName: worksheetName });
       }
     },
-    [renameSheet, sheetName],
+    [renameSheet, sheetName]
   );
 
   const createWorksheetAction = useCallback(() => {
@@ -425,7 +432,7 @@ export function useWorksheetActions() {
         deleteSheet({ sheetNameToDelete: worksheetName });
       }
     },
-    [sheetName, projectSheets, projectName, deleteSheet],
+    [sheetName, projectSheets, projectName, deleteSheet]
   );
 
   return {

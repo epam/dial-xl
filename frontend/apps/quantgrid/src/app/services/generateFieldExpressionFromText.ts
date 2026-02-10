@@ -9,7 +9,7 @@ export const generateFieldExpressionFromText = (
   targetTable: ParsedTable | null = null,
   functions: FunctionInfo[],
   parsedSheets: ParsedSheets,
-  currentTableName = '',
+  currentTableName = ''
 ): { fieldNames: string[]; expression: string | null } => {
   const parts = fieldText.trim().split('=');
   const existingFieldNames = targetTable
@@ -28,7 +28,7 @@ export const generateFieldExpressionFromText = (
           parts[1].trim(),
           functions,
           parsedSheets,
-          currentTableName,
+          currentTableName
         )
       : '';
 

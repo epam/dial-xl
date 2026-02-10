@@ -22,7 +22,7 @@ export function FormulaBarTitle({ text }: Prop) {
           {
             'pt-2 leading-none': formulaBarExpanded,
             'leading-6': !formulaBarExpanded,
-          },
+          }
         )}
       >
         {text}

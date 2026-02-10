@@ -1,5 +1,3 @@
-import { vi } from 'vitest';
-
 import { SheetReader } from '@frontend/parser';
 import { act, RenderHookResult } from '@testing-library/react';
 
@@ -64,7 +62,7 @@ describe('useFindTableKeys', () => {
 
   beforeEach(() => {
     props = { ...initialProps, viewGridData: mockedViewGridData };
-    vi.clearAllMocks();
+    jest.clearAllMocks();
 
     const hookRender = hookTestSetup(useFindTableKeys, Wrapper);
     hook = hookRender.result;

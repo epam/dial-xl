@@ -8,7 +8,7 @@ interface ExpressionWithParent {
 export function findFieldExpressionsWithParent(
   expression: Expression,
   fieldName: string,
-  parent?: Expression,
+  parent?: Expression
 ): ExpressionWithParent[] {
   const result: ExpressionWithParent[] = [];
 
@@ -56,7 +56,7 @@ export function findFieldExpressionsWithParent(
 
 export function expressionInvolvesField(
   expression: Expression,
-  fieldName: string,
+  fieldName: string
 ): boolean {
   let involvesField = false;
 

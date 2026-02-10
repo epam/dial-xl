@@ -10,7 +10,6 @@ import {
 import isEqual from 'react-fast-compare';
 
 import {
-  ApiError,
   CompilationError,
   IndexError,
   ParsingError,
@@ -89,7 +88,7 @@ export function ProjectSessionProvider({
   }, [currentSheetName, projectSheets]);
   const currentSheetContent = useMemo(
     () => currentSheet?.content ?? null,
-    [currentSheet?.content],
+    [currentSheet?.content]
   );
 
   // Errors
@@ -100,8 +99,6 @@ export function ProjectSessionProvider({
   >([]);
   const [indexErrors, setIndexErrors] = useState<IndexError[] | null>(null);
   const { runtimeErrors, setRuntimeErrors } = useRuntimeErrors();
-  const [projectDataLoadingError, setProjectDataLoadingError] =
-    useState<ApiError | null>(null);
   // ---
 
   // Conflict resolution and temporary state
@@ -130,7 +127,6 @@ export function ProjectSessionProvider({
   const { functions } = useGetFunctions({
     currentSheetContent,
     sheets: _projectState.current?.sheets,
-    onSetProjectDataLoadingError: setProjectDataLoadingError,
   });
 
   const { parsedSheets, setParsedSheets, parsedSheet, setParsedSheet } =
@@ -163,18 +159,14 @@ export function ProjectSessionProvider({
     isTemporaryStateEditable,
   });
 
-  const resetRuntimeErrors = useCallback(() => {
-    setRuntimeErrors([]);
-    setIndexErrors([]);
-  }, [setRuntimeErrors]);
-
   const resetSheetState = useCallback(() => {
     setCurrentSheetName(null);
     setParsedSheet(null);
     setCurrentSheetCompilationErrors([]);
     setCurrentSheetParsingErrors([]);
-    resetRuntimeErrors();
-  }, [resetRuntimeErrors, setCurrentSheetName, setParsedSheet]);
+    setRuntimeErrors([]);
+    setIndexErrors([]);
+  }, [setCurrentSheetName, setParsedSheet, setRuntimeErrors]);
 
   const {
     initialOpenSheet,
@@ -189,7 +181,6 @@ export function ProjectSessionProvider({
     setParsedSheet,
     isTemporaryStateRef,
     isTemporaryStateEditableRef,
-    resetRuntimeErrors,
   });
 
   const discardTemporaryChanges = useCallback(
@@ -212,13 +203,7 @@ export function ProjectSessionProvider({
         openSheet({ sheetName: proj?.sheets[0].sheetName });
       }
     },
-    [
-      _projectState,
-      currentSheetName,
-      getProjectFromServer,
-      localDsl,
-      openSheet,
-    ],
+    [_projectState, currentSheetName, getProjectFromServer, localDsl, openSheet]
   );
 
   const resolveTemporaryState = useCallback(
@@ -253,7 +238,7 @@ export function ProjectSessionProvider({
       isTemporaryStateRef,
       setIsTemporaryState,
       updateProjectOnServer,
-    ],
+    ]
   );
 
   const initConflictResolving = useCallback(() => {
@@ -288,7 +273,6 @@ export function ProjectSessionProvider({
       parsedSheet,
       setCurrentSheetCompilationErrors,
       setCurrentSheetParsingErrors,
-      onSetProjectDataLoadingError: setProjectDataLoadingError,
     });
 
   // Make editableSheet unable to use in read-only mode
@@ -344,7 +328,6 @@ export function ProjectSessionProvider({
       openSheet,
       parsedSheet,
       parsedSheets,
-      projectDataLoadingError,
       projectSheets,
       resetSheetState,
       resolveConflictUsingLocalChanges,
@@ -362,7 +345,6 @@ export function ProjectSessionProvider({
       setLongCalcStatus,
       setParsedSheet,
       setParsedSheets,
-      setProjectDataLoadingError,
       sheetContent: currentSheetContent,
       sheetErrors: currentSheetParsingErrors,
       sheetName: currentSheetName,
@@ -399,7 +381,6 @@ export function ProjectSessionProvider({
       openSheet,
       parsedSheet,
       parsedSheets,
-      projectDataLoadingError,
       projectSheets,
       resetSheetState,
       resolveConflictUsingLocalChanges,
@@ -415,10 +396,9 @@ export function ProjectSessionProvider({
       setLongCalcStatus,
       setParsedSheet,
       setParsedSheets,
-      setProjectDataLoadingError,
       startTemporaryState,
       updateSheetContent,
-    ],
+    ]
   );
 
   return (

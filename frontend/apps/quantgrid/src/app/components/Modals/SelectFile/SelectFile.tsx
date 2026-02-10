@@ -1,6 +1,6 @@
 import { Button, Input, Modal, Spin } from 'antd';
 import classNames from 'classnames';
-import Fuse, { IFuseOptions } from 'fuse.js';
+import Fuse from 'fuse.js';
 import { useCallback, useContext, useEffect, useState } from 'react';
 
 import Icon from '@ant-design/icons';
@@ -37,7 +37,7 @@ type FolderOrFile = Pick<
   bucket: string | undefined;
 };
 
-const fuseOptions: IFuseOptions<any> = {
+const fuseOptions: Fuse.IFuseOptions<any> = {
   includeScore: true,
   includeMatches: true,
   threshold: 0.2,
@@ -53,7 +53,7 @@ type Props = {
   onOk: (
     parentPath: string | null | undefined,
     bucket: string,
-    name: string,
+    name: string
   ) => void;
   onCancel: () => void;
 };
@@ -73,10 +73,10 @@ export function SelectFile({
   const [isOpen, setIsOpen] = useState(true);
 
   const [currentPath, setCurrentPath] = useState<string | null | undefined>(
-    initialPath,
+    initialPath
   );
   const [currentBucket, setCurrentBucket] = useState<string | undefined>(
-    initialBucket,
+    initialBucket
   );
   const [storageItems, setStorageItems] = useState<FolderOrFile[]>([]);
   const [displayedItems, setDisplayedItems] = useState<FolderOrFile[]>([]);
@@ -97,16 +97,16 @@ export function SelectFile({
 
     let files: (ResourceMetadata | SharedWithMeMetadata)[];
     if (currentBucket) {
-      const filesRes = await getFiles({
-        path: `${currentBucket}/${currentPath ? currentPath + '/' : ''}`,
-      });
-
-      files = filesRes.success ? filesRes.data : [];
+      files =
+        (await getFiles({
+          path: `${currentBucket}/${currentPath ? currentPath + '/' : ''}`,
+          suppressErrors: true,
+        })) ?? [];
     } else {
-      const sharedResources = await getSharedWithMeResources({
-        resourceType: MetadataResourceType.FILE,
-      });
-      files = sharedResources.success ? sharedResources.data : [];
+      files =
+        (await getSharedWithMeResources({
+          resourceType: MetadataResourceType.FILE,
+        })) ?? [];
     }
 
     setIsLoading(false);
@@ -117,8 +117,8 @@ export function SelectFile({
         files.filter(
           (file) =>
             file.nodeType === MetadataNodeType.FOLDER ||
-            fileExtensions.some((ext) => file.name.endsWith(ext)),
-        ),
+            fileExtensions.some((ext) => file.name.endsWith(ext))
+        )
       )
       .sort((a, b) => {
         // sort folders first and the project files
@@ -152,7 +152,7 @@ export function SelectFile({
     setSearchValue('');
     setStorageItems([]);
     setCurrentPath(
-      `${folder.parentPath ? folder.parentPath + '/' : ''}${folder.name}`,
+      `${folder.parentPath ? folder.parentPath + '/' : ''}${folder.name}`
     );
     setCurrentBucket(folder.bucket);
     setBreadcrumbs((breadcrumbs) => [
@@ -192,8 +192,8 @@ export function SelectFile({
             currentBucket === userBucket
               ? 'My Files'
               : currentBucket === publicBucket
-                ? 'Public'
-                : 'Shared with me',
+              ? 'Public'
+              : 'Shared with me',
           path: null,
           icon: <HomeIcon />,
           dropdownItems: [
@@ -232,7 +232,7 @@ export function SelectFile({
             }),
           ],
         },
-      ] as Breadcrumb[],
+      ] as Breadcrumb[]
     );
 
     setBreadcrumbs(breadcrumbs);
@@ -328,7 +328,7 @@ export function SelectFile({
                     selectedItem?.name === item.name &&
                       selectedItem.parentPath === item.parentPath &&
                       selectedItem.parentPath === item.parentPath &&
-                      'border-l-stroke-accent-primary bg-bg-accent-primary-alpha',
+                      'border-l-stroke-accent-primary bg-bg-accent-primary-alpha'
                   )}
                   key={item.parentPath + item.name}
                   onClick={() => setSelectedItem(item)}
@@ -350,7 +350,7 @@ export function SelectFile({
             className={classNames(
               primaryButtonClasses,
               primaryDisabledButtonClasses,
-              'h-10 text-base',
+              'h-10 text-base'
             )}
             disabled={
               !currentBucket ||

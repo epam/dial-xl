@@ -1,14 +1,4 @@
-import { vi } from 'vitest';
-
 import { getNotLoadedChunks } from '../getNotLoadedChunks';
-
-vi.mock('../../../store/UserSettingsStore', () => ({
-  useUserSettingsStore: Object.assign(() => ({}), {
-    getState: () => ({ data: {} }),
-    setState: () => {},
-    subscribe: () => () => {},
-  }),
-}));
 
 describe('getNotLoadedChunks', () => {
   it('should return nothing when all data loaded', () => {

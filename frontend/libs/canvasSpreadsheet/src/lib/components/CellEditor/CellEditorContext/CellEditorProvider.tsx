@@ -51,7 +51,7 @@ import {
 import { CellEditorContext } from './CellEditorContext';
 
 type CellEditorContextProps = {
-  apiRef: RefObject<GridApi | null>;
+  apiRef: RefObject<GridApi>;
   eventBus: GridEventBus;
   formulaBarMode: FormulaBarMode;
   isReadOnly: boolean;
@@ -183,7 +183,7 @@ export function CellEditorContextProvider({
       updateCellEditorStyle,
       updateEditModeOnCodeChange,
       openedWithNextChar,
-    ],
+    ]
   );
 
   const openCellEditor = useCallback(
@@ -206,7 +206,7 @@ export function CellEditorContextProvider({
       setEditorStyle(style);
       setIsOpen(true);
     },
-    [apiRef, zoom],
+    [apiRef, zoom]
   );
 
   const showErrorMessage = useCallback(
@@ -232,7 +232,7 @@ export function CellEditorContextProvider({
 
       return !!message;
     },
-    [editMode, eventBus],
+    [editMode, eventBus]
   );
 
   const displayCellEditor = useCallback(
@@ -290,7 +290,7 @@ export function CellEditorContextProvider({
       if (shouldTriggerSuggest) {
         setTimeout(
           () => codeEditor.getAction('editor.action.triggerSuggest')?.run(),
-          10,
+          10
         );
       }
 
@@ -321,7 +321,7 @@ export function CellEditorContextProvider({
       const contextCell = getCellContext(api.getCell, col, row);
 
       setCurrentTableName(
-        cell?.table?.tableName ?? contextCell?.table?.tableName ?? '',
+        cell?.table?.tableName ?? contextCell?.table?.tableName ?? ''
       );
       setCurrentFieldName(cell?.field?.fieldName || '');
       setCurrentCell({ col, row });
@@ -348,14 +348,14 @@ export function CellEditorContextProvider({
       eventBus,
       showErrorMessage,
       isReadOnly,
-    ],
+    ]
   );
 
   // Additional effect to check enable/disable save on arrow
   // onCodeChange() doesn't set correct value on typing first character
   useEffect(() => {
     setSaveOnArrowEnabled(
-      isSaveOnArrowEnabled(codeValue.current, openedWithNextChar),
+      isSaveOnArrowEnabled(codeValue.current, openedWithNextChar)
     );
   }, [openedWithNextChar]);
 
@@ -412,7 +412,7 @@ export function CellEditorContextProvider({
       openedWithNextChar,
       restoreCellValue,
       saveOnArrowEnabled,
-    ],
+    ]
   );
 
   return (

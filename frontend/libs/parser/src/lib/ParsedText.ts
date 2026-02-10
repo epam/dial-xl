@@ -28,7 +28,7 @@ export class ParsedText {
   }
 
   public static fromTerminalNode(
-    terminalNode: TerminalNode | null,
+    terminalNode: TerminalNode | null
   ): ParsedText | undefined {
     if (!terminalNode) {
       return;
@@ -36,7 +36,7 @@ export class ParsedText {
 
     return new ParsedText(
       Span.fromToken(terminalNode.symbol),
-      terminalNode.getText(),
+      terminalNode.getText()
     );
   }
 
@@ -49,7 +49,7 @@ export class ParsedText {
   }
 
   public static fromExpression(
-    expression: ExpressionContext | null,
+    expression: ExpressionContext | null
   ): ParsedText | undefined {
     if (!expression) {
       return;
@@ -57,13 +57,13 @@ export class ParsedText {
 
     return new ParsedText(
       Span.fromParserRuleContext(expression),
-      expression.getText(),
+      expression.getText()
     );
   }
 
   public static fromDocs(ctx: Doc_commentContext[]): ParsedText[] {
     return ctx.map(
-      (doc) => new ParsedText(Span.fromParserRuleContext(doc), doc.getText()),
+      (doc) => new ParsedText(Span.fromParserRuleContext(doc), doc.getText())
     );
   }
 }

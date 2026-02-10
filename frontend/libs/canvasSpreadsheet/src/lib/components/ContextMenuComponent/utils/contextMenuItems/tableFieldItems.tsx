@@ -49,7 +49,7 @@ export const getTableFieldMenuItems = (
   row: number,
   cell: GridCell,
   eventBus: GridEventBus,
-  filterList: GridListFilter[],
+  filterList: GridListFilter[]
 ): ItemType[] => {
   const { field, table } = cell;
 
@@ -157,7 +157,7 @@ export const getTableFieldMenuItems = (
             {
               col,
               row,
-            },
+            }
           ),
           icon: (
             <Icon
@@ -173,7 +173,7 @@ export const getTableFieldMenuItems = (
             {
               col,
               row,
-            },
+            }
           ),
           icon: (
             <Icon
@@ -195,7 +195,7 @@ export const getTableFieldMenuItems = (
           isIndex,
           isDescription,
           isText,
-          fieldNames,
+          fieldNames
         )
       : null,
     showCollapseNestedField || showExpandNestedField
@@ -216,7 +216,7 @@ export const getTableFieldMenuItems = (
       row,
       isTableNameHeaderHidden,
       isTableFieldsHeaderHidden,
-      isChart,
+      isChart
     ),
     getDropdownDivider(),
     ...(openDetails(col, row, false) || []),

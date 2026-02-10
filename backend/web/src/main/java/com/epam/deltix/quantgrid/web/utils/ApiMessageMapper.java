@@ -198,7 +198,6 @@ public class ApiMessageMapper {
         }
 
         builder.setIsNested(resultType.isNested());
-        builder.setIsAssignable(resultType.isAssignable());
         if (hash != null) {
             builder.setHash(hash);
         }
@@ -234,12 +233,12 @@ public class ApiMessageMapper {
                 .collect(Collectors.toList());
     }
 
-    public Api.ColumnData toColumnData(ParsedKey key, long startRow, long endRow, boolean content, boolean raw,
+    public Api.ColumnData toColumnData(ParsedKey key, long start, long end, boolean content, boolean raw,
                                        Table table, String error, ResultType resultType) {
 
         Api.ColumnData.Builder builder = Api.ColumnData.newBuilder()
-                .setStartRow(startRow)
-                .setEndRow(endRow)
+                .setStartRow(start)
+                .setEndRow(end)
                 .setTotalRows(table == null ? 0 : table.size());
 
         if (key instanceof FieldKey fieldKey) {
@@ -257,7 +256,7 @@ public class ApiMessageMapper {
         }
 
         if (table != null) {
-            fillData(table, startRow, endRow, content, builder);
+            fillData(table, start, end, content, builder);
         }
 
         if (error != null) {
@@ -396,7 +395,7 @@ public class ApiMessageMapper {
             case STRING -> Api.ColumnDataType.STRING;
             case DOUBLE -> Api.ColumnDataType.DOUBLE;
             case PERIOD_SERIES -> Api.ColumnDataType.PERIOD_SERIES;
-            case STRUCT -> throw new IllegalArgumentException("struct is not supported");
+            case STRUCT -> throw new IllegalArgumentException("Not expected: " + type);
         };
     }
 
@@ -572,8 +571,6 @@ public class ApiMessageMapper {
 
         return new Viewport(key, ComputationType.REQUIRED,
                 viewport.getStartRow(), viewport.getEndRow(),
-                viewport.hasStartColumn() ? viewport.getStartColumn() : -1,
-                viewport.hasEndColumn() ? viewport.getEndColumn() : -1,
                 viewport.getIsContent(), viewport.getIsRaw());
     }
 

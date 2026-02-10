@@ -15,7 +15,7 @@ export const defaultGridSizes = {
     minWidth: 20,
     minHeight: 20,
     fontSize: 12,
-    padding: 3,
+    padding: 4,
     totalIconSize: 12,
     controlIconSize: 14,
     applyIconSize: 10,
@@ -83,6 +83,8 @@ export type GridSizes = typeof defaultGridSizes & {
   [scope: string]: { [param: string]: number };
 };
 
+export const adjustmentFontMultiplier = 0.35;
+
 export const defaultViewportEdges = {
   startRow: 0,
   endRow: 0,
@@ -101,22 +103,21 @@ export const extendedRowsCount = 2;
 export const extendedColsCount = 2;
 
 export enum ComponentLayer {
-  GridLines = -1,
-  HiddenCells = 1,
-  Cells = 2,
-  Icon = 3,
-  Override = 4,
-  Error = 5,
-  NoteLabel = 6,
-  DottedSelection = 7,
-  Selection = 8,
-  DNDSelection = 9,
-  RowNumbers = 10,
-  ColNumbers = 11,
-  CornerRect = 12,
-  Resizer = 13,
-  ScrollBar = 14,
-  TableMoveHandle = 15,
+  HiddenCells = 0,
+  Cells = 1,
+  Icon = 2,
+  Override = 3,
+  Error = 4,
+  NoteLabel = 5,
+  DottedSelection = 6,
+  Selection = 7,
+  DNDSelection = 8,
+  RowNumbers = 9,
+  ColNumbers = 10,
+  CornerRect = 11,
+  Resizer = 12,
+  ScrollBar = 13,
+  TableMoveHandle = 14,
 }
 
 export const canvasId = 'canvas-spreadsheet';

@@ -35,13 +35,13 @@ export const ImportSteps = ({
   const { createImportSource, updateImportSource, listImportDefinitions } =
     useApiRequests();
   const [selectedDefinition, setSelectedDefinition] = useState<string | null>(
-    null,
+    null
   );
 
   const [sourceName, setSourceName] = useState(sourceData?.name);
   const [availableSourceName, setAvailableSourceName] = useState('');
   const [configuration, setConfiguration] = useState<ProtoStruct | null>(
-    sourceData?.configuration ?? {},
+    sourceData?.configuration ?? {}
   );
   const [currentStep, setCurrentStep] = useState<number>(sourceData ? 1 : 0);
   const [connectionResult, setConnectionResult] = useState<
@@ -60,7 +60,7 @@ export const ImportSteps = ({
           )
         : !isEqual(sourceData.configuration, configuration) ||
           sourceData.name !== sourceName),
-    [configuration, availableSourceName, isStepChanged, sourceData, sourceName],
+    [configuration, availableSourceName, isStepChanged, sourceData, sourceName]
   );
 
   useUnsavedChanges(isChanged);
@@ -73,9 +73,9 @@ export const ImportSteps = ({
           projectBucket,
           projectPath,
           projectName,
-        ]),
+        ])
       ),
-    [projectBucket, projectName, projectPath],
+    [projectBucket, projectName, projectPath]
   );
 
   const [importDefinitions, setImportDefinitions] = useState<
@@ -84,12 +84,12 @@ export const ImportSteps = ({
   const fullSelectedDefinition: ImportDefinition | null = useMemo(
     () =>
       importDefinitions.find(
-        (item) => item.definition === selectedDefinition,
+        (item) => item.definition === selectedDefinition
       ) ??
       (selectedDefinition
         ? { definition: selectedDefinition, name: selectedDefinition }
         : null),
-    [importDefinitions, selectedDefinition],
+    [importDefinitions, selectedDefinition]
   );
 
   const handleCreateSource = useCallback(async () => {
@@ -193,8 +193,8 @@ export const ImportSteps = ({
       setAvailableSourceName(
         createUniqueName(
           'Source1',
-          Object.values(importSources).map((item) => item.name),
-        ),
+          Object.values(importSources).map((item) => item.name)
+        )
       );
     };
 

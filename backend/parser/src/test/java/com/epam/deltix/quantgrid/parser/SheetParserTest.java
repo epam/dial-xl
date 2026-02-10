@@ -9,7 +9,6 @@ import org.junit.jupiter.api.Test;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -497,40 +496,6 @@ class SheetParserTest {
         ParsedSheet sheet = SheetReader.parseSheet(dsl);
 
         assertJsonEquals("multiline-formula-error", sheet);
-    }
-
-    @Test
-    void testNoFalseMultilineFormulaError() {
-        String dsl = """
-                table A
-                  [a] = 2 POW 3
-                
-                table B
-                  [b] = 2\
-                    POW 3
-                """;
-
-        ParsedSheet sheet = SheetReader.parseSheet(dsl);
-
-        List<String> errors = sheet.errors().stream()
-                .map(GSON::toJson)
-                .toList();
-
-        assertThat(errors).isEqualTo(List.of("""
-                        {
-                          "line": 2,
-                          "position": 11,
-                          "message": "mismatched input 'POW' expecting LINE_BREAK",
-                          "tableName": "A",
-                          "fieldName": "a"
-                        }""", """
-                        {
-                          "line": 5,
-                          "position": 14,
-                          "message": "mismatched input 'POW' expecting LINE_BREAK",
-                          "tableName": "B",
-                          "fieldName": "b"
-                        }"""));
     }
 
     @Test

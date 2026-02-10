@@ -23,5 +23,5 @@ type AIHintsContextActions = {
 };
 
 export const AIHintsContext = createContext<AIHintsContextActions>(
-  {} as AIHintsContextActions,
+  {} as AIHintsContextActions
 );

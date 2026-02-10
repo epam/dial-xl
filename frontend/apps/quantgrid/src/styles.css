@@ -174,25 +174,6 @@ body {
   }
 }
 
-/*
- * Reason: ensure splitters are behind monaco-editor widgets
- */
-.reflex-container.vertical > .reflex-splitter,
-.reflex-container.horizontal > .reflex-splitter {
-  z-index: 0;
-}
-
-.Toastify__toast {
-  gap: 8px;
-}
-.Toastify__toast-icon {
-  margin-right: 0;
-}
-
-.ant-btn .ant-btn-icon {
-  max-height: 100%;
-}
-
 /* placeholders */
 .ant-input::placeholder {
   color: var(--color-text-secondary);
@@ -335,21 +316,21 @@ body {
 }
 
 /* ===== Modal ===== */
-.ant-modal .ant-modal-container {
+.ant-modal .ant-modal-content {
   background-color: var(--color-bg-layer-3);
   border-radius: 3px;
 }
-.ant-modal .ant-modal-container .anticon.anticon-close.ant-modal-close-icon {
+.ant-modal .ant-modal-content .anticon.anticon-close.ant-modal-close-icon {
   color: var(--color-text-primary);
 }
-.ant-modal .ant-modal-container .ant-modal-header {
+.ant-modal .ant-modal-content .ant-modal-header {
   background-color: var(--color-bg-layer-3);
 }
-.ant-modal .ant-modal-container .ant-modal-header .ant-modal-title {
+.ant-modal .ant-modal-content .ant-modal-header .ant-modal-title {
   color: var(--color-text-primary);
 }
 .ant-modal
-  .ant-modal-container
+  .ant-modal-content
   :is(.ant-modal-confirm-title, .ant-modal-confirm-content) {
   color: var(--color-text-primary);
 }
@@ -469,13 +450,7 @@ body {
 }
 
 .ant-menu-light.ant-menu-horizontal.read .ant-menu-title-content,
-.ant-menu-light.ant-menu-horizontal.review .ant-menu-title-content,
-.ant-menu-light.ant-menu-horizontal.review
-  .ant-menu-submenu-title
-  .anticon-ellipsis,
-.ant-menu-light.ant-menu-horizontal.read
-  .ant-menu-submenu-title
-  .anticon-ellipsis {
+.ant-menu-light.ant-menu-horizontal.review .ant-menu-title-content {
   color: var(--color-text-inverted);
 }
 .ant-menu-light.ant-menu-horizontal.read .ant-menu-item-icon,
@@ -496,14 +471,6 @@ body {
   border-radius: 3px;
   box-shadow: 0 0 4px 0 rgba(9, 13, 19, 0.15);
   font-size: 13px;
-}
-.ant-menu-light.ant-menu-submenu-popup
-  > .ant-menu
-  > .ant-menu-submenu
-  > .ant-menu-submenu-title:not(:has(.ant-menu-title-content > .xl-dropdown)) {
-  padding: 4px 12px;
-  display: flex;
-  width: 100%;
 }
 .ant-menu-light.ant-menu-submenu-popup > .ant-menu .ant-menu-item-divider {
   border-color: var(--color-stroke-primary);
@@ -528,17 +495,13 @@ body {
   > .ant-menu
   .ant-menu-item.ant-menu-item-disabled {
   color: var(--color-text-secondary) !important;
-
-  button {
-    color: var(--color-controls-text-disable) !important;
-  }
 }
 
 /* ===== Tooltip ===== */
 .ant-tooltip .ant-tooltip-arrow::before {
   background: var(--color-bg-inverted);
 }
-.ant-tooltip .ant-tooltip-container {
+.ant-tooltip .ant-tooltip-inner {
   background: var(--color-bg-inverted);
   border-radius: 3px;
   color: var(--color-text-inverted);
@@ -735,6 +698,11 @@ body {
   border-color: var(--color-stroke-accent-primary);
 }
 
+/* popover padding override */
+.ant-popover .ant-popover-inner {
+  padding: 8px;
+}
+
 /* ===================== INPUT NUMBER ===================== */
 .ant-input-number .ant-input-number-input {
   color: var(--color-text-primary);
@@ -849,23 +817,22 @@ body {
 
 .ant-steps .ant-steps-item .ant-steps-item-icon {
   font-size: 13px;
-  --ant-cmp-steps-item-icon-active-bg-color: var(--color-bg-accent-primary);
+  --ant-color-primary: var(--color-bg-accent-primary);
 }
 
 .ant-steps .ant-steps-item-wait .ant-steps-item-icon {
-  --ant-cmp-steps-item-icon-bg-color: var(--color-bg-layer-4);
+  --ant-steps-wait-icon-bg-color: var(--color-bg-layer-4);
 }
 .ant-steps .ant-steps-item-wait .ant-steps-item-icon > .ant-steps-icon {
-  --ant-cmp-steps-wait-icon-color: var(--color-text-primary);
+  --ant-steps-wait-icon-color: var(--color-text-primary);
 }
 
 .ant-steps .ant-steps-item-finish .ant-steps-item-icon {
-  --ant-cmp-steps-item-icon-bg-color: var(--color-bg-accent-primary-alpha);
-  --ant-cmp-steps-item-icon-border-color: var(--color-bg-accent-primary);
-  --ant-cmp-steps-item-icon-text-color: var(--color-text-accent-primary);
+  --ant-steps-finish-icon-bg-color: var(--color-bg-accent-primary-alpha);
+  --ant-steps-finish-icon-border-color: var(--color-bg-accent-primary);
 }
 .ant-steps .ant-steps-item-finish .ant-steps-item-icon > .ant-steps-icon {
-  --ant-cmp-steps-item-icon-text-color: var(--color-text-accent-primary);
+  --ant-color-primary: var(--color-text-accent-primary);
 }
 
 .ant-steps .ant-steps-item-title {
@@ -874,20 +841,21 @@ body {
 }
 .ant-steps
   .ant-steps-item-wait
-  > .ant-steps-item-wrapper
+  > .ant-steps-item-container
   > .ant-steps-item-content
   > .ant-steps-item-title {
   --ant-color-text-description: var(--color-text-primary);
 }
-.ant-steps .ant-steps-item-rail {
-  --ant-cmp-steps-item-solid-line-color: var(--color-stroke-secondary);
+.ant-steps .ant-steps-item-title::after {
+  --ant-color-split: var(--color-stroke-secondary);
 }
 
 .ant-steps
   .ant-steps-item-finish
-  .ant-steps-item-wrapper
-  .ant-steps-item-rail-process {
-  --ant-cmp-steps-item-solid-line-color: var(--color-bg-accent-primary);
+  > .ant-steps-item-container
+  > .ant-steps-item-content
+  > .ant-steps-item-title::after {
+  --ant-color-primary: var(--color-bg-accent-primary);
 }
 
 .ant-steps .ant-steps-item .ant-steps-item-icon .ant-steps-icon {

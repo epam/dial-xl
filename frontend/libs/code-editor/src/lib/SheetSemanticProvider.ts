@@ -54,7 +54,7 @@ export class SheetSemanticProvider
             ? column - this.previousTokenColumn
             : column,
           stop - start + 1,
-          typeName,
+          typeName
         );
 
         this.previousTokenLine = currentLine;
@@ -79,14 +79,14 @@ export class SheetSemanticProvider
     columnDiff: number,
     tokenLength: number,
     tokenType: string,
-    modifiers = 0,
+    modifiers = 0
   ) {
     this.tokens.push(
       lineDiff,
       columnDiff,
       tokenLength,
       tokensMap.get(tokenType) ?? NotStyledToken,
-      modifiers,
+      modifiers
     );
   }
 

@@ -123,7 +123,7 @@ export function ErrorItem({ error, errorType }: Props) {
 
   const { icon: errorIcon, title: iconTitle } = useMemo(
     () => errorItemConfig[errorType],
-    [errorType],
+    [errorType]
   );
 
   const errorLabel = useMemo(
@@ -131,9 +131,9 @@ export function ErrorItem({ error, errorType }: Props) {
       errorType === 'parsing'
         ? getLabelFromParsingError(error as ParsingError)
         : getLabelFromError(
-            error as CompilationError | RuntimeError | IndexError,
+            error as CompilationError | RuntimeError | IndexError
           ) || '[]',
-    [error, errorType],
+    [error, errorType]
   );
 
   return (

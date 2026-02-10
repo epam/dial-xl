@@ -296,7 +296,7 @@ describe('Field', () => {
     expect(fieldA.hasDecorator('size')).toBe(true);
     expect(fieldB.hasDecorator('size')).toBe(true);
     expect(sheet.toDSL()).toBe(
-      'table A\n  !size(1)\n  [a], !size(2)\n  [b] = 1\n',
+      'table A\n  !size(1)\n  [a], !size(2)\n  [b] = 1\n'
     );
   });
 

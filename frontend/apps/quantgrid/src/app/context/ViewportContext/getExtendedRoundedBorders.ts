@@ -3,7 +3,7 @@ import { chunkSize } from './ViewGridData';
 export function getExtendedRoundedBorders(
   start: number,
   end: number,
-  maxSize = Number.MAX_SAFE_INTEGER,
+  maxSize = Number.MAX_SAFE_INTEGER
 ) {
   const startRow =
     Math.floor(Math.max(0, start - chunkSize) / chunkSize) * chunkSize;

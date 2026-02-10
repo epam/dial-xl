@@ -16,7 +16,7 @@ export function bumpAIFunctionVersion(formula: string): string | undefined {
     }
 
     const aiFunctions = findFunctionExpressions(parsed.expression).filter(
-      (fn) => fn.name === 'AILIST' || fn.name === 'AIVALUE',
+      (fn) => fn.name === 'AILIST' || fn.name === 'AIVALUE'
     );
 
     if (aiFunctions.length === 0) {
@@ -24,7 +24,7 @@ export function bumpAIFunctionVersion(formula: string): string | undefined {
     }
 
     const sortedFunctions = aiFunctions.sort(
-      (a, b) => (b.globalOffsetStart ?? 0) - (a.globalOffsetStart ?? 0),
+      (a, b) => (b.globalOffsetStart ?? 0) - (a.globalOffsetStart ?? 0)
     );
 
     let result = formula;

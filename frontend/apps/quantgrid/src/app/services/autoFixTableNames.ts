@@ -9,7 +9,7 @@ import { TableFields } from './sheetUtils';
 
 export function autoFixTableNames(
   expression: string,
-  tableFields: TableFields,
+  tableFields: TableFields
 ): string {
   if (!expression) return expression;
 
@@ -25,7 +25,7 @@ export function autoFixTableNames(
 
       if (tableNames.some((t) => compareTableNames(t, tableName))) {
         const correctTableName = Object.keys(tableFields).find((t) =>
-          compareTableNames(t.toLowerCase(), tableName),
+          compareTableNames(t.toLowerCase(), tableName)
         );
 
         if (!correctTableName) continue;

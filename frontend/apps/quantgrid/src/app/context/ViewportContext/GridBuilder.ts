@@ -63,7 +63,7 @@ export class GridBuilder {
     data: GridData,
     row: number,
     col: number,
-    cell: GridCell,
+    cell: GridCell
   ): GridData {
     if (!data[row]) data[row] = {};
 
@@ -80,14 +80,14 @@ export class GridBuilder {
    */
   public getTableDimensions(
     tableName: string,
-    isTableHorizontal: boolean,
+    isTableHorizontal: boolean
   ): TableDimensions {
     const tableData = this.viewGridData.getTableData(tableName);
 
     if (!tableData) {
       throw new Error(
         "[ViewGridData] getTableDimensions, table data doesn't exists requested tableName: " +
-          tableName,
+          tableName
       );
     }
 
@@ -148,7 +148,7 @@ export class GridBuilder {
             startRow +
               table.getTableNameHeaderHeight() +
               table.getTableFieldsHeaderHeight() -
-              1,
+              1
           );
     const endCol =
       fieldsCount > 0 ? startCol + table.getTableFieldsSizes() - 1 : startCol;
@@ -174,7 +174,7 @@ export class GridBuilder {
         tableName: table.tableName,
         ...this.getTableDimensions(
           table.tableName,
-          table.getIsTableDirectionHorizontal(),
+          table.getIsTableDirectionHorizontal()
         ),
         isTableNameHeaderHidden: table.getIsTableHeaderHidden(),
         isTableFieldsHeaderHidden: table.getIsTableFieldsHidden(),
@@ -217,7 +217,7 @@ export class GridBuilder {
     const totalSize = table.getTotalSize();
     const tableDimensions = this.getTableDimensions(
       tableName,
-      isTableHorizontal,
+      isTableHorizontal
     );
     const { startCol, startRow, endCol } = tableDimensions;
     const parsingErrors = this.viewGridData.getParsingErrors();
@@ -306,7 +306,7 @@ export class GridBuilder {
       const expression = field.expressionMetadata?.text || '';
       const note = field.note?.text || '';
       const highlightType = diff?.fieldsHighlight?.find(
-        (field) => field.fieldName === columnName,
+        (field) => field.fieldName === columnName
       )?.highlight;
       const { sort, isFiltered, filter, isFieldUsedInSort } =
         this.getApplyBlockGridParams(tableData, table, columnName);
@@ -323,7 +323,7 @@ export class GridBuilder {
           compilationErrors,
           viewportErrorMessage,
           tableName,
-          columnName,
+          columnName
         );
         fieldErrorsCache.set(columnName, fieldErrorMessage);
       }
@@ -384,7 +384,7 @@ export class GridBuilder {
         cellField.totalFieldTypes = table.total?.getFieldTotalTypes(columnName);
 
         const { start: startGroupColOrRow, span } = groupInfo.get(
-          field.fieldGroupIndex,
+          field.fieldGroupIndex
         )!;
         const endGroupColOrRow = startGroupColOrRow + span - 1;
 
@@ -412,7 +412,7 @@ export class GridBuilder {
 
           const totalExpression = table.total?.getFieldTotalByIndex(
             columnName,
-            i,
+            i
           );
           const totalValue = tableData.total[columnName]?.[i];
           const value = totalValue && totalExpression ? totalValue : '';
@@ -421,7 +421,7 @@ export class GridBuilder {
             compilationErrors,
             tableName,
             columnName,
-            i,
+            i
           );
 
           GridBuilder.setSafeDataCell(data, row, col, {
@@ -473,7 +473,7 @@ export class GridBuilder {
     viewport: ViewportEdges,
     fieldMap: Map<string, GridFieldCache>,
     groupInfo: Map<number, GroupInfo>,
-    commonTableProps: GridTable,
+    commonTableProps: GridTable
   ): GridData {
     const data: GridData = {};
     const { table } = tableData;
@@ -486,7 +486,7 @@ export class GridBuilder {
     const compilationErrors = this.viewGridData.getCompilationErrors();
     const tableDimensions = this.getTableDimensions(
       tableName,
-      isTableHorizontal,
+      isTableHorizontal
     );
     const {
       startCol: tableStartCol,
@@ -501,23 +501,13 @@ export class GridBuilder {
         totalSize;
 
     const tableFields = table.fields.filter(
-      (f) => f.key.fieldName !== dynamicFieldName,
+      (f) => f.key.fieldName !== dynamicFieldName
     );
 
     const buildChunk = (resultedChunk: ColumnChunk, chunkIndex: number) => {
       let minDirectionIndex = Number.MAX_SAFE_INTEGER;
       let maxDirectionIndex = Number.MIN_SAFE_INTEGER;
       const cachedOverrideValues: Record<number, CachedOverrideRow> = {};
-
-      const keyFieldEntries: Array<readonly [string, string[]]> | null =
-        table.hasKeys() && !table.isManual()
-          ? table
-              .getKeys()
-              .map((k) => k.key.fieldName)
-              .filter((name) => name !== dynamicFieldName)
-              .map((name) => [name, (resultedChunk as any)[name]] as const)
-              .filter(([, col]) => Array.isArray(col))
-          : null;
 
       // Add cells that have data in chunks
       for (const chunkKey of Object.keys(resultedChunk)) {
@@ -552,16 +542,12 @@ export class GridBuilder {
           minDirectionIndex = Math.min(minDirectionIndex, dataDirectionIndex);
           maxDirectionIndex = Math.max(maxDirectionIndex, dataDirectionIndex);
 
-          let tableDirectionData: Record<string, string> = {};
-          if (
-            keyFieldEntries &&
-            !cachedOverrideValues[resultedChunkDataIndex]
-          ) {
-            tableDirectionData = {};
-            for (const [keyName, keyCol] of keyFieldEntries) {
-              tableDirectionData[keyName] = keyCol[innerChunkDataIndex];
-            }
-          }
+          const tableDirectionData: Record<string, string> = {};
+
+          Object.keys(resultedChunk).forEach((fieldName) => {
+            tableDirectionData[fieldName] =
+              resultedChunk[fieldName][innerChunkDataIndex];
+          });
 
           let overrideValue: OverrideValue = null;
           let overrideIndex = null;
@@ -575,7 +561,7 @@ export class GridBuilder {
             chunkKey,
             resultedChunkDataIndex,
             tableDirectionData,
-            cachedOverrideValues,
+            cachedOverrideValues
           );
 
           if (overrideRow) {
@@ -591,7 +577,7 @@ export class GridBuilder {
               compilationErrors,
               tableName,
               fieldName,
-              overrideSectionIndex + 1,
+              overrideSectionIndex + 1
             );
 
           const dataIndex = resultedChunkDataIndex;
@@ -661,7 +647,7 @@ export class GridBuilder {
         .map((f) => f.key.fieldName)
         .filter(
           (fieldName) =>
-            !resultedChunk[fieldName] || resultedChunk[fieldName]?.length === 0,
+            !resultedChunk[fieldName] || resultedChunk[fieldName]?.length === 0
         );
 
       for (const fieldName of noDataFieldNames) {
@@ -756,7 +742,7 @@ export class GridBuilder {
 
           return acc;
         },
-        {} as Record<string, string[]>,
+        {} as Record<string, string[]>
       );
 
       const columnChunk = {
@@ -774,19 +760,19 @@ export class GridBuilder {
         // Getting max length of column chunk to normalize other columns lengths
         const maxLength = Object.values(columnChunk).reduce(
           (acc, current) => (acc > current.length ? acc : current.length),
-          0,
+          0
         );
         const normalizedColumnChunk: ColumnChunk = Object.entries(
-          columnChunk,
+          columnChunk
         ).reduce((acc, [key, values]) => {
           const chunkPlaceholder = '';
           acc[key] = values.concat(
             Array(
               Math.max(
                 maxLength,
-                hasChunkData && !fieldMap.get(key)?.cellField.hasError ? 0 : 1,
-              ) - values.length,
-            ).fill(chunkPlaceholder),
+                hasChunkData && !fieldMap.get(key)?.cellField.hasError ? 0 : 1
+              ) - values.length
+            ).fill(chunkPlaceholder)
           );
 
           return acc;
@@ -805,10 +791,10 @@ export class GridBuilder {
       tableData;
 
     const isFieldInDataChunks = Object.values(chunks).some(
-      (chunk) => !!chunk?.[fieldName],
+      (chunk) => !!chunk?.[fieldName]
     );
     const isFieldInFallbackChunks = Object.values(fallbackChunks).some(
-      (chunk) => !!chunk?.[fieldName],
+      (chunk) => !!chunk?.[fieldName]
     );
 
     const isInitialLoading = !isFieldInDataChunks && !isFieldInFallbackChunks;
@@ -838,7 +824,7 @@ export class GridBuilder {
     const totalSize = table.getTotalSize();
     const tableDimensions = this.getTableDimensions(
       tableName,
-      table.getIsTableDirectionHorizontal(),
+      table.getIsTableDirectionHorizontal()
     );
 
     const { startCol, startRow, endCol, endRow } = tableDimensions;
@@ -906,7 +892,7 @@ export class GridBuilder {
         viewport,
         fieldMap,
         groupInfo,
-        commonTableProps,
+        commonTableProps
       );
 
       data = this.mergeGridData(data, gridTableHeader, gridTableData);
@@ -925,7 +911,7 @@ export class GridBuilder {
   private getApplyBlockGridParams(
     tableData: TableData,
     table: ParsedTable,
-    columnName: string,
+    columnName: string
   ): ApplyBlockGridParams {
     if (!table.apply) {
       return {
@@ -965,7 +951,7 @@ export class GridBuilder {
   private isValueRightAligned(
     isNested: boolean,
     type: ColumnDataType,
-    format?: ColumnFormat,
+    format?: ColumnFormat
   ): boolean {
     const numberTypes = [
       FormatType.FORMAT_TYPE_NUMBER,

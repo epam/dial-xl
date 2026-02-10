@@ -33,7 +33,7 @@ let browserContext: BrowserContext;
 
 let page: Page;
 
-const storagePath = TestFixtures.getStoragePath();
+const storagePath = `playwright/${projectName}.json`;
 
 const dataType = process.env['DATA_TYPE']
   ? process.env['DATA_TYPE']
@@ -66,13 +66,13 @@ test.beforeAll(async ({ browser }) => {
   if (dataType !== 'default') {
     spreadsheet = getProjectSpreadSheeet(dataType, spreadsheet);
   }
-  browserContext = await browser.newContext({ storageState: storagePath });
   await TestFixtures.createProjectNew(
     storagePath,
-    browserContext,
+    browser,
     projectName,
-    spreadsheet,
+    spreadsheet
   );
+  browserContext = await browser.newContext({ storageState: storagePath });
 });
 
 test.beforeEach(async () => {
@@ -92,8 +92,8 @@ test.afterEach(async () => {
 });
 
 test.afterAll(async ({ browser }) => {
-  await TestFixtures.deleteProject(browserContext, projectName);
   await browserContext.close();
+  await TestFixtures.deleteProject(browser, projectName);
 });
 
 test.describe('history panel', () => {

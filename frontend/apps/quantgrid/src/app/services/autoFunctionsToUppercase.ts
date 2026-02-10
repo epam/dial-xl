@@ -11,7 +11,7 @@ export type ExpressionToUpdate = {
 
 export function autoFunctionsToUppercase(
   dsl: string,
-  functions: FunctionInfo[],
+  functions: FunctionInfo[]
 ) {
   if (!dsl || functions.length === 0) return dsl;
 

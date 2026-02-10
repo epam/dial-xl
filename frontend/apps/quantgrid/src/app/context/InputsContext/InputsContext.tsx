@@ -48,11 +48,11 @@ type InputsContextActions = {
   }) => Promise<void>;
   syncSingleImportField: (
     tableName: string,
-    fieldName: string,
+    fieldName: string
   ) => Promise<void>;
   onRenameImportSource: (oldName: string, newName: string) => void;
 };
 
 export const InputsContext = createContext<InputsContextActions>(
-  {} as InputsContextActions,
+  {} as InputsContextActions
 );

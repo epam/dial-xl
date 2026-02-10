@@ -29,9 +29,8 @@ export function useNavigation() {
       const vp = viewportCoords.current;
       const viewportWidth = Math.abs(vp.x2 - vp.x1);
       const viewportHeight = Math.abs(vp.y2 - vp.y1);
-      const isAbleCenterCellInViewport = viewportWidth >= cell.width;
 
-      if (centerCellInViewport && isAbleCenterCellInViewport) {
+      if (centerCellInViewport) {
         const cellCenterX = nextCellX + cell.width / 2;
         const cellCenterY = nextCellY + cell.height / 2;
 
@@ -58,7 +57,7 @@ export function useNavigation() {
         moveViewport(0, nextCellY + cellHeightOffset - viewportHeight, true);
       }
     },
-    [getCellX, getCellY, gridSizes, moveViewport, viewportCoords],
+    [getCellX, getCellY, gridSizes, moveViewport, viewportCoords]
   );
 
   const moveTableSelection = useCallback(
@@ -116,7 +115,7 @@ export function useNavigation() {
       selectedTable,
       selection$,
       setSelectionEdges,
-    ],
+    ]
   );
 
   const arrowNavigation = useCallback(
@@ -175,7 +174,7 @@ export function useNavigation() {
       selectedTable,
       selection$,
       setSelectionEdges,
-    ],
+    ]
   );
 
   const extendSelection = useCallback(
@@ -276,7 +275,7 @@ export function useNavigation() {
       moveViewportToCell(nextStartCol, nextEndRow);
       setSelectionEdges(updatedSelection);
     },
-    [getCell, gridSizes, moveViewportToCell, selection$, setSelectionEdges],
+    [getCell, gridSizes, moveViewportToCell, selection$, setSelectionEdges]
   );
 
   const tabNavigation = useCallback(() => {
@@ -345,7 +344,7 @@ export function useNavigation() {
         moveViewport(0, gridHeight);
       }
     },
-    [gridHeight, moveViewport],
+    [gridHeight, moveViewport]
   );
 
   const moveSelectionToEdge = useCallback(
@@ -413,7 +412,7 @@ export function useNavigation() {
       moveViewport,
       selection$,
       setSelectionEdges,
-    ],
+    ]
   );
 
   return {

@@ -14,7 +14,7 @@ export function ProjectSubscriptionProvider({
       subscribeToProject,
       unsubscribeFromCurrentProject,
     }),
-    [subscribeToProject, unsubscribeFromCurrentProject],
+    [subscribeToProject, unsubscribeFromCurrentProject]
   );
 
   return (

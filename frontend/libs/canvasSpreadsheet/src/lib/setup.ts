@@ -1,9 +1,17 @@
-import { ApplicationOptions, Assets, BitmapFont, TextStyle } from 'pixi.js';
+import * as PIXI from 'pixi.js';
+import { IApplicationOptions } from 'pixi.js';
 
-import { getCurrencySymbols } from '@frontend/common';
+import {
+  AppTheme,
+  getCurrencySymbols,
+  getHexColor,
+  themeColors,
+} from '@frontend/common';
+
+import { Color } from './types';
 
 const currencySymbols = getCurrencySymbols();
-export const getChars = () => {
+const getChars = () => {
   const defaultChars = ` →!"#%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_\`abcdefghijklmnopqrstuvwxyz{|}~…абвгдеёжзийклмнопрстуфхцчшщъыьэюяАБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ`;
   const currencySymbolsChars = currencySymbols.join('');
 
@@ -20,6 +28,19 @@ export const getChars = () => {
 };
 
 const chars = getChars();
+
+export enum FontColorName {
+  'lightTextPrimary' = 'lightTextPrimary',
+  'lightTextSecondary' = 'lightTextSecondary',
+  'darkTextPrimary' = 'darkTextPrimary',
+  'darkTextSecondary' = 'darkTextSecondary',
+  'lightTextError' = 'lightTextError',
+  'darkTextError' = 'darkTextError',
+  'lightTextAccent' = 'lightTextAccent',
+  'darkTextAccent' = 'darkTextAccent',
+  'lightTextAccentSecondary' = 'lightTextAccentSecondary',
+  'darkTextAccentSecondary' = 'darkTextAccentSecondary',
+}
 
 export enum FontFamilies {
   'JetBrainsMonoRegular' = 'JetBrainsMonoRegular',
@@ -54,7 +75,7 @@ export async function loadFonts() {
         style: 'normal',
         unicodeRange: 'U+000-5FF,U+2026',
         weight: '400',
-      },
+      }
     );
     await fontRegular.load();
 
@@ -65,7 +86,7 @@ export async function loadFonts() {
         style: 'normal',
         unicodeRange: 'U+000-5FF,U+2026',
         weight: '700',
-      },
+      }
     );
     await fontBold.load();
 
@@ -85,62 +106,138 @@ export async function loadFonts() {
   }
 }
 
-const resolution = Math.max(2, window.devicePixelRatio);
-
-// Track installed bitmap fonts to avoid reinstalling
-const installedBitmapFonts = new Set<string>();
+const fontColors: {
+  colorName: FontColorName;
+  color: Color;
+  themes: AppTheme[];
+  fontFamilies: FontFamilies[];
+}[] = [
+  {
+    colorName: FontColorName.lightTextPrimary,
+    color: getHexColor(themeColors[AppTheme.ThemeLight].textGridPrimary),
+    themes: [AppTheme.ThemeLight, AppTheme.ThemeDarkMixed],
+    fontFamilies: [
+      FontFamilies.JetBrainsMonoRegular,
+      FontFamilies.JetBrainsMonoBold,
+    ],
+  },
+  {
+    colorName: FontColorName.lightTextSecondary,
+    color: getHexColor(themeColors[AppTheme.ThemeLight].textSecondary),
+    themes: [AppTheme.ThemeLight, AppTheme.ThemeDarkMixed],
+    fontFamilies: [FontFamilies.JetBrainsMonoRegular],
+  },
+  {
+    colorName: FontColorName.darkTextPrimary,
+    color: getHexColor(themeColors[AppTheme.ThemeDark].textGridPrimary),
+    themes: [AppTheme.ThemeDark],
+    fontFamilies: [
+      FontFamilies.JetBrainsMonoRegular,
+      FontFamilies.JetBrainsMonoBold,
+    ],
+  },
+  {
+    colorName: FontColorName.darkTextSecondary,
+    color: getHexColor(themeColors[AppTheme.ThemeDark].textSecondary),
+    themes: [AppTheme.ThemeDark],
+    fontFamilies: [FontFamilies.JetBrainsMonoRegular],
+  },
+  {
+    colorName: FontColorName.lightTextAccent,
+    color: getHexColor(themeColors[AppTheme.ThemeLight].textAccentTertiary),
+    themes: [AppTheme.ThemeLight, AppTheme.ThemeDarkMixed],
+    fontFamilies: [FontFamilies.JetBrainsMonoRegular],
+  },
+  {
+    colorName: FontColorName.darkTextAccent,
+    color: getHexColor(themeColors[AppTheme.ThemeDark].textAccentTertiary),
+    themes: [AppTheme.ThemeDark],
+    fontFamilies: [FontFamilies.JetBrainsMonoRegular],
+  },
+  {
+    colorName: FontColorName.lightTextError,
+    color: getHexColor(themeColors[AppTheme.ThemeLight].textError),
+    themes: [AppTheme.ThemeLight, AppTheme.ThemeDarkMixed],
+    fontFamilies: [FontFamilies.JetBrainsMonoBold],
+  },
+  {
+    colorName: FontColorName.darkTextError,
+    color: getHexColor(themeColors[AppTheme.ThemeDark].textError),
+    themes: [AppTheme.ThemeDark],
+    fontFamilies: [FontFamilies.JetBrainsMonoBold],
+  },
+  {
+    colorName: FontColorName.lightTextAccentSecondary,
+    color: getHexColor(themeColors[AppTheme.ThemeLight].textAccentSecondary),
+    themes: [AppTheme.ThemeLight, AppTheme.ThemeDarkMixed],
+    fontFamilies: [
+      FontFamilies.JetBrainsMonoBold,
+      FontFamilies.JetBrainsMonoRegular,
+    ],
+  },
+  {
+    colorName: FontColorName.darkTextAccentSecondary,
+    color: getHexColor(themeColors[AppTheme.ThemeDark].textAccentSecondary),
+    themes: [AppTheme.ThemeDark],
+    fontFamilies: [
+      FontFamilies.JetBrainsMonoBold,
+      FontFamilies.JetBrainsMonoRegular,
+    ],
+  },
+];
 
 // For optimization purposes:
-// BitmapFont installation is a heavy operation, so generate only fonts that are:
+// BitmapFont.from() is a heavy operation, so generate only fonts that are:
 // really used in the app, is for the current scale and theme
-export function initBitmapFonts(scale: number) {
-  const isResultingPixelsInteger = (resolution * scale) % 1 === 0;
-
+export function initBitmapFonts(scale: number, themeName: AppTheme) {
   Object.keys(FontFamilies).forEach((fontFamily) => {
-    const fontKey = `${fontFamily},${fontNameScale}${scale}`;
-    if (!installedBitmapFonts.has(fontKey)) {
-      const style = new TextStyle({
-        fontSize: Math.round(defaultFontSize * scale),
-        fontFamily,
-        fill: 0xffffff,
-      });
+    fontColors.forEach(({ colorName, color }) => {
+      const shouldGenerateFont = fontColors.some(
+        (f) =>
+          f.colorName === colorName &&
+          f.themes.includes(themeName) &&
+          f.fontFamilies.includes(fontFamily as FontFamilies)
+      );
 
-      BitmapFont.install({
-        name: fontKey,
-        style,
-        chars,
-        dynamicFill: true,
-        resolution,
-        padding: 0,
-        skipKerning: true,
-
-        // On not integer pixel ration artefacts with scaleMode 'nearest' are visible
-        // because of autodensity
-        textureStyle: {
-          scaleMode: isResultingPixelsInteger ? 'nearest' : 'linear',
-        },
-      });
-
-      installedBitmapFonts.add(fontKey);
-    }
+      if (shouldGenerateFont) {
+        const fontKey = `${fontFamily},${colorName},${fontNameScale}${scale}`;
+        if (!PIXI.BitmapFont.available[fontKey]) {
+          PIXI.BitmapFont.from(
+            fontKey,
+            {
+              fontSize: Math.round(defaultFontSize * scale),
+              fill: color,
+              fontFamily,
+            },
+            { resolution: globalResolution, chars }
+          );
+        }
+      }
+    });
   });
 }
 
-export const stageOptions: Partial<ApplicationOptions> = {
+export const globalResolution = Math.max(2, window.devicePixelRatio);
+
+export function setupPixi() {
+  if (PIXI.settings.RENDER_OPTIONS) {
+    PIXI.settings.RENDER_OPTIONS.hello = false;
+  }
+  PIXI.settings.ROUND_PIXELS = true;
+  PIXI.settings.RESOLUTION = globalResolution;
+}
+
+export const stageOptions: Partial<IApplicationOptions> = {
   backgroundAlpha: 0,
   antialias: true,
-  autoDensity: true,
-  resolution,
+  resolution: globalResolution,
   powerPreference: 'high-performance',
   clearBeforeRender: true,
   autoStart: false,
-  hello: false,
-  sharedTicker: false,
-  roundPixels: true,
 };
 
 const loadAssetsManifest = async () => {
-  await Assets.init({
+  await PIXI.Assets.init({
     basePath: 'pixi-assets',
     manifest: 'manifest.json',
   });
@@ -148,5 +245,5 @@ const loadAssetsManifest = async () => {
 
 export const loadIcons = async () => {
   await loadAssetsManifest();
-  await Assets.loadBundle('icons');
+  await PIXI.Assets.loadBundle('icons');
 };

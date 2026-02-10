@@ -1,6 +1,7 @@
 import { useContext, useEffect } from 'react';
 
-import { ComponentLayer } from '../../constants';
+import { Container } from '@pixi/react';
+
 import { GridStateContext } from '../../context';
 import { Cells } from '../Cells';
 import { ColNumbers } from '../ColNumbers';
@@ -19,7 +20,7 @@ import { Selection } from '../Selection';
 import { TableMoveHandle } from '../TableMoveHandle';
 
 export function GridComponents() {
-  const { app, theme, showGridLines } = useContext(GridStateContext);
+  const { app, theme } = useContext(GridStateContext);
 
   useEffect(() => {
     if (!app?.renderer?.background) return;
@@ -29,22 +30,22 @@ export function GridComponents() {
   }, [app, theme]);
 
   return (
-    <pixiContainer label="GridComponents" sortableChildren>
-      {showGridLines && <GridLines zIndex={ComponentLayer.GridLines} />}
-      {showGridLines && <RowNumbers zIndex={ComponentLayer.RowNumbers} />}
-      {showGridLines && <CornerRect zIndex={ComponentLayer.CornerRect} />}
-      {showGridLines && <ColNumbers zIndex={ComponentLayer.ColNumbers} />}
-      <ColResizer zIndex={ComponentLayer.Resizer} />
-      <Cells zIndex={ComponentLayer.Cells} />
-      <HiddenCells zIndex={ComponentLayer.HiddenCells} />
-      <Selection zIndex={ComponentLayer.Selection} />
-      <DNDSelection zIndex={ComponentLayer.DNDSelection} />
-      <DottedSelection zIndex={ComponentLayer.DottedSelection} />
-      <Overrides zIndex={ComponentLayer.Override} />
-      <Errors zIndex={ComponentLayer.Error} />
-      <NoteLabels zIndex={ComponentLayer.NoteLabel} />
-      <TableMoveHandle zIndex={ComponentLayer.TableMoveHandle} />
-      <ScrollBar zIndex={ComponentLayer.ScrollBar} />
-    </pixiContainer>
+    <Container sortableChildren>
+      <GridLines />
+      <RowNumbers />
+      <CornerRect />
+      <ColNumbers />
+      <ColResizer />
+      <Cells />
+      <HiddenCells />
+      <Selection />
+      <DNDSelection />
+      <DottedSelection />
+      <Overrides />
+      <Errors />
+      <NoteLabels />
+      <TableMoveHandle />
+      <ScrollBar />
+    </Container>
   );
 }

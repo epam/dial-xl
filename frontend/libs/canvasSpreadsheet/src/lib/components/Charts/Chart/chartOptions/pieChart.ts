@@ -17,13 +17,12 @@ import {
   getColor,
   getThemeColors,
   isHtmlColor,
-  makeUniqueLabel,
   sortNumericOrText,
 } from '../common';
 
 export function organizePieChartData(
   chartData: ChartsData,
-  gridChart: GridChart,
+  gridChart: GridChart
 ): OrganizedData | undefined {
   const {
     chartSections,
@@ -36,7 +35,13 @@ export function organizePieChartData(
   } = gridChart;
   const data = chartData[tableName];
 
-  if (!data || !Object.keys(data).length || !chartSections?.length) return;
+  if (
+    !data ||
+    !Object.keys(data).length ||
+    !chartSections ||
+    !chartSections.length
+  )
+    return;
 
   const rowOrCol = selectedKeys[chartRowNumberSelector];
   if (typeof rowOrCol !== 'string') return;
@@ -81,7 +86,7 @@ export function organizePieChartData(
         ? (data[xAxisFieldName].rawValues as string[])
         : Array.from(
             { length: (data[numericField]?.rawValues || []).length },
-            (_, i) => `${i + 1}`,
+            (_, i) => `${i + 1}`
           );
 
     const rowLabelsDisplay: string[] | undefined =
@@ -92,9 +97,6 @@ export function organizePieChartData(
     const columnValues = data[numericField]?.rawValues || [];
     const displayValues = data[numericField]?.displayValues || [];
 
-    // track occurrences to keep duplicates as separate slices (in table order)
-    const occByDisplayLabel = new Map<string, number>();
-
     columnValues.forEach((raw: any, i: number) => {
       const num = parseFloat(raw as string);
       if (isNaN(num)) return;
@@ -102,27 +104,20 @@ export function organizePieChartData(
       const rawLabel = rowLabels[i] ?? `${i + 1}`;
       const displayLabel = rowLabelsDisplay?.[i] ?? rawLabel;
 
-      const occ = (occByDisplayLabel.get(displayLabel) ?? 0) + 1;
-      occByDisplayLabel.set(displayLabel, occ);
-      const uniqueDisplayLabel = makeUniqueLabel(displayLabel, occ);
-
-      // legendData must use the SAME unique name
-      legendData.push(uniqueDisplayLabel);
-
+      legendData.push(displayLabel);
       let sliceColor: string | undefined;
       const colorCandidate = dotColors?.[i];
 
       if (colorCandidate && isHtmlColor(colorCandidate)) {
         sliceColor = colorCandidate;
       } else {
-        const legendIdx = legendData.indexOf(uniqueDisplayLabel);
+        const legendIdx = legendData.indexOf(displayLabel);
         sliceColor =
           customSeriesColors?.[rawLabel] || getColor(legendIdx, rawLabel);
       }
 
       seriesData.push({
-        name: uniqueDisplayLabel,
-        displayName: displayLabel,
+        name: displayLabel,
         rawName: rawLabel,
         value: num,
         itemStyle: { color: sliceColor },
@@ -204,7 +199,7 @@ export function getPieChartOption({
               s?.data &&
               s.data.every(
                 (item) =>
-                  (item as OptionDataItemObject<OptionDataValue>).value === 0,
+                  (item as OptionDataItemObject<OptionDataValue>).value === 0
               )
             ),
             formatter: (p: any) => {
@@ -223,7 +218,7 @@ export function getPieChartOption({
               shadowColor: 'rgba(0, 0, 0, 0.5)',
             },
           },
-        }),
+        })
       )
     : [];
 

@@ -1,100 +1,83 @@
-import { Container, FederatedPointerEvent, Graphics, Sprite } from 'pixi.js';
-import { useCallback, useContext, useEffect, useMemo, useRef } from 'react';
+import * as PIXI from 'pixi.js';
+import { useCallback, useContext, useMemo, useRef } from 'react';
 
+import { Graphics } from '@pixi/react';
+
+import { ComponentLayer } from '../../constants';
 import { GridStateContext } from '../../context';
-import { useDraw } from '../../hooks';
 import { getFullIconName } from '../Cells/utils';
 
-type Props = {
-  zIndex: number;
-};
-
-export function CornerRect({ zIndex }: Props) {
+export function CornerRect() {
   const { gridSizes, theme, gridApi, eventBus } = useContext(GridStateContext);
-  const containerRef = useRef<Container>(null);
-  const graphicsRef = useRef<Graphics>(null);
+  const graphicsRef = useRef<PIXI.Graphics>(null);
 
   const expandIcon = useMemo(() => {
-    return Sprite.from(getFullIconName('expand', theme.themeName));
+    return PIXI.Sprite.from(getFullIconName('expand', theme.themeName));
   }, [theme]);
 
-  // Set up icon event listeners once
-  useEffect(() => {
-    expandIcon.eventMode = 'static';
-    expandIcon.cursor = 'pointer';
+  const draw = useCallback(
+    (graphics: PIXI.Graphics) => {
+      const { rowNumber, gridLine } = gridSizes;
+      const width = rowNumber.width - gridLine.width;
+      const height = rowNumber.height;
 
-    const onPointerOver = (e: FederatedPointerEvent) => {
-      if (!gridApi) return;
+      graphics
+        .clear()
+        .beginFill(theme.rowNumber.bgColor)
+        .drawRect(0, 0, width, height)
+        .endFill();
 
-      const { x, y } = e.target as Sprite;
-      const tooltipX = x + expandIcon.width / 2;
-      const tooltipY = y + expandIcon.height / 2;
+      graphics.removeChildren();
 
-      gridApi.openTooltip(tooltipX, tooltipY, 'Expand spreadsheet');
-    };
+      // Configure and position of the expand icon in the center
+      expandIcon.width = gridSizes.cell.fontSize;
+      expandIcon.height = gridSizes.cell.fontSize;
+      expandIcon.x = (width - expandIcon.width) / 2;
+      expandIcon.y = (height - expandIcon.height) / 2;
+      expandIcon.eventMode = 'static';
+      expandIcon.cursor = 'pointer';
+      expandIcon.removeAllListeners('pointerover');
+      expandIcon.removeAllListeners('pointerout');
+      expandIcon.removeAllListeners('pointerdown');
 
-    const onPointerOut = () => {
-      if (!gridApi) return;
-      gridApi.closeTooltip();
-    };
+      expandIcon.addEventListener(
+        'pointerover',
+        function onPointerOver(e: PIXI.FederatedPointerEvent) {
+          if (!gridApi) return;
 
-    const onPointerDown = () => {
-      // Timeout to prevent selecting the entire grid column in useSelection hook
-      setTimeout(() => {
-        eventBus.emit({
-          type: 'viewport/expand',
-        });
-      }, 0);
-    };
+          const { x, y } = e.target as PIXI.Sprite;
+          const tooltipX = x + expandIcon.width / 2;
+          const tooltipY = y + expandIcon.height / 2;
 
-    expandIcon.on('pointerover', onPointerOver);
-    expandIcon.on('pointerout', onPointerOut);
-    expandIcon.on('pointerdown', onPointerDown);
+          gridApi.openTooltip(tooltipX, tooltipY, 'Expand spreadsheet');
+        }
+      );
 
-    // Add icon to container
-    if (containerRef.current && !expandIcon.parent) {
-      containerRef.current.addChild(expandIcon);
-    }
+      expandIcon.addEventListener('pointerout', function onPointerOut() {
+        if (!gridApi) return;
+        gridApi.closeTooltip();
+      });
 
-    return () => {
-      expandIcon.off('pointerover', onPointerOver);
-      expandIcon.off('pointerout', onPointerOut);
-      expandIcon.off('pointerdown', onPointerDown);
-    };
-  }, [expandIcon, gridApi, eventBus]);
+      expandIcon.addEventListener('pointerdown', function onPointerDown() {
+        // Timeout to prevent selecting the entire grid column in useSelection hook
+        setTimeout(() => {
+          eventBus.emit({
+            type: 'viewport/expand',
+          });
+        }, 0);
+      });
 
-  const draw = useCallback(() => {
-    if (!graphicsRef.current) return;
-
-    const graphics = graphicsRef.current;
-    const { rowNumber, gridLine } = gridSizes;
-    const width = rowNumber.width - gridLine.width;
-    const height = rowNumber.height;
-
-    graphics.clear();
-    graphics.rect(0, 0, width, height).fill({ color: theme.rowNumber.bgColor });
-
-    // Configure and position of the expand icon in the center
-    expandIcon.width = gridSizes.cell.fontSize;
-    expandIcon.height = gridSizes.cell.fontSize;
-    expandIcon.x = (width - expandIcon.width) / 2;
-    expandIcon.y = (height - expandIcon.height) / 2;
-  }, [expandIcon, gridSizes, theme]);
-
-  useDraw(draw);
+      graphics.addChild(expandIcon);
+    },
+    [expandIcon, gridApi, gridSizes, eventBus, theme]
+  );
 
   return (
-    <pixiContainer
+    <Graphics
+      draw={draw}
       eventMode="static"
-      label="CornerRect"
-      ref={containerRef}
-      zIndex={zIndex}
-    >
-      <pixiGraphics
-        draw={() => {}}
-        label="CornerRectGraphics"
-        ref={graphicsRef}
-      />
-    </pixiContainer>
+      ref={graphicsRef}
+      zIndex={ComponentLayer.CornerRect}
+    />
   );
 }

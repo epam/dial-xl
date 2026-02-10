@@ -13,5 +13,5 @@ export type HandlerProps = {
 };
 
 export const HandleContext = createContext<HandleContextProps>(
-  null as unknown as HandleContextProps,
+  null as unknown as HandleContextProps
 );

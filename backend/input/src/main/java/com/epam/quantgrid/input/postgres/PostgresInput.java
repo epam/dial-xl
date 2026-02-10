@@ -3,13 +3,11 @@ package com.epam.quantgrid.input.postgres;
 import com.epam.quantgrid.input.annotate.Input;
 import com.epam.quantgrid.input.annotate.Setting;
 import com.epam.quantgrid.input.jdbc.JdbcInput;
-import com.epam.quantgrid.input.util.DataUtils;
 import lombok.Getter;
 import lombok.Setter;
-import org.postgresql.ds.PGSimpleDataSource;
 
 import java.sql.Connection;
-import java.util.Collection;
+import java.sql.DriverManager;
 
 @Setter
 @Getter
@@ -36,18 +34,6 @@ public class PostgresInput extends JdbcInput {
 
     @Override
     protected Connection getConnection() throws Exception {
-        PGSimpleDataSource source = new PGSimpleDataSource();
-        source.setServerNames(new String[] {host});
-        source.setPortNumbers(new int[] {Integer.parseInt(port)});
-        source.setDatabaseName(database);
-        source.setUser(user);
-        source.setPassword(password);
-
-        return source.getConnection();
-    }
-
-    @Override
-    protected String buildQuery(String dataset, Collection<String> columns) {
-        return DataUtils.selectColumns(dataset, columns);
+        return DriverManager.getConnection("jdbc:postgresql://%s:%s/%s".formatted(host, port, database), user, password);
     }
 }

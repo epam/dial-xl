@@ -1,14 +1,11 @@
 import { useCallback } from 'react';
 import { AuthContextProps } from 'react-oidc-context';
 
-import {
-  ApiErrorType,
-  apiMessages,
-  ApiRequestFunctionWithError,
-} from '@frontend/common';
+import { apiMessages } from '@frontend/common';
 
 import { getApiUrl } from '../../services';
-import { classifyFetchError } from '../../utils/';
+import { ApiRequestFunction } from '../../types';
+import { displayToast } from '../../utils';
 import { fetchWithProgress } from '../../utils/fetch';
 
 export function useBackendRequest(auth: AuthContextProps) {
@@ -17,7 +14,7 @@ export function useBackendRequest(auth: AuthContextProps) {
       path: string,
       params?: Omit<RequestInit, 'headers'> & {
         headers?: Record<string, string>;
-      },
+      }
     ) => {
       const reqHeaders = params?.headers || {};
 
@@ -29,7 +26,7 @@ export function useBackendRequest(auth: AuthContextProps) {
 
       return fetch(pathWithApiUrl, { ...params, headers: reqHeaders });
     },
-    [auth],
+    [auth]
   );
 
   const sendDialRequest = useCallback(
@@ -37,7 +34,7 @@ export function useBackendRequest(auth: AuthContextProps) {
       path: string,
       params?: Omit<RequestInit, 'headers'> & {
         headers?: Record<string, string>;
-      },
+      }
     ) => {
       const reqHeaders = params?.headers || {};
 
@@ -49,20 +46,16 @@ export function useBackendRequest(auth: AuthContextProps) {
 
       return fetch(fullPath, { ...params, headers: reqHeaders });
     },
-    [auth],
+    [auth]
   );
 
-  const sendRequestWithProgress = useCallback(
+  const sendDialRequestWithProgress = useCallback(
     (
-      baseUrl: string,
       path: string,
       params?: Omit<RequestInit, 'headers'> & {
         headers?: Record<string, string>;
       },
-      onProgress?: (
-        progress: number,
-        event: ProgressEvent<EventTarget>,
-      ) => void,
+      onProgress?: (progress: number, event: ProgressEvent<EventTarget>) => void
     ) => {
       const reqHeaders = params?.headers || {};
 
@@ -70,58 +63,38 @@ export function useBackendRequest(auth: AuthContextProps) {
         reqHeaders['Authorization'] = `Bearer ${auth.user?.access_token}`;
       }
 
-      const fullPath = baseUrl + path;
+      const fullPath = window.externalEnv.dialBaseUrl + path;
 
       const result = fetchWithProgress(
         fullPath,
         { ...params, headers: reqHeaders },
-        onProgress,
+        onProgress
       );
 
       return result;
     },
-    [auth],
+    [auth]
   );
 
   const getDialBucket = useCallback<
-    ApiRequestFunctionWithError<void, string>
+    ApiRequestFunction<void, string>
   >(async () => {
     try {
       const res = await sendDialRequest(`/v1/bucket`);
 
       if (!res.ok) {
-        if (res.status === 401 || res.status === 403) {
-          return {
-            success: false,
-            error: {
-              type: ApiErrorType.Unauthorized,
-              message: apiMessages.unauthorizedRequest,
-              statusCode: res.status,
-            },
-          };
-        }
+        displayToast('error', apiMessages.getBucketServer);
 
-        return {
-          success: false,
-          error: {
-            type: ApiErrorType.ServerError,
-            message: apiMessages.getBucketServer,
-            statusCode: res.status,
-          },
-        };
+        return undefined;
       }
 
       const data: { bucket: string } = await res.json();
 
-      return {
-        success: true,
-        data: data.bucket,
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: classifyFetchError(error, apiMessages.getBucketClient),
-      };
+      return data.bucket;
+    } catch {
+      displayToast('error', apiMessages.getBucketClient);
+
+      return;
     }
   }, [sendDialRequest]);
 
@@ -129,6 +102,6 @@ export function useBackendRequest(auth: AuthContextProps) {
     getDialBucket,
     sendDialRequest,
     sendAuthorizedRequest,
-    sendRequestWithProgress,
+    sendDialRequestWithProgress,
   };
 }

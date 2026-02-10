@@ -68,8 +68,6 @@ const ProjectContextAggregator: FC<PropsWithChildren> = ({ children }) => {
       isProjectReadonlyByUser: ses.isProjectReadonlyByUser,
       isProjectEditingDisabled: ses.isProjectEditingDisabled,
       isProjectEditable: ses.isProjectEditable,
-      projectDataLoadingError: ses.projectDataLoadingError,
-      setProjectDataLoadingError: ses.setProjectDataLoadingError,
       openSheet: ses.openSheet,
       diffData: ses.diffData,
       setDiffData: ses.setDiffData,
@@ -98,7 +96,7 @@ const ProjectContextAggregator: FC<PropsWithChildren> = ({ children }) => {
       openProject,
       closeCurrentProject,
     }),
-    [ses, res, sub, closeCurrentProject, openProject],
+    [ses, res, sub, closeCurrentProject, openProject]
   );
 
   return (

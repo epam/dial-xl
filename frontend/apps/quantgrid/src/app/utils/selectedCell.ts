@@ -8,7 +8,7 @@ import { SelectedCell, SelectedCellType } from '../common';
 
 export function getSelectedCell(
   selectionEdges: SelectionEdges | null,
-  data: GridData,
+  data: GridData
 ): SelectedCell | null {
   if (!selectionEdges) return null;
 
@@ -52,7 +52,7 @@ export function getSelectedCell(
 
 function getSelectionType(
   cell: GridCell,
-  isOverride = false,
+  isOverride = false
 ): SelectedCellType {
   if (cell.isTableHeader) return SelectedCellType.Table;
 

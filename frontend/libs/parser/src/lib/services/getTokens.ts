@@ -17,7 +17,7 @@ export function getTokens(content: string): Token[] {
   // @ts-ignore
   const errorListeners = lexer._listeners;
   const customErrorListener = errorListeners.find(
-    (i: any) => i instanceof CustomErrorListener,
+    (i: any) => i instanceof CustomErrorListener
   );
 
   if (customErrorListener) {

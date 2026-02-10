@@ -1,6 +1,7 @@
-import { Application } from 'pixi.js';
 import { createContext } from 'react';
 import { BehaviorSubject } from 'rxjs';
+
+import { Application } from '@pixi/app';
 
 import { GridSizes } from '../../constants';
 import {
@@ -17,10 +18,10 @@ import { GridEventBus } from '../../utils';
 type GridStateContextActions = {
   getCell: GetCell;
   setCellValue: (col: number, row: number, value: string) => void;
-  getBitmapFontName: (fontFamily: string) => string;
+  getBitmapFontName: (fontFamily: string, fontName: string) => string;
   setSelectionEdges: (
     edges: SelectionEdges | null,
-    selectionOptions?: SelectionOptions,
+    selectionOptions?: SelectionOptions
   ) => void;
   setDottedSelectionEdges: (edges: SelectionEdges | null) => void;
   setPointClickError: (error: boolean) => void;
@@ -32,15 +33,13 @@ type GridStateContextActions = {
   decreaseCanvasAnimatedItems: () => void;
   updateMaxRowOrCol: (
     targetCol: number | null,
-    targetRow: number | null,
+    targetRow: number | null
   ) => void;
   shrinkRowOrCol: (targetCol: number | null, targetRow: number | null) => void;
-  setSelectedChart: (chartName: string | null) => void;
 };
 
 type GridStateContextValues = {
   app: Application | null;
-  canvasSymbolWidth: number;
   gridApi: GridApi;
   eventBus: GridEventBus;
   gridWidth: number;
@@ -53,7 +52,6 @@ type GridStateContextValues = {
   pointClickError: boolean;
   dndSelection: SelectionEdges | null;
   selectedTable: string | null;
-  selectedChart: string | null;
   dottedSelectionEdges: SelectionEdges | null;
   tableStructure: GridTable[];
   theme: Theme;
@@ -62,7 +60,6 @@ type GridStateContextValues = {
   hasCharts: boolean;
   zoom: number;
   selection$: BehaviorSubject<Edges | null>;
-  showGridLines: boolean;
 };
 
 export const GridStateContext = createContext<

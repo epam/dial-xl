@@ -83,7 +83,7 @@ export function FileListItemMenu({
 
       await moveResources([item], path, bucket, () => refetchData());
     },
-    [item, moveResources, refetchData],
+    [item, moveResources, refetchData]
   );
 
   const contextMenuItems: MenuProps['items'] = useMemo(
@@ -100,9 +100,7 @@ export function FileListItemMenu({
                 />
               ),
               onClick: async () => {
-                const toastId = toast.loading(
-                  `Downloading file '${item.name}'...`,
-                );
+                toast.loading(`Downloading file '${item.name}'...`);
                 const result = await downloadFiles({
                   files: [
                     {
@@ -112,7 +110,7 @@ export function FileListItemMenu({
                     },
                   ],
                 });
-                toast.dismiss(toastId);
+                toast.dismiss();
                 if (!result) {
                   toast.error('Error happened during downloading file');
                 }
@@ -199,7 +197,7 @@ export function FileListItemMenu({
                     nodeType: item.nodeType,
                     resourceType: item.resourceType,
                   },
-                  () => refetchData(),
+                  () => refetchData()
                 );
               },
             })
@@ -223,7 +221,7 @@ export function FileListItemMenu({
                     nodeType: item.nodeType,
                     resourceType: item.resourceType,
                   },
-                  () => refetchData(),
+                  () => refetchData()
                 );
               },
             })
@@ -238,7 +236,7 @@ export function FileListItemMenu({
                     'w-[18px]',
                     disabledDelete
                       ? 'text-controls-text-disable'
-                      : 'text-text-secondary',
+                      : 'text-text-secondary'
                   )}
                   component={() => <TrashIcon />}
                 />
@@ -262,7 +260,7 @@ export function FileListItemMenu({
       discardResourceAccess,
       deleteResources,
       disabledDelete,
-    ],
+    ]
   );
 
   return (

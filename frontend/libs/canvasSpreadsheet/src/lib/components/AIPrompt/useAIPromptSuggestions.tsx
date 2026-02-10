@@ -1,4 +1,4 @@
-import { RefObject, useMemo } from 'react';
+import { useMemo } from 'react';
 
 import Icon from '@ant-design/icons';
 import {
@@ -18,7 +18,7 @@ import { Edges, GridApi } from '../../types';
 import { AIPromptAction, AIPromptSection } from './types';
 
 export const useAIPromptSuggestions = ({
-  apiRef,
+  api,
   selection,
   previousPrompts,
   isSuggestionReview,
@@ -33,7 +33,7 @@ export const useAIPromptSuggestions = ({
   onAddNote,
   onHide,
 }: {
-  apiRef: RefObject<GridApi | null>;
+  api: GridApi | null;
   selection: Edges | null;
   previousPrompts: string[];
   isSuggestionReview: boolean;
@@ -125,7 +125,7 @@ export const useAIPromptSuggestions = ({
   // Showed before user send
   const promptsMenuItems = useMemo(() => {
     return [predefinedPromptsSection, previousUserPromptsSection].filter(
-      Boolean,
+      Boolean
     ) as AIPromptSection[];
   }, [predefinedPromptsSection, previousUserPromptsSection]);
 
@@ -182,11 +182,7 @@ export const useAIPromptSuggestions = ({
   const textAnswerItems: AIPromptSection = useMemo(() => {
     let showAddNote = false;
     if (selection) {
-      // eslint-disable-next-line react-hooks/refs
-      const cell = apiRef.current?.getCell(
-        selection.startCol,
-        selection.startRow,
-      );
+      const cell = api?.getCell(selection.startCol, selection.startRow);
 
       if (cell?.table?.tableName && cell.field?.fieldName) {
         showAddNote = true;
@@ -252,7 +248,7 @@ export const useAIPromptSuggestions = ({
         },
       ].filter(Boolean) as AIPromptAction[],
     };
-  }, [apiRef, onAddNote, onHide, onNewMessage, onTryAgain, selection]);
+  }, [api, onAddNote, onHide, onNewMessage, onTryAgain, selection]);
 
   const contextMenuItems: AIPromptSection[] = useMemo(() => {
     if (isLoading || isError) {

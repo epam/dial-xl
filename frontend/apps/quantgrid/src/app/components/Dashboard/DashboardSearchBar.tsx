@@ -22,7 +22,7 @@ export function DashboardSearchBar() {
       displayedDashboardItems
         .filter((item) => item.name.endsWith(dialProjectFileExtension))
         .map((item) => item.name.slice(0, -dialProjectFileExtension.length)),
-    [displayedDashboardItems],
+    [displayedDashboardItems]
   );
 
   const { dropdownItems } = useDashboardCreateMenuItems(projects);
@@ -46,7 +46,7 @@ export function DashboardSearchBar() {
       <Input
         className={cx(
           'ant-input-md text-sm md:text-base max-md:px-4 max-md:py-2.5 h-[38px] md:h-auto',
-          inputClasses,
+          inputClasses
         )}
         placeholder="Search project..."
         prefix={
@@ -62,14 +62,15 @@ export function DashboardSearchBar() {
       />
 
       <Dropdown
+        className="flex items-center"
         menu={{ items: dropdownItems }}
         placement="bottomRight"
         trigger={['click']}
       >
         <Button
           className={cx(
-            'flex items-center h-[38px] md:h-11 px-7 text-base',
-            primaryButtonClasses,
+            'h-[38px] md:h-11 px-7 text-base',
+            primaryButtonClasses
           )}
           data-qa="create-button"
         >

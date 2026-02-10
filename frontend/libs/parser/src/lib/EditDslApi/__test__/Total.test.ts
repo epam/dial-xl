@@ -11,11 +11,11 @@ describe('Totals', () => {
     // Act
     const total1 = new Total();
     total1.fieldGroups.append(
-      FieldGroup.fromField(new Field('a'), 'A[a].SUM()'),
+      FieldGroup.fromField(new Field('a'), 'A[a].SUM()')
     );
     const total2 = new Total();
     total2.fieldGroups.append(
-      FieldGroup.fromField(new Field('b'), 'A[b].COUNT()'),
+      FieldGroup.fromField(new Field('b'), 'A[b].COUNT()')
     );
 
     const table = sheet.getTable('A');
@@ -28,7 +28,7 @@ describe('Totals', () => {
     expect(totals.getItem(0).fieldGroups.length).toEqual(1);
     expect(totals.getItem(1).fieldGroups.length).toEqual(1);
     expect(sheet.toDSL()).toEqual(
-      'table A\n  [a] = 1\n  [b] = 2\ntotal\n  [a] = A[a].SUM()\ntotal\n  [b] = A[b].COUNT()\n',
+      'table A\n  [a] = 1\n  [b] = 2\ntotal\n  [a] = A[a].SUM()\ntotal\n  [b] = A[b].COUNT()\n'
     );
   });
 
@@ -46,13 +46,13 @@ describe('Totals', () => {
     total1.fieldGroups.getItem(0).formula = 'A[a].COUNT()';
     const total2 = table.totals.getItem(1);
     total2.fieldGroups.append(
-      FieldGroup.fromField(new Field('a'), 'A[a].SUM()'),
+      FieldGroup.fromField(new Field('a'), 'A[a].SUM()')
     );
     total2.fieldGroups.getItem(0).formula = 'A[b].SUM()';
 
     // Assert
     expect(sheet.toDSL()).toEqual(
-      'table A\n  [a] = 1\n  [b] = 2\ntotal\n  [a] = A[a].COUNT()\ntotal\n  [b] = A[b].SUM()\n  [a] = A[a].SUM()\n',
+      'table A\n  [a] = 1\n  [b] = 2\ntotal\n  [a] = A[a].COUNT()\ntotal\n  [b] = A[b].SUM()\n  [a] = A[a].SUM()\n'
     );
   });
 
@@ -86,11 +86,11 @@ describe('Totals', () => {
     // Create two new Total objects
     const total1 = new Total();
     total1.fieldGroups.append(
-      FieldGroup.fromField(new Field('a'), 'A[a].AVERAGE()'),
+      FieldGroup.fromField(new Field('a'), 'A[a].AVERAGE()')
     );
     const total2 = new Total();
     total2.fieldGroups.append(
-      FieldGroup.fromField(new Field('a'), 'A[a].MAX()'),
+      FieldGroup.fromField(new Field('a'), 'A[a].MAX()')
     );
 
     // Act

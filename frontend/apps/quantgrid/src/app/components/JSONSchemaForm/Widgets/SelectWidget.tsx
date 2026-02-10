@@ -24,7 +24,7 @@ const isString = (val: unknown): val is string => typeof val === 'string';
 export function SelectWidget<
   T = any,
   S extends StrictRJSFSchema = RJSFSchema,
-  F extends FormContextType = any,
+  F extends FormContextType = any
 >({
   autofocus,
   disabled,
@@ -49,7 +49,7 @@ export function SelectWidget<
     (nextValue: SingleValue<DefaultOptionType>) => {
       onChange(nextValue?.value?.toString());
     },
-    [onChange],
+    [onChange]
   );
 
   const handleBlur = () =>
@@ -61,7 +61,7 @@ export function SelectWidget<
   const filterOption:
     | ((
         option: FilterOptionOption<SingleValue<DefaultOptionType>>,
-        inputValue: string,
+        inputValue: string
       ) => boolean)
     | null = (option, input) => {
     if (option && isString(option.label)) {
@@ -75,7 +75,7 @@ export function SelectWidget<
   const selectedIndexes = enumOptionsIndexForValue<S>(
     value,
     enumOptions,
-    multiple,
+    multiple
   );
 
   // Antd's typescript definitions do not contain the following props that are actually necessary and, if provided,
@@ -96,7 +96,7 @@ export function SelectWidget<
           key: String(index),
           value: String(index),
           label: optionLabel,
-        }),
+        })
       );
 
       if (showPlaceholderOption) {
@@ -111,7 +111,7 @@ export function SelectWidget<
 
   const selectedOptions = useMemo(() => {
     return selectOptions?.filter((_, index) =>
-      selectedIndexes?.includes(index.toString()),
+      selectedIndexes?.includes(index.toString())
     );
   }, [selectOptions, selectedIndexes]);
 

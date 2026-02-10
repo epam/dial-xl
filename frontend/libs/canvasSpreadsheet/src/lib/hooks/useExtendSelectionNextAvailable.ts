@@ -16,7 +16,7 @@ export function useExtendSelectionNextAvailable() {
   const createSingleSelectionFromRangeSelection = useCallback(
     (
       selection: Edges,
-      direction: HorizontalDirection | VerticalDirection,
+      direction: HorizontalDirection | VerticalDirection
     ): Edges => {
       const { startRow, endRow, startCol, endCol } = selection;
       let cell;
@@ -54,13 +54,13 @@ export function useExtendSelectionNextAvailable() {
           };
       }
     },
-    [getCell],
+    [getCell]
   );
 
   const checkIsNavigateInsideTable = useCallback(
     (
       selection: Edges,
-      direction: HorizontalDirection | VerticalDirection,
+      direction: HorizontalDirection | VerticalDirection
     ): Edges | null => {
       for (const table of tableStructure) {
         const { startRow, endRow, startCol, endCol } = table;
@@ -116,7 +116,7 @@ export function useExtendSelectionNextAvailable() {
 
       return null;
     },
-    [getCell, gridSizes, tableStructure],
+    [getCell, gridSizes, tableStructure]
   );
 
   const extendSelectionNextAvailable = useCallback(
@@ -127,14 +127,14 @@ export function useExtendSelectionNextAvailable() {
 
       const singleSelection = createSingleSelectionFromRangeSelection(
         selectionEdges,
-        direction,
+        direction
       );
 
       if (!singleSelection) return null;
 
       const updatedSelection = checkIsNavigateInsideTable(
         singleSelection,
-        direction,
+        direction
       );
 
       if (updatedSelection) {
@@ -142,8 +142,8 @@ export function useExtendSelectionNextAvailable() {
           convertSingleSelectionToRange(
             selectionEdges,
             updatedSelection,
-            direction,
-          ),
+            direction
+          )
         );
 
         return;
@@ -152,7 +152,7 @@ export function useExtendSelectionNextAvailable() {
       const nextTable = findNextTableToNavigate(
         tableStructure,
         singleSelection,
-        direction,
+        direction
       );
 
       if (!nextTable) {
@@ -163,15 +163,15 @@ export function useExtendSelectionNextAvailable() {
             selectionEdges,
             direction,
             edges.row,
-            edges.col,
-          ),
+            edges.col
+          )
         );
 
         return;
       }
 
       return setSelectionEdges(
-        extendSelectionToTable(selectionEdges, nextTable, direction),
+        extendSelectionToTable(selectionEdges, nextTable, direction)
       );
     },
     [
@@ -181,7 +181,7 @@ export function useExtendSelectionNextAvailable() {
       selection$,
       setSelectionEdges,
       tableStructure,
-    ],
+    ]
   );
 
   return {
@@ -192,7 +192,7 @@ export function useExtendSelectionNextAvailable() {
 function convertSingleSelectionToRange(
   selection: Edges,
   updatedSelection: Edges,
-  direction: HorizontalDirection | VerticalDirection,
+  direction: HorizontalDirection | VerticalDirection
 ): Edges {
   switch (direction) {
     case 'up':
@@ -230,7 +230,7 @@ function extendSelectionToSheet(
   selection: Edges,
   direction: HorizontalDirection | VerticalDirection,
   maxRow: number,
-  maxCol: number,
+  maxCol: number
 ): Edges {
   switch (direction) {
     case 'up':
@@ -267,7 +267,7 @@ function extendSelectionToSheet(
 function extendSelectionToTable(
   selection: Edges,
   nextTable: GridTable,
-  direction: HorizontalDirection | VerticalDirection,
+  direction: HorizontalDirection | VerticalDirection
 ): Edges {
   switch (direction) {
     case 'up':
@@ -304,7 +304,7 @@ function extendSelectionToTable(
 function findNextTableToNavigate(
   tableStructure: GridTable[],
   selection: SelectionEdges,
-  direction: HorizontalDirection | VerticalDirection,
+  direction: HorizontalDirection | VerticalDirection
 ) {
   let closestTable = null;
 
@@ -327,7 +327,7 @@ function findNextTableToNavigate(
 function tableIsValidToNavigate(
   direction: HorizontalDirection | VerticalDirection,
   selection: SelectionEdges,
-  table: GridTable,
+  table: GridTable
 ): boolean {
   const { startRow, endRow, startCol, endCol } = table;
   const viewHeight = endRow - startRow;
@@ -356,7 +356,7 @@ function tableIsValidToNavigate(
 function isTableCloserToSourceCell(
   direction: HorizontalDirection | VerticalDirection,
   closestTable: GridTable,
-  table: GridTable,
+  table: GridTable
 ): boolean {
   return (
     (direction === 'right' && table.startCol < closestTable.startCol) ||

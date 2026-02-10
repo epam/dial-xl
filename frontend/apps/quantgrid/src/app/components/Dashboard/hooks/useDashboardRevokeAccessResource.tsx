@@ -33,7 +33,7 @@ export function useDashboardRevokeAccessResource() {
 
       return `Do you want to unshare ${resourceName} "${fileName}"?`;
     },
-    [],
+    []
   );
 
   const handleRevokeProject = useCallback(
@@ -41,7 +41,7 @@ export function useDashboardRevokeAccessResource() {
       item: Pick<
         ResourceMetadata,
         'name' | 'bucket' | 'nodeType' | 'parentPath' | 'resourceType'
-      >,
+      >
     ) => {
       return Promise.allSettled([
         revokeResourcesAccessRequest([
@@ -65,7 +65,7 @@ export function useDashboardRevokeAccessResource() {
         ]),
       ]);
     },
-    [revokeResourcesAccessRequest],
+    [revokeResourcesAccessRequest]
   );
 
   const revokeResourceAccess = useCallback(
@@ -74,7 +74,7 @@ export function useDashboardRevokeAccessResource() {
         ResourceMetadata,
         'name' | 'bucket' | 'nodeType' | 'parentPath' | 'resourceType'
       >,
-      onSuccess?: () => void,
+      onSuccess?: () => void
     ) => {
       confirmModal({
         icon: null,
@@ -117,7 +117,7 @@ export function useDashboardRevokeAccessResource() {
       handleRevokeProject,
       revokeResourcesAccessRequest,
       confirmModal,
-    ],
+    ]
   );
 
   return {

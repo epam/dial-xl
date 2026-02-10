@@ -87,7 +87,7 @@ export function useFieldEditDsl() {
         tableName,
       });
     },
-    [findEditContext, updateDSL],
+    [findEditContext, updateDSL]
   );
 
   const changeFieldKey = useCallback(
@@ -110,7 +110,7 @@ export function useFieldEditDsl() {
         tableName,
       });
     },
-    [findEditContext, updateDSL],
+    [findEditContext, updateDSL]
   );
 
   const changeFieldDescription = useCallback(
@@ -118,7 +118,7 @@ export function useFieldEditDsl() {
       tableName: string,
       fieldName: string,
       descriptionFieldName: string,
-      isRemove = false,
+      isRemove = false
     ) => {
       const context = findEditContext(tableName, fieldName);
 
@@ -136,7 +136,7 @@ export function useFieldEditDsl() {
           field,
           indexDecoratorName,
           '()',
-          isRemove,
+          isRemove
         );
         if (!success) return;
       }
@@ -145,7 +145,7 @@ export function useFieldEditDsl() {
         field,
         descriptionDecoratorName,
         `(${escapeValue(descriptionFieldName)})`,
-        isRemove,
+        isRemove
       );
       if (!success) return;
 
@@ -159,7 +159,7 @@ export function useFieldEditDsl() {
         tableName,
       });
     },
-    [findEditContext, updateDSL],
+    [findEditContext, updateDSL]
   );
 
   const changeFieldIndex = useCallback(
@@ -179,7 +179,7 @@ export function useFieldEditDsl() {
         field,
         indexDecoratorName,
         '()',
-        isRemove,
+        isRemove
       );
       if (!success) return;
 
@@ -188,7 +188,7 @@ export function useFieldEditDsl() {
           field,
           descriptionDecoratorName,
           '',
-          isRemove,
+          isRemove
         );
         if (!success) return;
       }
@@ -203,7 +203,7 @@ export function useFieldEditDsl() {
         tableName,
       });
     },
-    [findEditContext, updateDSL],
+    [findEditContext, updateDSL]
   );
 
   const handleChangeColumnSize = useCallback(
@@ -225,7 +225,7 @@ export function useFieldEditDsl() {
         field,
         fieldColSizeDecoratorName,
         sizeDecoratorArgs,
-        shouldRemoveSizeDecorator,
+        shouldRemoveSizeDecorator
       );
       if (!success) return;
 
@@ -238,20 +238,20 @@ export function useFieldEditDsl() {
         tableName,
       });
     },
-    [findEditContext, updateDSL],
+    [findEditContext, updateDSL]
   );
 
   const onIncreaseFieldColumnSize = useCallback(
     (tableName: string, fieldName: string) => {
       handleChangeColumnSize(tableName, fieldName, 1);
     },
-    [handleChangeColumnSize],
+    [handleChangeColumnSize]
   );
   const onDecreaseFieldColumnSize = useCallback(
     (tableName: string, fieldName: string) => {
       handleChangeColumnSize(tableName, fieldName, -1);
     },
-    [handleChangeColumnSize],
+    [handleChangeColumnSize]
   );
 
   const setFormat = useCallback(
@@ -259,7 +259,7 @@ export function useFieldEditDsl() {
       tableName: string,
       fieldName: string,
       formatName?: string,
-      formatParams: (string | number | boolean)[] = [],
+      formatParams: (string | number | boolean)[] = []
     ) => {
       const context = findEditContext(tableName, fieldName);
       if (!context?.field) return;
@@ -278,7 +278,7 @@ export function useFieldEditDsl() {
         field,
         formatDecoratorName,
         decoratorArgs,
-        !formatName,
+        !formatName
       );
 
       if (!success) return;
@@ -293,7 +293,7 @@ export function useFieldEditDsl() {
         tableName,
       });
     },
-    [findEditContext, updateDSL],
+    [findEditContext, updateDSL]
   );
 
   const editExpressionWithOverrideRemove = useCallback(
@@ -301,7 +301,7 @@ export function useFieldEditDsl() {
       tableName: string,
       fieldName: string,
       expression: string,
-      overrideIndex: number,
+      overrideIndex: number
     ) => {
       const context = findEditContext(tableName, fieldName);
 
@@ -326,13 +326,13 @@ export function useFieldEditDsl() {
       const initialExpression = expressionMetadata?.text || '';
       const sanitizedExpression = sanitizeExpression(
         expression,
-        initialExpression,
+        initialExpression
       );
       const fixedExpression = autoFixSingleExpression(
         sanitizedExpression,
         functions,
         parsedSheets,
-        tableName,
+        tableName
       );
 
       table.setFieldFormula(fieldName, fixedExpression);
@@ -356,7 +356,7 @@ export function useFieldEditDsl() {
 
       return true;
     },
-    [findEditContext, functions, parsedSheets, projectSheets, updateDSL],
+    [findEditContext, functions, parsedSheets, projectSheets, updateDSL]
   );
 
   const removeFieldDecorator = useCallback(
@@ -364,7 +364,7 @@ export function useFieldEditDsl() {
       tableName: string,
       fieldName: string,
       decoratorName: string,
-      customHistoryMessage?: string,
+      customHistoryMessage?: string
     ) => {
       const context = findEditContext(tableName, fieldName);
       if (!context?.field) return;
@@ -383,7 +383,7 @@ export function useFieldEditDsl() {
         tableName,
       });
     },
-    [findEditContext, updateDSL],
+    [findEditContext, updateDSL]
   );
 
   const setFieldDecorator = useCallback(
@@ -392,7 +392,7 @@ export function useFieldEditDsl() {
       fieldName: string,
       decoratorName: string,
       value: string,
-      customHistoryMessage?: string,
+      customHistoryMessage?: string
     ) => {
       const context = findEditContext(tableName, fieldName);
       if (!context?.field) return;
@@ -419,7 +419,7 @@ export function useFieldEditDsl() {
         tableName,
       });
     },
-    [findEditContext, updateDSL],
+    [findEditContext, updateDSL]
   );
 
   const swapFieldDecorators = useCallback(
@@ -429,7 +429,7 @@ export function useFieldEditDsl() {
       targetFieldName: string,
       decoratorName: string,
       value: string,
-      customHistoryMessage?: string,
+      customHistoryMessage?: string
     ) => {
       const sourceContext = findEditContext(tableName, sourceFieldName);
       const targetContext = findEditContext(tableName, targetFieldName);
@@ -455,7 +455,7 @@ export function useFieldEditDsl() {
         tableName,
       });
     },
-    [findEditContext, updateDSL],
+    [findEditContext, updateDSL]
   );
 
   const addFieldWithOverride = useCallback(
@@ -484,8 +484,8 @@ export function useFieldEditDsl() {
           false,
           undefined,
           undefined,
-          0,
-        ),
+          0
+        )
       );
       const updatedParsedOverrides = addOverridesToTable({
         cells: [[overrideValue]],
@@ -506,7 +506,7 @@ export function useFieldEditDsl() {
         tableName,
       });
     },
-    [findEditContext, gridApi, updateDSL],
+    [findEditContext, gridApi, updateDSL]
   );
 
   const addField = useCallback(
@@ -517,7 +517,7 @@ export function useFieldEditDsl() {
         direction?: HorizontalDirection;
         insertFromFieldName?: string;
         withSelection?: boolean;
-      } = {},
+      } = {}
     ) => {
       const context = findEditContext(tableName);
       if (!context || !projectSheets) return;
@@ -529,13 +529,13 @@ export function useFieldEditDsl() {
 
       if (insertFromFieldName) {
         targetField = parsedTable.fields.find(
-          (f) => f.key.fieldName === insertFromFieldName,
+          (f) => f.key.fieldName === insertFromFieldName
         );
       }
 
       if (targetField?.isDynamic) {
         targetField = parsedTable.fields.find(
-          (f) => f.key.fieldName === dynamicFieldName,
+          (f) => f.key.fieldName === dynamicFieldName
         );
       }
 
@@ -545,7 +545,7 @@ export function useFieldEditDsl() {
         parsedTable,
         functions,
         parsedSheets,
-        tableName,
+        tableName
       );
       const existingFieldNames = parsedTable.fields.map((f) => f.key.fieldName);
       const singleDefaultFieldName =
@@ -559,7 +559,7 @@ export function useFieldEditDsl() {
         const { schema, fieldInfo, keys, errorMessage } =
           await getFormulaSchema(
             expression,
-            getProjectSheetsRecord(projectSheets),
+            getProjectSheetsRecord(projectSheets)
           );
 
         if (fieldInfo && !errorMessage && isTableType(fieldInfo.type)) {
@@ -608,7 +608,7 @@ export function useFieldEditDsl() {
           customSchema.forEach((fieldName) => {
             const uniqueFieldName = createUniqueName(
               fieldName,
-              existingFieldNames,
+              existingFieldNames
             );
             existingFieldNames.push(uniqueFieldName);
             const field = new Field(uniqueFieldName);
@@ -637,7 +637,7 @@ export function useFieldEditDsl() {
           table.moveFieldBeforeOrAfter(
             name,
             targetField?.key.fieldName || null,
-            direction === 'left',
+            direction === 'left'
           );
           historyTitle = `Add [${name}] to table "${tableName}"`;
         } else if (fieldNames.length > 1) {
@@ -677,7 +677,7 @@ export function useFieldEditDsl() {
       parsedSheets,
       projectSheets,
       updateDSL,
-    ],
+    ]
   );
 
   const autoFitTableFields = useCallback(
@@ -711,7 +711,7 @@ export function useFieldEditDsl() {
 
         if (fieldSize && fieldSize > 1) {
           field.addDecorator(
-            new Decorator(fieldColSizeDecoratorName, `(${fieldSize})`),
+            new Decorator(fieldColSizeDecoratorName, `(${fieldSize})`)
           );
         }
       }
@@ -723,7 +723,7 @@ export function useFieldEditDsl() {
         tableName,
       });
     },
-    [findEditContext, gridApi, projectName, sheetName, updateDSL],
+    [findEditContext, gridApi, projectName, sheetName, updateDSL]
   );
 
   const removeFieldSizes = useCallback(
@@ -749,7 +749,7 @@ export function useFieldEditDsl() {
         tableName,
       });
     },
-    [findEditContext, updateDSL],
+    [findEditContext, updateDSL]
   );
 
   const editExpression = useCallback(
@@ -773,7 +773,7 @@ export function useFieldEditDsl() {
       const shouldRecreateTable =
         !parsedTable.isManual() &&
         parsedTable.fields.every(
-          ({ fieldGroupIndex }) => fieldGroupIndex === targetGroup,
+          ({ fieldGroupIndex }) => fieldGroupIndex === targetGroup
         );
 
       /* Old (current) formula and schema */
@@ -781,7 +781,7 @@ export function useFieldEditDsl() {
       const oldLeftSchema = parsedTable.fields
         .filter(
           (f) =>
-            f.fieldGroupIndex === parsedField?.fieldGroupIndex && !f.isDynamic,
+            f.fieldGroupIndex === parsedField?.fieldGroupIndex && !f.isDynamic
         )
         .map((f) => f.key.fieldName);
       const { isFieldReferenceFormula: oldHasAccessors } =
@@ -793,7 +793,7 @@ export function useFieldEditDsl() {
         sanitizedExpression,
         functions,
         parsedSheets,
-        tableName,
+        tableName
       );
       const {
         isInputFunction,
@@ -811,7 +811,7 @@ export function useFieldEditDsl() {
 
       const { schema, fieldInfo, errorMessage } = await getFormulaSchema(
         fixedNewExpression,
-        getProjectSheetsRecord(projectSheets),
+        getProjectSheetsRecord(projectSheets)
       );
 
       if (fieldInfo && !errorMessage) {
@@ -828,7 +828,7 @@ export function useFieldEditDsl() {
 
           // Do not append selectors if the schema has '*'
           const schemaHasDynamic = finalSchema.some(
-            (f) => f === dynamicFieldName,
+            (f) => f === dynamicFieldName
           );
           const hasToAppendSelectors =
             !schemaHasDynamic &&
@@ -850,14 +850,14 @@ export function useFieldEditDsl() {
       }
 
       const existingFieldNames = new Set(
-        parsedTable.fields.map((f) => f.key.fieldName),
+        parsedTable.fields.map((f) => f.key.fieldName)
       );
 
       // Special handling for pivot function – always update the left part
       if (isPivotFunction) {
         const shouldAddDim = !!fieldInfo?.isNested;
         const targetFieldGroup = table.getFieldGroupByFieldName(
-          oldLeftSchema[0],
+          oldLeftSchema[0]
         );
 
         if (targetFieldGroup) {
@@ -973,7 +973,7 @@ export function useFieldEditDsl() {
       parsedSheets,
       projectSheets,
       updateDSL,
-    ],
+    ]
   );
 
   const regenerateAIFunctions = useCallback(
@@ -988,7 +988,7 @@ export function useFieldEditDsl() {
         await editExpression(tableName, fieldName, updatedExpression);
       }
     },
-    [findEditContext, editExpression],
+    [findEditContext, editExpression]
   );
 
   return {
@@ -1001,7 +1001,7 @@ export function useFieldEditDsl() {
     changeFieldDescription: useSafeCallback(changeFieldDescription),
     editExpression: useSafeCallback(editExpression),
     editExpressionWithOverrideRemove: useSafeCallback(
-      editExpressionWithOverrideRemove,
+      editExpressionWithOverrideRemove
     ),
     onChangeFieldColumnSize: useSafeCallback(handleChangeColumnSize),
     onDecreaseFieldColumnSize: useSafeCallback(onDecreaseFieldColumnSize),

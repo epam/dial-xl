@@ -29,7 +29,7 @@ export function ShareButton() {
         className={classNames(
           primaryButtonClasses,
           primaryDisabledButtonClasses,
-          'h-7',
+          'h-7'
         )}
         disabled={!isProjectShareable}
         onClick={() => projectActions.shareProjectAction()}

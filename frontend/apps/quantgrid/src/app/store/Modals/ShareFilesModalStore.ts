@@ -29,5 +29,5 @@ export const useShareFilesModalStore = create<ShareFilesModalStore>()(
     close: () => {
       set(initial);
     },
-  }),
+  })
 );

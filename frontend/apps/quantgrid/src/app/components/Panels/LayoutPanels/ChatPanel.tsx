@@ -86,7 +86,7 @@ export function ChatPanel({ panelName, position, isActive }: PanelProps) {
                 className={classNames(
                   'flex items-center gap-1',
                   selectedConversation?.id === item.id &&
-                    'text-text-accent-primary',
+                    'text-text-accent-primary'
                 )}
               >
                 <span className="truncate max-w-[270px]">{formattedName}</span>
@@ -124,7 +124,7 @@ export function ChatPanel({ panelName, position, isActive }: PanelProps) {
                   className={classNames(
                     'truncate max-w-[270px]',
                     selectedConversation?.id === item.id &&
-                      'text-text-accent-primary italic',
+                      'text-text-accent-primary italic'
                   )}
                 >
                   {item.name}
@@ -137,7 +137,7 @@ export function ChatPanel({ panelName, position, isActive }: PanelProps) {
 
             overlay.selectConversation(item.id);
           },
-        }),
+        })
       );
 
     return [
@@ -186,13 +186,13 @@ export function ChatPanel({ panelName, position, isActive }: PanelProps) {
             okButtonProps: {
               className: classNames(
                 modalFooterButtonClasses,
-                primaryButtonClasses,
+                primaryButtonClasses
               ),
             },
             cancelButtonProps: {
               className: classNames(
                 modalFooterButtonClasses,
-                secondaryButtonClasses,
+                secondaryButtonClasses
               ),
             },
             onOk: async () => {
@@ -222,7 +222,7 @@ export function ChatPanel({ panelName, position, isActive }: PanelProps) {
         label: 'Export',
         onClick: async () => {
           const { exportConversation } = await overlay.exportConversation(
-            selectedConversation.id,
+            selectedConversation.id
           );
 
           const fileName = getExportConversationFileName();
@@ -278,8 +278,12 @@ export function ChatPanel({ panelName, position, isActive }: PanelProps) {
         position={position}
         title={
           projectConversations.length && !isAIPreview && !isAIPendingChanges ? (
-            <Dropdown menu={{ items: getConversations() }} trigger={['hover']}>
-              <span className="max-h-[60vh] flex items-center overflow-hidden gap-1 cursor-pointer">
+            <Dropdown
+              className="max-h-[60vh]"
+              menu={{ items: getConversations() }}
+              trigger={['hover']}
+            >
+              <span className="flex items-center overflow-hidden gap-1 cursor-pointer">
                 <span className="truncate leading-none">
                   {selectedConversationName}
                 </span>
@@ -290,7 +294,7 @@ export function ChatPanel({ panelName, position, isActive }: PanelProps) {
               </span>
             </Dropdown>
           ) : (
-            (selectedConversationName ?? 'Chat')
+            selectedConversationName ?? 'Chat'
           )
         }
       >

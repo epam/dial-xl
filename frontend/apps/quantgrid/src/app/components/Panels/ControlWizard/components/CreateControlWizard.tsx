@@ -1,4 +1,4 @@
-import { Collapse, Form, Input, InputNumber } from 'antd';
+import { Button, Collapse, Form, Input, InputNumber } from 'antd';
 import { CollapseProps } from 'antd/es/collapse/Collapse';
 import cx from 'classnames';
 import {
@@ -9,7 +9,11 @@ import {
   useState,
 } from 'react';
 
-import { inputClasses } from '@frontend/common';
+import {
+  inputClasses,
+  primaryButtonClasses,
+  primaryDisabledButtonClasses,
+} from '@frontend/common';
 
 import { useControlEditDsl, useGridApi } from '../../../../hooks';
 import { CollapseIcon } from '../../Chart/Components';
@@ -47,30 +51,14 @@ export function CreateControlWizard({ tables }: Props) {
       if (ctrlKey || altKey || metaKey) return;
       if (key.length === 1 && !/^\d$/.test(key)) event.preventDefault();
     },
-    [],
+    []
   );
 
-  const handleAutoSave = useCallback(() => {
-    const hasErrors = form
-      .getFieldsError()
-      .some(({ errors }) => errors.length > 0);
-
-    if (hasErrors) return;
-
-    const fieldsValue = form.getFieldsValue();
-
-    const fieldsValueControls: any[] = fieldsValue.controls ?? [];
-    const requiredFilled =
-      !!fieldsValue.controlName &&
-      fieldsValueControls.length > 0 &&
-      fieldsValueControls.every(
-        (c) => c && c.type && c.name && c.valueTable && c.valueField,
-      );
-
-    if (!requiredFilled) return;
+  const onSaveControl = useCallback(() => {
+    const fields = form.getFieldsValue();
 
     const controls: ControlRow[] =
-      fieldsValue.controls?.map((control) => ({
+      fields.controls?.map((control) => ({
         type: control.type,
         name: control.name,
         dependency: control.dependency || null,
@@ -79,27 +67,12 @@ export function CreateControlWizard({ tables }: Props) {
       })) || [];
 
     createControl(
-      fieldsValue.controlName,
-      fieldsValue.startColumn || -1,
-      fieldsValue.startRow || -1,
-      controls,
+      fields.controlName,
+      fields.startColumn || -1,
+      fields.startRow || -1,
+      controls
     );
-  }, [createControl, form]);
-
-  const handleControlSave = useCallback(() => {
-    setTimeout(handleAutoSave, 0);
-  }, [handleAutoSave]);
-
-  // Auto-save when control name changes
-  useEffect(() => {
-    const subscription = form
-      .getFieldInstance('controlName')
-      ?.onFieldsChange?.(() => {
-        setTimeout(handleAutoSave, 0);
-      });
-
-    return subscription;
-  }, [form, handleAutoSave]);
+  }, [form, createControl]);
 
   useEffect(() => {
     if (!gridApi) return;
@@ -190,12 +163,10 @@ export function CreateControlWizard({ tables }: Props) {
         key: ControlWizardCollapseSection.Controls,
         label: 'Controls',
         forceRender: true,
-        children: (
-          <CreateControlsSection tables={tables} onSave={handleControlSave} />
-        ),
+        children: <CreateControlsSection tables={tables} />,
       },
     ];
-  }, [gridApi, handleControlSave, handlePlacementKeyDown, tables]);
+  }, [gridApi, handlePlacementKeyDown, tables]);
 
   return (
     <Form<ControlWizardForm>
@@ -204,15 +175,7 @@ export function CreateControlWizard({ tables }: Props) {
         controlName: defaultControlName,
         startRow: undefined,
         startColumn: undefined,
-        controls: [
-          {
-            name: '',
-            type: 'dropdown',
-            dependency: null,
-            valueTable: null,
-            valueField: null,
-          },
-        ],
+        controls: [],
       }}
       layout="vertical"
     >
@@ -220,6 +183,38 @@ export function CreateControlWizard({ tables }: Props) {
         <h2 className="text-[13px] text-text-primary font-semibold px-4 py-2">
           Create Control
         </h2>
+
+        <Form.Item shouldUpdate>
+          {() => {
+            const hasErrors = form
+              .getFieldsError()
+              .some(({ errors }) => errors.length > 0);
+
+            const values = form.getFieldsValue();
+
+            const controls: any[] = values.controls ?? [];
+            const requiredFilled =
+              !!values.controlName &&
+              controls.length > 0 &&
+              controls.every(
+                (c) => c && c.type && c.name && c.valueTable && c.valueField
+              );
+
+            return (
+              <Button
+                className={cx(
+                  primaryButtonClasses,
+                  primaryDisabledButtonClasses,
+                  'h-7 mx-2'
+                )}
+                disabled={hasErrors || !requiredFilled}
+                onClick={onSaveControl}
+              >
+                Create
+              </Button>
+            );
+          }}
+        </Form.Item>
       </div>
 
       <Collapse

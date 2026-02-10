@@ -1,31 +1,23 @@
-import { BitmapText, Graphics, StrokeStyle } from 'pixi.js';
+import * as PIXI from 'pixi.js';
 
 import { GridSizes } from '../constants';
-import { getChars } from '../setup';
 import { CellStyle, Color, Coordinates, GridCell, Theme } from '../types';
 
-function drawShadows({
-  graphics,
-  shadow,
-  x,
-  y,
-  width,
-  height,
-}: {
-  graphics: Graphics;
-  shadow: CellStyle['shadow'];
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}) {
+function drawShadows(
+  graphics: PIXI.Graphics,
+  shadow: CellStyle['shadow'],
+  x: number,
+  y: number,
+  width: number,
+  height: number
+) {
   if (shadow?.shadowBottom) {
     let accumulatedHeight = 0;
     shadow.shadowBottom.forEach((currentShadow) => {
       graphics
+        .lineStyle({ ...currentShadow, alignment: 0 })
         .moveTo(x, y + height + accumulatedHeight)
-        .lineTo(x + width, y + height + accumulatedHeight)
-        .stroke({ ...currentShadow, alignment: 0 });
+        .lineTo(x + width, y + height + accumulatedHeight);
 
       accumulatedHeight += currentShadow.width ?? 1;
     });
@@ -35,12 +27,12 @@ function drawShadows({
     let accumulatedHeight = 0;
     shadow.shadowBottomRight.forEach((currentShadow) => {
       graphics
+        .lineStyle({ ...currentShadow, alignment: 0 })
         .moveTo(x + width, y + height + accumulatedHeight)
         .lineTo(
           x + width + defaultShift * shadow.shadowBottomRight!.length,
-          y + height + accumulatedHeight,
-        )
-        .stroke({ ...currentShadow, alignment: 0 });
+          y + height + accumulatedHeight
+        );
 
       accumulatedHeight += currentShadow.width ?? 1;
     });
@@ -50,12 +42,12 @@ function drawShadows({
     let accumulatedHeight = 0;
     shadow.shadowBottomLeft.forEach((currentShadow) => {
       graphics
+        .lineStyle({ ...currentShadow, alignment: 0 })
         .moveTo(
           x - defaultShift * shadow.shadowBottomLeft!.length,
-          y + height + accumulatedHeight,
+          y + height + accumulatedHeight
         )
-        .lineTo(x, y + height + accumulatedHeight)
-        .stroke({ ...currentShadow, alignment: 0 });
+        .lineTo(x, y + height + accumulatedHeight);
 
       accumulatedHeight += currentShadow.width ?? 1;
     });
@@ -65,9 +57,9 @@ function drawShadows({
     let accumulatedHeight = 0;
     shadow.shadowTop.forEach((currentShadow) => {
       graphics
+        .lineStyle({ ...currentShadow, alignment: 0 })
         .moveTo(x, y - accumulatedHeight - defaultShift)
-        .lineTo(x + width, y - accumulatedHeight - defaultShift)
-        .stroke({ ...currentShadow, alignment: 0 });
+        .lineTo(x + width, y - accumulatedHeight - defaultShift);
 
       accumulatedHeight += currentShadow.width ?? 1;
     });
@@ -77,12 +69,12 @@ function drawShadows({
     let accumulatedHeight = 0;
     shadow.shadowTopRight.forEach((currentShadow) => {
       graphics
+        .lineStyle({ ...currentShadow, alignment: 0 })
         .moveTo(x + width, y - accumulatedHeight - defaultShift)
         .lineTo(
           x + width + defaultShift * shadow.shadowTopRight!.length,
-          y - accumulatedHeight - defaultShift,
-        )
-        .stroke({ ...currentShadow, alignment: 0 });
+          y - accumulatedHeight - defaultShift
+        );
 
       accumulatedHeight += currentShadow.width ?? 1;
     });
@@ -92,12 +84,12 @@ function drawShadows({
     let accumulatedHeight = 0;
     shadow.shadowTopLeft.forEach((currentShadow) => {
       graphics
+        .lineStyle({ ...currentShadow, alignment: 0 })
         .moveTo(
           x - defaultShift * shadow.shadowTopLeft!.length,
-          y - accumulatedHeight - defaultShift,
+          y - accumulatedHeight - defaultShift
         )
-        .lineTo(x, y - accumulatedHeight - defaultShift)
-        .stroke({ ...currentShadow, alignment: 0 });
+        .lineTo(x, y - accumulatedHeight - defaultShift);
 
       accumulatedHeight += currentShadow.width ?? 1;
     });
@@ -107,9 +99,9 @@ function drawShadows({
     let accumulatedWidth = 0;
     shadow.shadowRight.forEach((currentShadow) => {
       graphics
+        .lineStyle({ ...currentShadow, alignment: 0 })
         .moveTo(x + width + accumulatedWidth + defaultShift, y)
-        .lineTo(x + width + accumulatedWidth + defaultShift, y + height)
-        .stroke({ ...currentShadow, alignment: 0 });
+        .lineTo(x + width + accumulatedWidth + defaultShift, y + height);
 
       accumulatedWidth += currentShadow.width ?? 1;
     });
@@ -118,45 +110,35 @@ function drawShadows({
     let accumulatedWidth = 0;
     shadow.shadowLeft.forEach((currentShadow) => {
       graphics
+        .lineStyle({ ...currentShadow, alignment: 0 })
         .moveTo(x - accumulatedWidth, y)
-        .lineTo(x - accumulatedWidth, y + height)
-        .stroke({ ...currentShadow, alignment: 0 });
+        .lineTo(x - accumulatedWidth, y + height);
 
       accumulatedWidth += currentShadow.width ?? 1;
     });
   }
+
+  graphics.lineStyle({});
 }
 
-export function applyCellStyle({
-  graphics,
-  text,
-  style,
-  x,
-  y,
-  width,
-  height,
-  gridSizes,
-}: {
-  graphics: Graphics;
-  text: { alpha: number };
-  style: CellStyle;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  gridSizes: GridSizes;
-}): void {
-  const gridLineWidth = gridSizes.gridLine.width;
+export function applyCellStyle(
+  graphics: PIXI.Graphics,
+  text: PIXI.BitmapText,
+  style: CellStyle,
+  x: number,
+  y: number,
+  width: number,
+  height: number
+): void {
   if (style.bgColor) {
-    graphics
-      .rect(x, y + gridLineWidth, width - gridLineWidth, height - gridLineWidth)
-      .fill({ color: style.bgColor });
+    graphics.beginFill(style.bgColor).drawRect(x, y, width, height).endFill();
   }
 
   if (style.highlight) {
     graphics
-      .rect(x, y + gridLineWidth, width - gridLineWidth, height - gridLineWidth)
-      .fill({ color: style.highlight.color, alpha: style.highlight.alpha });
+      .beginFill(style.highlight.color, style.highlight.alpha)
+      .drawRect(x, y, width, height)
+      .endFill();
 
     text.alpha = style.highlight.textAlpha;
   } else {
@@ -168,58 +150,34 @@ export function applyCellStyle({
 
     if (border?.borderTop) {
       graphics
-        .moveTo(x - gridLineWidth, y)
-        .lineTo(x + width, y)
-        .stroke({
-          ...border.borderTop,
-          alignment: 0,
-        });
+        .lineStyle({ ...border.borderTop, alignment: 0 })
+        .moveTo(x, y)
+        .lineTo(x + width, y);
     }
 
     if (border?.borderRight) {
       graphics
+        .lineStyle({ ...border.borderRight, alignment: 0 })
         .moveTo(x + width, y)
-        .lineTo(x + width, y + height)
-        .stroke({
-          ...border.borderRight,
-          alignment: 0,
-        });
+        .lineTo(x + width, y + height);
     }
 
     if (border?.borderLeft) {
       graphics
+        .lineStyle({ ...border.borderLeft, alignment: 0 })
         .moveTo(x, y)
-        .lineTo(x, y + height)
-        .stroke({
-          ...border.borderLeft,
-          alignment: 0,
-        });
+        .lineTo(x, y + height);
     }
 
-    if (border?.borderBottom) {
-      graphics
-        .moveTo(x - gridLineWidth, y + height)
-        .lineTo(x + width, y + height)
-        .stroke({
-          ...border.borderBottom,
-          alignment: 0,
-        });
-    }
+    graphics.lineStyle({});
   }
 
-  drawShadows({
-    graphics,
-    shadow: style.shadow,
-    x,
-    y,
-    width,
-    height,
-  });
+  drawShadows(graphics, style.shadow, x, y, width, height);
 }
 
 export function applyCellGraphics(
-  graphics: Graphics,
-  text: { alpha: number },
+  graphics: PIXI.Graphics,
+  text: PIXI.BitmapText,
   cell: GridCell,
   bottomCell: GridCell | undefined,
   x: number,
@@ -227,7 +185,7 @@ export function applyCellGraphics(
   height: number,
   width: number,
   theme: Theme,
-  gridSizes: GridSizes,
+  gridSizes: GridSizes
 ): void {
   const { borderWidth, shadowStepWidth: shadowLineWidth } = gridSizes.cell;
   const isChartCell = cell.table?.chartType;
@@ -242,17 +200,17 @@ export function applyCellGraphics(
       highlightType === 'DIMMED'
         ? theme.highlight.dimmed
         : highlightType === 'HIGHLIGHTED'
-          ? theme.highlight.highlighted
-          : undefined;
+        ? theme.highlight.highlighted
+        : undefined;
   }
 
-  const cellBorder: StrokeStyle = {
+  const cellBorder: PIXI.ILineStyleOptions = {
     width: borderWidth,
     color: theme.cell.borderColor,
-    alpha: highlight?.negativeAlpha ?? 1,
+    alpha: highlight?.negativeAlpha,
   };
 
-  const bottomRightShadow: StrokeStyle[] = [
+  const bottomRightShadow: PIXI.ILineStyleOptions[] = [
     {
       width: shadowLineWidth,
       color: theme.tableShadow.color,
@@ -264,7 +222,7 @@ export function applyCellGraphics(
       alpha: 0.35 * (highlight?.negativeAlpha ?? 1),
     },
   ];
-  const topLeftShadow: StrokeStyle[] = [
+  const topLeftShadow: PIXI.ILineStyleOptions[] = [
     {
       width: shadowLineWidth,
       color: theme.tableShadow.color,
@@ -303,23 +261,19 @@ export function applyCellGraphics(
     bgColor = theme.cell.bgColor;
   }
 
-  let borderTop: StrokeStyle | undefined = cellBorder;
-  let borderRight: StrokeStyle | undefined = cellBorder;
-  let borderBottom: StrokeStyle | undefined = cellBorder;
-  let borderLeft: StrokeStyle | undefined = cellBorder;
+  let borderTop: PIXI.ILineStyleOptions | undefined = cellBorder;
+  let borderRight: PIXI.ILineStyleOptions | undefined = cellBorder;
 
   // This border style is needed for top and right chart borders
   // because cells under the chart override grid lines
   if (isChartCell) {
-    const chartBorder: StrokeStyle = {
+    const chartBorder: PIXI.ILineStyleOptions = {
       width: gridSizes.gridLine.width,
       color: theme.grid.lineColor,
     };
 
     borderTop = isTopTableCell ? chartBorder : undefined;
     borderRight = isRightTableCell ? chartBorder : undefined;
-    borderBottom = isBottomTableCell ? chartBorder : undefined;
-    borderLeft = isLeftTableCell ? chartBorder : undefined;
   }
 
   const cellStyle: CellStyle = {
@@ -331,9 +285,8 @@ export function applyCellGraphics(
     },
     border: {
       borderTop,
-      borderLeft: isChartCell ? undefined : borderLeft,
+      borderLeft: isChartCell ? undefined : cellBorder,
       borderRight,
-      borderBottom: isChartCell ? undefined : borderBottom,
     },
     shadow: isChartCell
       ? undefined
@@ -353,22 +306,13 @@ export function applyCellGraphics(
         },
   };
 
-  applyCellStyle({
-    graphics,
-    text,
-    style: cellStyle,
-    x,
-    y,
-    width,
-    height,
-    gridSizes,
-  });
+  applyCellStyle(graphics, text, cellStyle, x, y, width, height);
 }
 
 export function cropText(
   text: string,
   width: number,
-  symbolWidth: number,
+  symbolWidth: number
 ): string {
   let currentTextWidth = 0;
   let croppedText = '';
@@ -393,7 +337,7 @@ export function cropText(
 export function hashText(
   text: string,
   width: number,
-  symbolWidth: number,
+  symbolWidth: number
 ): string {
   let currentTextWidth = 0;
   let croppedText = '';
@@ -413,20 +357,16 @@ export function hashText(
 }
 
 export function getSymbolWidth(fontSize: number, fontName: string): number {
-  const chars = getChars();
-  const text = new BitmapText({
-    text: chars,
-    style: {
-      fontFamily: fontName,
-      fontSize,
-      fill: 0xffffff,
-    },
+  const symbolsAmount = 20;
+  const text = new PIXI.BitmapText('0'.repeat(symbolsAmount), {
+    fontName,
+    fontSize,
   });
   const symbolWidth = text.width;
 
   text.destroy();
 
-  return symbolWidth / chars.length;
+  return symbolWidth / symbolsAmount;
 }
 
 /**
@@ -438,7 +378,7 @@ export function getSymbolWidth(fontSize: number, fontName: string): number {
 export function getCellContext(
   getCell: (col: number, row: number) => GridCell | undefined,
   col: number,
-  row: number,
+  row: number
 ): GridCell | undefined {
   const leftCell = getCell(col - 1, row);
   const isLeftCell = !!leftCell?.table && !leftCell.table?.isTableHorizontal;
@@ -449,13 +389,13 @@ export function getCellContext(
 }
 
 function dashedSegment(
-  g: Graphics,
+  g: PIXI.Graphics,
   ax: number,
   ay: number,
   bx: number,
   by: number,
   dash = 6,
-  gap = 3,
+  gap = 3
 ) {
   const pattern = dash + gap;
 
@@ -480,16 +420,17 @@ function dashedSegment(
 }
 
 export function drawDashedRect(
-  g: Graphics,
+  g: PIXI.Graphics,
   polygon: Coordinates[],
-  innerBorder: StrokeStyle,
+  innerBorder: PIXI.ILineStyleOptions,
   dash = 6,
-  gap = 3,
+  gap = 3
 ) {
+  g.lineStyle(innerBorder);
+
   for (let i = 0; i < polygon.length; i++) {
     const p1 = polygon[i];
     const p2 = polygon[(i + 1) % polygon.length];
     dashedSegment(g, p1.x, p1.y, p2.x, p2.y, dash, gap);
   }
-  g.stroke(innerBorder);
 }

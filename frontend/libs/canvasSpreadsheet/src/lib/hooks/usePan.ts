@@ -20,7 +20,7 @@ export function usePan() {
         lastMousePos.current = { x: e.clientX, y: e.clientY };
       }
     },
-    [isMobile, isPanModeEnabled],
+    [isMobile, isPanModeEnabled]
   );
 
   const onMouseUp = useCallback(
@@ -31,7 +31,7 @@ export function usePan() {
       }
       document.body.style.cursor = 'default';
     },
-    [isPanModeEnabled],
+    [isPanModeEnabled]
   );
 
   const onMouseMove = useCallback(
@@ -50,7 +50,7 @@ export function usePan() {
 
       lastMousePos.current = { x: e.clientX, y: e.clientY };
     },
-    [moveViewport, isPanModeEnabled],
+    [moveViewport, isPanModeEnabled]
   );
 
   useEffect(() => {
@@ -62,18 +62,16 @@ export function usePan() {
   }, [isPanModeEnabled]);
 
   useEffect(() => {
-    if (!app?.renderer) return;
+    if (!app) return;
 
-    app.canvas.addEventListener?.('pointerdown', onMouseDown as EventListener);
+    app.view.addEventListener?.('pointerdown', onMouseDown as EventListener);
     window.addEventListener?.('pointerup', onMouseUp);
     window.addEventListener?.('pointermove', onMouseMove);
 
     return () => {
-      if (!app?.renderer) return;
-
-      app?.canvas?.removeEventListener?.(
+      app?.view?.removeEventListener?.(
         'pointerdown',
-        onMouseDown as EventListener,
+        onMouseDown as EventListener
       );
       window.removeEventListener?.('pointerup', onMouseUp);
       window.removeEventListener?.('pointermove', onMouseMove);

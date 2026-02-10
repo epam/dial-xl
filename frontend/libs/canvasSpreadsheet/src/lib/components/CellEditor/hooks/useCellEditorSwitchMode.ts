@@ -8,7 +8,7 @@ import { CellEditorModes } from '../types';
 import { getCellContextParams } from '../utils';
 
 type Props = {
-  apiRef: RefObject<GridApi | null>;
+  apiRef: RefObject<GridApi>;
 };
 export function useCellEditorSwitchMode({ apiRef }: Props) {
   const { currentCell, editMode, restoreCellValue, displayCellEditor } =

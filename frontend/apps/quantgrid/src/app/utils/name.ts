@@ -14,7 +14,7 @@ export const doesHaveDotsInTheEnd = (name: string) => name.trim().endsWith('.');
 
 export const isEntityNameInvalid = (
   name: string,
-  skipDotInTheEndCheck = false,
+  skipDotInTheEndCheck = false
 ) => {
   const regexp = new RegExp(notAllowedSymbolsRegexStr, 'gm');
 
@@ -29,7 +29,7 @@ export const hasInvalidNameInPath = (path: string) =>
 export const safeEncodeURIComponent = (urlComponent: string) =>
   // eslint-disable-next-line no-misleading-character-class
   urlComponent.replace(/[^\uD800-\uDBFF\uDC00-\uDFFF]+/gm, (match) =>
-    encodeURIComponent(match),
+    encodeURIComponent(match)
   );
 
 export const encodeApiUrl = (path: string): string =>
@@ -49,7 +49,7 @@ export const constructPath = (elements: (string | null | undefined)[]) => {
 };
 
 export const convertUrlToMetadata = (
-  url: string,
+  url: string
 ):
   | Pick<
       ResourceMetadata,
@@ -82,7 +82,7 @@ export const convertUrlToMetadata = (
 };
 
 export const isProjectMetadata = (
-  meta: Pick<ResourceMetadata, 'resourceType' | 'nodeType' | 'name'>,
+  meta: Pick<ResourceMetadata, 'resourceType' | 'nodeType' | 'name'>
 ) => {
   return (
     meta.resourceType === MetadataResourceType.FILE &&

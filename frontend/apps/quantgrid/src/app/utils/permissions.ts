@@ -1,7 +1,7 @@
 import { ResourcePermission } from '@frontend/common';
 
 export const normalizePermissionsLabels = (
-  permissions: ResourcePermission[],
+  permissions: ResourcePermission[]
 ): ('View' | 'Edit' | 'Share')[] => {
   const isWrite = permissions.includes('WRITE');
 
@@ -14,10 +14,10 @@ export const normalizePermissionsLabels = (
       permission === 'READ'
         ? 'View'
         : permission === 'WRITE'
-          ? 'Edit'
-          : permission === 'SHARE'
-            ? 'Share'
-            : undefined,
+        ? 'Edit'
+        : permission === 'SHARE'
+        ? 'Share'
+        : undefined
     )
     .sort((a, b) => {
       if (a === 'View' && b === 'View') return 0;

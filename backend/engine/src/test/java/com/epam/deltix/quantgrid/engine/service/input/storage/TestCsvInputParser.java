@@ -1,6 +1,5 @@
 package com.epam.deltix.quantgrid.engine.service.input.storage;
 
-import com.epam.deltix.quantgrid.engine.service.input.CsvColumn;
 import com.epam.deltix.quantgrid.type.InputColumnType;
 import com.epam.deltix.quantgrid.util.ParserException;
 import it.unimi.dsi.fastutil.doubles.DoubleArrayList;
@@ -12,7 +11,9 @@ import java.io.ByteArrayInputStream;
 import java.io.InputStreamReader;
 import java.io.StringReader;
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -32,20 +33,17 @@ class TestCsvInputParser {
                 7, 8, 6
                 """;
 
-        List<CsvColumn> schemaWithExtraHeaders = CsvInputParser.inferSchema(new StringReader(csv), true);
-        List<CsvColumn> schemaNoExtraHeaders = CsvInputParser.inferSchema(new StringReader(csv), false);
+        Map<String, InputColumnType> schemaWithExtraHeaders = CsvInputParser.inferSchema(new StringReader(csv), true);
+        Map<String, InputColumnType> schemaNoExtraHeaders = CsvInputParser.inferSchema(new StringReader(csv), false);
 
-        assertThat(schemaWithExtraHeaders).isEqualTo(
-                List.of(
-                        new CsvColumn("a", 0, InputColumnType.DOUBLE),
-                        new CsvColumn("b", 1, InputColumnType.DOUBLE),
-                        new CsvColumn("c", 2, InputColumnType.DOUBLE),
-                        new CsvColumn("Column5", 4, InputColumnType.DOUBLE)));
-        assertThat(schemaNoExtraHeaders).isEqualTo(
-                List.of(
-                        new CsvColumn("a", 0, InputColumnType.DOUBLE),
-                        new CsvColumn("b", 1, InputColumnType.DOUBLE),
-                        new CsvColumn("c", 2, InputColumnType.DOUBLE)));
+        Assertions.assertIterableEquals(List.of("a", "b", "c", "Column4", "Column5"), schemaWithExtraHeaders.keySet());
+        Assertions.assertIterableEquals(Arrays.asList(
+                InputColumnType.DOUBLE, InputColumnType.DOUBLE, InputColumnType.DOUBLE, null, InputColumnType.DOUBLE),
+                schemaWithExtraHeaders.values());
+        Assertions.assertIterableEquals(List.of("a", "b", "c"), schemaNoExtraHeaders.keySet());
+        Assertions.assertIterableEquals(Arrays.asList(
+                InputColumnType.DOUBLE, InputColumnType.DOUBLE, InputColumnType.DOUBLE),
+                schemaNoExtraHeaders.values());
     }
 
     @Test
@@ -61,27 +59,19 @@ class TestCsvInputParser {
         // replace "S" in "USA" with negative byte value
         bytesCsv[21] = -100;
 
-        List<CsvColumn> actualColumns =
+        LinkedHashMap<String, InputColumnType> schema =
                 CsvInputParser.inferSchema(new InputStreamReader(new ByteArrayInputStream(bytesCsv)), false);
 
-        List<CsvColumn> expectedColumns = Arrays.asList(
-                new CsvColumn("country", 0, InputColumnType.STRING),
-                new CsvColumn("date", 1, InputColumnType.DATE),
-                new CsvColumn("GDP", 2, InputColumnType.DOUBLE),
-                new CsvColumn("IR", 3, InputColumnType.DOUBLE)
-        );
+        LinkedHashMap<String, InputColumnType> expectedSchema = new LinkedHashMap<>();
+        expectedSchema.put("country", InputColumnType.STRING);
+        expectedSchema.put("date", InputColumnType.DATE);
+        expectedSchema.put("GDP", InputColumnType.DOUBLE);
+        expectedSchema.put("IR", InputColumnType.DOUBLE);
 
-        Assertions.assertEquals(expectedColumns, actualColumns);
+        Assertions.assertEquals(expectedSchema, schema);
 
-        Object[] data = CsvInputParser.parseCsvInput(
-                new InputStreamReader(new ByteArrayInputStream(bytesCsv)),
-                null,
-                actualColumns.stream()
-                        .map(CsvColumn::name)
-                        .toList(),
-                actualColumns.stream()
-                        .map(CsvColumn::type)
-                        .toList());
+        Object[] data = CsvInputParser.parseCsvInput(new InputStreamReader(new ByteArrayInputStream(bytesCsv)),
+                schema.keySet().stream().toList(), schema);
 
         Assertions.assertIterableEquals(ObjectArrayList.of("U�A", "China", "EU"), (ObjectArrayList<String>) data[0]);
         Assertions.assertIterableEquals(DoubleArrayList.of(44197, 44197, 44197), (DoubleArrayList) data[1]);
@@ -99,12 +89,11 @@ class TestCsvInputParser {
                 -2.3B
                 """;
 
-        List<CsvColumn> columns = CsvInputParser.inferSchema(new StringReader(csv), false);
-        assertThat(columns).isEqualTo(
-                List.of(new CsvColumn("a", 0, InputColumnType.DOUBLE)));
+        LinkedHashMap<String, InputColumnType> schema = CsvInputParser.inferSchema(new StringReader(csv), false);
+        assertThat(List.copyOf(schema.keySet())).isEqualTo(List.of("a"));
+        assertThat(List.copyOf(schema.values())).isEqualTo(List.of(InputColumnType.DOUBLE));
 
-        Object[] content = CsvInputParser.parseCsvInput(
-                new StringReader(csv), null, List.of("a"), List.of(InputColumnType.DOUBLE));
+        Object[] content = CsvInputParser.parseCsvInput(new StringReader(csv), List.copyOf(schema.keySet()), schema);
         assertThat(content).isEqualTo(new Object[] {
                 new DoubleArrayList(new double[] {-1234567.89, 1.23E7, 1000.0, -2.3E9})
         });
@@ -114,18 +103,13 @@ class TestCsvInputParser {
     void testMixedLineEnding() {
         String csv = "a,b\r\n1,2\n3,4";
 
-        List<CsvColumn> columns = CsvInputParser.inferSchema(new StringReader(csv), true);
-        assertThat(columns).isEqualTo(
-                List.of(
-                        new CsvColumn("a", 0, InputColumnType.DOUBLE),
-                        new CsvColumn("b", 1, InputColumnType.STRING),
-                        new CsvColumn("Column3", 2, InputColumnType.DOUBLE)));
+        LinkedHashMap<String, InputColumnType> schema = CsvInputParser.inferSchema(new StringReader(csv), true);
+        assertThat(List.copyOf(schema.keySet()))
+                .isEqualTo(List.of("a", "b", "Column3"));
+        assertThat(List.copyOf(schema.values()))
+                .isEqualTo(List.of(InputColumnType.DOUBLE, InputColumnType.STRING, InputColumnType.DOUBLE));
 
-        Object[] content = CsvInputParser.parseCsvInput(
-                new StringReader(csv),
-                List.of(0, 1, 2),
-                null,
-                List.of(InputColumnType.DOUBLE, InputColumnType.STRING, InputColumnType.DOUBLE));
+        Object[] content = CsvInputParser.parseCsvInput(new StringReader(csv), List.copyOf(schema.keySet()), schema);
         assertThat(content).isEqualTo(new Object[] {
                 new DoubleArrayList(new double[] {1}),
                 new ObjectArrayList<>(new String[] {"2\n3"}),

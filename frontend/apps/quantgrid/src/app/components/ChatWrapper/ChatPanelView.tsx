@@ -1,13 +1,11 @@
 import { useContext } from 'react';
 
 import { ChatOverlayContext } from '../../context';
-import { useUserSettingsStore } from '../../store';
+import { useUIStore } from '../../store';
 import { IndexNotification } from './IndexNotification';
 
 export function ChatPanelView() {
-  const chatWindowPlacement = useUserSettingsStore(
-    (s) => s.data.chatWindowPlacement,
-  );
+  const chatWindowPlacement = useUIStore((s) => s.chatWindowPlacement);
 
   const { attachOverlay } = useContext(ChatOverlayContext);
 
@@ -19,10 +17,9 @@ export function ChatPanelView() {
     <div className="w-full h-full flex flex-col relative">
       <div
         className="h-full min-w-full w-full"
-        ref={(el) => {
-          attachOverlay(el);
-        }}
+        ref={(el) => attachOverlay(el)}
       ></div>
+
       <IndexNotification />
     </div>
   );

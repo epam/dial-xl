@@ -4,7 +4,7 @@ export function getThumbWidth(
   trackSize: number,
   viewportOffset: number,
   totalScrollableSize: number,
-  minThumbWidth: number,
+  minThumbWidth: number
 ): number {
   const initialThumbSizeRatio = 1 / 3;
   const initialThumbWidth = trackSize * initialThumbSizeRatio;
@@ -18,7 +18,7 @@ export function getViewportPosition(
   totalScrollableSize: number,
   cursor: number,
   exponent: number,
-  offset: number,
+  offset: number
 ): number {
   const thumbPositionRatio = (cursor - offset) / trackSize;
   const viewportOffsetRatio = Math.pow(thumbPositionRatio, exponent);
@@ -31,7 +31,7 @@ export function getThumbPosition(
   viewportOffset: number,
   totalScrollableSize: number,
   exponent: number,
-  offset: number,
+  offset: number
 ): number {
   const viewportOffsetRatio = viewportOffset / totalScrollableSize;
   const thumbPositionRatio = Math.pow(viewportOffsetRatio, 1 / exponent);
@@ -45,7 +45,7 @@ export function getViewportMovement(
   totalScrollableSize: number,
   exponent: number,
   isHorizontal: boolean,
-  viewportCoords: ViewportCoords,
+  viewportCoords: ViewportCoords
 ): {
   deltaX: number;
   deltaY: number;

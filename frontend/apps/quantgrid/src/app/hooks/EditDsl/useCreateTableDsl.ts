@@ -10,8 +10,8 @@ import {
   isTableType,
 } from '@frontend/common';
 import {
-  createEditableSheet,
   Decorator,
+  dynamicFieldName,
   escapeFieldName,
   escapeTableName,
   Field,
@@ -31,15 +31,11 @@ import {
   ProjectContext,
   ViewportContext,
 } from '../../context';
-import {
-  autoFixSingleExpression,
-  autoTablePlacement,
-  createUniqueName,
-} from '../../services';
+import { autoFixSingleExpression, createUniqueName } from '../../services';
 import { getExpandedTextSize } from '../../utils';
 import { useGridApi } from '../useGridApi';
 import { useSafeCallback } from '../useSafeCallback';
-import { UpdateDslParams, useDSLUtils } from './useDSLUtils';
+import { useDSLUtils } from './useDSLUtils';
 import { numTotals, tableTotals, textTotals } from './useTotalEditDsl';
 import {
   autoSizeTableHeader,
@@ -62,12 +58,10 @@ export function useCreateTableDsl() {
   const createDerivedTable = useCallback(
     (tableName: string, col?: number, row?: number) => {
       const context = findEditContext(tableName);
-      if (!context || !sheetName) return;
-      const currentSheet = parsedSheets[sheetName];
-      const sheet = currentSheet.editableSheet;
-      if (!sheet) return;
 
-      const { parsedTable } = context;
+      if (!context) return;
+
+      const { sheet, sheetName, parsedTable } = context;
       const { fields } = parsedTable;
 
       let newTableCol = col;
@@ -76,7 +70,7 @@ export function useCreateTableDsl() {
         [newTableCol, newTableRow] = getNewTablePlacementFromSourceTable(
           tableName,
           viewGridData,
-          parsedSheets,
+          parsedSheets
         );
       }
 
@@ -114,7 +108,7 @@ export function useCreateTableDsl() {
           });
           if (fieldSize && fieldSize > 1) {
             field.addDecorator(
-              new Decorator(fieldColSizeDecoratorName, `(${fieldSize})`),
+              new Decorator(fieldColSizeDecoratorName, `(${fieldSize})`)
             );
           }
 
@@ -131,15 +125,7 @@ export function useCreateTableDsl() {
         historyTitle,
       });
     },
-    [
-      findEditContext,
-      grid,
-      parsedSheets,
-      projectName,
-      sheetName,
-      updateDSL,
-      viewGridData,
-    ],
+    [findEditContext, grid, parsedSheets, projectName, updateDSL, viewGridData]
   );
 
   const createSingleValueTable = useCallback(
@@ -148,7 +134,7 @@ export function useCreateTableDsl() {
       row: number,
       value: string,
       tableName?: string,
-      showAllHeaders?: boolean,
+      showAllHeaders?: boolean
     ) => {
       const sheet = parsedSheet?.editableSheet;
       if (!sheet) return;
@@ -178,7 +164,7 @@ export function useCreateTableDsl() {
       });
       if (fieldSize && fieldSize > 1) {
         field.addDecorator(
-          new Decorator(fieldColSizeDecoratorName, `(${fieldSize})`),
+          new Decorator(fieldColSizeDecoratorName, `(${fieldSize})`)
         );
       }
 
@@ -196,7 +182,7 @@ export function useCreateTableDsl() {
       projectName,
       sheetName,
       updateDSL,
-    ],
+    ]
   );
 
   const createDimensionTable = useCallback(
@@ -226,7 +212,7 @@ export function useCreateTableDsl() {
           part.trim(),
           functions,
           parsedSheets,
-          newTableName,
+          newTableName
         );
         table.addField({ name: fieldName, formula: expression, isDim: true });
         const field = table.getField(fieldName);
@@ -239,7 +225,7 @@ export function useCreateTableDsl() {
         });
         if (fieldSize && fieldSize > 1) {
           field.addDecorator(
-            new Decorator(fieldColSizeDecoratorName, `(${fieldSize})`),
+            new Decorator(fieldColSizeDecoratorName, `(${fieldSize})`)
           );
         }
       });
@@ -257,7 +243,7 @@ export function useCreateTableDsl() {
       projectName,
       sheetName,
       updateDSL,
-    ],
+    ]
   );
 
   const createManualTable = useCallback(
@@ -267,7 +253,7 @@ export function useCreateTableDsl() {
       cells: string[][],
       hideTableHeader = false,
       hideFieldHeader = false,
-      customTableName?: string,
+      customTableName?: string
     ) => {
       const sheet = parsedSheet?.editableSheet;
       if (!sheet) return;
@@ -303,7 +289,7 @@ export function useCreateTableDsl() {
         });
         if (fieldSize && fieldSize > 1) {
           field.addDecorator(
-            new Decorator(fieldColSizeDecoratorName, `(${fieldSize})`),
+            new Decorator(fieldColSizeDecoratorName, `(${fieldSize})`)
           );
         }
       }
@@ -315,7 +301,7 @@ export function useCreateTableDsl() {
           const value = cells[r][c];
           override.setItem(
             `Column${c + 1}`,
-            sanitizeExpressionOrOverride(value),
+            sanitizeExpressionOrOverride(value)
           );
         }
         overrides.append(override);
@@ -336,37 +322,23 @@ export function useCreateTableDsl() {
       projectName,
       sheetName,
       updateDSL,
-    ],
+    ]
   );
 
   const getDimensionalTableFromFormula = useCallback(
-    ({
-      tableName,
-      isSourceDimField,
-      fieldName,
-      formula,
-      schema,
-      keys,
-      row,
-      col,
-      type,
-      editableSheet,
-      isHorizontal = false,
-      includeLayoutDecorator = true,
-    }: {
-      tableName: string;
-      isSourceDimField: boolean;
-      fieldName: string;
-      formula: string;
-      schema: string[];
-      keys: string[];
-      row: number;
-      col: number;
-      type: ColumnDataType;
-      editableSheet?: Sheet;
-      isHorizontal?: boolean;
-      includeLayoutDecorator?: boolean;
-    }) => {
+    (
+      tableName: string,
+      isSourceDimField: boolean,
+      fieldName: string,
+      formula: string,
+      schema: string[],
+      keys: string[],
+      row: number,
+      col: number,
+      type: ColumnDataType,
+      editableSheet?: Sheet,
+      isHorizontal = false
+    ) => {
       const sheet = editableSheet || new Sheet(defaultSheetName);
 
       const { table, tableName: newTableName } = createAndPlaceTable({
@@ -380,7 +352,6 @@ export function useCreateTableDsl() {
           showTableHeader: true,
           isHorizontal,
         },
-        includeLayoutDecorator,
       });
 
       const isPeriodSeries = type === ColumnDataType.PERIOD_SERIES;
@@ -427,7 +398,7 @@ export function useCreateTableDsl() {
           });
           if (fieldSize && fieldSize > 1) {
             field.addDecorator(
-              new Decorator(fieldColSizeDecoratorName, `(${fieldSize})`),
+              new Decorator(fieldColSizeDecoratorName, `(${fieldSize})`)
             );
           }
 
@@ -454,7 +425,7 @@ export function useCreateTableDsl() {
         table.addField({
           name: uniqueFieldName,
           formula: `[${finalSourceFieldName}][${escapeFieldName(
-            uniqueFieldName,
+            uniqueFieldName
           )}]`,
           isKey: keys.includes(fieldName),
         });
@@ -468,7 +439,7 @@ export function useCreateTableDsl() {
         });
         if (fieldSize && fieldSize > 1) {
           field.addDecorator(
-            new Decorator(fieldColSizeDecoratorName, `(${fieldSize})`),
+            new Decorator(fieldColSizeDecoratorName, `(${fieldSize})`)
           );
         }
       });
@@ -477,7 +448,7 @@ export function useCreateTableDsl() {
 
       return { dsl: sheet.toDSL(), newTableName };
     },
-    [grid, parsedSheets, projectName, sheetName],
+    [grid, parsedSheets, projectName, sheetName]
   );
 
   const createExpandedTable = useCallback(
@@ -493,18 +464,13 @@ export function useCreateTableDsl() {
       variant,
       keyValues,
       isSourceDimField = true,
-      createInNewSheet = false,
     }: CreateExpandedTableParams) => {
-      let sheet =
+      const sheet =
         variant === 'dimFormula'
           ? parsedSheet?.editableSheet
           : findEditContext(tableName)?.sheet;
 
-      if (createInNewSheet) {
-        sheet = createEditableSheet(defaultSheetName, '', []);
-      }
-
-      if (!sheet || !sheetName) return;
+      if (!sheet) return;
 
       const isHorizontal = variant === 'rowReference';
       let baseTableName = tableName;
@@ -515,14 +481,13 @@ export function useCreateTableDsl() {
             ? keyValues.replaceAll('"', '')
             : keyValues;
         baseTableName = `${unescapeTableName(
-          tableName,
+          tableName
         )}_(${sanitizedKey})[${fieldName}]`;
       }
 
-      const { dsl, newTableName } = getDimensionalTableFromFormula({
-        tableName: baseTableName,
-        isSourceDimField:
-          variant === 'dimFormula' ? isSourceDimField : variant === 'expand',
+      const { dsl, newTableName } = getDimensionalTableFromFormula(
+        baseTableName,
+        variant === 'dimFormula' ? isSourceDimField : variant === 'expand',
         fieldName,
         formula,
         schema,
@@ -530,38 +495,21 @@ export function useCreateTableDsl() {
         row,
         col,
         type,
-        editableSheet: sheet,
-        isHorizontal,
-      });
+        sheet,
+        isHorizontal
+      );
 
       const titlePrefix =
         variant === 'rowReference'
           ? 'Add row reference table'
           : 'Add dimension table';
 
-      const sheetNameToChange = createInNewSheet
-        ? createUniqueName(tableName, Object.keys(parsedSheets))
-        : sheetName;
-
       updateDSL({
         updatedSheetContent: dsl,
         historyTitle: `${titlePrefix} "${newTableName}"`,
-        sheetNameToChange,
       });
-
-      if (createInNewSheet) {
-        openTable(sheetNameToChange, newTableName);
-      }
     },
-    [
-      findEditContext,
-      getDimensionalTableFromFormula,
-      openTable,
-      parsedSheet?.editableSheet,
-      parsedSheets,
-      sheetName,
-      updateDSL,
-    ],
+    [findEditContext, getDimensionalTableFromFormula, parsedSheet, updateDSL]
   );
 
   const createAllTableTotals = useCallback(
@@ -570,12 +518,15 @@ export function useCreateTableDsl() {
       if (!context) return;
 
       const { sheet, sheetName, parsedTable } = context;
+      const { fields } = parsedTable;
       const tableData = viewGridData.getTableData(tableName);
-      const sourceFields = parsedTable.getFieldsWithoutDynamic();
+      const sourceFields = fields.filter(
+        (f) => f.key.fieldName !== dynamicFieldName && !f.isDynamic
+      );
       const [col, row] = getNewTablePlacementFromSourceTable(
         tableName,
         viewGridData,
-        parsedSheets,
+        parsedSheets
       );
 
       const { table, tableName: newTableName } = createAndPlaceTable({
@@ -602,7 +553,7 @@ export function useCreateTableDsl() {
 
       const overrides = new Overrides();
       const allTotals = Array.from(
-        new Set([...numTotals, ...textTotals, ...tableTotals]),
+        new Set([...numTotals, ...textTotals, ...tableTotals])
       );
 
       allTotals.forEach((totalType) => {
@@ -646,123 +597,7 @@ export function useCreateTableDsl() {
       });
       openTable(sheetName, escapeTableName(newTableName), 'move');
     },
-    [findEditContext, openTable, parsedSheets, updateDSL, viewGridData],
-  );
-
-  const createMultipleExpandedTables = useCallback(
-    (
-      requests: Array<{
-        tableName: string;
-        formula: string;
-        schema: string[];
-        keys: string[];
-        type: ColumnDataType;
-        isSourceDimField?: boolean;
-      }>,
-      inNewSheet: boolean,
-    ) => {
-      const historyTitle = `Add ${requests.length} input${
-        requests.length > 1 ? 's' : ''
-      } to the project`;
-
-      if (inNewSheet) {
-        const usedSheetNames = new Set(Object.keys(parsedSheets));
-        const dslChanges: UpdateDslParams[] = [];
-
-        requests.forEach(
-          ({
-            tableName,
-            formula,
-            schema,
-            keys,
-            type,
-            isSourceDimField = true,
-          }) => {
-            const newSheetName = createUniqueName(
-              tableName,
-              Array.from(usedSheetNames),
-            );
-            usedSheetNames.add(newSheetName);
-
-            const sheet = createEditableSheet(newSheetName, '', []);
-
-            const { dsl } = getDimensionalTableFromFormula({
-              tableName,
-              isSourceDimField,
-              fieldName: '',
-              formula,
-              schema,
-              keys,
-              row: 0,
-              col: 0,
-              type,
-              editableSheet: sheet,
-            });
-
-            dslChanges.push({
-              updatedSheetContent: dsl,
-              historyTitle,
-              sheetNameToChange: newSheetName,
-            });
-          },
-        );
-
-        if (dslChanges.length > 0) {
-          updateDSL(dslChanges);
-        }
-      } else {
-        const sheet = parsedSheet?.editableSheet;
-        if (!sheet || !sheetName) return;
-
-        requests.forEach(
-          ({
-            tableName,
-            formula,
-            schema,
-            keys,
-            type,
-            isSourceDimField = true,
-          }) => {
-            getDimensionalTableFromFormula({
-              tableName,
-              isSourceDimField,
-              fieldName: '',
-              formula,
-              schema,
-              keys,
-              row: 0,
-              col: 0,
-              type,
-              editableSheet: sheet,
-              includeLayoutDecorator: false,
-            });
-          },
-        );
-
-        const updatedSheetContent = autoTablePlacement(
-          sheet.toDSL(),
-          viewGridData.getGridTableStructure(),
-          grid,
-          projectName,
-          sheetName,
-        );
-
-        updateDSL({
-          updatedSheetContent,
-          historyTitle,
-        });
-      }
-    },
-    [
-      getDimensionalTableFromFormula,
-      grid,
-      parsedSheet?.editableSheet,
-      parsedSheets,
-      projectName,
-      sheetName,
-      updateDSL,
-      viewGridData,
-    ],
+    [findEditContext, openTable, parsedSheets, updateDSL, viewGridData]
   );
 
   return {
@@ -771,10 +606,9 @@ export function useCreateTableDsl() {
     createDimensionTable: useSafeCallback(createDimensionTable),
     createExpandedTable: useSafeCallback(createExpandedTable),
     createManualTable: useSafeCallback(createManualTable),
-    createMultipleExpandedTables: useSafeCallback(createMultipleExpandedTables),
     createSingleValueTable: useSafeCallback(createSingleValueTable),
     getDimensionalTableFromFormula: useSafeCallback(
-      getDimensionalTableFromFormula,
+      getDimensionalTableFromFormula
     ),
   };
 }

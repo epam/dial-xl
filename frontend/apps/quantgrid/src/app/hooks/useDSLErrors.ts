@@ -66,7 +66,7 @@ export function useDSLErrors() {
 
         const totalRow = totals[number - 1];
         const totalField = totalRow?.fields?.find((f) =>
-          f.fields.find((ff) => ff.key.fieldName === field),
+          f.fields.find((ff) => ff.key.fieldName === field)
         );
 
         if (!totalField?.formula || !totalField?.span) return null;
@@ -74,7 +74,7 @@ export function useDSLErrors() {
         return calculateSheetErrorPosition(
           context.sheetContent,
           totalField.formula.text,
-          totalField.span.to,
+          totalField.span.to
         );
       }
 
@@ -105,20 +105,19 @@ export function useDSLErrors() {
         return calculateSheetErrorPosition(
           context.sheetContent,
           overrideValue.text,
-          overrideValue.span.to,
+          overrideValue.span.to
         );
       }
 
       return null;
     },
-    [findEditContext, sheetName],
+    [findEditContext, sheetName]
   );
 
   useEffect(() => {
     const errors: editor.IMarkerData[] = [];
 
     sheetErrors?.forEach((error) => {
-      if (error.source.sheet !== sheetName) return;
       errors.push({
         severity: MarkerSeverity.Error,
         message: error.message,
@@ -155,7 +154,6 @@ export function useDSLErrors() {
     getCodeEditorErrorPosition,
     runtimeErrors,
     sheetErrors,
-    sheetName,
   ]);
 
   return {

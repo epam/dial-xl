@@ -177,14 +177,9 @@ public class DialFileApi implements AutoCloseable {
             httpPut.setHeader(HttpHeaders.IF_MATCH, etag); // passes only if file exists and it has this etag
         }
 
-        if (path.startsWith("files/")) {
-            MultipartEntityBuilder entityBuilder = MultipartEntityBuilder.create();
-            entityBuilder.addPart("file", new BinaryBody("file.txt", contentType, writer));
-            httpPut.setEntity(entityBuilder.build());
-        } else {
-            StreamingEntity entity = new StreamingEntity(writer, contentType);
-            httpPut.setEntity(entity);
-        }
+        MultipartEntityBuilder entityBuilder = MultipartEntityBuilder.create();
+        entityBuilder.addPart("file", new BinaryBody("file.txt", contentType, writer));
+        httpPut.setEntity(entityBuilder.build());
 
         return httpClient.execute(httpPut, response -> {
             try (InputStream ignore = response.getEntity().getContent()) {
@@ -362,13 +357,6 @@ public class DialFileApi implements AutoCloseable {
 
             List<Attributes> items = nestedItems.stream().map(Attributes::parse).toList();
             return new Attributes(etag, name, parent, updatedAt, permissions, nextToken, items);
-        }
-
-        public String fullPath() {
-            if (parentPath == null) {
-                return name;
-            }
-            return parentPath + "/" + name;
         }
     }
 

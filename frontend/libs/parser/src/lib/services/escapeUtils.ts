@@ -8,7 +8,7 @@ import {
 export function escapeName(
   name: string,
   shouldBeEscapedChars: string[],
-  fullSanitize: boolean,
+  fullSanitize: boolean
 ) {
   let escapedTableName = '';
   let isCharEscaped = false;
@@ -44,7 +44,7 @@ export function escapeName(
 export function escapeValue(
   value: string | number,
   fullSanitize = false,
-  ignoreNumberType = false,
+  ignoreNumberType = false
 ): string {
   if (
     !ignoreNumberType &&
@@ -61,14 +61,14 @@ export function escapeValue(
   if (hasLeadingQuote || hasTrailingQuote) {
     sanitizedValue = sanitizedValue.slice(
       hasLeadingQuote ? 1 : 0,
-      hasTrailingQuote ? -1 : sanitizedValue.length,
+      hasTrailingQuote ? -1 : sanitizedValue.length
     );
   }
 
   return `"${escapeName(
     sanitizedValue,
     stringShouldBeEscapedChars,
-    fullSanitize,
+    fullSanitize
   )}"`;
 }
 
@@ -81,7 +81,7 @@ export function unescapeValue(name: string): string {
     .join('');
   const regEx = new RegExp(
     String.raw`(.)?(['])([${preparedEscapedChars}])`,
-    'g',
+    'g'
   );
   resultName = resultName.replaceAll(regEx, '$1$3');
 
@@ -102,7 +102,7 @@ export function escapeTableName(name: string, fullSanitize = false): string {
   let escapedTableName = escapeName(
     tableName,
     tableNameShouldBeEscapedChars,
-    fullSanitize,
+    fullSanitize
   );
 
   escapedTableName = shouldBeQuoted
@@ -121,7 +121,7 @@ export function unescapeTableName(name: string): string {
     .join('');
   const regEx = new RegExp(
     String.raw`(.)?(['])([${preparedEscapedChars}])`,
-    'g',
+    'g'
   );
   resultName = resultName.replaceAll(regEx, '$1$3');
 
@@ -131,7 +131,7 @@ export function unescapeTableName(name: string): string {
 export function escapeFieldName(
   name: string,
   fullSanitize = false,
-  includeBrackets = false,
+  includeBrackets = false
 ): string {
   if (name.startsWith('[') && name.endsWith(']')) {
     name = name.slice(1, -1);
@@ -144,14 +144,14 @@ export function escapeFieldName(
 
 export function unescapeFieldName(
   name: string,
-  removeBrackets = false,
+  removeBrackets = false
 ): string {
   const preparedEscapedChars = fieldShouldBeEscapedChars
     .map((char) => '\\' + char)
     .join('');
   const regEx = new RegExp(
     String.raw`(.)?(['])([${preparedEscapedChars}])`,
-    'g',
+    'g'
   );
 
   if (removeBrackets && name.startsWith('[') && name.endsWith(']')) {

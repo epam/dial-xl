@@ -32,7 +32,7 @@ export function usePanelSettings() {
     updateCollapsedPanelsTextHidden,
   } = useContext(LayoutContext);
   const toggleChatWindowPlacement = useUIStore(
-    (s) => s.toggleChatWindowPlacement,
+    (s) => s.toggleChatWindowPlacement
   );
 
   const getPanelSettingsItems = useCallback(
@@ -40,7 +40,7 @@ export function usePanelSettings() {
       panelName: PanelName,
       panelTitle: string,
       panelsPosition: PanelPosition,
-      isPanelCollapsed = false,
+      isPanelCollapsed = false
     ): MenuProps['items'] => {
       const specificItems =
         panelName === PanelName.Chat
@@ -192,7 +192,7 @@ export function usePanelSettings() {
       updateCollapsedPanelsTextHidden,
       updateSplitPanelsEnabled,
       togglePanel,
-    ],
+    ]
   );
 
   return {

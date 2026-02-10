@@ -16,7 +16,7 @@ export function useOpenInEditor() {
       openPanel(PanelName.CodeEditor);
       updateInitialOffset(startOffset);
     },
-    [openPanel, updateInitialOffset],
+    [openPanel, updateInitialOffset]
   );
 
   const openInEditor = useCallback(
@@ -47,7 +47,7 @@ export function useOpenInEditor() {
         return;
       }
     },
-    [findContext, goToEditor],
+    [findContext, goToEditor]
   );
 
   return { openInEditor };

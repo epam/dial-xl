@@ -66,15 +66,15 @@ export const ImportStep2 = ({
           projectBucket,
           projectPath,
           projectName,
-        ]),
+        ])
       ),
-    [projectBucket, projectName, projectPath],
+    [projectBucket, projectName, projectPath]
   );
 
   const isChanged = useMemo(
     () =>
       sourceName !== localSourceName || !isEqual(formData, localConfiguration),
-    [formData, localConfiguration, localSourceName, sourceName],
+    [formData, localConfiguration, localSourceName, sourceName]
   );
 
   useUnsavedChanges(isChanged);
@@ -88,7 +88,7 @@ export const ImportStep2 = ({
       if (initial && name === initial) return false;
 
       const byKey = Object.keys(importSources ?? {}).some(
-        (k) => k.trim().toLowerCase() === name,
+        (k) => k.trim().toLowerCase() === name
       );
 
       const byValue = Object.values(importSources ?? {}).some((s: any) => {
@@ -102,7 +102,7 @@ export const ImportStep2 = ({
 
       return byKey || byValue;
     },
-    [importSources, sourceName],
+    [importSources, sourceName]
   );
 
   useEffect(() => {
@@ -168,7 +168,7 @@ export const ImportStep2 = ({
 
                   if (isDuplicate(v)) {
                     return Promise.reject(
-                      new Error('Source with this name already exists'),
+                      new Error('Source with this name already exists')
                     );
                   }
 
@@ -192,7 +192,7 @@ export const ImportStep2 = ({
 
             onSaveConfiguration(
               (schemaForm as any).formData as ProtoStruct,
-              form.getFieldValue('sourceName'),
+              form.getFieldValue('sourceName')
             );
             onNextStep();
           }}
@@ -203,7 +203,7 @@ export const ImportStep2 = ({
               <Button
                 className={classNames(
                   secondaryButtonClasses,
-                  secondaryDisabledButtonClasses,
+                  secondaryDisabledButtonClasses
                 )}
                 disabled={isUpdate}
                 onClick={onPreviousStep}
@@ -213,7 +213,7 @@ export const ImportStep2 = ({
               <Button
                 className={classNames(
                   primaryButtonClasses,
-                  primaryDisabledButtonClasses,
+                  primaryDisabledButtonClasses
                 )}
                 htmlType="submit"
                 onClick={async () => {

@@ -35,7 +35,7 @@ const isString = (val: unknown): val is string => typeof val === 'string';
 export function ObjectFieldTemplate<
   T = any,
   S extends StrictRJSFSchema = RJSFSchema,
-  F extends FormContextType = any,
+  F extends FormContextType = any
 >(props: ObjectFieldTemplateProps<T, S, F>) {
   const {
     description,
@@ -63,16 +63,14 @@ export function ObjectFieldTemplate<
   } = formContext as GenericObjectType;
 
   const findSchema = (element: ObjectFieldTemplatePropertyType): S =>
-    // TODO: fix types
-    (element.content.props as any).schema;
+    element.content.props.schema;
 
   const findSchemaType = (element: ObjectFieldTemplatePropertyType) =>
     findSchema(element).type;
 
   const findUiSchema = (
-    element: ObjectFieldTemplatePropertyType,
-    // TODO: fix types
-  ): UiSchema<T, S, F> | undefined => (element.content.props as any).uiSchema;
+    element: ObjectFieldTemplatePropertyType
+  ): UiSchema<T, S, F> | undefined => element.content.props.uiSchema;
 
   const findUiSchemaField = (element: ObjectFieldTemplatePropertyType) =>
     getUiOptions(findUiSchema(element)).field;
@@ -117,7 +115,7 @@ export function ObjectFieldTemplate<
   const labelClsBasic = `${prefixCls}-item-label`;
   const labelColClassName = classNames(
     labelClsBasic,
-    labelAlign === 'left' && `${labelClsBasic}-left`,
+    labelAlign === 'left' && `${labelClsBasic}-left`
     // labelCol.className,
   );
 
@@ -141,9 +139,8 @@ export function ObjectFieldTemplate<
           .filter((e) => !e.hidden)
           // Support custom order property
           .sort((a, b) => {
-            // TODO: fix types
-            const aOrder = (a.content.props as any).schema.order;
-            const bOrder = (b.content.props as any).schema.order;
+            const aOrder = a.content.props.schema.order;
+            const bOrder = b.content.props.schema.order;
 
             if (aOrder !== undefined && bOrder === undefined) return -1;
             if (aOrder === undefined && bOrder !== undefined) return 1;
@@ -166,7 +163,7 @@ export function ObjectFieldTemplate<
               <AddButton
                 className={classNames(
                   'object-property-expand mt-3',
-                  primaryButtonClasses,
+                  primaryButtonClasses
                 )}
                 disabled={disabled || readonly}
                 registry={registry}

@@ -26,7 +26,7 @@ program
   .requiredOption('-s, --secret <secretAccessKey>', 'Secret access key')
   .option(
     '-t, --tokenQGAccess <tokenQGAccess>',
-    'Access token from authorization in app',
+    'Access token from authorization in app'
   )
   .action(async (options) => {
     const answers = await inquirer.prompt([
@@ -58,11 +58,10 @@ program
       },
     ]);
 
-    const migrationKey = answers.migration as keyof typeof migrations;
-    const migration = migrations[migrationKey];
+    const migration = migrations[answers.migration];
     const backup = answers.runBackup;
     const testMigration = answers.runTestMigration;
-    let realMigration = false;
+    let realMigration: boolean;
     if (answers.runRealMigration) {
       const additionalConfirm = await inquirer.prompt([
         {
@@ -79,7 +78,7 @@ program
 
     if (!migration) {
       console.error(
-        'Function for migration from provided file cannot be found',
+        'Function for migration from provided file cannot be found'
       );
       process.exit(1);
     }

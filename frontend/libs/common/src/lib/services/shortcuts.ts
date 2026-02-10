@@ -209,7 +209,7 @@ function getLabel(shortcut: Shortcut) {
 function is(
   shortcut: Shortcut,
   event?: KeyboardEvent,
-  checkShortcutEvent = true,
+  checkShortcutEvent = true
 ) {
   if (!event) return false;
 
@@ -222,12 +222,12 @@ function is(
   if (hasMultipleOptions) {
     return (shortcutMap[shortcut] as KeyboardCode[][]).some(
       (option: KeyboardCode[]) =>
-        option.every((key: KeyboardCode) => checkKey(key, event)),
+        option.every((key: KeyboardCode) => checkKey(key, event))
     );
   }
 
   return (shortcutMap[shortcut] as KeyboardCode[]).every((key: KeyboardCode) =>
-    checkKey(key, event),
+    checkKey(key, event)
   );
 }
 

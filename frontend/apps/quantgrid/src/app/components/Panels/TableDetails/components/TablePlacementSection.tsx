@@ -32,7 +32,7 @@ export function TablePlacementSection({
     if (!startRow || !startCol || !sheetName) return;
     if (startRow < minPlacement || startCol < minPlacement) return;
 
-    moveTableTo(parsedTable.tableName, startRow, startCol, true);
+    moveTableTo(parsedTable.tableName, startRow, startCol);
 
     // TODO: workaround to select table after moving. openTable rely to viewGridData which is not updated yet
     setTimeout(() => {
@@ -71,7 +71,7 @@ export function TablePlacementSection({
 
       return;
     },
-    [initFieldValues],
+    [initFieldValues]
   );
 
   useEffect(() => {

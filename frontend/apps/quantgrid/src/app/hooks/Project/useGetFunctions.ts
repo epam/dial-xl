@@ -1,27 +1,15 @@
-import {
-  Dispatch,
-  SetStateAction,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { ApiError, FunctionInfo, WorksheetState } from '@frontend/common';
+import { FunctionInfo, WorksheetState } from '@frontend/common';
 
 import { useApiRequests } from '../useApiRequests';
 
 type Props = {
   currentSheetContent: string | null;
   sheets?: WorksheetState[];
-  onSetProjectDataLoadingError: Dispatch<SetStateAction<ApiError | null>>;
 };
 
-export function useGetFunctions({
-  currentSheetContent,
-  sheets,
-  onSetProjectDataLoadingError,
-}: Props) {
+export function useGetFunctions({ currentSheetContent, sheets }: Props) {
   const { getFunctions: apiGetFunctions } = useApiRequests();
 
   const [data, setData] = useState<FunctionInfo[]>([]);
@@ -38,28 +26,18 @@ export function useGetFunctions({
     ++reqIdRef.current;
     const id = reqIdRef.current;
 
-    const worksheets = sheets.reduce(
-      (acc, curr) => {
-        acc[curr.sheetName] = curr.content;
+    const worksheets = sheets.reduce((acc, curr) => {
+      acc[curr.sheetName] = curr.content;
 
-        return acc;
-      },
-      {} as Record<string, string>,
-    );
+      return acc;
+    }, {} as Record<string, string>);
 
-    const resp = await apiGetFunctions({ worksheets, suppressErrors: true });
+    const resp = await apiGetFunctions({ worksheets });
 
     if (id !== reqIdRef.current) return;
 
-    if (!resp.success) {
-      onSetProjectDataLoadingError(resp.error);
-      setData([]);
-
-      return;
-    }
-
-    setData(resp.data);
-  }, [apiGetFunctions, onSetProjectDataLoadingError, sheets]);
+    setData(resp ?? []);
+  }, [apiGetFunctions, sheets]);
 
   useEffect(() => {
     fetchFunctions();

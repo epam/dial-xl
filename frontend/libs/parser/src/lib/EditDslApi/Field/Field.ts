@@ -188,7 +188,7 @@ export class Field extends ObservableObserver {
   public insertDecorator(index: number, decorator: Decorator): void {
     if (index < 0 || index >= this._decorators.length) {
       throw new Error(
-        `Decorator index ${index} is out of bounds: valid indices start from 0, the current range is [0, ${this._decorators.length}).`,
+        `Decorator index ${index} is out of bounds: valid indices start from 0, the current range is [0, ${this._decorators.length}).`
       );
     }
 

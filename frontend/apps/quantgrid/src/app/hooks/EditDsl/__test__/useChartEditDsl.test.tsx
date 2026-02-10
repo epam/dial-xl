@@ -1,5 +1,3 @@
-import { vi } from 'vitest';
-
 import { ChartType } from '@frontend/common';
 import { act, RenderHookResult } from '@testing-library/react';
 
@@ -22,7 +20,7 @@ describe('useChartEditDsl', () => {
   });
 
   beforeEach(() => {
-    vi.clearAllMocks();
+    jest.clearAllMocks();
 
     const hookRender = hookTestSetup(useChartEditDsl, Wrapper);
     hook = hookRender.result;
@@ -43,7 +41,7 @@ describe('useChartEditDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Resize chart "t1" to (20, 15)`,
-        [{ sheetName: props.sheetName, content: expectedDsl }],
+        [{ sheetName: props.sheetName, content: expectedDsl }]
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -63,7 +61,7 @@ describe('useChartEditDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Resize chart "t1" to (20, 10)`,
-        [{ sheetName: props.sheetName, content: expectedDsl }],
+        [{ sheetName: props.sheetName, content: expectedDsl }]
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -84,7 +82,7 @@ describe('useChartEditDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Update selector for the chart t1[f1]`,
-        [{ sheetName: props.sheetName, content: expectedDsl }],
+        [{ sheetName: props.sheetName, content: expectedDsl }]
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -103,7 +101,7 @@ describe('useChartEditDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Update selector for the chart t1[f1]`,
-        [{ sheetName: props.sheetName, content: expectedDsl }],
+        [{ sheetName: props.sheetName, content: expectedDsl }]
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -127,7 +125,7 @@ describe('useChartEditDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Add chart "t1_line-chart"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }],
+        [{ sheetName: props.sheetName, content: expectedDsl }]
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -153,7 +151,7 @@ describe('useChartEditDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Update chart sections for t1`,
-        [{ sheetName: props.sheetName, content: expectedDsl }],
+        [{ sheetName: props.sheetName, content: expectedDsl }]
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -177,7 +175,7 @@ describe('useChartEditDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Update chart sections for t1`,
-        [{ sheetName: props.sheetName, content: expectedDsl }],
+        [{ sheetName: props.sheetName, content: expectedDsl }]
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -199,7 +197,7 @@ describe('useChartEditDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Convert table t1 to chart`,
-        [{ sheetName: props.sheetName, content: expectedDsl }],
+        [{ sheetName: props.sheetName, content: expectedDsl }]
       );
 
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
@@ -221,7 +219,7 @@ describe('useChartEditDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Change chart t1 type to scatter-plot`,
-        [{ sheetName: props.sheetName, content: expectedDsl }],
+        [{ sheetName: props.sheetName, content: expectedDsl }]
       );
 
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([

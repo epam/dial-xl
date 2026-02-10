@@ -31,7 +31,7 @@ export function History() {
                 'bg-bg-layer-4': isRevertedIndex,
                 'bg-bg-accent-primary-alpha border-l-2 border-l-stroke-accent-primary':
                   isTopHistory && !isRevertedIndex,
-              },
+              }
             )}
             key={title + new Date(time).toLocaleString() + index}
             title={title + '\n' + new Date(time).toLocaleString()}

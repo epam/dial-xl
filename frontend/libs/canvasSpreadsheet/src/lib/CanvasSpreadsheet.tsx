@@ -1,15 +1,16 @@
 import {
-  Application as PixiApplication,
-  BitmapText,
-  Container,
-  Graphics,
-  Sprite,
-} from 'pixi.js';
-import { RefObject, useEffect, useMemo, useRef, useState } from 'react';
+  MutableRefObject,
+  RefObject,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 
 import { isFeatureFlagEnabled } from '@frontend/common';
+import { Application } from '@pixi/app';
 import { initDevtools } from '@pixi/devtools';
-import { Application, extend } from '@pixi/react';
+import { Stage } from '@pixi/react';
 
 import {
   AIPrompt,
@@ -29,17 +30,21 @@ import {
   GridViewportContextProvider,
 } from './context';
 import { useGridResize } from './hooks';
-import { initBitmapFonts, loadFonts, loadIcons, stageOptions } from './setup';
+import {
+  initBitmapFonts,
+  loadFonts,
+  loadIcons,
+  setupPixi,
+  stageOptions,
+} from './setup';
 import { GridApi, GridProps } from './types';
 
-// Extend PixiJS components for use in @pixi/react
-extend({ Container, Graphics, Sprite, BitmapText });
-
+setupPixi();
 const fontLoading = loadFonts();
 const iconsLoading = loadIcons();
 
 export const CanvasSpreadsheet = (
-  props: GridProps & { gridApiRef: RefObject<GridApi | null> },
+  props: GridProps & { gridApiRef: MutableRefObject<GridApi | null> }
 ) => {
   const {
     gridApiRef,
@@ -64,10 +69,9 @@ export const CanvasSpreadsheet = (
     eventBus,
     controlData,
     controlIsLoading,
-    showGridLines,
   } = props;
 
-  const [app, setApp] = useState<PixiApplication | null>(null);
+  const [app, setApp] = useState<Application | null>(null);
   const [fontsLoaded, setFontsLoaded] = useState(false);
   const [bitmapFontsLoaded, setBitmapFontsLoaded] = useState(false);
   const [iconsLoaded, setIconsLoaded] = useState(false);
@@ -78,7 +82,7 @@ export const CanvasSpreadsheet = (
 
   const scaledColumnSizes = useMemo(() => {
     return Object.fromEntries(
-      Object.entries(columnSizes).map(([key, value]) => [key, value * zoom]),
+      Object.entries(columnSizes).map(([key, value]) => [key, value * zoom])
     );
   }, [columnSizes, zoom]);
 
@@ -88,6 +92,7 @@ export const CanvasSpreadsheet = (
     if (!app || window.location.protocol !== 'http:') return;
 
     initDevtools({ app });
+    app.stop();
   }, [app]);
 
   useEffect(() => {
@@ -103,41 +108,32 @@ export const CanvasSpreadsheet = (
     if (!fontsLoaded) return;
 
     setBitmapFontsLoaded(false);
-    initBitmapFonts(zoom);
+    initBitmapFonts(zoom, themeName);
     setBitmapFontsLoaded(true);
   }, [zoom, themeName, fontsLoaded]);
 
-  // Cleanup gridApiRef on unmount.
-  // Reason: entire canvas will be empty after unmounting (e.g., switch to mobile view and back, hmr, etc.),
-  useEffect(() => {
-    return () => {
-      gridApiRef.current = null;
-    };
-  }, [gridApiRef]);
-
   return (
     <div
-      className="h-full w-full relative overflow-hidden select-none bg-bg-layer-1"
+      className="h-full w-full relative overflow-hidden select-none"
       id={canvasId}
       ref={gridContainerRef}
     >
       {fontsLoaded && bitmapFontsLoaded && iconsLoaded && (
         <>
-          <Application
+          <Stage
             height={gridHeight}
+            options={stageOptions}
             width={gridWidth}
-            onInit={setApp}
-            {...stageOptions}
+            onMount={setApp}
           >
             <GridStateContextProvider
-              apiRef={gridApiRef}
+              apiRef={gridApiRef as RefObject<GridApi>}
               app={app}
               columnSizes={scaledColumnSizes}
               data={data}
               eventBus={eventBus}
               gridContainerRef={gridContainerRef}
               pointClickMode={isPointClickMode}
-              showGridLines={showGridLines}
               tableStructure={tableStructure}
               themeName={themeName}
               viewportInteractionMode={viewportInteractionMode}
@@ -151,13 +147,13 @@ export const CanvasSpreadsheet = (
                 {isGridApiInitialized && <GridComponents />}
               </GridViewportContextProvider>
             </GridStateContextProvider>
-          </Application>
+          </Stage>
 
           {/* Component depends on grid api */}
           {isGridApiInitialized && (
             <>
               <ContextMenu
-                apiRef={gridApiRef}
+                apiRef={gridApiRef as RefObject<GridApi>}
                 app={app}
                 eventBus={eventBus}
                 filterList={filterList}
@@ -166,14 +162,14 @@ export const CanvasSpreadsheet = (
                 parsedSheets={parsedSheets}
               />
               <CellEditorContextProvider
-                apiRef={gridApiRef}
+                apiRef={gridApiRef as RefObject<GridApi>}
                 eventBus={eventBus}
                 formulaBarMode={formulaBarMode}
                 isReadOnly={isReadOnly}
                 zoom={zoom}
               >
                 <CellEditor
-                  apiRef={gridApiRef}
+                  apiRef={gridApiRef as RefObject<GridApi>}
                   app={app}
                   eventBus={eventBus}
                   formulaBarMode={formulaBarMode}
@@ -188,17 +184,21 @@ export const CanvasSpreadsheet = (
               </CellEditorContextProvider>
               {isShowAIPrompt && (
                 <AIPrompt
-                  apiRef={gridApiRef}
+                  api={(gridApiRef as RefObject<GridApi>).current}
                   currentSheetName={currentSheetName}
                   eventBus={eventBus}
                   systemMessageContent={systemMessageContent}
                   zoom={zoom}
                 />
               )}
-              <Tooltip apiRef={gridApiRef} />
-              <Notes apiRef={gridApiRef} eventBus={eventBus} zoom={zoom} />
+              <Tooltip apiRef={gridApiRef as RefObject<GridApi>} />
+              <Notes
+                api={(gridApiRef as RefObject<GridApi>).current}
+                eventBus={eventBus}
+                zoom={zoom}
+              />
               <Charts
-                apiRef={gridApiRef}
+                api={(gridApiRef as RefObject<GridApi>).current}
                 chartData={chartData}
                 charts={charts}
                 columnSizes={scaledColumnSizes}
@@ -208,7 +208,7 @@ export const CanvasSpreadsheet = (
                 zoom={zoom}
               />
               <Control
-                apiRef={gridApiRef}
+                api={(gridApiRef as RefObject<GridApi>).current}
                 controlData={controlData}
                 controlIsLoading={controlIsLoading}
                 eventBus={eventBus}

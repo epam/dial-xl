@@ -1,17 +1,12 @@
 import { Button, Collapse } from 'antd';
 import { CollapseProps } from 'antd/es/collapse/Collapse';
 import cx from 'classnames';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { primaryButtonClasses } from '@frontend/common';
 import { ParsedTable } from '@frontend/parser';
 
-import { shallowEqualArray, useSettingState } from '../../../hooks';
 import { usePivotStore } from '../../../store';
-import {
-  defaultTableDetailsSections,
-  TableDetailsCollapseSection as CollapseSection,
-} from '../../../utils';
 import { CollapseIcon } from '../Chart/Components';
 import {
   TableFieldsSection,
@@ -21,17 +16,40 @@ import {
   TablePlacementSection,
 } from './components';
 
+enum CollapseSection {
+  Name = 'name',
+  Location = 'location',
+  Orientation = 'orientation',
+  Headers = 'headers',
+  Columns = 'columns',
+}
+
+const storageKey = 'tableDetailsCollapseSections';
+const defaultSections: CollapseSection[] = [CollapseSection.Name];
+
 export function TableDetails({ parsedTable }: { parsedTable: ParsedTable }) {
   const changePivotTableWizardMode = usePivotStore(
-    (s) => s.changePivotTableWizardMode,
+    (s) => s.changePivotTableWizardMode
   );
-  const [collapseActiveKeys, setCollapseActiveKeys] = useSettingState(
-    'tableDetailsCollapseSections',
-    {
-      fallback: defaultTableDetailsSections,
-      equals: shallowEqualArray,
-    },
-  );
+  const [collapseActiveKeys, setCollapseActiveKeys] = useState<
+    CollapseSection[]
+  >(() => {
+    try {
+      const raw = localStorage.getItem(storageKey);
+
+      return raw ? (JSON.parse(raw) as CollapseSection[]) : defaultSections;
+    } catch {
+      return defaultSections;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(collapseActiveKeys));
+    } catch {
+      // empty section
+    }
+  }, [collapseActiveKeys]);
 
   const collapseItems = useMemo((): CollapseProps['items'] => {
     return [
@@ -69,18 +87,15 @@ export function TableDetails({ parsedTable }: { parsedTable: ParsedTable }) {
     ];
   }, [parsedTable]);
 
-  const onCollapseSectionChange = useCallback(
-    (activeKeys: string[]) => {
-      setCollapseActiveKeys(() => activeKeys as CollapseSection[], true);
-    },
-    [setCollapseActiveKeys],
-  );
+  const onCollapseSectionChange = useCallback((activeKeys: string[]) => {
+    setCollapseActiveKeys(activeKeys as CollapseSection[]);
+  }, []);
 
   return (
     <div className="flex flex-col w-full h-full overflow-hidden">
       <div
         className={cx(
-          'flex flex-col w-full overflow-auto thin-scrollbar bg-bg-layer-3 grow',
+          'flex flex-col w-full overflow-auto thin-scrollbar bg-bg-layer-3 grow'
         )}
       >
         <div className="flex items-center justify-between gap-2 py-2">

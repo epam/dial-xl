@@ -28,7 +28,7 @@ export class HeadersMap {
   }
 }
 
-export type FetchResponse = {
+type FetchResponse = {
   status: number;
   statusText: string;
   ok: boolean;
@@ -41,7 +41,7 @@ export type FetchResponse = {
 export function fetchWithProgress(
   url: string,
   options: FetchOptions = {},
-  onProgress?: (progress: number, event: ProgressEvent<EventTarget>) => void,
+  onProgress?: (progress: number, event: ProgressEvent<EventTarget>) => void
 ): Promise<FetchResponse> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
@@ -84,8 +84,8 @@ export function fetchWithProgress(
       } else {
         reject(
           new Error(
-            `Request failed with status ${xhr.status}: ${xhr.statusText}`,
-          ),
+            `Request failed with status ${xhr.status}: ${xhr.statusText}`
+          )
         );
       }
     };

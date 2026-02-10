@@ -19,7 +19,8 @@ import {
   SpreadsheetWrapper,
 } from '../../components';
 import { useLayoutPanels } from '../../hooks';
-import { useUserSettingsStore } from '../../store';
+import { savePanels } from '../../services';
+import { useUIStore } from '../../store';
 import { CommonContext } from '../CommonContext';
 import { HandlerProps } from '../LayoutHandleContext';
 import { ProjectContext } from '../ProjectContext';
@@ -30,42 +31,40 @@ import {
 } from './getLayoutItems';
 import { LayoutContext } from './LayoutContext';
 
+const bottomBarHeightKey = 'bottomBarHeight';
+const splitPanelsEnabledKey = 'splitPanelsEnabled';
+const collapsedBarTextHiddenKey = 'collapsedBarTextHidden';
+
 export function LayoutContextProvider({
   children,
 }: PropsWithChildren<Record<string, unknown>>) {
   const { sharedRef } = useContext(CommonContext);
   const { projectName } = useContext(ProjectContext);
-  const chatWindowPlacement = useUserSettingsStore(
-    (s) => s.data.chatWindowPlacement,
-  );
+  const chatWindowPlacement = useUIStore((s) => s.chatWindowPlacement);
   const { initialPanels, panels } = useLayoutPanels();
-
-  const setSetting = useUserSettingsStore((s) => s.patch);
-  const collapsedPanelsTextHidden = useUserSettingsStore(
-    (s) => s.data.collapsedBarTextHidden,
-  );
-  const splitPanelsEnabled = useUserSettingsStore(
-    (s) => s.data.splitPanelsEnabled,
-  );
-  const bottomBarHeight = useUserSettingsStore((s) => s.data.bottomBarHeight);
-  const leftBarSize = useUserSettingsStore((s) => s.data.leftBarSize);
-  const rightBarSize = useUserSettingsStore((s) => s.data.rightBarSize);
-
   const [openedPanels, setOpenedPanels] = useState<PanelRecord>(
-    initialPanels.openedPanels,
+    initialPanels.openedPanels
   );
   const [expandedPanelSide, setExpandedPanelSide] =
     useState<PanelPosition | null>(null);
   const beforeExpandOpenedPanelsRef = useRef<PanelRecord | null>(null);
+  const [collapsedPanelsTextHidden, setCollapsedPanelsTextHidden] = useState(
+    localStorage.getItem(collapsedBarTextHiddenKey) === 'true'
+  );
+  const [splitPanelsEnabled, setSplitPanelsEnabled] = useState(
+    localStorage.getItem(splitPanelsEnabledKey) === 'true'
+  );
 
   // Same breakpoint as tailwind `md`
   const isMobile = useIsMobile();
 
   const getBottomBarSize = useCallback(() => {
+    const bottomBarHeight = localStorage.getItem(bottomBarHeightKey);
+
     return bottomBarHeight
       ? Number(bottomBarHeight)
       : panelSize.maxBottomBarSize;
-  }, [bottomBarHeight]);
+  }, []);
 
   const togglePanel = useCallback(
     (panelName: PanelName) => {
@@ -87,9 +86,9 @@ export function LayoutContextProvider({
 
       setExpandedPanelSide(null);
       setOpenedPanels(updatedPanels);
-      setSetting({ panelsLayout: updatedPanels });
+      savePanels(updatedPanels);
     },
-    [isMobile, openedPanels, setSetting, splitPanelsEnabled],
+    [isMobile, openedPanels, splitPanelsEnabled]
   );
 
   const toggleExpandPanel = useCallback(
@@ -105,8 +104,8 @@ export function LayoutContextProvider({
       for (const panelKey of Object.keys(openedPanels)) {
         if (panelKey !== panelName) {
           updatedPanels[panelKey as PanelName].isActive = isExpanded
-            ? (beforeExpandOpenedPanelsRef.current?.[panelKey as PanelName]
-                .isActive ?? false)
+            ? beforeExpandOpenedPanelsRef.current?.[panelKey as PanelName]
+                .isActive ?? false
             : false;
         }
       }
@@ -116,14 +115,10 @@ export function LayoutContextProvider({
         : null;
       setExpandedPanelSide(!isExpanded ? panelPosition : null);
       setOpenedPanels(updatedPanels);
-      setSetting({ panelsLayout: updatedPanels });
+      savePanels(updatedPanels);
     },
-    [expandedPanelSide, openedPanels, setSetting],
+    [expandedPanelSide, openedPanels]
   );
-
-  const collapseExpandedPanelSide = useCallback(() => {
-    setExpandedPanelSide(null);
-  }, []);
 
   const closeAllPanels = useCallback(() => {
     const updatedPanels = Object.assign({}, openedPanels);
@@ -133,8 +128,8 @@ export function LayoutContextProvider({
 
     setExpandedPanelSide(null);
     setOpenedPanels(updatedPanels);
-    setSetting({ panelsLayout: updatedPanels });
-  }, [openedPanels, setSetting]);
+    savePanels(updatedPanels);
+  }, [openedPanels]);
 
   const openPanel = useCallback(
     (panelName: PanelName) => {
@@ -155,9 +150,9 @@ export function LayoutContextProvider({
 
       setExpandedPanelSide(null);
       setOpenedPanels(updatedPanels);
-      setSetting({ panelsLayout: updatedPanels });
+      savePanels(updatedPanels);
     },
-    [isMobile, openedPanels, splitPanelsEnabled, setSetting],
+    [isMobile, openedPanels, splitPanelsEnabled]
   );
 
   const changePanelPosition = useCallback(
@@ -179,52 +174,51 @@ export function LayoutContextProvider({
 
       setExpandedPanelSide(null);
       setOpenedPanels(updatedPanels);
-      setSetting({ panelsLayout: updatedPanels });
+      savePanels(updatedPanels);
     },
-    [isMobile, openedPanels, splitPanelsEnabled, setSetting],
+    [isMobile, openedPanels, splitPanelsEnabled]
   );
 
-  const resetBottomBarSize = useCallback(
-    (e: HandlerProps) => {
-      const domElement = e.domElement as HTMLElement;
-      if (domElement.offsetHeight) {
-        setSetting({ bottomBarHeight: domElement.offsetHeight });
-      }
-    },
-    [setSetting],
-  );
+  const resetBottomBarSize = useCallback((e: HandlerProps) => {
+    const domElement = e.domElement as HTMLElement;
+    if (domElement.offsetHeight) {
+      localStorage.setItem(
+        bottomBarHeightKey,
+        domElement.offsetHeight.toString()
+      );
+    }
+  }, []);
 
   const onResizeSidePanel = useCallback(() => {
     setExpandedPanelSide(null);
   }, []);
 
-  const updateCollapsedPanelsTextHidden = useCallback(
-    (value: boolean) => {
-      setSetting({ collapsedBarTextHidden: value });
+  const updateCollapsedPanelsTextHidden = useCallback((value: boolean) => {
+    setCollapsedPanelsTextHidden(value);
 
-      setTimeout(() => {
-        window.dispatchEvent(new Event('resize'));
-      }, 0);
-    },
-    [setSetting],
-  );
+    localStorage.setItem(collapsedBarTextHiddenKey, JSON.stringify(value));
+
+    setTimeout(() => {
+      window.dispatchEvent(new Event('resize'));
+    }, 0);
+  }, []);
 
   const updateSplitPanelsEnabled = useCallback(
     (value: boolean) => {
-      setSetting({ splitPanelsEnabled: value });
+      setSplitPanelsEnabled(value);
 
       if (!value) {
         const leftOpenedPanel = Object.entries(openedPanels).find(
           ([_, panel]) =>
-            panel.isActive && panel.position === PanelPosition.Left,
+            panel.isActive && panel.position === PanelPosition.Left
         );
         const rightOpenedPanel = Object.entries(openedPanels).find(
           ([_, panel]) =>
-            panel.isActive && panel.position === PanelPosition.Right,
+            panel.isActive && panel.position === PanelPosition.Right
         );
         const bottomOpenedPanel = Object.entries(openedPanels).find(
           ([_, panel]) =>
-            panel.isActive && panel.position === PanelPosition.Bottom,
+            panel.isActive && panel.position === PanelPosition.Bottom
         );
         const leftPanelNames = [
           leftOpenedPanel?.[0],
@@ -240,10 +234,12 @@ export function LayoutContextProvider({
         });
 
         setOpenedPanels(updatedPanels);
-        setSetting({ panelsLayout: updatedPanels });
+        savePanels(updatedPanels);
       }
+
+      localStorage.setItem(splitPanelsEnabledKey, JSON.stringify(value));
     },
-    [openedPanels, setSetting],
+    [openedPanels]
   );
 
   useEffect(() => {
@@ -252,26 +248,6 @@ export function LayoutContextProvider({
     // below triggers, not dependencies
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chatWindowPlacement]);
-
-  const saveLeftPanelSize = useCallback(
-    (e: HandlerProps) => {
-      const domElement = e.domElement as HTMLElement;
-      if (domElement.offsetWidth) {
-        setSetting({ leftBarSize: domElement.offsetWidth });
-      }
-    },
-    [setSetting],
-  );
-
-  const saveRightPanelSize = useCallback(
-    (e: HandlerProps) => {
-      const domElement = e.domElement as HTMLElement;
-      if (domElement.offsetWidth) {
-        setSetting({ rightBarSize: domElement.offsetWidth });
-      }
-    },
-    [setSetting],
-  );
 
   const { items, bottomPanelsMin, bottomPanels, bottomPanelsActiveLength } =
     useMemo(
@@ -282,10 +258,6 @@ export function LayoutContextProvider({
           expandedPanelSide,
           onResizePanelSide: onResizeSidePanel,
           collapsedPanelsTextHidden,
-          rightBarSize,
-          leftBarSize,
-          saveLeftPanelSize,
-          saveRightPanelSize,
         }),
       // below triggers, not dependencies
       // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -295,11 +267,7 @@ export function LayoutContextProvider({
         expandedPanelSide,
         collapsedPanelsTextHidden,
         splitPanelsEnabled,
-        rightBarSize,
-        leftBarSize,
-        saveLeftPanelSize,
-        saveRightPanelSize,
-      ],
+      ]
     );
 
   const { mobilePanels, mobileMinimizedPanels, isMobileActivePanels } =
@@ -323,7 +291,6 @@ export function LayoutContextProvider({
       panelsSplitEnabled: splitPanelsEnabled,
       updateSplitPanelsEnabled,
       closeAllPanels,
-      collapseExpandedPanelSide,
     }),
     [
       togglePanel,
@@ -337,16 +304,13 @@ export function LayoutContextProvider({
       splitPanelsEnabled,
       updateSplitPanelsEnabled,
       closeAllPanels,
-      collapseExpandedPanelSide,
-    ],
+    ]
   );
 
   // Attach methods to the shared ref
   useEffect(() => {
     sharedRef.current.layoutContext = {
       closeAllPanels,
-      expandedPanelSide,
-      collapseExpandedPanelSide,
     };
 
     // Clean up when unmounted
@@ -354,13 +318,7 @@ export function LayoutContextProvider({
       // eslint-disable-next-line react-hooks/exhaustive-deps
       delete sharedRef.current.layoutContext;
     };
-  }, [
-    sharedRef,
-    closeAllPanels,
-    expandedPanelSide,
-    toggleExpandPanel,
-    collapseExpandedPanelSide,
-  ]);
+  }, [sharedRef, closeAllPanels]);
 
   useEffect(() => {
     const handler = () => {
@@ -392,7 +350,7 @@ export function LayoutContextProvider({
         className={classNames(
           isMobileActivePanels
             ? 'absolute z-10 top-0 left-0 w-full h-[calc(100dvh-48px)] shrink-0'
-            : 'hidden',
+            : 'hidden'
         )}
       >
         {mobilePanels}
@@ -416,8 +374,8 @@ export function LayoutContextProvider({
             bottomPanelsActiveLength === 0
               ? 0.0001
               : expandedPanelSide === PanelPosition.Bottom
-                ? 1
-                : undefined
+              ? 1
+              : undefined
           }
           key={'bottom-stack'}
           minSize={

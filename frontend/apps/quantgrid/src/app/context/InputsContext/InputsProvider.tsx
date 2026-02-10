@@ -1,5 +1,4 @@
 import {
-  type JSX,
   PropsWithChildren,
   useCallback,
   useContext,
@@ -36,7 +35,7 @@ import {
   useImports,
   useRequestDimTable,
 } from '../../hooks';
-import { useUserSettingsStore } from '../../store';
+import { useUIStore } from '../../store';
 import {
   constructPath,
   encodeApiUrl,
@@ -49,13 +48,8 @@ import { Inputs, InputsContext } from './InputsContext';
 export function InputsContextProvider({
   children,
 }: PropsWithChildren<Record<string, unknown>>): JSX.Element {
-  const {
-    projectName,
-    projectBucket,
-    projectPath,
-    projectSheets,
-    setProjectDataLoadingError,
-  } = useContext(ProjectContext);
+  const { projectName, projectBucket, projectPath, projectSheets } =
+    useContext(ProjectContext);
   const {
     createFile,
     getFiles,
@@ -100,10 +94,10 @@ export function InputsContextProvider({
     FileList | undefined
   >();
   const [isDragAndDrop, setIsDragAndDrop] = useState(false);
-  const uploadColRef = useRef<number>(undefined);
-  const uploadRowRef = useRef<number>(undefined);
+  const uploadColRef = useRef<number>();
+  const uploadRowRef = useRef<number>();
 
-  const showHiddenFiles = useUserSettingsStore((s) => s.data.showHiddenFiles);
+  const showHiddenFiles = useUIStore((s) => s.showHiddenFiles);
 
   const fullProjectInputsFolder = useMemo(() => {
     return constructPath([projectFoldersRootPrefix, projectPath, projectName]);
@@ -118,7 +112,7 @@ export function InputsContextProvider({
 
       const fileName = formula.slice(
         formula.indexOf('"') + 1,
-        formula.lastIndexOf('"'),
+        formula.lastIndexOf('"')
       );
       const shortFileName = fileName.split('/').pop();
 
@@ -126,8 +120,8 @@ export function InputsContextProvider({
         toast.error(
           appMessages.fileUploadSchemaError(
             shortFileName ?? fileName,
-            errorMessage,
-          ),
+            errorMessage
+          )
         );
 
         return;
@@ -137,7 +131,7 @@ export function InputsContextProvider({
         return { ...prevInputs, [fileName]: { fields: schema } };
       });
     },
-    [],
+    []
   );
 
   const requestInput = useCallback(
@@ -158,7 +152,7 @@ export function InputsContextProvider({
 
       if (!dimensionalSchema) {
         toast.error(
-          `Error happened during creating schema for file "${file.name}". Recheck file structure and reupload it.`,
+          `Error happened during creating schema for file "${file.name}". Recheck file structure and reupload it.`
         );
 
         return;
@@ -172,7 +166,7 @@ export function InputsContextProvider({
       onDimensionalSchemaResponse,
       projectName,
       projectSheets,
-    ],
+    ]
   );
 
   const getInputs = useCallback(async () => {
@@ -182,36 +176,27 @@ export function InputsContextProvider({
     let files: (ResourceMetadata | SharedWithMeMetadata)[] | undefined;
 
     if (inputsFolder?.bucket) {
-      const filesRes = await getFiles({
+      files = await getFiles({
         path: `${constructPath([inputsFolder?.bucket, inputsFolder?.path])}/`,
+        suppressErrors: true,
       });
-      files = filesRes.success ? filesRes.data : [];
-
-      if (!filesRes.success) {
-        setProjectDataLoadingError(filesRes.error);
-      }
     } else {
-      const sharedResources = await getSharedWithMeResources({
+      files = await getSharedWithMeResources({
         resourceType: MetadataResourceType.FILE,
       });
-      files = sharedResources.success ? sharedResources.data : [];
-
-      if (!sharedResources.success) {
-        setProjectDataLoadingError(sharedResources.error);
-      }
     }
 
     setIsInputsLoading(false);
 
     const filterFiles = (
-      files: (ResourceMetadata | SharedWithMeMetadata)[],
+      files: (ResourceMetadata | SharedWithMeMetadata)[]
     ): (ResourceMetadata | SharedWithMeMetadata)[] =>
       files
         .filter((file) => file?.name)
         .filter(
           (file) =>
             file.name.endsWith(csvFileExtension) ||
-            file.nodeType === MetadataNodeType.FOLDER,
+            file.nodeType === MetadataNodeType.FOLDER
         )
         .filter((file) => showHiddenFiles || !file.name.startsWith('.'))
         .map((file) => ({
@@ -227,7 +212,6 @@ export function InputsContextProvider({
     getSharedWithMeResources,
     inputsFolder?.bucket,
     inputsFolder?.path,
-    setProjectDataLoadingError,
     showHiddenFiles,
   ]);
 
@@ -235,7 +219,7 @@ export function InputsContextProvider({
     (file: CommonMetadata) => {
       requestInput(file);
     },
-    [requestInput],
+    [requestInput]
   );
 
   const updateInputsFolder = useCallback(
@@ -251,7 +235,7 @@ export function InputsContextProvider({
         bucket,
       });
     },
-    [],
+    []
   );
 
   const uploadFiles = useCallback(
@@ -272,7 +256,7 @@ export function InputsContextProvider({
 
       setIsPreUploadOpen(true);
     },
-    [inputsFolder?.bucket],
+    [inputsFolder?.bucket]
   );
 
   const importInput = useCallback(() => {
@@ -302,19 +286,21 @@ export function InputsContextProvider({
       projectBucket,
       projectName,
       projectPath,
-    ],
+    ]
   );
 
   const handleUploadFiles = useCallback(
     async (
       parentPath: string | null | undefined,
       uploadBucket: string,
-      files: { file: File; name: string; extension: string }[],
+      files: { file: File; name: string; extension: string }[]
     ) => {
       setIsPreUploadOpen(false);
 
       const bucket = uploadBucket ?? inputsFolder?.bucket;
       if (!bucket || !files) return;
+
+      toast.dismiss();
 
       const requests = files.map(async (file) => {
         const uploadingToast = toast(WithCustomProgressBar, {
@@ -361,11 +347,11 @@ export function InputsContextProvider({
 
           if (uploadColRef.current && uploadRowRef.current) {
             const formula = `:INPUT("${result.value.url}")`;
-            requestDimSchemaForDimFormula({
-              col: uploadColRef.current,
-              row: uploadRowRef.current,
-              value: formula,
-            });
+            requestDimSchemaForDimFormula(
+              uploadColRef.current,
+              uploadRowRef.current,
+              formula
+            );
           }
         }
       });
@@ -380,7 +366,7 @@ export function InputsContextProvider({
       getInputs,
       inputsFolder?.bucket,
       viewGridData,
-    ],
+    ]
   );
 
   const onSwitchInput = useCallback((tableName: string, fieldName: string) => {
@@ -394,13 +380,13 @@ export function InputsContextProvider({
       const { tableName, fieldName } = switchInputOptions;
 
       const expression = `INPUT("${encodeApiUrl(
-        constructPath([filesEndpointType, bucket, parentPath, name]),
+        constructPath([filesEndpointType, bucket, parentPath, name])
       )}")`;
       editExpression(tableName, fieldName, expression);
 
       setSwitchInputOptions(null);
     },
-    [editExpression, switchInputOptions],
+    [editExpression, switchInputOptions]
   );
 
   useEffect(() => {
@@ -466,7 +452,7 @@ export function InputsContextProvider({
       syncAllImports,
       syncSingleImportField,
       onRenameImportSource,
-    ],
+    ]
   );
 
   return (

@@ -39,10 +39,10 @@ export function useEditorRegisterProviders({
   currentFieldName,
   inputFiles,
 }: Props) {
-  const disposeCompletionProvider = useRef<IDisposable>(undefined);
-  const disposeSignatureProvider = useRef<IDisposable>(undefined);
-  const disposeFormattingProvider = useRef<IDisposable>(undefined);
-  const disposeInlineCompletionProvider = useRef<IDisposable>(undefined);
+  const disposeCompletionProvider = useRef<IDisposable>();
+  const disposeSignatureProvider = useRef<IDisposable>();
+  const disposeFormattingProvider = useRef<IDisposable>();
+  const disposeInlineCompletionProvider = useRef<IDisposable>();
   const registeredParsedSheets = useRef({});
   const registeredFunctions = useRef({});
   const registeredInputFiles = useRef({});
@@ -52,7 +52,7 @@ export function useEditorRegisterProviders({
   useEffect(() => {
     const isSheetsEqual = isParsedSheetsEqual(
       parsedSheets,
-      registeredParsedSheets.current,
+      registeredParsedSheets.current
     );
     const isFunctionsEqual = isEqual(functions, registeredFunctions.current);
     const isInputFilesEqual = isEqual(inputFiles, registeredInputFiles.current);
@@ -81,7 +81,7 @@ export function useEditorRegisterProviders({
         parsedSheets,
         language,
         currentTableName,
-        currentFieldName,
+        currentFieldName
       );
       disposeCompletionProvider.current = newDisposeCompletionProvider;
       registeredCurrentTableName.current = currentTableName;
@@ -101,7 +101,7 @@ export function useEditorRegisterProviders({
         monaco,
         codeEditor,
         functions,
-        language,
+        language
       );
       disposeSignatureProvider.current = newDisposeSignatureProvider;
       registeredParsedSheets.current = parsedSheets;
@@ -115,7 +115,7 @@ export function useEditorRegisterProviders({
       }
       const newDisposeFormattingProvider = registerFormattingProvider(
         monaco,
-        language,
+        language
       );
       disposeFormattingProvider.current = newDisposeFormattingProvider;
     }

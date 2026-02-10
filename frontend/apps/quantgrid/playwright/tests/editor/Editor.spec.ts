@@ -22,7 +22,7 @@ const table2Column = 10;
 
 const table2Name = 'ForIndexes';
 
-const storagePath = TestFixtures.getStoragePath();
+const storagePath = `playwright/${projectName}.json`;
 
 let browserContext: BrowserContext;
 
@@ -32,22 +32,22 @@ test.beforeAll(async ({ browser }, testInfo) => {
   const table1Dsl = `!layout(${tableRow}, ${tableColumn}, "title", "headers")\ntable ${tableName}\n[Field1] = 5\n[Field2] = 7\n[Field3] = 4\n[Field4] = 10\n`;
   tableDslSize = table1Dsl.split('\n').length;
   const table2Dsl = `!layout(${table2Row}, ${table2Column}, "title", "headers")\ntable ${table2Name}\n[Field1] = 5\n key [Field2] = 7\n[Field3] = RANGE(6)\ndim [Field4] = RANGE(4)`;
+  await TestFixtures.createProject(
+    storagePath,
+    browser,
+    projectName,
+    tableRow,
+    tableColumn,
+    tableName,
+    table1Dsl,
+    table2Dsl
+  );
   browserContext = await browser.newContext({
     storageState: storagePath,
     /* recordVideo: {
       dir: testInfo.outputPath('videos'),
     },*/
   });
-  await TestFixtures.createProject(
-    storagePath,
-    browserContext,
-    projectName,
-    tableRow,
-    tableColumn,
-    tableName,
-    table1Dsl,
-    table2Dsl,
-  );
 });
 
 test.beforeEach(async () => {
@@ -60,9 +60,9 @@ test.afterEach(async (testInfo) => {
   await page.close();
 });
 
-test.afterAll(async () => {
-  await TestFixtures.deleteProject(browserContext, projectName);
+test.afterAll(async ({ browser }, testInfo) => {
   await browserContext.close();
+  await TestFixtures.deleteProject(browser, projectName);
 });
 
 test.describe('editor', () => {
@@ -96,7 +96,7 @@ test.describe('editor', () => {
         0,
         12,
         tableColumn.toString().length,
-        newColumn.toString(),
+        newColumn.toString()
       );
     await projectPage.getEditor().saveDsl();
     await projectPage
@@ -107,7 +107,6 @@ test.describe('editor', () => {
       .expectTableHeaderToAppear(tableRow, newColumn);
     tableColumn = newColumn;
   });
-
   //change tableName
   test(`Project has a table
         edit table name&save dsl
@@ -123,7 +122,6 @@ test.describe('editor', () => {
       .expectCellTextChange(tableRow, tableColumn, newName);
     tableName = newName;
   });
-
   //change fieldName
   test(`Project has a table
         edit field name&save dsl
@@ -136,7 +134,6 @@ test.describe('editor', () => {
       .getVisualization()
       .expectCellTextChange(tableRow + 1, tableColumn, newName);
   });
-
   //change fieldValue
   test(`Project has a table
         edit field value&save dsl
@@ -163,7 +160,6 @@ test.describe('editor', () => {
       .expectTableToDissapear(tableRow + 1, tableColumn + 3);
     tableDslSize--;
   });
-
   //add key
   test(`Project has a table
         Add key&save dsl
@@ -175,7 +171,6 @@ test.describe('editor', () => {
       .getVisualization()
       .expectFieldToBeKey(table2Row + 1, table2Column);
   });
-
   //remove key
   test(`Project has a table with key
         Remove key&save dsl
@@ -187,7 +182,6 @@ test.describe('editor', () => {
       .getVisualization()
       .expectFieldNotBeKey(table2Row + 1, table2Column + 1);
   });
-
   //add dim
   test(`Project has a multi-row table 
         Add dim&save dsl
@@ -202,7 +196,6 @@ test.describe('editor', () => {
       .getVisualization()
       .expectFieldIsDimension(table2Row + 1, table2Column + 2);
   });
-
   //remove dim
   test(`Project has a table with dim
         Remove dim&save dsl
@@ -217,14 +210,13 @@ test.describe('editor', () => {
       .getVisualization()
       .expectFieldIsNotDimension(table2Row + 1, table2Column + 3);
   });
-
   //add new table
   test(`Open project
         add table&save dsl
         Table is dispalyed`, async () => {
     const projectPage = await ProjectPage.createInstance(page);
     await projectPage.addDSL(
-      '!layout(1, 1, "title", "headers")\ntable NewTable\n[Field1] = 3',
+      '!layout(1, 1, "title", "headers")\ntable NewTable\n[Field1] = 3'
     );
     await projectPage.getVisualization().expectTableHeaderToAppear(1, 1);
   });

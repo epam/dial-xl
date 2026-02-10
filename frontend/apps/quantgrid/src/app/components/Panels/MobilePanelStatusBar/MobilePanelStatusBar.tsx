@@ -1,7 +1,13 @@
 import { Dropdown } from 'antd';
 import cx from 'classnames';
 import classNames from 'classnames';
-import { Ref, useCallback, useContext, useMemo } from 'react';
+import {
+  ForwardedRef,
+  forwardRef,
+  useCallback,
+  useContext,
+  useMemo,
+} from 'react';
 
 import Icon from '@ant-design/icons';
 import {
@@ -16,11 +22,13 @@ import { LayoutContext } from '../../../context';
 import { usePanelStatusBar } from '../../../hooks';
 
 type Props = {
-  ref?: Ref<HTMLDivElement>;
   panels?: MinimizedPanelProps[];
 };
 
-export function MobilePanelStatusBar({ panels, ref }: Props) {
+export const MobilePanelStatusBar = forwardRef(function PanelStatusBar(
+  { panels }: Props,
+  ref: ForwardedRef<HTMLDivElement>
+) {
   const { togglePanel, openedPanels } = useContext(LayoutContext);
   const { showErrorNotification } = usePanelStatusBar();
 
@@ -32,14 +40,14 @@ export function MobilePanelStatusBar({ panels, ref }: Props) {
           name: item[0],
           ...item[1],
         })),
-    [openedPanels],
+    [openedPanels]
   );
 
   const isPanelOpen = useCallback(
     (panelName: PanelName) => {
       return openedPanels[panelName] && openedPanels[panelName].isActive;
     },
-    [openedPanels],
+    [openedPanels]
   );
 
   const { displayedPanels, additionalPanels } = useMemo(() => {
@@ -66,9 +74,7 @@ export function MobilePanelStatusBar({ panels, ref }: Props) {
         icon: (
           <Icon
             className={classNames(
-              isPanelOpened
-                ? 'text-text-accent-primary'
-                : 'text-text-secondary',
+              isPanelOpened ? 'text-text-accent-primary' : 'text-text-secondary'
             )}
             component={() => item.icon}
           />
@@ -97,7 +103,7 @@ export function MobilePanelStatusBar({ panels, ref }: Props) {
             'flex flex-col h-full gap-1 px-0.5 py-1.5 items-center justify-center text-nowrap cursor-pointer select-none',
             activePanels.length === 0
               ? 'text-text-accent-primary'
-              : 'text-text-secondary',
+              : 'text-text-secondary'
           )}
           data-panel="additional-mobile-panels"
           data-qa="collapsed-panel-button"
@@ -125,7 +131,7 @@ export function MobilePanelStatusBar({ panels, ref }: Props) {
               {
                 'text-text-accent-primary': isPanelOpen(p.name),
                 'text-text-secondary': !isPanelOpen(p.name),
-              },
+              }
             )}
             data-panel={p.name}
             data-qa="collapsed-panel-button"
@@ -152,7 +158,7 @@ export function MobilePanelStatusBar({ panels, ref }: Props) {
                 'flex flex-col h-full gap-1 px-0.5 py-1.5 items-center justify-center text-nowrap cursor-pointer select-none',
                 isItemsSelected
                   ? 'text-text-accent-primary'
-                  : 'text-text-secondary',
+                  : 'text-text-secondary'
               )}
               data-panel="additional-mobile-panels"
               data-qa="collapsed-panel-button"
@@ -173,4 +179,4 @@ export function MobilePanelStatusBar({ panels, ref }: Props) {
       </ul>
     </div>
   );
-}
+});

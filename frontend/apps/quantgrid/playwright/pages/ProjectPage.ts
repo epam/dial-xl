@@ -104,7 +104,7 @@ export class ProjectPage {
     const projectPage = new ProjectPage(page);
     projectPage.formulaBar = new Editor(
       page,
-      page.locator(projectPage.formulaEditorLocator),
+      page.locator(projectPage.formulaEditorLocator)
     );
     projectPage.grid = TestFixtures.getVisualComponent(page);
     projectPage.menu = new TopMenu(page);
@@ -127,7 +127,7 @@ export class ProjectPage {
     const projectPage = new ProjectPage(page);
     projectPage.formulaBar = new Editor(
       page,
-      page.locator(projectPage.formulaEditorLocator),
+      page.locator(projectPage.formulaEditorLocator)
     );
     projectPage.grid = TestFixtures.getVisualComponent(page);
     projectPage.menu = new TopMenu(page);
@@ -151,12 +151,12 @@ export class ProjectPage {
   public async selectFormatWithSubItem(formatName: string, itemName: string) {
     await this.innerPage.locator(this.formatSelector).click();
     await expect(
-      this.innerPage.locator(this.formatLabel(formatName)),
+      this.innerPage.locator(this.formatLabel(formatName))
     ).toBeVisible();
     await new Promise((resolve) => setTimeout(resolve, 500));
     await this.innerPage.locator(this.formatLabel(formatName)).hover();
     await expect(
-      this.innerPage.locator(this.formatLabel(itemName)),
+      this.innerPage.locator(this.formatLabel(itemName))
     ).toBeVisible();
     await new Promise((resolve) => setTimeout(resolve, 300));
     await this.innerPage.locator(this.formatLabel(itemName)).click();
@@ -172,8 +172,7 @@ export class ProjectPage {
     }
   }
 
-  public addDSL = async (dsl: string, clickNeeded = true) =>
-    await this.getEditor().applyDSL(dsl, clickNeeded);
+  public addDSL = async (dsl: string) => await this.getEditor().applyDSL(dsl);
 
   public getFormula() {
     return this.innerPage.locator(this.formulaValue);
@@ -212,16 +211,16 @@ export class ProjectPage {
 
   public titleShouldContainProjectName = async (projectName: string) =>
     await expect(
-      this.innerPage.locator(this.projectTitle).first(),
+      this.innerPage.locator(this.projectTitle).first()
     ).toContainText(projectName);
 
   public assertGridDimensions = async (
     expectedRowsCount: number,
-    expectedColumnsCount: number,
+    expectedColumnsCount: number
   ) =>
     this.grid.verifyGridDimensionsEqualsTo(
       expectedRowsCount,
-      expectedColumnsCount,
+      expectedColumnsCount
     );
 
   public clickOnGridCell = async (row: number, column: number) =>
@@ -239,7 +238,7 @@ export class ProjectPage {
   public async performMenuSubCommand(
     menuItem: string,
     hoverItem: string,
-    dropdownItem: string,
+    dropdownItem: string
   ) {
     await this.menu.performSubAction(menuItem, hoverItem, dropdownItem);
   }
@@ -290,13 +289,13 @@ export class ProjectPage {
     const exp = new RegExp(text, 'g');
     await expect(this.history.getHistoryItems().first()).toHaveAttribute(
       'title',
-      exp,
+      exp
     );
   }
 
   public async assertCellMenuItemDisabled(itemName: string) {
     await expect(
-      this.innerPage.getByText(itemName, { exact: true }),
+      this.innerPage.getByText(itemName, { exact: true })
     ).toBeDisabled();
   }
 

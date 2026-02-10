@@ -4,7 +4,7 @@ export class ConstNumberExpression implements Expression {
   constructor(
     public text: string,
     public globalOffsetStart: number,
-    public globalOffsetEnd: number,
+    public globalOffsetEnd: number
   ) {}
 
   toString(): string {

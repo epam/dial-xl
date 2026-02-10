@@ -5,10 +5,6 @@ import lombok.SneakyThrows;
 import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
 
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.stream.Collectors;
-
 @Slf4j
 @UtilityClass
 public class DataUtils {
@@ -37,20 +33,5 @@ public class DataUtils {
                 }
             }
         };
-    }
-
-    public String selectColumns(String dataset, Collection<String> columns) {
-        String table = Arrays.stream(dataset.split("/"))
-                .map(DataUtils::escapeIdentifier)
-                .collect(Collectors.joining("."));
-        String names = columns.stream()
-                .map(DataUtils::escapeIdentifier)
-                .collect(Collectors.joining(","));
-
-        return "select %s from %s".formatted(names, table);
-    }
-
-    private String escapeIdentifier(String name) {
-        return "\"" + name.replace("\"", "\"\"") + "\"";
     }
 }

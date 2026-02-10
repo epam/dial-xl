@@ -1,5 +1,6 @@
 import { Input, Tooltip } from 'antd';
 import cx from 'classnames';
+import { DefaultOptionType } from 'rc-select/lib/Select';
 import {
   MouseEventHandler,
   useCallback,
@@ -22,7 +23,6 @@ import {
   ParsedField,
   ParsedTable,
 } from '@frontend/parser';
-import { DefaultOptionType } from '@rc-component/select/lib/Select';
 
 import {
   AppSpreadsheetInteractionContext,
@@ -63,11 +63,11 @@ export function ChartSelectorsSection({
         tableName,
         fieldName,
         chartSelectorDecoratorName,
-        historyTitle,
+        historyTitle
       );
       openTable(sheetName, tableName);
     },
-    [openTable, parsedTable, removeFieldDecorator, sheetName],
+    [openTable, parsedTable, removeFieldDecorator, sheetName]
   );
 
   const handleSelectNewSelector = useCallback(
@@ -75,7 +75,7 @@ export function ChartSelectorsSection({
       if (!option || !sheetName) return;
 
       const field = parsedTable.fields.find(
-        (f) => f.key.fieldName === option.value,
+        (f) => f.key.fieldName === option.value
       );
 
       if (!field) return;
@@ -91,12 +91,12 @@ export function ChartSelectorsSection({
         fieldName,
         chartSelectorDecoratorName,
         '',
-        historyTitle,
+        historyTitle
       );
 
       openTable(sheetName, tableName);
     },
-    [setFieldDecorator, openTable, parsedTable, sheetName],
+    [setFieldDecorator, openTable, parsedTable, sheetName]
   );
 
   const handleRemoveNewSelector = useCallback(() => {
@@ -135,8 +135,8 @@ export function ChartSelectorsSection({
 
     setSelectors(
       currentSelectors.sort((a, b) =>
-        a.key.fieldName.localeCompare(b.key.fieldName),
-      ),
+        a.key.fieldName.localeCompare(b.key.fieldName)
+      )
     );
     setNotUsedSelectors(currentNotUsedSelectors);
   }, [parsedTable, viewGridData]);

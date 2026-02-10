@@ -14,7 +14,7 @@ export type SelectionAnchor =
  */
 export function getSelectionAnchor(
   edges: SelectionEdges | null,
-  data: GridData,
+  data: GridData
 ): SelectionAnchor | null {
   if (!edges) return null;
 
@@ -69,8 +69,8 @@ export function getSelectionAnchor(
     const rowNum = isFieldHeader
       ? 0
       : dataIndex !== undefined
-        ? dataIndex + 1
-        : row;
+      ? dataIndex + 1
+      : row;
 
     return {
       type: 'cell',
@@ -99,7 +99,7 @@ export function getSelectionAnchor(
 export function getNextSelectionEdges(
   data: GridData,
   tableStructure: GridTable[],
-  anchor: SelectionAnchor,
+  anchor: SelectionAnchor
 ): SelectionEdges | null {
   const findTable = (tableName: string) =>
     tableStructure.find((t) => t.tableName === tableName);
@@ -178,8 +178,8 @@ export function getNextSelectionEdges(
           const rowNumCandidate = cell.isFieldHeader
             ? 0
             : cell.dataIndex !== undefined
-              ? cell.dataIndex + 1
-              : (cell.row ?? row);
+            ? cell.dataIndex + 1
+            : cell.row ?? row;
 
           if (rowNumCandidate !== anchor.rowNum) continue;
 

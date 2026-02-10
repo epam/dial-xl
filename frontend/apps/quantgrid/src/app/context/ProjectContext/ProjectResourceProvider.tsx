@@ -79,7 +79,7 @@ export function ProjectResourceProvider({
   >([]);
   const responseIds: ProjectAIResponseId[] = useMemo(
     () => projectState?.settings.projectMetadata?.assistantResponseIds ?? [],
-    [projectState],
+    [projectState]
   );
 
   const fullProjectPath = useMemo(() => {
@@ -91,7 +91,7 @@ export function ProjectResourceProvider({
         projectBucket,
         projectPath,
         projectName,
-      ]),
+      ])
     );
   }, [projectBucket, projectName, projectPath]);
 
@@ -117,7 +117,7 @@ export function ProjectResourceProvider({
 
       _setProjectState(newProjectState);
     },
-    [],
+    []
   );
 
   const getProjectFromServer = useCallback(
@@ -158,7 +158,7 @@ export function ProjectResourceProvider({
 
         displayToast(
           'error',
-          `Project "${projectName}" cannot be fetched because it doesn't exist or has been removed.`,
+          `Project "${projectName}" cannot be fetched because it doesn't exist or has been removed.`
         );
 
         return;
@@ -220,7 +220,7 @@ export function ProjectResourceProvider({
       setProjectState,
       updateForkedProjectInfo,
       eventBus,
-    ],
+    ]
   );
 
   const updateProjectOnServer = useCallback(
@@ -230,7 +230,7 @@ export function ProjectResourceProvider({
         isTemporaryState: boolean;
         onSuccess?: () => void;
         onFail?: () => void;
-      },
+      }
     ) => {
       if (!_projectState.current) return;
 
@@ -307,7 +307,7 @@ export function ProjectResourceProvider({
       getProjectFromServer,
       putProjectRequest,
       setProjectState,
-    ],
+    ]
   );
 
   useEffect(() => {
@@ -367,7 +367,7 @@ export function ProjectResourceProvider({
       setProjectPermissions,
       setProjectState,
       updateProjectOnServer,
-    ],
+    ]
   );
 
   return (

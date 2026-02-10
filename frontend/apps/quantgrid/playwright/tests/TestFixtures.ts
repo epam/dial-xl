@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 import { workspaceRoot } from '@nx/devkit';
-import { Browser, BrowserContext, expect, Page } from '@playwright/test';
+import { Browser, expect, Page } from '@playwright/test';
 
 import { WorkArea } from '../components/abstractions/WorkArea';
 import { Canvas } from '../components/Canvas';
@@ -17,7 +17,6 @@ import {
 } from '../helpers/canvasExpects';
 import { SpreadSheet } from '../logic-entities/SpreadSheet';
 import { Table } from '../logic-entities/Table';
-import { LoginPage } from '../pages/LoginPage';
 import { ProjectPage } from '../pages/ProjectPage';
 import { ProjectSelection } from '../pages/ProjectSelection';
 
@@ -36,7 +35,7 @@ export class TestFixtures {
       workspaceRoot,
       'playwright',
       'run-state',
-      'folderName.txt',
+      'folderName.txt'
     );
 
     return fs.readFileSync(folderNameFile, 'utf-8').trim().split('\n');
@@ -44,9 +43,9 @@ export class TestFixtures {
 
   public static async createProjectNew(
     storagePath: string,
-    browser: BrowserContext,
+    browser: Browser,
     projectName: string,
-    spreadsheet: SpreadSheet,
+    spreadsheet: SpreadSheet
   ) {
     const initPage = await browser.newPage();
 
@@ -56,12 +55,12 @@ export class TestFixtures {
 
     let workPage = initPage;
     const folderNames = TestFixtures.getFolderName();
-    const pagePromise = browser.waitForEvent('page');
+    const pagePromise = browser.contexts()[0].waitForEvent('page');
     if (!(await startPage.addNewProject(projectName, folderNames))) {
       await startPage.openProject(projectName, folderNames);
     } else {
       await pagePromise;
-      workPage = browser.pages()[1];
+      workPage = browser.contexts()[0].pages()[1];
     }
     const projectPage = await ProjectPage.createInstance(workPage);
     await projectPage.addDSL(spreadsheet.toDsl());
@@ -69,7 +68,7 @@ export class TestFixtures {
     await this.expectCellTableToBeDisplayed(
       workPage,
       spreadsheet.getTable(0).getTop(),
-      spreadsheet.getTable(0).getLeft(),
+      spreadsheet.getTable(0).getLeft()
     );
     if (this.bucketId === '') {
       const projectUrl = workPage.url();
@@ -95,7 +94,7 @@ export class TestFixtures {
 
   public static async createProject(
     storagePath: string,
-    browser: BrowserContext,
+    browser: Browser,
     projectName: string,
     rowToCheck: number,
     columnToCheck: number,
@@ -108,26 +107,24 @@ export class TestFixtures {
     await initPage.goto('/');
     const startPage = new ProjectSelection(initPage);
     let workPage = initPage;
-    const pagePromise = browser.waitForEvent('page');
+    const pagePromise = browser.contexts()[0].waitForEvent('page');
     const folderNames = TestFixtures.getFolderName();
     if (!(await startPage.addNewProject(projectName, folderNames))) {
       await startPage.openProject(projectName, folderNames);
     } else {
       await pagePromise;
-      workPage = browser.pages()[1];
+      workPage = browser.contexts()[0].pages()[1];
     }
     const projectPage = await ProjectPage.createInstance(workPage);
-    let clickNeeded = true;
     for (const dsl of dsls) {
-      await projectPage.addDSL(dsl, clickNeeded);
-      clickNeeded = false;
+      await projectPage.addDSL(dsl);
     }
     await this.setDataMode(projectPage);
     await expectCellTextToBe(
       <Canvas>projectPage.getVisualization(),
       rowToCheck,
       columnToCheck,
-      nameToCheck,
+      nameToCheck
     );
     /* expect(await projectPage.getCellText(rowToCheck, columnToCheck)).toBe(
       nameToCheck
@@ -148,14 +145,14 @@ export class TestFixtures {
   public static async expectCellTableToBeDisplayed(
     page: Page,
     row: number,
-    column: number,
+    column: number
   ) {
     const projectPage = await ProjectPage.createInstance(page);
     //await this.changeDataMode(projectPage);
     await expectCellTextToBePresent(
       <Canvas>projectPage.getVisualization(),
       row,
-      column,
+      column
     );
     //  await expect(projectPage.getCellText(row + 1, column)).not.toBeEmpty();
   }
@@ -164,14 +161,14 @@ export class TestFixtures {
     await this.expectCellTableToBeDisplayed(
       page,
       table.getFirstCellCoord(),
-      table.getLeft(),
+      table.getLeft()
     );
   }
 
   public static async createEmptyProject(
     storagePath: string,
-    browser: BrowserContext,
-    projectName: string,
+    browser: Browser,
+    projectName: string
   ) {
     const initPage = await browser.newPage();
     await initPage.goto('/');
@@ -197,10 +194,7 @@ export class TestFixtures {
     await this.setDataMode(await ProjectPage.createInstance(page));
   }
 
-  public static async deleteProject(
-    browser: BrowserContext,
-    projectName: string,
-  ) {
+  public static async deleteProject(browser: Browser, projectName: string) {
     const cleaningPage = await browser.newPage();
     await cleaningPage.goto('/');
     const startPage = new ProjectSelection(cleaningPage);
@@ -213,10 +207,10 @@ export class TestFixtures {
   public static async deleteProjectFromPage(projectPage: ProjectPage) {
     await projectPage.performMenuCommand(
       MenuItems.File,
-      FileMenuItems.DeleteProject,
+      FileMenuItems.DeleteProject
     );
     const deleteProjectForm = new DeleteProjectForm(
-      projectPage.getPlaywrightPage(),
+      projectPage.getPlaywrightPage()
     );
     await deleteProjectForm.confirmDelete();
     await new Promise((resolve) => setTimeout(resolve, 300));
@@ -233,38 +227,5 @@ export class TestFixtures {
 
   public static addGuid(source: string) {
     return source + this.generateGUID();
-  }
-
-  public static async performLogin(
-    page: Page,
-    username: string,
-    password: string,
-    authType: string,
-  ) {
-    let loginPage: LoginPage | undefined;
-    switch (authType) {
-      case 'keycloak':
-        loginPage = LoginPage.createKeycloakPage(page);
-        break;
-      case 'auth0':
-        loginPage = LoginPage.createAuth0Page(page);
-        break;
-      default:
-        loginPage = undefined;
-    }
-    if (loginPage) await loginPage.doLogin(username, password);
-  }
-
-  public static getStoragePath() {
-    return path.resolve(
-      __dirname,
-      '..',
-      '..',
-      '..',
-      '..',
-      'playwright',
-      '.auth',
-      'user.json',
-    );
   }
 }

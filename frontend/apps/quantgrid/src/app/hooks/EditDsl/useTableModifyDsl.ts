@@ -45,7 +45,7 @@ export function useTableModifyDsl() {
           if (!overrideRow || Object.keys(overrideRow).length === 0) break;
 
           const isEmptyOverrideRow = Object.values(overrideRow).every(
-            (v) => !v,
+            (v) => !v
           );
 
           if (!isEmptyOverrideRow) break;
@@ -64,7 +64,7 @@ export function useTableModifyDsl() {
           // Move formula from override to field formula
           for (const overrideFieldName of Object.keys(overrideRow)) {
             const parsedField = fields.find(
-              (f) => f.key.fieldName === overrideFieldName,
+              (f) => f.key.fieldName === overrideFieldName
             );
 
             if (!parsedField) continue;
@@ -75,7 +75,7 @@ export function useTableModifyDsl() {
 
             table.setFieldFormula(
               parsedField.key.fieldName,
-              overrideValue.toString(),
+              overrideValue.toString()
             );
             changesMade = true;
           }
@@ -91,7 +91,7 @@ export function useTableModifyDsl() {
         // Remove manual decorator
         if (overrideRows === 1 || overrideRows === 0) {
           const manualDecorator = decorators.find(
-            (d) => d.decoratorName === manualTableDecoratorName,
+            (d) => d.decoratorName === manualTableDecoratorName
           );
 
           if (manualDecorator) {
@@ -143,7 +143,7 @@ export function useTableModifyDsl() {
       const historyTitle = `Clean up table "${tableName}"`;
       updateDSL({ updatedSheetContent: sheet.toDSL(), historyTitle });
     },
-    [findEditContext, updateDSL],
+    [findEditContext, updateDSL]
   );
 
   const addTableRowWithConvertToManualTable = useCallback(
@@ -175,7 +175,7 @@ export function useTableModifyDsl() {
             updatedOverrides.setFieldValueByIndex(
               fieldName,
               0,
-              existingOverride,
+              existingOverride
             );
           }
 
@@ -185,7 +185,7 @@ export function useTableModifyDsl() {
         updatedOverrides.setFieldValueByIndex(
           fieldName,
           0,
-          field.expressionMetadata?.text || null,
+          field.expressionMetadata?.text || null
         );
       }
 
@@ -202,13 +202,13 @@ export function useTableModifyDsl() {
       const historyTitle = `Convert table "${tableName}" to manual table and add row`;
       updateDSL({ updatedSheetContent: sheet.toDSL(), historyTitle });
     },
-    [findEditContext, updateDSL, viewGridData],
+    [findEditContext, updateDSL, viewGridData]
   );
 
   return {
     autoCleanUpTableDSL: useSafeCallback(autoCleanUpTableDSL),
     addTableRowWithConvertToManualTable: useSafeCallback(
-      addTableRowWithConvertToManualTable,
+      addTableRowWithConvertToManualTable
     ),
   };
 }

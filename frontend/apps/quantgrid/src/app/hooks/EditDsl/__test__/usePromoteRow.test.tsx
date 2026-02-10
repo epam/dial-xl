@@ -1,5 +1,3 @@
-import { vi } from 'vitest';
-
 import { act, RenderHookResult } from '@testing-library/react';
 
 import { usePromoteRow } from '../usePromoteRow';
@@ -21,7 +19,7 @@ describe('usePromoteRow', () => {
   });
 
   beforeEach(() => {
-    vi.clearAllMocks();
+    jest.clearAllMocks();
     const hookRender = hookTestSetup(usePromoteRow, Wrapper);
     hook = hookRender.result;
     setDsl = hookRender.setDsl;
@@ -40,7 +38,7 @@ describe('usePromoteRow', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Set row 0 in table t1 as field headers`,
-        [{ sheetName: props.sheetName, content: expectedDsl }],
+        [{ sheetName: props.sheetName, content: expectedDsl }]
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -60,7 +58,7 @@ describe('usePromoteRow', () => {
     // Assert
     expect(props.appendToFn).toHaveBeenCalledWith(
       `Set row 0 in table t1 as field headers`,
-      [{ sheetName: props.sheetName, content: expectedDsl }],
+      [{ sheetName: props.sheetName, content: expectedDsl }]
     );
     expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
       { sheetName: props.sheetName, content: expectedDsl },

@@ -38,7 +38,7 @@ export const useDashboardCreateMenuItems = (projects: string[]) => {
           icon: (
             <Icon
               className={classNames(
-                'w-[18px] text-text-secondary group-disabled:text-controls-text-disable',
+                'w-[18px] text-text-secondary group-disabled:text-controls-text-disable'
               )}
               component={() => <FolderPlusIcon />}
             />
@@ -51,7 +51,7 @@ export const useDashboardCreateMenuItems = (projects: string[]) => {
           icon: (
             <Icon
               className={classNames(
-                'w-[18px] text-text-secondary group-disabled:text-controls-text-disable',
+                'w-[18px] text-text-secondary group-disabled:text-controls-text-disable'
               )}
               component={() => <UploadIcon />}
             />
@@ -60,7 +60,7 @@ export const useDashboardCreateMenuItems = (projects: string[]) => {
           shortcut: 'Or Drag & Drop',
         }),
       ].filter(Boolean) as MenuProps['items'],
-    [handleCreateEmptyFolder, handleCreateNewProject, handleUploadFiles],
+    [handleCreateEmptyFolder, handleCreateNewProject, handleUploadFiles]
   );
 
   return { dropdownItems };

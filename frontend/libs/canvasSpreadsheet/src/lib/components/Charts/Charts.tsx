@@ -2,7 +2,7 @@ import cx from 'classnames';
 import { useEffect, useRef, useState } from 'react';
 
 import { GridTable } from '../../types';
-import { getPx, snap } from '../../utils';
+import { getPx } from '../../utils';
 import { Chart } from './Chart';
 import { ChartActions } from './chartActions';
 import { ChartTitle } from './chartTitle';
@@ -12,7 +12,7 @@ import { ToolBar } from './toolBar';
 import { Props } from './types';
 
 export function Charts({
-  apiRef,
+  api,
   chartData = {},
   charts = [],
   zoom = 1,
@@ -23,29 +23,24 @@ export function Charts({
 }: Props) {
   const [hoveredChart, setHoveredChart] = useState<string | null>(null);
   const [resizingChart, setResizingChart] = useState<string | null>(null);
-  const [selectedTable, setSelectedTable] = useState<string | null>(null);
+
   const { chartConfigs, viewportRef, containerRef } = useChartsLayer({
-    apiRef,
+    api,
     charts,
     zoom,
     columnSizes,
   });
 
-  const { hiddenCharts } = useHideCharts(apiRef, chartConfigs);
+  const { hiddenCharts } = useHideCharts(api, chartConfigs);
 
   const tableStructureRef = useRef<GridTable[]>([]);
   useEffect(() => {
     tableStructureRef.current = tableStructure;
   }, [tableStructure]);
 
-  useEffect(() => {
-    setSelectedTable(apiRef.current?.selectedTable ?? null);
-  }, [apiRef]);
-
   const {
     moveMode,
     moveEntity,
-    selectedChartName,
     handleChartResize,
     onLoadMoreKeys,
     onSelectKey,
@@ -56,13 +51,12 @@ export function Charts({
     handleDeleteChart,
     handleTableRename,
   } = useChartInteractions({
-    apiRef,
+    api,
     eventBus,
-    tableStructure,
+    tableStructure: tableStructureRef.current,
   });
 
   useEffect(() => {
-    const api = apiRef.current;
     if (!api) return;
 
     if (chartConfigs.length === 0) {
@@ -74,13 +68,13 @@ export function Charts({
     } else {
       api.setHasCharts(false);
     }
-  }, [chartConfigs, hiddenCharts, apiRef]);
+  }, [chartConfigs, hiddenCharts, api]);
 
   return (
     <div
       className={cx(
         'block fixed left-0 top-0 box-border pointer-events-none overflow-hidden bg-transparent z-103',
-        { 'opacity-50': moveEntity },
+        { 'opacity-50': moveEntity }
       )}
       ref={viewportRef}
     >
@@ -89,9 +83,6 @@ export function Charts({
           const isHovered = hoveredChart === chartConfig.tableName;
           const isResizingThis = resizingChart === chartConfig.tableName;
           const resizeVisible = isHovered || isResizingThis;
-          const isSelected = selectedChartName === chartConfig.tableName;
-          const hasHeader = chartConfig.showTitle || chartConfig.showToolbar;
-          const bw = snap(zoom);
 
           return (
             <div
@@ -106,8 +97,7 @@ export function Charts({
                     chartConfig={chartConfig}
                     isHidden={hiddenCharts.includes(chartConfig.tableName)}
                     isHovered={isHovered}
-                    isMoving={selectedTable === chartConfig.tableName}
-                    isSelected={selectedChartName === chartConfig.tableName}
+                    isMoving={api?.selectedTable === chartConfig.tableName}
                     moveMode={moveMode}
                     zoom={zoom}
                     onDeleteChart={() =>
@@ -126,8 +116,7 @@ export function Charts({
                   <ToolBar
                     chartConfig={chartConfig}
                     isHidden={hiddenCharts.includes(chartConfig.tableName)}
-                    isMoving={selectedTable === chartConfig.tableName}
-                    isSelected={selectedChartName === chartConfig.tableName}
+                    isMoving={api?.selectedTable === chartConfig.tableName}
                     moveMode={moveMode}
                     zoom={zoom}
                     onLoadMoreKeys={onLoadMoreKeys}
@@ -140,25 +129,20 @@ export function Charts({
 
               <div
                 className={cx(
-                  'absolute bg-bg-layer-3 box-border border-solid',
+                  'absolute border-[0.3px] border-stroke-primary bg-bg-layer-3',
                   {
-                    'bg-transparent': selectedTable === chartConfig.tableName,
-                    'z-100': selectedChartName === chartConfig.tableName,
-                  },
-                  isSelected
-                    ? 'border-stroke-accent-primary'
-                    : 'border-stroke-tertiary-inverted-alpha',
+                    'bg-transparent':
+                      api?.selectedTable === chartConfig.tableName,
+                    'border-t-0':
+                      chartConfig.showTitle || chartConfig.showToolbar,
+                  }
                 )}
-                data-chart-type={chartConfig.gridChart.chartType}
+                key={chartConfig.tableName}
                 style={{
                   left: getPx(chartConfig.left),
                   top: getPx(chartConfig.top),
                   width: getPx(chartConfig.width),
                   height: getPx(chartConfig.height),
-                  borderLeftWidth: bw,
-                  borderRightWidth: bw,
-                  borderBottomWidth: bw,
-                  borderTopWidth: hasHeader ? 0 : bw,
                   display: hiddenCharts.includes(chartConfig.tableName)
                     ? 'none'
                     : 'block',
@@ -179,9 +163,8 @@ export function Charts({
               </div>
 
               <ResizeHandler
-                apiRef={apiRef}
+                api={api}
                 chartConfig={chartConfig}
-                isSelected={selectedChartName === chartConfig.tableName}
                 visible={resizeVisible}
                 onChartResize={(cols, rows) => {
                   handleChartResize(chartConfig.tableName, cols, rows);

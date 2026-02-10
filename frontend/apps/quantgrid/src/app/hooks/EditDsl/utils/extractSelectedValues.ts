@@ -12,7 +12,7 @@ import {
  * @returns Array of selected values as strings
  */
 export function extractSelectedValues(
-  expression: FunctionExpression,
+  expression: FunctionExpression
 ): string[] {
   if (
     !expression?.arguments ||

@@ -23,7 +23,7 @@ import { useFieldFilterValues } from '../../hooks/useFilterValues';
 import {
   useEditorStore,
   useFormulaBarStore,
-  useUserSettingsStore,
+  useThemeStore,
   useViewStore,
 } from '../../store';
 import { getSelectedCell } from '../../utils';
@@ -48,15 +48,14 @@ export function SpreadsheetWrapper() {
   } = useContext(ProjectContext);
 
   const formulaBarMode = useFormulaBarStore((s) => s.formulaBarMode);
-  const theme = useUserSettingsStore((s) => s.data.appTheme);
-  const zoom = useUserSettingsStore((s) => s.data.zoom);
-  const showGridLines = useUserSettingsStore((s) => s.data.showGridLines);
+  const theme = useThemeStore((s) => s.theme);
   const isPointClickMode = useEditorStore((s) => s.isPointClickMode);
-  const { viewportInteractionMode, updateSelectedCell } = useViewStore(
+  const { zoom, viewportInteractionMode, updateSelectedCell } = useViewStore(
     useShallow((s) => ({
+      zoom: s.zoom,
       viewportInteractionMode: s.viewportInteractionMode,
       updateSelectedCell: s.updateSelectedCell,
-    })),
+    }))
   );
 
   const currentViewport = useRef<ViewportEdges | null>(null);
@@ -79,16 +78,16 @@ export function SpreadsheetWrapper() {
   const { systemMessageContent } = useSelectionSystemMessage();
   const { data, tableStructure, updateDataFromViewport } = useGridDataSync(
     currentViewport,
-    currentExtendedViewport,
+    currentExtendedViewport
   );
   const { viewportRef, onScroll } = useViewportManager(
     sendChartKeyViewports,
     updateDataFromViewport,
     currentViewport,
-    currentExtendedViewport,
+    currentExtendedViewport
   );
 
-  const { columnSizes } = useColumnSizes(viewportRef);
+  const { columnSizes } = useColumnSizes(viewportRef.current);
 
   const services = useGridServices(
     onScroll,
@@ -102,7 +101,7 @@ export function SpreadsheetWrapper() {
     {
       onUpdateControlValues,
       onCloseControl,
-    },
+    }
   );
 
   // Clear selection on sheet change
@@ -126,7 +125,7 @@ export function SpreadsheetWrapper() {
   // Grid events handling
   const handleGridEvent = useGridEvents();
   const gridEventBus = useMemo(() => createGridEventBus(), []);
-  const servicesRef = useRef<GridServices>(undefined);
+  const servicesRef = useRef<GridServices>();
 
   useEffect(() => {
     servicesRef.current = { ...services, data };
@@ -162,7 +161,6 @@ export function SpreadsheetWrapper() {
           isReadOnly={!isProjectEditable}
           parsedSheets={parsedSheets}
           sheetContent={sheetContent || ''}
-          showGridLines={showGridLines}
           systemMessageContent={systemMessageContent}
           tableStructure={tableStructure}
           theme={theme}

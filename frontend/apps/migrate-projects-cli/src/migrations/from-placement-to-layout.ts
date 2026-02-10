@@ -1,4 +1,3 @@
-// @ts-nocheck
 import yaml from 'yaml';
 
 export function fromPlacementToLayoutDecorator(content: string) {

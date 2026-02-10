@@ -1,3 +1,4 @@
+import { MenuInfo } from 'rc-menu/lib/interface';
 import { RefObject, useCallback } from 'react';
 
 import {
@@ -7,7 +8,6 @@ import {
   InsertChartContextMenuKeyData,
   TableArrangeType,
 } from '@frontend/common';
-import { MenuInfo } from '@rc-component/menu/lib/interface';
 
 import { useAIPrompt } from '../../../hooks/useAIPrompt';
 import { GridApi } from '../../../types';
@@ -30,7 +30,7 @@ const arrangeTableActions: Record<string, TableArrangeType> = {
 };
 
 export function useOnClickContextMenu({ apiRef, eventBus }: Props) {
-  const { openAIPrompt } = useAIPrompt(apiRef);
+  const { openAIPrompt } = useAIPrompt(apiRef.current);
 
   const onClickFormulaContextItem = useCallback(
     (action: string, data: FormulasContextMenuKeyData) => {
@@ -48,7 +48,7 @@ export function useOnClickContextMenu({ apiRef, eventBus }: Props) {
         return;
       }
     },
-    [eventBus],
+    [eventBus]
   );
 
   const onClickContextMenu = useCallback(
@@ -746,7 +746,7 @@ export function useOnClickContextMenu({ apiRef, eventBus }: Props) {
           break;
       }
     },
-    [apiRef, onClickFormulaContextItem, eventBus, openAIPrompt],
+    [apiRef, onClickFormulaContextItem, eventBus, openAIPrompt]
   );
 
   return {

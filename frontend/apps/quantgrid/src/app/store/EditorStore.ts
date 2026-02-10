@@ -27,7 +27,7 @@ export type EditorActions = {
   setEditMode: (m: Nullable<GridCellEditorMode>) => void;
   switchPointClickMode: (
     enabled: boolean,
-    source?: Nullable<PointClickModeSource>,
+    source?: Nullable<PointClickModeSource>
   ) => void;
 };
 
@@ -64,5 +64,5 @@ export const useEditorStore = create<EditorStore>()(
         pointClickModeSource: enabled ? source : null,
       });
     },
-  })),
+  }))
 );
