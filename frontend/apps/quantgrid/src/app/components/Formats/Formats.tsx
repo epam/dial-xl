@@ -493,7 +493,6 @@ export const Formats = () => {
               ? 'Select table column cell to being able to set format'
               : 'Select format'
           }
-          destroyOnHidden
         >
           <div className="h-7">
             <Dropdown
@@ -532,7 +531,6 @@ export const Formats = () => {
               ? 'Select table column cell to being able to set format'
               : 'Use percentage format'
           }
-          destroyOnHidden
         >
           <button
             className={classNames(
@@ -556,7 +554,6 @@ export const Formats = () => {
               ? 'Select table column cell to being able to set format'
               : 'Use thousand comma'
           }
-          destroyOnHidden
         >
           <button
             className={classNames(
@@ -596,7 +593,6 @@ export const Formats = () => {
                 ? 'Select table column cell to being able to set format'
                 : undefined
             }
-            destroyOnHidden
           >
             <Icon
               className={classNames('w-[18px]')}
@@ -630,7 +626,6 @@ export const Formats = () => {
                   ? 'Select table column cell to being able to set format'
                   : 'Reduce decimal amount'
               }
-              destroyOnHidden
             >
               <button
                 className="h-[18px] flex items-center text-text-secondary enabled:hover:text-text-accent-primary disabled:text-controls-text-disable disabled:cursor-not-allowed"
@@ -649,7 +644,6 @@ export const Formats = () => {
                   ? 'Select table column cell to being able to set format'
                   : 'Increase decimal amount'
               }
-              destroyOnHidden
             >
               <button
                 className="h-[18px] flex items-center text-text-secondary enabled:hover:text-text-accent-primary disabled:text-controls-text-disable disabled:cursor-not-allowed"
@@ -671,7 +665,6 @@ export const Formats = () => {
                   ? 'Select table column cell to being able to set format'
                   : 'Reduce significant digits amount'
               }
-              destroyOnHidden
             >
               <button
                 className="h-[18px] flex items-center text-text-secondary enabled:hover:text-text-accent-primary disabled:text-controls-text-disable disabled:cursor-not-allowed"
@@ -690,7 +683,6 @@ export const Formats = () => {
                   ? 'Select table column cell to being able to set format'
                   : 'Increase significant digits amount'
               }
-              destroyOnHidden
             >
               <button
                 className="h-[18px] flex items-center text-text-secondary enabled:hover:text-text-accent-primary disabled:text-controls-text-disable disabled:cursor-not-allowed"

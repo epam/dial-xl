@@ -245,10 +245,7 @@ export const EditAIHint = ({
         isProjectEditable ? (
           <div className="flex justify-between items-center">
             <div className="flex gap-2">
-              <Tooltip
-                title={isHintDisabled ? 'Enable hint' : 'Disable hint'}
-                destroyOnHidden
-              >
+              <Tooltip title={isHintDisabled ? 'Enable hint' : 'Disable hint'}>
                 <div>
                   <Form.Item
                     getValueProps={(value) => ({
@@ -265,7 +262,7 @@ export const EditAIHint = ({
               {!isNewHint && (
                 <div>
                   <button onClick={() => onDelete()}>
-                    <Tooltip title={'Remove hint'} destroyOnHidden>
+                    <Tooltip title={'Remove hint'}>
                       <Icon
                         className="w-[24px] text-text-secondary hover:text-text-accent-primary"
                         component={() => <TrashIcon />}
@@ -401,7 +398,6 @@ export const EditAIHint = ({
                                     ? 'Enable trigger'
                                     : 'Disable trigger'
                                 }
-                                destroyOnHidden
                               >
                                 <div>
                                   <Form.Item
@@ -419,7 +415,7 @@ export const EditAIHint = ({
                                   </Form.Item>
                                 </div>
                               </Tooltip>
-                              <Tooltip title="Remove trigger" destroyOnHidden>
+                              <Tooltip title="Remove trigger">
                                 <div className="h-[24px] flex items-center">
                                   <button
                                     className="h-full"

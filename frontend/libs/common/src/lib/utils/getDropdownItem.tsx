@@ -34,7 +34,6 @@ export function getDropdownItem(props: MenuItemProps): MenuItem {
       <button
         className="group flex justify-between items-center py-1 px-3 w-full"
         data-label={label}
-        data-qa={key}
         disabled={disabled}
         onClick={(e) => {
           if (disabled) return;
@@ -63,7 +62,6 @@ export function getDropdownItem(props: MenuItemProps): MenuItem {
           : {})}
         className="flex items-center py-1 px-3 gap-2 group size-full"
         data-label={label}
-        data-qa={key}
         disabled={disabled}
         onClick={(e) => {
           if (disabled) return;
@@ -85,7 +83,6 @@ export function getDropdownItem(props: MenuItemProps): MenuItem {
     <Tooltip
       className={classNames(disabled && 'hover:cursor-not-allowed')}
       title={tooltip}
-      destroyOnHidden
     >
       {buildLabel}
     </Tooltip>

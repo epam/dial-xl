@@ -295,11 +295,7 @@ export function ChartDataSection({
                         }
                       >
                         <div className="h-2 bg-transparent w-full" />
-                        <Tooltip
-                          placement="right"
-                          title="Add separator here"
-                          destroyOnHidden
-                        >
+                        <Tooltip placement="right" title="Add separator here">
                           <Icon
                             className="w-[18px] absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition"
                             component={() => (
@@ -318,11 +314,7 @@ export function ChartDataSection({
                     onClick={() => handleRemoveSeparator(index)}
                   >
                     <div className="h-0.5 bg-stroke-primary w-full" />
-                    <Tooltip
-                      placement="right"
-                      title="Remove separator"
-                      destroyOnHidden
-                    >
+                    <Tooltip placement="right" title="Remove separator">
                       <Icon
                         className="w-[18px] absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition text-accent-primary"
                         component={() => <CircleRemove />}

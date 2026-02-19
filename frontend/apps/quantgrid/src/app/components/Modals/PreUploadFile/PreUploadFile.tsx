@@ -16,7 +16,7 @@ import {
 import { useApiRequests } from '../../../hooks';
 import { createUniqueFileName } from '../../../services';
 import { isEntityNameInvalid, notAllowedSymbols } from '../../../utils';
-import { SelectResourceInput } from '../../SelectResourceInput';
+import { SelectFolderInput } from '../../SelectFolderInput';
 
 interface ResultedFile {
   file: File;
@@ -125,7 +125,7 @@ export function PreUploadFile({
   );
 
   const handleSelectFolder = useCallback(
-    (bucket: string, parentPath: string | null | undefined) => {
+    (parentPath: string | null | undefined, bucket: string) => {
       setPath(parentPath);
       setBucket(bucket);
     },
@@ -311,10 +311,10 @@ export function PreUploadFile({
             ))
           : null}
 
-        <SelectResourceInput
+        <SelectFolderInput
           bucket={bucket}
           path={path}
-          onSelect={handleSelectFolder}
+          onSelectFolder={handleSelectFolder}
         />
 
         <div className="flex flex-col gap-1">

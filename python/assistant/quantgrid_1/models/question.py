@@ -19,7 +19,10 @@ class Question(BaseModel):
     timestamp: AwareDatetime
     status: QuestionStatus
 
+    # All messages except agent answer
     history: list[Message]
+
+    # Enriched
     question: str
     answer: str
 

@@ -38,7 +38,7 @@ export function DraggableAreaContainer({
           </h3>
         </div>
         {errorMessage && (
-          <Tooltip placement="top" title={errorMessage} destroyOnHidden>
+          <Tooltip placement="top" title={errorMessage}>
             <Icon
               className="text-text-error w-[18px] mr-1"
               component={() => <ExclamationCircleIcon />}

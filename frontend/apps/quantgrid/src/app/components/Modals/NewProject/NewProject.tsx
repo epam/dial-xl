@@ -22,7 +22,7 @@ import {
 import { NewProjectModalRefFunction } from '../../../common';
 import { ProjectContext } from '../../../context';
 import { isEntityNameInvalid } from '../../../utils';
-import { SelectResourceInput } from '../../SelectResourceInput';
+import { SelectFolderInput } from '../../SelectFolderInput';
 
 const inputFieldKey = 'projectName';
 
@@ -127,7 +127,7 @@ export function NewProject({ newProjectModal }: Props) {
   );
 
   const handleSelectFolder = useCallback(
-    (bucket: string, parentPath: string | null | undefined) => {
+    (parentPath: string | null | undefined, bucket: string) => {
       setProjectPath(parentPath);
       setProjectBucket(bucket);
     },
@@ -177,11 +177,11 @@ export function NewProject({ newProjectModal }: Props) {
     >
       <div className="flex flex-col gap-3">
         {projectBucket && (
-          <SelectResourceInput
+          <SelectFolderInput
             bucket={projectBucket}
             inputLabel="Create in"
             path={projectPath}
-            onSelect={handleSelectFolder}
+            onSelectFolder={handleSelectFolder}
           />
         )}
 

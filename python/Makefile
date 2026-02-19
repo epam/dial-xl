@@ -6,7 +6,10 @@ install_client:
 install_assistant:
 	make -C assistant install
 
-install_all: install_client install_assistant
+install_converter:
+	make -C question-converter init
+
+install_all: install_client install_assistant install_converter
 
 build_client_package:
 	make -C xl-client build

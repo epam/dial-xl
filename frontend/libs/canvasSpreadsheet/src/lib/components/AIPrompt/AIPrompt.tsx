@@ -894,7 +894,7 @@ export function AIPrompt({
                                 <span className="shrink-0 flex items-center">
                                   {item.icon}
                                 </span>
-                                <Tooltip title={item.label} destroyOnHidden>
+                                <Tooltip title={item.label}>
                                   <span className="truncate">{item.label}</span>
                                 </Tooltip>
                               </span>

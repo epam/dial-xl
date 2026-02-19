@@ -74,7 +74,6 @@ export function PanelToolbar({
             open={isExpandTooltipOpen}
             placement="bottom"
             title={expanded ? `Collapse panel` : `Expand panel`}
-            destroyOnHidden
             onOpenChange={setIsExpandTooltipOpen}
           >
             <Icon
@@ -111,7 +110,6 @@ export function PanelToolbar({
             open={isCollapseTooltipOpen}
             placement="bottom"
             title="Minimize panel"
-            destroyOnHidden
             onOpenChange={setIsCollapseTooltipOpen}
           >
             <Icon

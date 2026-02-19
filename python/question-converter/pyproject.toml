@@ -1,0 +1,97 @@
+[build-system]
+build-backend = "poetry.core.masonry.api"
+requires = ["poetry-core"]
+
+[project]
+authors = [{ name = "Deltix" }]
+description = "DIAL XL Question to Test Converter"
+name = "question-converter"
+version = "0.0.1"
+readme = "README.md"
+requires-python = ">= 3.12, < 4.0"
+
+dependencies = [
+    "aidial-sdk (>= 0.25, < 0.26)",
+    "aidial-rag-eval (== 0.2.0)",
+    "antlr4-python3-runtime (== 4.13.2)",
+    "atpublic (>= 6.0, < 7.0)",
+    "click (>= 8.0, < 9.0)",
+    "dial-xl",
+    "jinja2 (>= 3.0, < 4.0)",
+    "langchain-core (>= 0.3, < 0.4)",
+    "langchain-openai (>= 0.3, < 0.4)",
+    "pydantic (>= 2.0, < 4.0)",
+    "python-dotenv (>= 1.0, < 2.0)",
+    "rich (>= 14.0, < 15.0)",
+    "qg"
+]
+
+[tool.poetry]
+exclude = [
+    "src/dial/*.py",
+    "src/dial/xl/*.py"
+]
+
+packages = [
+    { include = "dial", from = "src" }
+]
+
+[tool.poetry.dependencies]
+dial-xl = { path = "../xl-client", develop = true }
+qg = { path = "../assistant", develop = true }
+
+[tool.poetry.scripts]
+xl-converter-cli = "dial.xl.converter.cli.script:main"
+
+# Dependency Groups
+
+[tool.poetry.group.dev.dependencies]
+antlr4-tools = "^0.2.2"
+
+[tool.poetry.group.lint.dependencies]
+mypy = "^1.0"
+ruff = "^0.9"
+
+types-antlr4-python3-runtime = ">= 4.13, < 4.14"
+
+[tool.poetry.group.test.dependencies]
+pytest = "^8.0"
+pytest-asyncio = "^1.0"
+pytest-datadir = "^1.0"
+
+# Linter Tools
+
+[tool.ruff]
+extend-exclude = ["src/dial/xl/converter/grammar"]
+
+[tool.ruff.lint]
+ignore = ["E203", "E501", "E701"]
+select = [
+    "E", "F", "W", "C90", "I", "UP", "ANN2", "ASYNC", "BLE", "FBT", "B", "A", "C4", "DTZ",
+    "EM", "ISC", "PYI", "PT", "RSE", "RET", "SLF", "SIM", "TID", "PTH", "PLE1", "TRY"
+]
+
+[tool.ruff.lint.isort]
+combine-as-imports = true
+known-first-party = ["dial.*", "tests.*"]
+lines-between-types = 1
+
+[tool.mypy]
+exclude = [".venv", "src/dial/xl/converter/grammar"]
+explicit_package_bases = true
+mypy_path = "$MYPY_CONFIG_FILE_DIR/src"
+plugins = ["pydantic.mypy"]
+python_version = "3.12"
+strict = true
+untyped_calls_exclude = ["dial.xl.converter.grammar"]
+
+[[tool.mypy.overrides]]
+module = ["aidial_rag_eval.*", "aidial_sdk.*", "dial_xl.*", "quantgrid.*", "quantgrid_1.*"]
+ignore_missing_imports = true
+
+# Testing Tools
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+addopts = ["--import-mode=importlib", "--tb=short"]
+testpaths = ["tests"]

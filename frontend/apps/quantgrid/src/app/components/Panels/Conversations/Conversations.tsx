@@ -151,7 +151,7 @@ export const Conversations = () => {
         return {
           key,
           title: isUserLocalConversation ? (
-            <Tooltip placement="top" title={name} destroyOnHidden>
+            <Tooltip placement="top" title={name}>
               <span
                 className="truncate flex justify-between group items-center"
                 id={key}
@@ -169,11 +169,7 @@ export const Conversations = () => {
             </span>
           ),
           icon: isUserLocalConversation ? (
-            <Tooltip
-              placement="top"
-              title="This chat is visible only for you"
-              destroyOnHidden
-            >
+            <Tooltip placement="top" title="This chat is visible only for you">
               <Icon
                 className="text-text-secondary w-[18px]"
                 component={() =>

@@ -64,12 +64,7 @@ export function CellEditorTooltip({
           </span>
         )}
         {CellEditorModes[editMode].title && (
-          <Tooltip
-            mouseEnterDelay={1}
-            placement="bottom"
-            title="Hide tooltip"
-            destroyOnHidden
-          >
+          <Tooltip mouseEnterDelay={1} placement="bottom" title="Hide tooltip">
             <span
               className="px-2 cursor-pointer"
               onClick={() => {

@@ -78,7 +78,7 @@ export function FileListItemMenu({
         item.parentPath === projectFolderAppdata));
 
   const handleMoveToFolder = useCallback(
-    async (bucket: string, path: string | null | undefined) => {
+    async (path: string | null | undefined, bucket: string) => {
       setSelectFolderModalOpen(false);
 
       await moveResources([item], path, bucket, () => refetchData());

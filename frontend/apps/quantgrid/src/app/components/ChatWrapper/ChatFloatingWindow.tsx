@@ -187,7 +187,7 @@ export function ChatFloatingWindow() {
               DIAL Chat
             </span>
           </div>
-          <Tooltip placement="top" title="Move Chat to Panel" destroyOnHidden>
+          <Tooltip placement="top" title="Move Chat to Panel">
             <Icon
               className="shrink-0 w-4 text-text-secondary mr-2"
               component={() => <DialChatLogoIcon />}
@@ -197,7 +197,6 @@ export function ChatFloatingWindow() {
           <Tooltip
             placement="top"
             title={expanded ? 'Restore Chat' : 'Expand Chat'}
-            destroyOnHidden
           >
             <Icon
               className={cx('shrink-0 w-[14px] text-text-secondary mr-2', {
@@ -210,7 +209,7 @@ export function ChatFloatingWindow() {
               onClick={toggleExpanded}
             />
           </Tooltip>
-          <Tooltip placement="top" title="Close Chat" destroyOnHidden>
+          <Tooltip placement="top" title="Close Chat">
             <Icon
               className="shrink-0 w-[14px] text-text-secondary mr-2"
               component={() => <CloseIcon />}

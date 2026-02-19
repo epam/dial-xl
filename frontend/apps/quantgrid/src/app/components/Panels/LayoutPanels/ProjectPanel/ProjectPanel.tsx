@@ -110,11 +110,7 @@ export function ProjectPanel({
           content={<ProjectTree />}
           headerExtra={
             isDefaultMode ? (
-              <Tooltip
-                placement="bottom"
-                title="Create worksheet"
-                destroyOnHidden
-              >
+              <Tooltip placement="bottom" title="Create worksheet">
                 <button className="size-[22px] flex items-center justify-center bg-bg-accent-primary-alpha text-text-accent-primary rounded-full">
                   <Icon
                     className="w-3"
@@ -143,7 +139,6 @@ export function ProjectPanel({
                   className="opacity-0 transition-opacity duration-200 ease-in-out pointer-events-none group-hover/panel:opacity-100 group-hover/panel:pointer-events-auto"
                   placement="bottom"
                   title="Import Conversation"
-                  destroyOnHidden
                 >
                   <Icon
                     className={classNames(iconClasses, 'w-[18px]')}
@@ -151,11 +146,7 @@ export function ProjectPanel({
                     onClick={handleImportConversation}
                   />
                 </Tooltip>
-                <Tooltip
-                  placement="bottom"
-                  title="Create new conversation"
-                  destroyOnHidden
-                >
+                <Tooltip placement="bottom" title="Create new conversation">
                   <button
                     className="size-[22px] flex items-center justify-center bg-bg-accent-primary-alpha text-text-accent-primary rounded-full"
                     onClick={handleCreateConversation}
@@ -183,7 +174,6 @@ export function ProjectPanel({
                   className="opacity-0 transition-opacity duration-200 ease-in-out pointer-events-none group-hover/panel:opacity-100 group-hover/panel:pointer-events-auto"
                   placement="bottom"
                   title="Import AI Hints"
-                  destroyOnHidden
                 >
                   <Icon
                     className={classNames(iconClasses, 'w-[18px]')}
@@ -196,7 +186,6 @@ export function ProjectPanel({
                 className="opacity-0 transition-opacity duration-200 ease-in-out pointer-events-none group-hover/panel:opacity-100 group-hover/panel:pointer-events-auto"
                 placement="bottom"
                 title="Export AI Hints"
-                destroyOnHidden
               >
                 <Icon
                   className={classNames(iconClasses, 'w-[18px]')}
@@ -205,11 +194,7 @@ export function ProjectPanel({
                 />
               </Tooltip>
               {isDefaultMode && (
-                <Tooltip
-                  placement="bottom"
-                  title="Add new hint"
-                  destroyOnHidden
-                >
+                <Tooltip placement="bottom" title="Add new hint">
                   <button
                     className="size-[22px] flex items-center justify-center bg-bg-accent-primary-alpha text-text-accent-primary rounded-full group-disabled:text-controls-text-disable group-disabled:bg-controls-bg-disable"
                     onClick={() => isProjectEditable && newHintsModal()}
@@ -237,7 +222,6 @@ export function ProjectPanel({
                   className="opacity-0 transition-opacity duration-200 ease-in-out pointer-events-none group-hover/panel:opacity-100 group-hover/panel:pointer-events-auto"
                   placement="bottom"
                   title="Import input"
-                  destroyOnHidden
                 >
                   <Icon
                     className={classNames(iconClasses, 'w-[18px]')}
@@ -245,7 +229,7 @@ export function ProjectPanel({
                     onClick={() => !inputsAddDisabled && importInput()}
                   />
                 </Tooltip>
-                <Tooltip placement="bottom" title="Upload file" destroyOnHidden>
+                <Tooltip placement="bottom" title="Upload file">
                   <button
                     className="size-[22px] flex items-center justify-center bg-bg-accent-primary-alpha text-text-accent-primary rounded-full"
                     onClick={() => !inputsAddDisabled && uploadFiles()}

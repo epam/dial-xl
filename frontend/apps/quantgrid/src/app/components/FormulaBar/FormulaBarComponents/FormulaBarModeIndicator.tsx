@@ -39,7 +39,6 @@ export function FormulaBarModeIndicator() {
       >
         <Tooltip
           title={formulaBarMode === 'value' ? 'Value mode' : 'Formula mode'}
-          destroyOnHidden
         >
           <Tag
             className={cx(

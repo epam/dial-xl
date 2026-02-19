@@ -10,7 +10,6 @@ from testing.framework import (
     code_regex,
     find_unsorted,
 )
-from testing.framework.expected_actions import EditField
 
 
 async def test_rows_count(casualties_project: FrameProject):
@@ -90,10 +89,7 @@ async def test_common_loss(casualties_project: FrameProject):
     answer = await casualties_project.query(
         "Please exclude NA values and try again.", expectation=gt_answer
     )
-    answer.assertion(
-        Text(regex="(?i).*common.*")
-        & (AddField(validator=validate_third) | EditField(validator=validate_third))
-    )
+    answer.assertion(Text(regex="(?i).*common.*") & AddField(validator=validate_third))
 
 
 async def test_highest_reserves(casualties_project: FrameProject):

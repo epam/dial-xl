@@ -236,7 +236,7 @@ export const SheetSelect = () => {
           )}
         </div>
         {isDefaultMode && (
-          <Tooltip placement="bottom" title="Create worksheet" destroyOnHidden>
+          <Tooltip placement="bottom" title="Create worksheet">
             <button
               className={classNames(
                 'flex items-center justify-center p-2 h-full shrink-0 text-sm text-text-secondary hover:bg-bg-accent-primary-alpha'

@@ -70,7 +70,7 @@ export function ChatPanel({ panelName, position, isActive }: PanelProps) {
         return getDropdownItem({
           key: `${item.id}_${i}`,
           label: (
-            <Tooltip placement="top" title={formattedName} destroyOnHidden>
+            <Tooltip placement="top" title={formattedName}>
               <span
                 className={classNames(
                   'flex items-center gap-1',
@@ -99,7 +99,6 @@ export function ChatPanel({ panelName, position, isActive }: PanelProps) {
               <Tooltip
                 placement="top"
                 title="This chat is visible only for you"
-                destroyOnHidden
               >
                 <Icon
                   className="text-text-secondary w-[18px] shrink-0"
@@ -108,7 +107,7 @@ export function ChatPanel({ panelName, position, isActive }: PanelProps) {
                   )}
                 />
               </Tooltip>
-              <Tooltip placement="top" title={item.name} destroyOnHidden>
+              <Tooltip placement="top" title={item.name}>
                 <span
                   className={classNames(
                     'truncate max-w-[270px]',
@@ -295,11 +294,7 @@ export function ChatPanel({ panelName, position, isActive }: PanelProps) {
                 component={() => <DotsIcon />}
               />
             </Dropdown>
-            <Tooltip
-              placement="bottom"
-              title="Create new conversation"
-              destroyOnHidden
-            >
+            <Tooltip placement="bottom" title="Create new conversation">
               <button
                 className="size-5 flex items-center justify-center bg-bg-accent-primary-alpha text-text-accent-primary rounded-full"
                 onClick={createConversation}

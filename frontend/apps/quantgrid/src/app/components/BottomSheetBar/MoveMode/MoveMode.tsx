@@ -37,7 +37,6 @@ export function MoveMode() {
               title={`Enable Select Mode (${shortcutApi.getLabel(
                 Shortcut.ChangeViewportInteractionMode
               )})`}
-              destroyOnHidden
             >
               <Icon
                 className={cx(
@@ -59,7 +58,6 @@ export function MoveMode() {
               title={`Enable Pan Mode (${shortcutApi.getLabel(
                 Shortcut.ChangeViewportInteractionMode
               )})`}
-              destroyOnHidden
             >
               <Icon
                 className={cx(

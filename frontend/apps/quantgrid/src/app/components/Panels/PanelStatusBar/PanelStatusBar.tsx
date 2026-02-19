@@ -71,7 +71,6 @@ export const PanelStatusBar = forwardRef(function PanelStatusBar(
             <Tooltip
               placement={isLeftPanel ? 'right' : isRightPanel ? 'left' : 'top'}
               title={p.title}
-              destroyOnHidden
             >
               <div
                 className={cx(

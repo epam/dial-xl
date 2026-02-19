@@ -222,7 +222,7 @@ export function ChartSeriesSection({
             showText={() => (
               <div className="flex items-center">
                 {selectedColor && (
-                  <Tooltip title="Remove series color" destroyOnHidden>
+                  <Tooltip title="Remove series color">
                     <Icon
                       className="w-[18px] text-text-primary mr-1"
                       component={() => <CloseIcon />}

@@ -143,7 +143,6 @@ export function ProjectTitle() {
                 <span>Author: {projectAuthor ?? '-'}</span>
               </div>
             }
-            destroyOnHidden
           >
             <span
               className={cx(

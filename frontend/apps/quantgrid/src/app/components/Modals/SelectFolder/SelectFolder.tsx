@@ -51,7 +51,7 @@ const fuseOptions: Fuse.IFuseOptions<any> = {
 type Props = {
   initialPath: string | null | undefined;
   initialBucket: string;
-  onOk: (bucket: string, parentPath: string | null | undefined) => void;
+  onOk: (parentPath: string | null | undefined, bucket: string) => void;
   onCancel: () => void;
 };
 
@@ -381,12 +381,12 @@ export function SelectFolder({
             disabled={!currentBucket}
             onClick={() =>
               onOk(
-                currentBucket!,
                 selectedFolder
                   ? [selectedFolder.parentPath, selectedFolder.name]
                       .filter(Boolean)
                       .join('/')
-                  : currentPath
+                  : currentPath,
+                currentBucket!
               )
             }
           >

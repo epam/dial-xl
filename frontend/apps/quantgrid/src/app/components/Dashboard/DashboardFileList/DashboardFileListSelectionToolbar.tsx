@@ -160,7 +160,7 @@ export function DashboardFileListSelectionToolbar() {
   }, []);
 
   const handleMoveToFolder = useCallback(
-    async (bucket: string, path: string | null | undefined) => {
+    async (path: string | null | undefined, bucket: string) => {
       setSelectFolderModalOpen(false);
 
       await moveResources(selectedItems, path, bucket, () => refetchData());
@@ -252,7 +252,7 @@ const SelectionToolbarButton = ({
   IconComponent,
 }: SelectionToolbarButtonProps) => {
   return (
-    <Tooltip placement="bottom" title={title} destroyOnHidden>
+    <Tooltip placement="bottom" title={title}>
       <button className="flex items-center mr-4" onClick={onClick}>
         <Icon
           className="w-[18px] text-text-secondary hover:text-text-accent-primary"

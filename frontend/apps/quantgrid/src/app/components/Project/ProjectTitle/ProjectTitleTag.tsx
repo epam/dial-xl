@@ -22,7 +22,7 @@ export function ProjectTitleTag({
   textClasses = '',
 }: ProjectTitleTagProps) {
   return (
-    <Tooltip placement="bottom" title={tooltipText} destroyOnHidden>
+    <Tooltip placement="bottom" title={tooltipText}>
       <div
         className={cx(
           'flex items-center px-2 leading-[18px] rounded-[30px] border',

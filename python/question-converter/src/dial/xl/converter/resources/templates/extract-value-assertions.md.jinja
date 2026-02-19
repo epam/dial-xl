@@ -1,0 +1,41 @@
+You are preparing a test case that checks an answer to user query against ground truth.
+
+You need to select columns from the ground truth answer which will be checked row-by-row in the unit test.
+For each column think, is the answer wrong without a column? If so, there is no need in this column. Write the reasoning.
+If needed, you can add a limit to the number of rows checked (e.g., to only check top N values) when only a subset is sufficient to validate correctness.
+
+You will be given original project state, user question, a project state containing the ground truth answer and the answer itself.
+
+<original project state>
+    {% for sheet, code in original_sheets.items() %}
+    <sheet {{ sheet }}>
+
+    {{ code | indent(4) }}
+
+    </sheet {{ sheet }}>
+    {% endfor %}
+</original project state>
+
+<user query>
+{{ query_text }}
+</user query>
+
+<agent answer>
+{{ canonical_answer }}
+</agent answer>
+
+<solution project state>
+    {% for sheet, code in canonical_solution.items() %}
+    <sheet {{ sheet }}>
+
+    {{ code | indent(4) }}
+
+    </sheet {{ sheet }}>
+    {% endfor %}
+</solution project state>
+
+<state difference>
+{% for action in diff %}
+{{ action.model_dump_json(indent=4) }}
+{% endfor %}
+</state difference>

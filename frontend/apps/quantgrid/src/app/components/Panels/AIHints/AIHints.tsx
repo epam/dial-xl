@@ -79,7 +79,6 @@ export const AIHints = () => {
                   <div className="shrink-0 hidden group-hover:flex gap-1 items-center h-[18px]">
                     <Tooltip
                       title={hint.isDisabled ? 'Enable hint' : 'Disable hint'}
-                      destroyOnHidden
                     >
                       <button
                         onClick={(e) => {
@@ -97,7 +96,7 @@ export const AIHints = () => {
                         />
                       </button>
                     </Tooltip>
-                    <Tooltip title="Remove hint" destroyOnHidden>
+                    <Tooltip title="Remove hint">
                       <button
                         onClick={(e) => {
                           e.preventDefault();

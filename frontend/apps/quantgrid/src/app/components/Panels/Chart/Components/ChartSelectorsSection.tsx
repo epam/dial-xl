@@ -192,7 +192,7 @@ function RemoveButton({
   onClick: MouseEventHandler<HTMLButtonElement>;
 }) {
   return (
-    <Tooltip placement="top" title="Remove Selector" destroyOnHidden>
+    <Tooltip placement="top" title="Remove Selector">
       <button className="flex items-center" onClick={onClick}>
         <Icon
           className="w-[18px] ml-2 text-text-secondary hover:text-text-accent-primary"

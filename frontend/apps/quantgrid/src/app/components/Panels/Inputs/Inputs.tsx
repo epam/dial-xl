@@ -68,7 +68,7 @@ export function Inputs() {
   );
 
   const handleMoveToFolder = useCallback(
-    async (bucket: string, path: string | null | undefined) => {
+    async (path: string | null | undefined, bucket: string) => {
       if (!moveItem) return;
 
       await moveResources([moveItem], path, bucket, () => {

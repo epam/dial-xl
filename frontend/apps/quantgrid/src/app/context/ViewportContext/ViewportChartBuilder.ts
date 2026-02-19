@@ -15,17 +15,17 @@ import { ViewGridData } from './ViewGridData';
 const defaultChartViewportRows = 1000;
 
 /**
- * Class which is generating viewport request considering tablesData
+ * Class which is generating viewports request considering tablesData
  */
 export class ViewportChartBuilder {
   protected viewGridData: ViewGridData;
 
-  protected cachedChartViewports: Map<string, Set<string>>;
+  protected cachedChartViewports: Set<string>;
 
   constructor(viewGridData: ViewGridData) {
     this.viewGridData = viewGridData;
 
-    this.cachedChartViewports = new Map();
+    this.cachedChartViewports = new Set();
   }
 
   public buildChartViewportRequest(
@@ -33,7 +33,7 @@ export class ViewportChartBuilder {
     tablesWithoutSelectors: ChartTableWithoutSelectors[]
   ): Viewport[] {
     const viewportsToRequest: Viewport[] = [];
-    const requestTableNames = new Map<string, string[]>();
+    const requestTableNames = new Set<string>();
 
     const mergedSelectedKeys = [...selectedKeys];
 
@@ -63,6 +63,8 @@ export class ViewportChartBuilder {
 
       const unescapedTableName = unescapeTableName(tableName);
 
+      // Handle table only once
+      if (this.cachedChartViewports.has(tableName)) continue;
       if (
         viewportsToRequest.some(
           (v) => v?.fieldKey?.table === unescapedTableName
@@ -76,19 +78,6 @@ export class ViewportChartBuilder {
       if (Object.keys(tableData.types).length === 0) continue;
 
       const fieldsToRequest: string[] = this.collectFieldsToRequest(tableData);
-
-      // Check if we already cached this table with the same fields
-      const cachedFields = this.cachedChartViewports.get(tableName);
-      if (cachedFields) {
-        const fieldsToRequestSet = new Set(fieldsToRequest);
-        const allFieldsCached = fieldsToRequest.every((field) =>
-          cachedFields.has(field)
-        );
-        const sameSizeFields = cachedFields.size === fieldsToRequestSet.size;
-
-        // Skip the request if all fields are already cached
-        if (allFieldsCached && sameSizeFields) continue;
-      }
       const rowNumberKey = mergedSelectedKeys.find(
         (key) =>
           key.fieldName === chartRowNumberSelector &&
@@ -96,7 +85,7 @@ export class ViewportChartBuilder {
       );
 
       // Special case for horizontal pie/bar chart:
-      // row number selector works as a numeric field selector, need to receive all table data
+      // row number selector works as numeric field selector, need to receive all table data
       const isHorizontalChart =
         tableData.table.getChartOrientation() === 'horizontal';
 
@@ -116,19 +105,12 @@ export class ViewportChartBuilder {
       }
 
       if (fieldsToRequest.length) {
-        requestTableNames.set(tableName, fieldsToRequest);
+        requestTableNames.add(tableName);
       }
     }
 
-    requestTableNames.forEach((fieldsToRequest, tableName) => {
-      const existingFields = this.cachedChartViewports.get(tableName);
-      if (existingFields) {
-        // Merge with existing fields
-        fieldsToRequest.forEach((field) => existingFields.add(field));
-      } else {
-        // Create a new entry
-        this.cachedChartViewports.set(tableName, new Set(fieldsToRequest));
-      }
+    requestTableNames.forEach((tableName) => {
+      this.cachedChartViewports.add(tableName);
     });
 
     return viewportsToRequest;
@@ -197,7 +179,7 @@ export class ViewportChartBuilder {
   ): void {
     const { tableName, fieldName, key } = selectedKey;
 
-    // 1. Find a key row in table data (only a single key per table is supported)
+    // 1. Find key row in table data (only single key per table is supported)
     let row = -1;
     const tableData = this.viewGridData.getTableData(tableName);
 
@@ -219,7 +201,7 @@ export class ViewportChartBuilder {
 
     if (row === -1) return;
 
-    // 2. Create a viewport request for the chart only for PERIOD_SERIES fields
+    // 2. Create viewport request for chart only for PERIOD_SERIES fields
     const fields: string[] = [];
     for (const field of Object.keys(tableData.types)) {
       if (tableData.types[field] === ColumnDataType.PERIOD_SERIES) {
@@ -244,6 +226,6 @@ export class ViewportChartBuilder {
   }
 
   clear() {
-    this.cachedChartViewports = new Map();
+    this.cachedChartViewports = new Set();
   }
 }
