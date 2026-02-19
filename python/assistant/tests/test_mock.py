@@ -43,7 +43,7 @@ async def test_mock(
     actions_graph: CompiledStateGraph[ActionsAgentState, Context],
     mock_context: Callable[[Project, str], Context],
 ) -> None:
-    path = Path("tests/test_resources/disney.dsl")
+    path = Path("tests/test_resources/project1.dsl")
     code = path.read_bytes().decode("utf-8")
 
     project = await create_project(xl_client, "test_mock", {"Main": code})
@@ -70,7 +70,7 @@ async def test_advertisers_quarter_with_growth(
     actions_graph: CompiledStateGraph[ActionsAgentState, Context],
     mock_context: Callable[[Project, str], Context],
 ) -> None:
-    path = Path("tests/test_resources/disney.dsl")
+    path = Path("tests/test_resources/project1.dsl")
     code = path.read_bytes().decode("utf-8")
 
     project = await create_project(
@@ -99,7 +99,7 @@ async def test_advertisers_percentage_of_linear_revenue(
     actions_graph: CompiledStateGraph[ActionsAgentState, Context],
     mock_context: Callable[[Project, str], Context],
 ) -> None:
-    path = Path("tests/test_resources/disney.dsl")
+    path = Path("tests/test_resources/project1.dsl")
     code = path.read_bytes().decode("utf-8")
 
     project = await create_project(
