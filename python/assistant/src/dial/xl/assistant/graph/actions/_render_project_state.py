@@ -21,7 +21,6 @@ async def render_project_state(
     workspace_message_template = resources.template_files["workspace"].template
     return workspace_message_template.render(
         original_content=original_content,
-        project_code=snapshot.sheets,
         project_data=formatted_data,
         visible_rows=context.actions_agent_config.xl_row_count,
     )

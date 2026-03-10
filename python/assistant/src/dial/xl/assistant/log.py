@@ -1,5 +1,4 @@
 import logging.config
-import os
 import random
 
 from collections.abc import Generator
@@ -13,14 +12,15 @@ from pydantic import BaseModel
 from sqids.sqids import Sqids
 from uvicorn.logging import DefaultFormatter
 
-LOG_LEVEL = os.getenv("LOG_LEVEL", "WARNING")
+from dial.xl.assistant.env import ENV
 
 LOG_DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 LOG_MESSAGE_FORMAT = (
     "%(levelprefix)s | %(asctime)s | %(name)s | %(session)s | %(message)s"
 )
 
-LOGGER_ROOT = "dial.xl.assistant"
+SRC_ROOT = "dial.xl.assistant"
+TESTS_ROOT = "tests"
 LOGGER_SESSION_CONTEXT: ContextVar[str | None] = ContextVar(
     "dial.xl.assistant.log:name", default=None
 )
@@ -77,10 +77,11 @@ class LogConfig(BaseModel):
     }
 
     loggers: dict[str, Any] = {
-        LOGGER_ROOT: {"handlers": ["default"], "level": LOG_LEVEL},
+        SRC_ROOT: {"handlers": ["default"], "level": ENV.log_level},
+        TESTS_ROOT: {"handlers": ["default"], "level": ENV.log_level},
         "uvicorn": {
             "handlers": ["default"],
-            "level": LOG_LEVEL,
-            "propagate": False,
+            "level": ENV.log_level,
+            "propagate": True,
         },
     }

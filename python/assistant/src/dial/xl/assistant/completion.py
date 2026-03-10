@@ -29,11 +29,13 @@ from langchain_core.runnables import RunnableConfig
 from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph.state import CompiledStateGraph
-from langgraph.types import Command, StateSnapshot
+from langgraph.types import Command
 from public import private, public
 from pydantic import SecretStr, StrictStr
 
 from dial.xl.assistant.config.assistant_config import AssistantConfig
+from dial.xl.assistant.dto.checkpoint import CheckpointDTO
+from dial.xl.assistant.dto.configuration_parameters import ConfigurationParametersDTO
 from dial.xl.assistant.dto.generation_parameters import GenerationParametersDTO
 from dial.xl.assistant.dto.message_state import MessageStateDTO
 from dial.xl.assistant.dto.project_state import ProjectStateDTO
@@ -44,6 +46,10 @@ from dial.xl.assistant.graph.actions.config import ActionsAgentConfig
 from dial.xl.assistant.graph.actions.graph import create_actions_graph
 from dial.xl.assistant.graph.actions.state import ActionsAgentState
 from dial.xl.assistant.graph.artifact import ProjectArtifact
+from dial.xl.assistant.graph.checkpointer import (
+    DIALChatCheckpointAdapter,
+    DIALChatCheckpointContext,
+)
 from dial.xl.assistant.graph.context import Context
 from dial.xl.assistant.graph.interrupts import (
     AnyInterruptResponse,
@@ -60,6 +66,7 @@ from dial.xl.assistant.loading.load_credential import (
 from dial.xl.assistant.loading.load_interrupt import load_interrupt
 from dial.xl.assistant.loading.load_message_state import load_message_state
 from dial.xl.assistant.loading.load_resources import load_resources
+from dial.xl.assistant.loading.load_serde import load_serde
 from dial.xl.assistant.log import logger_session
 from dial.xl.assistant.model.llm import LLM
 from dial.xl.assistant.model.project_info import ProjectInfo
@@ -74,6 +81,8 @@ class XLChatCompletion(ChatCompletion):
     config: AssistantConfig
 
     checkpointer: BaseCheckpointSaver[str]
+    checkpointer_adapter: DIALChatCheckpointAdapter
+
     graph: CompiledStateGraph[ActionsAgentState, Context]
     resources: Resources
     xl_session: ClientSession
@@ -96,7 +105,10 @@ class XLChatCompletion(ChatCompletion):
             LOGGER.info("Received chat completion request.")
 
             try:
-                await self.make_choice(request, choice)
+                with self.checkpointer_adapter.create_context(
+                    request
+                ) as checkpoint_context:
+                    await self.make_choice(request, choice, checkpoint_context)
             except ConfigurationError as config_error:
                 error_message = f"Assistant Configuration Error. {config_error}"
                 LOGGER.exception(error_message)
@@ -122,24 +134,44 @@ class XLChatCompletion(ChatCompletion):
                     error_message, display_message=error_message
                 ) from exception
 
-    async def make_choice(self, request: Request, choice: Choice) -> None:
-        context = await self._create_graph_context(request, choice)
-        graph_input, graph_config = self._create_graph_input(request, context)
+    async def make_choice(
+        self,
+        request: Request,
+        choice: Choice,
+        checkpoint_context: DIALChatCheckpointContext,
+    ) -> None:
+        graph_context = await self._create_graph_context(request, choice)
+        graph_input, graph_config = self._create_graph_input(request, graph_context)
 
-        output = await self.graph.ainvoke(graph_input, graph_config, context=context)
+        output = await self.graph.ainvoke(
+            graph_input, graph_config, context=graph_context
+        )
 
-        snapshot = await self.graph.aget_state(graph_config)
-        publish_message_state(choice, output, snapshot)
+        checkpoint = checkpoint_context.dump_checkpoint(graph_config)
+        assert checkpoint is not None
+
+        publish_message_state(choice, output, checkpoint)
 
     @override
     async def configuration(
         self, request: ConfigurationRequest
     ) -> ConfigurationResponse:
-        return ConfigurationResponse()
+        return ConfigurationResponse(
+            # ConfigurationResponse does not contain any fields,
+            # but accepts extra fields (extra = "allow").
+            # Because of that, PyCharm Pydantic Plugin
+            # provides false "Unexpected Arguments" for any constructor argument.
+            # https://github.com/koxudaxi/pydantic-pycharm-plugin/issues/983
+            **ConfigurationParametersDTO.model_json_schema()
+        )
 
     @asynccontextmanager
     async def lifespan(self, _: FastAPI) -> AsyncGenerator[None, None]:
-        self.checkpointer = InMemorySaver()
+        LOGGER.info("FastAPI server is up, starting resource loading.")
+
+        self.checkpointer = InMemorySaver(serde=load_serde())
+        self.checkpointer_adapter = DIALChatCheckpointAdapter(self.checkpointer)
+
         self.graph = create_actions_graph(self.config.langgraph, self.checkpointer)
         self.resources = load_resources(self.config.resources)
 
@@ -236,13 +268,13 @@ class XLChatCompletion(ChatCompletion):
                 message = f"Unsupported Interrupt Type: {type(interrupt)}."
                 raise ValueError(message)
 
-        config = RunnableConfig(configurable={"thread_id": state.thread})
+        config = RunnableConfig(configurable={"thread_id": state.checkpoint.thread_id})
 
         if (stored_checkpoint := self.checkpointer.get(config)) is None:
             message = "Can't find requested conversation in assistant storage."
             raise MalformedRequestError(message)
 
-        if stored_checkpoint["id"] != state.checkpoint:
+        if stored_checkpoint["id"] != state.checkpoint.checkpoint_id:
             message = "Can't find requested checkpoint ID in assistant storage."
             raise MalformedRequestError(message)
 
@@ -251,19 +283,14 @@ class XLChatCompletion(ChatCompletion):
 
 @private
 def publish_message_state(
-    choice: Choice, output: dict[str, Any], snapshot: StateSnapshot
+    choice: Choice, output: dict[str, Any], checkpoint: CheckpointDTO
 ) -> None:
     if (interrupt := load_interrupt(output)) is None:
         return
 
     choice.append_content(f"\n{interrupt.query}\n")
 
-    message_state = MessageStateDTO(
-        thread=snapshot.config["configurable"]["thread_id"],
-        checkpoint=snapshot.config["configurable"]["checkpoint_id"],
-        interrupt=interrupt,
-    )
-
+    message_state = MessageStateDTO(checkpoint=checkpoint, interrupt=interrupt)
     choice.set_state(message_state.model_dump(mode="json"))
 
 

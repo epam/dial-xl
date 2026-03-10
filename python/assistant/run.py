@@ -5,6 +5,5 @@ if __name__ == "__main__":
         "dial.xl.assistant.__main__:app",
         host="0.0.0.0",
         port=5000,
-        use_colors=True,
         env_file="./.env",
     )

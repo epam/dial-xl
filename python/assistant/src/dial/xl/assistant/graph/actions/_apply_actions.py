@@ -9,6 +9,7 @@ from dial.xl.assistant.graph.actions._actions import (
     RemoveTable,
 )
 from dial.xl.assistant.graph.artifact import ProjectArtifact
+from dial.xl.assistant.utils.string.text import unify_text
 
 
 @public
@@ -25,7 +26,7 @@ async def apply_actions(
 
         match action:
             case AddTable():
-                temp_sheet = await client.parse_sheet("", action.table_code)
+                temp_sheet = await client.parse_sheet("", unify_text(action.table_code))
                 table = temp_sheet.remove_table(action.table_name)
 
                 sheet.add_table(table)

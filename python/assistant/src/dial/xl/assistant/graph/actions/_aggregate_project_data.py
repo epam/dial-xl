@@ -2,6 +2,7 @@ from asyncio import TaskGroup
 from collections.abc import Iterable
 
 from attrs import frozen
+from dial_xl.project import Project
 from public import private, public
 
 from dial.xl.assistant.graph.artifact import ProjectArtifact
@@ -29,12 +30,16 @@ class AggregatedFieldData:
 @public
 @frozen
 class AggregatedTableData:
+    code: str
     count: int | None
     fields: dict[str, AggregatedFieldData]
 
 
 type AggregatedDataPerTable = dict[str, AggregatedTableData]
 type AggregatedDataPerSheet = dict[str, AggregatedDataPerTable]
+
+type CodePerTable = dict[str, str]
+type CodePerSheet = dict[str, CodePerTable]
 
 
 @public
@@ -69,9 +74,9 @@ async def aggregate_project_data(
         count_data,
         embeddings_data,
         values_data,
+        dsl_code_per_table,
     ) = await calculate_project_data(context, snapshot)
-
-    return aggregate(count_data, embeddings_data, values_data)
+    return aggregate(dsl_code_per_table, count_data, embeddings_data, values_data)
 
 
 @private
@@ -81,6 +86,7 @@ async def calculate_project_data(
     RowCountPerSheet,
     EmbeddingScorePerSheet,
     ValuesPerSheet,
+    CodePerSheet,
 ]:
     agent_config = context.actions_agent_config
     client = context.xl_client
@@ -89,6 +95,7 @@ async def calculate_project_data(
         count_project = group.create_task(snapshot.build_project(client))
         embeddings_project = group.create_task(snapshot.build_project(client))
         values_project = group.create_task(snapshot.build_project(client))
+        code_project = group.create_task(snapshot.build_project(client))
 
     async with TaskGroup() as group:
         count_task = group.create_task(count_rows(count_project.result()))
@@ -112,11 +119,27 @@ async def calculate_project_data(
             )
         )
 
-    return count_task.result(), embeddings_task.result(), values_task.result()
+        async def get_code(project: Project) -> CodePerSheet:
+            res_dict = {}
+            for sheet in project.sheets:
+                res_dict[sheet.name] = {}
+                for table in sheet.tables:
+                    res_dict[sheet.name][table.name] = table.to_dsl()
+            return res_dict
+
+        code_task = group.create_task(get_code(code_project.result()))
+
+    return (
+        count_task.result(),
+        embeddings_task.result(),
+        values_task.result(),
+        code_task.result(),
+    )
 
 
 @private
 def aggregate(
+    dsl_code: CodePerSheet,
     count_data: RowCountPerSheet,
     embeddings_data: EmbeddingScorePerSheet,
     values_data: ValuesPerSheet,
@@ -127,12 +150,16 @@ def aggregate(
     for sheet in sheet_set:
         per_table = per_sheet.setdefault(sheet, {})
 
+        per_table_dsl_code = dsl_code.get(sheet, {})
         per_table_count_data = count_data.get(sheet, {})
         per_table_embeddings_data = embeddings_data.get(sheet, {})
         per_table_values_data = values_data.get(sheet, {})
 
         table_set = create_set_from(
-            per_table_count_data, per_table_embeddings_data, per_table_values_data
+            per_table_dsl_code,
+            per_table_count_data,
+            per_table_embeddings_data,
+            per_table_values_data,
         )
 
         for table in table_set:
@@ -154,6 +181,7 @@ def aggregate(
                 )
 
             per_table[table] = AggregatedTableData(
+                code=per_table_dsl_code.get(table, None),
                 count=per_table_count_data.get(table, None),
                 fields=field_data,
             )

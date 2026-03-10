@@ -2,8 +2,8 @@
 deployment-name = "qg"
 
 [default.assistant.url]
-dial = "https://dev-dial-core.staging.deltixhub.io"
-xl = "https://quantgrid-dev.staging.deltixhub.io"
+dial = "https://core.aks.dev.dial.parts"
+xl = "https://xl.aks.dev.dial.parts"
 
 [default.assistant.mlflow]
 enabled = false
@@ -50,11 +50,17 @@ raw-files = [
 ]
 
 template-files = [
-    {name = "human", path = "actions/human.jinja"},
-    {name = "workspace", path = "actions/workspace.jinja"},
+    { name = "human", path = "actions/human.jinja" },
+    { name = "workspace", path = "actions/workspace.jinja" },
 ]
+
+[test.test.e2e]
+
+url = "http://127.0.0.1:5000"
+inference-model = "gemini-2.0-flash-lite-001"
+max-interrupt-count = 1
 
 [test.assistant.mlflow]
 
-enabled = true
+enabled = false
 url = "http://127.0.0.1:8085"

@@ -18,3 +18,4 @@ def load_mlflow(mlflow_config: MLFlowConfig) -> None:
     mlflow.set_experiment(mlflow_config.experiment)
 
     mlflow.langchain.autolog()
+    mlflow.openai.autolog()

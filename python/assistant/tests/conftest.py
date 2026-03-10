@@ -30,6 +30,7 @@ from dial.xl.assistant.graph.actions.state import ActionsAgentState
 from dial.xl.assistant.graph.context import Context
 from dial.xl.assistant.loading.load_mlflow import load_mlflow
 from dial.xl.assistant.loading.load_resources import load_resources
+from dial.xl.assistant.log import init_logger
 from dial.xl.assistant.model.llm import LLM
 from dial.xl.assistant.model.project_info import ProjectInfo
 from dial.xl.assistant.model.resources import Resources
@@ -62,6 +63,16 @@ def assistant_config(dynaconf: Settings) -> AssistantConfig:
 @pytest.fixture(scope="session")
 def resources(assistant_config: AssistantConfig) -> Resources:
     return load_resources(assistant_config.resources)
+
+
+@pytest.fixture(scope="session")
+async def dial_client(
+    test_config: TestConfig, assistant_config: AssistantConfig
+) -> AsyncDial:
+    return AsyncDial(
+        base_url=assistant_config.url.dial,
+        api_key=test_config.api_key.get_secret_value(),
+    )
 
 
 @pytest.fixture(scope="session")
@@ -113,6 +124,7 @@ def mock_context(
     assistant_config: AssistantConfig,
     test_config: TestConfig,
     resources: Resources,
+    dial_client: AsyncDial,
     xl_client: Client,
     xl_session: ClientSession,
     mock_choice: Choice,
@@ -139,14 +151,8 @@ def mock_context(
             resources=resources,
             user_credential=ApiKey(test_config.api_key.get_secret_value()),
             app_credential=ApiKey(test_config.api_key.get_secret_value()),
-            user_dial_client=AsyncDial(
-                base_url=assistant_config.url.dial,
-                api_key=test_config.api_key.get_secret_value(),
-            ),
-            app_dial_client=AsyncDial(
-                base_url=assistant_config.url.dial,
-                api_key=test_config.api_key.get_secret_value(),
-            ),
+            user_dial_client=dial_client,
+            app_dial_client=dial_client,
             xl_client=xl_client,
             xl_session=xl_session,
             project=project,
@@ -158,11 +164,6 @@ def mock_context(
     return builder
 
 
-@pytest.fixture(scope="session", autouse=True)
-def _mlflow(assistant_config: AssistantConfig) -> None:
-    load_mlflow(assistant_config.mlflow)
-
-
 @pytest.fixture(scope="session")
 def mlflow_session(_mlflow: None) -> str:
     time_now = datetime.datetime.now(datetime.UTC)
@@ -171,6 +172,16 @@ def mlflow_session(_mlflow: None) -> str:
     random_number = random.randint(0, 1 << 32)
     hashed = Sqids(min_length=6).encode([random_number])
     return f"{formatted_time_now} | {hashed}"
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _logger() -> None:
+    init_logger()
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _mlflow(assistant_config: AssistantConfig) -> None:
+    load_mlflow(assistant_config.mlflow)
 
 
 @pytest.fixture(autouse=True)

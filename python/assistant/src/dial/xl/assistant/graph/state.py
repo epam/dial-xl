@@ -9,3 +9,4 @@ from pydantic import BaseModel
 @public
 class BaseState(BaseModel):
     messages: Annotated[list[AnyMessage], add_messages]
+    current_plan: str | None = None

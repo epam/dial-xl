@@ -1,21 +1,13 @@
-import enum
-
 from typing import Optional
 
 from aidial_sdk.chat_completion import Request, Role
 from public import private, public
 from pydantic import BaseModel, Field, ValidationError
 
+from dial.xl.assistant.dto.question_status import QuestionStatus
 from dial.xl.assistant.exceptions.malformed_request_error import MalformedRequestError
 
 GENERATION_PARAMETERS_KEY = "generationParameters"
-
-
-@public
-class QuestionStatus(enum.StrEnum):
-    UNDECIDED = "UNDECIDED"
-    ACCEPTED = "ACCEPTED"
-    DISCARDED = "DISCARDED"
 
 
 @public

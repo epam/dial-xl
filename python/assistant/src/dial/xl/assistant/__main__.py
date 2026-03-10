@@ -1,21 +1,12 @@
 from aidial_sdk import DIALApp
-from dynaconf import Dynaconf
 
 from dial.xl.assistant.completion import XLChatCompletion
+from dial.xl.assistant.loading.load_dynaconf import load_dynaconf
 from dial.xl.assistant.log import init_logger
 
 init_logger()
 
-settings: Dynaconf = Dynaconf(
-    environments=True,
-    envvar_prefix="OVERRIDE",
-    env_switcher="ENV_TYPE",
-    load_dotenv=True,
-    merge_enabled=True,
-    settings_file="settings.toml",
-)
-
-completion = XLChatCompletion.from_dynaconf(settings)
+completion = XLChatCompletion.from_dynaconf(load_dynaconf())
 
 app = DIALApp(
     completion.config.deployment_name,

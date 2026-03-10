@@ -67,7 +67,9 @@ def format_project_data(
 
         for table_name, aggregated_table_data in aggregated_sheet_data.items():
             per_table[table_name] = FormattedTableData(
-                count=aggregated_table_data.count, fields=aggregated_table_data.fields
+                code=aggregated_table_data.code,
+                count=aggregated_table_data.count,
+                fields=aggregated_table_data.fields,
             )
 
     return per_sheet

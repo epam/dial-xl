@@ -31,6 +31,8 @@ class EditTable(Action):
 
 @public
 class Actions(BaseModel):
+    reasoning: str
+    steps_from_plan_to_implement: str
     actions: list[
         Annotated[AddTable | RemoveTable | EditTable, Field(discriminator="type")]
     ]
