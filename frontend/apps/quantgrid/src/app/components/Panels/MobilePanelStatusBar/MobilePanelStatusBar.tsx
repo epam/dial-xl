@@ -1,13 +1,7 @@
 import { Dropdown } from 'antd';
 import cx from 'classnames';
 import classNames from 'classnames';
-import {
-  ForwardedRef,
-  forwardRef,
-  useCallback,
-  useContext,
-  useMemo,
-} from 'react';
+import { Ref, useCallback, useContext, useMemo } from 'react';
 
 import Icon from '@ant-design/icons';
 import {
@@ -22,13 +16,11 @@ import { LayoutContext } from '../../../context';
 import { usePanelStatusBar } from '../../../hooks';
 
 type Props = {
+  ref?: Ref<HTMLDivElement>;
   panels?: MinimizedPanelProps[];
 };
 
-export const MobilePanelStatusBar = forwardRef(function PanelStatusBar(
-  { panels }: Props,
-  ref: ForwardedRef<HTMLDivElement>
-) {
+export function MobilePanelStatusBar({ panels, ref }: Props) {
   const { togglePanel, openedPanels } = useContext(LayoutContext);
   const { showErrorNotification } = usePanelStatusBar();
 
@@ -40,14 +32,14 @@ export const MobilePanelStatusBar = forwardRef(function PanelStatusBar(
           name: item[0],
           ...item[1],
         })),
-    [openedPanels]
+    [openedPanels],
   );
 
   const isPanelOpen = useCallback(
     (panelName: PanelName) => {
       return openedPanels[panelName] && openedPanels[panelName].isActive;
     },
-    [openedPanels]
+    [openedPanels],
   );
 
   const { displayedPanels, additionalPanels } = useMemo(() => {
@@ -74,12 +66,15 @@ export const MobilePanelStatusBar = forwardRef(function PanelStatusBar(
         icon: (
           <Icon
             className={classNames(
-              isPanelOpened ? 'text-text-accent-primary' : 'text-text-secondary'
+              isPanelOpened
+                ? 'text-text-accent-primary'
+                : 'text-text-secondary',
             )}
             component={() => item.icon}
           />
         ),
         key: item.name,
+        fullPath: ['MobilePanelStatusBar', item.name],
         onClick: () => togglePanel(item.name),
       });
 
@@ -103,7 +98,7 @@ export const MobilePanelStatusBar = forwardRef(function PanelStatusBar(
             'flex flex-col h-full gap-1 px-0.5 py-1.5 items-center justify-center text-nowrap cursor-pointer select-none',
             activePanels.length === 0
               ? 'text-text-accent-primary'
-              : 'text-text-secondary'
+              : 'text-text-secondary',
           )}
           data-panel="additional-mobile-panels"
           data-qa="collapsed-panel-button"
@@ -131,7 +126,7 @@ export const MobilePanelStatusBar = forwardRef(function PanelStatusBar(
               {
                 'text-text-accent-primary': isPanelOpen(p.name),
                 'text-text-secondary': !isPanelOpen(p.name),
-              }
+              },
             )}
             data-panel={p.name}
             data-qa="collapsed-panel-button"
@@ -158,7 +153,7 @@ export const MobilePanelStatusBar = forwardRef(function PanelStatusBar(
                 'flex flex-col h-full gap-1 px-0.5 py-1.5 items-center justify-center text-nowrap cursor-pointer select-none',
                 isItemsSelected
                   ? 'text-text-accent-primary'
-                  : 'text-text-secondary'
+                  : 'text-text-secondary',
               )}
               data-panel="additional-mobile-panels"
               data-qa="collapsed-panel-button"
@@ -179,4 +174,4 @@ export const MobilePanelStatusBar = forwardRef(function PanelStatusBar(
       </ul>
     </div>
   );
-});
+}

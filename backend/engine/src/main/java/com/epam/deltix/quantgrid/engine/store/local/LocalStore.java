@@ -28,6 +28,11 @@ public class LocalStore implements Store {
     }
 
     @Override
+    public String link(String linkId, String fromId, String toId) {
+        return linkId;
+    }
+
+    @Override
     public boolean lock(Identity id) {
         return Files.exists(path.resolve(id.id()));
     }
@@ -44,14 +49,14 @@ public class LocalStore implements Store {
     @Override
     public Table load(Identity id, Meta meta) throws IOException {
         try (InputStream stream = Files.newInputStream(path.resolve(id.id()))) {
-            return StoreUtils.readTable(stream, List.of(meta.getSchema().getTypes()));
+            return StoreUtils.readTable(stream, List.of(meta.getSchema().getTypes()), false);
         }
     }
 
     @Override
     public void save(Identity id, Table table) throws IOException {
         try (OutputStream stream = Files.newOutputStream(path.resolve(id.id()), StandardOpenOption.CREATE_NEW)) {
-            StoreUtils.writeTable(stream, table);
+            StoreUtils.writeTable(stream, table, false);
         } catch (FileAlreadyExistsException e) {
             // Ignore
         }

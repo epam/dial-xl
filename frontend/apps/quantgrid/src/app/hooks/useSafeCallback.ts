@@ -1,9 +1,10 @@
 import { useCallback } from 'react';
 
 export const useSafeCallback = <T extends (...args: any[]) => any>(
-  callback: T
+  callback: T,
 ): T => {
   return useCallback(
+    // eslint-disable-next-line react-hooks/use-memo
     ((...args: Parameters<T>) => {
       try {
         const result = callback(...args);
@@ -24,6 +25,6 @@ export const useSafeCallback = <T extends (...args: any[]) => any>(
         return undefined as ReturnType<T>;
       }
     }) as T,
-    [callback]
+    [callback],
   );
 };

@@ -1,8 +1,12 @@
 import { Expose } from 'class-transformer';
 
-import { ParsedConditionFilter, ParsedFilter } from './ParsedFilter';
+import {
+  FieldConditionFiltersResult,
+  GetModifiedFiltersResult,
+  ParsedFilter,
+} from './ParsedFilter';
 import { ParsedSort } from './ParsedSort';
-import { FieldSortOrder } from './parser';
+import { FieldSortOrder, ModifyFilterProps } from './parser';
 import { Span } from './Span';
 
 export class ParsedApply {
@@ -18,7 +22,7 @@ export class ParsedApply {
   constructor(
     span: Span | undefined,
     sort: ParsedSort | undefined,
-    filter: ParsedFilter | undefined
+    filter: ParsedFilter | undefined,
   ) {
     this.span = span;
     this.sort = sort;
@@ -39,10 +43,31 @@ export class ParsedApply {
     return this.filter?.hasFieldFilter(fieldName) || false;
   }
 
-  public getFieldConditionFilter(
-    fieldName: string
-  ): ParsedConditionFilter | undefined {
-    return this.filter?.getFieldConditionFilter(fieldName);
+  public getFieldConditionFilters(
+    fieldName: string,
+  ): FieldConditionFiltersResult | undefined {
+    return this.filter?.getFieldConditionFilters(fieldName);
+  }
+
+  /**
+   * Returns getModifiedFilters result for the apply filter, or undefined when there is no filter.
+   * Use to unify logic: customExpressions.length > 0 means entire filter is custom;
+   * otherwise fieldFilters has per-field expression strings for simple filters.
+   */
+  public getModifiedFiltersResult(
+    props?: ModifyFilterProps,
+  ): GetModifiedFiltersResult | undefined {
+    return this.filter?.getModifiedFiltersResult(props);
+  }
+
+  public getFieldFilterExpression(fieldName: string): string | undefined {
+    return this.filter?.getFieldFilterExpression(fieldName);
+  }
+
+  public getFieldFilterControlRef(
+    fieldName: string,
+  ): { controlTableName: string; controlFieldName: string }[] {
+    return this.filter?.getFieldControlRef(fieldName) ?? [];
   }
 
   public getFieldListFilterValues(fieldName: string): string[] {

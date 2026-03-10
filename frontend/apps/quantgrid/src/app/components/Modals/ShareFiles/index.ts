@@ -1,1 +1,1 @@
-export * from './ShareFiles';
+export * from './ShareFilesModal';

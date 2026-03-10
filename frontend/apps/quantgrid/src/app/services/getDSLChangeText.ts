@@ -1,7 +1,7 @@
 export const getDSLChangeText = (
   oldDSL: string,
   newDSL: string,
-  limit = 5
+  limit = 5,
 ): string => {
   const initialText = 'DSL change';
   const lines = newDSL.split('\n');

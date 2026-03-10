@@ -1,8 +1,10 @@
 /* eslint-disable playwright/expect-expect */
 import { BrowserContext, expect, Page, test } from '@playwright/test';
 
+import { VisualizationChart } from '../../components/VisualizationChart';
 import { GridMenuItem } from '../../enums/GridMenuItem';
 import { MoveDirection } from '../../enums/MoveDirection';
+import { VisualizationsMenuItems } from '../../enums/VisualizationsMenuItems';
 import { ProjectPage } from '../../pages/ProjectPage';
 import { TestFixtures } from '../TestFixtures';
 
@@ -10,13 +12,13 @@ const projectName = TestFixtures.addGuid('autotest_tables');
 
 const table1Row = 2;
 
-const table1Column = 6;
+const table1Column = 2;
 
 let table1Name = 'Table1';
 
 const table2Row = 2;
 
-const table2Column = 2;
+const table2Column = 6;
 
 const table2Name = 'ForDeleteTest';
 
@@ -30,24 +32,24 @@ let browserContext: BrowserContext;
 
 let page: Page;
 
-const storagePath = `playwright/${projectName}.json`;
+const storagePath = TestFixtures.getStoragePath();
 
 test.beforeAll(async ({ browser }) => {
   const table1Dsl = `!layout(${table1Row}, ${table1Column}, "title", "headers")\ntable ${table1Name}\n[Field1] = 1\n[Field2] = 9\n`;
   const table2Dsl = `!layout(${table2Row}, ${table2Column}, "title", "headers")\ntable ${table2Name}\n[Field1] = 5\n[Field2] = 4\n`;
   const table3Dsl = `!layout(${table3Row}, ${table3Column}, "title", "headers")\ntable ${table3Name}\n[Field1] = 5\n[Field2] = 7\n`;
+  browserContext = await browser.newContext({ storageState: storagePath });
   await TestFixtures.createProject(
     storagePath,
-    browser,
+    browserContext,
     projectName,
     table3Row,
     table3Column,
     table3Name,
     table1Dsl,
     table2Dsl,
-    table3Dsl
+    table3Dsl,
   );
-  browserContext = await browser.newContext({ storageState: storagePath });
 });
 
 test.beforeEach(async () => {
@@ -56,8 +58,10 @@ test.beforeEach(async () => {
   await TestFixtures.expectCellTableToBeDisplayed(
     page,
     table1Row,
-    table1Column
+    table1Column,
   );
+  const projectPage = await ProjectPage.createCleanInstance(page);
+  await projectPage.hideAllPanels();
 });
 
 test.afterEach(async () => {
@@ -65,8 +69,8 @@ test.afterEach(async () => {
 });
 
 test.afterAll(async ({ browser }) => {
+  await TestFixtures.deleteProject(browserContext, projectName);
   await browserContext.close();
-  await TestFixtures.deleteProject(browser, projectName);
 });
 
 test.describe('table actions', () => {
@@ -99,7 +103,7 @@ test.describe('table actions', () => {
     const projectPage = await ProjectPage.createInstance(page);
     await projectPage
       .getVisualization()
-      .performMenuAction(table1Row, table1Column, GridMenuItem.Rename);
+      .performMenuAction(table1Row, table1Column, GridMenuItem.RenameTable);
     await projectPage.getVisualization().expectCellBecameEditable(table1Name);
     await projectPage.getVisualization().setCellValue(newName);
     await projectPage
@@ -112,7 +116,7 @@ test.describe('table actions', () => {
     const projectPage = await ProjectPage.createInstance(page);
     await projectPage
       .getVisualization()
-      .performMenuAction(table1Row, table1Column, GridMenuItem.Rename);
+      .performMenuAction(table1Row, table1Column, GridMenuItem.RenameTable);
     await projectPage.getVisualization().expectCellBecameEditable(table1Name);
     const newName = 'RenamedTableNotToSave';
     await projectPage.getVisualization().setCellValueAndCancel(newName);
@@ -141,7 +145,7 @@ test.describe('table actions', () => {
     /*   const projectPage = await ProjectPage.createInstance(page);
     await projectPage
       .getVisualization()
-      .performMenuAction(table1Row, table1Column, GridMenuItem.Move);
+      .performMenuAction(table1Row, table1Column, GridMenuItem.MoveTable);
     await projectPage.getVisualization().expectMoveSelectionToBeVisible();
     await projectPage.getVisualization().moveCurrentTable(MoveDirection.LEFT);
     await projectPage
@@ -154,7 +158,7 @@ test.describe('table actions', () => {
     /*  const projectPage = await ProjectPage.createInstance(page);
     await projectPage
       .getVisualization()
-      .performMenuAction(table1Row, table1Column, GridMenuItem.Move);
+      .performMenuAction(table1Row, table1Column, GridMenuItem.MoveTable);
     await projectPage.getVisualization().expectMoveSelectionToBeVisible();
     await projectPage.getVisualization().moveCurrentTable(MoveDirection.RIGHT);
     await projectPage
@@ -172,7 +176,7 @@ test.describe('table actions', () => {
     /* const projectPage = await ProjectPage.createInstance(page);
     await projectPage
       .getVisualization()
-      .performMenuAction(table1Row, table1Column, GridMenuItem.Move);
+      .performMenuAction(table1Row, table1Column, GridMenuItem.MoveTable);
     await projectPage.getVisualization().expectMoveSelectionToBeVisible();
     await projectPage.getVisualization().moveCurrentTable(MoveDirection.UP);
     await projectPage
@@ -185,7 +189,7 @@ test.describe('table actions', () => {
     /*  const projectPage = await ProjectPage.createInstance(page);
     await projectPage
       .getVisualization()
-      .performMenuAction(table1Row, table1Column, GridMenuItem.Move);
+      .performMenuAction(table1Row, table1Column, GridMenuItem.MoveTable);
     await projectPage.getVisualization().expectMoveSelectionToBeVisible();
     await projectPage.getVisualization().moveCurrentTable(MoveDirection.DOWN);
     await projectPage
@@ -198,7 +202,11 @@ test.describe('table actions', () => {
     const projectPage = await ProjectPage.createInstance(page);
     await projectPage
       .getVisualization()
-      .performMenuAction(table1Row, table1Column, GridMenuItem.CreateDerived);
+      .performMenuAction(
+        table1Row,
+        table1Column,
+        GridMenuItem.CreateDerivedTable,
+      );
     await projectPage
       .getVisualization()
       .expectTableToAppear(table1Row, table1Column + 3);
@@ -208,7 +216,7 @@ test.describe('table actions', () => {
     const projectPage = await ProjectPage.createInstance(page);
     await projectPage
       .getVisualization()
-      .performMenuAction(table2Row, table2Column, GridMenuItem.Delete);
+      .performMenuAction(table2Row, table2Column, GridMenuItem.DeleteTable);
     await projectPage
       .getVisualization()
       .expectTableToDissapear(table2Row, table2Column);

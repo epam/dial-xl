@@ -1,23 +1,24 @@
-import * as PIXI from 'pixi.js';
+import { Graphics } from 'pixi.js';
 import { useCallback, useContext, useEffect, useRef, useState } from 'react';
 
-import { Graphics } from '@pixi/react';
-
-import { ComponentLayer } from '../../constants';
 import { GridStateContext, GridViewportContext } from '../../context';
 import { useDraw } from '../../hooks';
 import { Rectangle } from '../../types';
 
-export function DNDSelection() {
+type Props = {
+  zIndex: number;
+};
+
+export function DNDSelection({ zIndex }: Props) {
   const { gridSizes, dndSelection, theme } = useContext(GridStateContext);
   const { getCellX, getCellY, gridViewportSubscriber } =
     useContext(GridViewportContext);
 
   const [selectionCoords, setSelectionCoords] = useState<Rectangle | null>(
-    null
+    null,
   );
 
-  const graphicsRef = useRef<PIXI.Graphics>(null);
+  const graphicsRef = useRef<Graphics>(null);
 
   const getSelectionCoords = useCallback((): null | void => {
     if (!dndSelection) {
@@ -63,12 +64,18 @@ export function DNDSelection() {
     const { x, y, width, height } = selectionCoords;
 
     graphics
-      .lineStyle(gridSizes.selection.width, borderColor)
-      .drawRect(x, y, width, height)
-      .endFill();
+      .rect(x, y, width, height)
+      .stroke({ width: gridSizes.selection.width, color: borderColor });
   }, [gridSizes.selection.width, selectionCoords, theme.dndSelection]);
 
   useDraw(draw);
 
-  return <Graphics ref={graphicsRef} zIndex={ComponentLayer.DNDSelection} />;
+  return (
+    <pixiGraphics
+      draw={() => {}}
+      label="DNDSelection"
+      ref={graphicsRef}
+      zIndex={zIndex}
+    />
+  );
 }

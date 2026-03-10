@@ -1,6 +1,6 @@
 import { Button, Input, Modal, Spin } from 'antd';
 import classNames from 'classnames';
-import Fuse from 'fuse.js';
+import Fuse, { IFuseOptions } from 'fuse.js';
 import { useCallback, useContext, useEffect, useState } from 'react';
 
 import Icon from '@ant-design/icons';
@@ -37,7 +37,7 @@ type FolderOrFile = Pick<
   bucket: string | undefined;
 };
 
-const fuseOptions: Fuse.IFuseOptions<any> = {
+const fuseOptions: IFuseOptions<any> = {
   includeScore: true,
   includeMatches: true,
   threshold: 0.2,
@@ -53,7 +53,7 @@ type Props = {
   onOk: (
     parentPath: string | null | undefined,
     bucket: string,
-    name: string
+    name: string,
   ) => void;
   onCancel: () => void;
 };
@@ -73,10 +73,10 @@ export function SelectFile({
   const [isOpen, setIsOpen] = useState(true);
 
   const [currentPath, setCurrentPath] = useState<string | null | undefined>(
-    initialPath
+    initialPath,
   );
   const [currentBucket, setCurrentBucket] = useState<string | undefined>(
-    initialBucket
+    initialBucket,
   );
   const [storageItems, setStorageItems] = useState<FolderOrFile[]>([]);
   const [displayedItems, setDisplayedItems] = useState<FolderOrFile[]>([]);
@@ -97,16 +97,16 @@ export function SelectFile({
 
     let files: (ResourceMetadata | SharedWithMeMetadata)[];
     if (currentBucket) {
-      files =
-        (await getFiles({
-          path: `${currentBucket}/${currentPath ? currentPath + '/' : ''}`,
-          suppressErrors: true,
-        })) ?? [];
+      const filesRes = await getFiles({
+        path: `${currentBucket}/${currentPath ? currentPath + '/' : ''}`,
+      });
+
+      files = filesRes.success ? filesRes.data : [];
     } else {
-      files =
-        (await getSharedWithMeResources({
-          resourceType: MetadataResourceType.FILE,
-        })) ?? [];
+      const sharedResources = await getSharedWithMeResources({
+        resourceType: MetadataResourceType.FILE,
+      });
+      files = sharedResources.success ? sharedResources.data : [];
     }
 
     setIsLoading(false);
@@ -117,8 +117,8 @@ export function SelectFile({
         files.filter(
           (file) =>
             file.nodeType === MetadataNodeType.FOLDER ||
-            fileExtensions.some((ext) => file.name.endsWith(ext))
-        )
+            fileExtensions.some((ext) => file.name.endsWith(ext)),
+        ),
       )
       .sort((a, b) => {
         // sort folders first and the project files
@@ -152,7 +152,7 @@ export function SelectFile({
     setSearchValue('');
     setStorageItems([]);
     setCurrentPath(
-      `${folder.parentPath ? folder.parentPath + '/' : ''}${folder.name}`
+      `${folder.parentPath ? folder.parentPath + '/' : ''}${folder.name}`,
     );
     setCurrentBucket(folder.bucket);
     setBreadcrumbs((breadcrumbs) => [
@@ -192,13 +192,14 @@ export function SelectFile({
             currentBucket === userBucket
               ? 'My Files'
               : currentBucket === publicBucket
-              ? 'Public'
-              : 'Shared with me',
+                ? 'Public'
+                : 'Shared with me',
           path: null,
           icon: <HomeIcon />,
           dropdownItems: [
             getDropdownItem({
               key: 'MyFiles',
+              fullPath: ['SelectFile', 'MyFiles'],
               label: 'My Files',
               onClick: () => {
                 handleSelectBreadcrumb({
@@ -210,6 +211,7 @@ export function SelectFile({
             }),
             getDropdownItem({
               key: 'SharedWithMe',
+              fullPath: ['SelectFile', 'SharedWithMe'],
               label: 'Shared with me',
               onClick: () => {
                 handleSelectBreadcrumb({
@@ -221,6 +223,7 @@ export function SelectFile({
             }),
             getDropdownItem({
               key: 'Public',
+              fullPath: ['SelectFile', 'Public'],
               label: 'Public',
               onClick: () => {
                 handleSelectBreadcrumb({
@@ -232,7 +235,7 @@ export function SelectFile({
             }),
           ],
         },
-      ] as Breadcrumb[]
+      ] as Breadcrumb[],
     );
 
     setBreadcrumbs(breadcrumbs);
@@ -324,11 +327,11 @@ export function SelectFile({
               displayedItems.map((item) => (
                 <div
                   className={classNames(
-                    'flex items-center gap-2 py-1.5 px-3 h-[30px] hover:bg-bg-accent-primary-alpha rounded-sm cursor-pointer border-l-2 border-transparent select-none',
+                    'flex items-center text-text-primary gap-2 py-1.5 px-3 h-[30px] hover:bg-bg-accent-primary-alpha rounded-sm cursor-pointer border-l-2 border-transparent select-none',
                     selectedItem?.name === item.name &&
                       selectedItem.parentPath === item.parentPath &&
                       selectedItem.parentPath === item.parentPath &&
-                      'border-l-stroke-accent-primary bg-bg-accent-primary-alpha'
+                      'border-l-stroke-accent-primary bg-bg-accent-primary-alpha',
                   )}
                   key={item.parentPath + item.name}
                   onClick={() => setSelectedItem(item)}
@@ -350,7 +353,7 @@ export function SelectFile({
             className={classNames(
               primaryButtonClasses,
               primaryDisabledButtonClasses,
-              'h-10 text-base'
+              'h-10 text-base',
             )}
             disabled={
               !currentBucket ||

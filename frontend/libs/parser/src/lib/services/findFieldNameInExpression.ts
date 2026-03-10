@@ -14,7 +14,7 @@ export type FieldExpression = {
 };
 
 export function findFieldNameInExpression(
-  expression: Expression
+  expression: Expression,
 ): FieldExpression[] {
   let referenceTableName = '';
   const result: FieldExpression[] = [];

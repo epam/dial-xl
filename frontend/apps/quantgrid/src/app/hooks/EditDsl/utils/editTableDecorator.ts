@@ -4,7 +4,7 @@ export function editTableDecorator(
   table: Table,
   decoratorName: string,
   decoratorArgs: string,
-  shouldRemove = false
+  shouldRemove = false,
 ): boolean {
   try {
     const decorator = table.getDecorator(decoratorName);

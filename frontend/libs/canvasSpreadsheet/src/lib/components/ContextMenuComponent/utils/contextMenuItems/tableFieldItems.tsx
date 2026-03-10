@@ -1,5 +1,9 @@
+import { ItemType } from 'antd/es/menu/interface';
+
 import Icon from '@ant-design/icons';
 import {
+  CheckboxControlIcon,
+  DropdownControlIcon,
   FormulaIcon,
   getDropdownDivider,
   getDropdownItem,
@@ -12,14 +16,14 @@ import {
   isTextType,
   Shortcut,
   shortcutApi,
-  TableArrowIcon,
-  TagIcon,
 } from '@frontend/common';
 
-import { GridCallbacks, GridCell } from '../../../../types';
+import { GridCell, SheetControl } from '../../../../types';
+import { GridEventBus } from '../../../../utils';
 import { spreadsheetMenuKeys as menuKey } from '../config';
 import { ContextMenuKeyData } from '../types';
 import {
+  aiRegenerateItem,
   arrangeTableItems,
   askAIItem,
   deleteItem,
@@ -29,21 +33,36 @@ import {
   filterItem,
   hideItem,
   insertItem,
+  moveTable,
   noteEditItem,
   noteRemoveItem,
+  openDetails,
   orientationItem,
   sortItem,
   switchInput,
+  syncImport,
   totalItem,
 } from './commonItem';
 
-export const getTableFieldMenuItems = (
-  col: number,
-  row: number,
-  cell: GridCell,
-  gridCallbacks: GridCallbacks,
-  filterList: GridListFilter[]
-) => {
+const tableFieldMenuPath = ['TableFieldMenu'];
+
+export const getTableFieldMenuItems = ({
+  col,
+  row,
+  cell,
+  eventBus,
+  filterList,
+  sheetControls,
+  onClose,
+}: {
+  col: number;
+  row: number;
+  cell: GridCell;
+  eventBus: GridEventBus;
+  filterList: GridListFilter[];
+  sheetControls: SheetControl[];
+  onClose: () => void;
+}): ItemType[] => {
   const { field, table } = cell;
 
   if (!table || !field) return [];
@@ -68,7 +87,9 @@ export const getTableFieldMenuItems = (
     isIndex,
     isDescription,
     isInput,
+    isImport,
     hasOverrides: fieldHasOverrides,
+    isControl,
   } = field;
 
   const isNumeric = isNumericType(type);
@@ -86,33 +107,36 @@ export const getTableFieldMenuItems = (
     ? cell.isOverride || fieldHasOverrides
     : false;
 
+  const hasAIFunction = field?.isAIFunctions;
+
   return [
-    isShowAIPrompt ? askAIItem(col, row) : null,
-    isShowAIPrompt ? getDropdownDivider() : null,
-    getDropdownItem({
-      label: 'Move table',
-      key: getDropdownMenuKey<ContextMenuKeyData>(menuKey.moveTable, {
-        col,
-        row,
-      }),
-      icon: (
-        <Icon
-          className="text-text-secondary w-[18px]"
-          component={() => (
-            <TableArrowIcon secondaryAccentCssVar="text-accent-secondary" />
-          )}
-        />
-      ),
-    }),
+    isShowAIPrompt ? askAIItem(col, row, tableFieldMenuPath) : null,
+    hasAIFunction ? aiRegenerateItem(col, row, tableFieldMenuPath) : null,
+    isShowAIPrompt || hasAIFunction ? getDropdownDivider() : null,
+    moveTable(col, row, tableFieldMenuPath, isChart),
     getDropdownDivider(),
-    !isComplexOrDynamic ? sortItem(col, row, isNumeric) : null,
-    filterType && !isComplexOrDynamic
-      ? filterItem(col, row, cell, gridCallbacks, filterList)
+    !isComplexOrDynamic && !isControl
+      ? sortItem(col, row, tableFieldMenuPath, isNumeric)
       : null,
-    totalItem(col, row, totalFieldTypes, isComplex),
-    !isComplexOrDynamic ? getDropdownDivider() : null,
+    filterType && !isControl && !isComplexOrDynamic
+      ? filterItem({
+          col,
+          row,
+          parentPath: tableFieldMenuPath,
+          cell,
+          eventBus,
+          filterList,
+          sheetControls,
+          onClose,
+        })
+      : null,
+    !isControl
+      ? totalItem(col, row, tableFieldMenuPath, totalFieldTypes, isComplex)
+      : null,
+    !isControl && !isComplexOrDynamic ? getDropdownDivider() : null,
     getDropdownItem({
       label: 'Edit formula',
+      fullPath: [...tableFieldMenuPath, 'EditFormula'],
       key: getDropdownMenuKey<ContextMenuKeyData>(menuKey.editFormula, {
         col,
         row,
@@ -125,9 +149,11 @@ export const getTableFieldMenuItems = (
       ),
       shortcut: shortcutApi.getLabel(Shortcut.EditExpression),
     }),
-    isInput ? switchInput(col, row) : null,
+    isInput ? switchInput(col, row, tableFieldMenuPath) : null,
+    isImport ? syncImport(col, row, tableFieldMenuPath) : null,
     getDropdownItem({
       label: 'Rename column',
+      fullPath: [...tableFieldMenuPath, 'RenameColumn'],
       key: getDropdownMenuKey<ContextMenuKeyData>(menuKey.renameField, {
         col,
         row,
@@ -141,51 +167,98 @@ export const getTableFieldMenuItems = (
       shortcut: shortcutApi.getLabel(Shortcut.Rename),
       disabled: isDynamic,
     }),
-    fieldTagsItem(
-      col,
-      row,
-      isKey,
-      isDynamic,
-      isManual,
-      isFieldHasOverrides,
-      isIndex,
-      isDescription,
-      isText,
-      fieldNames
-    ),
+    getDropdownItem({
+      label: 'Create control',
+      key: 'createControl',
+      fullPath: [...tableFieldMenuPath, 'CreateControl'],
+      icon: (
+        <Icon
+          className="text-text-accent-primary w-[18px]"
+          component={() => <CheckboxControlIcon />}
+        />
+      ),
+      children: [
+        getDropdownItem({
+          label: 'Dropdown',
+          fullPath: [...tableFieldMenuPath, 'CreateControl', 'Dropdown'],
+          key: getDropdownMenuKey<ContextMenuKeyData>(
+            menuKey.createDropdownControlFromField,
+            {
+              col,
+              row,
+            },
+          ),
+          icon: (
+            <Icon
+              className="text-text-accent-primary w-[18px]"
+              component={() => <DropdownControlIcon />}
+            />
+          ),
+        }),
+        getDropdownItem({
+          label: 'Checkbox',
+          fullPath: [...tableFieldMenuPath, 'CreateControl', 'Checkbox'],
+          key: getDropdownMenuKey<ContextMenuKeyData>(
+            menuKey.createCheckboxControlFromField,
+            {
+              col,
+              row,
+            },
+          ),
+          icon: (
+            <Icon
+              className="text-text-accent-secondary w-[18px]"
+              component={() => <CheckboxControlIcon />}
+            />
+          ),
+        }),
+      ],
+    }),
+    !isControl
+      ? fieldTagsItem(
+          col,
+          row,
+          tableFieldMenuPath,
+          isKey,
+          isDynamic,
+          isManual,
+          isFieldHasOverrides,
+          isIndex,
+          isDescription,
+          isText,
+          fieldNames,
+        )
+      : null,
     showCollapseNestedField || showExpandNestedField
-      ? dimensionItem(col, row, showCollapseNestedField, isDynamic)
+      ? dimensionItem(
+          col,
+          row,
+          tableFieldMenuPath,
+          showCollapseNestedField,
+          isDynamic,
+        )
       : null,
     getDropdownDivider(),
-    insertItem(col, row, isTableHorizontal, isManual),
-    deleteItem(col, row, table, false),
-    fieldItem(col, row, cell, table, isDynamic),
+    insertItem(col, row, tableFieldMenuPath, isTableHorizontal, isManual),
+    deleteItem(col, row, tableFieldMenuPath, table, false),
+    fieldItem(col, row, tableFieldMenuPath, cell, table, isDynamic),
     getDropdownDivider(),
-    noteEditItem(col, row, note),
-    note ? noteRemoveItem(col, row) : null,
+    noteEditItem(col, row, tableFieldMenuPath, note),
+    note ? noteRemoveItem(col, row, tableFieldMenuPath) : null,
     getDropdownDivider(),
-    arrangeTableItems(col, row),
-    !isChart ? orientationItem(col, row, isTableHorizontal) : null,
+    arrangeTableItems(col, row, tableFieldMenuPath),
+    !isChart
+      ? orientationItem(col, row, tableFieldMenuPath, isTableHorizontal)
+      : null,
     hideItem(
       col,
       row,
+      tableFieldMenuPath,
       isTableNameHeaderHidden,
       isTableFieldsHeaderHidden,
-      isChart
+      isChart,
     ),
     getDropdownDivider(),
-    getDropdownItem({
-      label: 'Open in Editor',
-      icon: (
-        <Icon
-          className="text-text-secondary w-[18px]"
-          component={() => <TagIcon />}
-        />
-      ),
-      key: getDropdownMenuKey<ContextMenuKeyData>(menuKey.openFieldInEditor, {
-        col,
-        row,
-      }),
-    }),
+    ...(openDetails(col, row, tableFieldMenuPath, false) || []),
   ];
 };

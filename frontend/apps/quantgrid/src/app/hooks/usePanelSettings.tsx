@@ -18,7 +18,8 @@ import {
 } from '@frontend/common';
 
 import { PanelName, PanelPosition } from '../common';
-import { AppContext, LayoutContext } from '../context';
+import { LayoutContext } from '../context';
+import { useUIStore } from '../store';
 
 export function usePanelSettings() {
   const {
@@ -30,20 +31,25 @@ export function usePanelSettings() {
     updateSplitPanelsEnabled,
     updateCollapsedPanelsTextHidden,
   } = useContext(LayoutContext);
-  const { toggleChatWindowPlacement } = useContext(AppContext);
+  const toggleChatWindowPlacement = useUIStore(
+    (s) => s.toggleChatWindowPlacement,
+  );
 
   const getPanelSettingsItems = useCallback(
     (
       panelName: PanelName,
       panelTitle: string,
       panelsPosition: PanelPosition,
-      isPanelCollapsed = false
+      isPanelCollapsed = false,
     ): MenuProps['items'] => {
+      const panelSettingsPath = ['PanelSettings', panelName];
+
       const specificItems =
         panelName === PanelName.Chat
           ? [
               getDropdownItem({
                 key: 'move-chat',
+                fullPath: [...panelSettingsPath, 'MoveChatToWindow'],
                 icon: (
                   <Icon
                     className={classNames(iconClasses, 'w-[18px]')}
@@ -61,6 +67,7 @@ export function usePanelSettings() {
       const positionItems: MenuProps['items'] = [
         getDropdownItem({
           key: 'left',
+          fullPath: [...panelSettingsPath, 'Left'],
           icon: (
             <Icon
               className="text-text-secondary w-[18px]"
@@ -74,6 +81,7 @@ export function usePanelSettings() {
         }),
         getDropdownItem({
           key: 'right',
+          fullPath: [...panelSettingsPath, 'Right'],
           icon: (
             <Icon
               className="text-text-secondary w-[18px]"
@@ -87,6 +95,7 @@ export function usePanelSettings() {
         }),
         getDropdownItem({
           key: 'bottom',
+          fullPath: [...panelSettingsPath, 'Bottom'],
           icon: (
             <Icon
               className="text-text-secondary w-[18px]"
@@ -104,6 +113,7 @@ export function usePanelSettings() {
         getDropdownDivider(),
         getDropdownItem({
           key: 'hideText',
+          fullPath: [...panelSettingsPath, 'HideText'],
           icon: (
             <Icon
               className="text-text-secondary w-[18px]"
@@ -127,6 +137,7 @@ export function usePanelSettings() {
         }),
         getDropdownItem({
           key: 'split',
+          fullPath: [...panelSettingsPath, 'Split'],
           icon: (
             <Icon
               className="text-text-secondary rotate-90 w-[18px]"
@@ -158,6 +169,7 @@ export function usePanelSettings() {
         ? [
             getDropdownItem({
               key: 'expand',
+              fullPath: [...panelSettingsPath, 'Expand'],
               icon: (
                 <Icon
                   className={`h-[16px] w-[16px] text-text-secondary ${iconRotate}`}
@@ -189,7 +201,7 @@ export function usePanelSettings() {
       updateCollapsedPanelsTextHidden,
       updateSplitPanelsEnabled,
       togglePanel,
-    ]
+    ],
   );
 
   return {

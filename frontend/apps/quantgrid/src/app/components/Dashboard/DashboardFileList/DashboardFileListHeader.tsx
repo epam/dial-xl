@@ -12,7 +12,6 @@ type Props = {
 
 export function DashboardFileListHeader({
   title,
-
   sortAsc,
   isSort,
   onClick,

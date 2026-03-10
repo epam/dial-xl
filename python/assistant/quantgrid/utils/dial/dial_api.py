@@ -1,12 +1,15 @@
 import json
 
-from typing import Any
+from typing import Annotated, Any
 
 import aiohttp
 
 from dial_xl.credentials import ApiKeyProvider, CredentialProvider, JwtProvider
+from pydantic import Field, TypeAdapter
 
 from quantgrid.exceptions import XLInternalError
+from quantgrid.utils.dial.metadata import FolderMetadata, ItemMetadata
+from quantgrid.utils.dial.paginate_response import PaginateResponse
 
 
 class DIALApi:
@@ -24,6 +27,8 @@ class DIALApi:
                 return (await response.json())["bucket"]
 
     async def create_folder(self, path: str):
+        path = path.strip("/")
+
         async with aiohttp.ClientSession() as session:
             with aiohttp.MultipartWriter("form-data") as writer:
                 part = writer.append(b"")
@@ -39,7 +44,34 @@ class DIALApi:
                 ) as response:
                     response.raise_for_status()
 
-    async def list_folder(self, path: str) -> list[str]:
+    async def get_metadata(
+        self,
+        path: str,
+        *,
+        permissions: bool = False,
+    ) -> ItemMetadata | FolderMetadata:
+        path = path.lstrip("/")
+
+        async with aiohttp.ClientSession() as session:
+            headers = await self._auth_header()
+            params = {"permissions": str(permissions).lower()}
+
+            async with session.get(
+                f"{self._dial_url}/v1/metadata/{path}", headers=headers, params=params
+            ) as response:
+                response.raise_for_status()
+                json_response = await response.json()
+
+                adapter: TypeAdapter[ItemMetadata | FolderMetadata] = TypeAdapter(
+                    Annotated[
+                        ItemMetadata | FolderMetadata,
+                        Field(discriminator="node_type"),
+                    ]
+                )
+
+                return adapter.validate_python(json_response)
+
+    async def list_folder(self, path: str) -> list[ItemMetadata | FolderMetadata]:
         if not path.endswith("/"):
             path += "/"
 
@@ -48,7 +80,7 @@ class DIALApi:
             params: dict[str, Any] = {"limit": 1000}
 
             token: str | None = ""
-            items: list[str] = []
+            items: list[ItemMetadata | FolderMetadata] = []
 
             while token is not None:
                 params["token"] = token
@@ -62,9 +94,50 @@ class DIALApi:
                     json_response = await response.json()
 
                     token = json_response.get("nextToken")
-                    items.extend(item["url"] for item in json_response["items"])
+                    adapter: TypeAdapter[ItemMetadata | FolderMetadata] = TypeAdapter(
+                        Annotated[
+                            ItemMetadata | FolderMetadata,
+                            Field(discriminator="node_type"),
+                        ]
+                    )
+
+                    items.extend(
+                        adapter.validate_python(item) for item in json_response["items"]
+                    )
 
         return items
+
+    async def paginate_folder(
+        self, path: str, next_token: str = "", limit: int = 100
+    ) -> PaginateResponse:
+        if not path.endswith("/"):
+            path += "/"
+
+        async with aiohttp.ClientSession() as session:
+            headers = await self._auth_header()
+            params: dict[str, Any] = {"limit": min(limit, 1000), "token": next_token}
+
+            async with session.get(
+                f"{self._dial_url}/v1/metadata/{path}",
+                headers=headers,
+                params=params,
+            ) as response:
+                response.raise_for_status()
+                json_response = await response.json()
+
+                adapter: TypeAdapter[ItemMetadata | FolderMetadata] = TypeAdapter(
+                    Annotated[
+                        ItemMetadata | FolderMetadata,
+                        Field(discriminator="node_type"),
+                    ]
+                )
+
+                return PaginateResponse(
+                    next_token=json_response.get("nextToken"),
+                    items=[
+                        adapter.validate_python(item) for item in json_response["items"]
+                    ],
+                )
 
     async def create_file(
         self,
@@ -95,6 +168,17 @@ class DIALApi:
                     response.raise_for_status()
 
         return True
+
+    async def delete_file(self, path: str) -> bool:
+        headers = await self._auth_header()
+        headers["If-Match"] = "*"
+
+        async with aiohttp.ClientSession() as session:
+            async with session.delete(
+                f"{self._dial_url}/v1/{path}", headers=headers
+            ) as response:
+                response.raise_for_status()
+                return response.status == 200
 
     async def share(self, paths: list[str]) -> str:
         async with aiohttp.ClientSession() as session:

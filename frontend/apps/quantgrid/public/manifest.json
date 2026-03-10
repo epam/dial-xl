@@ -1,0 +1,21 @@
+{
+  "name": "DIAL XL",
+  "description": "DIAL eXpressive Logic (XL) is an AI-powered work-with-your-data platform with a natural language interface.",
+  "short_name": "DIAL XL",
+  "icons": [
+    {
+      "src": "/logo/192-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/logo/512-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "theme_color": "#000",
+  "background_color": "#000",
+  "display": "standalone",
+  "start_url": "."
+}

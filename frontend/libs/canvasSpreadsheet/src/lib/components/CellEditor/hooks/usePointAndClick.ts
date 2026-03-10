@@ -1,8 +1,8 @@
-import { RefObject, useCallback, useContext, useEffect, useRef } from 'react';
+import { useCallback, useContext, useEffect, useRef } from 'react';
 import { Subscription } from 'rxjs';
 
-import { GridApi, GridCallbacks } from '../../../types';
-import { filterByTypeAndCast } from '../../../utils';
+import { GridStateContext } from '../../../context';
+import { filterByTypeAndCast, GridEventBus } from '../../../utils';
 import { CellEditorContext } from '../CellEditorContext';
 import {
   GridCellEditorEventSetPointClickValue,
@@ -10,11 +10,12 @@ import {
 } from '../types';
 
 type Props = {
-  apiRef: RefObject<GridApi>;
-  gridCallbacksRef: RefObject<GridCallbacks>;
+  eventBus: GridEventBus;
 };
 
-export function usePointAndClick({ apiRef, gridCallbacksRef }: Props) {
+export function usePointAndClick({ eventBus }: Props) {
+  const { setSelectionEdges, cellEditorEvent$, pointClickMode } =
+    useContext(GridStateContext);
   const { setFocus, setCode, codeValue, onCodeChange } =
     useContext(CellEditorContext);
 
@@ -25,15 +26,15 @@ export function usePointAndClick({ apiRef, gridCallbacksRef }: Props) {
   const onStartPointClick = useCallback(
     (offset: number) => {
       cursorOffset.current = offset;
-      gridCallbacksRef?.current?.onStartPointClick?.();
+      eventBus.emit({
+        type: 'selection/point-click-started',
+      });
     },
-    [gridCallbacksRef]
+    [eventBus],
   );
 
   const onStopPointClick = useCallback(
     (offset: number) => {
-      if (!apiRef.current) return;
-
       const isSameValue = codeValue.current === lastCodeEditorValue.current;
 
       const isOffsetChanged =
@@ -47,10 +48,16 @@ export function usePointAndClick({ apiRef, gridCallbacksRef }: Props) {
       lastCodeEditorValue.current = '';
       cursorOffset.current = 0;
 
-      apiRef.current.updateSelection(null, { silent: true });
-      gridCallbacksRef?.current?.onStopPointClick?.();
+      if (!pointClickMode) {
+        return;
+      }
+
+      setSelectionEdges(null, { silent: true });
+      eventBus.emit({
+        type: 'selection/point-click-stopped',
+      });
     },
-    [apiRef, codeValue, gridCallbacksRef]
+    [codeValue, eventBus, pointClickMode, setSelectionEdges],
   );
 
   const onSetPointClickValue = useCallback(
@@ -67,39 +74,37 @@ export function usePointAndClick({ apiRef, gridCallbacksRef }: Props) {
 
       lastCodeEditorValue.current = updatedValue;
       lastPointClickValue.current = value;
+      const newCursorOffset = offset + value.length;
 
       setCode.current?.(updatedValue);
 
       setTimeout(() => {
-        setFocus.current?.();
+        setFocus.current?.({ cursorOffset: newCursorOffset });
         onCodeChange(updatedValue);
       }, 0);
     },
-    [codeValue, onCodeChange, setCode, setFocus]
+    [codeValue, onCodeChange, setCode, setFocus],
   );
 
   useEffect(() => {
-    if (!apiRef.current) return;
-
-    const api = apiRef.current;
     const subscriptions: Subscription[] = [];
 
     subscriptions.push(
-      api.cellEditorEvent$
+      cellEditorEvent$.current
         .pipe(
           filterByTypeAndCast<GridCellEditorEventSetPointClickValue>(
-            GridCellEditorEventType.SetPointClickValue
-          )
+            GridCellEditorEventType.SetPointClickValue,
+          ),
         )
         .subscribe(({ value }) => {
           onSetPointClickValue(value);
-        })
+        }),
     );
 
     return () => {
       subscriptions.forEach((s) => s.unsubscribe());
     };
-  }, [apiRef, onSetPointClickValue]);
+  }, [cellEditorEvent$, onSetPointClickValue]);
 
   return { onStartPointClick, onStopPointClick };
 }

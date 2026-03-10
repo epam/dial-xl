@@ -1,38 +1,15 @@
 import {
   AppTheme,
   convertThemeForCanvas,
+  FontFamilies,
   getHexColor,
-  themeColors,
+  themesColors,
 } from '@frontend/common';
 
-import { FontColorName, FontFamilies } from './setup';
 import { Theme } from './types';
 
 function createSpreadsheetTheme(theme: AppTheme): Theme {
-  const c = convertThemeForCanvas(themeColors[theme]);
-
-  const getFontColorByTheme = (
-    theme: AppTheme
-  ): Record<string, FontColorName> => {
-    if (theme === 'theme-dark') {
-      return {
-        textPrimary: FontColorName.darkTextPrimary,
-        textSecondary: FontColorName.darkTextSecondary,
-        textError: FontColorName.darkTextError,
-        textAccent: FontColorName.darkTextAccent,
-        textAccentSecondary: FontColorName.darkTextAccentSecondary,
-      };
-    }
-
-    return {
-      textPrimary: FontColorName.lightTextPrimary,
-      textSecondary: FontColorName.lightTextSecondary,
-      textError: FontColorName.lightTextError,
-      textAccent: FontColorName.lightTextAccent,
-      textAccentSecondary: FontColorName.lightTextAccentSecondary,
-    };
-  };
-  const f = getFontColorByTheme(theme);
+  const c = convertThemeForCanvas(themesColors[theme]);
 
   return {
     themeName: theme,
@@ -46,8 +23,8 @@ function createSpreadsheetTheme(theme: AppTheme): Theme {
       bgColorSelected: c.bgLayer4,
       bgColorFullSelected: c.bgAccentPrimaryAlpha,
       bgColorHover: c.bgAccentPrimaryAlpha2,
-      fontColorName: f.textSecondary,
-      fontFamily: FontFamilies.JetBrainsMonoRegular,
+      fontColor: c.textSecondary,
+      fontFamily: FontFamilies.JetBrainsMonoLight,
       resizerHoverColor: c.strokeSecondary,
       resizerActiveColor: c.strokeAccentPrimary,
     },
@@ -56,8 +33,8 @@ function createSpreadsheetTheme(theme: AppTheme): Theme {
       bgColorSelected: c.bgLayer4,
       bgColorFullSelected: c.bgAccentPrimaryAlpha,
       bgColorHover: c.bgAccentPrimaryAlpha2,
-      fontColorName: f.textSecondary,
-      fontFamily: FontFamilies.JetBrainsMonoRegular,
+      fontColor: c.textSecondary,
+      fontFamily: FontFamilies.JetBrainsMonoLight,
     },
     scrollBar: {
       trackColor: c.bgLayer1,
@@ -72,15 +49,16 @@ function createSpreadsheetTheme(theme: AppTheme): Theme {
       tableHeaderBgColor: c.bgGridHeader,
       fieldHeaderBgColor: c.bgLayer4,
       totalBgColor: c.bgAccentTertiaryAlphaSolid,
-      cellFontColorName: f.textPrimary,
-      cellFontFamily: FontFamilies.JetBrainsMonoRegular,
-      boldCellFontColorName: f.textPrimary,
-      boldCellFontFamily: FontFamilies.JetBrainsMonoBold,
-      keyFontColorName: f.textError,
-      keyFontFamily: FontFamilies.JetBrainsMonoBold,
-      linkFontColorName: f.textAccent,
-      linkFontFamily: FontFamilies.JetBrainsMonoRegular,
-      indexFontColorName: f.textAccentSecondary,
+      cellFontColor: c.textGridPrimary,
+      cellFontFamily: FontFamilies.JetBrainsMonoLight,
+      boldCellFontColor: c.textGridPrimary,
+      boldCellFontFamily: FontFamilies.JetBrainsMonoSemiBold,
+      keyFontColor: c.textError,
+      keyFontFamily: FontFamilies.JetBrainsMonoSemiBold,
+      linkFontColor: c.textAccentTertiary,
+      linkFontHoverColor: c.textAccentPrimary,
+      linkFontFamily: FontFamilies.JetBrainsMonoLight,
+      indexFontColor: c.textAccentSecondary,
       resizerHoverColor: c.strokeSecondary,
       resizerActiveColor: c.strokeAccentPrimary,
     },
@@ -88,6 +66,8 @@ function createSpreadsheetTheme(theme: AppTheme): Theme {
       bgAlpha: 0.1,
       bgColor: c.strokeAccentPrimary,
       borderColor: c.strokeAccentPrimary,
+      alpha: 1,
+      alignment: 0,
     },
     override: {
       borderColor: c.strokeAccentSecondary,
@@ -128,11 +108,11 @@ function createSpreadsheetTheme(theme: AppTheme): Theme {
       borderColor: c.textWarning,
     },
     hiddenCell: {
-      fontColorName: f.textSecondary,
-      fontFamily: FontFamilies.JetBrainsMonoRegular,
+      fontColor: c.textSecondary,
+      fontFamily: FontFamilies.JetBrainsMonoLight,
     },
     tableShadow: {
-      color: getHexColor(theme === 'theme-dark' ? 'ffffff' : '000000'),
+      color: getHexColor(theme === 'theme-dark' ? '#ffffff' : '#000000'),
       alpha: 0.6,
       rectangleAlpha: 0.2,
     },
@@ -141,6 +121,6 @@ function createSpreadsheetTheme(theme: AppTheme): Theme {
 
 export function getTheme(theme: AppTheme): Theme {
   return createSpreadsheetTheme(
-    theme === 'theme-dark' ? AppTheme.ThemeDark : AppTheme.ThemeLight
+    theme === 'theme-dark' ? AppTheme.ThemeDark : AppTheme.ThemeLight,
   );
 }

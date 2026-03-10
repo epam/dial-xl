@@ -1,4 +1,3 @@
-import { Modal } from 'antd';
 import cx from 'classnames';
 import { useCallback } from 'react';
 import { toast } from 'react-toastify';
@@ -18,10 +17,12 @@ import {
   deleteProjectHistory,
   deleteRecentProjectFromRecentProjects,
 } from '../../services';
+import { useAntdModalStore } from '../../store';
 import { useApiRequests } from '..';
 
 export function useDeleteResources() {
   const { deleteFile, deleteFolder, deleteProject } = useApiRequests();
+  const confirmModal = useAntdModalStore((s) => s.confirm);
 
   const handleDeleteProject = useCallback(
     async (item: Pick<ResourceMetadata, 'bucket' | 'name' | 'parentPath'>) => {
@@ -40,7 +41,7 @@ export function useDeleteResources() {
       deleteProjectHistory(projectName, bucket, parentPath);
       deleteRecentProjectFromRecentProjects(projectName, bucket, parentPath);
     },
-    [deleteProject]
+    [deleteProject],
   );
 
   const handleDeleteFolder = useCallback(
@@ -55,7 +56,7 @@ export function useDeleteResources() {
 
       toast.success(`Folder '${item.name}' successfully deleted`);
     },
-    [deleteFolder]
+    [deleteFolder],
   );
 
   const handleDeleteFile = useCallback(
@@ -82,7 +83,7 @@ export function useDeleteResources() {
         suppressErrors: true,
       });
     },
-    [deleteFile]
+    [deleteFile],
   );
 
   const getContent = useCallback(
@@ -90,7 +91,7 @@ export function useDeleteResources() {
       items: Pick<
         ResourceMetadata,
         'bucket' | 'name' | 'parentPath' | 'nodeType'
-      >[]
+      >[],
     ) => {
       if (items.length > 1)
         return `Do you want to delete ${items.length} selected items?`;
@@ -105,7 +106,7 @@ export function useDeleteResources() {
 
       return `Do you want to delete ${resourceName} "${fileName}"?`;
     },
-    []
+    [],
   );
 
   const deleteResources = useCallback(
@@ -114,9 +115,9 @@ export function useDeleteResources() {
         ResourceMetadata,
         'bucket' | 'name' | 'parentPath' | 'nodeType'
       >[],
-      onFinish?: () => void
+      onFinish?: () => void,
     ) => {
-      Modal.confirm({
+      confirmModal({
         icon: null,
         title: 'Confirm',
         content: getContent(items),
@@ -144,7 +145,13 @@ export function useDeleteResources() {
         },
       });
     },
-    [getContent, handleDeleteFile, handleDeleteFolder, handleDeleteProject]
+    [
+      getContent,
+      handleDeleteFile,
+      handleDeleteFolder,
+      handleDeleteProject,
+      confirmModal,
+    ],
   );
 
   return {

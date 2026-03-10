@@ -1,40 +1,41 @@
-import { RefObject, useCallback, useContext, useEffect } from 'react';
+import { useCallback, useContext, useEffect } from 'react';
 
 import { GridStateContext } from '../context';
-import { Edges, GridApi } from '../types';
-import { getTableRowDottedSelection, showFieldDottedSelection } from '../utils';
+import { Edges } from '../types';
+import {
+  getTableRowDottedSelection,
+  isCellEditorOpen,
+  showFieldDottedSelection,
+} from '../utils';
 
-export function useDottedSelection(gridApi: RefObject<GridApi>) {
-  const { selection$, getCell } = useContext(GridStateContext);
+export function useDottedSelection() {
+  const { selectionEdges, getCell, showDottedSelection, hideDottedSelection } =
+    useContext(GridStateContext);
 
   const updateDottedSelection = useCallback(
     (selection: Edges | null) => {
-      if (!gridApi.current) return;
-
-      const api = gridApi.current;
-
-      if (api.isCellEditorOpen()) return;
+      if (isCellEditorOpen()) return;
 
       if (!selection) {
-        api.hideDottedSelection();
+        hideDottedSelection();
 
         return;
       }
 
       const { startCol: col, startRow: row } = selection;
 
-      const currentCell = api.getCell(col, row);
+      const currentCell = getCell(col, row);
 
       if (currentCell?.table) {
-        api.hideDottedSelection();
+        hideDottedSelection();
 
         return;
       }
 
-      const leftTableCell = api.getCell(Math.max(1, col - 1), row);
-      const topTableCell = api.getCell(col, Math.max(1, row - 1));
-      const rightTableCell = api.getCell(col + 1, row);
-      const bottomTableCell = api.getCell(col, row + 1);
+      const leftTableCell = getCell(Math.max(1, col - 1), row);
+      const topTableCell = getCell(col, Math.max(1, row - 1));
+      const rightTableCell = getCell(col + 1, row);
+      const bottomTableCell = getCell(col, row + 1);
 
       // Vertical table field creation highlighting
       if (
@@ -49,7 +50,7 @@ export function useDottedSelection(gridApi: RefObject<GridApi>) {
           { col, row },
           leftTableCell.table,
           leftTableCell.endCol,
-          api
+          showDottedSelection,
         );
 
         return;
@@ -66,9 +67,9 @@ export function useDottedSelection(gridApi: RefObject<GridApi>) {
       ) {
         const dottedSelection = getTableRowDottedSelection(
           { col, row },
-          topTableCell.table
+          topTableCell.table,
         );
-        api.showDottedSelection(dottedSelection);
+        showDottedSelection(dottedSelection);
 
         return;
       }
@@ -86,7 +87,7 @@ export function useDottedSelection(gridApi: RefObject<GridApi>) {
           { col, row },
           topTableCell.table,
           topTableCell.endCol,
-          api
+          showDottedSelection,
         );
 
         return;
@@ -104,23 +105,19 @@ export function useDottedSelection(gridApi: RefObject<GridApi>) {
       ) {
         const dottedSelection = getTableRowDottedSelection(
           { col, row },
-          leftTableCell.table
+          leftTableCell.table,
         );
-        api.showDottedSelection(dottedSelection);
+        showDottedSelection(dottedSelection);
 
         return;
       }
 
-      api.hideDottedSelection();
+      hideDottedSelection();
     },
-    [gridApi]
+    [getCell, hideDottedSelection, showDottedSelection],
   );
 
   useEffect(() => {
-    const subscription = selection$.subscribe((selection) => {
-      updateDottedSelection(selection);
-    });
-
-    return () => subscription.unsubscribe();
-  }, [selection$, updateDottedSelection, getCell]);
+    updateDottedSelection(selectionEdges);
+  }, [selectionEdges, updateDottedSelection]);
 }

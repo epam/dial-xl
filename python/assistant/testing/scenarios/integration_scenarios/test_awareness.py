@@ -212,3 +212,73 @@ async def test_year_awareness(basic_project: FrameProject):
             day=[str(current_date.day)],
         )
     )
+
+
+async def test_advertiser_total(advertisers_project: FrameProject):
+    advertisers_import_dsl = get_sheet(
+        advertisers_project.get_project(), "Data"
+    ).to_dsl()
+    predefined_code = advertisers_import_dsl + (
+        """table HeinzSales2023Q1
+  dim [source] = FILTER(Advertisers, Advertisers[Fiscal Year] = "2023" AND \
+    Advertisers[Fiscal Qtr Code] = "2023Q1" AND \
+    CONTAINS(Advertisers[Advertiser Name], "HEINZ"))
+  [Advertiser Name] = [source][Advertiser Name]
+  [Net Booked Revenue (Number)] = [source][Net Booked Revenue (Number)]"""
+    )
+    answer = await advertisers_project.query(
+        "what was the 2023 q1 revenue for heinz?",
+        parameters=ConfigParametersDTO(
+            generation_parameters=GenerationParameters(
+                generate_summary=True,
+                saved_stages=[
+                    Stage(
+                        name=CHANGED_SHEETS_STAGE_NAME,
+                        attachments=[
+                            Attachment(
+                                title="DSL (Data)",
+                                data=predefined_code,
+                            )
+                        ],
+                    )
+                ],
+            )
+        ),
+    )
+    answer.assertion(Text(regex="(?i).*(?:HeinzSales2023Q1).*"))
+    answer.negative_assertion(
+        Text(numbers=["1,332,742"]) | Text(numbers=["1.3 millions"])
+    )
+
+
+async def test_advertiser_top(advertisers_project: FrameProject):
+    advertisers_import_dsl = get_sheet(
+        advertisers_project.get_project(), "Data"
+    ).to_dsl()
+    predefined_code = advertisers_import_dsl + (
+        """table HeinzSales2023Q1
+  dim [source] = SORTBY(FILTER(Advertisers, Advertisers[Fiscal Qtr Code] = "2023Q1" AND CONTAINS(Advertisers[Advertiser Name], "HEINZ")), \
+   -FILTER(Advertisers, Advertisers[Fiscal Qtr Code] = "2023Q1" AND CONTAINS(Advertisers[Advertiser Name], "HEINZ"))[Net Booked Revenue (Number)])
+  [Advertiser Name] = [source][Advertiser Name]
+  [Net Booked Revenue (Number)] = [source][Net Booked Revenue (Number)]"""
+    )
+    answer = await advertisers_project.query(
+        "what was the biggest 2023 q1 net booked revenue number for heinz?",
+        parameters=ConfigParametersDTO(
+            generation_parameters=GenerationParameters(
+                generate_summary=True,
+                saved_stages=[
+                    Stage(
+                        name=CHANGED_SHEETS_STAGE_NAME,
+                        attachments=[
+                            Attachment(
+                                title="DSL (Data)",
+                                data=predefined_code,
+                            )
+                        ],
+                    )
+                ],
+            )
+        ),
+    )
+    answer.assertion(Text(numbers=["2,162,325"]))

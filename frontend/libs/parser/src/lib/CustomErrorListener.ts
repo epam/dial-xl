@@ -15,7 +15,7 @@ export class CustomErrorListener {
     recognizer: Recognizer<any>,
     offendingSymbol: any | undefined,
     line: number,
-    column: number
+    column: number,
   ) {
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore

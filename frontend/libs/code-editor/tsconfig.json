@@ -3,12 +3,6 @@
   "include": [],
   "references": [
     {
-      "path": "../parser"
-    },
-    {
-      "path": "../common"
-    },
-    {
       "path": "./tsconfig.lib.json"
     },
     {

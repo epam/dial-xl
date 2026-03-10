@@ -1,17 +1,19 @@
-import * as PIXI from 'pixi.js';
+import { Graphics } from 'pixi.js';
 import { useCallback, useContext, useEffect, useRef, useState } from 'react';
 
 import { naExpression } from '@frontend/parser';
-import { Container, Graphics } from '@pixi/react';
 
-import { ComponentLayer } from '../../constants';
 import { GridStateContext, GridViewportContext } from '../../context';
 import { useCellUtils, useDraw } from '../../hooks';
 import { Edges } from '../../types';
 
 const debounceDelay = 50;
 
-export function Overrides() {
+type Props = {
+  zIndex: number;
+};
+
+export function Overrides({ zIndex }: Props) {
   const { theme, gridSizes, getCell } = useContext(GridStateContext);
   const {
     viewportEdges,
@@ -21,7 +23,7 @@ export function Overrides() {
   } = useContext(GridViewportContext);
   const { calculateCellDimensions } = useCellUtils();
 
-  const graphicsRef = useRef<PIXI.Graphics>(null);
+  const graphicsRef = useRef<Graphics>(null);
   const [overrideCells, setOverrideCells] = useState<Edges[]>([]);
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -98,17 +100,20 @@ export function Overrides() {
       const { x, y, height, width } = calculateCellDimensions(cell);
 
       graphics
-        .lineStyle(lineWidth, borderColor)
-        .drawRect(x, y, width, height)
-        .endFill();
+        .rect(x, y, width, height)
+        .stroke({ width: lineWidth, color: borderColor });
     });
   }, [calculateCellDimensions, gridSizes, overrideCells, theme]);
 
   useDraw(draw);
 
   return (
-    <Container zIndex={ComponentLayer.Override}>
-      <Graphics ref={graphicsRef} />
-    </Container>
+    <pixiContainer label="Overrides" zIndex={zIndex}>
+      <pixiGraphics
+        draw={() => {}}
+        label="OverridesGraphics"
+        ref={graphicsRef}
+      />
+    </pixiContainer>
   );
 }

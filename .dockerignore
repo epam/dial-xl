@@ -2,7 +2,9 @@
 gradle
 
 backend/*/build
-!backend/web/build/libs
+!backend/web/build/distributions
+!airbyte-integrations/destination/build/libs
+!airbyte-integrations/source/build/libs
 
 frontend/*
 !frontend/dist

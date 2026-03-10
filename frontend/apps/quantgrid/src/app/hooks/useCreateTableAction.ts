@@ -1,19 +1,32 @@
 import { useCallback, useContext } from 'react';
 
 import { PanelName } from '../common';
-import { AppContext, LayoutContext, ProjectContext } from '../context';
+import { LayoutContext } from '../context';
 import { EventBusMessages } from '../services';
+import {
+  useControlStore,
+  useGroupByStore,
+  usePivotStore,
+  useViewStore,
+} from '../store';
 import { useCreateTableDsl, useTableEditDsl } from './EditDsl';
 import useEventBus from './useEventBus';
 import { useGridApi } from './useGridApi';
 
-export function useCreateTableAction() {
+function useCreateTableAction() {
   const eventBus = useEventBus<EventBusMessages>();
   const { cloneTable } = useTableEditDsl();
   const { createDerivedTable } = useCreateTableDsl();
   const gridApi = useGridApi();
-  const { selectedCell } = useContext(ProjectContext);
-  const { changePivotTableWizardMode } = useContext(AppContext);
+  const changePivotTableWizardMode = usePivotStore(
+    (s) => s.changePivotTableWizardMode,
+  );
+  const changeGroupByTableWizardMode = useGroupByStore(
+    (s) => s.changeGroupByTableWizardMode,
+  );
+  const openControlCreateWizard = useControlStore(
+    (s) => s.openControlCreateWizard,
+  );
   const { openPanel } = useContext(LayoutContext);
 
   const onCreateTableAction = useCallback(
@@ -21,8 +34,16 @@ export function useCreateTableAction() {
       action: string,
       type: string | undefined,
       insertFormula: string | undefined,
-      tableName: string | undefined
+      tableName: string | undefined,
     ) => {
+      const selectedCell = useViewStore.getState().selectedCell;
+
+      if (action === 'CreateControl') {
+        openControlCreateWizard();
+        openPanel(PanelName.Details);
+
+        return;
+      }
       if (action.startsWith('CreateTable')) {
         if (selectedCell && gridApi && insertFormula) {
           eventBus.publish({
@@ -50,6 +71,10 @@ export function useCreateTableAction() {
             changePivotTableWizardMode('create', tableName);
             openPanel(PanelName.Details);
             break;
+          case 'groupBy':
+            changeGroupByTableWizardMode('create', tableName);
+            openPanel(PanelName.Details);
+            break;
           case 'size':
           default:
             break;
@@ -61,17 +86,20 @@ export function useCreateTableAction() {
       }
     },
     [
-      createDerivedTable,
-      eventBus,
+      openControlCreateWizard,
       gridApi,
+      eventBus,
       cloneTable,
-      openPanel,
-      selectedCell,
+      createDerivedTable,
       changePivotTableWizardMode,
-    ]
+      changeGroupByTableWizardMode,
+      openPanel,
+    ],
   );
 
   return {
     onCreateTableAction,
   };
 }
+
+export default useCreateTableAction;

@@ -56,7 +56,7 @@ export class ParsedField {
     public dslPlacement?: ShortDSLPlacement | undefined,
     decorators?: ParsedDecorator[] | undefined,
     public note?: DSLNote | undefined,
-    public groupDim = false
+    public groupDim = false,
   ) {
     this.span = span;
     this.name = name;
@@ -139,7 +139,7 @@ export class ParsedField {
   private getDecoratorParam(
     decoratorName: string,
     paramIndex = 0,
-    valueIndex = 0
+    valueIndex = 0,
   ): string | undefined {
     return this.getDecorator(decoratorName)?.params?.[paramIndex]?.[valueIndex];
   }

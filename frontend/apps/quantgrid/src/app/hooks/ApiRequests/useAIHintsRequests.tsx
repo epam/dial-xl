@@ -4,12 +4,12 @@ import { AuthContextProps } from 'react-oidc-context';
 import {
   AIHint,
   apiMessages,
+  ApiRequestFunction,
   dialAIHintsFileName,
   filesEndpointPrefix,
 } from '@frontend/common';
 
 import { FileReference } from '../../common';
-import { ApiRequestFunction } from '../../types';
 import { constructPath, displayToast, encodeApiUrl } from '../../utils';
 import { useBackendRequest } from './useBackendRequests';
 
@@ -33,8 +33,8 @@ export const useAIHintsRequests = (auth: AuthContextProps) => {
               bucket,
               parentPath,
               dialAIHintsFileName,
-            ])
-          )
+            ]),
+          ),
         );
 
         if (!res.ok) {
@@ -57,7 +57,7 @@ export const useAIHintsRequests = (auth: AuthContextProps) => {
         return undefined;
       }
     },
-    [sendDialRequest]
+    [sendDialRequest],
   );
 
   const putAIHintsContent = useCallback<
@@ -82,7 +82,7 @@ export const useAIHintsRequests = (auth: AuthContextProps) => {
           encodeApiUrl(
             `${filesEndpointPrefix}/${bucket}/${
               parentPath ? parentPath + '/' : ''
-            }${dialAIHintsFileName}`
+            }${dialAIHintsFileName}`,
           ),
           {
             method: 'PUT',
@@ -92,7 +92,7 @@ export const useAIHintsRequests = (auth: AuthContextProps) => {
                   'If-Match': version,
                 }
               : undefined,
-          }
+          },
         );
 
         if (!res.ok) {
@@ -117,7 +117,7 @@ export const useAIHintsRequests = (auth: AuthContextProps) => {
         return undefined;
       }
     },
-    [sendDialRequest]
+    [sendDialRequest],
   );
 
   return { getAIHintsContent, putAIHintsContent };

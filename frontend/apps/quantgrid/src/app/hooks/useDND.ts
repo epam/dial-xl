@@ -3,6 +3,7 @@ import { debounce } from 'ts-debounce';
 
 import { getMousePosition } from '@frontend/canvas-spreadsheet';
 
+import { canvasId } from '../common';
 import { useGridApi } from './useGridApi';
 
 export function useDND() {
@@ -18,18 +19,18 @@ export function useDND() {
     (e: DragEvent): { col: number; row: number } | undefined => {
       if ((e.target as HTMLElement).tagName !== 'CANVAS') return;
 
-      const mousePosition = getMousePosition(e);
+      const mousePosition = getMousePosition(e, canvasId);
 
       if (!mousePosition || !gridApi) return;
 
       const { col, row } = gridApi.getCellFromCoords(
         mousePosition.x,
-        mousePosition.y
+        mousePosition.y,
       );
 
       return { col, row };
     },
-    [gridApi]
+    [gridApi],
   );
 
   const processDragOver = useCallback(
@@ -52,7 +53,7 @@ export function useDND() {
         endRow: Math.max(1, row),
       });
     },
-    [getDropCell, gridApi, handleDragEnd]
+    [getDropCell, gridApi, handleDragEnd],
   );
 
   const debouncedProcessDragOver = debounce(processDragOver, 0);
@@ -63,7 +64,7 @@ export function useDND() {
 
       debouncedProcessDragOver(e);
     },
-    [debouncedProcessDragOver]
+    [debouncedProcessDragOver],
   );
 
   return {

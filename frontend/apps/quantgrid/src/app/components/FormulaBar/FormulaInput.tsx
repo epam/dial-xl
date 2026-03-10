@@ -7,8 +7,10 @@ import {
   useRef,
   useState,
 } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 
 import {
+  getCellContext,
   GridCellEditorMode,
   isCellEditorOpen,
 } from '@frontend/canvas-spreadsheet';
@@ -25,7 +27,6 @@ import {
 
 import { SelectedCellType } from '../../common';
 import {
-  AppContext,
   ChatOverlayContext,
   InputsContext,
   ProjectContext,
@@ -38,6 +39,12 @@ import {
   FormulaBarFormulasMenuItemApplyMessage,
   PointClickSetValue,
 } from '../../services';
+import {
+  useEditorStore,
+  useFormulaBarStore,
+  useUserSettingsStore,
+  useViewStore,
+} from '../../store';
 import {
   FormulaBarModeIndicator,
   FormulaBarTitle,
@@ -55,24 +62,27 @@ type Props = {
 
 export function FormulaInput({ fieldName, inputIndex = 0 }: Props) {
   const eventBus = useEventBus<EventBusMessages>();
-  const {
-    selectedCell,
-    functions,
-    parsedSheets,
-    sheetContent,
-    isProjectEditable,
-  } = useContext(ProjectContext);
+  const { functions, parsedSheets, sheetContent, isProjectEditable } =
+    useContext(ProjectContext);
   const { isAIPendingChanges, isAIEditPendingChanges } =
     useContext(ChatOverlayContext);
-  const {
-    editMode,
-    formulaBarMode,
-    formulaBarExpanded,
-    theme,
-    switchPointClickMode,
-    isPointClickMode,
-  } = useContext(AppContext);
+  const selectedCell = useViewStore((s) => s.selectedCell);
+  const { editMode, isPointClickMode, switchPointClickMode } = useEditorStore(
+    useShallow((s) => ({
+      editMode: s.editMode,
+      isPointClickMode: s.isPointClickMode,
+      switchPointClickMode: s.switchPointClickMode,
+    })),
+  );
+  const { formulaBarMode, formulaBarExpanded } = useFormulaBarStore(
+    useShallow((s) => ({
+      formulaBarMode: s.formulaBarMode,
+      formulaBarExpanded: s.formulaBarExpanded,
+    })),
+  );
+
   const { inputList } = useContext(InputsContext);
+  const theme = useUserSettingsStore((s) => s.data.appTheme);
   const gridApi = useGridApi();
 
   const [codeEditor, setCodeEditor] = useState<
@@ -102,6 +112,31 @@ export function FormulaInput({ fieldName, inputIndex = 0 }: Props) {
     return editMode;
   }, [editMode, fieldName]);
 
+  const selectedCellContext = useMemo((): {
+    tableName: string;
+    fieldName: string;
+  } => {
+    if (!gridApi || !selectedCell) {
+      return {
+        tableName: '',
+        fieldName: '',
+      };
+    }
+
+    // Case when we are writing formula to the right or bottom of a vertical or horizontal table
+    // Same logic used in CellEditor
+    const contextCell = getCellContext(
+      gridApi.getCell,
+      selectedCell.col,
+      selectedCell.row,
+    );
+
+    return {
+      tableName: contextCell?.table?.tableName ?? selectedCell?.tableName ?? '',
+      fieldName: selectedCell?.fieldName || '',
+    };
+  }, [selectedCell, gridApi]);
+
   const onCodeChange = useCallback(
     (code: string) => {
       codeRef.current = code;
@@ -124,7 +159,7 @@ export function FormulaInput({ fieldName, inputIndex = 0 }: Props) {
         gridApi.setCellEditorValue(code);
       }
     },
-    [gridApi, fieldName, selectedCell]
+    [gridApi, fieldName, selectedCell],
   );
 
   const closeCellEditor = useCallback(() => {
@@ -141,7 +176,7 @@ export function FormulaInput({ fieldName, inputIndex = 0 }: Props) {
       codeRef.current,
       selectedCell,
       formulaInputEditMode,
-      fieldName
+      fieldName,
     );
 
     if (isCloseCellEditor) {
@@ -174,7 +209,7 @@ export function FormulaInput({ fieldName, inputIndex = 0 }: Props) {
         codeRef.current || '',
         selectedCell,
         formulaInputEditMode,
-        fieldName
+        fieldName,
       );
 
       if (isCloseCellEditor) {
@@ -226,7 +261,7 @@ export function FormulaInput({ fieldName, inputIndex = 0 }: Props) {
       codeRef.current = value;
       setCode.current?.(value);
     },
-    [fieldName, getSelectedCellValue, selectedCell]
+    [fieldName, getSelectedCellValue, selectedCell],
   );
 
   const handlePointClickSetValue = useCallback(
@@ -257,7 +292,7 @@ export function FormulaInput({ fieldName, inputIndex = 0 }: Props) {
 
       setFocus.current?.();
     },
-    [setFocus, gridApi, isPointClickMode]
+    [setFocus, gridApi, isPointClickMode],
   );
 
   const onEditorReady = useCallback(
@@ -271,7 +306,7 @@ export function FormulaInput({ fieldName, inputIndex = 0 }: Props) {
       codeRef.current = value;
       setCode.current?.(value);
     },
-    [fieldName, getSelectedCellValue, gridApi, selectedCell]
+    [fieldName, getSelectedCellValue, gridApi, selectedCell],
   );
 
   const onStartPointClick = useCallback(
@@ -280,7 +315,7 @@ export function FormulaInput({ fieldName, inputIndex = 0 }: Props) {
       switchPointClickMode(true, 'formula-bar');
       cursorOffset.current = offset;
     },
-    [switchPointClickMode]
+    [switchPointClickMode],
   );
 
   const onStopPointClick = useCallback(
@@ -303,7 +338,7 @@ export function FormulaInput({ fieldName, inputIndex = 0 }: Props) {
         gridApi.updateSelection(null, { silent: true });
       }
     },
-    [gridApi, switchPointClickMode]
+    [gridApi, switchPointClickMode],
   );
 
   const handleFormulaBarFormulasMenuItemApply = useCallback(
@@ -333,7 +368,7 @@ export function FormulaInput({ fieldName, inputIndex = 0 }: Props) {
         gridApi?.showCellEditor(
           selectedCell?.col ?? 1,
           selectedCell?.row ?? 1,
-          codeRef.current
+          codeRef.current,
         );
       }
 
@@ -342,7 +377,7 @@ export function FormulaInput({ fieldName, inputIndex = 0 }: Props) {
       });
       codeEditor?.getAction('editor.action.triggerParameterHints')?.run();
     },
-    [gridApi, codeEditor, selectedCell]
+    [gridApi, codeEditor, selectedCell],
   );
 
   const isReadOnly = useMemo(() => {
@@ -375,17 +410,17 @@ export function FormulaInput({ fieldName, inputIndex = 0 }: Props) {
   useEffect(() => {
     const cellEditorUpdateValueListener = eventBus.subscribe(
       'CellEditorUpdateValue',
-      handleCellEditorUpdateValue
+      handleCellEditorUpdateValue,
     );
 
     const pointClickSetValueListener = eventBus.subscribe(
       'PointClickSetValue',
-      handlePointClickSetValue
+      handlePointClickSetValue,
     );
 
     const formulaBarFormulasMenuListener = eventBus.subscribe(
       'FormulaBarFormulasMenuItemApply',
-      handleFormulaBarFormulasMenuItemApply
+      handleFormulaBarFormulasMenuItemApply,
     );
 
     return () => {
@@ -417,8 +452,8 @@ export function FormulaInput({ fieldName, inputIndex = 0 }: Props) {
         <div className="w-full h-full relative pt-1">
           <CodeEditor
             codeEditorPlace="formulaBar"
-            currentFieldName={selectedCell?.fieldName}
-            currentTableName={selectedCell?.tableName}
+            currentFieldName={selectedCellContext?.fieldName}
+            currentTableName={selectedCellContext?.tableName}
             functions={functions}
             inputFiles={inputList}
             language="formula-bar"

@@ -3,7 +3,7 @@ import { CurrentFieldExpression, Expression } from '../ast';
 export function updateExpressionFieldName(
   expr: Expression,
   oldName: string,
-  newName: string
+  newName: string,
 ): void {
   if (expr instanceof CurrentFieldExpression) {
     if (expr.fieldName === oldName) {

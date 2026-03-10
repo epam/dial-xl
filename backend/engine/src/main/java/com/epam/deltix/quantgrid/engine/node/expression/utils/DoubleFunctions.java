@@ -265,7 +265,7 @@ public class DoubleFunctions {
             return Doubles.ERROR_NA; // #DIV/0!
         }
 
-        return a / b;
+        return Doubles.normalizeNaN(a / b); // inf divisions
     }
 
     public double pow(double a, double b) {
@@ -526,7 +526,12 @@ public class DoubleFunctions {
             return 0;
         }
 
-        double date = Dates.from(input);
+        double date = Dates.fromDate(input);
+        if (!Doubles.isNa(date)) {
+            return date;
+        }
+
+        date = Dates.fromDateTime(input);
         if (!Doubles.isNa(date)) {
             return date;
         }

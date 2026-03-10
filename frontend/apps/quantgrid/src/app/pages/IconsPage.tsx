@@ -1,29 +1,49 @@
 import { Input } from 'antd';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import Icon from '@ant-design/icons';
-import { inputClasses, QGIconProps } from '@frontend/common';
+import { AppTheme, inputClasses, QGIconProps } from '@frontend/common';
 
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import * as Icons from '../../../../../libs/common/src/lib/icons';
+import { useThemeEffects } from '../hooks';
+import { useUserSettingsStore } from '../store';
 
 export function IconsPage() {
   const [iconClassname, setIconClassname] = useState(
-    'size-10 border rounded-sm text-text-accent-primary'
+    'size-10 border rounded-sm text-text-accent-primary',
   );
   const [iconProps, setIconProps] = useState<QGIconProps>({
     secondaryAccentCssVar: 'text-accent-secondary',
     tertiaryAccentCssVar: 'text-accent-tertiary',
   });
 
+  useThemeEffects();
+  const updateSettings = useUserSettingsStore((s) => s.patch);
+
+  useEffect(() => {
+    updateSettings({
+      appTheme: AppTheme.ThemeLight,
+    });
+  }, [updateSettings]);
+
   const allIcons = useMemo(() => Object.entries(Icons), []);
   const chartIcons = useMemo(
     () => allIcons.filter((icon) => icon[0].toLowerCase().includes('chart')),
-    [allIcons]
+    [allIcons],
+  );
+  const sourceIcons = useMemo(
+    () => allIcons.filter((icon) => icon[0].toLowerCase().includes('source')),
+    [allIcons],
   );
   const otherIcons = useMemo(
-    () => allIcons.filter((icon) => !icon[0].toLowerCase().includes('chart')),
-    [allIcons]
+    () =>
+      allIcons.filter(
+        (icon) =>
+          !icon[0].toLowerCase().includes('chart') &&
+          !icon[0].toLowerCase().includes('source'),
+      ),
+    [allIcons],
   );
 
   const IconTile = (iconName: string, IconComponent: any) => {
@@ -81,13 +101,19 @@ export function IconsPage() {
         <h4>Chart icons</h4>
         <div className="grid grid-cols-8 gap-10">
           {chartIcons.map(([iconName, IconComponent]) =>
-            IconTile(iconName, IconComponent)
+            IconTile(iconName, IconComponent),
+          )}
+        </div>
+        <h4>Source icons</h4>
+        <div className="grid grid-cols-8 gap-10">
+          {sourceIcons.map(([iconName, IconComponent]) =>
+            IconTile(iconName, IconComponent),
           )}
         </div>
         <h4>Other icons</h4>
         <div className="grid grid-cols-8 gap-10">
           {otherIcons.map(([iconName, IconComponent]) =>
-            IconTile(iconName, IconComponent)
+            IconTile(iconName, IconComponent),
           )}
         </div>
       </div>

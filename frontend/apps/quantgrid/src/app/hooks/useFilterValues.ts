@@ -130,14 +130,14 @@ export function useFieldFilterValues() {
         const virtualTableName = getOrCreateVirtualTableName(
           tableName,
           fieldName,
-          unescapedTableName
+          unescapedTableName,
         );
 
         const cachedRowNumber =
           cachedKeyViewports.current[tableName]?.[fieldName] || 0;
         const maxRowNumber = viewGridData.getFieldFilterList(
           tableName,
-          fieldName
+          fieldName,
         ).length;
 
         if (
@@ -152,10 +152,12 @@ export function useFieldFilterValues() {
           is_raw: true,
         };
 
+        const unescapedFieldName = unescapeFieldName(fieldName);
+
         virtualRequests.push({
           ...baseVirtualRequest,
           fieldKey: {
-            field: fieldName,
+            field: unescapedFieldName,
             table: virtualTableName,
           },
         });
@@ -163,7 +165,7 @@ export function useFieldFilterValues() {
         virtualRequests.push({
           ...baseVirtualRequest,
           fieldKey: {
-            field: fieldName + '_filtered',
+            field: unescapedFieldName + '_filtered',
             table: virtualTableName,
           },
         });
@@ -182,13 +184,13 @@ export function useFieldFilterValues() {
         viewGridData.addFilterKeyVirtualTable(
           tableName,
           fieldName,
-          escapeTableName(virtualTableName)
+          escapeTableName(virtualTableName),
         );
 
         viewGridData.addFilterKeyVirtualTable(
           tableName,
           fieldName + '_filtered',
-          escapeTableName(virtualTableName)
+          escapeTableName(virtualTableName),
         );
 
         if (!cachedKeyViewports.current[tableName]) {
@@ -201,11 +203,11 @@ export function useFieldFilterValues() {
       function getOrCreateVirtualTableName(
         tableName: string,
         fieldName: string,
-        unescapedTableName: string
+        unescapedTableName: string,
       ): string {
         const virtualTableName = viewGridData.getVirtualTableName(
           tableName,
-          fieldName
+          fieldName,
         );
 
         if (virtualTableName) return unescapeTableName(virtualTableName);
@@ -214,7 +216,7 @@ export function useFieldFilterValues() {
 
         return createUniqueName(
           `${unescapedTableName}_unique_keys_for_field_${sanitizedFieldName}_${uniqueId()}`,
-          collectTableNames(parsedSheets)
+          collectTableNames(parsedSheets),
         );
       }
 
@@ -226,7 +228,7 @@ export function useFieldFilterValues() {
 
         if (targetTableName) {
           const table = parsedSheetTables.find(
-            (t) => t.tableName === targetTableName
+            (t) => t.tableName === targetTableName,
           );
           if (table) tables.push(table);
         }
@@ -240,7 +242,7 @@ export function useFieldFilterValues() {
       parsedSheets,
       sheetContent,
       viewGridData,
-    ]
+    ],
   );
 
   const isCached = useCallback((tableName: string, fieldName: string) => {
@@ -279,8 +281,8 @@ export function useFieldFilterValues() {
         setFilterList(
           viewGridData.getFieldFilterList(
             filterTableName.current,
-            filterFieldName.current
-          )
+            filterFieldName.current,
+          ),
         );
 
         return;
@@ -301,7 +303,7 @@ export function useFieldFilterValues() {
         sort,
       });
     },
-    [clearCache, isCached, sendGetFilterValuesViewports, viewGridData]
+    [clearCache, isCached, sendGetFilterValuesViewports, viewGridData],
   );
 
   useEffect(() => {
@@ -310,7 +312,7 @@ export function useFieldFilterValues() {
 
       const newFilterListValues = viewGridData.getFieldFilterList(
         filterTableName.current,
-        filterFieldName.current
+        filterFieldName.current,
       );
 
       setFilterList(newFilterListValues);

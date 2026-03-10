@@ -1,7 +1,4 @@
-import Icon from '@ant-design/icons';
-
-import { TablePlusIcon } from '../icons';
-import { CommonMetadata, FunctionInfo, FunctionType } from '../services';
+import { CommonMetadata, FunctionInfo } from '../services';
 import { FormulasContextMenuKeyData, MenuItem } from '../types';
 import { getDropdownItem, getDropdownMenuKey } from './getDropdownItem';
 import { getTableBySizeDropdownItem } from './getSizeDropdownItem';
@@ -14,51 +11,20 @@ const menuKey = {
   input: 'input',
   filter: 'filter',
   pivot: 'pivot',
+  groupBy: 'groupBy',
   sortTable: 'sortTable',
   uniqueValues: 'uniqueValues',
 };
 
-const getFunctionsMap = (
-  functions: FunctionInfo[]
-): Record<string, FunctionInfo[]> => {
-  return functions.reduce((acc, curr) => {
-    (curr.functionType ?? []).forEach((type) => {
-      if (!acc[type]) {
-        acc[type] = [] as FunctionInfo[];
-      }
-
-      acc[type].push(curr);
-    });
-
-    return acc;
-  }, {} as Record<string, FunctionInfo[]>);
-};
-
-const getSubmenuItemsByFunctionType = (
-  funcMap: Record<string, FunctionInfo[]>,
-  type: FunctionType
-): MenuItem[] => {
-  return funcMap[type]?.map((func) =>
-    getDropdownItem({
-      label: func.name,
-      key: getDropdownMenuKey<FormulasContextMenuKeyData>(
-        [type, func.name].join(','),
-        {
-          insertFormula: func.name + '()',
-        }
-      ),
-    })
-  );
-};
-
 export const getCreateTableChildren = (
+  basePath: string[],
   functions: FunctionInfo[],
   tableNames: string[],
   inputFiles: CommonMetadata[] | null,
-  onCreateTable: (cols: number, rows: number) => void
+  onCreateTable: (cols: number, rows: number) => void,
 ): MenuItem[] => {
   const inputs = [...(inputFiles ?? [])].sort((a, b) =>
-    a.name < b.name ? -1 : 1
+    a.name < b.name ? -1 : 1,
   );
 
   const rangeFunction = functions.find((func) => func.name === 'RANGE');
@@ -70,33 +36,56 @@ export const getCreateTableChildren = (
     getDropdownItem({
       label: 'Pivot',
       key: menuKey.pivot,
+      fullPath: [...basePath, 'Pivot'],
       disabled: !tableNames?.length,
       children: tableNames?.map((name) =>
         getDropdownItem({
           label: name,
+          fullPath: [...basePath, 'Pivot', name],
           key: getDropdownMenuKey<FormulasContextMenuKeyData>(
             ['Action', 'Pivot', name].join('-'),
             {
               tableName: name,
               type: 'pivot',
-            }
+            },
           ),
-        })
+        }),
+      ),
+    }),
+    getDropdownItem({
+      label: 'Group by',
+      key: menuKey.groupBy,
+      fullPath: [...basePath, 'GroupBy'],
+      disabled: !tableNames?.length,
+      children: tableNames?.map((name) =>
+        getDropdownItem({
+          label: name,
+          key: getDropdownMenuKey<FormulasContextMenuKeyData>(
+            ['Action', 'GroupBy', name].join('-'),
+            {
+              tableName: name,
+              type: 'groupBy',
+            },
+          ),
+          fullPath: [...basePath, 'GroupBy', name],
+        }),
       ),
     }),
     getDropdownItem({
       disabled: !rangeFunction,
       label: 'By row range',
+      fullPath: [...basePath, 'ByRowRange'],
       key: getDropdownMenuKey<FormulasContextMenuKeyData>(
         ['CreateTable', menuKey.byRowRange, rangeFunction?.name].join('-'),
         {
           insertFormula: rangeFunction?.name + '()',
-        }
+        },
       ),
     }),
     getDropdownItem({
       label: 'By size',
       key: menuKey.bySize,
+      fullPath: [...basePath, 'BySize'],
       children: [
         getTableBySizeDropdownItem({
           key: getDropdownMenuKey<FormulasContextMenuKeyData>(
@@ -104,7 +93,7 @@ export const getCreateTableChildren = (
             {
               insertFormula: menuKey.bySize,
               type: 'size',
-            }
+            },
           ),
           onCreateTable,
         }),
@@ -113,207 +102,119 @@ export const getCreateTableChildren = (
     getDropdownItem({
       label: 'Copy',
       key: 'Copy',
+      fullPath: [...basePath, 'Copy'],
       disabled: !tableNames?.length,
       children: tableNames?.map((name) =>
         getDropdownItem({
           label: name,
+          fullPath: [...basePath, 'Copy', name],
           key: getDropdownMenuKey<FormulasContextMenuKeyData>(
             ['Action', 'Copy', name].join('-'),
             {
               tableName: name,
               type: 'copy',
-            }
+            },
           ),
-        })
+        }),
       ),
     }),
     getDropdownItem({
       label: 'Derived',
       key: getDropdownMenuKey(menuKey.derived),
+      fullPath: [...basePath, 'Derived'],
       disabled: !tableNames?.length,
       children: tableNames?.map((name) =>
         getDropdownItem({
           label: name,
+          fullPath: [...basePath, 'Derived', name],
           key: getDropdownMenuKey<FormulasContextMenuKeyData>(
             ['Action', 'Derived', name].join('-'),
             {
               tableName: name,
               type: 'derived',
-            }
+            },
           ),
-        })
+        }),
       ),
     }),
     getDropdownItem({
       label: 'Input',
       key: getDropdownMenuKey(menuKey.input),
-      children: inputs?.map(({ name, url }) =>
-        getDropdownItem({
-          label: name,
-          key: getDropdownMenuKey<FormulasContextMenuKeyData>(
-            ['CreateTable', 'Derived', name].join('-'),
-            {
-              insertFormula: `INPUT("${url ?? name}")`,
-            }
-          ),
-        })
-      ),
+      fullPath: [...basePath, 'Input'],
+      children: inputs
+        ? inputs?.map(({ name, url }) =>
+            getDropdownItem({
+              label: name,
+              fullPath: [...basePath, 'Input', name],
+              key: getDropdownMenuKey<FormulasContextMenuKeyData>(
+                ['CreateTable', 'Derived', name].join('-'),
+                {
+                  insertFormula: `INPUT("${url ?? name}")`,
+                },
+              ),
+            }),
+          )
+        : [],
     }),
     getDropdownItem({
       label: 'Filter',
       key: getDropdownMenuKey(menuKey.filter),
+      fullPath: [...basePath, 'Filter'],
       disabled: !tableNames?.length || !filterFunction,
-      children: tableNames?.map((name) =>
-        getDropdownItem({
-          label: name,
-          key: getDropdownMenuKey<FormulasContextMenuKeyData>(
-            ['CreateTable', 'Filter', name].join('-'),
-            {
-              insertFormula: filterFunction?.name + `(${name},)`,
-            }
-          ),
-        })
-      ),
+      children: filterFunction
+        ? tableNames?.map((name) =>
+            getDropdownItem({
+              label: name,
+              fullPath: [...basePath, 'Filter', name],
+              key: getDropdownMenuKey<FormulasContextMenuKeyData>(
+                ['CreateTable', 'Filter', name].join('-'),
+                {
+                  insertFormula: filterFunction?.name + `(${name},)`,
+                },
+              ),
+            }),
+          )
+        : [],
     }),
     getDropdownItem({
       label: 'Sort table',
       key: getDropdownMenuKey(menuKey.sortTable),
+      fullPath: [...basePath, 'SortTable'],
       disabled: !tableNames?.length || !sortByFunction,
-      children: tableNames?.map((name) =>
-        getDropdownItem({
-          label: name,
-          key: getDropdownMenuKey<FormulasContextMenuKeyData>(
-            ['CreateTable', 'Filter', name].join('-'),
-            {
-              insertFormula: sortByFunction?.name + `(${name},)`,
-            }
-          ),
-        })
-      ),
+      children: sortByFunction
+        ? tableNames?.map((name) =>
+            getDropdownItem({
+              label: name,
+              fullPath: [...basePath, 'SortTable', name],
+              key: getDropdownMenuKey<FormulasContextMenuKeyData>(
+                ['CreateTable', 'Filter', name].join('-'),
+                {
+                  insertFormula: sortByFunction?.name + `(${name},)`,
+                },
+              ),
+            }),
+          )
+        : [],
     }),
     getDropdownItem({
       label: 'Unique values',
       key: getDropdownMenuKey(menuKey.uniqueValues),
+      fullPath: [...basePath, 'UniqueValues'],
       disabled: !tableNames?.length || !uniqueByFunction,
-      children: tableNames?.map((name) =>
-        getDropdownItem({
-          label: name,
-          key: getDropdownMenuKey<FormulasContextMenuKeyData>(
-            ['CreateTable', 'Filter', name].join('-'),
-            {
-              insertFormula: uniqueByFunction?.name + `(${name},)`,
-            }
-          ),
-        })
-      ),
-    }),
-  ];
-};
-
-export const getFormulasMenuItems = (
-  functions: FunctionInfo[],
-  tableNames: string[],
-  inputFiles: CommonMetadata[] | null,
-  onCreateTable: (cols: number, rows: number) => void,
-  withFunctions = true
-): MenuItem[] => {
-  const functionsMap = getFunctionsMap(functions);
-  const pythonChildrenElements = getSubmenuItemsByFunctionType(
-    functionsMap,
-    FunctionType.Python
-  );
-
-  const createTableMenuItem = getDropdownItem({
-    key: 'CreateTable',
-    label: 'Create Table',
-    icon: (
-      <Icon
-        className="text-text-secondary w-[18px]"
-        component={() => (
-          <TablePlusIcon secondaryAccentCssVar="text-accent-tertiary" />
-        )}
-      />
-    ),
-    children: getCreateTableChildren(
-      functions,
-      tableNames,
-      inputFiles,
-      onCreateTable
-    ),
-  });
-
-  if (!withFunctions) return [createTableMenuItem];
-
-  return [
-    createTableMenuItem,
-    getDropdownItem({
-      key: 'Aggregations',
-      label: 'Aggregations',
-      children: getSubmenuItemsByFunctionType(
-        functionsMap,
-        FunctionType.Aggregations
-      ),
-    }),
-    getDropdownItem({
-      key: 'Math',
-      label: 'Math',
-      children: getSubmenuItemsByFunctionType(functionsMap, FunctionType.Math),
-    }),
-    getDropdownItem({
-      key: 'Logical',
-      label: 'Logical',
-      children: getSubmenuItemsByFunctionType(
-        functionsMap,
-        FunctionType.Logical
-      ),
-    }),
-    getDropdownItem({
-      key: 'Table',
-      label: 'Table',
-      children: getSubmenuItemsByFunctionType(functionsMap, FunctionType.Table),
-    }),
-    getDropdownItem({
-      key: 'Array',
-      label: 'Array',
-      children: getSubmenuItemsByFunctionType(functionsMap, FunctionType.Array),
-    }),
-    getDropdownItem({
-      key: 'Lookup',
-      label: 'Lookup',
-      children: getSubmenuItemsByFunctionType(
-        functionsMap,
-        FunctionType.Lookup
-      ),
-    }),
-    getDropdownItem({
-      key: 'Date',
-      label: 'Date',
-      children: getSubmenuItemsByFunctionType(functionsMap, FunctionType.Date),
-    }),
-    getDropdownItem({
-      key: 'Text',
-      label: 'Text',
-      children: getSubmenuItemsByFunctionType(functionsMap, FunctionType.Text),
-    }),
-    getDropdownItem({
-      key: 'PeriodSeries',
-      label: 'Period Series',
-      children: getSubmenuItemsByFunctionType(
-        functionsMap,
-        FunctionType.PeriodSeries
-      ),
-    }),
-    getDropdownItem({
-      key: 'Python',
-      label: 'Python',
-      disabled: !pythonChildrenElements?.length,
-      tooltip: !pythonChildrenElements?.length
-        ? 'No available python functions'
-        : undefined,
-      children: getSubmenuItemsByFunctionType(
-        functionsMap,
-        FunctionType.Python
-      ),
+      children: uniqueByFunction
+        ? tableNames?.map((name) =>
+            getDropdownItem({
+              label: name,
+              fullPath: [...basePath, 'UniqueValues', name],
+              key: getDropdownMenuKey<FormulasContextMenuKeyData>(
+                ['CreateTable', 'Filter', name].join('-'),
+                {
+                  insertFormula: uniqueByFunction?.name + `(${name},)`,
+                },
+              ),
+            }),
+          )
+        : [],
     }),
   ];
 };

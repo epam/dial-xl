@@ -1,20 +1,25 @@
+from pathlib import Path
+from typing import cast
+
 from aidial_sdk.chat_completion import Attachment, Message, Role
 from dial_xl.credentials import ApiKey
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
 from langchain_core.runnables import Runnable, RunnableLambda
 from langchain_openai import AzureChatOpenAI
 from openai import RateLimitError
+from pydantic import BaseModel, Field
 
 from quantgrid.utils.dial import DIALApi
 from quantgrid_1.chains.parameters import ChainParameters
 from quantgrid_1.log_config import qg_logger as logger
 from quantgrid_1.models.focus import Focus
 from quantgrid_1.models.generation_parameters import STANDALONE_QUESTION_STAGE_NAME
-from quantgrid_1.models.question import Message as QuestionHistoryMessage
 from quantgrid_1.models.question_status import QuestionStatus
 from quantgrid_1.models.stage_generation_type import StageGenerationMethod
 from quantgrid_1.prompts import QUESTION_SUMMARIZATION
-from quantgrid_1.utils.save_question import save_question
+from quantgrid_1.questions.model import Message as QuestionHistoryMessage
+from quantgrid_1.questions.path_util import construct_question_folder
+from quantgrid_1.questions.save_question import save_question
 from quantgrid_1.utils.stream_content import get_token_error
 
 
@@ -73,12 +78,11 @@ async def question_saver(inputs: dict) -> dict:
         application_dial_api = DIALApi(url_parameters.dial_url, ApiKey(request.api_key))
 
         application_bucket = (await application_dial_api.bucket()).strip("/")
-        project_path = original_project.name.strip("/")
 
         messages = ChainParameters.get_messages(inputs)
-        standalone_question_file = await save_question(
+        question = await save_question(
             application_dial_api,
-            f"files/{application_bucket}/{project_path}",
+            Path(construct_question_folder(application_bucket, original_project.name)),
             status=parameters.generation_parameters.question_status,
             history=[
                 QuestionHistoryMessage(content=message.text(), role=message.role)
@@ -94,8 +98,8 @@ async def question_saver(inputs: dict) -> dict:
         stage.add_attachment(
             Attachment(
                 type="text/json",
-                title="Standalone Question File",
-                url=standalone_question_file,
+                title="Standalone Question",
+                data=question.model_dump_json(indent=2),
             )
         )
 
@@ -120,15 +124,22 @@ async def _summarize_question(
     return None
 
 
+class QuerySummarizationTool(BaseModel):
+    standalone_query: str = Field(description="Standalone user query")
+
+
 async def _try_summarize_question(
     model: AzureChatOpenAI, qa_sequence: list[BaseMessage]
 ) -> str | None:
 
     system_message = SystemMessage(QUESTION_SUMMARIZATION)
+    messages = [system_message, *qa_sequence]
+
+    tooled_model = model.with_structured_output(QuerySummarizationTool)
 
     try:
-        message = await model.ainvoke([system_message, *qa_sequence])
-        return message.text()
+        output = cast(QuerySummarizationTool, await tooled_model.ainvoke(messages))
+        return output.standalone_query
     except RateLimitError as error:
         raise get_token_error(error)
     except Exception as exception:

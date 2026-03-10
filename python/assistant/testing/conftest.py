@@ -30,6 +30,12 @@ from testing.excel_report import XLSXReport
 from testing.json_report import write_json_report
 from testing.models import QGReport, QueryInfo, Verdict
 from testing.quantgrid_report import generate_quantgrid_report
+from testing.utils.history import (
+    TestType,
+    build_history_and_estimate_sample_size,
+    get_stats_with_fisher_pvalue_for_report,
+)
+from testing.utils.stats import CaseStats, GlobalStats
 
 pytest_plugins = ["testing.environments"]
 
@@ -59,6 +65,12 @@ class TestEnv:
 
 LOCAL = threading.local()
 QUANTGRID_REPORTS_KEY = StashKey[dict[str, list[QGReport]]]()
+HISTORY_KEY = StashKey[dict[str, list[float]]]()
+HISTORY_COMMITS_KEY = StashKey[set[str]]()
+FRACTION_FAILED_KEY = StashKey[float]()
+PRIOR_GLOBAL_STATS = StashKey[GlobalStats]()
+PRIOR_STATS_BY_CASE = StashKey[dict[str, CaseStats]]()
+RUN_COUNT_KEY: str = "run_count"
 ENVIRONMENT_KEY = StashKey[TestEnv]()
 START_TIME: str = "start_time"
 
@@ -155,17 +167,32 @@ def pytest_configure(config: Config):
     if is_worker:
         assert config.pluginmanager.getplugin("xdist")
         start_time = config.workerinput[START_TIME]  # type: ignore[attr-defined]
+        int_run_count = config.workerinput[RUN_COUNT_KEY]  # type: ignore[attr-defined]
     else:
         now = datetime.datetime.now(datetime.UTC)
         start_time = f'{now.strftime("%Y%m%d_%H_%M_%S")}'
         # Save in master config to populate into workers later in pytest_configure_node
         config.stash[START_TIME] = start_time  # type: ignore[index]
+        test_type = cast(TestType, os.getenv("PYTEST_TEST_TYPE", "integration"))
+        input_run_count = int(os.getenv("RUN_COUNT", "-1").strip())
+        fraction_failed = 0.33 if test_type == "integration" else 0.5
+        (
+            history,
+            run_count,
+            history_commits,
+            (prior_global_stats, prior_stats_by_case),
+        ) = build_history_and_estimate_sample_size(test_type, fraction_failed)
+        int_run_count = int(run_count) if input_run_count == -1 else input_run_count  # type: ignore[index]
+        print("Run count:", int_run_count)
+        config.stash[HISTORY_KEY] = history
+        config.stash[HISTORY_COMMITS_KEY] = history_commits
+        config.stash[FRACTION_FAILED_KEY] = fraction_failed
+        config.stash[PRIOR_GLOBAL_STATS] = prior_global_stats
+        config.stash[PRIOR_STATS_BY_CASE] = prior_stats_by_case
+        config.stash[RUN_COUNT_KEY] = int_run_count  # type: ignore[index]
 
     load_environment(config, start_time)
-
-    run_count = os.getenv("PYTEST_TEST_RUNS", "2")
-    if config.option.count is not None:
-        config.option.count = int(run_count)
+    config.option.count = int(int_run_count)
 
 
 @hookimpl(hookwrapper=True)
@@ -255,10 +282,27 @@ def pytest_sessionfinish(session: Session, exitstatus: ExitCode):
     )
 
     LOGGER.info(f"Share Link: {share_link}")
-
+    global_stats, stats_by_case = get_stats_with_fisher_pvalue_for_report(
+        history=session.config.stash[HISTORY_KEY],
+        current_report=session.config.stash[QUANTGRID_REPORTS_KEY],
+        history_commits=session.config.stash[HISTORY_COMMITS_KEY],
+        fraction_failed=session.config.stash[FRACTION_FAILED_KEY],
+    )
     with XLSXReport("report.xlsx", share_link, environment.report_folder) as report:
-        report.write(session.config.stash[QUANTGRID_REPORTS_KEY])
-    write_json_report("report.json", session.config.stash[QUANTGRID_REPORTS_KEY])
+        report.write(
+            tests=session.config.stash[QUANTGRID_REPORTS_KEY],
+            global_stats=global_stats,
+            stats_by_case=stats_by_case,
+            prior_stats_by_case=session.config.stash[PRIOR_STATS_BY_CASE],
+        )
+    write_json_report(
+        file_name="report.json",
+        tests=session.config.stash[QUANTGRID_REPORTS_KEY],
+        global_stats=global_stats,
+        stats_by_case=stats_by_case,
+        prior_global_stats=session.config.stash[PRIOR_GLOBAL_STATS],
+        prior_stats_by_case=session.config.stash[PRIOR_STATS_BY_CASE],
+    )
 
     if os.getenv("PYTEST_OPEN_REPORT", "True").lower() != "true":
         return (yield)
@@ -280,3 +324,5 @@ def pytest_configure_node(node):
     assert START_TIME in node.config.stash
     # populate setting to worker
     node.workerinput[START_TIME] = node.config.stash[START_TIME]
+    assert RUN_COUNT_KEY in node.config.stash
+    node.workerinput[RUN_COUNT_KEY] = node.config.stash[RUN_COUNT_KEY]

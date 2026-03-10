@@ -1,19 +1,19 @@
 import { useContext, useEffect } from 'react';
 
-import { EventTypeSelectAll, GridEvent } from '../components/GridApiWrapper';
 import { GridStateContext } from '../context';
+import { EventTypeSelectAll, GridEvent } from '../types';
 import { filterByTypeAndCast } from '../utils';
 import { useSelection } from './useSelection';
 
 export function useSelectionEvents() {
-  const { gridApi } = useContext(GridStateContext);
+  const { events$ } = useContext(GridStateContext);
 
   const { selectTable, selectTableByName } = useSelection();
 
   useEffect(() => {
-    if (!gridApi.events$) return;
+    if (!events$) return;
 
-    const selectAllSubscription = gridApi.events$
+    const selectAllSubscription = events$
       .pipe(filterByTypeAndCast<EventTypeSelectAll>(GridEvent.selectAll))
       .subscribe(({ tableName, selectFromCurrentCell }) => {
         if (tableName) {
@@ -30,5 +30,5 @@ export function useSelectionEvents() {
     return () => {
       selectAllSubscription.unsubscribe();
     };
-  }, [gridApi, selectTable, selectTableByName]);
+  }, [events$, selectTable, selectTableByName]);
 }

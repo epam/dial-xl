@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.util.Set;
 
 public interface Store {
+    String link(String linkId, String fromId, String toId);
     Table load(Identity id, Meta meta) throws IOException;
     void save(Identity id, Table table) throws IOException;
     boolean lock(Identity id);

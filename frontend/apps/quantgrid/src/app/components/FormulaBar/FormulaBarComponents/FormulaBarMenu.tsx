@@ -1,5 +1,6 @@
 import { Dropdown } from 'antd';
-import { useCallback, useContext } from 'react';
+import { useCallback, useMemo } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 
 import Icon from '@ant-design/icons';
 import {
@@ -9,20 +10,33 @@ import {
   MenuItem,
 } from '@frontend/common';
 
-import { AppContext } from '../../../context';
+import { useFormulaBarStore } from '../../../store';
+
+const formulaBarMenuPath = ['FormulaBarMenu'];
 
 export function FormulaBarMenu() {
-  const { formulaBarMode, setFormulaBarMode } = useContext(AppContext);
-  const items = [
-    getDropdownItem({
-      key: 'formula',
-      label: 'Formula mode',
-    }),
-    getDropdownItem({
-      key: 'value',
-      label: 'Value mode',
-    }),
-  ];
+  const { formulaBarMode, setFormulaBarMode } = useFormulaBarStore(
+    useShallow((s) => ({
+      formulaBarMode: s.formulaBarMode,
+      setFormulaBarMode: s.setFormulaBarMode,
+    })),
+  );
+
+  const items = useMemo(
+    () => [
+      getDropdownItem({
+        key: 'formula',
+        fullPath: [...formulaBarMenuPath, 'FormulaMode'],
+        label: 'Formula mode',
+      }),
+      getDropdownItem({
+        key: 'value',
+        fullPath: [...formulaBarMenuPath, 'ValueMode'],
+        label: 'Value mode',
+      }),
+    ],
+    [],
+  );
 
   const onClick = useCallback(
     (item: MenuItem) => {
@@ -35,7 +49,7 @@ export function FormulaBarMenu() {
           break;
       }
     },
-    [setFormulaBarMode]
+    [setFormulaBarMode],
   );
 
   return (

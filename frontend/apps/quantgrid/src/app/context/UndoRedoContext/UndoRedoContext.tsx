@@ -9,7 +9,7 @@ type UndoRedoActions = {
 
   appendTo: (
     historyTitle: string,
-    changedSheets: { sheetName: string; content: string | undefined }[]
+    changedSheets: { sheetName: string; content: string | undefined }[],
   ) => void;
 
   clear: () => void;
@@ -21,5 +21,5 @@ type UndoRedoValues = {
 };
 
 export const UndoRedoContext = createContext<UndoRedoActions & UndoRedoValues>(
-  {} as UndoRedoActions & UndoRedoValues
+  {} as UndoRedoActions & UndoRedoValues,
 );

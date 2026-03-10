@@ -59,7 +59,7 @@ export function useTotalEditDsl() {
         tableName,
       });
     },
-    [findEditContext, updateDSL]
+    [findEditContext, updateDSL],
   );
 
   const removeTotalByType = useCallback(
@@ -89,7 +89,7 @@ export function useTotalEditDsl() {
       const historyTitle = `Remove total ${type.toUpperCase()} from ${tableName}[${fieldName}]`;
       updateDSL({ updatedSheetContent: sheet.toDSL(), historyTitle });
     },
-    [findEditContext, updateDSL]
+    [findEditContext, updateDSL],
   );
 
   const addTotalExpression = useCallback(
@@ -97,7 +97,7 @@ export function useTotalEditDsl() {
       tableName: string,
       fieldName: string,
       index: number,
-      expression: string
+      expression: string,
     ) => {
       const context = findEditContext(tableName, fieldName);
       if (!context) return;
@@ -109,7 +109,7 @@ export function useTotalEditDsl() {
         expression,
         functions,
         parsedSheets,
-        tableName
+        tableName,
       );
 
       if (!parsedTotal || parsedTotal?.size === 0 || !table.totals.length) {
@@ -135,7 +135,7 @@ export function useTotalEditDsl() {
         tableName,
       });
     },
-    [findEditContext, functions, parsedSheets, updateDSL]
+    [findEditContext, functions, parsedSheets, updateDSL],
   );
 
   const editTotalExpression = useCallback(
@@ -143,7 +143,7 @@ export function useTotalEditDsl() {
       tableName: string,
       fieldName: string,
       index: number,
-      expression: string
+      expression: string,
     ) => {
       const context = findEditContext(tableName, fieldName);
       if (!context) return;
@@ -162,7 +162,7 @@ export function useTotalEditDsl() {
         expression,
         functions,
         parsedSheets,
-        tableName
+        tableName,
       );
 
       const targetTotal = table.getTotal(index - indexOffset);
@@ -175,7 +175,7 @@ export function useTotalEditDsl() {
         tableName,
       });
     },
-    [findEditContext, functions, parsedSheets, updateDSL]
+    [findEditContext, functions, parsedSheets, updateDSL],
   );
 
   const toggleTotalByType = useCallback(
@@ -208,7 +208,7 @@ export function useTotalEditDsl() {
 
       return removeTotalByType(tableName, fieldName, type);
     },
-    [addTotalExpression, findEditContext, removeTotalByType]
+    [addTotalExpression, findEditContext, removeTotalByType],
   );
 
   const addAllFieldTotals = useCallback(
@@ -270,7 +270,7 @@ export function useTotalEditDsl() {
           const expression = getTotalExpression(
             tableName,
             targetFieldName,
-            totalType
+            totalType,
           );
           const targetTotal = table.getTotal(i);
           targetTotal.addField(fieldName, expression);
@@ -282,7 +282,7 @@ export function useTotalEditDsl() {
         const expression = getTotalExpression(
           tableName,
           targetFieldName,
-          totalType
+          totalType,
         );
         const total = new Total();
         total.addField(fieldName, expression);
@@ -296,7 +296,7 @@ export function useTotalEditDsl() {
         tableName,
       });
     },
-    [findEditContext, updateDSL, viewGridData]
+    [findEditContext, updateDSL, viewGridData],
   );
 
   return {
@@ -312,7 +312,7 @@ export function useTotalEditDsl() {
 function getTotalExpression(
   tableName: string,
   fieldName: string,
-  type: TotalType
+  type: TotalType,
 ): string {
   if (type === 'custom') return naExpression;
   if (type === 'countUnique')

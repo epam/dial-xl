@@ -1,4 +1,5 @@
 import { lineBreak, totalKeyword } from '../../parser';
+import { unescapeFieldName } from '../../services';
 import { Field, FieldGroup, FieldGroups } from '../Field';
 import { ObservableObserver, Reader } from '../utils';
 
@@ -86,16 +87,17 @@ export class Total extends ObservableObserver {
    * @param formula - The new formula to assign to the field.
    */
   public setFormula(fieldName: string, formula: string | null): void {
+    const unescapedFieldName = unescapeFieldName(fieldName);
     for (let i = 0; i < this.fieldGroups.length; i++) {
       const group = this.fieldGroups.getItem(i);
-      if (Array.from(group.fieldNames).includes(fieldName)) {
+      if (Array.from(group.fieldNames).includes(unescapedFieldName)) {
         group.formula = formula;
 
         return;
       }
     }
     throw new Error(
-      `Field '${fieldName}' not found in any FieldGroup of this Total.`
+      `Field '${fieldName}' not found in any FieldGroup of this Total.`,
     );
   }
 
@@ -115,10 +117,11 @@ export class Total extends ObservableObserver {
    * the entire group is removed from this Total.
    */
   public removeField(fieldName: string): void {
+    const unescapedFieldName = unescapeFieldName(fieldName);
     for (let i = 0; i < this.fieldGroups.length; i++) {
       const group = this.fieldGroups.getItem(i);
       const names = Array.from(group.fieldNames);
-      if (names.includes(fieldName)) {
+      if (names.includes(unescapedFieldName)) {
         group.removeField(fieldName);
         if (group.fieldCount === 0) {
           this.fieldGroups.deleteItem(i);
@@ -128,7 +131,7 @@ export class Total extends ObservableObserver {
       }
     }
     throw new Error(
-      `Field '${fieldName}' not found in any FieldGroup of this Total.`
+      `Field '${fieldName}' not found in any FieldGroup of this Total.`,
     );
   }
 

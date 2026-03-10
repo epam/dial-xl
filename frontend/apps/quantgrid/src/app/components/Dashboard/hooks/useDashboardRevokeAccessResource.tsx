@@ -1,4 +1,3 @@
-import { Modal } from 'antd';
 import cx from 'classnames';
 import { useCallback } from 'react';
 
@@ -14,9 +13,12 @@ import {
 } from '@frontend/common';
 
 import { useApiRequests } from '../../../hooks';
+import { useAntdModalStore } from '../../../store';
 import { constructPath, displayToast } from '../../../utils';
 
 export function useDashboardRevokeAccessResource() {
+  const confirmModal = useAntdModalStore((s) => s.confirm);
+
   const { revokeResourcesAccess: revokeResourcesAccessRequest } =
     useApiRequests();
 
@@ -31,7 +33,7 @@ export function useDashboardRevokeAccessResource() {
 
       return `Do you want to unshare ${resourceName} "${fileName}"?`;
     },
-    []
+    [],
   );
 
   const handleRevokeProject = useCallback(
@@ -39,7 +41,7 @@ export function useDashboardRevokeAccessResource() {
       item: Pick<
         ResourceMetadata,
         'name' | 'bucket' | 'nodeType' | 'parentPath' | 'resourceType'
-      >
+      >,
     ) => {
       return Promise.allSettled([
         revokeResourcesAccessRequest([
@@ -63,7 +65,7 @@ export function useDashboardRevokeAccessResource() {
         ]),
       ]);
     },
-    [revokeResourcesAccessRequest]
+    [revokeResourcesAccessRequest],
   );
 
   const revokeResourceAccess = useCallback(
@@ -72,9 +74,9 @@ export function useDashboardRevokeAccessResource() {
         ResourceMetadata,
         'name' | 'bucket' | 'nodeType' | 'parentPath' | 'resourceType'
       >,
-      onSuccess?: () => void
+      onSuccess?: () => void,
     ) => {
-      Modal.confirm({
+      confirmModal({
         icon: null,
         title: 'Confirm',
         content: getContent(item),
@@ -110,7 +112,12 @@ export function useDashboardRevokeAccessResource() {
         },
       });
     },
-    [getContent, handleRevokeProject, revokeResourcesAccessRequest]
+    [
+      getContent,
+      handleRevokeProject,
+      revokeResourcesAccessRequest,
+      confirmModal,
+    ],
   );
 
   return {

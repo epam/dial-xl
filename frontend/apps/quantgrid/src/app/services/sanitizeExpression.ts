@@ -1,6 +1,6 @@
 export function sanitizeExpression(
   expression: string,
-  initialExpression: string
+  initialExpression: string,
 ) {
   const sanitizedInitialExpression = initialExpression
     .replaceAll('\n', '')

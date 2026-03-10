@@ -1,12 +1,12 @@
-import { useContext, useMemo } from 'react';
+import { useMemo } from 'react';
 
-import { AppContext } from '../../../context';
+import { useEditorStore } from '../../../store';
 
 export function useFormulaInputStyles(
   fieldName: string | undefined,
-  isEditingDimField: boolean
+  isEditingDimField: boolean,
 ) {
-  const { editMode } = useContext(AppContext);
+  const editMode = useEditorStore((s) => s.editMode);
 
   const borderColor = useMemo(() => {
     if (fieldName && editMode === 'edit_dim_expression' && !isEditingDimField)

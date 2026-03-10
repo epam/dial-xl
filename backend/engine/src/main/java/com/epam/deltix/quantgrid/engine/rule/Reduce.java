@@ -7,7 +7,6 @@ import com.epam.deltix.quantgrid.engine.graph.Graph;
 import com.epam.deltix.quantgrid.engine.node.Node;
 import com.epam.deltix.quantgrid.engine.node.expression.Expand;
 import com.epam.deltix.quantgrid.engine.node.expression.Get;
-import com.epam.deltix.quantgrid.engine.node.expression.PythonExpression;
 import com.epam.deltix.quantgrid.engine.node.expression.RowNumber;
 import com.epam.deltix.quantgrid.engine.node.plan.Plan;
 import com.epam.deltix.quantgrid.engine.node.plan.Scalar;
@@ -63,11 +62,6 @@ public class Reduce implements Rule {
 
             if (node instanceof Expand expand && !forbidden.contains(expand.plan())) {
                 return new Expand(expand.getLayout(), expand.getScalar());
-            }
-
-            if (node instanceof PythonExpression python && !forbidden.contains(python.plan())) {
-                return new PythonExpression(python.getLayout(), python.expressions(),
-                        python.getCode(), python.getName(), python.getType());
             }
 
             if (node instanceof AggregateLocal aggregate) {

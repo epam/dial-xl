@@ -1,3 +1,5 @@
+import { ItemType } from 'antd/es/menu/interface';
+
 import Icon from '@ant-design/icons';
 import {
   EditFilledIcon,
@@ -14,15 +16,16 @@ import {
   Shortcut,
   shortcutApi,
   TableArrowIcon,
-  TagIcon,
   TotalOffIcon,
 } from '@frontend/common';
 import { naExpression } from '@frontend/parser';
 
-import { GridCallbacks, GridCell } from '../../../../types';
+import { GridCell, SheetControl } from '../../../../types';
+import { GridEventBus } from '../../../../utils';
 import { spreadsheetMenuKeys as menuKey } from '../config';
 import { ContextMenuKeyData } from '../types';
 import {
+  aiRegenerateItem,
   arrangeTableItems,
   askAIItem,
   deleteItem,
@@ -34,19 +37,33 @@ import {
   insertItem,
   noteEditItem,
   noteRemoveItem,
+  openDetails,
   orientationItem,
   sortItem,
   switchInput,
+  syncImport,
   totalItem,
 } from './commonItem';
 
-export const getTableCellMenuItems = (
-  col: number,
-  row: number,
-  cell: GridCell,
-  gridCallbacks: GridCallbacks,
-  filterList: GridListFilter[]
-) => {
+const tableCellMenuPath = ['TableCellMenu'];
+
+export const getTableCellMenuItems = ({
+  col,
+  row,
+  cell,
+  eventBus,
+  filterList,
+  sheetControls,
+  onClose,
+}: {
+  col: number;
+  row: number;
+  cell: GridCell;
+  eventBus: GridEventBus;
+  filterList: GridListFilter[];
+  sheetControls: SheetControl[];
+  onClose: () => void;
+}): ItemType[] => {
   const { field, table, totalIndex, totalExpression } = cell;
 
   if (!table || !field) return [];
@@ -71,7 +88,9 @@ export const getTableCellMenuItems = (
     isIndex,
     isDescription,
     isInput,
+    isImport,
     hasOverrides: fieldHasOverrides,
+    isControl,
   } = field;
 
   const isNumeric = isNumericType(type);
@@ -94,23 +113,41 @@ export const getTableCellMenuItems = (
     ? cell.isOverride || fieldHasOverrides
     : false;
 
-  const filterSortItems = [
-    !isComplexOrDynamic ? sortItem(col, row, isNumeric) : null,
-    filterType && !isComplexOrDynamic
-      ? filterItem(col, row, cell, gridCallbacks, filterList)
+  const filterSortItems: ItemType[] = [
+    !isComplexOrDynamic && !isControl
+      ? sortItem(col, row, tableCellMenuPath, isNumeric)
       : null,
-    totalItem(col, row, totalFieldTypes, isComplex),
+    filterType && !isComplexOrDynamic && !isControl
+      ? filterItem({
+          col,
+          row,
+          parentPath: tableCellMenuPath,
+          cell,
+          eventBus,
+          filterList,
+          sheetControls,
+          onClose,
+        })
+      : null,
+    !isControl
+      ? totalItem(col, row, tableCellMenuPath, totalFieldTypes, isComplex)
+      : null,
   ].filter(Boolean);
 
+  const hasAIFunction = cell.overrideAIFunctions || field?.isAIFunctions;
+
   return [
-    isShowAIPrompt ? askAIItem(col, row) : null,
-    isShowAIPrompt ? getDropdownDivider() : null,
+    isShowAIPrompt ? askAIItem(col, row, tableCellMenuPath) : null,
+    hasAIFunction ? aiRegenerateItem(col, row, tableCellMenuPath) : null,
+    isShowAIPrompt || hasAIFunction ? getDropdownDivider() : null,
     getDropdownItem({
       label: 'Move table',
+      fullPath: [...tableCellMenuPath, 'MoveTable'],
       key: getDropdownMenuKey<ContextMenuKeyData>(menuKey.moveTable, {
         col,
         row,
       }),
+      shortcut: shortcutApi.getLabel(Shortcut.SelectAll),
       icon: (
         <Icon
           className="text-text-secondary w-[18px]"
@@ -125,6 +162,7 @@ export const getTableCellMenuItems = (
     filterSortItems.length > 0 ? getDropdownDivider() : null,
     getDropdownItem({
       label: 'Edit Cell',
+      fullPath: [...tableCellMenuPath, 'EditCell'],
       key: getDropdownMenuKey<ContextMenuKeyData>(menuKey.editFormula, {
         col,
         row,
@@ -139,22 +177,27 @@ export const getTableCellMenuItems = (
       ),
       shortcut: shortcutApi.getLabel(Shortcut.Rename),
     }),
-    isInput ? switchInput(col, row) : null,
-    fieldTagsItem(
-      col,
-      row,
-      isKey,
-      isDynamic,
-      isManual,
-      isFieldHasOverrides,
-      isIndex,
-      isDescription,
-      isText,
-      fieldNames
-    ),
+    isInput ? switchInput(col, row, tableCellMenuPath) : null,
+    isImport ? syncImport(col, row, tableCellMenuPath) : null,
+    !isControl
+      ? fieldTagsItem(
+          col,
+          row,
+          tableCellMenuPath,
+          isKey,
+          isDynamic,
+          isManual,
+          isFieldHasOverrides,
+          isIndex,
+          isDescription,
+          isText,
+          fieldNames,
+        )
+      : null,
     showPromoteRow
       ? getDropdownItem({
           label: 'Set header',
+          fullPath: [...tableCellMenuPath, 'SetHeader'],
           key: getDropdownMenuKey<ContextMenuKeyData>(menuKey.promoteRow, {
             col,
             row,
@@ -170,6 +213,7 @@ export const getTableCellMenuItems = (
     isOverrideOutliner
       ? getDropdownItem({
           label: 'Remove Override Cell',
+          fullPath: [...tableCellMenuPath, 'RemoveOverrideCell'],
           key: getDropdownMenuKey<ContextMenuKeyData>(menuKey.removeOverride, {
             col,
             row,
@@ -186,7 +230,13 @@ export const getTableCellMenuItems = (
         })
       : null,
     showCollapseNestedField || showExpandNestedField
-      ? dimensionItem(col, row, showCollapseNestedField, isDynamic)
+      ? dimensionItem(
+          col,
+          row,
+          tableCellMenuPath,
+          showCollapseNestedField,
+          isDynamic,
+        )
       : null,
     totalIndex && totalExpression
       ? getDropdownItem({
@@ -194,6 +244,7 @@ export const getTableCellMenuItems = (
             col,
             row,
           }),
+          fullPath: [...tableCellMenuPath, 'RemoveTotal'],
           label: 'Remove total',
           icon: (
             <Icon
@@ -205,35 +256,26 @@ export const getTableCellMenuItems = (
         })
       : null,
     getDropdownDivider(),
-    insertItem(col, row, isTableHorizontal, isManual),
-    deleteItem(col, row, table, true),
-    fieldItem(col, row, cell, table, isDynamic),
+    insertItem(col, row, tableCellMenuPath, isTableHorizontal, isManual),
+    deleteItem(col, row, tableCellMenuPath, table, true),
+    fieldItem(col, row, tableCellMenuPath, cell, table, isDynamic),
     getDropdownDivider(),
-    noteEditItem(col, row, note),
-    note ? noteRemoveItem(col, row) : null,
+    noteEditItem(col, row, tableCellMenuPath, note),
+    note ? noteRemoveItem(col, row, tableCellMenuPath) : null,
     getDropdownDivider(),
-    arrangeTableItems(col, row),
-    !isChart ? orientationItem(col, row, isTableHorizontal) : null,
+    arrangeTableItems(col, row, tableCellMenuPath),
+    !isChart
+      ? orientationItem(col, row, tableCellMenuPath, isTableHorizontal)
+      : null,
     hideItem(
       col,
       row,
+      tableCellMenuPath,
       isTableNameHeaderHidden,
       isTableFieldsHeaderHidden,
-      isChart
+      isChart,
     ),
     getDropdownDivider(),
-    getDropdownItem({
-      label: 'Open in Editor',
-      key: getDropdownMenuKey<ContextMenuKeyData>(
-        isOverride ? menuKey.openOverrideInEditor : menuKey.openFieldInEditor,
-        { col, row }
-      ),
-      icon: (
-        <Icon
-          className="text-text-secondary w-[18px]"
-          component={() => <TagIcon />}
-        />
-      ),
-    }),
+    ...(openDetails(col, row, tableCellMenuPath, false, isOverride) || []),
   ];
 };

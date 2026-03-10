@@ -41,13 +41,13 @@ export function useAddTableRow() {
 
       const cell = gridApi?.getCell(
         isHorizontal ? startCol : col,
-        isHorizontal ? row : startRow + offset
+        isHorizontal ? row : startRow + offset,
       );
 
       const targetField = targetTable.fields.find(
         (f) =>
           f.key.fieldName === cell?.field?.fieldName &&
-          f.key.tableName === cell.table?.tableName
+          f.key.tableName === cell.table?.tableName,
       );
 
       if (!targetField) return;
@@ -56,7 +56,7 @@ export function useAddTableRow() {
         return addTableRowWithConvertToManualTable(
           tableName,
           targetField.key.fieldName,
-          value
+          value,
         );
       }
 
@@ -69,7 +69,7 @@ export function useAddTableRow() {
       findTable,
       gridApi,
       sheetContent,
-    ]
+    ],
   );
 
   const addTableRowToEnd = useCallback(
@@ -92,10 +92,10 @@ export function useAddTableRow() {
         isHorizontal ? table.endCol + 1 : table.endCol,
         isHorizontal ? table.endRow : table.endRow + 1,
         tableName,
-        value
+        value,
       );
     },
-    [addOverride, findTable, gridApi, sheetContent]
+    [addOverride, findTable, gridApi, sheetContent],
   );
 
   const insertTableRowBefore = useCallback(
@@ -110,14 +110,14 @@ export function useAddTableRow() {
       const targetField = targetTable.fields.find(
         (f) =>
           f.key.fieldName === cell?.field?.fieldName &&
-          f.key.tableName === cell.table?.tableName
+          f.key.tableName === cell.table?.tableName,
       );
 
       if (!targetField) return;
 
       return addOverride(col, row, tableName, value, true);
     },
-    [addOverride, findTable, gridApi, sheetContent]
+    [addOverride, findTable, gridApi, sheetContent],
   );
 
   const insertTableRowAfter = useCallback(
@@ -133,7 +133,7 @@ export function useAddTableRow() {
       const targetField = targetTable.fields.find(
         (f) =>
           f.key.fieldName === cell?.field?.fieldName &&
-          f.key.tableName === cell.table?.tableName
+          f.key.tableName === cell.table?.tableName,
       );
 
       if (!targetField) return;
@@ -143,10 +143,10 @@ export function useAddTableRow() {
         isHorizontal ? row : row + 1,
         tableName,
         value,
-        true
+        true,
       );
     },
-    [addOverride, findTable, gridApi, sheetContent]
+    [addOverride, findTable, gridApi, sheetContent],
   );
 
   return {

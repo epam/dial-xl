@@ -56,17 +56,9 @@ export function ChartPlacementSection({
     setTimeout(() => {
       if (!gridApi) return;
 
-      const width = cols ? Math.max(cols - 1, 0) : 1;
       gridApi.moveViewportToCell(startCol, startRow, true);
-      gridApi.updateSelection({
-        startCol,
-        startRow,
-        endCol: startCol + width,
-        endRow: startRow,
-      });
     }, 100);
   }, [
-    cols,
     gridApi,
     moveTableTo,
     parsedTable.tableName,
@@ -111,7 +103,7 @@ export function ChartPlacementSection({
 
       return;
     },
-    [initFieldValues]
+    [initFieldValues],
   );
 
   useEffect(() => {

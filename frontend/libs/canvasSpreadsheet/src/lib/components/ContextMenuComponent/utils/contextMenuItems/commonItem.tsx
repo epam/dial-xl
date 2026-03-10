@@ -20,18 +20,23 @@ import {
   NoteIcon,
   NoteOffIcon,
   OrientationIcon,
+  ReloadIcon,
+  SettingsIcon,
   Shortcut,
   shortcutApi,
   SortIcon,
   SparklesIcon,
+  TableArrowIcon,
+  TagIcon,
   TotalIcon,
   TrashFilledIcon,
   UncollapseIcon,
 } from '@frontend/common';
 import { TotalType } from '@frontend/parser';
 
-import { GridCallbacks, GridCell, GridTable } from '../../../../types';
-import { ConditionFilter, ListFilter } from '../../components';
+import { GridCell, GridTable, SheetControl } from '../../../../types';
+import { GridEventBus } from '../../../../utils';
+import { FilterPanelItem } from '../../FilterPanelItem';
 import {
   spreadsheetMenuKeys as menuKey,
   spreadsheetMenuKeys,
@@ -39,10 +44,17 @@ import {
 } from '../config';
 import { ContextMenuKeyData } from '../types';
 
-export function arrangeTableItems(col: number, row: number): MenuItem {
+export function arrangeTableItems(
+  col: number,
+  row: number,
+  parentPath: string[],
+): MenuItem {
+  const path = [...parentPath, 'Arrange'];
+
   return getDropdownItem({
     label: 'Arrange',
     key: 'Arrange',
+    fullPath: path,
     icon: (
       <Icon
         className="text-text-secondary w-[18px]"
@@ -54,6 +66,7 @@ export function arrangeTableItems(col: number, row: number): MenuItem {
     children: [
       getDropdownItem({
         label: 'Bring Forward',
+        fullPath: [...path, 'BringForward'],
         key: getDropdownMenuKey<ContextMenuKeyData>(menuKey.tableForward, {
           col,
           row,
@@ -61,6 +74,7 @@ export function arrangeTableItems(col: number, row: number): MenuItem {
       }),
       getDropdownItem({
         label: 'Bring to Front',
+        fullPath: [...path, 'BringToFront'],
         key: getDropdownMenuKey<ContextMenuKeyData>(menuKey.tableToFront, {
           col,
           row,
@@ -68,6 +82,7 @@ export function arrangeTableItems(col: number, row: number): MenuItem {
       }),
       getDropdownItem({
         label: 'Send Backward',
+        fullPath: [...path, 'SendBackward'],
         key: getDropdownMenuKey<ContextMenuKeyData>(menuKey.tableBackward, {
           col,
           row,
@@ -75,6 +90,7 @@ export function arrangeTableItems(col: number, row: number): MenuItem {
       }),
       getDropdownItem({
         label: 'Send To Back',
+        fullPath: [...path, 'SendToBack'],
         key: getDropdownMenuKey<ContextMenuKeyData>(menuKey.tableToBack, {
           col,
           row,
@@ -84,9 +100,14 @@ export function arrangeTableItems(col: number, row: number): MenuItem {
   });
 }
 
-export function askAIItem(col: number, row: number): MenuItem {
+export function askAIItem(
+  col: number,
+  row: number,
+  parentPath: string[],
+): MenuItem {
   return getDropdownItem({
     label: 'Ask AI',
+    fullPath: [...parentPath, 'AskAI'],
     key: getDropdownMenuKey<ContextMenuKeyData>(menuKey.askAI, {
       col,
       row,
@@ -101,19 +122,42 @@ export function askAIItem(col: number, row: number): MenuItem {
   });
 }
 
+export function aiRegenerateItem(
+  col: number,
+  row: number,
+  parentPath: string[],
+): MenuItem {
+  return getDropdownItem({
+    label: 'Regenerate AI result',
+    fullPath: [...parentPath, 'RegenerateAI'],
+    key: getDropdownMenuKey<ContextMenuKeyData>(menuKey.aiRegenerate, {
+      col,
+      row,
+    }),
+    icon: (
+      <Icon
+        className="text-text-secondary w-[18px]"
+        component={() => <ReloadIcon />}
+      />
+    ),
+  });
+}
+
 export function noteEditItem(
   col: number,
   row: number,
-  note?: string
+  parentPath: string[],
+  note?: string,
 ): MenuItem {
   return getDropdownItem({
     label: note ? 'Edit Note' : 'Add Note',
+    fullPath: [...parentPath, note ? 'EditNote' : 'AddNote'],
     key: getDropdownMenuKey<ContextMenuKeyData>(
       note ? menuKey.editNote : menuKey.addNote,
       {
         col,
         row,
-      }
+      },
     ),
     icon: (
       <Icon
@@ -125,9 +169,14 @@ export function noteEditItem(
   });
 }
 
-export function noteRemoveItem(col: number, row: number): MenuItem {
+export function noteRemoveItem(
+  col: number,
+  row: number,
+  parentPath: string[],
+): MenuItem {
   return getDropdownItem({
     label: 'Remove Note',
+    fullPath: [...parentPath, 'RemoveNote'],
     key: getDropdownMenuKey<ContextMenuKeyData>(menuKey.removeNote, {
       col,
       row,
@@ -144,11 +193,15 @@ export function noteRemoveItem(col: number, row: number): MenuItem {
 export function orientationItem(
   col: number,
   row: number,
-  isTableHorizontal: boolean
+  parentPath: string[],
+  isTableHorizontal: boolean,
 ): MenuItem {
+  const path = [...parentPath, 'Orientation'];
+
   return getDropdownItem({
     label: 'Orientation',
     key: 'Orientation',
+    fullPath: path,
     icon: (
       <Icon
         className="text-text-secondary w-[18px]"
@@ -161,25 +214,27 @@ export function orientationItem(
       getCheckboxDropdownSubmenuItem(
         {
           label: 'Horizontal',
+          fullPath: [...path, 'Horizontal'],
           key: getDropdownMenuKey<ContextMenuKeyData>(
             menuKey.flipTableToVertical,
-            { col, row }
+            { col, row },
           ),
         },
-        isTableHorizontal
+        isTableHorizontal,
       ),
       getCheckboxDropdownSubmenuItem(
         {
           label: 'Vertical',
+          fullPath: [...path, 'Vertical'],
           key: getDropdownMenuKey<ContextMenuKeyData>(
             menuKey.flipTableToHorizontal,
             {
               col,
               row,
-            }
+            },
           ),
         },
-        !isTableHorizontal
+        !isTableHorizontal,
       ),
     ],
   });
@@ -188,13 +243,17 @@ export function orientationItem(
 export function hideItem(
   col: number,
   row: number,
+  parentPath: string[],
   isTableNameHeaderHidden: boolean,
   isTableFieldsHeaderHidden: boolean,
-  isChart: boolean
+  isChart: boolean,
 ): MenuItem {
+  const path = [...parentPath, 'Hide'];
+
   return getDropdownItem({
     label: 'Hide',
     key: 'Hide',
+    fullPath: path,
     icon: (
       <Icon
         className="text-text-secondary w-[18px]"
@@ -206,11 +265,16 @@ export function hideItem(
     children: [
       getDropdownItem({
         label: isTableNameHeaderHidden
-          ? 'Show table header'
-          : 'Hide table header',
+          ? isChart
+            ? 'Show chart title'
+            : 'Show table header'
+          : isChart
+            ? 'Hide chart title'
+            : 'Hide table header',
+        fullPath: [...path, 'ToggleTableNameHeader'],
         key: getDropdownMenuKey<ContextMenuKeyData>(
           menuKey.toggleTableNameHeader,
-          { col, row }
+          { col, row },
         ),
       }),
       getDropdownItem({
@@ -219,14 +283,15 @@ export function hideItem(
             ? 'Show chart legend'
             : 'Show fields header'
           : isChart
-          ? 'Hide chart legend'
-          : 'Hide fields header',
+            ? 'Hide chart legend'
+            : 'Hide fields header',
+        fullPath: [...path, 'ToggleTableFieldsHeader'],
         key: getDropdownMenuKey<ContextMenuKeyData>(
           menuKey.toggleTableFieldsHeader,
           {
             col,
             row,
-          }
+          },
         ),
       }),
     ],
@@ -236,11 +301,15 @@ export function hideItem(
 export function sortItem(
   col: number,
   row: number,
-  isNumeric: boolean
+  parentPath: string[],
+  isNumeric: boolean,
 ): MenuItem {
+  const path = [...parentPath, 'Sort'];
+
   return getDropdownItem({
     key: 'SortMenu',
     label: 'Sort',
+    fullPath: path,
     icon: (
       <Icon
         className="text-text-secondary w-[18px]"
@@ -252,6 +321,7 @@ export function sortItem(
     children: [
       getDropdownItem({
         label: isNumeric ? 'Sort Smallest to Largest' : 'Sort A-Z',
+        fullPath: [...path, 'SortAsc'],
         key: getDropdownMenuKey<ContextMenuKeyData>(menuKey.sortAsc, {
           col,
           row,
@@ -259,6 +329,7 @@ export function sortItem(
       }),
       getDropdownItem({
         label: isNumeric ? 'Sort Largest to Smallest' : 'Sort Z-A',
+        fullPath: [...path, 'SortDesc'],
         key: getDropdownMenuKey<ContextMenuKeyData>(menuKey.sortDesc, {
           col,
           row,
@@ -266,6 +337,7 @@ export function sortItem(
       }),
       getDropdownItem({
         label: 'Clear sort',
+        fullPath: [...path, 'ClearSort'],
         key: getDropdownMenuKey<ContextMenuKeyData>(menuKey.clearSort, {
           col,
           row,
@@ -278,6 +350,7 @@ export function sortItem(
 export function fieldTagsItem(
   col: number,
   row: number,
+  parentPath: string[],
   isKey: boolean,
   isDynamic: boolean,
   isManual: boolean,
@@ -285,11 +358,14 @@ export function fieldTagsItem(
   isIndex: boolean,
   isDescription: boolean,
   isText: boolean,
-  fieldNames: string[]
+  fieldNames: string[],
 ): MenuItem {
+  const path = [...parentPath, 'Index'];
+
   return getDropdownItem({
     key: 'Indices',
     label: 'Index',
+    fullPath: path,
     icon: (
       <Icon
         className="text-text-warning w-[18px]"
@@ -299,12 +375,13 @@ export function fieldTagsItem(
     children: [
       getDropdownItem({
         label: isKey ? 'Unmark as key column' : 'Mark as a key column',
+        fullPath: [...path, 'ToggleKey'],
         key: getDropdownMenuKey<ContextMenuKeyData>(
           isKey ? menuKey.removeKey : menuKey.addKey,
           {
             col,
             row,
-          }
+          },
         ),
         disabled: isDynamic || (isHasOverrides && !isManual && !isKey),
         tooltip:
@@ -314,12 +391,13 @@ export function fieldTagsItem(
       }),
       getDropdownItem({
         label: isIndex ? 'Remove an Index' : 'Add an Index',
+        fullPath: [...path, 'ToggleIndex'],
         key: getDropdownMenuKey<ContextMenuKeyData>(
           isIndex ? menuKey.removeIndex : menuKey.addIndex,
           {
             col,
             row,
-          }
+          },
         ),
         disabled: !isIndex && !isText,
         tooltip:
@@ -327,6 +405,7 @@ export function fieldTagsItem(
       }),
       getDropdownItem({
         label: isIndex ? 'Add description' : 'Add an index with description',
+        fullPath: [...path, 'AddDescription'],
         key: getDropdownMenuKey<ContextMenuKeyData>(menuKey.addDescription, {
           col,
           row,
@@ -336,26 +415,28 @@ export function fieldTagsItem(
         children: fieldNames.map((fieldName) =>
           getDropdownItem({
             label: fieldName,
+            fullPath: [...path, 'AddDescription', fieldName],
             key: getDropdownMenuKey<ContextMenuKeyData>(
               menuKey.addDescription,
               {
                 col,
                 row,
                 fieldName,
-              }
+              },
             ),
-          })
+          }),
         ),
       }),
       isDescription
         ? getDropdownItem({
             label: 'Remove description',
+            fullPath: [...path, 'RemoveDescription'],
             key: getDropdownMenuKey<ContextMenuKeyData>(
               menuKey.removeDescription,
               {
                 col,
                 row,
-              }
+              },
             ),
           })
         : null,
@@ -366,14 +447,19 @@ export function fieldTagsItem(
 export function dimensionItem(
   col: number,
   row: number,
+  parentPath: string[],
   showCollapseNestedField: boolean,
-  isDynamic: boolean
+  isDynamic: boolean,
 ): MenuItem {
   return getDropdownItem({
     label: showCollapseNestedField ? 'Collapse all' : 'Expand all',
+    fullPath: [
+      ...parentPath,
+      showCollapseNestedField ? 'CollapseAll' : 'ExpandAll',
+    ],
     key: getDropdownMenuKey<ContextMenuKeyData>(
       showCollapseNestedField ? menuKey.removeDimension : menuKey.addDimension,
-      { col, row }
+      { col, row },
     ),
     icon: (
       <Icon
@@ -394,12 +480,16 @@ export function dimensionItem(
 export function insertItem(
   col: number,
   row: number,
+  parentPath: string[],
   isTableHorizontal: boolean,
-  isManual: boolean
+  isManual: boolean,
 ): MenuItem {
+  const path = [...parentPath, 'Insert'];
+
   return getDropdownItem({
     key: 'InsertMenu',
     label: 'Insert',
+    fullPath: path,
     icon: (
       <Icon
         className="text-text-accent-tertiary w-[18px]"
@@ -409,6 +499,7 @@ export function insertItem(
     children: [
       getDropdownItem({
         label: isTableHorizontal ? 'Column above' : 'Column to the left',
+        fullPath: [...path, 'ColumnLeft'],
         key: getDropdownMenuKey<ContextMenuKeyData>(menuKey.insertFieldToLeft, {
           col,
           row,
@@ -416,13 +507,15 @@ export function insertItem(
       }),
       getDropdownItem({
         label: isTableHorizontal ? 'Column below' : 'Column to the right',
+        fullPath: [...path, 'ColumnRight'],
         key: getDropdownMenuKey<ContextMenuKeyData>(
           menuKey.insertFieldToRight,
-          { col, row }
+          { col, row },
         ),
       }),
       getDropdownItem({
         label: 'New row',
+        fullPath: [...path, 'NewRow'],
         key: getDropdownMenuKey<ContextMenuKeyData>(menuKey.addRow, {
           col,
           row,
@@ -437,9 +530,10 @@ export function insertItem(
 export function fieldItem(
   col: number,
   row: number,
+  parentPath: string[],
   cell: GridCell,
   table: GridTable,
-  isDynamic: boolean
+  isDynamic: boolean,
 ): MenuItem {
   const { endCol, startCol } = cell;
   const { isTableHorizontal, isTableNameHeaderHidden } = table;
@@ -451,9 +545,12 @@ export function fieldItem(
     ? row === table.endRow
     : endCol === table.endCol;
 
+  const path = [...parentPath, 'Column'];
+
   return getDropdownItem({
     label: 'Column',
     key: 'Column',
+    fullPath: path,
     icon: (
       <Icon
         className="text-text-secondary w-[18px]"
@@ -465,6 +562,7 @@ export function fieldItem(
     children: [
       getDropdownItem({
         label: isTableHorizontal ? 'Swap top' : 'Swap left',
+        fullPath: [...path, 'SwapLeft'],
         key: getDropdownMenuKey<ContextMenuKeyData>(menuKey.swapLeft, {
           col,
           row,
@@ -474,6 +572,7 @@ export function fieldItem(
       }),
       getDropdownItem({
         label: isTableHorizontal ? 'Swap bottom' : 'Swap right',
+        fullPath: [...path, 'SwapRight'],
         key: getDropdownMenuKey<ContextMenuKeyData>(menuKey.swapRight, {
           col,
           row,
@@ -485,18 +584,20 @@ export function fieldItem(
       !isDynamic && !table?.isTableHorizontal
         ? getDropdownItem({
             label: 'Increase column width',
+            fullPath: [...path, 'IncreaseColumnWidth'],
             key: getDropdownMenuKey<ContextMenuKeyData>(
               menuKey.increaseFieldWidth,
-              { col, row }
+              { col, row },
             ),
           })
         : null,
       !isDynamic && !table?.isTableHorizontal
         ? getDropdownItem({
             label: 'Decrease column width',
+            fullPath: [...path, 'DecreaseColumnWidth'],
             key: getDropdownMenuKey<ContextMenuKeyData>(
               menuKey.decreaseFieldWidth,
-              { col, row }
+              { col, row },
             ),
             disabled: colSize <= 1,
           })
@@ -505,6 +606,7 @@ export function fieldItem(
       !table?.isTableHorizontal
         ? getDropdownItem({
             label: 'Columns Auto Fit',
+            fullPath: [...path, 'ColumnsAutoFit'],
             key: getDropdownMenuKey<ContextMenuKeyData>(menuKey.fieldsAutoFit, {
               col,
               row,
@@ -514,9 +616,10 @@ export function fieldItem(
       !table?.isTableHorizontal
         ? getDropdownItem({
             label: 'Remove custom column widths',
+            fullPath: [...path, 'RemoveCustomColumnWidths'],
             key: getDropdownMenuKey<ContextMenuKeyData>(
               menuKey.removeFieldSizes,
-              { col, row }
+              { col, row },
             ),
           })
         : null,
@@ -527,12 +630,16 @@ export function fieldItem(
 export function deleteItem(
   col: number,
   row: number,
+  parentPath: string[],
   table: GridTable,
-  isTableCell: boolean
+  isTableCell: boolean,
 ): MenuItem {
+  const path = [...parentPath, 'Delete'];
+
   return getDropdownItem({
     label: 'Delete',
     key: 'Delete',
+    fullPath: path,
     icon: (
       <Icon
         className="text-text-error w-[18px]"
@@ -542,6 +649,7 @@ export function deleteItem(
     children: [
       getDropdownItem({
         label: 'Delete column',
+        fullPath: [...path, 'DeleteColumn'],
         key: getDropdownMenuKey<ContextMenuKeyData>(menuKey.deleteField, {
           col,
           row,
@@ -549,6 +657,7 @@ export function deleteItem(
       }),
       getDropdownItem({
         label: 'Delete table',
+        fullPath: [...path, 'DeleteTable'],
         key: getDropdownMenuKey<ContextMenuKeyData>(menuKey.deleteTable, {
           col,
           row,
@@ -557,6 +666,7 @@ export function deleteItem(
       isTableCell && table.isManual
         ? getDropdownItem({
             label: 'Delete row',
+            fullPath: [...path, 'DeleteRow'],
             key: getDropdownMenuKey<ContextMenuKeyData>(menuKey.deleteRow, {
               col,
               row,
@@ -570,17 +680,22 @@ export function deleteItem(
 export function totalItem(
   col: number,
   row: number,
+  parentPath: string[],
   totalFieldTypes: TotalType[] | undefined,
-  isComplex: boolean
+  isComplex: boolean,
 ): MenuItem {
   const complexTotalKeys = [spreadsheetMenuKeys.countTotal];
   const filteredTotalItems = isComplex
     ? totalItems.filter(({ key }) => complexTotalKeys.includes(key))
     : totalItems;
 
+  const path = [...parentPath, 'Total'];
+  const allTotalsPath = [...path, 'AllTotals'];
+
   return getDropdownItem({
     key: 'Total',
     label: 'Total',
+    fullPath: path,
     icon: (
       <Icon
         className="text-text-accent-tertiary w-[18px]"
@@ -591,10 +706,12 @@ export function totalItem(
       getDropdownItem({
         key: 'All Totals',
         label: 'All Totals',
+        fullPath: allTotalsPath,
         children: [
           !isComplex
             ? getDropdownItem({
                 label: 'Add Totals',
+                fullPath: [...allTotalsPath, 'AddTotals'],
                 key: getDropdownMenuKey<ContextMenuKeyData>(menuKey.allTotals, {
                   col,
                   row,
@@ -603,12 +720,13 @@ export function totalItem(
             : null,
           getDropdownItem({
             label: 'Separate Table',
+            fullPath: [...allTotalsPath, 'SeparateTable'],
             key: getDropdownMenuKey<ContextMenuKeyData>(
               menuKey.allTotalsSeparateTable,
               {
                 col,
                 row,
-              }
+              },
             ),
           }),
         ],
@@ -618,17 +736,19 @@ export function totalItem(
           return getCheckboxDropdownSubmenuItem(
             {
               label: totalItem.label,
+              fullPath: [...path, totalItem.key],
               key: getDropdownMenuKey<ContextMenuKeyData>(totalItem.key, {
                 col,
                 row,
               }),
             },
-            totalFieldTypes?.includes(totalItem.type) ?? false
+            totalFieldTypes?.includes(totalItem.type) ?? false,
           );
         }
 
         return getDropdownItem({
           label: totalItem.label,
+          fullPath: [...path, totalItem.key],
           key: getDropdownMenuKey<ContextMenuKeyData>(totalItem.key, {
             col,
             row,
@@ -639,13 +759,25 @@ export function totalItem(
   });
 }
 
-export function filterItem(
-  col: number,
-  row: number,
-  cell: GridCell,
-  gridCallbacks: GridCallbacks,
-  filterList: GridListFilter[]
-): MenuItem {
+export function filterItem({
+  col,
+  row,
+  parentPath,
+  cell,
+  eventBus,
+  filterList,
+  sheetControls,
+  onClose,
+}: {
+  col: number;
+  row: number;
+  parentPath: string[];
+  cell: GridCell;
+  eventBus: GridEventBus;
+  filterList: GridListFilter[];
+  sheetControls: SheetControl[];
+  onClose: () => void;
+}): MenuItem {
   const { field, table } = cell;
 
   if (!table || !field) return null;
@@ -658,9 +790,12 @@ export function filterItem(
 
   if (!filterType) return null;
 
+  const path = [...parentPath, 'Filter'];
+
   return getDropdownItem({
     key: 'Filter',
     label: 'Filter',
+    fullPath: path,
     icon: (
       <Icon
         className="text-text-secondary w-[18px]"
@@ -669,33 +804,25 @@ export function filterItem(
     ),
     children: [
       getDropdownItem({
-        key: getDropdownMenuKey<ContextMenuKeyData>(menuKey.numFilter, {
+        key: getDropdownMenuKey<ContextMenuKeyData>(menuKey.filter, {
           col,
           row,
         }),
+        fullPath: [...path, 'Filter'],
         stopPropagationOnClick: true,
+        isCustomContent: true,
         label: (
-          <ConditionFilter
-            fieldName={fieldName}
-            filter={field?.filter}
-            filterType={filterType}
-            gridCallbacks={gridCallbacks}
-            tableName={tableName}
-          />
-        ),
-      }),
-      getDropdownItem({
-        key: getDropdownMenuKey<ContextMenuKeyData>(menuKey.textFilter, {
-          col,
-          row,
-        }),
-        stopPropagationOnClick: true,
-        label: (
-          <ListFilter
+          <FilterPanelItem
             cell={cell}
-            gridCallbacks={gridCallbacks}
+            eventBus={eventBus}
+            fieldName={fieldName}
+            filters={field?.conditionFilters?.filters}
+            filterType={filterType}
             isNumeric={isNumeric}
             listFilter={filterList}
+            sheetControls={sheetControls}
+            tableName={tableName}
+            onClose={onClose}
           />
         ),
       }),
@@ -703,9 +830,14 @@ export function filterItem(
   });
 }
 
-export function switchInput(col: number, row: number): MenuItem {
+export function switchInput(
+  col: number,
+  row: number,
+  parentPath: string[],
+): MenuItem {
   return getDropdownItem({
     label: 'Switch input',
+    fullPath: [...parentPath, 'SwitchInput'],
     key: getDropdownMenuKey<ContextMenuKeyData>(menuKey.switchInput, {
       col,
       row,
@@ -714,6 +846,95 @@ export function switchInput(col: number, row: number): MenuItem {
       <Icon
         className="text-text-secondary w-[18px]"
         component={() => <FileIcon />}
+      />
+    ),
+  });
+}
+
+export function syncImport(
+  col: number,
+  row: number,
+  parentPath: string[],
+): MenuItem {
+  return getDropdownItem({
+    label: 'Sync import',
+    fullPath: [...parentPath, 'SyncImport'],
+    key: getDropdownMenuKey<ContextMenuKeyData>(menuKey.syncImport, {
+      col,
+      row,
+    }),
+    icon: (
+      <Icon
+        className="text-text-secondary w-[18px]"
+        component={() => <ReloadIcon />}
+      />
+    ),
+  });
+}
+
+export function openDetails(
+  col: number,
+  row: number,
+  parentPath: string[],
+  isTableHeader: boolean,
+  isOverride?: boolean,
+): MenuItem[] {
+  return [
+    getDropdownItem({
+      label: 'Open in Details Panel',
+      fullPath: [...parentPath, 'OpenInDetailsPanel'],
+      key: getDropdownMenuKey(menuKey.openDetailsPanel, { col, row }),
+      icon: (
+        <Icon
+          className="text-text-secondary w-[18px]"
+          component={() => <SettingsIcon />}
+        />
+      ),
+    }),
+    getDropdownItem({
+      label: 'Open in Editor',
+      fullPath: [...parentPath, 'OpenInEditor'],
+      key: getDropdownMenuKey<ContextMenuKeyData>(
+        isOverride
+          ? menuKey.openOverrideInEditor
+          : isTableHeader
+            ? menuKey.openTableInEditor
+            : menuKey.openFieldInEditor,
+        {
+          col,
+          row,
+        },
+      ),
+      icon: (
+        <Icon
+          className="text-text-secondary w-[18px]"
+          component={() => <TagIcon />}
+        />
+      ),
+    }),
+  ];
+}
+
+export function moveTable(
+  col: number,
+  row: number,
+  parentPath: string[],
+  isChart: boolean,
+): MenuItem {
+  return getDropdownItem({
+    label: isChart ? 'Move chart' : 'Move table',
+    fullPath: [...parentPath, isChart ? 'MoveChart' : 'MoveTable'],
+    shortcut: shortcutApi.getLabel(Shortcut.SelectAll),
+    key: getDropdownMenuKey<ContextMenuKeyData>(menuKey.moveTable, {
+      col,
+      row,
+    }),
+    icon: (
+      <Icon
+        className="text-text-secondary w-[18px]"
+        component={() => (
+          <TableArrowIcon secondaryAccentCssVar="text-accent-secondary" />
+        )}
       />
     ),
   });

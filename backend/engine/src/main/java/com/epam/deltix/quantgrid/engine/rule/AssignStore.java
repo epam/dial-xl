@@ -3,6 +3,7 @@ package com.epam.deltix.quantgrid.engine.rule;
 import com.epam.deltix.quantgrid.engine.graph.Graph;
 import com.epam.deltix.quantgrid.engine.node.Node;
 import com.epam.deltix.quantgrid.engine.node.NodeUtil;
+import com.epam.deltix.quantgrid.engine.node.NotDeterministic;
 import com.epam.deltix.quantgrid.engine.node.expression.Expression;
 import com.epam.deltix.quantgrid.engine.node.expression.RowNumber;
 import com.epam.deltix.quantgrid.engine.node.plan.Executed;
@@ -46,6 +47,10 @@ public class AssignStore implements Rule {
                     collect(input, visited, toCache);
                 }
             }
+
+            if (node instanceof NotDeterministic) {
+                collect(node, visited, toCache);
+            }
         });
 
         return toCache;
@@ -78,11 +83,14 @@ public class AssignStore implements Rule {
                 return node;
             }
 
+            if (node.getIdentities().isEmpty()) {
+                return node; // should be already wrapped with Store/Cache
+            }
+
             if (node instanceof Plan plan && toCache.contains(plan)) {
                 Plan copy = plan.copy(false);
-                return toStore.test(copy)
-                        ? new StoreLocal(copy, store)
-                        : new CacheLocal(copy);
+                boolean stored = (plan instanceof NotDeterministic || toStore.test(copy));
+                return stored ? new StoreLocal(copy, store) : new CacheLocal(copy);
             }
 
             return node;

@@ -14,6 +14,7 @@ import java.util.Collections;
 import java.util.List;
 
 public class LocalTable implements Table {
+    public static final LocalTable ZERO = new LocalTable(0);
 
     private final Column[] columns;
     private final long size;

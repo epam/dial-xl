@@ -1,6 +1,8 @@
 import { BrowserContext, expect, Page, test } from '@playwright/test';
 
 import { Canvas } from '../../components/Canvas';
+import { GridMenuItem } from '../../enums/GridMenuItem';
+import { MenuType } from '../../enums/MenuType';
 import { expectCellTextToBe } from '../../helpers/canvasExpects';
 import { Field } from '../../logic-entities/Field';
 import { SpreadSheet } from '../../logic-entities/SpreadSheet';
@@ -31,7 +33,7 @@ let browserContext: BrowserContext;
 
 let page: Page;
 
-const storagePath = `playwright/${projectName}.json`;
+const storagePath = TestFixtures.getStoragePath();
 
 const dataType = process.env['DATA_TYPE']
   ? process.env['DATA_TYPE']
@@ -53,13 +55,13 @@ test.beforeAll(async ({ browser }) => {
   if (dataType !== 'default') {
     spreadsheet = getProjectSpreadSheeet(dataType, spreadsheet);
   }
+  browserContext = await browser.newContext({ storageState: storagePath });
   await TestFixtures.createProjectNew(
     storagePath,
-    browser,
+    browserContext,
     projectName,
-    spreadsheet
+    spreadsheet,
   );
-  browserContext = await browser.newContext({ storageState: storagePath });
 });
 
 test.beforeEach(async () => {
@@ -68,8 +70,10 @@ test.beforeEach(async () => {
   await TestFixtures.expectCellTableToBeDisplayed(
     page,
     table1Row,
-    table1Column
+    table1Column,
   );
+  const projectPage = await ProjectPage.createCleanInstance(page);
+  await projectPage.hideAllPanels();
 });
 
 test.afterEach(async () => {
@@ -77,8 +81,8 @@ test.afterEach(async () => {
 });
 
 test.afterAll(async ({ browser }) => {
+  await TestFixtures.deleteProject(browserContext, projectName);
   await browserContext.close();
-  await TestFixtures.deleteProject(browser, projectName);
 });
 
 test.describe('table cell actions', () => {
@@ -96,7 +100,8 @@ test.describe('table cell actions', () => {
         .performCellAction(
           table.getFirstCellCoord(),
           table.getLeft() + 2,
-          'Edit Cell'
+          MenuType.TableCell,
+          GridMenuItem.EditCell
         );
       await projectPage.getVisualization().expectCellBecameEditable(undefined);
       await projectPage.getVisualization().setCellValue(overrideValue);
@@ -112,7 +117,7 @@ test.describe('table cell actions', () => {
         new Map<number, string>()
       );
       table.addOverrideValue(table.getField(2).getName(), 1, overrideValue);*/
-    }
+    },
   );
 
   /*test(
@@ -128,7 +133,8 @@ test.describe('table cell actions', () => {
         .performCellAction(
           table.getFirstCellCoord(),
           table.getLeft() + 2,
-          'Remove Override Cell'
+          MenuType.TableCell,
+          GridMenuItem.RemoveOverrideCell
         );
       await expect(
         projectPage.getCellText(table.getFirstCellCoord(), table.getLeft() + 2)

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import yaml from 'yaml';
 
 import {
@@ -34,6 +35,8 @@ function commentToNote(comment: string): string {
  */
 function findInputSourceField(parsedTable: ParsedTable) {
   return parsedTable.fields.find((field) => {
+    if (!field.expression) return false;
+
     const fns = findFunctionExpressions(field.expression);
     const isFieldReference =
       field.expression instanceof FieldReferenceExpression;
@@ -47,7 +50,7 @@ function findInputSourceField(parsedTable: ParsedTable) {
  */
 function findReferencingFields(
   parsedTable: ParsedTable,
-  sourceFieldName: string
+  sourceFieldName: string,
 ) {
   const fieldAccessors = [];
   const fieldNames = [];
@@ -77,14 +80,14 @@ function createFieldGroup(
   sourceFormula: string,
   fieldAccessors: string[],
   fieldNames: string[],
-  parsedTable: ParsedTable
+  parsedTable: ParsedTable,
 ) {
   const accessorsList =
     fieldAccessors.length > 1
       ? `[${fieldAccessors.join(', ')}]`
       : fieldAccessors.length === 1
-      ? fieldAccessors[0]
-      : '';
+        ? fieldAccessors[0]
+        : '';
   const multiFieldFormula = `${sourceFormula}${accessorsList}`;
   const fieldGroup = new FieldGroup(multiFieldFormula);
 
@@ -99,7 +102,7 @@ function createFieldGroup(
     }
 
     const parsedField = parsedTable.fields.find(
-      ({ key }) => key.fieldName === fieldName
+      ({ key }) => key.fieldName === fieldName,
     );
 
     if (parsedField) {
@@ -122,7 +125,7 @@ function copyFieldAttributes(targetField: Field, sourceField: ParsedField) {
   }
 
   // copy all decorators
-  if (sourceField.decorators.length > 0) {
+  if (sourceField.decorators && sourceField.decorators.length > 0) {
     copyDecorators(targetField, sourceField.decorators);
   }
 
@@ -190,8 +193,8 @@ function formatDecoratorArgs(params: any[]) {
     return trimmed === ''
       ? ''
       : !isNaN(Number(arg)) && trimmed
-      ? arg
-      : `"${arg}"`;
+        ? arg
+        : `"${arg}"`;
   });
 
   return `(${formattedParams.join(', ')})`;
@@ -205,16 +208,17 @@ function processTable(parsedTable: ParsedTable, editableSheet: Sheet) {
   if (!inputSourceField) return false;
 
   const { fieldName: sourceFieldName } = inputSourceField.key;
-  const sourceFormula = inputSourceField.expressionMetadata.text;
+  const sourceFormula = inputSourceField.expressionMetadata?.text;
+  if (!sourceFormula) return false;
 
   const { fieldAccessors, fieldNames } = findReferencingFields(
     parsedTable,
-    sourceFieldName
+    sourceFieldName,
   );
   if (fieldAccessors.length === 0) return false;
 
   const table = editableSheet.getTable(
-    unescapeTableName(parsedTable.tableName)
+    unescapeTableName(parsedTable.tableName),
   );
 
   // Create a multi-field expression with the accessors
@@ -222,7 +226,7 @@ function processTable(parsedTable: ParsedTable, editableSheet: Sheet) {
     sourceFormula,
     fieldAccessors,
     fieldNames,
-    parsedTable
+    parsedTable,
   );
 
   // Remove the original source field and reference fields
@@ -233,7 +237,7 @@ function processTable(parsedTable: ParsedTable, editableSheet: Sheet) {
 
   try {
     const index = table.fieldGroups.toGroupIndex(
-      inputSourceField.fieldGroupIndex
+      inputSourceField.fieldGroupIndex,
     );
     table.fieldGroups.insert(index, fieldGroup);
   } catch {
@@ -254,6 +258,7 @@ export function fromInputReferenceToMultiFieldGroup(content: string) {
     try {
       const parsedSheet = SheetReader.parseSheet(sheetContent);
       const editableSheet = parsedSheet.editableSheet;
+      if (!editableSheet) continue;
 
       let sheetModified = false;
       for (const parsedTable of parsedSheet.tables) {

@@ -1,73 +1,74 @@
-import { useEffect, useRef, useState } from 'react';
+import cx from 'classnames';
+import { useContext, useEffect, useMemo, useRef, useState } from 'react';
 
 import { KeyboardCode } from '@frontend/common';
 
-import { GridApi } from '../../../types';
+import { GridStateContext, GridViewportContext } from '../../../context';
 import { getMousePosition, getPx } from '../../../utils';
 import { ChartConfig } from '../types';
 
 type Props = {
+  visible: boolean;
   chartConfig: ChartConfig;
-  api: GridApi | null;
+  isSelected: boolean;
   onChartResize: (x: number, y: number) => void;
   onStartResizing: () => void;
   onStopResizing: () => void;
 };
 
 export function ResizeHandler({
+  visible,
+  isSelected,
   chartConfig,
-  api,
   onStartResizing,
   onStopResizing,
   onChartResize,
 }: Props) {
+  const { canvasId } = useContext(GridStateContext);
+  const { getCellFromCoords, getCellX, getCellY } =
+    useContext(GridViewportContext);
   const isResizing = useRef(false);
   const handlerRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(chartConfig.width);
   const [height, setHeight] = useState(
-    chartConfig.height + chartConfig.toolBarHeight
+    chartConfig.height + chartConfig.toolBarHeight + chartConfig.titleHeight,
   );
 
   useEffect(() => {
     if (isResizing.current) return;
 
     setWidth(chartConfig.width);
-    setHeight(chartConfig.height + chartConfig.toolBarHeight);
+    setHeight(
+      chartConfig.height + chartConfig.toolBarHeight + chartConfig.titleHeight,
+    );
   }, [chartConfig]);
 
   useEffect(() => {
-    let cellWidth = 0;
-    let cellHeight = 0;
+    let updatedColsCount = 0;
+    let updatedRowsCount = 0;
 
     function onMove(e: MouseEvent) {
-      if (!isResizing.current || !api) return;
+      if (!isResizing.current) return;
 
-      const mousePosition = getMousePosition(e);
+      const mousePosition = getMousePosition(e, canvasId);
 
       if (!mousePosition) return;
 
-      const { col, row } = api.getCellFromCoords(
-        mousePosition.x,
-        mousePosition.y
-      );
-      const cellCoordX = api.getCellX(col + 1);
-      const cellCoordY = api.getCellY(row + 1);
-
-      const chartStartCellX = api.getCellX(chartConfig.gridChart.startCol);
-      const chartStartCellY = api.getCellY(chartConfig.gridChart.startRow);
-
-      cellWidth = col + 1 - chartConfig.gridChart.startCol;
-      cellHeight = row + 1 - chartConfig.gridChart.startRow;
-
+      const { col, row } = getCellFromCoords(mousePosition.x, mousePosition.y);
+      const cellCoordX = getCellX(col + 1);
+      const cellCoordY = getCellY(row + 1);
+      const chartStartCellX = getCellX(chartConfig.gridChart.startCol);
+      const chartStartCellY = getCellY(chartConfig.gridChart.startRow);
       const updateWidth = cellCoordX - chartStartCellX;
-
       const updateHeight = cellCoordY - chartStartCellY;
 
       if (updateWidth >= chartConfig.minResizeWidth) {
+        updatedColsCount = col + 1 - chartConfig.gridChart.startCol;
         setWidth(updateWidth);
       }
 
       if (updateHeight >= chartConfig.minResizeHeight) {
+        updatedRowsCount = row + 1 - chartConfig.gridChart.startRow;
         setHeight(updateHeight);
       }
     }
@@ -75,7 +76,7 @@ export function ResizeHandler({
     function onStopResize() {
       if (!isResizing.current) return;
 
-      onChartResize(cellWidth, cellHeight);
+      onChartResize(updatedColsCount, updatedRowsCount);
       cleanup();
     }
 
@@ -106,7 +107,11 @@ export function ResizeHandler({
       isResizing.current = false;
       onStopResizing();
       setWidth(chartConfig.width);
-      setHeight(chartConfig.height + chartConfig.toolBarHeight);
+      setHeight(
+        chartConfig.height +
+          chartConfig.toolBarHeight +
+          chartConfig.titleHeight,
+      );
     }
 
     document.body.addEventListener('mousedown', onStartResize, true);
@@ -116,27 +121,45 @@ export function ResizeHandler({
       cleanup();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [api, chartConfig]);
+  }, [canvasId, chartConfig]);
+
+  const topPosition = useMemo(
+    () =>
+      chartConfig.showTitle ? chartConfig.titleTop : chartConfig.toolBarTop,
+    [chartConfig],
+  );
+  const leftPosition = useMemo(
+    () =>
+      chartConfig.showTitle ? chartConfig.titleLeft : chartConfig.toolBarLeft,
+    [chartConfig],
+  );
 
   return (
     <>
       {isResizing.current && (
         <div
-          className="absolute border-2 border-stroke-grid-accent-primary"
+          className="absolute border-2 border-dashed border-stroke-grid-accent-primary"
           style={{
             width: getPx(width),
             height: getPx(height),
-            top: getPx(chartConfig.toolBarTop),
-            left: getPx(chartConfig.toolBarLeft),
+            top: getPx(topPosition),
+            left: getPx(leftPosition),
+            zIndex: isSelected ? 200 : 50,
           }}
         />
       )}
       <div
-        className="w-2 h-2 absolute box-border rounder-[3px] bg-stroke-grid-accent-primary cursor-nwse-resize pointer-events-auto"
+        className={cx(
+          'w-2 h-2 absolute box-border rounder-[3px] bg-stroke-grid-accent-primary cursor-nwse-resize pointer-events-auto transition-opacity duration-200 ease-in-out',
+          isResizing.current || visible
+            ? 'opacity-100 pointer-events-auto'
+            : 'opacity-0 pointer-events-none',
+        )}
         ref={handlerRef}
         style={{
-          top: getPx(chartConfig.toolBarTop + height - 6),
-          left: getPx(chartConfig.toolBarLeft + width - 6),
+          top: getPx(topPosition + height - 6),
+          left: getPx(leftPosition + width - 6),
+          zIndex: isSelected ? 200 : 50,
         }}
       />
     </>

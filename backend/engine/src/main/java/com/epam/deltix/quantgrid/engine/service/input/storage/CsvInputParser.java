@@ -1,5 +1,9 @@
 package com.epam.deltix.quantgrid.engine.service.input.storage;
 
+import com.epam.deltix.quantgrid.engine.Util;
+import com.epam.deltix.quantgrid.engine.service.input.ColumnMetadata;
+import com.epam.deltix.quantgrid.engine.service.input.CsvInputMetadata;
+import com.epam.deltix.quantgrid.engine.value.local.LocalTable;
 import com.epam.deltix.quantgrid.type.InputColumnType;
 import com.epam.deltix.quantgrid.util.Dates;
 import com.epam.deltix.quantgrid.util.DeduplicateSet;
@@ -13,18 +17,20 @@ import com.univocity.parsers.csv.Csv;
 import com.univocity.parsers.csv.CsvParser;
 import com.univocity.parsers.csv.CsvParserSettings;
 import it.unimi.dsi.fastutil.doubles.DoubleArrayList;
-import it.unimi.dsi.fastutil.objects.Object2IntMap;
-import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
+import it.unimi.dsi.fastutil.ints.Int2ObjectLinkedOpenHashMap;
+import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import lombok.experimental.UtilityClass;
 import org.apache.commons.lang3.StringUtils;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.Reader;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -32,16 +38,18 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 
 @UtilityClass
 public class CsvInputParser {
-    private static final int MAX_COLUMN_DEDUPLICATION_COUNT = Integer.MAX_VALUE;
     private static final int MAX_ROWS_TO_BUILD_METADATA = Integer.MAX_VALUE;
     private static final int MAX_COLUMNS = 512;
     private static final int MAX_CHARS = 1_048_576;
 
-    public LinkedHashMap<String, InputColumnType> inferSchema(Reader reader) {
-        try {
+    public CsvInputMetadata.CsvTable inferSchema(InputStream stream, boolean addMissingHeaders) throws IOException {
+        try (Reader reader = createReader(stream)) {
             CsvParser parser = new CsvParser(inputCsvSettings());
             IterableResult<String[], ParsingContext> rows = parser.iterate(reader);
 
@@ -51,8 +59,12 @@ public class CsvInputParser {
             for (String[] row : rows) {
                 for (int i = 0; i < row.length; i++) {
                     if (i == columnTypes.size()) {
+                        if (!addMissingHeaders) {
+                            break;
+                        }
+
                         columnTypes.add(null);
-                        String columnName = generateColumnName(parsedHeader.keySet(), i);
+                        String columnName = InputUtils.generateColumnName(parsedHeader.keySet(), i);
                         parsedHeader.put(columnName, Boolean.FALSE);
                     }
 
@@ -68,15 +80,20 @@ public class CsvInputParser {
                 }
             }
 
-            LinkedHashMap<String, InputColumnType> schema = new LinkedHashMap<>();
+            List<ColumnMetadata> columns = new ArrayList<>();
             int index = 0;
             for (Map.Entry<String, Boolean> entry : parsedHeader.entrySet()) {
                 String columnName = entry.getKey();
-                InputColumnType columnType = columnTypes.get(index++);
-                schema.put(columnName, columnType == null && entry.getValue() ? InputColumnType.DOUBLE : columnType);
+                InputColumnType columnType = columnTypes.get(index);
+                if (columnType != null) {
+                    columns.add(new ColumnMetadata(columnName, index, columnType));
+                } else if (entry.getValue()) {
+                    columns.add(new ColumnMetadata(columnName, index, InputColumnType.DOUBLE));
+                }
+                ++index;
             }
 
-            return schema;
+            return new CsvInputMetadata.CsvTable(columns);
         } catch (TextParsingException e) {
             if (e.getColumnIndex() > MAX_COLUMNS) {
                 throw new ParserException(
@@ -94,80 +111,99 @@ public class CsvInputParser {
         }
     }
 
+    public LocalTable parseCsvInput(InputStream stream, CsvInputMetadata.CsvTable table, List<String> names)
+            throws IOException {
+        Map<String, ColumnMetadata> map = table.columns().stream()
+                .collect(Collectors.toUnmodifiableMap(ColumnMetadata::name, Function.identity()));
+        List<Integer> indices = names.stream()
+                .map(map::get)
+                .map(ColumnMetadata::index)
+                .toList();
+        List<InputColumnType> types = names.stream()
+                .map(map::get)
+                .map(ColumnMetadata::type)
+                .toList();
+        return parseCsvInput(stream, indices, null, types);
+    }
+
     /**
-     * @param reader source CSV data
-     * @param readColumns column names to read
-     * @param columnTypes full CSV schema
-     * @return Object[] of DoubleArrayList(s) for doubles and ObjectArrayList(s) for strings
+     * @param stream source CSV data
+     * @param indices column indices to read
+     * @param names column names to read
+     * @param types expected column types
+     * @return LocalTable with parsed data
      */
-    public Object[] parseCsvInput(Reader reader,
-                                  List<String> readColumns,
-                                  LinkedHashMap<String, InputColumnType> columnTypes) {
+    public LocalTable parseCsvInput(
+            InputStream stream,
+            @Nullable
+            List<Integer> indices,
+            @Nullable
+            List<String> names,
+            List<InputColumnType> types) throws IOException {
+        Util.verify((indices == null) != (names == null),
+                "Either indices or names should be provided, but not both.");
 
-        Map<String, ObjectArrayList<String>> stringColumns = new HashMap<>();
-        Map<String, DoubleArrayList> doubleColumns = new HashMap<>();
+        Int2ObjectMap<ObjectArrayList<String>> stringColumns = new Int2ObjectLinkedOpenHashMap<>();
+        Int2ObjectMap<DoubleArrayList> doubleColumns = new Int2ObjectLinkedOpenHashMap<>();
 
-        int expectedColumns = readColumns.size();
-        int columnIndex = 0;
+        int expectedColumns = types.size();
         StringConsumer[] consumers = new StringConsumer[expectedColumns];
-        for (String columnName : readColumns) {
-            InputColumnType columnType = columnTypes.get(columnName);
+        for (int i = 0; i < types.size(); i++) {
+            InputColumnType columnType = types.get(i);
 
             if (columnType == InputColumnType.STRING) {
                 DeduplicateSet<String> set = new DeduplicateSet<>();
                 ObjectArrayList<String> stringData = new ObjectArrayList<>();
-                consumers[columnIndex++] = s -> stringData.add(set.add(ParserUtils.parseString(s)));
-                stringColumns.put(columnName, stringData);
+                consumers[i] = s -> stringData.add(set.add(ParserUtils.parseString(s)));
+                stringColumns.put(i, stringData);
             } else {
                 DoubleArrayList doubleData = new DoubleArrayList();
-                consumers[columnIndex++] = switch (columnType) {
-                    case DATE -> s -> doubleData.add(Dates.from(s));
+                consumers[i] = switch (columnType) {
+                    case DATE -> s -> doubleData.add(Dates.fromDate(s));
+                    case DATE_TIME -> s -> doubleData.add(Dates.fromDateTime(s));
                     case BOOLEAN -> s -> doubleData.add(ParserUtils.parseBoolean(s));
                     case DOUBLE -> s -> doubleData.add(ParserUtils.parseDouble(s));
                     default -> throw new UnsupportedOperationException("Unsupported column type: " + columnType);
                 };
-                doubleColumns.put(columnName, doubleData);
+                doubleColumns.put(i, doubleData);
             }
         }
 
-        parse(consumers, columnTypes.keySet(), readColumns, reader);
+        try (Reader reader = createReader(stream)) {
+            Iterable<String[]> rows = parse(reader, indices, names);
+
+            for (String[] row : rows) {
+                for (int i = 0; i < types.size(); i++) {
+                    consumers[i].accept(emptyIfNull(row[i]));
+                }
+            }
+        }
 
         Object[] columns = new Object[expectedColumns];
-        columnIndex = 0;
-        for (String columnName : readColumns) {
-            InputColumnType columnType = columnTypes.get(columnName);
+        for (int i = 0; i < types.size(); i++) {
+            InputColumnType columnType = types.get(i);
 
             if (columnType == InputColumnType.STRING) {
-                columns[columnIndex++] = stringColumns.get(columnName);
+                columns[i] = stringColumns.get(i);
             } else {
-                columns[columnIndex++] = doubleColumns.get(columnName);
+                columns[i] = doubleColumns.get(i);
             }
         }
 
-        return columns;
+        return InputUtils.toLocalTable(columns);
     }
 
-    private void parse(StringConsumer[] consumers,
-                       Collection<String> allColumns,
-                       List<String> columnsToRead,
-                       Reader reader) {
-        int index = 0;
-        Object2IntMap<String> columnIndices = new Object2IntOpenHashMap<>();
-        for (String columnName : allColumns) {
-            columnIndices.put(columnName, index++);
-        }
-        // carry only required columns
+    private Iterable<String[]> parse(Reader reader, @Nullable List<Integer> indices, @Nullable List<String> names) {
         CsvParserSettings settings = inputCsvSettings();
-        settings.selectIndexes(columnsToRead.stream()
-                .map(columnIndices::getInt)
-                .toArray(Integer[]::new));
+        // carry only required columns
+        if (indices != null) {
+            settings.selectIndexes(indices.toArray(Integer[]::new));
+        } else {
+            settings.selectFields(names.toArray(String[]::new));
+        }
 
         CsvParser parser = new CsvParser(settings);
-        for (String[] row : parser.iterate(reader)) {
-            for (int i = 0; i < columnsToRead.size(); i++) {
-                consumers[i].accept(emptyIfNull(row[i]));
-            }
-        }
+        return parser.iterate(reader);
     }
 
     private CsvParserSettings inputCsvSettings() {
@@ -196,7 +232,7 @@ public class CsvInputParser {
         for (int i = 0; i < escapedHeaders.size(); ++i) {
             String header = escapedHeaders.get(i);
             if (StringUtils.isBlank(header)) {
-                String columnName = generateColumnName(uniqueHeaders, i);
+                String columnName = InputUtils.generateColumnName(uniqueHeaders, i);
                 result.put(columnName, Boolean.FALSE);
             } else if (result.put(header, Boolean.TRUE) != null) {
                 throw new ParserException("Column names must be unique. Duplicate found: %s.".formatted(header));
@@ -206,25 +242,13 @@ public class CsvInputParser {
         return result;
     }
 
-    private String generateColumnName(Set<String> existingNames, int index) {
-        String name = "Column" + (index + 1);
-        if (!existingNames.contains(name)) {
-            return name;
-        }
-
-        for (int i = 1; i < MAX_COLUMN_DEDUPLICATION_COUNT; ++i) {
-            String deduplicatedName = name + "_" + (i + 1);
-            if (!existingNames.contains(deduplicatedName)) {
-                return deduplicatedName;
-            }
-        }
-
-        throw new ParserException("Cannot generate a new column name. Maximum number " + MAX_COLUMN_DEDUPLICATION_COUNT
-                + " is reached.");
-    }
-
     private String emptyIfNull(String value) {
         return Objects.requireNonNullElse(value, Strings.EMPTY);
+    }
+
+    private Reader createReader(InputStream stream) {
+        // Avoid using Files.newBufferedReader(inputPath) https://stackoverflow.com/a/43446789
+        return new BufferedReader(new InputStreamReader(stream));
     }
 
     private interface StringConsumer extends Consumer<String> {

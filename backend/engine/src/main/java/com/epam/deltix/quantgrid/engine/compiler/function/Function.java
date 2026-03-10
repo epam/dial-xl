@@ -18,8 +18,22 @@ public record Function(String name, String description, List<FunctionType> funct
             return arguments.get(index).name();
         }
 
-        Argument last = arguments.get(arguments.size() - 1);
-        if (last.repeatable()) {
+        int repeatables = 0;
+
+        for (int i = arguments.size() - 1; i >= 0; i--) {
+            Argument argument = arguments.get(i);
+            if (argument.repeatable()) {
+                repeatables++;
+                continue;
+            }
+
+            break;
+        }
+
+        if (repeatables > 0) {
+            int start = arguments.size() - repeatables;
+            int number = (index - start) % repeatables;
+            Argument last = arguments.get(start + number);
             return last.name();
         }
 

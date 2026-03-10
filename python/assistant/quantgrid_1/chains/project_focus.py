@@ -4,7 +4,7 @@ from typing import cast
 
 from langchain_core.messages import AIMessageChunk
 from langchain_core.runnables import Runnable, RunnableLambda
-from openai import RateLimitError
+from openai import InternalServerError, RateLimitError
 
 from quantgrid_1.chains.parameters import ChainParameters
 from quantgrid_1.log_config import qg_logger as logger
@@ -14,10 +14,20 @@ from quantgrid_1.models.stage_generation_type import StageGenerationMethod
 from quantgrid_1.prompts import FOCUS_EXPLANATION
 from quantgrid_1.utils.create_exception_stage import create_exception_stage
 from quantgrid_1.utils.formatting import format_row_sheets
-from quantgrid_1.utils.stages import append_duration, replicate_stages
-from quantgrid_1.utils.stream_content import get_token_error, stream_message
+from quantgrid_1.utils.stages import (
+    append_duration,
+    append_token_info,
+    replicate_stages,
+)
+from quantgrid_1.utils.stream_content import (
+    delay_retry,
+    get_rate_error,
+    get_token_error,
+    stream_message,
+)
 
 STAGE_NAME = "Designating Focus"
+ATTEMPTS = 3
 
 
 async def designate_focus(inputs: dict) -> dict:
@@ -65,7 +75,7 @@ async def designate_focus(inputs: dict) -> dict:
                 f"Generated actions from another assistant: " f"{final_actions}"
             )
 
-        for _ in range(3):
+        for retry in range(ATTEMPTS):
             try:
                 model = ChainParameters.get_main_model(inputs).bind_tools(
                     [FocusTool], tool_choice="required"
@@ -77,9 +87,15 @@ async def designate_focus(inputs: dict) -> dict:
                     ]
                 )
 
-                message = await stream_message(
+                message, input_tokens, output_tokens = await stream_message(
                     cast(AsyncIterator[AIMessageChunk], iterator),
                     stage,
+                )
+
+                append_token_info(
+                    stage,
+                    input_token_count=input_tokens,
+                    output_token_count=output_tokens,
                 )
 
                 focus_tool: FocusTool = FocusTool(columns=[])
@@ -94,6 +110,9 @@ async def designate_focus(inputs: dict) -> dict:
 
             except RateLimitError as error:
                 raise get_token_error(error)
+            except InternalServerError as error:
+                await delay_retry(retry, ATTEMPTS, 30)
+                raise get_rate_error(error)
             except Exception as exception:
                 create_exception_stage(choice, exception)
                 logger.exception(exception)

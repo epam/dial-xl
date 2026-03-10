@@ -1,6 +1,6 @@
 import { Dropdown, Tooltip } from 'antd';
 import cx from 'classnames';
-import { ForwardedRef, forwardRef, useCallback, useContext } from 'react';
+import { Ref, useCallback, useContext } from 'react';
 
 import Icon from '@ant-design/icons';
 
@@ -14,15 +14,18 @@ import { LayoutContext } from '../../../context';
 import { usePanelSettings, usePanelStatusBar } from '../../../hooks';
 
 type Props = {
+  ref?: Ref<HTMLDivElement>;
   panels?: MinimizedPanelProps[];
   position?: PanelPosition;
   collapsedPanelsTextHidden: boolean;
 };
 
-export const PanelStatusBar = forwardRef(function PanelStatusBar(
-  { panels, position = PanelPosition.Left, collapsedPanelsTextHidden }: Props,
-  ref: ForwardedRef<HTMLDivElement>
-) {
+export function PanelStatusBar({
+  panels,
+  position = PanelPosition.Left,
+  collapsedPanelsTextHidden,
+  ref,
+}: Props) {
   const { togglePanel, openedPanels } = useContext(LayoutContext);
   const { showErrorNotification } = usePanelStatusBar();
   const { getPanelSettingsItems } = usePanelSettings();
@@ -31,7 +34,7 @@ export const PanelStatusBar = forwardRef(function PanelStatusBar(
     (panelName: PanelName) => {
       return openedPanels[panelName] && openedPanels[panelName].isActive;
     },
-    [openedPanels]
+    [openedPanels],
   );
 
   const isBottomPanel = position === PanelPosition.Bottom;
@@ -42,7 +45,7 @@ export const PanelStatusBar = forwardRef(function PanelStatusBar(
     <div
       className={cx(
         'bg-bg-layer-2 text-[11px] tracking-normal overflow-hidden w-full h-full border-stroke-tertiary',
-        isBottomPanel ? 'border-t' : isLeftPanel ? 'border-r' : 'border-l'
+        isBottomPanel ? 'border-t' : isLeftPanel ? 'border-r' : 'border-l',
       )}
       ref={ref}
     >
@@ -51,19 +54,18 @@ export const PanelStatusBar = forwardRef(function PanelStatusBar(
           'flex m-0 gap-1.5 px-1.5',
           !isBottomPanel
             ? 'flex-col justify-center py-1.5'
-            : 'items-center pt-0.5'
+            : 'items-center pt-0.5',
         )}
       >
         {panels?.map((p) => (
           <Dropdown
-            className="cursor-pointer"
             key={p.name}
             menu={{
               items: getPanelSettingsItems(
                 p.name,
                 PanelTitle[p.name],
                 position,
-                true
+                true,
               ),
             }}
             trigger={['contextMenu']}
@@ -78,13 +80,15 @@ export const PanelStatusBar = forwardRef(function PanelStatusBar(
                   'flex gap-1 items-center justify-center h-full text-nowrap cursor-pointer select-none hover:bg-bg-accent-primary-alpha hover:text-text-accent-primary rounded-sm',
                   {
                     'text-text-accent-primary': isPanelOpen(p.name),
-                    'text-text-secondary': !isPanelOpen(p.name),
+                    'text-text-secondary':
+                      !isPanelOpen(p.name) && !showErrorNotification(p.name),
                     'flex-col py-1.5 px-px':
                       !isBottomPanel && !collapsedPanelsTextHidden,
                     'flex-col p-1.5':
                       !isBottomPanel && collapsedPanelsTextHidden,
                     'px-2.5': isBottomPanel,
-                  }
+                    'text-stroke-error': showErrorNotification(p.name),
+                  },
                 )}
                 data-panel={p.name}
                 data-qa="collapsed-panel-button"
@@ -97,8 +101,8 @@ export const PanelStatusBar = forwardRef(function PanelStatusBar(
                     isBottomPanel
                       ? 'size-3.5'
                       : collapsedPanelsTextHidden
-                      ? 'size-6'
-                      : 'size-[18px]'
+                        ? 'size-6'
+                        : 'size-[18px]',
                   )}
                 >
                   <Icon
@@ -106,8 +110,8 @@ export const PanelStatusBar = forwardRef(function PanelStatusBar(
                       isBottomPanel
                         ? 'size-3.5'
                         : collapsedPanelsTextHidden
-                        ? 'size-6'
-                        : 'size-[18px]'
+                          ? 'size-6'
+                          : 'size-[18px]',
                     )}
                     component={() => p.icon}
                   />
@@ -132,4 +136,4 @@ export const PanelStatusBar = forwardRef(function PanelStatusBar(
       </ul>
     </div>
   );
-});
+}

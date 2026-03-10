@@ -45,6 +45,11 @@ class ClusterApi {
                 List.of(namespace), nodeId, nodeTimeout);
     }
 
+    long countComputeNodes() {
+        return functions.call(FunctionMode.WRITE, "qg_cluster_count_compute_nodes", FunctionResult.LONG,
+                List.of(namespace));
+    }
+
     String beginComputeOperation(String projectId, long projectTimeout,
                                  String operationId, long operationTimeout) {
          return functions.call(FunctionMode.WRITE, "qg_cluster_begin_compute_operation", FunctionResult.STRING,

@@ -2,6 +2,7 @@
 import { BrowserContext, expect, Page, test } from '@playwright/test';
 
 import { GridMenuItem } from '../../enums/GridMenuItem';
+import { MenuType } from '../../enums/MenuType';
 import { MoveDirection } from '../../enums/MoveDirection';
 import { Panels } from '../../enums/Panels';
 import { Field } from '../../logic-entities/Field';
@@ -33,7 +34,7 @@ let browserContext: BrowserContext;
 
 let page: Page;
 
-const storagePath = `playwright/${projectName}.json`;
+const storagePath = TestFixtures.getStoragePath();
 
 const dataType = process.env['DATA_TYPE']
   ? process.env['DATA_TYPE']
@@ -66,13 +67,13 @@ test.beforeAll(async ({ browser }) => {
   if (dataType !== 'default') {
     spreadsheet = getProjectSpreadSheeet(dataType, spreadsheet);
   }
+  browserContext = await browser.newContext({ storageState: storagePath });
   await TestFixtures.createProjectNew(
     storagePath,
-    browser,
+    browserContext,
     projectName,
-    spreadsheet
+    spreadsheet,
   );
-  browserContext = await browser.newContext({ storageState: storagePath });
 });
 
 test.beforeEach(async () => {
@@ -80,9 +81,9 @@ test.beforeEach(async () => {
   await TestFixtures.openProject(page, projectName);
   projectPage = await ProjectPage.createInstance(page);
   await projectPage.hideAllPanels();
-  await page.keyboard.press('Alt+1');
-  await page.keyboard.press('Alt+2');
-  await page.keyboard.press('Alt+4');
+  await projectPage.getProjectPanel().toggle();
+  await projectPage.getEditorPanel().toggle();
+  await projectPage.getHistoryPanel().toggle();
   await projectPage.expectPanelToBeVisible(Panels.HistoryPanel);
   await TestFixtures.expectTableToBeDisplayed(page, spreadsheet.getTable(2));
 });
@@ -92,8 +93,8 @@ test.afterEach(async () => {
 });
 
 test.afterAll(async ({ browser }) => {
+  await TestFixtures.deleteProject(browserContext, projectName);
   await browserContext.close();
-  await TestFixtures.deleteProject(browser, projectName);
 });
 
 test.describe('history panel', () => {
@@ -113,7 +114,7 @@ test.describe('history panel', () => {
     const table = spreadsheet.getTable(0);
     await projectPage
       .getVisualization()
-      .performMenuAction(table.getTop(), table.getLeft(), GridMenuItem.Rename);
+      .performMenuAction(table.getTop(), table.getLeft(), GridMenuItem.RenameTable);
     await projectPage
       .getVisualization()
       .expectCellBecameEditable(table.getName());
@@ -130,7 +131,7 @@ test.describe('history panel', () => {
     const table = spreadsheet.getTable(1);
     await projectPage
       .getVisualization()
-      .performMenuAction(table.getTop(), table.getLeft(), GridMenuItem.Delete);
+      .performMenuAction(table.getTop(), table.getLeft(), GridMenuItem.DeleteTable);
     await projectPage
       .getVisualization()
       .expectTableToDissapear(table.getTop(), table.getLeft());
@@ -164,6 +165,7 @@ test.describe('history panel', () => {
         .performCellAction(
           table.getFieldHeadersRow(),
           table.getLeft() + 1,
+          MenuType.TableField,
           GridMenuItem.AddKey
         );
       await projectPage
@@ -194,6 +196,7 @@ test.describe('history panel', () => {
         .performCellAction(
           table.getFieldHeadersRow(),
           table.getLeft(),
+          MenuType.TableField,
           GridMenuItem.RemoveKey
         );
       await projectPage
@@ -241,7 +244,7 @@ test.describe('history panel', () => {
       table.removeField(fieldName);
       await projectPage
         .getVisualization()
-        .performCellSubAction(row, column, 'Delete', 'Delete field');
+        .performCellSubAction(row, column, MenuType.TableField, GridMenuItem.Delete, GridMenuItem.DeleteField);
       await projectPage.expectLastHistoryRecord(
         `Delete field \\[${fieldName}\\] from table "${table.getName()}"`
       );
@@ -283,7 +286,8 @@ test.describe('history panel', () => {
         .performCellAction(
           table.getFirstCellCoord(),
           table.getLeft() + 2,
-          'Edit Cell'
+          MenuType.TableCell,
+          GridMenuItem.EditCell
         );
       await projectPage.getVisualization().expectCellBecameEditable(undefined);
       await projectPage.getVisualization().setCellValue(overrideValue);
@@ -311,7 +315,8 @@ test.describe('history panel', () => {
         .performCellAction(
           table.getFirstCellCoord(),
           table.getLeft(),
-          'Remove Override Cell'
+          MenuType.TableCell,
+          GridMenuItem.RemoveOverrideCell
         );
       await projectPage.expectLastHistoryRecord(
         `Remove override ${overrideValue} from table "${table.getName()}"`

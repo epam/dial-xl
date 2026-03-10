@@ -40,19 +40,14 @@ public class FormatResolver {
         };
     }
 
-    public ColumnFormat resolveDoubleAggregationFormat(AggregateType type, ColumnFormat format) {
-        return switch (type) {
-            case SUM, AVERAGE, MAX, MIN, GEOMEAN, MEDIAN -> format;
-            case STDEVS, STDEVP, CORREL -> GeneralFormat.INSTANCE;
-            default -> throw new IllegalArgumentException("Unsupported aggregation for format resolution: %s"
-                    .formatted(type));
-        };
+    public ColumnFormat resolveAggregationFormat(AggregateType type, ColumnFormat format) {
+        return resolveAggregationFormat(type, List.of(format));
     }
 
     public ColumnFormat resolveAggregationFormat(AggregateType type, List<ColumnFormat> args) {
         return switch (type) {
             case SUM, AVERAGE, MAX, MIN, GEOMEAN, MEDIAN, FIRST, LAST, SINGLE, INDEX, MODE, MINBY, MAXBY,
-                 PERCENTILE, PERCENTILE_EXC, QUARTILE, QUARTILE_EXC -> args.get(0);
+                 PERCENTILE, PERCENTILE_EXC, QUARTILE, QUARTILE_EXC, TEXTJOIN -> args.get(0);
             case PERIODSERIES, COUNT, COUNT_ALL, STDEVS, STDEVP, CORREL -> GeneralFormat.INSTANCE;
             default -> throw new IllegalArgumentException("Unsupported aggregation for format resolution: %s"
                     .formatted(type));

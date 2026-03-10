@@ -5,6 +5,7 @@ import com.epam.deltix.quantgrid.engine.graph.GraphPrinter;
 import com.epam.deltix.quantgrid.engine.node.Identity;
 import com.epam.deltix.quantgrid.engine.node.Node;
 import com.epam.deltix.quantgrid.engine.node.expression.Expression;
+import com.epam.deltix.quantgrid.engine.node.plan.ResultPlan;
 import com.epam.deltix.quantgrid.engine.node.plan.local.SelectLocal;
 import com.epam.deltix.quantgrid.engine.node.plan.local.ViewportLocal;
 import org.junit.jupiter.api.Assertions;
@@ -23,7 +24,7 @@ public class IdentityVerifier implements Rule {
                 return;
             }
 
-            if (node instanceof SelectLocal || node instanceof ViewportLocal) {
+            if (node instanceof SelectLocal || node instanceof ResultPlan) {
                 Assertions.assertTrue(node.getIdentities().isEmpty());
             }
 

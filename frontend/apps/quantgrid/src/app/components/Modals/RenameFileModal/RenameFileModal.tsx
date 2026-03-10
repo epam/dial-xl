@@ -14,6 +14,7 @@ import {
 } from '@frontend/common';
 
 import { useRenameFile } from '../../../hooks';
+import { useAntdModalStore } from '../../../store';
 import { DashboardItem } from '../../../types/dashboard';
 import { isEntityNameInvalid } from '../../../utils';
 
@@ -23,6 +24,8 @@ type Props = {
 };
 
 export function RenameFileModal({ item, onModalClose }: Props) {
+  const confirmModal = useAntdModalStore((s) => s.confirm);
+
   const isProject = item.name.endsWith(dialProjectFileExtension);
   const initialFileName = isProject
     ? item.name.substring(0, item.name.lastIndexOf('.'))
@@ -54,7 +57,7 @@ export function RenameFileModal({ item, onModalClose }: Props) {
 
   const handleOk = useCallback(async () => {
     if (item.isSharedByMe) {
-      Modal.confirm({
+      confirmModal({
         icon: null,
         title: 'Confirm renaming',
         content: `Renaming will stop sharing and other users will no longer see this file`,
@@ -81,7 +84,7 @@ export function RenameFileModal({ item, onModalClose }: Props) {
       onModalClose();
       setLoading(false);
     }
-  }, [handleRenameFile, item.isSharedByMe, onModalClose]);
+  }, [handleRenameFile, item.isSharedByMe, onModalClose, confirmModal]);
 
   const onKeydown = useCallback(
     (event: KeyboardEvent) => {
@@ -98,7 +101,7 @@ export function RenameFileModal({ item, onModalClose }: Props) {
         handleOk();
       }
     },
-    [handleOk, initialFileName, isOpen, newFileName]
+    [handleOk, initialFileName, isOpen, newFileName],
   );
 
   useEffect(() => {
@@ -136,7 +139,7 @@ export function RenameFileModal({ item, onModalClose }: Props) {
         className: cx(
           modalFooterButtonClasses,
           primaryButtonClasses,
-          primaryDisabledButtonClasses
+          primaryDisabledButtonClasses,
         ),
         disabled:
           !newFileName ||

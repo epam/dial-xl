@@ -25,8 +25,10 @@ public class ViewportLocal extends Plan0<Table> implements ResultPlan {
     private final ComputationType computationType;
 
     private final ParsedKey key;
-    private final long start;
-    private final long end;
+    private final long startRow;
+    private final long endRow;
+    private final long startCol;
+    private final long endCol;
     private final boolean content;
     private final boolean raw;
 
@@ -35,15 +37,20 @@ public class ViewportLocal extends Plan0<Table> implements ResultPlan {
     private final ResultType resultType;
 
     public ViewportLocal(Expression source,
-                         @Nullable ResultType resultType, ParsedKey key, long start, long end, boolean content,
+                         @Nullable ResultType resultType, ParsedKey key,
+                         long startRow, long endRow,
+                         long startCol, long endCol,
+                         boolean content,
                          boolean raw, long computationId, ComputationType computationType) {
         super(List.of(source));
         this.computationId = computationId;
         this.key = key;
         this.computationType = computationType;
         this.resultType = resultType;
-        this.start = start;
-        this.end = end;
+        this.startRow = startRow;
+        this.endRow = endRow;
+        this.startCol = startCol;
+        this.endCol = endCol;
         this.content = content;
         this.raw = raw;
     }
@@ -71,7 +78,8 @@ public class ViewportLocal extends Plan0<Table> implements ResultPlan {
 
     @Override
     public String toString() {
-        return "Viewport(%s)(%s)(%d-%d)%s(%s)(#%s)".formatted(
-                key, computationType, start, end, content ? "(*)" : "", raw ? "U" : "F", computationId);
+        return "Viewport(%s)(%s)(%d-%d)(%d-%d)%s(%s)(#%s)".formatted(
+                key, computationType, startRow, endRow,
+                startCol, endCol, content ? "(*)" : "", raw ? "U" : "F", computationId);
     }
 }

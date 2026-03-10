@@ -12,8 +12,35 @@ web:
       enabled: ${WEB_STORAGE_DIAL_INPUT_ENABLED:false}
       baseUrl: ${WEB_STORAGE_DIAL_BASE_URL}
       appKey: ${WEB_STORAGE_DIAL_APP_KEY}
+      sync:
+        airbyte:
+          destinationImage: ${SYNC_DESTINATION_IMAGE:}
+          destinationSecret: ${SYNC_DESTINATION_SECRET:}
+          k8s:
+            namespace: ${SYNC_K8S_NAMESPACE:default}
+            purpose: airbyte-sync
+            pullPolicy: IfNotPresent
+            cleanupInterval: PT1H
+          sourceDefinitions:
+            - id: airbyte-postgres
+              name: Postgres
+              image: airbyte/source-postgres:3.6.35
+            - id: airbyte-s3
+              name: S3
+              image: airbyte/source-s3:4.14.6
+            - id: airbyte-dial # For testing purposes
+              name: DIAL
+              image: ${SYNC_DIAL_SOURCE_IMAGE:}
+              secret: ${SYNC_DIAL_SOURCE_SECRET:}
+              enabled: ${SYNC_DIAL_SOURCE_ENABLED:false}
   heartbeatPeriodMillis: 5000
 
 spring:
+  servlet:
+    multipart:
+      enabled: true
+      file-size-threshold: 16GB
+      max-file-size: 16GB
+      max-request-size: 16GB
   security:
     enabled: ${SECURITY_ENABLED:false}

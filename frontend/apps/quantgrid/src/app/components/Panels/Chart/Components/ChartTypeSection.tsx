@@ -1,4 +1,3 @@
-import { DefaultOptionType } from 'rc-select/lib/Select';
 import {
   startTransition,
   useCallback,
@@ -10,6 +9,7 @@ import Select, { SingleValue } from 'react-select';
 
 import { chartItems, SelectClasses, selectStyles } from '@frontend/common';
 import { ParsedTable } from '@frontend/parser';
+import { DefaultOptionType } from '@rc-component/select/lib/Select';
 
 import {
   AppSpreadsheetInteractionContext,
@@ -52,7 +52,7 @@ export function ChartTypeSection({
         openTable(sheetName, tableName);
       });
     },
-    [openTable, parsedTable, sheetName, changeChartType]
+    [openTable, parsedTable, sheetName, changeChartType],
   );
 
   useEffect(() => {
@@ -63,7 +63,8 @@ export function ChartTypeSection({
     if (!chartType) return;
 
     setChartType(
-      chartTypeOptions.find((c) => c.value === chartType) || chartTypeOptions[0]
+      chartTypeOptions.find((c) => c.value === chartType) ||
+        chartTypeOptions[0],
     );
   }, [parsedTable]);
 

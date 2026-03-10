@@ -1,6 +1,5 @@
 import { ItemType } from 'antd/es/menu/interface';
 import { DataNode, EventDataNode } from 'antd/es/tree';
-import { MenuInfo } from 'rc-menu/lib/interface';
 import { useCallback, useContext, useState } from 'react';
 
 import Icon from '@ant-design/icons';
@@ -20,10 +19,11 @@ import {
   MenuItem,
   TableArrangeType,
 } from '@frontend/common';
+import { MenuInfo } from '@rc-component/menu/lib/interface';
 
 import {
-  AppContext,
   AppSpreadsheetInteractionContext,
+  ChatOverlayContext,
   InputsContext,
   OpenFieldSideEffect,
   OpenTableSideEffect,
@@ -31,6 +31,7 @@ import {
   ViewportContext,
 } from '../../../context';
 import {
+  getControlType,
   isInputFormula,
   useChartEditDsl,
   useCreateTableDsl,
@@ -39,13 +40,15 @@ import {
   useDSLUtils,
   useFieldEditDsl,
   useGridApi,
+  useOpenInDetailsPanel,
   useOpenInEditor,
   usePointClickSelectValue,
-  useProjectActions,
   useProjectMode,
   useTableEditDsl,
+  useWorksheetActions,
 } from '../../../hooks';
 import { useAddTableRow } from '../../../hooks/EditDsl/useAddTableRow';
+import { useEditorStore } from '../../../store';
 
 const contextMenuActionKeys = {
   selectWorksheet: 'selectWorksheet',
@@ -100,6 +103,7 @@ const contextMenuActionKeys = {
 
   openTableInEditor: 'openTableInEditor',
   openFieldInEditor: 'openFieldInEditor',
+  openDetailsPanel: 'openDetailsPanel',
   switchInput: 'switchInput',
 };
 
@@ -129,21 +133,25 @@ function parseContextMenuKey(key: string): {
   return JSON.parse(key);
 }
 
+const projectTreePath = ['ProjectTreeContextMenu'];
+
 export const useProjectTreeContextMenu = (
-  renameTableCallback: React.MutableRefObject<
+  renameTableCallback: React.RefObject<
     ((data: ProjectTreeChildData[string]) => void) | undefined
   >,
-  renameFieldCallback: React.MutableRefObject<
+  renameFieldCallback: React.RefObject<
     ((data: ProjectTreeChildData[string]) => void) | undefined
-  >
+  >,
 ) => {
-  const { isPointClickMode } = useContext(AppContext);
-  const projectAction = useProjectActions();
+  const isPointClickMode = useEditorStore((s) => s.isPointClickMode);
+  const worksheetAction = useWorksheetActions();
   const { projectName, openSheet } = useContext(ProjectContext);
+  const { answerIsGenerating } = useContext(ChatOverlayContext);
   const { onSwitchInput } = useContext(InputsContext);
   const { viewGridData } = useContext(ViewportContext);
   const { openField, openTable } = useContext(AppSpreadsheetInteractionContext);
   const { deleteField } = useDeleteEntityDsl();
+  const { openInDetailsPanel } = useOpenInDetailsPanel();
   const { downloadTable } = useDownloadTable();
   const {
     addField,
@@ -178,39 +186,48 @@ export const useProjectTreeContextMenu = (
 
   const getSheetActions = useCallback(
     (childData: ProjectTreeData): MenuItem[] => {
+      const sheetPath = [...projectTreePath, 'Sheet'];
+
       return [
         getDropdownItem({
           key: getDropdownMenuKey<ProjectTreeData>(
             contextMenuActionKeys.selectWorksheet,
-            childData
+            childData,
           ),
+          fullPath: [...sheetPath, 'SelectWorksheet'],
           label: 'Select Worksheet',
         }),
         getDropdownItem({
           key: getDropdownMenuKey<ProjectTreeData>(
             contextMenuActionKeys.renameSheet,
-            childData
+            childData,
           ),
+          fullPath: [...sheetPath, 'RenameWorksheet'],
           label: 'Rename Worksheet',
-          disabled: !isDefaultMode,
+          disabled: !isDefaultMode || answerIsGenerating,
           tooltip: !isDefaultMode
             ? disabledTooltips.notAllowedChanges
-            : undefined,
+            : answerIsGenerating
+              ? disabledTooltips.answerIsGenerating
+              : undefined,
         }),
         getDropdownItem({
           key: getDropdownMenuKey<ProjectTreeData>(
             contextMenuActionKeys.deleteSheet,
-            childData
+            childData,
           ),
+          fullPath: [...sheetPath, 'DeleteWorksheet'],
           label: 'Delete Worksheet',
-          disabled: !isDefaultMode,
+          disabled: !isDefaultMode || answerIsGenerating,
           tooltip: !isDefaultMode
             ? disabledTooltips.notAllowedChanges
-            : undefined,
+            : answerIsGenerating
+              ? disabledTooltips.answerIsGenerating
+              : undefined,
         }),
       ];
     },
-    [isDefaultMode]
+    [answerIsGenerating, isDefaultMode],
   );
 
   const getTableActions = useCallback(
@@ -237,91 +254,108 @@ export const useProjectTreeContextMenu = (
         }
       }
 
+      const tablePath = [...projectTreePath, 'Table'];
+
       return [
         getDropdownItem({
           key: getDropdownMenuKey<ProjectTreeData>(
             contextMenuActionKeys.selectTable,
-            childData
+            childData,
           ),
-          label: 'Select table',
+          fullPath: [...tablePath, 'SelectTable'],
+          label: isChart ? 'Select chart' : 'Select table',
         }),
-        getDropdownItem({
-          key: getDropdownMenuKey<ProjectTreeData>(
-            contextMenuActionKeys.renameTable,
-            childData
-          ),
-          label: 'Rename table',
-        }),
+        !isChart
+          ? getDropdownItem({
+              key: getDropdownMenuKey<ProjectTreeData>(
+                contextMenuActionKeys.renameTable,
+                childData,
+              ),
+              fullPath: [...tablePath, 'RenameTable'],
+              label: 'Rename table',
+            })
+          : null,
         getDropdownItem({
           key: getDropdownMenuKey<ProjectTreeData>(
             contextMenuActionKeys.deleteTable,
-            childData
+            childData,
           ),
-          label: 'Delete table',
+          fullPath: [...tablePath, 'DeleteTable'],
+          label: isChart ? 'Delete chart' : 'Delete table',
         }),
         getDropdownItem({
           key: getDropdownMenuKey<ProjectTreeData>(
             contextMenuActionKeys.moveTable,
-            childData
+            childData,
           ),
-          label: 'Move table',
+          fullPath: [...tablePath, 'MoveTable'],
+          label: isChart ? 'Move chart' : 'Move table',
         }),
 
         getDropdownDivider(),
         getDropdownItem({
           key: getDropdownMenuKey<ProjectTreeData>(
             contextMenuActionKeys.downloadTable,
-            childData
+            childData,
           ),
+          fullPath: [...tablePath, 'DownloadTable'],
           label: 'Download table',
         }),
         getDropdownDivider(),
 
-        getDropdownItem({
-          label: 'Insert',
-          key: 'Insert',
-          children: [
-            getDropdownItem({
-              label: 'New column',
-              key: getDropdownMenuKey<ProjectTreeData>(
-                contextMenuActionKeys.addField,
-                childData
-              ),
-            }),
-            getDropdownItem({
-              label: 'New row',
-              key: getDropdownMenuKey<ProjectTreeData>(
-                contextMenuActionKeys.addRow,
-                childData
-              ),
-              disabled: !isManual,
-              tooltip: !isManual
-                ? 'Only available for manual table'
-                : undefined,
-            }),
-          ],
-        }),
+        !isChart
+          ? getDropdownItem({
+              label: 'Insert',
+              key: 'Insert',
+              fullPath: [...tablePath, 'Insert'],
+              children: [
+                getDropdownItem({
+                  label: 'New column',
+                  fullPath: [...tablePath, 'Insert', 'NewColumn'],
+                  key: getDropdownMenuKey<ProjectTreeData>(
+                    contextMenuActionKeys.addField,
+                    childData,
+                  ),
+                }),
+                getDropdownItem({
+                  label: 'New row',
+                  fullPath: [...tablePath, 'Insert', 'NewRow'],
+                  key: getDropdownMenuKey<ProjectTreeData>(
+                    contextMenuActionKeys.addRow,
+                    childData,
+                  ),
+                  disabled: !isManual,
+                  tooltip: !isManual
+                    ? 'Only available for manual table'
+                    : undefined,
+                }),
+              ],
+            })
+          : null,
         getDropdownItem({
           label: 'Clone table',
+          fullPath: [...tablePath, 'CloneTable'],
           key: getDropdownMenuKey<ProjectTreeData>(
             contextMenuActionKeys.cloneTable,
-            childData
+            childData,
           ),
         }),
         getDropdownItem({
           key: getDropdownMenuKey<ProjectTreeData>(
             contextMenuActionKeys.createDerivedTable,
-            childData
+            childData,
           ),
+          fullPath: [...tablePath, 'CreateDerived'],
           label: 'Create derived',
         }),
 
         isChart
           ? getDropdownItem({
               label: 'Convert to table',
+              fullPath: [...tablePath, 'ConvertToTable'],
               key: getDropdownMenuKey<ContextMenuKeyData>(
                 contextMenuActionKeys.convertToTable,
-                childData
+                childData,
               ),
             })
           : null,
@@ -329,18 +363,20 @@ export const useProjectTreeContextMenu = (
         getDropdownItem({
           label: 'Convert to chart',
           key: 'ConvertToChart',
+          fullPath: [...tablePath, 'ConvertToChart'],
           children: [
             ...chartItems
               .filter((i) => i.type !== chartType)
               .map((item) => {
                 return getDropdownItem({
                   label: item.label,
+                  fullPath: [...tablePath, 'ConvertToChart', item.type],
                   key: getDropdownMenuKey<ContextMenuKeyData>(
                     contextMenuActionKeys.convertToChart,
                     {
                       ...childData,
                       chartType: item.type,
-                    }
+                    },
                   ),
                   icon: (
                     <Icon
@@ -356,16 +392,18 @@ export const useProjectTreeContextMenu = (
           ? getDropdownItem({
               label: 'Add chart',
               key: 'AddChart',
+              fullPath: [...tablePath, 'AddChart'],
               children: [
                 ...chartItems.map((item) => {
                   return getDropdownItem({
                     label: item.label,
+                    fullPath: [...tablePath, 'AddChart', item.type],
                     key: getDropdownMenuKey<ContextMenuKeyData>(
                       contextMenuActionKeys.addChart,
                       {
                         ...childData,
                         chartType: item.type,
-                      }
+                      },
                     ),
                     icon: (
                       <Icon
@@ -384,33 +422,38 @@ export const useProjectTreeContextMenu = (
         getDropdownItem({
           label: 'Arrange',
           key: 'Arrange',
+          fullPath: [...tablePath, 'Arrange'],
           children: [
             getDropdownItem({
               label: 'Bring Forward',
+              fullPath: [...tablePath, 'Arrange', 'BringForward'],
               key: getDropdownMenuKey<ProjectTreeData>(
                 contextMenuActionKeys.tableForward,
-                childData
+                childData,
               ),
             }),
             getDropdownItem({
               label: 'Bring to Front',
+              fullPath: [...tablePath, 'Arrange', 'BringToFront'],
               key: getDropdownMenuKey<ProjectTreeData>(
                 contextMenuActionKeys.tableToFront,
-                childData
+                childData,
               ),
             }),
             getDropdownItem({
               label: 'Send Backward',
+              fullPath: [...tablePath, 'Arrange', 'SendBackward'],
               key: getDropdownMenuKey<ProjectTreeData>(
                 contextMenuActionKeys.tableBackward,
-                childData
+                childData,
               ),
             }),
             getDropdownItem({
               label: 'Send To Back',
+              fullPath: [...tablePath, 'Arrange', 'SendToBack'],
               key: getDropdownMenuKey<ProjectTreeData>(
                 contextMenuActionKeys.tableToBack,
-                childData
+                childData,
               ),
             }),
           ],
@@ -419,69 +462,45 @@ export const useProjectTreeContextMenu = (
           ? getDropdownItem({
               label: 'Orientation',
               key: 'Orientation',
+              fullPath: [...tablePath, 'Orientation'],
               children: [
                 getCheckboxDropdownSubmenuItem(
                   {
                     label: 'Horizontal',
+                    fullPath: [...tablePath, 'Orientation', 'Horizontal'],
                     key: getDropdownMenuKey<ProjectTreeData>(
                       contextMenuActionKeys.flipTableHorizontal,
-                      childData
+                      childData,
                     ),
                   },
-                  isTableHorizontal
+                  isTableHorizontal,
                 ),
                 getCheckboxDropdownSubmenuItem(
                   {
                     label: 'Vertical',
+                    fullPath: [...tablePath, 'Orientation', 'Vertical'],
                     key: getDropdownMenuKey<ProjectTreeData>(
                       contextMenuActionKeys.flipTableVertical,
-                      childData
+                      childData,
                     ),
                   },
-                  !isTableHorizontal
+                  !isTableHorizontal,
                 ),
               ],
             })
           : undefined,
-        getDropdownItem({
-          label: 'Hide',
-          key: 'Hide',
-          children: [
-            getDropdownItem({
-              label: isTableHeaderHidden
-                ? 'Show table header'
-                : 'Hide table header',
-              key: getDropdownMenuKey<ProjectTreeData>(
-                contextMenuActionKeys.toggleTableNameHeader,
-                childData
-              ),
-            }),
-            getDropdownItem({
-              label: isTableFieldsHidden
-                ? isChart
-                  ? 'Show chart legend'
-                  : 'Show fields header'
-                : isChart
-                ? 'Hide chart legend'
-                : 'Hide fields header',
-              key: getDropdownMenuKey<ProjectTreeData>(
-                contextMenuActionKeys.toggleTableFieldsHeader,
-                childData
-              ),
-            }),
-          ],
-        }),
+        hideItem(
+          tablePath,
+          isTableHeaderHidden,
+          isTableFieldsHidden,
+          !!isChart,
+          childData,
+        ),
         getDropdownDivider(),
-        getDropdownItem({
-          key: getDropdownMenuKey<ProjectTreeData>(
-            contextMenuActionKeys.openTableInEditor,
-            childData
-          ),
-          label: 'Open in editor',
-        }),
+        ...(openDetails(tablePath, true, childData) || []),
       ].filter(Boolean) as MenuItem[];
     },
-    [findContext]
+    [findContext],
   );
 
   const getFieldActions = useCallback(
@@ -505,6 +524,7 @@ export const useProjectTreeContextMenu = (
       let isDescription = false;
       let fieldNames: string[] = [];
       let isInput = false;
+      let isControl = false;
 
       if (tableName && fieldName) {
         const context = findContext(tableName, fieldName);
@@ -522,8 +542,11 @@ export const useProjectTreeContextMenu = (
           isIndex = !!context.field?.isIndex();
           isDescription = !!context.field?.isDescription();
           fieldNames = context.table.getFieldNames();
+          isControl = !!getControlType(
+            context.field?.expressionMetadata?.text || '',
+          );
           isInput = isInputFormula(
-            context.field?.expressionMetadata?.text || ''
+            context.field?.expressionMetadata?.text || '',
           );
 
           const fieldHeaderPlacement =
@@ -531,7 +554,7 @@ export const useProjectTreeContextMenu = (
           const fieldCell = fieldHeaderPlacement
             ? gridApi?.getCell(
                 fieldHeaderPlacement.startCol,
-                fieldHeaderPlacement.startRow
+                fieldHeaderPlacement.startRow,
               )
             : undefined;
           isFieldHasOverrides = fieldCell
@@ -558,108 +581,135 @@ export const useProjectTreeContextMenu = (
         ? contextMenuActionKeys.removeKey
         : contextMenuActionKeys.addKey;
 
+      const fieldPath = [...projectTreePath, 'Field'];
+
       return [
         getDropdownItem({
           key: getDropdownMenuKey<ProjectTreeData>(
             contextMenuActionKeys.selectField,
-            childData
+            childData,
           ),
+          fullPath: [...fieldPath, 'SelectColumn'],
           label: 'Select column',
         }),
         getDropdownDivider(),
         getDropdownItem({
           key: getDropdownMenuKey<ProjectTreeData>(
             contextMenuActionKeys.editFormula,
-            childData
+            childData,
           ),
+          fullPath: [...fieldPath, 'EditFormula'],
           label: 'Edit formula',
         }),
         isInput
           ? getDropdownItem({
               key: getDropdownMenuKey<ProjectTreeData>(
                 contextMenuActionKeys.switchInput,
-                childData
+                childData,
               ),
+              fullPath: [...fieldPath, 'SwitchInput'],
               label: 'Switch input',
             })
           : null,
         getDropdownItem({
           key: getDropdownMenuKey<ProjectTreeData>(
             contextMenuActionKeys.renameField,
-            childData
+            childData,
           ),
+          fullPath: [...fieldPath, 'RenameColumn'],
           label: 'Rename column',
           disabled: isDynamic,
         }),
-        getDropdownDivider(),
-        getDropdownItem({
-          key: 'Indices',
-          label: 'Index',
-          children: [
-            getDropdownItem({
-              label: isKey ? 'Unmark as key column' : 'Mark as a key column',
-              key: getDropdownMenuKey<ProjectTreeData>(keyAction, childData),
-              disabled:
-                isDynamic || (isFieldHasOverrides && !isManual && !isKey),
-              tooltip:
-                isFieldHasOverrides && !isManual && !isKey
-                  ? makeKeyFieldWithOverridesMessage
-                  : undefined,
-            }),
-            getDropdownItem({
-              label: isIndex ? 'Remove an Index' : 'Add an Index',
-              key: getDropdownMenuKey<ProjectTreeData>(
-                isIndex
-                  ? contextMenuActionKeys.removeIndex
-                  : contextMenuActionKeys.addIndex,
-                childData
-              ),
-              disabled: !isIndex && !isText,
-              tooltip:
-                !isIndex && !isText
-                  ? 'Only available for text column'
-                  : undefined,
-            }),
-            getDropdownItem({
-              label: isIndex
-                ? 'Add description'
-                : 'Add an index with description',
-              key: getDropdownMenuKey<ProjectTreeData>(
-                contextMenuActionKeys.addDescription,
-                childData
-              ),
-              disabled: !isText,
-              tooltip: !isText ? 'Only available for text column' : undefined,
-              children: fieldNames.map((descriptionFieldName) =>
+        !isControl ? getDropdownDivider() : null,
+        !isControl
+          ? getDropdownItem({
+              key: 'Indices',
+              label: 'Index',
+              fullPath: [...fieldPath, 'Index'],
+              children: [
                 getDropdownItem({
-                  label: descriptionFieldName,
+                  label: isKey
+                    ? 'Unmark as key column'
+                    : 'Mark as a key column',
+                  fullPath: [...fieldPath, 'Index', 'ToggleKey'],
+                  key: getDropdownMenuKey<ProjectTreeData>(
+                    keyAction,
+                    childData,
+                  ),
+                  disabled:
+                    isDynamic || (isFieldHasOverrides && !isManual && !isKey),
+                  tooltip:
+                    isFieldHasOverrides && !isManual && !isKey
+                      ? makeKeyFieldWithOverridesMessage
+                      : undefined,
+                }),
+                getDropdownItem({
+                  label: isIndex ? 'Remove an Index' : 'Add an Index',
+                  fullPath: [...fieldPath, 'Index', 'ToggleIndex'],
+                  key: getDropdownMenuKey<ProjectTreeData>(
+                    isIndex
+                      ? contextMenuActionKeys.removeIndex
+                      : contextMenuActionKeys.addIndex,
+                    childData,
+                  ),
+                  disabled: !isIndex && !isText,
+                  tooltip:
+                    !isIndex && !isText
+                      ? 'Only available for text column'
+                      : undefined,
+                }),
+                getDropdownItem({
+                  label: isIndex
+                    ? 'Add description'
+                    : 'Add an index with description',
+                  fullPath: [...fieldPath, 'Index', 'AddDescription'],
                   key: getDropdownMenuKey<ProjectTreeData>(
                     contextMenuActionKeys.addDescription,
-                    {
-                      ...childData,
-                      descriptionFieldName,
-                    }
+                    childData,
                   ),
-                })
-              ),
-            }),
-            isDescription
-              ? getDropdownItem({
-                  label: 'Remove description',
-                  key: getDropdownMenuKey<ProjectTreeData>(
-                    contextMenuActionKeys.removeDescription,
-                    childData
+                  disabled: !isText,
+                  tooltip: !isText
+                    ? 'Only available for text column'
+                    : undefined,
+                  children: fieldNames.map((descriptionFieldName) =>
+                    getDropdownItem({
+                      label: descriptionFieldName,
+                      fullPath: [
+                        ...fieldPath,
+                        'Index',
+                        'AddDescription',
+                        descriptionFieldName,
+                      ],
+                      key: getDropdownMenuKey<ProjectTreeData>(
+                        contextMenuActionKeys.addDescription,
+                        {
+                          ...childData,
+                          descriptionFieldName,
+                        },
+                      ),
+                    }),
                   ),
-                })
-              : null,
-          ],
-        }),
+                }),
+                isDescription
+                  ? getDropdownItem({
+                      label: 'Remove description',
+                      fullPath: [...fieldPath, 'Index', 'RemoveDescription'],
+                      key: getDropdownMenuKey<ProjectTreeData>(
+                        contextMenuActionKeys.removeDescription,
+                        childData,
+                      ),
+                    })
+                  : null,
+              ],
+            })
+          : null,
         showCollapseNestedField
           ? getDropdownItem({
               key: getDropdownMenuKey<ProjectTreeData>(
                 contextMenuActionKeys.removeDimension,
-                childData
+                childData,
               ),
+              fullPath: [...fieldPath, 'CollapseNestedColumn'],
               label: 'Collapse nested column',
               disabled: isDynamic,
             })
@@ -669,8 +719,9 @@ export const useProjectTreeContextMenu = (
           ? getDropdownItem({
               key: getDropdownMenuKey<ProjectTreeData>(
                 contextMenuActionKeys.addDimension,
-                childData
+                childData,
               ),
+              fullPath: [...fieldPath, 'ExpandNestedColumn'],
               label: 'Expand nested column',
               disabled: isDynamic,
             })
@@ -679,26 +730,30 @@ export const useProjectTreeContextMenu = (
         getDropdownItem({
           key: 'InsertMenu',
           label: 'Insert',
+          fullPath: [...fieldPath, 'Insert'],
           children: [
             getDropdownItem({
               label: isTableHorizontal ? 'Column above' : 'Column to the left',
+              fullPath: [...fieldPath, 'Insert', 'ColumnLeft'],
               key: getDropdownMenuKey<ProjectTreeData>(
                 contextMenuActionKeys.addFieldToLeft,
-                childData
+                childData,
               ),
             }),
             getDropdownItem({
               label: isTableHorizontal ? 'Column below' : 'Column to the right',
+              fullPath: [...fieldPath, 'Insert', 'ColumnRight'],
               key: getDropdownMenuKey<ProjectTreeData>(
                 contextMenuActionKeys.addFieldToRight,
-                childData
+                childData,
               ),
             }),
             getDropdownItem({
               label: 'New row',
+              fullPath: [...fieldPath, 'Insert', 'NewRow'],
               key: getDropdownMenuKey<ProjectTreeData>(
                 contextMenuActionKeys.addRow,
-                childData
+                childData,
               ),
               disabled: !isManual,
               tooltip: !isManual
@@ -710,19 +765,22 @@ export const useProjectTreeContextMenu = (
         getDropdownItem({
           label: 'Delete',
           key: 'Delete',
+          fullPath: [...fieldPath, 'Delete'],
           children: [
             getDropdownItem({
               key: getDropdownMenuKey<ProjectTreeData>(
                 contextMenuActionKeys.deleteField,
-                childData
+                childData,
               ),
+              fullPath: [...fieldPath, 'Delete', 'DeleteColumn'],
               label: 'Delete column',
             }),
             getDropdownItem({
               label: 'Delete table',
+              fullPath: [...fieldPath, 'Delete', 'DeleteTable'],
               key: getDropdownMenuKey<ProjectTreeData>(
                 contextMenuActionKeys.deleteTable,
-                childData
+                childData,
               ),
             }),
           ],
@@ -730,19 +788,22 @@ export const useProjectTreeContextMenu = (
         getDropdownItem({
           label: 'Column',
           key: 'Column',
+          fullPath: [...fieldPath, 'Column'],
           children: [
             getDropdownItem({
               key: getDropdownMenuKey<ProjectTreeData>(
                 contextMenuActionKeys.swapLeft,
-                childData
+                childData,
               ),
+              fullPath: [...fieldPath, 'Column', 'SwapLeft'],
               label: isTableHorizontal ? 'Swap top' : 'Swap left',
             }),
             getDropdownItem({
               key: getDropdownMenuKey<ProjectTreeData>(
                 contextMenuActionKeys.swapRight,
-                childData
+                childData,
               ),
+              fullPath: [...fieldPath, 'Column', 'SwapRight'],
               label: isTableHorizontal ? 'Swap bottom' : 'Swap right',
             }),
             !isDynamic && !isTableHorizontal && getDropdownDivider(),
@@ -750,8 +811,9 @@ export const useProjectTreeContextMenu = (
               ? getDropdownItem({
                   key: getDropdownMenuKey<ProjectTreeData>(
                     contextMenuActionKeys.increaseFieldWidth,
-                    childData
+                    childData,
                   ),
+                  fullPath: [...fieldPath, 'Column', 'IncreaseColumnWidth'],
                   label: 'Increase column width',
                 })
               : undefined,
@@ -759,8 +821,9 @@ export const useProjectTreeContextMenu = (
               ? getDropdownItem({
                   key: getDropdownMenuKey<ProjectTreeData>(
                     contextMenuActionKeys.decreaseFieldWidth,
-                    childData
+                    childData,
                   ),
+                  fullPath: [...fieldPath, 'Column', 'DecreaseColumnWidth'],
                   label: 'Decrease column width',
                   disabled: colSize <= 1,
                 })
@@ -770,16 +833,18 @@ export const useProjectTreeContextMenu = (
               getDropdownItem({
                 key: getDropdownMenuKey<ProjectTreeData>(
                   contextMenuActionKeys.fieldsAutoFit,
-                  childData
+                  childData,
                 ),
+                fullPath: [...fieldPath, 'Column', 'ColumnsAutoFit'],
                 label: 'Columns Auto Fit',
               }),
             !isTableHorizontal &&
               getDropdownItem({
                 key: getDropdownMenuKey<ProjectTreeData>(
                   contextMenuActionKeys.removeFieldSizes,
-                  childData
+                  childData,
                 ),
+                fullPath: [...fieldPath, 'Column', 'RemoveCustomColumnSizes'],
                 label: 'Remove custom column sizes',
               }),
           ].filter(Boolean) as ItemType[],
@@ -789,69 +854,45 @@ export const useProjectTreeContextMenu = (
           ? getDropdownItem({
               label: 'Orientation',
               key: 'Orientation',
+              fullPath: [...fieldPath, 'Orientation'],
               children: [
                 getCheckboxDropdownSubmenuItem(
                   {
                     label: 'Horizontal',
+                    fullPath: [...fieldPath, 'Orientation', 'Horizontal'],
                     key: getDropdownMenuKey<ProjectTreeData>(
                       contextMenuActionKeys.flipTableHorizontal,
-                      childData
+                      childData,
                     ),
                   },
-                  isTableHorizontal
+                  isTableHorizontal,
                 ),
                 getCheckboxDropdownSubmenuItem(
                   {
                     label: 'Vertical',
+                    fullPath: [...fieldPath, 'Orientation', 'Vertical'],
                     key: getDropdownMenuKey<ProjectTreeData>(
                       contextMenuActionKeys.flipTableVertical,
-                      childData
+                      childData,
                     ),
                   },
-                  !isTableHorizontal
+                  !isTableHorizontal,
                 ),
               ],
             })
           : undefined,
-        getDropdownItem({
-          label: 'Hide',
-          key: 'Hide',
-          children: [
-            getDropdownItem({
-              label: isTableHeaderHidden
-                ? 'Show table header'
-                : 'Hide table header',
-              key: getDropdownMenuKey<ProjectTreeData>(
-                contextMenuActionKeys.toggleTableNameHeader,
-                childData
-              ),
-            }),
-            getDropdownItem({
-              label: isTableFieldsHidden
-                ? isChart
-                  ? 'Show chart legend'
-                  : 'Show fields header'
-                : isChart
-                ? 'Hide chart legend'
-                : 'Hide fields header',
-              key: getDropdownMenuKey<ProjectTreeData>(
-                contextMenuActionKeys.toggleTableFieldsHeader,
-                childData
-              ),
-            }),
-          ],
-        }),
+        hideItem(
+          fieldPath,
+          isTableHeaderHidden,
+          isTableFieldsHidden,
+          !!isChart,
+          childData,
+        ),
         getDropdownDivider(),
-        getDropdownItem({
-          label: 'Open in Editor',
-          key: getDropdownMenuKey<ProjectTreeData>(
-            contextMenuActionKeys.openFieldInEditor,
-            childData
-          ),
-        }),
+        ...(openDetails(fieldPath, false, childData) || []),
       ].filter(Boolean) as MenuItem[];
     },
-    [findContext, gridApi, viewGridData]
+    [findContext, gridApi, viewGridData],
   );
 
   const createContextMenuItems = useCallback(
@@ -860,7 +901,7 @@ export const useProjectTreeContextMenu = (
         event: React.MouseEvent<Element, MouseEvent>;
         node: EventDataNode<DataNode>;
       },
-      childData: ProjectTreeChildData
+      childData: ProjectTreeChildData,
     ) => {
       const key = info.node.key as string;
       let menuItems: MenuItem[] = [];
@@ -882,7 +923,7 @@ export const useProjectTreeContextMenu = (
 
       setItems(menuItems);
     },
-    [getFieldActions, getSheetActions, getTableActions]
+    [getFieldActions, getSheetActions, getTableActions],
   );
 
   const moveToNode = useCallback(
@@ -893,7 +934,7 @@ export const useProjectTreeContextMenu = (
         sheetName?: string;
       },
       tableSideEffect?: OpenTableSideEffect,
-      fieldSideEffect?: OpenFieldSideEffect
+      fieldSideEffect?: OpenFieldSideEffect,
     ) => {
       const { fieldName, tableName, sheetName } = childData;
 
@@ -935,7 +976,7 @@ export const useProjectTreeContextMenu = (
       openSheet,
       openTable,
       projectName,
-    ]
+    ],
   );
 
   const onContextMenuClick = useCallback(
@@ -944,13 +985,13 @@ export const useProjectTreeContextMenu = (
 
       switch (action) {
         case contextMenuActionKeys.putSheet:
-          projectAction.createWorksheetAction();
+          worksheetAction.createWorksheetAction();
           break;
         case contextMenuActionKeys.renameSheet:
-          projectAction.renameWorksheetAction(data.sheetName);
+          worksheetAction.renameWorksheetAction(data.sheetName);
           break;
         case contextMenuActionKeys.deleteSheet:
-          projectAction.deleteWorksheetAction(data.sheetName);
+          worksheetAction.deleteWorksheetAction(data.sheetName);
           break;
         case contextMenuActionKeys.deleteTable:
           if (data.tableName) {
@@ -1070,7 +1111,7 @@ export const useProjectTreeContextMenu = (
             changeFieldKey(
               data.tableName,
               data.fieldName,
-              action === contextMenuActionKeys.removeKey
+              action === contextMenuActionKeys.removeKey,
             );
           }
           break;
@@ -1080,7 +1121,7 @@ export const useProjectTreeContextMenu = (
             changeFieldDimension(
               data.tableName,
               data.fieldName,
-              action === contextMenuActionKeys.removeDimension
+              action === contextMenuActionKeys.removeDimension,
             );
           }
           break;
@@ -1140,7 +1181,7 @@ export const useProjectTreeContextMenu = (
             changeFieldDescription(
               data.tableName,
               data.fieldName,
-              data.descriptionFieldName
+              data.descriptionFieldName,
             );
           }
           break;
@@ -1154,13 +1195,19 @@ export const useProjectTreeContextMenu = (
             onSwitchInput(data.tableName, data.fieldName);
           }
           break;
+        case contextMenuActionKeys.openDetailsPanel:
+          if (data.tableName) {
+            openInDetailsPanel(data.tableName);
+          }
+          break;
         default:
           break;
       }
     },
     [
+      openInDetailsPanel,
       onSwitchInput,
-      projectAction,
+      worksheetAction,
       moveToNode,
       deleteTable,
       deleteField,
@@ -1187,8 +1234,81 @@ export const useProjectTreeContextMenu = (
       arrangeTable,
       changeFieldIndex,
       changeFieldDescription,
-    ]
+    ],
   );
 
   return { items, onContextMenuClick, createContextMenuItems, moveToNode };
 };
+
+function hideItem(
+  parentPath: string[],
+  isTableHeaderHidden: boolean,
+  isTableFieldsHidden: boolean,
+  isChart: boolean,
+  childData: ProjectTreeData,
+): MenuItem {
+  const hidePath = [...parentPath, 'Hide'];
+
+  return getDropdownItem({
+    label: 'Hide',
+    key: 'Hide',
+    fullPath: hidePath,
+    children: [
+      getDropdownItem({
+        label: isTableHeaderHidden
+          ? isChart
+            ? 'Show chart title'
+            : 'Show table header'
+          : isChart
+            ? 'Hide chart title'
+            : 'Hide table header',
+        fullPath: [...hidePath, 'ToggleTableNameHeader'],
+        key: getDropdownMenuKey<ProjectTreeData>(
+          contextMenuActionKeys.toggleTableNameHeader,
+          childData,
+        ),
+      }),
+      getDropdownItem({
+        label: isTableFieldsHidden
+          ? isChart
+            ? 'Show chart legend'
+            : 'Show fields header'
+          : isChart
+            ? 'Hide chart legend'
+            : 'Hide fields header',
+        fullPath: [...hidePath, 'ToggleTableFieldsHeader'],
+        key: getDropdownMenuKey<ProjectTreeData>(
+          contextMenuActionKeys.toggleTableFieldsHeader,
+          childData,
+        ),
+      }),
+    ],
+  });
+}
+
+function openDetails(
+  parentPath: string[],
+  isTableHeader: boolean,
+  childData: ProjectTreeData,
+): MenuItem[] {
+  return [
+    getDropdownItem({
+      label: 'Open in Details Panel',
+      fullPath: [...parentPath, 'OpenInDetailsPanel'],
+      key: getDropdownMenuKey<ProjectTreeData>(
+        contextMenuActionKeys.openDetailsPanel,
+        childData,
+      ),
+    }),
+    getDropdownItem({
+      label: 'Open in Editor',
+      fullPath: [...parentPath, 'OpenInEditor'],
+      key: getDropdownMenuKey<ProjectTreeData>(
+        isTableHeader
+          ? contextMenuActionKeys.openTableInEditor
+          : contextMenuActionKeys.openFieldInEditor,
+        childData,
+      ),
+    }),
+  ];
+}

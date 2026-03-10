@@ -15,6 +15,7 @@ import lombok.experimental.UtilityClass;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 
 @UtilityClass
@@ -60,6 +61,17 @@ public final class Util {
         int result = (int) index;
         verify(index == result);
         return result;
+    }
+
+    /**
+     * Truncates the given double index to an integer index.
+     * Treats Error or Empty values as 0!
+     */
+    public static int truncateToIntIndex(double index) {
+        long longIndex = (long) index;
+        int intIndex = (int) longIndex;
+        verify(intIndex == longIndex);
+        return intIndex;
     }
 
     public static void verify(boolean condition) {
@@ -147,6 +159,17 @@ public final class Util {
     public boolean[] boolArray(int size, boolean value) {
         boolean[] array = new boolean[size];
         Arrays.fill(array, value);
+        return array;
+    }
+
+    public boolean[] boolArray(Collection<Boolean> list) {
+        boolean[] array = new boolean[list.size()];
+        int i = 0;
+
+        for (Boolean value : list) {
+            array[i++] = value;
+        }
+
         return array;
     }
 }

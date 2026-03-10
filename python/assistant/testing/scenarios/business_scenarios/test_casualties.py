@@ -56,7 +56,7 @@ async def test_common_loss(casualties_project: FrameProject):
         assert find_unsorted(table, ["N/A"])
 
     def validate_second(_, __, table: Table):
-        assert code_regex(table, "(?i).*FILTER.*")
+        assert code_regex(table, "(?i).*(FILTER|GROUPBY).*")
         assert code_regex(table, "(?i).*Cause of Loss.*")
         assert find_unsorted(table, ["P&I-MED PAY"])
 

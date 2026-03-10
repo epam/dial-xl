@@ -1,24 +1,22 @@
-import { useCallback } from 'react';
+import { useCallback, useContext } from 'react';
 
-import { GridEvent } from '../components';
-import { GridApi } from '../types';
+import { GridStateContext } from '../context';
+import { GridEvent } from '../types';
 
-export function useAIPrompt(api: GridApi | null) {
+export function useAIPrompt() {
+  const { selectionEdges, event } = useContext(GridStateContext);
+
   const openAIPrompt = useCallback(() => {
-    if (!api) return;
+    if (!selectionEdges) return;
 
-    const selection = api.selection$.getValue();
+    const { startCol, endRow } = selectionEdges;
 
-    if (!selection) return;
-
-    const { startCol, endRow } = selection;
-
-    api.event.emit({
+    event.emit({
       type: GridEvent.openAIPrompt,
       col: startCol,
       row: endRow,
     });
-  }, [api]);
+  }, [event, selectionEdges]);
 
   return {
     openAIPrompt,

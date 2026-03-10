@@ -4,7 +4,7 @@ from dial_xl.field import Field
 from dial_xl.table import Table
 
 from quantgrid_1.models.focus import Focus
-from testing.framework.exceptions import MatchingError
+from testing.exceptions import MatchingError
 
 
 def assert_contain_substring(string: str, substrings: str | list[str] | None = None):

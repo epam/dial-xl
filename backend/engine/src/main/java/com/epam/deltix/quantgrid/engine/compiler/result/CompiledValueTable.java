@@ -5,6 +5,7 @@ import com.epam.deltix.quantgrid.engine.compiler.CompileUtil;
 import com.epam.deltix.quantgrid.engine.node.plan.Plan;
 import com.epam.deltix.quantgrid.parser.FieldKey;
 
+import java.util.HashSet;
 import java.util.List;
 
 public final class CompiledValueTable extends CompiledAbstractTable {
@@ -43,6 +44,12 @@ public final class CompiledValueTable extends CompiledAbstractTable {
     @Override
     public List<String> fields(CompileContext context) {
         return fields;
+    }
+
+    @Override
+    public List<String> keys(CompileContext context) {
+        List<String> keys = source.keys(context);
+        return new HashSet<>(fields).containsAll(keys) ? keys : List.of();
     }
 
     @Override

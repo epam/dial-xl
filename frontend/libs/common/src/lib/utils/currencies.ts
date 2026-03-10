@@ -171,7 +171,7 @@ export const getGroupedCurrencies = () => {
 
   const currenciesMapped = currencies
     .filter((currency) =>
-      mainCurrencies.some((mainCurrency) => mainCurrency === currency.code)
+      mainCurrencies.some((mainCurrency) => mainCurrency === currency.code),
     )
     .reduce(
       (acc, curr) => {
@@ -186,7 +186,7 @@ export const getGroupedCurrencies = () => {
           code: string;
           symbol: string;
         }
-      >
+      >,
     );
   const resultedMainCurrencies = mainCurrencies
     .map((currency) => currenciesMapped[currency])
@@ -195,7 +195,7 @@ export const getGroupedCurrencies = () => {
   return {
     mainCurrencies: resultedMainCurrencies,
     otherCurrencies: currencies.filter((currency) =>
-      mainCurrencies.every((mainCurrency) => mainCurrency !== currency.code)
+      mainCurrencies.every((mainCurrency) => mainCurrency !== currency.code),
     ),
   };
 };

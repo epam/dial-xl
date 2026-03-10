@@ -9,7 +9,7 @@ export function getOverrideRow(
   fieldName: string,
   tableRowIndex: number,
   tableRowData: Record<string, string>,
-  cache: Record<number, CachedOverrideRow>
+  cache: Record<number, CachedOverrideRow>,
 ): CachedOverrideRow {
   const override = {
     overrideRow: null,
@@ -44,7 +44,7 @@ export function getOverrideRow(
   if (!table.hasKeys() && overrides.hasKey(defaultRowKey)) {
     const findOverrideRow = overrides?.getRowByKey(
       defaultRowKey,
-      tableRowIndex + 1
+      tableRowIndex + 1,
     );
 
     if (findOverrideRow) {

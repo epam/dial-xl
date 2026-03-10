@@ -2,15 +2,17 @@ import { Button, Collapse } from 'antd';
 import { CollapseProps } from 'antd/es/collapse/Collapse';
 import cx from 'classnames';
 import { useCallback, useContext, useMemo, useState } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 
 import { primaryButtonClasses } from '@frontend/common';
 
-import { AppContext, ProjectContext } from '../../../context';
+import { ProjectContext } from '../../../context';
+import { usePivotStore } from '../../../store';
 import { CollapseIcon } from '../Chart/Components';
-import { PositionInputs, StructureSection, TableSelector } from './components';
+import { PositionInputs, TableSelector, toSelectOption } from '../Shared';
+import { StructureSection } from './components';
+import { PivotWizardContext } from './context';
 import { usePivotTableSetup } from './hooks';
-import { PivotWizardContext } from './PivotWizardContext';
-import { toSelectOption } from './utils';
 
 enum CollapseSection {
   SourceTable = 'sourceTable',
@@ -20,16 +22,29 @@ enum CollapseSection {
 
 export function PivotTableWizard() {
   const { pivotTableName, pivotTableWizardMode, changePivotTableWizardMode } =
-    useContext(AppContext);
+    usePivotStore(
+      useShallow((s) => ({
+        pivotTableName: s.pivotTableName,
+        pivotTableWizardMode: s.pivotTableWizardMode,
+        changePivotTableWizardMode: s.changePivotTableWizardMode,
+      })),
+    );
+
   const { parsedSheets } = useContext(ProjectContext);
-  const { onChangeTableName, selectedTableName, startCol, startRow } =
-    useContext(PivotWizardContext);
+  const {
+    onChangeTableName,
+    selectedTableName,
+    startCol,
+    startRow,
+    setStartCol,
+    setStartRow,
+  } = useContext(PivotWizardContext);
 
   usePivotTableSetup();
 
   const tableNameOptions = useMemo(() => {
     return Object.values(parsedSheets ?? {}).flatMap(({ tables }) =>
-      tables.map(({ tableName }) => toSelectOption(tableName))
+      tables.map(({ tableName }) => toSelectOption(tableName)),
     );
   }, [parsedSheets]);
 
@@ -44,6 +59,7 @@ export function PivotTableWizard() {
         label: 'Table Source',
         children: (
           <TableSelector
+            inputName="pivotSourceTableName"
             selectedTableName={selectedTableName}
             tableNameOptions={tableNameOptions}
             onTableChange={onChangeTableName}
@@ -67,7 +83,14 @@ export function PivotTableWizard() {
             </span>
           </>
         ),
-        children: <PositionInputs />,
+        children: (
+          <PositionInputs
+            setStartCol={setStartCol}
+            setStartRow={setStartRow}
+            startCol={startCol}
+            startRow={startRow}
+          />
+        ),
       });
     }
 
@@ -85,6 +108,8 @@ export function PivotTableWizard() {
     onChangeTableName,
     pivotTableWizardMode,
     selectedTableName,
+    setStartCol,
+    setStartRow,
     startCol,
     startRow,
     tableNameOptions,
@@ -98,7 +123,7 @@ export function PivotTableWizard() {
     <div className="flex flex-col w-full h-full overflow-hidden">
       <div
         className={cx(
-          'flex flex-col w-full overflow-auto thin-scrollbar bg-bg-layer-3 grow'
+          'flex flex-col w-full overflow-auto thin-scrollbar bg-bg-layer-3 grow',
         )}
       >
         <div className="flex items-center justify-between gap-2 py-2">

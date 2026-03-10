@@ -40,36 +40,41 @@ export function WithCustomProgressBar({
   return (
     <div className="flex justify-between items-center w-full">
       <p>{data.message}</p>
-      <svg
-        className="-rotate-90"
-        height="40"
-        version="1.1"
-        viewBox="-25 -25 250 250"
-        width="40"
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        <circle
-          cx="100"
-          cy="100"
-          fill="transparent"
-          r="90"
-          stroke="var(--stroke-secondary)"
-          strokeDasharray={`${strokeDash}px`}
-          strokeDashoffset="0"
-          strokeWidth="6"
-        />
-        <circle
-          cx="100"
-          cy="100"
-          fill="transparent"
-          r="90"
-          stroke="var(--stroke-accent-primary)"
-          strokeDasharray={`${strokeDash}px`}
-          strokeLinecap="round"
-          strokeWidth="16px"
-          {...attributes}
-        />
-      </svg>
+      <span className="relative shrink-0">
+        <svg
+          className="-rotate-90"
+          height="50"
+          version="1.1"
+          viewBox="-25 -25 250 250"
+          width="50"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <circle
+            cx="100"
+            cy="100"
+            fill="transparent"
+            r="90"
+            stroke="var(--color-stroke-secondary)"
+            strokeWidth="20"
+          />
+          <circle
+            cx="100"
+            cy="100"
+            fill="transparent"
+            r="90"
+            stroke="var(--color-stroke-accent-primary)"
+            strokeDasharray={`${strokeDash}px`}
+            strokeLinecap="round"
+            strokeWidth="20"
+            {...attributes}
+          />
+        </svg>
+        {toastProps.progress !== undefined && (
+          <div className="absolute top-0 left-0 z-10 size-full text-xs flex items-center justify-center">
+            <span>{Math.round(toastProps.progress * 100)}%</span>
+          </div>
+        )}
+      </span>
     </div>
   );
 }

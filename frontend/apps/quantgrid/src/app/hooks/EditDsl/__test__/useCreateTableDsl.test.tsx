@@ -1,3 +1,5 @@
+import { vi } from 'vitest';
+
 import { GridTable } from '@frontend/canvas-spreadsheet';
 import { ChartType, ColumnDataType } from '@frontend/common';
 import { act, RenderHookResult } from '@testing-library/react';
@@ -22,7 +24,7 @@ describe('useCreateTableDsl', () => {
   });
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     const hookRender = hookTestSetup(useCreateTableDsl, Wrapper);
     hook = hookRender.result;
     setDsl = hookRender.setDsl;
@@ -32,7 +34,7 @@ describe('useCreateTableDsl', () => {
     it('should create derived table', () => {
       // Arrange
       const dsl = 'table t1 [f1]=1\n[f2]=2';
-      const expectedDsl = `table t1 [f1]=1\n[f2]=2\r\n\n!layout(1, 4, "title", "headers")\ntable t1_derived\n  dim [f1], [f2] = t1[[f1],[f2]]\r\n`;
+      const expectedDsl = `table t1 [f1]=1\n[f2]=2\r\n\n!layout(2, 2, "title", "headers")\ntable t1_derived\n  dim [f1], [f2] = t1[[f1],[f2]]\r\n`;
       setDsl(dsl);
 
       // Act
@@ -41,7 +43,7 @@ describe('useCreateTableDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Add derived table "t1_derived"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }]
+        [{ sheetName: props.sheetName, content: expectedDsl }],
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -51,7 +53,7 @@ describe('useCreateTableDsl', () => {
     it('should create derived table from table with name in quotes', () => {
       // Arrange
       const dsl = `table 'some table' [f1]=1\n[f2]=2`;
-      const expectedDsl = `table 'some table' [f1]=1\n[f2]=2\r\n\n!layout(1, 4, "title", "headers")\ntable 'some table_derived'\n  dim [f1], [f2] = 'some table'[[f1],[f2]]\r\n`;
+      const expectedDsl = `table 'some table' [f1]=1\n[f2]=2\r\n\n!layout(2, 2, "title", "headers")\ntable 'some table_derived'\n  dim [f1], [f2] = 'some table'[[f1],[f2]]\r\n`;
       setDsl(dsl);
 
       // Act
@@ -60,7 +62,7 @@ describe('useCreateTableDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Add derived table "some table_derived"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }]
+        [{ sheetName: props.sheetName, content: expectedDsl }],
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -83,7 +85,7 @@ describe('useCreateTableDsl', () => {
     it('should create derived table with unique field names', () => {
       // Arrange
       const dsl = 'table t1 [source]=1\n[f2]=2';
-      const expectedDsl = `table t1 [source]=1\n[f2]=2\r\n\n!layout(1, 4, "title", "headers")\ntable t1_derived\n  dim [source], [f2] = t1[[source],[f2]]\r\n`;
+      const expectedDsl = `table t1 [source]=1\n[f2]=2\r\n\n!layout(2, 2, "title", "headers")\ntable t1_derived\n  dim [source], [f2] = t1[[source],[f2]]\r\n`;
       setDsl(dsl);
 
       // Act
@@ -92,28 +94,8 @@ describe('useCreateTableDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Add derived table "t1_derived"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }]
+        [{ sheetName: props.sheetName, content: expectedDsl }],
       );
-      expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
-        { sheetName: props.sheetName, content: expectedDsl },
-      ]);
-    });
-  });
-
-  describe('createEmptyChartTable', () => {
-    it('should create empty chart', () => {
-      // Arrange
-      const dsl = 'table t1 [f1]=1';
-      const expectedDsl = `table t1 [f1]=1\r\n\n!layout(1, 1, "title", "headers")\n!visualization("line-chart")\n!size(15,10)\ntable Chart1\r\n`;
-      setDsl(dsl);
-
-      // Act
-      act(() => hook.current.createEmptyChartTable(ChartType.LINE));
-
-      // Assert
-      expect(props.appendToFn).toHaveBeenCalledWith(`Add chart "Chart1"`, [
-        { sheetName: props.sheetName, content: expectedDsl },
-      ]);
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
       ]);
@@ -241,14 +223,14 @@ describe('useCreateTableDsl', () => {
           4,
           4,
           '=COUNT(T1)',
-          'customTableName'
-        )
+          'customTableName',
+        ),
       );
 
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Add table "customTableName"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }]
+        [{ sheetName: props.sheetName, content: expectedDsl }],
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -271,7 +253,7 @@ describe('useCreateTableDsl', () => {
 
       // Act
       act(() =>
-        hook.current.createSingleValueTable(4, 4, '=ERR("RANGE(4")', '', true)
+        hook.current.createSingleValueTable(4, 4, '=ERR("RANGE(4")', '', true),
       );
 
       // Assert
@@ -297,7 +279,7 @@ describe('useCreateTableDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Add dimension table "t2"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }]
+        [{ sheetName: props.sheetName, content: expectedDsl }],
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -323,7 +305,7 @@ describe('useCreateTableDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Add dimension table "t2"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }]
+        [{ sheetName: props.sheetName, content: expectedDsl }],
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -342,7 +324,7 @@ describe('useCreateTableDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Add dimension table "t1"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }]
+        [{ sheetName: props.sheetName, content: expectedDsl }],
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -361,7 +343,7 @@ describe('useCreateTableDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Add dimension table "t2"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }]
+        [{ sheetName: props.sheetName, content: expectedDsl }],
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -401,7 +383,7 @@ describe('useCreateTableDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Add manual table "Table1"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }]
+        [{ sheetName: props.sheetName, content: expectedDsl }],
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -422,7 +404,7 @@ describe('useCreateTableDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Add manual table "Table1"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }]
+        [{ sheetName: props.sheetName, content: expectedDsl }],
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -447,15 +429,16 @@ describe('useCreateTableDsl', () => {
           schema: ['a', 'b', 'c'],
           keys: [],
           type: ColumnDataType.TABLE_REFERENCE,
+          isAssignable: true,
           isSourceDimField: true,
           variant: 'dimFormula',
-        })
+        }),
       );
 
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Add dimension table "t2"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }]
+        [{ sheetName: props.sheetName, content: expectedDsl }],
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -478,15 +461,16 @@ describe('useCreateTableDsl', () => {
           schema: ['a [2000]', 'b [2001]', 'c [2002]'],
           keys: [],
           type: ColumnDataType.TABLE_REFERENCE,
+          isAssignable: true,
           isSourceDimField: true,
           variant: 'dimFormula',
-        })
+        }),
       );
 
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Add dimension table "t2"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }]
+        [{ sheetName: props.sheetName, content: expectedDsl }],
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -509,15 +493,16 @@ describe('useCreateTableDsl', () => {
           schema: ['a', 'b', 'c'],
           keys: ['a'],
           type: ColumnDataType.TABLE_REFERENCE,
+          isAssignable: true,
           isSourceDimField: true,
           variant: 'dimFormula',
-        })
+        }),
       );
 
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Add dimension table "t2"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }]
+        [{ sheetName: props.sheetName, content: expectedDsl }],
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -540,15 +525,16 @@ describe('useCreateTableDsl', () => {
           schema: [],
           keys: [],
           type: ColumnDataType.DOUBLE,
+          isAssignable: true,
           isSourceDimField: true,
           variant: 'dimFormula',
-        })
+        }),
       );
 
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Add dimension table "t1"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }]
+        [{ sheetName: props.sheetName, content: expectedDsl }],
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -571,15 +557,16 @@ describe('useCreateTableDsl', () => {
           schema: ['a', 'b', 'c'],
           keys: [],
           type: ColumnDataType.TABLE_REFERENCE,
+          isAssignable: true,
           isSourceDimField: false,
           variant: 'dimFormula',
-        })
+        }),
       );
 
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Add dimension table "t2"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }]
+        [{ sheetName: props.sheetName, content: expectedDsl }],
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -603,15 +590,16 @@ describe('useCreateTableDsl', () => {
           schema: ['source', 'a', 'b', 'c'],
           keys: [],
           type: ColumnDataType.TABLE_REFERENCE,
+          isAssignable: true,
           isSourceDimField: true,
           variant: 'dimFormula',
-        })
+        }),
       );
 
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Add dimension table "t2"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }]
+        [{ sheetName: props.sheetName, content: expectedDsl }],
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -634,15 +622,16 @@ describe('useCreateTableDsl', () => {
           schema: ['a', 'b', 'c'],
           keys: [],
           type: ColumnDataType.TABLE_VALUE,
+          isAssignable: false,
           isSourceDimField: true,
           variant: 'dimFormula',
-        })
+        }),
       );
 
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Add dimension table "t1"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }]
+        [{ sheetName: props.sheetName, content: expectedDsl }],
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -664,16 +653,17 @@ describe('useCreateTableDsl', () => {
           formula: 'T1(1)',
           schema: ['a', 'b'],
           keys: [],
-          type: ColumnDataType.TABLE_VALUE,
+          type: ColumnDataType.TABLE_REFERENCE,
+          isAssignable: true,
           isSourceDimField: false,
           variant: 'dimFormula',
-        })
+        }),
       );
 
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Add dimension table "t1"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }]
+        [{ sheetName: props.sheetName, content: expectedDsl }],
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -695,16 +685,17 @@ describe('useCreateTableDsl', () => {
           formula: 'T1(1)',
           schema: ['a'],
           keys: [],
-          type: ColumnDataType.TABLE_VALUE,
+          type: ColumnDataType.TABLE_REFERENCE,
+          isAssignable: true,
           isSourceDimField: false,
           variant: 'dimFormula',
-        })
+        }),
       );
 
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Add dimension table "t1"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }]
+        [{ sheetName: props.sheetName, content: expectedDsl }],
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -713,8 +704,8 @@ describe('useCreateTableDsl', () => {
 
     it('should create dimension table from schema', () => {
       // Arrange
-      const dsl = 'table t1 [a]=1\n[b]=2\n[c]=3';
-      const expectedDsl = `table t1 [a]=1\n[b]=2\n[c]=3\r\n\n!layout(10, 5, "title", "headers")\ntable 't1_(1,2,3)[b]'\n  dim [a], [b], [c] = t1.FIND(1,2,3)[b][[a],[b],[c]]\r\n`;
+      const dsl = 'table t1 key [a]=1\nkey [b]=2\nkey [c]=3';
+      const expectedDsl = `table t1 key [a]=1\nkey [b]=2\nkey [c]=3\r\n\n!layout(10, 5, "title", "headers")\ntable 't1_(1,2,3)[b]'\n  dim [a], [b], [c] = t1.FIND(1,2,3)[b][[a],[b],[c]]\r\n`;
       setDsl(dsl);
 
       // Act
@@ -729,15 +720,16 @@ describe('useCreateTableDsl', () => {
           keyValues: '1,2,3',
           keys: [],
           type: ColumnDataType.TABLE_REFERENCE,
+          isAssignable: true,
           isSourceDimField: true,
           variant: 'expand',
-        })
+        }),
       );
 
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Add dimension table "t1_(1,2,3)[b]"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }]
+        [{ sheetName: props.sheetName, content: expectedDsl }],
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -762,15 +754,16 @@ describe('useCreateTableDsl', () => {
           keyValues: '1,2,3',
           keys: [],
           type: ColumnDataType.TABLE_REFERENCE,
+          isAssignable: true,
           isSourceDimField: true,
           variant: 'expand',
-        })
+        }),
       );
 
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Add dimension table "t1_(1,2,3)[b]"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }]
+        [{ sheetName: props.sheetName, content: expectedDsl }],
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -795,15 +788,16 @@ describe('useCreateTableDsl', () => {
           keyValues: '1,2,3',
           keys: ['a'],
           type: ColumnDataType.TABLE_REFERENCE,
+          isAssignable: true,
           isSourceDimField: true,
           variant: 'expand',
-        })
+        }),
       );
 
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Add dimension table "t1_(1,2,3)[b]"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }]
+        [{ sheetName: props.sheetName, content: expectedDsl }],
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -828,15 +822,16 @@ describe('useCreateTableDsl', () => {
           keys: [],
           keyValues: '1,2,3',
           type: ColumnDataType.TABLE_REFERENCE,
+          isAssignable: true,
           isSourceDimField: false,
           variant: 'rowReference',
-        })
+        }),
       );
 
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Add row reference table "t1_(1,2,3)[b]"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }]
+        [{ sheetName: props.sheetName, content: expectedDsl }],
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -861,15 +856,16 @@ describe('useCreateTableDsl', () => {
           keys: ['a'],
           keyValues: '1,2,3',
           type: ColumnDataType.TABLE_REFERENCE,
+          isAssignable: true,
           isSourceDimField: false,
           variant: 'rowReference',
-        })
+        }),
       );
 
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Add row reference table "t1_(1,2,3)[b]"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }]
+        [{ sheetName: props.sheetName, content: expectedDsl }],
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -892,15 +888,16 @@ describe('useCreateTableDsl', () => {
           schema: [],
           keys: [],
           type: ColumnDataType.PERIOD_SERIES,
+          isAssignable: true,
           isSourceDimField: false,
           variant: 'dimFormula',
-        })
+        }),
       );
 
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Add dimension table "t2"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }]
+        [{ sheetName: props.sheetName, content: expectedDsl }],
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -923,15 +920,16 @@ describe('useCreateTableDsl', () => {
           schema: ['date', 'value'],
           keys: [],
           type: ColumnDataType.TABLE_VALUE,
+          isAssignable: true,
           isSourceDimField: true,
           variant: 'dimFormula',
-        })
+        }),
       );
 
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Add dimension table "t2"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }]
+        [{ sheetName: props.sheetName, content: expectedDsl }],
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -951,7 +949,13 @@ describe('useCreateTableDsl', () => {
             nestedColumnNames: new Set(),
           } as any;
         },
-        getGridTableStructure: (): GridTable[] => [],
+        getGridTableStructure: () => [
+          {
+            tableName: 't1',
+            startRow: 1,
+            endCol: 1,
+          },
+        ],
       } as ViewGridData;
       Wrapper = createWrapper(props);
       const hookRender = hookTestSetup(useCreateTableDsl, Wrapper);
@@ -969,7 +973,7 @@ describe('useCreateTableDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Add totals table "t1 totals"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }]
+        [{ sheetName: props.sheetName, content: expectedDsl }],
       );
 
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
@@ -989,7 +993,13 @@ describe('useCreateTableDsl', () => {
             nestedColumnNames: new Set(),
           } as any;
         },
-        getGridTableStructure: (): GridTable[] => [],
+        getGridTableStructure: () => [
+          {
+            tableName: 't1',
+            startRow: 1,
+            endCol: 2,
+          },
+        ],
       } as ViewGridData;
       Wrapper = createWrapper(props);
       const hookRender = hookTestSetup(useCreateTableDsl, Wrapper);
@@ -1007,7 +1017,7 @@ describe('useCreateTableDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Add totals table "t1 totals"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }]
+        [{ sheetName: props.sheetName, content: expectedDsl }],
       );
 
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
@@ -1026,7 +1036,13 @@ describe('useCreateTableDsl', () => {
             nestedColumnNames: new Set(),
           } as any;
         },
-        getGridTableStructure: (): GridTable[] => [],
+        getGridTableStructure: () => [
+          {
+            tableName: 't1',
+            startRow: 1,
+            endCol: 1,
+          },
+        ],
       } as ViewGridData;
       Wrapper = createWrapper(props);
       const hookRender = hookTestSetup(useCreateTableDsl, Wrapper);
@@ -1044,12 +1060,119 @@ describe('useCreateTableDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Add totals table "t1 totals"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }]
+        [{ sheetName: props.sheetName, content: expectedDsl }],
       );
 
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
       ]);
+    });
+  });
+
+  describe('createMultipleExpandedTables', () => {
+    it('should create two expanded tables in new sheets', () => {
+      // Arrange
+      const dsl = '';
+      setDsl(dsl);
+
+      const requests = [
+        {
+          tableName: 'input_1',
+          formula: 'INPUT("input_url_1")',
+          schema: ['a', 'b'],
+          keys: [],
+          type: ColumnDataType.TABLE_VALUE,
+          isAssignable: false,
+          isSourceDimField: true,
+        },
+        {
+          tableName: 'input_2',
+          formula: 'INPUT("input_url_2")',
+          schema: ['x', 'y'],
+          keys: [],
+          type: ColumnDataType.TABLE_VALUE,
+          isAssignable: false,
+          isSourceDimField: true,
+        },
+      ];
+
+      const historyTitle = 'Add 2 inputs to the project';
+
+      const expectedDsl1 =
+        `!layout(1, 1, "title", "headers")\n` +
+        `table input_1\n` +
+        `  dim [a], [b] = INPUT("input_url_1")[[a],[b]]\r\n`;
+
+      const expectedDsl2 =
+        `!layout(1, 1, "title", "headers")\n` +
+        `table input_2\n` +
+        `  dim [x], [y] = INPUT("input_url_2")[[x],[y]]\r\n`;
+
+      // Act
+      act(() => hook.current.createMultipleExpandedTables(requests, true));
+
+      // Assert
+      expect(props.appendToFn).toHaveBeenCalledWith(historyTitle, [
+        { sheetName: 'input_1', content: expectedDsl1 },
+        { sheetName: 'input_2', content: expectedDsl2 },
+      ]);
+
+      expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
+        { sheetName: 'input_1', content: expectedDsl1 },
+        { sheetName: 'input_2', content: expectedDsl2 },
+      ]);
+    });
+
+    it('should create two expanded tables in the current sheet', () => {
+      // Arrange
+      const dsl = '';
+      setDsl(dsl);
+
+      const requests = [
+        {
+          tableName: 'input_1',
+          formula: 'INPUT("input_url_1")',
+          schema: ['a', 'b'],
+          keys: [],
+          type: ColumnDataType.TABLE_VALUE,
+          isAssignable: false,
+          isSourceDimField: true,
+        },
+        {
+          tableName: 'input_2',
+          formula: 'INPUT("input_url_2")',
+          schema: ['x', 'y'],
+          keys: [],
+          type: ColumnDataType.TABLE_VALUE,
+          isAssignable: false,
+          isSourceDimField: true,
+        },
+      ];
+
+      const historyTitle = 'Add 2 inputs to the project';
+
+      // Act
+      act(() => hook.current.createMultipleExpandedTables(requests, false));
+
+      // Assert
+      expect(props.appendToFn).toHaveBeenCalledTimes(1);
+      expect(props.manuallyUpdateSheetContent).toHaveBeenCalledTimes(1);
+
+      const [, appendChanges] = (props.appendToFn as any).mock.calls[0];
+      expect(appendChanges).toHaveLength(1);
+      expect(appendChanges[0].sheetName).toBe(props.sheetName);
+      expect(appendChanges[0].content).toContain('table input_1');
+      expect(appendChanges[0].content).toContain('table input_2');
+
+      const [manualChanges] = (props.manuallyUpdateSheetContent as any).mock
+        .calls[0];
+      expect(manualChanges).toHaveLength(1);
+      expect(manualChanges[0].sheetName).toBe(props.sheetName);
+      expect(manualChanges[0].content).toContain('table input_1');
+      expect(manualChanges[0].content).toContain('table input_2');
+
+      const [actualHistoryTitle] = (props.appendToFn as any).mock.calls[0];
+      expect(actualHistoryTitle).toBe(historyTitle);
     });
   });
 });

@@ -33,6 +33,7 @@ export function CodeEditorPanel({
   return (
     <PanelWrapper isActive={isActive} panelName={panelName}>
       <PanelToolbar
+        isActive={isActive}
         panelName={panelName}
         position={position}
         secondaryTitle={hasUnsavedChanges ? changesText : undefined}

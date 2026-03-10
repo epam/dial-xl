@@ -1,7 +1,8 @@
 import { Dropdown, Spin, Tooltip, Tree } from 'antd';
 import type { DataNode, EventDataNode } from 'antd/es/tree';
 import { TreeProps } from 'antd/es/tree/Tree';
-import { useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { useCallback, useContext, useEffect, useState } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 
 import Icon from '@ant-design/icons';
 import {
@@ -16,23 +17,28 @@ import {
 import { PanelName } from '../../../common';
 import {
   ApiContext,
-  AppContext,
   ChatOverlayContext,
   LayoutContext,
   ProjectContext,
 } from '../../../context';
-import { RenameConversation } from '../../Modals/RenameConversation';
+import { useUIStore, useUserSettingsStore } from '../../../store';
 import { PanelEmptyMessage } from '../PanelEmptyMessage';
 import {
   ConversationsTreeChildData,
   useConversationTreeContextMenu,
 } from './useConversationsTreeContextMenu';
 
-type RenameItemCallback = (data: ConversationsTreeChildData[string]) => void;
-
 export const Conversations = () => {
-  const { toggleChat, isChatOpen, chatWindowPlacement } =
-    useContext(AppContext);
+  const { toggleChat, isChatOpen } = useUIStore(
+    useShallow((s) => ({
+      toggleChat: s.toggleChat,
+      isChatOpen: s.isChatOpen,
+    })),
+  );
+  const chatWindowPlacement = useUserSettingsStore(
+    (s) => s.data.chatWindowPlacement,
+  );
+
   const { userBucket } = useContext(ApiContext);
   const {
     overlay,
@@ -42,52 +48,21 @@ export const Conversations = () => {
     isConversationsLoading,
     isAIPreview,
     isAIPendingChanges,
-    renameConversation,
   } = useContext(ChatOverlayContext);
   const { openedPanels, togglePanel } = useContext(LayoutContext);
   const { projectName, projectBucket, projectPath } =
     useContext(ProjectContext);
 
-  const onRenameConversationRef = useRef<RenameItemCallback>();
-
   const { items, onContextMenuClick, createContextMenuItems } =
-    useConversationTreeContextMenu(onRenameConversationRef);
+    useConversationTreeContextMenu();
 
   const [conversationTreeData, setConversationTreeData] = useState<DataNode[]>(
-    []
+    [],
   );
   const [selectedKeys, setSelectedKeys] = useState<TreeProps['selectedKeys']>(
-    []
+    [],
   );
   const [childData, setChildData] = useState<ConversationsTreeChildData>({});
-  const [renamingConversationData, setRenamingConversationData] = useState<
-    ConversationsTreeChildData[string] | undefined
-  >(undefined);
-
-  const onShowRenameModal = useCallback(
-    (data: ConversationsTreeChildData[string]) => {
-      setRenamingConversationData(data);
-    },
-    []
-  );
-
-  useEffect(() => {
-    onRenameConversationRef.current = onShowRenameModal;
-  });
-
-  const onRenameConversation = useCallback(
-    async (newName: string) => {
-      setRenamingConversationData(undefined);
-
-      if (!overlay || !renamingConversationData?.conversationId) return;
-
-      await renameConversation(
-        renamingConversationData.conversationId,
-        newName
-      );
-    },
-    [overlay, renamingConversationData, renameConversation]
-  );
 
   const openChat = useCallback(
     (node: EventDataNode<DataNode>) => {
@@ -119,7 +94,7 @@ export const Conversations = () => {
       overlay,
       toggleChat,
       togglePanel,
-    ]
+    ],
   );
 
   useEffect(() => {
@@ -133,7 +108,7 @@ export const Conversations = () => {
       .map((conversation, index) => {
         const { name, id, isPlayback, parentPath } = conversation;
         const isUserLocalConversation = parentPath?.startsWith(
-          bindConversationsSharedRootFolder
+          bindConversationsSharedRootFolder,
         );
 
         childData[`0-0-${index}`] = {
@@ -241,13 +216,6 @@ export const Conversations = () => {
               />
             </div>
           </Dropdown>
-
-          <RenameConversation
-            isOpened={!!renamingConversationData}
-            oldName={renamingConversationData?.conversationName ?? ''}
-            onCancel={() => setRenamingConversationData(undefined)}
-            onRename={onRenameConversation}
-          ></RenameConversation>
         </div>
       )}
     </div>

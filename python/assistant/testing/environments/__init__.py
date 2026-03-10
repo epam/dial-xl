@@ -1,3 +1,7 @@
+from testing.environments.advertisers_project import (
+    advertisers_no_format_project,
+    advertisers_project,
+)
 from testing.environments.all_actions_project import all_actions_project
 from testing.environments.basic_project import basic_project
 from testing.environments.casualties_project import casualties_project
@@ -24,5 +28,7 @@ __all__ = [
     "miro_project",
     "all_actions_project",
     "imdb_10_project",
+    "advertisers_project",
+    "advertisers_no_format_project",
     "clients_project",
 ]

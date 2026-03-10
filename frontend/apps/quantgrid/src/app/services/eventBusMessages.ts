@@ -25,4 +25,7 @@ export interface EventBusMessages {
   PointClickSetValue: PointClickSetValue;
   FormulaBarFormulasMenuItemApply: FormulaBarFormulasMenuItemApplyMessage;
   AppendToHistory: AppendToHistoryMessage;
+  CloseCurrentProject: {};
+  StartConflictResolving: {};
+  CancelAllViewportRequests: {};
 }

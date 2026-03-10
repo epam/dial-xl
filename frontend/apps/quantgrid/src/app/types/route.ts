@@ -6,6 +6,8 @@ export const routes = {
   sharedWithMe: '/shared-with-me',
   public: '/public',
   share: '/share',
+  error: '/error',
+  login: '/login',
 };
 
 export const routeParams = {

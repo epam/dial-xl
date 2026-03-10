@@ -75,14 +75,14 @@ describe('Override', () => {
     expect(overrides?.fieldNames).toEqual(['a', 'b']);
     expect(overrides?.length).toBe(1);
     expect(sheet.toDSL()).toBe(
-      'table A\n  [a] = NA\n  [b] = NA\noverride\n[a],[b]\n1,2\n'
+      'table A\n  [a] = NA\n  [b] = NA\noverride\n[a],[b]\n1,2\n',
     );
   });
 
   it('should add a new override line', () => {
     // Arrange
     const dsl = ['table A\n  [a] = NA\n  [b] = NA\noverride\n[a]\n1\n'].join(
-      ''
+      '',
     );
     const sheet = createEditableTestSheet(dsl);
 
@@ -95,7 +95,7 @@ describe('Override', () => {
     expect(overrides?.fieldNames).toEqual(['a', 'b']);
     expect(overrides?.length).toBe(2);
     expect(sheet.toDSL()).toBe(
-      'table A\n  [a] = NA\n  [b] = NA\noverride\n[a],[b]\n1,\n,2\n'
+      'table A\n  [a] = NA\n  [b] = NA\noverride\n[a],[b]\n1,\n,2\n',
     );
   });
 
@@ -131,7 +131,7 @@ describe('Override', () => {
     expect(overrides?.fieldNames).toEqual(['a']);
     expect(overrides?.length).toBe(1);
     expect(sheet.toDSL()).toBe(
-      'table A\n  [a] = NA\n  [b] = NA\noverride\n[a]\n1\n'
+      'table A\n  [a] = NA\n  [b] = NA\noverride\n[a]\n1\n',
     );
   });
 
@@ -189,7 +189,7 @@ describe('Override', () => {
     expect(overrides?.fieldNames).toEqual(['a']);
     expect(overrides?.length).toBe(1);
     expect(sheet.toDSL()).toBe(
-      'table A\n  [a] = NA\n  [b] = NA\noverride\n[a]\n1\n'
+      'table A\n  [a] = NA\n  [b] = NA\noverride\n[a]\n1\n',
     );
   });
 
@@ -234,7 +234,7 @@ describe('Override', () => {
 
     // Assert
     expect(sheet.toDSL()).toBe(
-      'table A\n  [renamed a] = NA\noverride\n[renamed a]\n1\n'
+      'table A\n  [renamed a] = NA\noverride\n[renamed a]\n1\n',
     );
   });
 

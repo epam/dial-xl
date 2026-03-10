@@ -1,3 +1,5 @@
+import { FontFamilies } from '@frontend/common';
+
 import { editor } from './monaco';
 
 export type Language = 'code-editor' | 'cell-editor' | 'formula-bar';
@@ -6,7 +8,7 @@ export const codeEditorTheme = 'quant';
 
 export const codeEditorOptions: editor.IStandaloneEditorConstructionOptions = {
   automaticLayout: true,
-  fontFamily: 'Roboto Mono',
+  fontFamily: FontFamilies.JetBrainsMonoLight,
   fontSize: 14,
   lineHeight: 18,
   'semanticHighlighting.enabled': true,
@@ -31,6 +33,8 @@ export const codeEditorOptions: editor.IStandaloneEditorConstructionOptions = {
   stickyScroll: {
     enabled: false,
   },
+  minimap: { enabled: false },
+  lineNumbersMinChars: 3,
 };
 
 export const CustomCommands = {

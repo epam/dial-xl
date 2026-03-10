@@ -16,8 +16,8 @@ export function useSortEditDsl() {
 
       const { sheet, parsedTable, table } = context;
       const { apply: parsedApply } = parsedTable;
-      const sortSign = sortOrder === 'desc' ? '-' : '';
-      const sortFormula = `${sortSign}[${fieldName}]`;
+      const sortOrderArg = sortOrder === 'desc' ? '-1' : '1';
+      const sortFormula = `[${fieldName}], ${sortOrderArg}`;
 
       if ((!table.apply || !table.apply?.sort) && sortOrder === null) return;
 
@@ -29,9 +29,9 @@ export function useSortEditDsl() {
         table.apply.sort = new ApplySort();
         table.apply.sort.append(sortFormula);
       } else if (table.apply?.sort && parsedApply?.sort) {
-        const sortExpressions: string[] = parsedApply.sort.getChangedFieldSort(
+        const sortExpressions: string[] = parsedApply.sort.buildUpdatedSortArgs(
           fieldName,
-          sortOrder
+          sortOrder,
         );
 
         if (sortExpressions.length > 0) {
@@ -56,7 +56,7 @@ export function useSortEditDsl() {
         tableName,
       });
     },
-    [findEditContext, updateDSL]
+    [findEditContext, updateDSL],
   );
 
   return {

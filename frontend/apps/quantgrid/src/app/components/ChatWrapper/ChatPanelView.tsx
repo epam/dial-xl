@@ -1,10 +1,14 @@
 import { useContext } from 'react';
 
-import { AppContext, ChatOverlayContext } from '../../context';
+import { ChatOverlayContext } from '../../context';
+import { useUserSettingsStore } from '../../store';
 import { IndexNotification } from './IndexNotification';
 
 export function ChatPanelView() {
-  const { chatWindowPlacement } = useContext(AppContext);
+  const chatWindowPlacement = useUserSettingsStore(
+    (s) => s.data.chatWindowPlacement,
+  );
+
   const { attachOverlay } = useContext(ChatOverlayContext);
 
   if (chatWindowPlacement === 'floating') {
@@ -15,9 +19,10 @@ export function ChatPanelView() {
     <div className="w-full h-full flex flex-col relative">
       <div
         className="h-full min-w-full w-full"
-        ref={(el) => attachOverlay(el)}
+        ref={(el) => {
+          attachOverlay(el);
+        }}
       ></div>
-
       <IndexNotification />
     </div>
   );

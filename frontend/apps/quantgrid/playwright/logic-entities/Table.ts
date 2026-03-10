@@ -153,7 +153,7 @@ export class Table {
 
   public removeField(name: string) {
     const indToRemove = this.fields.findIndex(
-      (item) => item.getName() === name
+      (item) => item.getName() === name,
     );
     this.fields.splice(indToRemove, 1);
   }
@@ -166,6 +166,10 @@ export class Table {
     const t = this.fields[index1];
     this.fields[index1] = this.fields[index2];
     this.fields[index2] = t;
+  }
+
+  public getFields() {
+    return this.fields;
   }
 
   public getField(ind: number) {
@@ -193,7 +197,7 @@ export class Table {
 
   public removeOverride(name: string) {
     const indToRemove = this.overrides.findIndex(
-      (item) => item.getName() === name
+      (item) => item.getName() === name,
     );
     this.overrides.splice(indToRemove, 1);
   }

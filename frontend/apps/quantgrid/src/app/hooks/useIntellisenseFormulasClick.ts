@@ -5,8 +5,8 @@ import { LayoutContext } from '../context';
 export const useIntellisenseFormulasClick = (
   triggerFormulaDropdown: (
     value: { x: number; y: number } | undefined,
-    triggerContext: 'CodeEditor' | 'FormulaBar' | 'CellEditor'
-  ) => void
+    triggerContext: 'CodeEditor' | 'FormulaBar' | 'CellEditor',
+  ) => void,
 ) => {
   const { openedPanels } = useContext(LayoutContext);
 
@@ -18,14 +18,14 @@ export const useIntellisenseFormulasClick = (
           x: (e as MouseEvent).clientX,
           y: (e as MouseEvent).clientY,
         },
-        triggerContext
+        triggerContext,
       );
 
       e.preventDefault();
       e.stopPropagation();
       e.stopImmediatePropagation();
     },
-    [triggerFormulaDropdown]
+    [triggerFormulaDropdown],
   );
 
   const createSuggestionsLeftElement = useCallback(() => {
@@ -58,7 +58,7 @@ export const useIntellisenseFormulasClick = (
           if (!node.parentElement) return;
 
           const genNode = node.parentElement.querySelector(
-            '.suggest-widget .monaco-action-bar.left'
+            '.suggest-widget .monaco-action-bar.left',
           );
 
           if (
@@ -67,12 +67,12 @@ export const useIntellisenseFormulasClick = (
           ) {
             const isCellEditor =
               node.parentElement.querySelector(
-                '[data-mode-id="cell-editor"] .suggest-widget .monaco-action-bar.left'
+                '[data-mode-id="cell-editor"] .suggest-widget .monaco-action-bar.left',
               ) === genNode;
             const isFormulaBar =
               !isCellEditor &&
               node.parentElement.querySelector(
-                '[data-mode-id="formula-bar"] .suggest-widget .monaco-action-bar.left'
+                '[data-mode-id="formula-bar"] .suggest-widget .monaco-action-bar.left',
               ) === genNode;
 
             const newNode = createSuggestionsLeftElement();
@@ -80,7 +80,7 @@ export const useIntellisenseFormulasClick = (
 
             genNode.parentElement?.replaceChild(newNode, genNode);
             const addedNode = node.parentElement.querySelector(
-              '.generated-suggest-hint'
+              '.generated-suggest-hint',
             );
 
             if (addedNode) {
@@ -90,8 +90,8 @@ export const useIntellisenseFormulasClick = (
                   isCellEditor
                     ? 'CellEditor'
                     : isFormulaBar
-                    ? 'FormulaBar'
-                    : 'CodeEditor'
+                      ? 'FormulaBar'
+                      : 'CodeEditor',
                 );
               addedNode.addEventListener('click', clickWithParam, true);
               listeners.current.push([addedNode, clickWithParam]);
@@ -121,7 +121,7 @@ export const useIntellisenseFormulasClick = (
 
     return () => {
       listeners.current.forEach(([el, listener]) =>
-        el.removeEventListener('click', listener)
+        el.removeEventListener('click', listener),
       );
       listeners.current = [];
       observer.disconnect();

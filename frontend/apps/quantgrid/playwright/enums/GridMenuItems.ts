@@ -4,15 +4,15 @@ export class GridMenuItems {
   private orientation: string;
 
   public SwapLeft() {
-    if (this.orientation === Orientation.Vertical) return 'Swap left';
-    if (this.orientation === Orientation.Horizontal) return 'Swap top';
+    if (this.orientation === Orientation.Vertical) return 'SwapLeft';
+    if (this.orientation === Orientation.Horizontal) return 'SwapTop';
 
     return '';
   }
 
   public SwapRight() {
-    if (this.orientation === Orientation.Vertical) return 'Swap right';
-    if (this.orientation === Orientation.Horizontal) return 'Swap bottom';
+    if (this.orientation === Orientation.Vertical) return 'SwapRight';
+    if (this.orientation === Orientation.Horizontal) return 'SwapBottom';
 
     return '';
   }

@@ -495,7 +495,7 @@ export class Overrides extends ObservableObserver {
     }
 
     const isRowEmpty = this._overrides.lines[index].overrides.every(
-      (override) => override.override === ''
+      (override) => override.override === '',
     );
 
     if (isRowEmpty) {

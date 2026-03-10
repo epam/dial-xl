@@ -1,4 +1,4 @@
-import * as PIXI from 'pixi.js';
+import { BitmapText, Container } from 'pixi.js';
 import {
   RefObject,
   useCallback,
@@ -7,25 +7,23 @@ import {
   useRef,
   useState,
 } from 'react';
-import isEqual from 'react-fast-compare';
 
 import { useIsMobile } from '@frontend/common';
 
 import { GridStateContext, GridViewportContext } from '../../context';
-import { Cell, Edges, GridCell, GridTable, SelectionEdges } from '../../types';
+import { Cell, Edges, GridCell, GridTable } from '../../types';
 import {
   cropText,
-  getSymbolWidth,
   isHiddenFieldCell,
   isHiddenTableHeaderCell,
 } from '../../utils';
 
 export function useHiddenCells(
-  graphicsRef: RefObject<PIXI.Graphics> | null,
-  fontName: string
+  containerRef: RefObject<Container | null> | null,
+  fontName: string,
 ) {
   const {
-    selection$,
+    selectionEdges,
     getCell,
     setSelectionEdges,
     gridSizes,
@@ -33,16 +31,14 @@ export function useHiddenCells(
     isTableDragging,
     dndSelection,
     tableStructure,
+    canvasSymbolWidth,
+    canvasOptions,
   } = useContext(GridStateContext);
   const { getCellX } = useContext(GridViewportContext);
   const isMobile = useIsMobile();
 
   const cells = useRef<Cell[]>([]);
   const [render, setRender] = useState(0);
-  const [symbolWidth, setSymbolWidth] = useState(0);
-  const [virtualSelectionEdges, setVirtualSelectionEdges] =
-    useState<SelectionEdges | null>(null);
-  const selectionRef = useRef<Edges | null>(null);
 
   const cleanUpCells = useCallback(() => {
     if (!cells.current.length) return;
@@ -52,29 +48,33 @@ export function useHiddenCells(
     });
 
     cells.current = [];
-    setVirtualSelectionEdges(null);
 
-    if (!graphicsRef?.current) return;
+    if (!containerRef?.current) return;
 
-    graphicsRef.current.removeChildren();
+    containerRef.current.removeChildren();
     setRender((prev) => prev + 1);
-  }, [graphicsRef]);
+  }, [containerRef]);
 
   const createCell = useCallback(
     (col: number, row: number, text: string, maxWidth: number) => {
-      if (!graphicsRef?.current) return;
+      if (!containerRef?.current) return;
 
-      const croppedText = text ? cropText(text, maxWidth, symbolWidth) : '';
+      const croppedText = text
+        ? cropText(text, maxWidth, canvasSymbolWidth)
+        : '';
 
       const cell: Cell = {
         col,
         row,
-        text: new PIXI.BitmapText(croppedText, { fontName }),
+        text: new BitmapText({
+          text: croppedText,
+          style: { fontFamily: fontName },
+        }),
       };
       cells.current.push(cell);
-      graphicsRef.current.addChild(cell.text);
+      containerRef.current.addChild(cell.text);
     },
-    [fontName, graphicsRef, symbolWidth]
+    [fontName, containerRef, canvasSymbolWidth],
   );
 
   const getCellWidth = useCallback(
@@ -84,7 +84,7 @@ export function useHiddenCells(
 
       return Math.abs(x1 - x2) - gridSizes.cell.padding;
     },
-    [getCellX, gridSizes]
+    [getCellX, gridSizes],
   );
 
   const handleBottomTableFieldHeadersHidden = useCallback(
@@ -104,7 +104,7 @@ export function useHiddenCells(
               : '';
           const maxWidth = getCellWidth(
             fieldCell.startCol,
-            fieldCell.endCol + 1
+            fieldCell.endCol + 1,
           );
 
           createCell(col, startRow, text, maxWidth);
@@ -118,11 +118,10 @@ export function useHiddenCells(
         startRow,
       };
 
-      setVirtualSelectionEdges(updatedSelection);
       setSelectionEdges(updatedSelection);
       setRender((prev) => prev + 1);
     },
-    [createCell, getCell, getCellWidth, setSelectionEdges]
+    [createCell, getCell, getCellWidth, setSelectionEdges],
   );
 
   const handleBottomTableHeaderHidden = useCallback(
@@ -145,11 +144,10 @@ export function useHiddenCells(
         endRow: startRow,
       };
 
-      setVirtualSelectionEdges(updatedSelection);
       setSelectionEdges(updatedSelection);
       setRender((prev) => prev + 1);
     },
-    [createCell, getCell, getCellWidth, setSelectionEdges]
+    [createCell, getCell, getCellWidth, setSelectionEdges],
   );
 
   const handleRightTableFieldHidden = useCallback(
@@ -162,7 +160,7 @@ export function useHiddenCells(
           const text = fieldCell.field?.fieldName || '';
           const maxWidth = getCellWidth(
             fieldCell.startCol,
-            fieldCell.endCol + 1
+            fieldCell.endCol + 1,
           );
 
           createCell(startCol, row, text, maxWidth);
@@ -170,10 +168,12 @@ export function useHiddenCells(
       }
       setRender((prev) => prev + 1);
     },
-    [createCell, getCell, getCellWidth]
+    [createCell, getCell, getCellWidth],
   );
 
   const handleEmptySheetHint = useCallback(() => {
+    if (!canvasOptions.showWelcomeMessage) return;
+
     if (!tableStructure.length) {
       let text =
         'Welcome! Start working by typing in cells (use "=" for formulas).';
@@ -189,7 +189,12 @@ export function useHiddenCells(
       createCell(1, 3, text2, 100000);
       setRender((prev) => prev + 1);
     }
-  }, [createCell, isMobile, tableStructure.length]);
+  }, [
+    canvasOptions.showWelcomeMessage,
+    createCell,
+    isMobile,
+    tableStructure.length,
+  ]);
 
   const findHiddenCells = useCallback(
     (selectionEdges: Edges | null) => {
@@ -214,7 +219,7 @@ export function useHiddenCells(
       const isBottomTableHeaderHidden = isHiddenTableHeaderCell(bottomCell);
       const isBottomTableFieldHeadersHidden = isHiddenFieldCell(
         bottomCell,
-        true
+        true,
       );
       const isRightTableFieldHidden = isHiddenFieldCell(rightCell, false);
 
@@ -224,7 +229,11 @@ export function useHiddenCells(
         return;
       }
 
-      if (isBottomTableHeaderHidden && bottomCell?.table) {
+      if (
+        isBottomTableHeaderHidden &&
+        bottomCell?.table &&
+        !bottomCell.table.chartType
+      ) {
         handleBottomTableHeaderHidden(bottomCell.table, startRow);
 
         return;
@@ -245,31 +254,12 @@ export function useHiddenCells(
       handleEmptySheetHint,
       handleRightTableFieldHidden,
       isTableDragging,
-    ]
+    ],
   );
 
   useEffect(() => {
-    setSymbolWidth(getSymbolWidth(gridSizes.cell.fontSize, fontName));
-  }, [fontName, gridSizes.cell.fontSize]);
-
-  useEffect(() => {
-    const subscription = selection$.subscribe((selection) => {
-      selectionRef.current = selection;
-
-      if (isEqual(virtualSelectionEdges, selection)) {
-        return;
-      }
-
-      findHiddenCells(selection);
-    });
-
-    return () => subscription.unsubscribe();
-  }, [findHiddenCells, selection$, virtualSelectionEdges]);
-
-  useEffect(() => {
-    findHiddenCells(selectionRef.current);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tableStructure]);
+    findHiddenCells(selectionEdges);
+  }, [findHiddenCells, selectionEdges, tableStructure]);
 
   useEffect(() => {
     cleanUpCells();

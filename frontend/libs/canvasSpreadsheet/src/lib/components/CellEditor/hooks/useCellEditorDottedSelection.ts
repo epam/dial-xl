@@ -1,6 +1,7 @@
-import { MutableRefObject, RefObject, useCallback } from 'react';
+import { RefObject, useCallback, useContext } from 'react';
 
-import { GridApi, GridCell } from '../../../types';
+import { GridStateContext } from '../../../context';
+import { GridCell } from '../../../types';
 import {
   showFieldDottedSelection,
   showFieldGroupDottedSelection,
@@ -9,29 +10,27 @@ import { GridCellEditorMode } from '../types';
 import { isCellEditorValueFormula } from '../utils';
 
 type Props = {
-  apiRef: RefObject<GridApi>;
-  isDottedSelection: MutableRefObject<boolean>;
+  isDottedSelection: RefObject<boolean>;
 };
 
-export function useCellEditorDottedSelection({
-  apiRef,
-  isDottedSelection,
-}: Props) {
+export function useCellEditorDottedSelection({ isDottedSelection }: Props) {
+  const { getCell, showDottedSelection, hideDottedSelection } =
+    useContext(GridStateContext);
+
   const updateDottedSelectionVisibility = useCallback(
     (
       col: number | undefined,
       row: number | undefined,
       editMode: GridCellEditorMode,
-      codeValue: string
+      codeValue: string,
     ) => {
-      if (!apiRef.current || !col || !row) return;
+      if (!col || !row) return;
 
-      const api = apiRef.current;
-      const cell = api.getCell(col, row);
+      const cell = getCell(col, row);
       const isEmptyCellEditMode = editMode === 'empty_cell';
       const isFormulaInEmptyCell = isCellEditorValueFormula(
         codeValue,
-        isEmptyCellEditMode
+        isEmptyCellEditMode,
       );
 
       const isEditingFieldOrCellExpression =
@@ -41,7 +40,7 @@ export function useCellEditorDottedSelection({
 
       const shouldShowDottedSelectionForAdjacentCell = (
         adjacentCell: GridCell | undefined,
-        isHorizontal: boolean
+        isHorizontal: boolean,
       ): boolean => {
         return !!(
           !cell?.table &&
@@ -52,7 +51,7 @@ export function useCellEditorDottedSelection({
       };
 
       // Left cell of empty cell
-      const leftCell = api.getCell(col - 1, row);
+      const leftCell = getCell(col - 1, row);
       if (shouldShowDottedSelectionForAdjacentCell(leftCell, false)) {
         if (!leftCell?.table) return;
 
@@ -60,7 +59,7 @@ export function useCellEditorDottedSelection({
           { col, row },
           leftCell.table,
           leftCell.endCol,
-          api
+          showDottedSelection,
         );
         isDottedSelection.current = true;
 
@@ -68,7 +67,7 @@ export function useCellEditorDottedSelection({
       }
 
       // Left cell of empty cell
-      const topCell = api.getCell(col, row - 1);
+      const topCell = getCell(col, row - 1);
       if (shouldShowDottedSelectionForAdjacentCell(topCell, true)) {
         if (!topCell?.table) return;
 
@@ -76,7 +75,7 @@ export function useCellEditorDottedSelection({
           { col, row },
           topCell.table,
           topCell.endCol,
-          api
+          showDottedSelection,
         );
         isDottedSelection.current = true;
 
@@ -85,7 +84,7 @@ export function useCellEditorDottedSelection({
 
       // Correct edit mode for existing table cell
       if (isEditingFieldOrCellExpression && cell?.table) {
-        showFieldGroupDottedSelection(cell, cell.table, api);
+        showFieldGroupDottedSelection(cell, cell.table, showDottedSelection);
         isDottedSelection.current = true;
 
         return;
@@ -93,13 +92,13 @@ export function useCellEditorDottedSelection({
 
       // Hide selection for existing table cell and incorrect edit mode
       if (!isEmptyCellEditMode && editMode) {
-        api.hideDottedSelection();
+        hideDottedSelection();
         isDottedSelection.current = false;
 
         return;
       }
     },
-    [apiRef, isDottedSelection]
+    [getCell, hideDottedSelection, isDottedSelection, showDottedSelection],
   );
 
   return {

@@ -1,39 +1,94 @@
-import { useCallback } from 'react';
+import { useCallback, useContext } from 'react';
 
 import {
   ClipboardType,
   makeCopy,
-  readClipboard,
   rowsToHtml,
   stringToArray,
 } from '@frontend/common';
 
-import { GridApi, GridCallbacks } from '../types';
+import { GridStateContext } from '../context';
+import { GridEventBus, isCellEditorOpen } from '../utils';
 
 export function useCopyPaste() {
-  const copy = useCallback((gridApi: GridApi) => {
-    if (gridApi?.isCellEditorOpen()) return;
+  const { getCell, selectionEdges } = useContext(GridStateContext);
 
-    const selection = gridApi.selection$.getValue();
+  const normalizeExpandedColumns = useCallback(
+    (
+      rows: string[][],
+      params: {
+        startRow: number;
+        endRow: number;
+        startCol: number;
+        endCol: number;
+      },
+    ): string[][] => {
+      const { startRow, startCol, endCol } = params;
 
-    if (!selection) return;
+      if (!rows.length) return rows;
+
+      const width = endCol - startCol + 1;
+      if (width <= 0) return rows;
+
+      const normalized: string[][] = [];
+
+      for (let rowIndex = 0; rowIndex < rows.length; rowIndex++) {
+        const globalRow = startRow + rowIndex;
+        const srcRow = rows[rowIndex];
+        const dstRow: string[] = [];
+
+        for (let offset = 0; offset < width; offset++) {
+          const globalCol = startCol + offset;
+          const cell = getCell(globalCol, globalRow);
+
+          let isContinuation = false;
+
+          if (cell?.table) {
+            const cellStart = cell.startCol ?? globalCol;
+            const cellEnd = cell.endCol ?? globalCol;
+
+            if (cellStart < globalCol && globalCol <= cellEnd) {
+              isContinuation = true;
+            }
+          }
+
+          const value = srcRow[offset] ?? '';
+
+          if (isContinuation && value === '') {
+            continue;
+          }
+
+          dstRow.push(value);
+        }
+
+        normalized.push(dstRow);
+      }
+
+      return normalized;
+    },
+    [getCell],
+  );
+
+  const copy = useCallback(() => {
+    if (isCellEditorOpen()) return;
+
+    if (!selectionEdges) return;
 
     const rows: string[][] = [];
-    const startRow = Math.min(selection.startRow, selection.endRow);
-    const endRow = Math.max(selection.startRow, selection.endRow);
-    const startCol = Math.min(selection.startCol, selection.endCol);
-    const endCol = Math.max(selection.startCol, selection.endCol);
+    const startRow = Math.min(selectionEdges.startRow, selectionEdges.endRow);
+    const endRow = Math.max(selectionEdges.startRow, selectionEdges.endRow);
+    const startCol = Math.min(selectionEdges.startCol, selectionEdges.endCol);
+    const endCol = Math.max(selectionEdges.startCol, selectionEdges.endCol);
 
-    type Key = string;
     const firstCol = new Map<string, number>();
 
     for (let row = startRow; row <= endRow; row++) {
       for (let col = startCol; col <= endCol; col++) {
-        const cell = gridApi.getCell(col, row);
+        const cell = getCell(col, row);
         if (!cell?.table) continue;
 
         const { table, field, isTableHeader } = cell;
-        const key: Key = isTableHeader
+        const key: string = isTableHeader
           ? `${table.tableName}`
           : `${table.tableName}[${field?.fieldName ?? ''}]`;
 
@@ -45,7 +100,7 @@ export function useCopyPaste() {
       const rowData: string[] = [];
 
       for (let col = startCol; col <= endCol; col++) {
-        const cell = gridApi.getCell(col, row);
+        const cell = getCell(col, row);
 
         if (!cell?.table) {
           rowData.push('');
@@ -53,7 +108,7 @@ export function useCopyPaste() {
         }
 
         const { table, field, isTableHeader, value } = cell;
-        const key: Key = isTableHeader
+        const key: string = isTableHeader
           ? `${table.tableName}`
           : `${table.tableName}[${field?.fieldName ?? ''}]`;
 
@@ -70,28 +125,39 @@ export function useCopyPaste() {
       rows.push(rowData);
     }
 
-    const rowsString = rows.map((r) => r.join('\t')).join('\r\n');
-    makeCopy(rowsString, rowsToHtml(rows));
-  }, []);
+    const normalizedRows = normalizeExpandedColumns(rows, {
+      startRow,
+      endRow,
+      startCol,
+      endCol,
+    });
+    const rowsString = normalizedRows.map((r) => r.join('\t')).join('\r\n');
+    makeCopy(rowsString, rowsToHtml(normalizedRows));
+  }, [getCell, normalizeExpandedColumns, selectionEdges]);
 
   const paste = useCallback(
-    async (gridApi: GridApi, gridCallbacks: GridCallbacks) => {
-      if (gridApi?.isCellEditorOpen()) return;
+    (eventBus: GridEventBus, e: ClipboardEvent) => {
+      if (isCellEditorOpen()) return;
 
-      const selection = gridApi.selection$.getValue();
+      if (!selectionEdges) return;
 
-      if (!selection) return;
+      e.preventDefault();
+      e.stopPropagation();
 
-      const clipboardData = await readClipboard();
+      const dt = e.clipboardData;
+      if (!dt) return;
 
-      // TODO: add support for HTML clipboard data and parse data-object-data
-      if (clipboardData[ClipboardType.PLAIN]) {
-        const cells = stringToArray(clipboardData[ClipboardType.PLAIN], '\t');
+      const plain = dt.getData(ClipboardType.PLAIN);
+      if (!plain) return;
 
-        gridCallbacks.onPaste?.(cells);
-      }
+      const cells = stringToArray(plain, '\t');
+
+      eventBus.emit({
+        type: 'clipboard/paste',
+        payload: { cells },
+      });
     },
-    []
+    [selectionEdges],
   );
 
   return {

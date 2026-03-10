@@ -14,10 +14,11 @@ export function AIPendingChangesContextMenu() {
     () => [
       getDropdownItem({
         key: 'editAll',
+        fullPath: ['AIPendingChangesContextMenu', 'EditAll'],
         label: isAIEditPendingChanges ? 'Cancel Edit All' : 'Allow Edit All',
       }),
     ],
-    [isAIEditPendingChanges]
+    [isAIEditPendingChanges],
   );
 
   const onClick = useCallback(
@@ -30,7 +31,7 @@ export function AIPendingChangesContextMenu() {
           break;
       }
     },
-    [updateAIEditPendingChanges, isAIEditPendingChanges]
+    [updateAIEditPendingChanges, isAIEditPendingChanges],
   );
 
   return (

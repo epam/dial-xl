@@ -1,5 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useContext, useEffect, useState } from 'react';
+import { distinctUntilChanged, map, merge } from 'rxjs';
 
+import { GridCell, SelectionEdges } from '@frontend/canvas-spreadsheet';
+
+import { ViewportContext } from '../../context';
 import { useGridApi } from '../../hooks';
 import { LongCalculation } from './LongCalculation';
 import { MoveMode } from './MoveMode';
@@ -8,62 +12,87 @@ import { SheetSelect } from './SheetSelect';
 import { Zoom } from './Zoom';
 
 export const BottomSheetBar = () => {
+  const { viewGridData } = useContext(ViewportContext);
   const api = useGridApi();
 
   const [fieldSize, setFieldSize] = useState<number | null>(null);
 
   useEffect(() => {
-    const sub = api?.selection$.subscribe((selection) => {
-      if (!api) return;
+    if (!api) {
+      setFieldSize(null);
 
-      if (!selection) {
-        setFieldSize(null);
+      return;
+    }
 
-        return;
-      }
+    const getCellsFromSelection = (
+      selection: SelectionEdges | null,
+    ): GridCell[] => {
+      if (!selection) return [];
 
       const startCol = Math.min(selection.startCol, selection.endCol);
       const endCol = Math.max(selection.startCol, selection.endCol);
       const startRow = Math.min(selection.startRow, selection.endRow);
       const endRow = Math.max(selection.startRow, selection.endRow);
 
-      const cells = [];
+      const cells: GridCell[] = [];
 
       for (let col = startCol; col <= endCol; col++) {
         for (let row = startRow; row <= endRow; row++) {
           const cell = api.getCell(col, row);
-
           if (!cell || cell.startCol !== col) continue;
-
           cells.push(cell);
         }
       }
 
-      const selectionFields = cells.reduce((acc, curr) => {
-        if (!curr.field) return acc;
+      return cells;
+    };
 
-        if (!acc[curr.field.fieldName]) {
-          acc[curr.field.fieldName] = curr.field.dataLength;
-        }
+    const selection$ = api.selection$;
 
-        return acc;
-      }, {} as Record<string, number>);
+    const selectionOrDataChange$ = merge(
+      selection$,
+      viewGridData.shouldUpdate$.pipe(map(() => api.selection$.value)),
+    );
 
-      const keys = Object.keys(selectionFields);
+    const sub = selectionOrDataChange$
+      .pipe(
+        map((selection) => {
+          if (!selection) return null;
 
-      if (keys.length !== 1) {
-        setFieldSize(null);
+          const cells = getCellsFromSelection(selection);
 
-        return;
-      }
+          const selectionFieldsByTable = cells.reduce(
+            (acc, curr) => {
+              if (!curr.field || !curr.table) return acc;
+              const tableName = curr.table.tableName;
+              const fieldName = curr.field.fieldName;
+              const fieldsForTable = acc[tableName] ?? [];
+              if (!fieldsForTable.includes(fieldName)) {
+                acc[tableName] = [...fieldsForTable, fieldName];
+              }
 
-      Object.values(selectionFields).forEach((dataLength) => {
-        setFieldSize(dataLength);
-      });
-    });
+              return acc;
+            },
+            {} as Record<string, string[]>,
+          );
 
-    return () => sub?.unsubscribe();
-  }, [api, api?.selection$]);
+          const tableNames = Object.keys(selectionFieldsByTable);
+          if (tableNames.length !== 1) return null;
+
+          const tableData = viewGridData.getTableData(tableNames[0]);
+
+          return tableData && tableData.isTotalRowsUpdated
+            ? tableData.totalRows
+            : null;
+        }),
+        distinctUntilChanged(),
+      )
+      .subscribe((size) =>
+        setFieldSize((prev) => (prev === size ? prev : size)),
+      );
+
+    return () => sub.unsubscribe();
+  }, [api, viewGridData]);
 
   return (
     <div className="flex @container/bottom-bar justify-between gap-10 items-center border-t border-stroke-primary text-sm text-text-secondary overflow-x-hidden bg-bg-layer-1">

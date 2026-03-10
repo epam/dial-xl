@@ -11,7 +11,7 @@ export const getNormalizedStageName = (name: string) =>
 
 export const updateChangedSheetsStage = (
   stage: Stage,
-  newContent: Record<string, string>
+  newContent: Record<string, string>,
 ) => {
   const resultedAttachments: Attachment[] = Object.entries(newContent).map(
     ([key, value], index) => ({
@@ -19,7 +19,7 @@ export const updateChangedSheetsStage = (
       type: 'text/markdown',
       data: `\`\`\`\n${value}\n\`\`\``,
       index,
-    })
+    }),
   );
 
   const resultingStage = {

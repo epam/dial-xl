@@ -53,7 +53,7 @@ function cleanup(map: StoredMap): StoredMap {
   const cutoff = Date.now() - maxAgeDays * msPerDay;
 
   const next = Object.fromEntries(
-    Object.entries(map).filter(([_, ts]) => ts && ts >= cutoff)
+    Object.entries(map).filter(([_, ts]) => ts && ts >= cutoff),
   );
 
   const ids = Object.keys(next);
@@ -99,7 +99,7 @@ export const useProjectReadonlyByUser = ({
       saveMap(cleaned);
       setIsReadonlyState(value);
     },
-    [projectId]
+    [projectId],
   );
 
   useEffect(() => {

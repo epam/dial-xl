@@ -35,8 +35,10 @@ export interface FieldInfo {
   overrideKey?: OverrideKey;
   type: ColumnDataType;
   isNested: boolean;
-  hash?: string;
+  isAssignable: boolean;
   referenceTableName?: string;
+  hash?: string;
+  format?: ColumnFormat;
 }
 
 interface Source {
@@ -52,6 +54,8 @@ export interface Viewport {
   totalKey?: TotalKey;
   start_row: number;
   end_row: number;
+  start_column?: number;
+  end_column?: number;
   is_content?: boolean;
   is_raw: boolean;
 }
@@ -199,6 +203,8 @@ export interface DimensionalSchemaRequest {
   dimensionalSchemaRequest: {
     formula: string;
     worksheets: Record<string, string>;
+    table?: string;
+    project_name?: string;
   };
 }
 
@@ -337,6 +343,7 @@ export enum ExecutionType {
 
 export interface CompileRequest {
   compileWorksheetsRequest: {
+    project: string;
     worksheets: Record<string, string>;
   };
 }
@@ -351,5 +358,257 @@ export interface DownloadRequest {
     sheets: Record<string, string>;
     table: string;
     columns: string[];
+  };
+}
+
+// Import api
+
+export type ProtoStruct = Record<string, unknown>;
+
+export interface ImportDefinitionListRequest {
+  importDefinitionListRequest: {
+    project: string;
+  };
+}
+
+export interface ImportDefinitionGetRequest {
+  importDefinitionGetRequest: {
+    project: string;
+    definition: string;
+  };
+}
+
+export interface ImportSourceListRequest {
+  importSourceListRequest: {
+    project: string;
+  };
+}
+
+export interface ImportSourceGetRequest {
+  importSourceGetRequest: {
+    project: string;
+    source: string;
+  };
+}
+
+export interface ImportSourceCreateRequest {
+  importSourceCreateRequest: {
+    project: string;
+    definition: string;
+    name: string;
+    configuration: ProtoStruct;
+  };
+}
+
+export interface ImportSourceUpdateRequest {
+  importSourceUpdateRequest: {
+    project: string;
+    source: string;
+    name: string;
+    configuration: ProtoStruct;
+  };
+}
+
+export interface ImportSourceDeleteRequest {
+  importSourceDeleteRequest: {
+    project: string;
+    source: string;
+  };
+}
+
+export interface ImportConnectionTestRequest {
+  importConnectionTestRequest: {
+    project: string;
+    definition: string;
+    configuration: ProtoStruct;
+  };
+}
+
+export interface ImportCatalogListRequest {
+  importCatalogListRequest: {
+    project: string;
+    source: string;
+  };
+}
+
+export interface ImportDatasetDiscoverRequest {
+  importDatasetDiscoverRequest: {
+    project: string;
+    source: string;
+    dataset: string;
+  };
+}
+
+export interface ImportSyncListRequest {
+  importSyncListRequest: {
+    project: string;
+    source?: string;
+    dataset?: string;
+  };
+}
+
+export interface ImportSyncGetRequest {
+  importSyncGetRequest: {
+    project: string;
+    sync: string;
+  };
+}
+
+export interface ImportSyncStartRequest {
+  importSyncStartRequest: {
+    project: string;
+    source: string;
+    dataset: string;
+    schema: ImportSchema;
+  };
+}
+
+export interface ImportSyncCancelRequest {
+  importSyncCancelRequest: {
+    project: string;
+    source: string;
+    sync: string;
+  };
+}
+
+export interface ImportDefinitions {
+  definitions: Record<string, ImportDefinition>;
+}
+
+export interface ImportDefinition {
+  definition: string;
+  name: string;
+  specification?: ProtoStruct;
+}
+
+export interface ImportSources {
+  sources: Record<string, ImportSource>;
+}
+
+export interface ImportSource {
+  definition: string;
+  source: string;
+  name: string;
+  configuration?: ProtoStruct;
+}
+
+export type ImportConnectionResult = 'SUCCESS' | 'FAILURE';
+
+export interface ImportConnection {
+  definition: string;
+  result: ImportConnectionResult;
+  error?: string;
+}
+
+export interface ImportCatalog {
+  definition: string;
+  source: string;
+  datasets: Record<string, ImportDataset>;
+}
+
+export interface ImportDataset {
+  definition: string;
+  source: string;
+  dataset: string;
+  schema?: ImportSchema;
+}
+
+export interface ImportSyncs {
+  syncs: Record<string, ImportSync>;
+}
+
+export type ImportSyncStatus = 'RUNNING' | 'SUCCEEDED' | 'FAILED';
+
+export interface ImportSync {
+  definition: string;
+  source: string;
+  sync: string;
+  version: string;
+  status: ImportSyncStatus;
+  startedAt: string;
+  stoppedAt: string;
+  schema: ImportSchema;
+}
+
+export interface ImportSchema {
+  columns: Record<string, ImportColumn>;
+}
+
+export interface ImportColumn {
+  column: string;
+  type: string;
+  targetType: ImportColumnType;
+}
+
+export enum ImportColumnType {
+  IMPORT_COLUMN_TYPE_STRING = 'IMPORT_COLUMN_TYPE_STRING',
+  IMPORT_COLUMN_TYPE_DOUBLE = 'IMPORT_COLUMN_TYPE_DOUBLE',
+  IMPORT_COLUMN_TYPE_DATE = 'IMPORT_COLUMN_TYPE_DATE',
+  IMPORT_COLUMN_TYPE_DATE_TIME = 'IMPORT_COLUMN_TYPE_DATE_TIME',
+  IMPORT_COLUMN_TYPE_BOOLEAN = 'IMPORT_COLUMN_TYPE_BOOLEAN',
+}
+
+export interface ImportRequest {
+  definition: string;
+  path: string;
+  dataset: string;
+  schema: ImportSchema;
+  configuration: ProtoStruct;
+}
+
+// Control values api
+
+export interface ControlValuesRequest {
+  controlValuesRequest: {
+    project: string;
+    sheets: Record<string, string>;
+    key: FieldKey;
+    query: string;
+    start_row: number;
+    end_row: number;
+  };
+}
+
+export interface ControlValuesResponse {
+  controlValuesResponse: {
+    data: ColumnData;
+    available: ColumnData;
+  };
+}
+
+// Excel inputs
+
+export interface ExcelCatalogGetRequest {
+  excelCatalogGetRequest: {
+    path: string;
+  };
+}
+
+export interface ExcelCatalogGetResponse {
+  excelCatalogGetResponse: {
+    sheets: string[];
+    tables: string[];
+  };
+}
+
+export interface ExcelPreviewRequest {
+  excelPreviewRequest: {
+    path: string;
+    start_row: number;
+    end_row: number;
+    start_column: number;
+    end_column: number;
+  };
+}
+
+export interface ExcelPreviewCell {
+  row: number;
+  column: number;
+  value: string;
+}
+
+export interface ExcelPreviewResponse {
+  excelPreviewResponse: {
+    cell: ExcelPreviewCell[];
   };
 }

@@ -1,26 +1,39 @@
 /// <reference types='vitest' />
 import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
+import react from '@vitejs/plugin-react-swc';
 import dts from 'vite-plugin-dts';
 import * as path from 'path';
+import { nxViteTsPaths } from '@nx/vite/plugins/nx-tsconfig-paths.plugin';
+import { fileURLToPath } from 'url';
+import { getTestAliases } from '../../vite.shared';
+import checker from 'vite-plugin-checker';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const isTest = !!process.env.VITEST;
 
 export default defineConfig(() => ({
   root: __dirname,
   cacheDir: '../../node_modules/.vite/apps/quantgrid/libs/parser',
   plugins: [
-    react(),
+    react({
+      tsDecorators: true,
+    }),
     dts({
       entryRoot: 'src',
       tsconfigPath: path.join(__dirname, 'tsconfig.lib.json'),
     }),
+    nxViteTsPaths({ debug: false }),
+    checker({
+      typescript: {
+        buildMode: true,
+        tsconfigPath: path.resolve(__dirname, 'tsconfig.lib.json'),
+      },
+    }),
   ],
-  // Uncomment this if you are using workers.
-  // worker: {
-  //  plugins: [ nxViteTsPaths() ],
-  // },
-  // Configuration for building your library.
-  // See: https://vitejs.dev/guide/build.html#library-mode
+  resolve: isTest ? { alias: getTestAliases(__dirname, '../..') } : undefined,
   build: {
+    target: 'esnext',
+    sourcemap: process.env.NODE_ENV !== 'production',
     outDir: './dist',
     emptyOutDir: true,
     reportCompressedSize: true,
@@ -28,17 +41,31 @@ export default defineConfig(() => ({
       transformMixedEsModules: true,
     },
     lib: {
-      // Could also be a dictionary or array of multiple entry points.
       entry: 'src/index.ts',
       name: '@quantgrid/parser',
       fileName: 'index',
-      // Change this to the formats you want to support.
-      // Don't forget to update your package.json as well.
       formats: ['es' as const],
     },
     rollupOptions: {
-      // External packages that should not be bundled into your library.
       external: ['react', 'react-dom', 'react/jsx-runtime'],
+    },
+  },
+  test: {
+    name: '@quantgrid/parser',
+    environment: 'happy-dom',
+    dir: './src',
+    include: ['**/*.{test,spec}.{js,ts,jsx,tsx}'],
+    globals: true,
+    watch: false,
+    setupFiles: ['../../vitest-setup.ts'],
+    reporters: ['default', 'junit'],
+    outputFile: {
+      junit: './test-output/junit-report.xml',
+    },
+    coverage: {
+      provider: 'v8',
+      reportsDirectory: './test-output/vitest/coverage',
+      exclude: ['node_modules/**', 'dist/**', '**/__mocks__/**'],
     },
   },
 }));

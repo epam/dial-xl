@@ -27,7 +27,7 @@ export function clearProjectHistory(
   projectName: string,
   bucket: string,
   path: string | null | undefined,
-  newSheetsState?: Record<string, string>
+  newSheetsState?: Record<string, string>,
 ) {
   cleanOldProjectHistory();
 
@@ -72,7 +72,7 @@ export function getHistory() {
 export function getProjectHistory(
   projectName: string,
   bucket: string,
-  path: string | undefined | null
+  path: string | undefined | null,
 ): UndoRedoHistoryState[] {
   cleanOldProjectHistory();
 
@@ -94,7 +94,7 @@ export function renameProjectHistory(
   oldProjectName: string,
   newProjectName: string,
   bucket: string,
-  path: string | null | undefined
+  path: string | null | undefined,
 ) {
   cleanOldProjectHistory();
 
@@ -110,7 +110,7 @@ export function renameProjectHistory(
 export function deleteProjectHistory(
   projectName: string,
   bucket: string,
-  path: string | null | undefined
+  path: string | null | undefined,
 ) {
   cleanOldProjectHistory();
 
@@ -124,7 +124,7 @@ export function saveProjectHistory(
   history: UndoRedoHistoryState[],
   projectName: string,
   bucket: string,
-  path: string | undefined | null
+  path: string | undefined | null,
 ) {
   cleanOldProjectHistory();
   const historyStr = localStorage.getItem(storageKey);
@@ -135,7 +135,7 @@ export function saveProjectHistory(
       storageKey,
       JSON.stringify({
         [fullItemPrePath + projectName]: history,
-      })
+      }),
     );
 
     return;
@@ -262,7 +262,7 @@ export function appendToProjectHistory({
 export function removeLastProjectHistoryElement(
   projectName: string,
   bucket: string,
-  path: string | undefined | null
+  path: string | undefined | null,
 ) {
   cleanOldProjectHistory();
 
@@ -279,7 +279,7 @@ export function removeLastProjectHistoryElement(
 
 export function removeOldestHistoryItems(
   historyObj: UndoRedoHistory,
-  count = 5
+  count = 5,
 ) {
   const allEntries: Array<{ fullProjectPath: string; time: number }> = [];
 

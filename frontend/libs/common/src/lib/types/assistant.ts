@@ -1,19 +1,5 @@
 import { Message, Stage } from '@epam/ai-dial-overlay';
 
-export type SystemMessageParsedContent = {
-  sheets: Record<string, string>;
-  inputs: { [fileName: string]: { fields: string[] } };
-  currentSheet: string;
-  currentProjectName: string;
-  selection: {
-    startCol: number;
-    startRow: number;
-    endRow: number;
-    endCol: number;
-  } | null;
-  selectedTableName: string | undefined;
-};
-
 export type GPTSuggestion = {
   sheetName: string;
   userMessage?: string;
@@ -30,7 +16,7 @@ export interface GPTState {
   projectState: {
     sheets: Record<string, string>;
     inputs: { [fileName: string]: { fields: string[] } };
-    inputFolder: string;
+    inputFolder?: string;
     currentSheet: string;
     currentProjectName: string;
     selection: {
@@ -55,19 +41,13 @@ export interface GPTState {
 
 export interface GPTStageState {
   generation_parameters: GPTState['generationParameters'];
-  project_state: {
-    inputFolder: string;
-    inputs: { [fileName: string]: { fields: string[] } };
-    currentProjectName: string;
-    selectedTableName: string;
+  project_state: Omit<GPTState['projectState'], 'selection'> & {
     selection: {
       start_col: number;
       start_row: number;
       end_col: number;
       end_row: number;
     };
-    currentSheet: string;
-    sheets: Record<string, string>;
   };
 }
 

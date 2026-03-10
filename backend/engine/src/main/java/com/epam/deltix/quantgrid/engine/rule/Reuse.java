@@ -5,6 +5,7 @@ import com.epam.deltix.quantgrid.engine.graph.Graph;
 import com.epam.deltix.quantgrid.engine.meta.Meta;
 import com.epam.deltix.quantgrid.engine.node.Identity;
 import com.epam.deltix.quantgrid.engine.node.NodeUtil;
+import com.epam.deltix.quantgrid.engine.node.NotDeterministic;
 import com.epam.deltix.quantgrid.engine.node.plan.Executed;
 import com.epam.deltix.quantgrid.engine.node.plan.Failed;
 import com.epam.deltix.quantgrid.engine.node.plan.Plan;
@@ -46,7 +47,8 @@ public class Reuse implements Rule {
                             return plan;
                         }
 
-                        if (toStore.test(original) && store.lock(id)) {
+                        boolean reuse = (original instanceof NotDeterministic || toStore.test(original));
+                        if (reuse && store.lock(id)) {
                             List<Identity> identities = List.of(id);
                             List<Meta> meta = List.of(new Meta(plan.getMeta().getSchema().asOriginal()));
                             return new LoadLocal(store, original, identities, meta);

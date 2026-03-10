@@ -3,6 +3,7 @@ package com.epam.deltix.quantgrid.engine.compiler;
 import com.epam.deltix.quantgrid.engine.Util;
 import com.epam.deltix.quantgrid.engine.compiler.function.Functions;
 import com.epam.deltix.quantgrid.engine.compiler.result.CompiledColumn;
+import com.epam.deltix.quantgrid.engine.compiler.result.CompiledControlTable;
 import com.epam.deltix.quantgrid.engine.compiler.result.CompiledPivotColumn;
 import com.epam.deltix.quantgrid.engine.compiler.result.CompiledValueTable;
 import com.epam.deltix.quantgrid.engine.compiler.result.CompiledSimpleColumn;
@@ -89,6 +90,11 @@ public class CompileFormula {
     private static CompiledTable compileTableReference(CompileContext context, TableReference reference) {
         String name = reference.table();
         CompiledTable table = context.table(name);
+
+        if (CompileControl.isControlTable(context, name)) {
+            return new CompiledControlTable(name, table.node());
+        }
+
         SelectLocal select = new SelectLocal(new RowNumber(table.node()));
         return new CompiledReferenceTable(name, select);
     }

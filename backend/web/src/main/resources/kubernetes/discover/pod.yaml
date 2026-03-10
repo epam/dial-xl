@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: !param name
+  labels:
+    purpose: !param purpose
+spec:
+  activeDeadlineSeconds: !param ttl
+  restartPolicy: Never
+  imagePullSecrets: !param pull_secrets
+  containers:
+    - name: discover
+      image: !param image
+      imagePullPolicy: !param pull_policy
+      command:
+        - sh
+        - -c
+        - |
+          exec $AIRBYTE_ENTRYPOINT discover \
+            --config /secrets/.config.json
+      volumeMounts:
+        - name: secret
+          mountPath: /secrets
+  volumes:
+    - name: secret
+      secret:
+        secretName: !param secret

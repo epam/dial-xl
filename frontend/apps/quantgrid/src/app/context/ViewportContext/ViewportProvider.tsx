@@ -22,21 +22,21 @@ export function ViewportContextProvider({ children }: PropsWithChildren) {
 
       viewGridData.saveNewColumnData(columnData);
     },
-    [viewGridData]
+    [viewGridData],
   );
 
   const onProfileResponse = useCallback(
     (requestId: string, profile: Profile) => {
       viewGridData.saveProfileData(requestId, profile);
     },
-    [viewGridData]
+    [viewGridData],
   );
 
   const onIndexResponse = useCallback(
     (index: Index) => {
       viewGridData.saveIndexData(index);
     },
-    [viewGridData]
+    [viewGridData],
   );
 
   const value = useMemo(
@@ -53,7 +53,7 @@ export function ViewportContextProvider({ children }: PropsWithChildren) {
       clearTablesData,
       onProfileResponse,
       onIndexResponse,
-    ]
+    ],
   );
 
   return (

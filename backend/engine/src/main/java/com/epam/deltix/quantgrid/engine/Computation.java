@@ -89,12 +89,13 @@ public class Computation {
     }
 
     void onViewportResult(ParsedKey key, ResultType type,
-                          long start, long end,
+                          long startRow, long endRow,
+                          long startCol, long endCol,
                           boolean content, boolean raw,
                           Table table, String error) {
         Util.verify(ready < total);
         try {
-            handler.onUpdate(key, start, end, content, raw, table, error, type);
+            handler.onUpdate(key, startRow, endRow, startCol, endCol, content, raw, table, error, type);
         } finally {
             if (++ready == total) {
                 future.complete(null);
@@ -106,6 +107,17 @@ public class Computation {
         Util.verify(ready < total);
         try {
             handler.onIndex(key, value, error);
+        } finally {
+            if (++ready == total) {
+                future.complete(null);
+            }
+        }
+    }
+
+    void onControlValuesResult(FieldKey key, ResultType type, long start, long end, Table value, String error) {
+        Util.verify(ready < total);
+        try {
+            handler.onControlValues(key, type, start, end, value, error);
         } finally {
             if (++ready == total) {
                 future.complete(null);

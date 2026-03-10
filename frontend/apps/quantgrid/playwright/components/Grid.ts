@@ -2,6 +2,7 @@ import { expect, Page } from '@playwright/test';
 
 import { FieldMenuItem } from '../enums/FieldMenuItem';
 import { GridMenuItem } from '../enums/GridMenuItem';
+import { MenuType } from '../enums/MenuType';
 import { MoveDirection } from '../enums/MoveDirection';
 import { Table } from '../logic-entities/Table';
 import { WorkArea } from './abstractions/WorkArea';
@@ -53,7 +54,7 @@ export class Grid extends BaseComponent implements WorkArea {
     super(page);
     this.gridCellEditor = new Editor(
       page,
-      page.locator(this.gridCellEditorRootLocator)
+      page.locator(this.gridCellEditorRootLocator),
     );
   }
 
@@ -104,6 +105,10 @@ export class Grid extends BaseComponent implements WorkArea {
     );
   }
 
+  public async getCellDisplayValue(row: number, column: number) {
+    return await this.getCellTableText(row, column);
+  }
+
   public getCellEditor() {
     return this.gridCellEditor;
   }
@@ -120,7 +125,7 @@ export class Grid extends BaseComponent implements WorkArea {
     rowStart: number,
     columnStrart: number,
     rowEnd: number,
-    columnEnd: number
+    columnEnd: number,
   ) {
     await this.innerPage
       .locator(this.gridCell(rowStart, columnStrart))
@@ -130,19 +135,19 @@ export class Grid extends BaseComponent implements WorkArea {
 
   public async expectSelectedRowToBe(row: number) {
     await expect(this.innerPage.locator(this.selectedRow).first()).toHaveText(
-      row.toString()
+      row.toString(),
     );
   }
 
   public async expectFieldToBeKey(row: number, column: number) {
     await expect(
-      this.innerPage.locator(this.gridKeyFieldCell(row, column))
+      this.innerPage.locator(this.gridKeyFieldCell(row, column)),
     ).toBeVisible();
   }
 
   public async expectFieldNotBeKey(row: number, column: number) {
     await expect(
-      this.innerPage.locator(this.gridKeyFieldCell(row, column))
+      this.innerPage.locator(this.gridKeyFieldCell(row, column)),
     ).toBeHidden();
   }
 
@@ -151,7 +156,7 @@ export class Grid extends BaseComponent implements WorkArea {
       .locator(this.gridCellTableContent(row, column))
       .click({ button: 'right' });
     await expect(
-      this.innerPage.getByText(FieldMenuItem.RemoveDimension, { exact: true })
+      this.innerPage.getByText(FieldMenuItem.RemoveDimension, { exact: true }),
     ).toBeVisible();
   }
 
@@ -160,13 +165,13 @@ export class Grid extends BaseComponent implements WorkArea {
       .locator(this.gridCellTableContent(row, column))
       .click({ button: 'right' });
     await expect(
-      this.innerPage.getByText(FieldMenuItem.MakeDimension, { exact: true })
+      this.innerPage.getByText(FieldMenuItem.MakeDimension, { exact: true }),
     ).toBeVisible();
   }
 
   public async expectSelectedColumnToBe(column: number) {
     await expect(
-      this.innerPage.locator(this.selectedColumn).first()
+      this.innerPage.locator(this.selectedColumn).first(),
     ).toHaveText(column.toString());
   }
 
@@ -178,23 +183,23 @@ export class Grid extends BaseComponent implements WorkArea {
 
   public async verifyGridDimensionsEqualsTo(
     expectedRows: number,
-    expectedColumns: number
+    expectedColumns: number,
   ) {
     await expect(
-      this.innerPage.locator(this.gridHorizontalCellHeaderPlaceholder)
+      this.innerPage.locator(this.gridHorizontalCellHeaderPlaceholder),
     ).toHaveCount(expectedColumns);
 
     await this.clickOnCell(1, 1);
     await this.innerPage.keyboard.press('Control+ArrowDown');
     await expect(
-      this.innerPage.locator(this.gridVerticalCellsHeaders).last()
+      this.innerPage.locator(this.gridVerticalCellsHeaders).last(),
     ).toContainText((expectedRows + 1).toString());
   }
 
   public async performMenuAction(
     row: number,
     column: number,
-    actionText: string
+    actionText: string,
   ) {
     await this.innerPage.locator(this.gridCellTableHeader(row, column)).hover();
     await this.innerPage.locator(this.gridCellTableMenu(row, column)).click();
@@ -203,7 +208,7 @@ export class Grid extends BaseComponent implements WorkArea {
 
   public async waitForComponentLoaded() {
     await expect(
-      this.innerPage.locator(this.gridHorizontalHeaders)
+      this.innerPage.locator(this.gridHorizontalHeaders),
     ).toBeVisible();
     await expect(this.innerPage.locator(this.gridData)).toBeVisible();
   }
@@ -221,34 +226,54 @@ export class Grid extends BaseComponent implements WorkArea {
   public async performCellAction(
     row: number,
     column: number,
-    actionText: string
+    menuType: MenuType,
+    actionText: string,
   ) {
     await this.innerPage
       .locator(this.gridCellTableContent(row, column))
       .click({ button: 'right' });
-    await this.innerPage.getByText(actionText, { exact: true }).click();
+    const dataQa = `${menuType}-${actionText}`;
+    await this.innerPage.locator(`[data-qa="${dataQa}"]`).click();
   }
 
   public async performCellSubAction(
     row: number,
     column: number,
+    menuType: MenuType,
     groupText: string,
-    actionText: string
+    actionText: string,
   ) {
     await this.innerPage
       .locator(this.gridCellTableContent(row, column))
       .click({ button: 'right' });
-    await this.innerPage.getByText(groupText, { exact: true }).hover();
-    await this.innerPage.getByText(actionText, { exact: true }).click();
+    const groupDataQa = `${menuType}-${groupText}`;
+    await this.innerPage.locator(`[data-qa="${groupDataQa}"]`).hover();
+    const dataQa = `${menuType}-${groupText}-${actionText}`;
+    await this.innerPage.locator(`[data-qa="${dataQa}"]`).click();
+  }
+
+  public async hoverCellMenuAction(
+    row: number,
+    column: number,
+    menuType: MenuType,
+    groupText: string,
+  ) {
+    await this.innerPage
+      .locator(this.gridCellTableContent(row, column))
+      .click({ button: 'right' });
+    const dataQa = `${menuType}-${groupText}`;
+    const item = this.innerPage.locator(`[data-qa="${dataQa}"]`);
+    await expect(item).toBeVisible();
+    await item.hover();
   }
 
   public async expectCellTextChange(
     row: number,
     column: number,
-    newCellText: string
+    newCellText: string,
   ) {
     await expect(
-      this.innerPage.locator(this.gridCellTableContent(row, column))
+      this.innerPage.locator(this.gridCellTableContent(row, column)),
     ).toHaveText(newCellText);
   }
 
@@ -266,46 +291,46 @@ export class Grid extends BaseComponent implements WorkArea {
 
   public async expectTableToDissapear(row: number, column: number) {
     await expect(
-      this.innerPage.locator(this.gridCellTableContent(row, column))
+      this.innerPage.locator(this.gridCellTableContent(row, column)),
     ).toBeHidden();
   }
 
   public async expectTableToAppear(row: number, column: number) {
     await expect(
-      this.innerPage.locator(this.gridCellTableContent(row, column))
+      this.innerPage.locator(this.gridCellTableContent(row, column)),
     ).toBeVisible();
   }
 
   public async expectTableHeaderToDissapear(row: number, column: number) {
     await expect(
-      this.innerPage.locator(this.gridCellTableHeader(row, column))
+      this.innerPage.locator(this.gridCellTableHeader(row, column)),
     ).toBeHidden();
   }
 
   public async expectCellToBeDim(row: number, column: number) {
     await expect(
-      this.innerPage.locator(this.gridCellTableContent(row, column))
+      this.innerPage.locator(this.gridCellTableContent(row, column)),
     ).toBeVisible();
     await expect(
-      this.innerPage.locator(this.collapsedDimension(row, column))
+      this.innerPage.locator(this.collapsedDimension(row, column)),
     ).toBeVisible();
   }
 
   public async expectCellToNotBeDim(row: number, column: number) {
     await expect(
-      this.innerPage.locator(this.collapsedDimension(row, column))
+      this.innerPage.locator(this.collapsedDimension(row, column)),
     ).toBeHidden();
   }
 
   public async expectTableHeaderToAppear(row: number, column: number) {
     await expect(
-      this.innerPage.locator(this.gridCellTableHeader(row, column))
+      this.innerPage.locator(this.gridCellTableHeader(row, column)),
     ).toBeVisible();
   }
 
   public async expectFieldHeaderToAppear(row: number, column: number) {
     await expect(
-      this.innerPage.locator(this.gridFieldHeaderCell(row, column))
+      this.innerPage.locator(this.gridFieldHeaderCell(row, column)),
     ).toBeVisible();
   }
 
@@ -317,7 +342,7 @@ export class Grid extends BaseComponent implements WorkArea {
     await this.performMenuAction(
       table.getTop(),
       table.getLeft(),
-      GridMenuItem.Move
+      GridMenuItem.Move,
     );
     await this.expectMoveSelectionToBeVisible();
     await this.moveCurrentTable(direction);
@@ -346,12 +371,12 @@ export class Grid extends BaseComponent implements WorkArea {
     initialRow: number,
     initialColumn: number,
     text: string,
-    direction: MoveDirection
+    direction: MoveDirection,
   ) {
     await expect(
       this.innerPage.locator(
-        this.gridCellTableHeader(initialRow, initialColumn)
-      )
+        this.gridCellTableHeader(initialRow, initialColumn),
+      ),
     ).toBeHidden();
     let newRow = initialRow,
       newColumn = initialColumn;
@@ -370,11 +395,34 @@ export class Grid extends BaseComponent implements WorkArea {
         break;
     }
     await expect(
-      this.innerPage.locator(this.gridCellTableHeader(newRow, newColumn))
+      this.innerPage.locator(this.gridCellTableHeader(newRow, newColumn)),
     ).toHaveText(text);
   }
 
   public async expectContextMenuVisible() {
     await expect(this.innerPage.locator(this.contextMenu)).toBeVisible();
+  }
+
+  public async performMenuSubAction(
+    row: number,
+    column: number,
+    groupText: string,
+    actionText: string,
+  ) {
+    // This method is used for table header menus in Grid
+    await this.performCellSubAction(
+      row,
+      column,
+      MenuType.TableHeader,
+      groupText,
+      actionText,
+    );
+  }
+
+  public async expectVisualizationToAppear(row: number, column: number) {
+    // Implementation for Grid visualization appearance check
+    await this.innerPage
+      .locator(this.gridCell(row, column))
+      .waitFor({ state: 'visible' });
   }
 }

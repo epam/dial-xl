@@ -5,9 +5,7 @@ import remarkGfm from 'remark-gfm';
 
 const MemoizedReactMarkdown: FC<Options> = memo(
   ReactMarkdown,
-  (prevProps, nextProps) =>
-    prevProps.children === nextProps.children &&
-    prevProps.className === nextProps.className
+  (prevProps, nextProps) => prevProps.children === nextProps.children,
 );
 
 const LinkRenderer = (props: any) => {
@@ -25,12 +23,13 @@ interface Props {
 
 export const Markdown = ({ content, className }: Props) => {
   return (
-    <MemoizedReactMarkdown
-      className={classNames(className)}
-      components={{ a: LinkRenderer }}
-      remarkPlugins={[remarkGfm]}
-    >
-      {content}
-    </MemoizedReactMarkdown>
+    <div className={classNames(className)}>
+      <MemoizedReactMarkdown
+        components={{ a: LinkRenderer }}
+        remarkPlugins={[remarkGfm]}
+      >
+        {content}
+      </MemoizedReactMarkdown>
+    </div>
   );
 };

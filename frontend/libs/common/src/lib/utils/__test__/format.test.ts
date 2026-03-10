@@ -6,7 +6,11 @@ import {
   PercentageFormatArgs,
   ScientificFormatArgs,
 } from '../../services';
-import { formatValue } from '../format';
+import {
+  excelDateToJsMilliseconds,
+  formatValue,
+  jsMillisecondsToExcelDate,
+} from '../format';
 
 describe('formatValue', () => {
   it('should return same value as passed if passed value not parseable to float', () => {
@@ -2735,5 +2739,41 @@ describe('formatValue', () => {
         expect(displayValue).toEqual(expectedValue);
       });
     });
+  });
+});
+
+describe('excelDateToJsMilliseconds', () => {
+  it('should convert Excel serial 25569 (Jan 1, 1970) to 0 ms', () => {
+    expect(excelDateToJsMilliseconds(25569)).toBe(0);
+  });
+
+  it('should convert Excel serial to correct milliseconds for known dates', () => {
+    // Dec 31, 1899 = Excel serial 1 (one day after epoch Dec 30, 1899)
+    const msPerDay = 24 * 60 * 60 * 1000;
+    expect(excelDateToJsMilliseconds(1)).toBe(-25568 * msPerDay);
+  });
+
+  it('should round-trip with jsMillisecondsToExcelDate', () => {
+    const excelDate = 37621.2525;
+    const ms = excelDateToJsMilliseconds(excelDate);
+    expect(jsMillisecondsToExcelDate(ms)).toBe(excelDate);
+  });
+});
+
+describe('jsMillisecondsToExcelDate', () => {
+  it('should convert 0 ms to Excel serial 25569 (Jan 1, 1970)', () => {
+    expect(jsMillisecondsToExcelDate(0)).toBe(25569);
+  });
+
+  it('should convert milliseconds to correct Excel serial for known dates', () => {
+    const msPerDay = 24 * 60 * 60 * 1000;
+    // One day before Unix epoch
+    expect(jsMillisecondsToExcelDate(-msPerDay)).toBe(25568);
+  });
+
+  it('should round-trip with excelDateToJsMilliseconds', () => {
+    const ms = 1772036015000;
+    const excelDate = jsMillisecondsToExcelDate(ms);
+    expect(excelDateToJsMilliseconds(excelDate)).toBe(ms);
   });
 });

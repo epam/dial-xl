@@ -1,18 +1,18 @@
 import { EChartsOption } from 'echarts';
 
-import { ChartsData } from '@frontend/common';
+import { ChartsData, GridChart } from '@frontend/common';
 
-import { ChartConfig } from '../../types';
+import { buildLayout } from '../buildLayout';
 import { GetOptionProps, OrganizedData } from '../chartRegistry';
 import { addLineBreaks, getThemeColors, sortNumericOrText } from '../common';
 
 export function organizeHeatMapChartData(
   chartData: ChartsData,
-  chartConfig: ChartConfig
+  gridChart: GridChart,
 ): OrganizedData | undefined {
-  const data = chartData[chartConfig.tableName];
-  const { gridChart } = chartConfig;
-  const { chartSections, chartOrientation } = gridChart;
+  const { chartSections, chartOrientation, showVisualMap, tableName } =
+    gridChart;
+  const data = chartData[tableName];
 
   if (
     !data ||
@@ -35,7 +35,7 @@ export function organizeHeatMapChartData(
     xAxisFieldName && Array.isArray(data[xAxisFieldName]?.rawValues)
       ? (data[xAxisFieldName].rawValues as string[])
       : Array.from({ length: firstFieldData.length }, (_, i) =>
-          (i + 1).toString()
+          (i + 1).toString(),
         );
 
   const rowLabelsDisplay: string[] | undefined =
@@ -57,7 +57,7 @@ export function organizeHeatMapChartData(
   if (chartOrientation === 'vertical') {
     xAxisData = addLineBreaks([...valueFieldNames]);
     yAxisData = addLineBreaks(
-      rowLabels.map((raw) => xDisplayByRaw.get(raw) ?? raw)
+      rowLabels.map((raw) => xDisplayByRaw.get(raw) ?? raw),
     );
 
     for (let rowIdx = 0; rowIdx < rowLabels.length; rowIdx++) {
@@ -71,7 +71,7 @@ export function organizeHeatMapChartData(
   } else {
     const sortedRowLabels = sortNumericOrText(rowLabels);
     xAxisData = addLineBreaks(
-      sortedRowLabels.map((raw) => xDisplayByRaw.get(raw) ?? raw)
+      sortedRowLabels.map((raw) => xDisplayByRaw.get(raw) ?? raw),
     );
     yAxisData = [...valueFieldNames];
 
@@ -89,7 +89,13 @@ export function organizeHeatMapChartData(
 
   const visualMapMax = Math.max(...seriesData.map(([, , value]) => value ?? 0));
 
-  return { xAxisData, yAxisData, seriesData, visualMapMax };
+  return {
+    xAxisData,
+    yAxisData,
+    seriesData,
+    showVisualMap,
+    visualMapMax,
+  };
 }
 
 export function getHeatMapChartOption({
@@ -97,24 +103,30 @@ export function getHeatMapChartOption({
   xAxisData,
   yAxisData,
   visualMapMax,
+  showVisualMap,
   zoom,
   theme,
 }: GetOptionProps): EChartsOption {
-  function getValue(value: number) {
+  function z(value: number) {
     return value * zoom;
   }
 
-  const fontSize = getValue(12);
+  const fontSize = z(12);
   const { textColor, borderColor, bgColor } = getThemeColors(theme);
 
+  const layout = buildLayout({
+    zoom,
+    textColor,
+    legendPosition: 'bottom',
+    showVisualMap: !!showVisualMap,
+  });
+
   return {
+    textStyle: {
+      ...layout.textStyle,
+    },
     grid: {
-      borderColor: '#ccc',
-      left: getValue(20),
-      top: getValue(30),
-      right: getValue(20),
-      bottom: getValue(50),
-      containLabel: true,
+      ...layout.grid,
     },
     xAxis: {
       type: 'category',
@@ -125,6 +137,9 @@ export function getHeatMapChartOption({
       axisLabel: {
         color: textColor,
         fontSize,
+      },
+      axisTick: {
+        alignWithLabel: true,
       },
     },
     yAxis: {
@@ -144,13 +159,14 @@ export function getHeatMapChartOption({
       },
     },
     visualMap: {
+      show: !!showVisualMap,
       min: 0,
       max: visualMapMax || 0,
       calculable: true,
       orient: 'horizontal',
       left: 'center',
-      height: getValue(20),
-      bottom: getValue(2),
+      height: z(20),
+      bottom: z(10),
       dimension: 2,
     },
     series: [
@@ -161,7 +177,7 @@ export function getHeatMapChartOption({
         label: {
           show: true,
           fontSize,
-          width: getValue(50),
+          width: z(50),
           overflow: 'truncate',
           formatter: (p: any) => p.data?.[3] ?? p.data?.[2],
         },

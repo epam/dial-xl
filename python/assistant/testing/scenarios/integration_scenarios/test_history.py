@@ -6,10 +6,9 @@ from dial_xl.table import Table
 from quantgrid.utils.dial import DIALApi
 from quantgrid_1.models.config_parameters import ConfigParametersDTO
 from quantgrid_1.models.generation_parameters import GenerationParameters
-from quantgrid_1.models.question import Question
 from quantgrid_1.models.question_status import QuestionStatus
+from testing.exceptions import MatchError
 from testing.framework import AddFieldOrTable, FrameProject, Text
-from testing.framework.exceptions import MatchError
 from testing.framework.testing_utils import field_code_regex, find_unsorted
 
 MANUAL_INDICATORS = """
@@ -114,15 +113,12 @@ async def test_summarized_question(api: DIALApi, basic_project: FrameProject):
     if "gdp" not in question and "gross domestic product" not in question:
         raise MatchError("Can't found 'gdp' or 'gross domestic product' in question")
 
-    question_file = basic_project.get_queries()[-1].standalone_question_file
-    assert question_file is not None
+    question_json = basic_project.get_queries()[-1].standalone_question_json
+    assert question_json is not None
 
-    question_json = await api.get_file(question_file)
-    question_model = Question.model_validate_json(question_json)
-
-    question = question_model.question.lower()
+    question = question_json.question.lower()
     if "gdp" not in question and "gross domestic product" not in question:
         raise MatchError("Can't found 'gdp' or 'gross domestic product' in question")
 
-    if len(question_model.history) != 4:
+    if len(question_json.history) != 4:
         raise MatchError("Unexpected history length in question chat history")

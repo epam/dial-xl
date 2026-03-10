@@ -1,4 +1,5 @@
-import { useCallback, useContext, useEffect } from 'react';
+import { useCallback, useEffect } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 
 import { isCellEditorHasFocus } from '@frontend/canvas-spreadsheet';
 import {
@@ -7,7 +8,7 @@ import {
   isProjectTreeTarget,
 } from '@frontend/common';
 
-import { AppContext } from '../context';
+import { useEditorStore } from '../store';
 import { useGridApi } from './useGridApi';
 
 /*
@@ -19,7 +20,12 @@ import { useGridApi } from './useGridApi';
  *  4. dropdown for formulas list
  */
 export function usePointClickClickWatcher() {
-  const { isPointClickMode, switchPointClickMode } = useContext(AppContext);
+  const { isPointClickMode, switchPointClickMode } = useEditorStore(
+    useShallow((s) => ({
+      isPointClickMode: s.isPointClickMode,
+      switchPointClickMode: s.switchPointClickMode,
+    })),
+  );
   const gridApi = useGridApi();
 
   const handleDocumentClick = useCallback(
@@ -33,7 +39,7 @@ export function usePointClickClickWatcher() {
           .toString()
           .includes('ant-dropdown');
       const isFormulasMenuTriggerer = !!targetElement.closest(
-        '.' + formulaBarMenuClass
+        '.' + formulaBarMenuClass,
       );
 
       if (
@@ -50,7 +56,7 @@ export function usePointClickClickWatcher() {
       switchPointClickMode(false);
       gridApi?.hideCellEditor();
     },
-    [gridApi, isPointClickMode, switchPointClickMode]
+    [gridApi, isPointClickMode, switchPointClickMode],
   );
 
   useEffect(() => {

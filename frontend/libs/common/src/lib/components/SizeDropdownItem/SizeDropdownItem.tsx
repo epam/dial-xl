@@ -22,7 +22,7 @@ export const SizeDropdownItem = ({
       e.preventDefault();
       e.stopPropagation();
     },
-    []
+    [],
   );
 
   const handleKeyDown = useCallback(
@@ -31,7 +31,7 @@ export const SizeDropdownItem = ({
         onCreateTable(hoveredCell.col, hoveredCell.row);
       }
     },
-    [hoveredCell.col, hoveredCell.row, onCreateTable]
+    [hoveredCell.col, hoveredCell.row, onCreateTable],
   );
 
   const handleInputChange = useCallback(
@@ -53,7 +53,7 @@ export const SizeDropdownItem = ({
         }
       }
     },
-    [hoveredCell]
+    [hoveredCell],
   );
 
   useEffect(() => {
@@ -64,14 +64,15 @@ export const SizeDropdownItem = ({
   return (
     <div
       className={classNames(
-        'flex flex-col justify-between items-center py-2 px-3'
+        'flex flex-col justify-between items-center py-2 px-3',
       )}
     >
       {iterable.map((_, rowIndex) => (
-        <div className="flex">
+        <div className="flex" key={`row-${rowIndex}`}>
           {iterable.map((_, colIndex) => (
             <div
               className="p-1"
+              key={`col-${colIndex}`}
               onClick={() => {
                 onCreateTable(colIndex + 1, rowIndex + 1);
               }}
@@ -85,7 +86,7 @@ export const SizeDropdownItem = ({
                   hoveredCell &&
                     hoveredCell?.col > colIndex &&
                     hoveredCell?.row > rowIndex &&
-                    'border-stroke-accent-secondary/70 bg-bg-accent-secondary'
+                    'border-stroke-accent-secondary/70 bg-bg-accent-secondary',
                 )}
               ></div>
             </div>

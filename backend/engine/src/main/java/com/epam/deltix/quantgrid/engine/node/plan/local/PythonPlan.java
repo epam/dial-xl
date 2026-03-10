@@ -80,6 +80,7 @@ public class PythonPlan extends PlanN<Table, Table> {
         }
 
         Table layout = tables.get(0);
-        return PythonExec.execute(code, name, type, nested, scalar, layout, simples, nests, 64);
+        int batch = nestedPositions.length == 0 ? 64 : 1;
+        return PythonExec.execute(code, name, type, nested, scalar, layout, simples, nests, batch);
     }
 }

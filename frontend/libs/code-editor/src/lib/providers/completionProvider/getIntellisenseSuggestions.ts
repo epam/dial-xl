@@ -94,7 +94,7 @@ const sortSuggestions = ({
           })),
           functions
             .filter((func) =>
-              mostUsedFunctionNames.includes(func.label.toString())
+              mostUsedFunctionNames.includes(func.label.toString()),
             )
             .map((val) => ({
               ...val,
@@ -118,7 +118,7 @@ const sortSuggestions = ({
       .filter(
         (func) =>
           !isProbableDisplaying ||
-          !mostUsedFunctionNames.includes(func.label.toString())
+          !mostUsedFunctionNames.includes(func.label.toString()),
       )
       .map((val) => ({
         ...val,
@@ -159,7 +159,8 @@ export function getCodeEditorIntellisenseSuggestions({
   const lineTokens = getTokens(model.getLineContent(position.lineNumber));
   const currentToken = lineTokens.find(
     (token) =>
-      token.start + 1 < position.column && token.stop + 1 >= position.column - 1
+      token.start + 1 < position.column &&
+      token.stop + 1 >= position.column - 1,
   );
 
   try {
@@ -175,13 +176,13 @@ export function getCodeEditorIntellisenseSuggestions({
     model,
     position,
     context,
-    currentWord
+    currentWord,
   );
 
   const wordOffset =
     currentWord &&
     model.getOffsetAt(
-      new Position(position.lineNumber, currentWord.endColumn)
+      new Position(position.lineNumber, currentWord.endColumn),
     ) - 1;
 
   const currentTable = getTableAtPosition(parsedSheet, position.lineNumber);
@@ -190,7 +191,7 @@ export function getCodeEditorIntellisenseSuggestions({
     currentTable,
     tokens,
     wordOffset,
-    caretOffset
+    caretOffset,
   );
 
   const currentExpressionTable = getCurrentExpressionTable(
@@ -200,11 +201,11 @@ export function getCodeEditorIntellisenseSuggestions({
     parsedSheets,
     tokens,
     caretOffset,
-    position.lineNumber
+    position.lineNumber,
   );
   const currentExpressionField = getCurrentExpressionField(
     tokens,
-    currentExpressionTable
+    currentExpressionTable,
   );
 
   const resultTables = currentField
@@ -266,22 +267,23 @@ export function getInlineIntellisenseSuggestions({
   const tokens = getTokens(model.getLineContent(position.lineNumber));
   const currentToken = tokens.find(
     (token) =>
-      token.start + 1 < position.column && token.stop + 1 >= position.column - 1
+      token.start + 1 < position.column &&
+      token.stop + 1 >= position.column - 1,
   );
   const previousCharacter = getPreviousCharacter(
     model,
     position,
     context,
-    currentWord
+    currentWord,
   );
 
   const currentExpressionTable = getCurrentInlineExpressionTable(
     tokens,
-    parsedSheets
+    parsedSheets,
   );
   const currentExpressionField = getCurrentExpressionField(
     tokens,
-    currentExpressionTable
+    currentExpressionTable,
   );
 
   let currentTable: ParsedTable | null = null;
@@ -289,7 +291,7 @@ export function getInlineIntellisenseSuggestions({
   if (currentTableName) {
     for (const sheet of Object.values(parsedSheets)) {
       const table = sheet.tables.find((t) =>
-        compareTableNames(t.tableName, currentTableName)
+        compareTableNames(t.tableName, currentTableName),
       );
 
       if (table) {
@@ -302,7 +304,7 @@ export function getInlineIntellisenseSuggestions({
   const resultFunctions = getFunctionsSuggestions(
     previousCharacter,
     model.id,
-    functions
+    functions,
   );
   const resultTables = getAllTables({
     model,

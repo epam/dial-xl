@@ -1,29 +1,23 @@
 import Icon from '@ant-design/icons';
 import {
-  chartItems,
-  ChartPlusIcon,
-  CommonMetadata,
   FieldPlusIcon,
-  FunctionInfo,
-  getDropdownDivider,
   getDropdownItem,
   getDropdownMenuKey,
-  getFormulasMenuItems,
-  InsertChartContextMenuKeyData,
   isFeatureFlagEnabled,
   RowPlusIcon,
 } from '@frontend/common';
-import { ParsedSheets } from '@frontend/parser';
 
 import { GridCell } from '../../../../types';
 import { spreadsheetMenuKeys as menuKey } from '../config';
 import { ContextMenuKeyData } from '../types';
 import { askAIItem } from './commonItem';
 
+const addRowColumnMenuPath = ['AddRowColumnMenu'];
+
 export const getEmptyCellMenuItems = (
   col: number,
   row: number,
-  contextCell: GridCell
+  contextCell: GridCell,
 ) => {
   const { table } = contextCell;
 
@@ -33,9 +27,13 @@ export const getEmptyCellMenuItems = (
   const isShowAIPrompt = isFeatureFlagEnabled('askAI');
 
   return [
-    isShowAIPrompt ? askAIItem(col, row) : null,
+    isShowAIPrompt ? askAIItem(col, row, addRowColumnMenuPath) : null,
     getDropdownItem({
       label: isTableHorizontal ? 'Add row' : 'Add column',
+      fullPath: [
+        ...addRowColumnMenuPath,
+        isTableHorizontal ? 'AddRow' : 'AddColumn',
+      ],
       key: getDropdownMenuKey<ContextMenuKeyData>(menuKey.addFieldOrRow, {
         col,
         row,
@@ -52,66 +50,6 @@ export const getEmptyCellMenuItems = (
           }
         />
       ),
-    }),
-  ];
-};
-
-export const getEmptyCellWithoutContextMenuItem = (
-  functions: FunctionInfo[],
-  parsedSheets: ParsedSheets,
-  inputFiles: CommonMetadata[] | null,
-  onCreateTable: (cols: number, rows: number) => void,
-  col: number,
-  row: number
-) => {
-  const isShowAIPrompt = isFeatureFlagEnabled('askAI');
-
-  const tableNames = Object.values(parsedSheets)
-    .flatMap((sheet) => sheet.tables.map((t) => t.tableName))
-    .sort();
-
-  return [
-    isShowAIPrompt ? askAIItem(col, row) : null,
-    isShowAIPrompt ? getDropdownDivider() : null,
-    ...getFormulasMenuItems(
-      functions,
-      tableNames,
-      inputFiles,
-      onCreateTable,
-      false
-    ),
-    getDropdownItem({
-      label: 'Create Chart',
-      key: 'CreateChart',
-      icon: (
-        <Icon
-          className="text-text-secondary w-[18px]"
-          component={() => (
-            <ChartPlusIcon secondaryAccentCssVar="text-accent-tertiary" />
-          )}
-        />
-      ),
-      children: [
-        ...chartItems.map((item) => {
-          return getDropdownItem({
-            label: item.label,
-            key: getDropdownMenuKey<InsertChartContextMenuKeyData>(
-              menuKey.insertChart,
-              {
-                col,
-                row,
-                chartType: item.type,
-              }
-            ),
-            icon: (
-              <Icon
-                className="text-text-secondary w-[18px]"
-                component={() => item.icon}
-              />
-            ),
-          });
-        }),
-      ],
     }),
   ];
 };

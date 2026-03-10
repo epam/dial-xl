@@ -1,13 +1,36 @@
 import { GridFilterType } from '@frontend/common';
-import { escapeValue, FilterOperator } from '@frontend/parser';
+import {
+  escapeValue,
+  FilterOperator,
+  naExpression,
+  naValue,
+} from '@frontend/parser';
+
+const getConditionOperatorExpression = (
+  fieldName: string,
+  operator: string,
+  value: string | string[] | null,
+) => {
+  return `[${fieldName}] ${operator} ${value}`;
+};
 
 export function createConditionFilterExpression(
   fieldName: string,
   operator: string,
   filterType: GridFilterType,
-  value: string | string[] | null
+  value: string | string[] | null,
 ): string | null {
   if (!value) return null;
+
+  const fullFieldName = `[${fieldName}]`;
+  const isNa = (v: string) => v === naValue || v === naExpression;
+  const isAnyValueNa = !Array.isArray(value) ? isNa(value) : value.some(isNa);
+
+  if (isAnyValueNa && !Array.isArray(value)) {
+    return operator === FilterOperator.Equals
+      ? `IF(ISNA(${fullFieldName}), TRUE, FALSE)`
+      : `IF(ISNA(${fullFieldName}), FALSE, TRUE)`;
+  }
 
   const isBetweenOperator = operator === FilterOperator.Between;
 
@@ -18,13 +41,13 @@ export function createConditionFilterExpression(
       return `BETWEEN([${fieldName}],${value1},${value2})`;
     } else if (filterType === 'text') {
       return `BETWEEN([${fieldName}],"${escapeValue(value1)}","${escapeValue(
-        value2
+        value2,
       )}")`;
     }
   }
 
   if (filterType === 'numeric') {
-    return `[${fieldName}] ${operator} ${value}`;
+    return getConditionOperatorExpression(fieldName, operator, value);
   }
 
   if (filterType === 'text') {
@@ -39,7 +62,7 @@ export function createConditionFilterExpression(
       case FilterOperator.NotContains:
         return `NOT CONTAINS([${fieldName}],${escapedValue})`;
       default:
-        return `[${fieldName}] ${operator} ${escapedValue}`;
+        return getConditionOperatorExpression(fieldName, operator, value);
     }
   }
 

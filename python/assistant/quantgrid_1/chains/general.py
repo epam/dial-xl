@@ -3,14 +3,21 @@ from time import time
 from aidial_sdk import HTTPException
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.runnables import Runnable, RunnableLambda
-from openai import RateLimitError
+from openai import InternalServerError, RateLimitError
 
 from quantgrid_1.chains.parameters import ChainParameters
 from quantgrid_1.log_config import qg_logger as logger
 from quantgrid_1.prompts import GENERAL_QUESTION
 from quantgrid_1.utils.create_exception_stage import create_exception_stage
-from quantgrid_1.utils.stages import append_duration
-from quantgrid_1.utils.stream_content import get_token_error, stream_content
+from quantgrid_1.utils.stages import append_duration, append_token_info
+from quantgrid_1.utils.stream_content import (
+    delay_retry,
+    get_rate_error,
+    get_token_error,
+    stream_content,
+)
+
+ATTEMPTS = 3
 
 
 async def general(inputs: dict) -> dict:
@@ -25,24 +32,35 @@ async def general(inputs: dict) -> dict:
     start_time = time()
 
     with choice.create_stage("General") as stage:
-        for retry in range(3):
+        for retry in range(ATTEMPTS):
 
             try:
                 iterator = ChainParameters.get_main_model(inputs).astream(
                     input=history.messages
                 )
 
-                total_content, total_output_tokens = await stream_content(
+                total_content, input_tokens, output_tokens = await stream_content(
                     iterator, choice
                 )
-                stage.add_attachment(
-                    title="summary_output_tokens", data=str(total_output_tokens)
+
+                append_token_info(
+                    stage,
+                    input_token_count=input_tokens,
+                    output_token_count=output_tokens,
                 )
+
+                stage.add_attachment(
+                    title="summary_output_tokens", data=str(output_tokens)
+                )
+
                 state.actions_history.append(total_content)
                 break
 
             except RateLimitError as error:
                 raise get_token_error(error)
+            except InternalServerError as error:
+                await delay_retry(retry, ATTEMPTS, 30)
+                raise get_rate_error(error)
             except Exception as exception:
                 create_exception_stage(choice, exception)
                 logger.exception(exception)

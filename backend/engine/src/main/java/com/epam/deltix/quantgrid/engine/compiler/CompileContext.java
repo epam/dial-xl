@@ -15,6 +15,8 @@ import com.epam.deltix.quantgrid.engine.node.expression.RowNumber;
 import com.epam.deltix.quantgrid.engine.node.plan.Plan;
 import com.epam.deltix.quantgrid.engine.node.plan.local.Projection;
 import com.epam.deltix.quantgrid.engine.node.plan.local.SelectLocal;
+import com.epam.deltix.quantgrid.engine.service.ai.AiProvider;
+import com.epam.deltix.quantgrid.engine.service.input.storage.ImportProvider;
 import com.epam.deltix.quantgrid.engine.service.input.storage.InputProvider;
 import com.epam.deltix.quantgrid.parser.FieldKey;
 import com.epam.deltix.quantgrid.parser.OverrideKey;
@@ -74,6 +76,10 @@ public class CompileContext {
         return compiler.computationId();
     }
 
+    public String project() {
+        return compiler.project();
+    }
+
     public CompiledTable layout() {
         CompileKey tableKey = CompileKey.tableKey(key.table());
         return compiler.compile(tableKey).cast(CompiledTable.class);
@@ -99,8 +105,8 @@ public class CompileContext {
     public CompiledTable currentTable(List<FieldKey> dimensions) {
         CompiledTable layout = layout(dimensions);
 
-        if (layout.scalar()) {
-            CompileUtil.verify(dimensions.isEmpty());
+        if (dimensions.isEmpty()) {
+            CompileUtil.verify(layout.scalar());
             return new CompiledReferenceTable(key.table(), layout.node(), dimensions, REF_NA, REF_NA, false);
         }
 
@@ -202,6 +208,15 @@ public class CompileContext {
     public boolean hasArgument(int index) {
         List<Formula> args = function().arguments();
         return index >= 0 && index < args.size() && !(args.get(index) instanceof Missing);
+    }
+
+    public long constIntegerArgument(int index, String error) {
+        Formula argument = argument(index);
+        CompileUtil.verify(argument instanceof ConstNumber, getErrorForArgument(index, error));
+        double number = ((ConstNumber) argument).number();
+        long integer = (long) number;
+        CompileUtil.verify(integer == number, getErrorForArgument(index, error));
+        return integer;
     }
 
     public String constStringArgument(int index) {
@@ -388,6 +403,14 @@ public class CompileContext {
 
     public InputProvider inputProvider() {
         return compiler.inputProvider();
+    }
+
+    public ImportProvider importProvider() {
+        return compiler.importProvider();
+    }
+
+    public AiProvider aiProvider() {
+        return compiler.aiProvider();
     }
 
     public Principal principal() {

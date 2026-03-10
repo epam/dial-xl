@@ -1,9 +1,14 @@
 import { editor } from '@frontend/code-editor';
+import { FontFamilies } from '@frontend/common';
+
+import { defaultGridSizes } from '../../constants';
 
 export const cellEditorOptions: editor.IStandaloneEditorConstructionOptions = {
+  fontFamily: FontFamilies.JetBrainsMonoLight,
   automaticLayout: true,
   revealHorizontalRightPadding: 0,
-  wordWrap: 'off',
+  wordWrap: 'on',
+  wrappingIndent: 'none',
   lineNumbers: 'off',
   lineNumbersMinChars: 0,
   overviewRulerLanes: 0,
@@ -13,10 +18,17 @@ export const cellEditorOptions: editor.IStandaloneEditorConstructionOptions = {
   glyphMargin: false,
   folding: false,
   scrollBeyondLastColumn: 0,
+  scrollBeyondLastLine: false,
   scrollbar: {
     horizontal: 'hidden',
     vertical: 'hidden',
     alwaysConsumeMouseWheel: false,
+    verticalScrollbarSize: 0,
+    horizontalScrollbarSize: 0,
+  },
+  guides: {
+    indentation: false,
+    highlightActiveIndentation: false,
   },
   find: {
     addExtraSpaceOnTop: false,
@@ -37,5 +49,5 @@ export const cellEditorOptions: editor.IStandaloneEditorConstructionOptions = {
   fixedOverflowWidgets: true,
 };
 
-export const baseFontSize = 14;
-export const baseLineHeight = 18;
+export const baseFontSize = defaultGridSizes.cell.fontSize;
+export const baseLineHeight = defaultGridSizes.cell.height;

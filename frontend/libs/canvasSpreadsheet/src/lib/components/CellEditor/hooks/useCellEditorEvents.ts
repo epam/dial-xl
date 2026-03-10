@@ -1,10 +1,10 @@
-import { RefObject, useCallback, useContext, useEffect } from 'react';
+import { Application } from 'pixi.js';
+import { useCallback, useContext, useEffect } from 'react';
 import { Subscription } from 'rxjs';
 
 import { FormulaBarMode, Shortcut, shortcutApi } from '@frontend/common';
-import { Application } from '@pixi/app';
 
-import { GridApi } from '../../../types';
+import { GridStateContext, GridViewportContext } from '../../../context';
 import {
   filterByTypeAndCast,
   getMousePosition,
@@ -35,11 +35,20 @@ import {
 
 type Props = {
   app: Application | null;
-  apiRef: RefObject<GridApi>;
   formulaBarMode: FormulaBarMode;
 };
 
-export function useCellEditorEvents({ app, apiRef, formulaBarMode }: Props) {
+export function useCellEditorEvents({ app, formulaBarMode }: Props) {
+  const {
+    gridSizes,
+    isPanModeEnabled,
+    getCell,
+    selectionEdges,
+    cellEditorEvent$,
+    canvasId,
+    canvasOptions,
+  } = useContext(GridStateContext);
+  const { getCellFromCoords } = useContext(GridViewportContext);
   const {
     editMode,
     isOpen,
@@ -90,27 +99,32 @@ export function useCellEditorEvents({ app, apiRef, formulaBarMode }: Props) {
 
       return !isOpen;
     },
-    [isOpen, editMode, restoreCellValue]
+    [isOpen, editMode, restoreCellValue],
   );
 
   const onDblClick = useCallback(
     (e: MouseEvent) => {
-      const mousePosition = getMousePosition(e);
-      if (!mousePosition || !apiRef.current) return;
+      const mousePosition = getMousePosition(e, canvasId);
+      if (!mousePosition) return;
 
-      const api = apiRef.current;
-      const { gridSizes, isPanModeEnabled } = api;
       if (
         !gridSizes ||
         isPanModeEnabled ||
-        !isClickInsideCanvas(mousePosition.x, mousePosition.y, gridSizes)
+        !isClickInsideCanvas(
+          mousePosition.x,
+          mousePosition.y,
+          canvasId,
+          gridSizes,
+        )
       )
         return;
 
       const { x, y } = mousePosition;
-      const { col: targetCol, row } = api.getCellFromCoords(x, y);
-      const cellData = api.getCell(targetCol, row);
+      const { col: targetCol, row } = getCellFromCoords(x, y);
+      const cellData = getCell(targetCol, row);
       let col = targetCol;
+
+      if (cellData?.table?.chartType) return;
 
       if (cellData && cellData.startCol !== cellData.endCol) {
         col = cellData.startCol;
@@ -125,7 +139,7 @@ export function useCellEditorEvents({ app, apiRef, formulaBarMode }: Props) {
         isAddTotal,
         isEditTotal,
         hasOtherOverrides,
-      } = getCellContextParams(api, cellData);
+      } = getCellContextParams(cellData);
 
       displayCellEditor(col, row, {
         isEditExpressionShortcut: true,
@@ -137,20 +151,24 @@ export function useCellEditorEvents({ app, apiRef, formulaBarMode }: Props) {
         hasOtherOverrides,
       });
     },
-    [apiRef, displayCellEditor, setCurrentCell]
+    [
+      canvasId,
+      displayCellEditor,
+      getCell,
+      getCellFromCoords,
+      gridSizes,
+      isPanModeEnabled,
+      setCurrentCell,
+    ],
   );
 
   const onKeydown = useCallback(
     (event: KeyboardEvent) => {
       const isCellEditorEvent = isCellEditorFocused();
-      const isEventRelevant = isCanvasEvent(event) || isCellEditorEvent;
+      const isEventRelevant =
+        isCanvasEvent(event, canvasOptions) || isCellEditorEvent;
 
-      if (
-        !isEventRelevant ||
-        !canSwitchEditMode(event) ||
-        !apiRef.current ||
-        apiRef.current.isPanModeEnabled
-      ) {
+      if (!isEventRelevant || !canSwitchEditMode(event) || isPanModeEnabled) {
         return;
       }
 
@@ -164,7 +182,7 @@ export function useCellEditorEvents({ app, apiRef, formulaBarMode }: Props) {
       const isRenameShortcut = shortcutApi.is(Shortcut.Rename, event, false);
       const isEditExpressionShortcut = shortcutApi.is(
         Shortcut.EditExpression,
-        event
+        event,
       );
       const canOpenEditor = canOpenCellEditor(event);
 
@@ -172,8 +190,7 @@ export function useCellEditorEvents({ app, apiRef, formulaBarMode }: Props) {
         return;
       }
 
-      const api = apiRef.current;
-      const selection = api.selection$.getValue();
+      const selection = selectionEdges;
 
       if (!selection && !currentCell) return;
 
@@ -182,9 +199,9 @@ export function useCellEditorEvents({ app, apiRef, formulaBarMode }: Props) {
 
       if (startCol === undefined || startRow === undefined) return;
 
-      const newCurrentCell = api.getCell(startCol, startRow);
+      const newCurrentCell = getCell(startCol, startRow);
       const { isTableCell, isAddTotal, isEditTotal, hasOtherOverrides } =
-        getCellContextParams(api, newCurrentCell);
+        getCellContextParams(newCurrentCell);
 
       let realCodeValue = codeValue.current || undefined;
 
@@ -219,19 +236,22 @@ export function useCellEditorEvents({ app, apiRef, formulaBarMode }: Props) {
           isEditTotal,
           initialValue: initialValue ?? realCodeValue,
           hasOtherOverrides,
-        }
+        },
       );
     },
     [
-      apiRef,
+      canvasOptions,
       canSwitchEditMode,
       codeValue,
       currentCell,
       displayCellEditor,
       editMode,
+      getCell,
+      isPanModeEnabled,
       openedWithNextChar,
+      selectionEdges,
       setOpenedWithNextChar,
-    ]
+    ],
   );
 
   const openExplicitly = useCallback(
@@ -239,14 +259,11 @@ export function useCellEditorEvents({ app, apiRef, formulaBarMode }: Props) {
       col: number,
       row: number,
       value: string,
-      options?: CellEditorExplicitOpenOptions
+      options?: CellEditorExplicitOpenOptions,
     ) => {
-      if (!apiRef.current) return;
-
-      const api = apiRef.current;
-      const cell = api.getCell(col, row);
+      const cell = getCell(col, row);
       const { isTableCell, isAddTotal, isEditTotal, hasOtherOverrides } =
-        getCellContextParams(api, cell);
+        getCellContextParams(cell);
 
       if (!canOpenExplicitlyWithTarget(options, cell)) return;
 
@@ -266,13 +283,13 @@ export function useCellEditorEvents({ app, apiRef, formulaBarMode }: Props) {
       setCode.current?.(value);
     },
     [
-      apiRef,
       displayCellEditor,
       formulaBarMode,
+      getCell,
       setCode,
       setDimFieldName,
       setOpenedExplicitly,
-    ]
+    ],
   );
 
   const onInsertValue = useCallback(
@@ -310,20 +327,17 @@ export function useCellEditorEvents({ app, apiRef, formulaBarMode }: Props) {
         }, 0);
       }
     },
-    [codeEditor, codeValue, setCode, setFocus]
+    [codeEditor, codeValue, setCode, setFocus],
   );
 
   useEffect(() => {
-    if (!apiRef.current) return;
-
-    const api = apiRef.current;
     const subscriptions: Subscription[] = [];
 
     const subscribeToCellEditorEvent = <T extends GridCellEditorEvent>(
       eventType: GridCellEditorEventType,
-      handler: (event: T) => void
+      handler: (event: T) => void,
     ) => {
-      return api.cellEditorEvent$
+      return cellEditorEvent$.current
         .pipe(filterByTypeAndCast<T>(eventType))
         .subscribe(handler);
     };
@@ -336,17 +350,17 @@ export function useCellEditorEvents({ app, apiRef, formulaBarMode }: Props) {
             isEditExpressionShortcut: false,
             isRenameShortcut: true,
           });
-        }
-      )
+        },
+      ),
     );
 
     subscriptions.push(
       subscribeToCellEditorEvent<GridCellEditorEventEdit>(
         GridCellEditorEventType.Edit,
         ({ col, row }) => {
-          const cell = api.getCell?.(col, row);
+          const cell = getCell(col, row);
           const { isEditTotal, isAddTotal, hasOtherOverrides, isTableCell } =
-            getCellContextParams(api, cell);
+            getCellContextParams(cell);
 
           displayCellEditor(col, row, {
             isEditExpressionShortcut: true,
@@ -357,8 +371,8 @@ export function useCellEditorEvents({ app, apiRef, formulaBarMode }: Props) {
             isAddTotal,
             isEditTotal,
           });
-        }
-      )
+        },
+      ),
     );
 
     subscriptions.push(
@@ -368,8 +382,8 @@ export function useCellEditorEvents({ app, apiRef, formulaBarMode }: Props) {
           displayCellEditor(col, row, {
             isAddTotal: true,
           });
-        }
-      )
+        },
+      ),
     );
 
     subscriptions.push(
@@ -379,8 +393,8 @@ export function useCellEditorEvents({ app, apiRef, formulaBarMode }: Props) {
           displayCellEditor(col, row, {
             isEditTotal: true,
           });
-        }
-      )
+        },
+      ),
     );
 
     subscriptions.push(
@@ -388,8 +402,8 @@ export function useCellEditorEvents({ app, apiRef, formulaBarMode }: Props) {
         GridCellEditorEventType.OpenExplicitly,
         ({ col, row, value, options }) => {
           openExplicitly(col, row, value, options);
-        }
-      )
+        },
+      ),
     );
 
     subscriptions.push(
@@ -397,8 +411,8 @@ export function useCellEditorEvents({ app, apiRef, formulaBarMode }: Props) {
         GridCellEditorEventType.Hide,
         () => {
           hide();
-        }
-      )
+        },
+      ),
     );
 
     subscriptions.push(
@@ -406,8 +420,8 @@ export function useCellEditorEvents({ app, apiRef, formulaBarMode }: Props) {
         GridCellEditorEventType.InsertValue,
         ({ value, options }) => {
           onInsertValue(value, options);
-        }
-      )
+        },
+      ),
     );
 
     subscriptions.push(
@@ -416,8 +430,8 @@ export function useCellEditorEvents({ app, apiRef, formulaBarMode }: Props) {
         ({ value }) => {
           codeValue.current = value;
           setCode.current?.(value);
-        }
-      )
+        },
+      ),
     );
 
     subscriptions.push(
@@ -425,18 +439,19 @@ export function useCellEditorEvents({ app, apiRef, formulaBarMode }: Props) {
         GridCellEditorEventType.Focus,
         () => {
           setFocus.current?.();
-        }
-      )
+        },
+      ),
     );
 
     return () => {
       subscriptions.forEach((s) => s.unsubscribe());
     };
   }, [
-    apiRef,
+    cellEditorEvent$,
     codeEditor,
     codeValue,
     displayCellEditor,
+    getCell,
     hide,
     onInsertValue,
     openExplicitly,
@@ -445,14 +460,19 @@ export function useCellEditorEvents({ app, apiRef, formulaBarMode }: Props) {
   ]);
 
   useEffect(() => {
-    if (!app) return;
+    if (!app?.renderer) return;
 
     document.addEventListener('keydown', onKeydown as EventListener);
-    app.view.addEventListener?.('dblclick', onDblClick as EventListener);
+    app.canvas.addEventListener?.('dblclick', onDblClick as EventListener);
 
     return () => {
+      if (!app?.renderer) return;
+
       document.removeEventListener('keydown', onKeydown as EventListener);
-      app?.view?.removeEventListener?.('dblclick', onDblClick as EventListener);
+      app?.canvas?.removeEventListener?.(
+        'dblclick',
+        onDblClick as EventListener,
+      );
     };
   }, [app, onDblClick, onKeydown]);
 }

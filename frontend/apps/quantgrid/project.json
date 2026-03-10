@@ -2,37 +2,13 @@
   "root": "apps/quantgrid",
   "targets": {
     "generateGrammar": {
-      "command": "yarn generateGrammar"
-    },
-    "typecheck": {
-      "dependsOn": ["^typecheck"],
+      "command": "yarn generateGrammar",
       "cache": true,
       "inputs": [
-        "production",
-        "^production",
-        {
-          "externalDependencies": ["typescript"]
-        }
+        "{workspaceRoot}/generateGrammar.js",
+        "{workspaceRoot}/../backend/parser/src/main/antlr/com/epam/deltix/quantgrid/parser/Sheet.g4"
       ],
-      "outputs": [],
-      "syncGenerators": ["@nx/js:typescript-sync"],
-      "metadata": {
-        "technologies": ["typescript", "typescript"],
-        "description": "Runs type-checking for the project.",
-        "help": {
-          "command": "yarn tsc --build --help",
-          "example": {
-            "args": ["--force"]
-          }
-        }
-      },
-      "executor": "nx:run-commands",
-      "options": {
-        "cwd": "apps/quantgrid",
-        "command": "tsc --noEmit -p tsconfig.app.json"
-      },
-      "configurations": {},
-      "parallelism": true
+      "outputs": ["{workspaceRoot}/libs/parser/src/lib/grammar"]
     },
     "lint": {
       "cache": true,
@@ -74,7 +50,7 @@
         "command": "vite build"
       },
       "cache": true,
-      "dependsOn": ["generateGrammar", "^build", "^typecheck"],
+      "dependsOn": ["generateGrammar", "^build"],
       "inputs": [
         "production",
         "^production",
@@ -82,7 +58,7 @@
           "externalDependencies": ["vite"]
         }
       ],
-      "outputs": ["{projectRoot}\\dist"],
+      "outputs": ["{workspaceRoot}/dist"],
       "metadata": {
         "technologies": ["vite"],
         "description": "Run Vite build",
@@ -203,16 +179,13 @@
     "test": {
       "options": {
         "cwd": "apps/quantgrid",
-        "env": {
-          "TS_NODE_COMPILER_OPTIONS": "{\"moduleResolution\":\"node10\",\"module\":\"commonjs\",\"customConditions\":null}"
-        },
-        "command": "jest"
+        "command": "vitest run"
       },
       "metadata": {
-        "technologies": ["jest"],
-        "description": "Run Jest Tests",
+        "technologies": ["vitest"],
+        "description": "Run Vitest Tests",
         "help": {
-          "command": "yarn jest --help",
+          "command": "yarn vitest --help",
           "example": {
             "options": {
               "coverage": true
@@ -224,16 +197,15 @@
       "inputs": [
         "default",
         "^production",
-        "{workspaceRoot}\\jest-lib.preset.js",
         {
-          "externalDependencies": ["jest"]
+          "externalDependencies": ["vitest"]
         }
       ],
-      "outputs": ["{projectRoot}\\test-output\\jest\\coverage"],
+      "outputs": ["{projectRoot}/test-output"],
       "executor": "nx:run-commands",
       "configurations": {},
       "parallelism": true,
-      "dependsOn": ["generateGrammar", "^build"]
+      "dependsOn": ["generateGrammar"]
     },
     "e2e": {
       "cache": false,
@@ -248,11 +220,11 @@
         }
       ],
       "outputs": [
-        "{workspaceRoot}\\playwright-report",
-        "{workspaceRoot}\\test-results",
-        "{workspaceRoot}\\allure-results",
-        "{workspaceRoot}\\allure-report",
-        "{workspaceRoot}\\blob-report"
+        "{workspaceRoot}/playwright-report",
+        "{workspaceRoot}/test-results",
+        "{workspaceRoot}/allure-results",
+        "{workspaceRoot}/allure-report",
+        "{workspaceRoot}/blob-report"
       ],
       "executor": "nx:run-commands",
       "parallelism": true,

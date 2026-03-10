@@ -1,8 +1,8 @@
 import { EChartsOption } from 'echarts';
 
-import { ChartsData } from '@frontend/common';
+import { ChartsData, GridChart } from '@frontend/common';
 
-import { ChartConfig } from '../../types';
+import { buildLayout } from '../buildLayout';
 import { GetOptionProps, OrganizedData } from '../chartRegistry';
 import {
   addLineBreaks,
@@ -13,113 +13,200 @@ import {
 
 export function organizeLineChartData(
   chartData: ChartsData,
-  chartConfig: ChartConfig
+  gridChart: GridChart,
 ): OrganizedData | undefined {
-  const data = chartData[chartConfig.tableName];
-  const { gridChart } = chartConfig;
-  const { chartSections, customSeriesColors, showLegend } = gridChart;
+  const {
+    chartSections,
+    customSeriesColors,
+    showLegend,
+    showVisualMap,
+    legendPosition,
+    tableName,
+  } = gridChart;
+  const data = chartData[tableName];
 
-  if (
-    !data ||
-    !Object.keys(data).length ||
-    !chartSections ||
-    !chartSections.length
-  )
-    return;
+  if (!data || !Object.keys(data).length || !chartSections?.length) return;
 
   const legendData: string[] = [];
-  const xAxisValuesSet: Set<string> = new Set();
   const xDisplayByRaw = new Map<string, string>();
   const series: EChartsOption['series'] = [];
 
-  // Gather all unique x-axis values from all sections
+  /**
+   * 1) Build base X axis in table order:
+   *    - prefer the first section with custom xAxisFieldName
+   *    - fallback to indexes if no custom x-axis exists
+   * 2) Expand axis if other sections require extra occurrences / new values
+   */
+
+  // Base axis in table order
+  let xAxisDataRaw: string[] | undefined;
+  let xAxisDisplayBase: string[] | undefined;
+
+  // First pass: pick the base axis and collect display labels
   for (const section of chartSections) {
     const { xAxisFieldName } = section;
     if (xAxisFieldName && data[xAxisFieldName]) {
       const sectionXAxisRaw = data[xAxisFieldName].rawValues as string[];
       const sectionXAxisDisp = data[xAxisFieldName].displayValues as string[];
       sectionXAxisRaw.forEach((raw, i) => {
-        xAxisValuesSet.add(raw);
         if (!xDisplayByRaw.has(raw))
           xDisplayByRaw.set(raw, sectionXAxisDisp?.[i] ?? raw);
       });
+
+      if (!xAxisDataRaw) {
+        xAxisDataRaw = sectionXAxisRaw;
+        xAxisDisplayBase = sectionXAxisDisp;
+      }
     } else if (data[section.valueFieldNames[0]]) {
       // Use indexes if no x-axis field is specified
       const sectionLength = data[section.valueFieldNames[0]].rawValues.length;
-      Array.from({ length: sectionLength }, (_, i) =>
-        (i + 1).toString()
-      ).forEach((raw) => {
-        xAxisValuesSet.add(raw);
+      const idxAxis = Array.from({ length: sectionLength }, (_, i) =>
+        (i + 1).toString(),
+      );
+
+      idxAxis.forEach((raw) => {
         if (!xDisplayByRaw.has(raw)) xDisplayByRaw.set(raw, raw);
       });
+
+      if (!xAxisDataRaw) {
+        xAxisDataRaw = idxAxis;
+        xAxisDisplayBase = idxAxis;
+      }
     }
   }
 
-  const xAxisData = sortNumericOrText(Array.from(xAxisValuesSet));
-  const xAxisDisplayData = xAxisData.map(
-    (raw) => xDisplayByRaw.get(raw) ?? raw
-  );
+  if (!xAxisDataRaw) return;
 
-  // Build series data
+  // Start display axis from the base
+  const xAxisDisplay: string[] =
+    xAxisDisplayBase?.length === xAxisDataRaw.length
+      ? [...xAxisDisplayBase]
+      : xAxisDataRaw.map((raw) => xDisplayByRaw.get(raw) ?? raw);
+
+  // Slots for duplicates on the current axis: raw -> indices where it appears
+  const slotsByRaw = new Map<string, number[]>();
+  xAxisDataRaw.forEach((raw, idx) => {
+    const arr = slotsByRaw.get(raw);
+    if (arr) {
+      arr.push(idx);
+    } else {
+      slotsByRaw.set(raw, [idx]);
+    }
+  });
+
+  // Second pass: expand the base axis if other sections need extra slots
   for (const section of chartSections) {
     const { valueFieldNames, xAxisFieldName } = section;
-
     if (!valueFieldNames.length) continue;
 
-    legendData.push(...sortNumericOrText(valueFieldNames));
-
-    // Get x-axis data for this section
     const sectionXAxisData: string[] =
       xAxisFieldName && data[xAxisFieldName]?.rawValues
         ? (data[xAxisFieldName].rawValues as string[])
         : Array.from(
             { length: data[valueFieldNames[0]]?.rawValues.length },
-            (_, i) => (i + 1).toString()
+            (_, i) => (i + 1).toString(),
           );
 
-    // Map x-axis values to y-axis data
-    for (const valueFieldName of sortNumericOrText(valueFieldNames)) {
-      if (data[valueFieldName]) {
-        const seriesYData: (any | null)[] = new Array(xAxisData.length).fill(
-          null
-        );
-        const sectionYDataRaw = data[valueFieldName].rawValues as string[];
-        const sectionYDataDisplay = data[valueFieldName]
-          .displayValues as string[];
+    // occurrence counter within this section
+    const occByRaw = new Map<string, number>();
 
-        sectionXAxisData.forEach((xValue, index) => {
-          const globalIndex = xAxisData.indexOf(xValue);
-          if (globalIndex !== -1) {
-            const raw = sectionYDataRaw[index];
-            const disp = sectionYDataDisplay[index];
-            const num = parseFloat(raw);
-            seriesYData[globalIndex] = isNaN(num)
-              ? null
-              : { value: num, displayValue: disp };
+    sectionXAxisData.forEach((xValue, i) => {
+      const occ = occByRaw.get(xValue) ?? 0;
+      occByRaw.set(xValue, occ + 1);
+
+      const slots = slotsByRaw.get(xValue);
+
+      // If there is no slot for this occurrence -> append to axis
+      if (!slots || slots[occ] === undefined) {
+        const newIndex = xAxisDataRaw!.length;
+        xAxisDataRaw!.push(xValue);
+
+        // learn to display label for this raw if not known yet
+        if (!xDisplayByRaw.has(xValue)) {
+          if (xAxisFieldName && data[xAxisFieldName]?.displayValues) {
+            const dispArr = data[xAxisFieldName].displayValues as string[];
+            xDisplayByRaw.set(xValue, dispArr?.[i] ?? xValue);
+          } else {
+            xDisplayByRaw.set(xValue, xValue);
           }
-        });
+        }
 
-        const customSeriesColor = customSeriesColors?.[valueFieldName];
-        const legendIndex = legendData.indexOf(valueFieldName);
+        xAxisDisplay.push(xDisplayByRaw.get(xValue) ?? xValue);
 
-        series.push({
-          name: valueFieldName,
-          type: 'line',
-          data: seriesYData,
-          connectNulls: true,
-          color: customSeriesColor
-            ? customSeriesColor
-            : getColor(legendIndex, valueFieldName),
-        });
+        if (slots) slots.push(newIndex);
+        else slotsByRaw.set(xValue, [newIndex]);
       }
+    });
+  }
+
+  /**
+   * Build series data using slotsByRaw + per-section occurrence counters
+   */
+  for (const section of chartSections) {
+    const { valueFieldNames, xAxisFieldName } = section;
+    if (!valueFieldNames.length) continue;
+
+    legendData.push(...sortNumericOrText(valueFieldNames));
+
+    const sectionXAxisData: string[] =
+      xAxisFieldName && data[xAxisFieldName]?.rawValues
+        ? (data[xAxisFieldName].rawValues as string[])
+        : Array.from(
+            { length: data[valueFieldNames[0]]?.rawValues.length },
+            (_, i) => (i + 1).toString(),
+          );
+
+    for (const valueFieldName of sortNumericOrText(valueFieldNames)) {
+      if (!data[valueFieldName]) continue;
+
+      const seriesYData: (any | null)[] = new Array(xAxisDataRaw.length).fill(
+        null,
+      );
+
+      const sectionYDataRaw = data[valueFieldName].rawValues as string[];
+      const sectionYDataDisplay = data[valueFieldName]
+        .displayValues as string[];
+
+      const occByRaw = new Map<string, number>();
+
+      sectionXAxisData.forEach((xValue, index) => {
+        const occ = occByRaw.get(xValue) ?? 0;
+        occByRaw.set(xValue, occ + 1);
+
+        const slotIndex = slotsByRaw.get(xValue)?.[occ];
+        if (slotIndex === undefined) return;
+
+        const raw = sectionYDataRaw[index];
+        const disp = sectionYDataDisplay[index];
+        const num = parseFloat(raw);
+
+        seriesYData[slotIndex] = isNaN(num)
+          ? null
+          : { value: num, displayValue: disp };
+      });
+
+      const customSeriesColor = customSeriesColors?.[valueFieldName];
+      const legendIndex = legendData.indexOf(valueFieldName);
+
+      series.push({
+        name: valueFieldName,
+        type: 'line',
+        data: seriesYData,
+        connectNulls: true,
+        color: customSeriesColor
+          ? customSeriesColor
+          : getColor(legendIndex, valueFieldName),
+      });
     }
   }
 
   return {
     showLegend,
+    showVisualMap,
     legendData,
+    legendPosition,
     series,
-    xAxisData: addLineBreaks(xAxisDisplayData),
+    xAxisData: addLineBreaks(xAxisDisplay),
   };
 }
 
@@ -130,43 +217,64 @@ export function getLineChartOption({
   zoom,
   theme,
   showLegend,
+  showVisualMap,
+  legendPosition,
 }: GetOptionProps): EChartsOption {
-  function getValue(value: number) {
+  function z(value: number) {
     return value * zoom;
   }
 
-  const fontSize = getValue(12);
-  const { textColor, borderColor, bgColor, hoverColor } = getThemeColors(theme);
+  const fontSize = z(12);
+  const { textColor, borderColor, bgColor } = getThemeColors(theme);
+
+  const layout = buildLayout({
+    zoom,
+    textColor,
+    showLegend: !!showLegend,
+    legendPosition,
+    showDataZoom: !!showVisualMap,
+  });
+
+  const dataZoom: EChartsOption['dataZoom'] = showVisualMap
+    ? [
+        {
+          show: true,
+          realtime: true,
+          filterMode: 'empty',
+          height: z(20),
+          bottom: z(20),
+          textStyle: { fontSize },
+        },
+        {
+          type: 'inside',
+          realtime: true,
+          filterMode: 'empty',
+          height: z(20),
+          bottom: z(20),
+
+          zoomOnMouseWheel: 'ctrl',
+          moveOnMouseWheel: false,
+        },
+      ]
+    : [];
 
   return {
+    textStyle: {
+      ...layout.textStyle,
+    },
     legend: {
-      type: 'scroll',
-      orient: 'vertical',
-      left: 0,
-      top: getValue(10),
-      bottom: getValue(10),
-      itemWidth: getValue(20),
-      itemHeight: getValue(10),
+      ...layout.legend,
       data: legendData,
-      textStyle: {
-        fontSize,
-        color: textColor,
-        overflow: 'break',
-        width: getValue(70),
-      },
-      show: showLegend,
     },
     grid: {
-      borderColor: '#ccc',
-      left: showLegend ? getValue(120) : getValue(10),
-      top: getValue(30),
-      right: getValue(20),
-      bottom: getValue(40),
-      containLabel: true,
+      ...layout.grid,
     },
     xAxis: {
+      axisTick: {
+        alignWithLabel: true,
+      },
       type: 'category',
-      boundaryGap: false,
+      boundaryGap: true,
       data: xAxisData,
       nameTextStyle: {
         fontSize,
@@ -211,35 +319,12 @@ export function getLineChartOption({
               ({ marker, data, seriesName }: any) =>
                 `${marker}${seriesName}<span style="float: right; margin-left: 20px"><b>${
                   data?.displayValue || data?.value || ''
-                }</b></span>`
+                }</b></span>`,
             )
             .join('<br/>')
         );
       },
     },
-    dataZoom: [
-      {
-        show: true,
-        realtime: true,
-        filterMode: 'empty',
-        height: getValue(20),
-        bottom: getValue(10),
-        textStyle: {
-          fontSize,
-        },
-        emphasis: {
-          moveHandleStyle: {
-            color: hoverColor,
-          },
-        },
-      },
-      {
-        type: 'inside',
-        realtime: true,
-        filterMode: 'empty',
-        height: getValue(20),
-        bottom: getValue(10),
-      },
-    ],
+    dataZoom,
   };
 }

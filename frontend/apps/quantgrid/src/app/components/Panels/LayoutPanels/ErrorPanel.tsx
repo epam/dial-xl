@@ -11,7 +11,12 @@ export function ErrorPanel({
 }: PanelProps) {
   return (
     <PanelWrapper isActive={isActive} panelName={panelName}>
-      <PanelToolbar panelName={panelName} position={position} title={title} />
+      <PanelToolbar
+        isActive={isActive}
+        panelName={panelName}
+        position={position}
+        title={title}
+      />
       <Errors />
     </PanelWrapper>
   );

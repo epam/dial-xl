@@ -7,7 +7,7 @@ export enum SearchTabs {
   Projects = 'Projects',
   Sheets = 'Sheets',
   Tables = 'Tables',
-  Fields = 'Fields',
+  Columns = 'Columns',
 }
 
 export class SearchForm extends BaseComponent {
@@ -60,7 +60,7 @@ export class SearchForm extends BaseComponent {
 
   public async expectSelectedItemChange(oldText: string) {
     await expect(this.innerPage.locator(this.selectedItem)).not.toHaveText(
-      oldText
+      oldText,
     );
   }
 

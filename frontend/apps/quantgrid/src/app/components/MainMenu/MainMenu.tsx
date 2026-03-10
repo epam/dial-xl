@@ -1,56 +1,56 @@
 import { Menu } from 'antd';
 import cx from 'classnames';
-import type { MenuInfo } from 'rc-menu/lib/interface';
-import {
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import { useCallback, useContext, useMemo, useState } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 
 import { GridEvent } from '@frontend/canvas-spreadsheet';
 import {
   defaultFieldName,
   FormulasContextMenuKeyData,
   InsertChartContextMenuKeyData,
-  MenuItem,
 } from '@frontend/common';
+import type { MenuInfo } from '@rc-component/menu/lib/interface';
 
-import { ColorSchema, ModalRefFunction, PanelName } from '../../common';
+import { ColorSchema, PanelName } from '../../common';
 import {
   ApiContext,
-  AppContext,
   ChatOverlayContext,
   InputsContext,
   LayoutContext,
   ProjectContext,
-  SearchWindowContext,
   UndoRedoContext,
 } from '../../context';
 import {
+  useChartEditDsl,
   useCreateTableAction,
   useCreateTableDsl,
   useFieldEditDsl,
   useGridApi,
   useProjectActions,
   useProjectMode,
+  useWorksheetActions,
 } from '../../hooks';
 import { useAddTableRow } from '../../hooks/EditDsl/useAddTableRow';
 import { getRecentProjects, RecentProject } from '../../services';
+import {
+  useControlStore,
+  useSearchModalStore,
+  useShortcutsHelpModalStore,
+  useUIStore,
+  useUserSettingsStore,
+  useViewStore,
+} from '../../store';
 import { routes } from '../../types';
 import { getProjectNavigateUrl } from '../../utils';
-import { ShortcutsHelp } from '../Modals';
 import {
   editMenuKeys,
   fileMenuKeys,
-  getMenuItems,
   helpMenuKeys,
   insertMenuKeys,
   togglePanelKeys,
   viewMenuKeys,
-} from './MainMenuItems';
+} from './constants';
+import { useMainMenuItems } from './useMainMenuItems';
 
 interface Props {
   isMobile?: boolean;
@@ -63,22 +63,33 @@ export function MainMenu({
   isMobile = false,
   colorSchema = 'default',
 }: Props) {
-  const { toggleChat, toggleChatWindowPlacement, chatWindowPlacement } =
-    useContext(AppContext);
+  const { toggleChat, toggleChatWindowPlacement } = useUIStore(
+    useShallow((s) => ({
+      toggleChat: s.toggleChat,
+      toggleChatWindowPlacement: s.toggleChatWindowPlacement,
+    })),
+  );
+  const chatWindowPlacement = useUserSettingsStore(
+    (s) => s.data.chatWindowPlacement,
+  );
   const { userBucket } = useContext(ApiContext);
   const {
     togglePanel,
+    openPanel,
     panelsSplitEnabled,
     updateSplitPanelsEnabled,
     collapsedPanelsTextHidden,
     updateCollapsedPanelsTextHidden,
   } = useContext(LayoutContext);
   const { clear, undo, redo } = useContext(UndoRedoContext);
-  const { openSearchWindow } = useContext(SearchWindowContext);
+  const openSearchModal = useSearchModalStore((s) => s.open);
+  const openShortcutsHelpModal = useShortcutsHelpModalStore((s) => s.open);
+  const openControlCreateWizard = useControlStore(
+    (s) => s.openControlCreateWizard,
+  );
   const gridApi = useGridApi();
   const {
     functions,
-    selectedCell,
     parsedSheets,
     projectBucket,
     isProjectShareable,
@@ -86,14 +97,17 @@ export function MainMenu({
     projectPermissions,
     setIsProjectReadonlyByUser,
   } = useContext(ProjectContext);
-  const { isAIPendingChanges } = useContext(ChatOverlayContext);
+  const { isAIPendingChanges, answerIsGenerating } =
+    useContext(ChatOverlayContext);
   const projectAction = useProjectActions();
+  const worksheetAction = useWorksheetActions();
   const { inputList } = useContext(InputsContext);
   const { onCreateTableAction } = useCreateTableAction();
-  const { createEmptyChartTable, createManualTable } = useCreateTableDsl();
+  const { createManualTable } = useCreateTableDsl();
   const { addTableRowToEnd, insertTableRowBefore, insertTableRowAfter } =
     useAddTableRow();
   const { addField } = useFieldEditDsl();
+  const { addChart } = useChartEditDsl();
 
   const {
     isReadOnlyMode,
@@ -103,8 +117,58 @@ export function MainMenu({
     isAIPendingMode,
   } = useProjectMode();
 
-  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
-  const openShortcutHelpModal = useRef<ModalRefFunction | null>(null);
+  const [openKeys, setOpenKeys] = useState<string[]>([]);
+
+  const recentProjects = useMemo(() => getRecentProjects(), []);
+
+  const wantsSelection = useMemo(
+    () => openKeys.includes('InsertMenu'),
+    [openKeys],
+  );
+
+  const selectedCell = useViewStore((s) =>
+    wantsSelection ? s.selectedCell : null,
+  );
+
+  const selectedCellContext = useMemo(() => {
+    return selectedCell && gridApi?.getCell(selectedCell.col, selectedCell.row);
+  }, [selectedCell, gridApi]);
+
+  const handleCreateTableBySize = useCallback(
+    (cols: number, rows: number) => {
+      const colsItems = new Array(cols).fill('');
+      const rowsItems = new Array(rows).fill(colsItems);
+      createManualTable(
+        selectedCell?.col ?? 1,
+        selectedCell?.row ?? 1,
+        rowsItems,
+      );
+    },
+    [selectedCell?.col, selectedCell?.row, createManualTable],
+  );
+
+  const menuItems = useMainMenuItems({
+    openKeys,
+    selectedCell: selectedCellContext,
+    functions,
+    parsedSheets,
+    inputFiles: inputList,
+    isYourProject: userBucket === projectBucket,
+    isProjectShareable,
+    isAIPendingChanges,
+    recentProjects,
+    collapsedPanelsTextHidden,
+    panelsSplitEnabled,
+    isMobile,
+    onCreateTable: handleCreateTableBySize,
+    isReadOnlyMode,
+    isCSVViewMode,
+    isDefaultMode,
+    isAIPreviewMode,
+    isProjectReadonlyByUser,
+    permissions: projectPermissions,
+    answerIsGenerating,
+  });
 
   // Key is used to redraw the menu when the mode changes
   // Without it, the menu can be collapsed under 3 dots when the mode changes
@@ -117,12 +181,8 @@ export function MainMenu({
       isCSVViewMode,
       isDefaultMode,
       isAIPendingMode,
-    ]
+    ],
   );
-
-  const openShortcutHelp = useCallback(() => {
-    openShortcutHelpModal.current?.();
-  }, []);
 
   const onClickFormulaItem = useCallback(
     (action: string, data: FormulasContextMenuKeyData) => {
@@ -131,13 +191,13 @@ export function MainMenu({
           action,
           data.type,
           data.insertFormula,
-          data.tableName
+          data.tableName,
         );
 
         return;
       }
     },
-    [onCreateTableAction]
+    [onCreateTableAction],
   );
 
   const onMenuItemClick = useCallback(
@@ -153,6 +213,18 @@ export function MainMenu({
       try {
         const { action, data } = JSON.parse(item.key);
 
+        if (
+          (data as any as InsertChartContextMenuKeyData).chartType &&
+          (data as any as InsertChartContextMenuKeyData).tableName
+        ) {
+          const { chartType, tableName } =
+            data as InsertChartContextMenuKeyData;
+
+          addChart(tableName, chartType, selectedCell?.col, selectedCell?.row);
+
+          return;
+        }
+
         // Formulas menu usual function handler
         if (
           (data as any as FormulasContextMenuKeyData).insertFormula ||
@@ -165,12 +237,6 @@ export function MainMenu({
           return;
         }
 
-        if ((data as any as InsertChartContextMenuKeyData).chartType) {
-          const { chartType } = data as InsertChartContextMenuKeyData;
-
-          createEmptyChartTable(chartType);
-        }
-
         if (action === fileMenuKeys.openProject) {
           const recentProject = data as RecentProject;
 
@@ -181,7 +247,7 @@ export function MainMenu({
               projectPath: recentProject.projectPath,
               projectSheetName: recentProject.sheetName,
             }),
-            '_blank'
+            '_blank',
           );
         }
       } catch {
@@ -197,13 +263,13 @@ export function MainMenu({
           setIsProjectReadonlyByUser(!isProjectReadonlyByUser);
           break;
         case fileMenuKeys.createWorksheet:
-          projectAction.createWorksheetAction();
+          worksheetAction.createWorksheetAction();
           break;
         case fileMenuKeys.clearProjectHistory:
           clear();
           break;
         case fileMenuKeys.deleteProject:
-          projectAction.deleteProjectAction();
+          projectAction.deleteCurrentProjectAction();
           break;
         case fileMenuKeys.shareProject:
           projectAction.shareProjectAction();
@@ -227,19 +293,19 @@ export function MainMenu({
           redo();
           break;
         case editMenuKeys.search:
-          openSearchWindow();
+          openSearchModal();
           break;
         case editMenuKeys.renameWorksheet:
-          projectAction.renameWorksheetAction();
+          worksheetAction.renameWorksheetAction();
           break;
         case editMenuKeys.deleteWorksheet:
-          projectAction.deleteWorksheetAction();
+          worksheetAction.deleteWorksheetAction();
           break;
         case editMenuKeys.renameProject:
           projectAction.renameProjectAction();
           break;
         case helpMenuKeys.shortcuts:
-          openShortcutHelp();
+          openShortcutsHelpModal();
           break;
         case insertMenuKeys.newField:
           if (selectedCell?.tableName) {
@@ -247,6 +313,11 @@ export function MainMenu({
               withSelection: true,
             });
           }
+          break;
+        case insertMenuKeys.control:
+          openControlCreateWizard();
+          openPanel(PanelName.Details);
+
           break;
         case insertMenuKeys.insertLeft:
         case insertMenuKeys.insertRight:
@@ -269,7 +340,7 @@ export function MainMenu({
               selectedCell.col,
               selectedCell.row,
               selectedCell.tableName,
-              ''
+              '',
             );
           }
           break;
@@ -279,7 +350,7 @@ export function MainMenu({
               selectedCell.col,
               selectedCell.row,
               selectedCell.tableName,
-              ''
+              '',
             );
           }
           break;
@@ -316,17 +387,18 @@ export function MainMenu({
       }
     },
     [
+      addChart,
+      openPanel,
       togglePanel,
       onClickFormulaItem,
-      createEmptyChartTable,
       projectAction,
+      worksheetAction,
       setIsProjectReadonlyByUser,
       isProjectReadonlyByUser,
       clear,
       undo,
       redo,
-      openSearchWindow,
-      openShortcutHelp,
+      openSearchModal,
       selectedCell?.tableName,
       selectedCell?.fieldName,
       selectedCell?.col,
@@ -343,70 +415,18 @@ export function MainMenu({
       collapsedPanelsTextHidden,
       updateSplitPanelsEnabled,
       panelsSplitEnabled,
-    ]
+      openShortcutsHelpModal,
+      openControlCreateWizard,
+    ],
   );
 
-  const handleCreateTableBySize = useCallback(
-    (cols: number, rows: number) => {
-      const colsItems = new Array(cols).fill('');
-      const rowsItems = new Array(rows).fill(colsItems);
-      createManualTable(
-        selectedCell?.col ?? 1,
-        selectedCell?.row ?? 1,
-        rowsItems
-      );
+  const handleMenuClick = useCallback(
+    (e: MenuInfo) => {
+      onMenuItemClick(e);
+      onClose?.();
     },
-    [selectedCell?.col, selectedCell?.row, createManualTable]
+    [onMenuItemClick, onClose],
   );
-
-  useEffect(() => {
-    const gridCell =
-      selectedCell && gridApi?.getCell(selectedCell.col, selectedCell.row);
-    const recentProjects = getRecentProjects();
-
-    setMenuItems(
-      getMenuItems({
-        selectedCell: gridCell,
-        functions,
-        parsedSheets,
-        inputFiles: inputList,
-        isYourProject: userBucket === projectBucket,
-        isProjectShareable,
-        isAIPendingChanges,
-        recentProjects,
-        collapsedPanelsTextHidden,
-        panelsSplitEnabled,
-        isMobile,
-        onCreateTable: handleCreateTableBySize,
-        isReadOnlyMode,
-        isCSVViewMode,
-        isDefaultMode,
-        isAIPreviewMode,
-        isProjectReadonlyByUser,
-        permissions: projectPermissions,
-      })
-    );
-  }, [
-    collapsedPanelsTextHidden,
-    functions,
-    gridApi,
-    handleCreateTableBySize,
-    inputList,
-    isAIPendingChanges,
-    panelsSplitEnabled,
-    parsedSheets,
-    projectBucket,
-    selectedCell,
-    userBucket,
-    isMobile,
-    isProjectShareable,
-    isReadOnlyMode,
-    isCSVViewMode,
-    isDefaultMode,
-    isAIPreviewMode,
-    isProjectReadonlyByUser,
-    projectPermissions,
-  ]);
 
   return (
     <div
@@ -416,18 +436,15 @@ export function MainMenu({
     >
       <Menu
         className={cx('bg-transparent h-[39px] leading-[40px]', colorSchema)}
+        forceSubMenuRender={false}
         items={menuItems}
         key={menuVariantKey}
         mode={isMobile ? 'inline' : 'horizontal'}
+        openKeys={openKeys}
         selectable={false}
-        onClick={(e) => {
-          onMenuItemClick(e);
-          onClose?.();
-        }}
+        onClick={handleMenuClick}
+        onOpenChange={setOpenKeys}
       />
-      {!isMobile && (
-        <ShortcutsHelp openShortcutHelpModal={openShortcutHelpModal} />
-      )}
     </div>
   );
 }

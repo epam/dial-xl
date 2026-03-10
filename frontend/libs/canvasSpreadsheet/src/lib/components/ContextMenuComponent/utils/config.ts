@@ -42,12 +42,14 @@ export const spreadsheetMenuKeys = {
   removeNote: 'removeNote',
   openTableInEditor: 'OpenTableInEditor',
   openFieldInEditor: 'openFieldInEditor',
+  openDetailsPanel: 'openDetailsPanel',
   openOverrideInEditor: 'openOverrideInEditor',
   flipTableToHorizontal: 'FlipTableToHorizontal',
   flipTableToVertical: 'FlipTableToVertical',
   sortAsc: 'SortAsc',
   sortDesc: 'SortDesc',
   clearSort: 'ClearSort',
+  filter: 'Filter',
   numFilter: 'NumFilter',
   textFilter: 'TextFilter',
   customTotal: 'CustomTotal',
@@ -72,6 +74,10 @@ export const spreadsheetMenuKeys = {
   tableForward: 'tableForward',
   tableBackward: 'tableBackward',
   switchInput: 'SwitchInput',
+  syncImport: 'SyncImport',
+  createDropdownControlFromField: 'CreateDropdownControlFromField',
+  createCheckboxControlFromField: 'CreateCheckboxControlFromField',
+  aiRegenerate: 'AIRegenerate',
 };
 
 type TotalItem = {

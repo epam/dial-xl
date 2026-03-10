@@ -1,6 +1,13 @@
 import {
-  MutableRefObject,
+  Application as PixiApplication,
+  BitmapText,
+  Container,
+  Graphics,
+  Sprite,
+} from 'pixi.js';
+import {
   RefObject,
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -8,390 +15,291 @@ import {
 } from 'react';
 
 import { isFeatureFlagEnabled } from '@frontend/common';
-import { Application } from '@pixi/app';
 import { initDevtools } from '@pixi/devtools';
-import { Stage } from '@pixi/react';
+import { Application, extend } from '@pixi/react';
 
+import { CanvasErrorBoundary } from './CanvasErrorBoundary';
 import {
   AIPrompt,
   CellEditor,
   CellEditorContextProvider,
   Charts,
   ContextMenu,
+  Control,
+  ErrorMessage,
   GridApiWrapper,
   GridComponents,
   Notes,
   Tooltip,
 } from './components';
-import { canvasId } from './constants';
 import {
   GridStateContextProvider,
   GridViewportContextProvider,
 } from './context';
 import { useGridResize } from './hooks';
-import { initBitmapFonts, loadFonts, setupPixi, stageOptions } from './setup';
-import { GridApi, GridCallbacks, GridProps } from './types';
+import { initBitmapFonts, loadFonts, loadIcons, stageOptions } from './setup';
+import { CanvasOptions, GridApi, GridProps } from './types';
 
-setupPixi();
+// Extend PixiJS components for use in @pixi/react
+extend({ Container, Graphics, Sprite, BitmapText });
+
 const fontLoading = loadFonts();
+const iconsLoading = loadIcons();
+
+const defaultCanvasOptions: CanvasOptions = {
+  enableMoveTable: true,
+  enableOverflowComponents: true,
+  placement: 'body',
+  showDNDSelection: true,
+  showDottedSelection: true,
+  showErrors: true,
+  showExpandButton: true,
+  showHiddenCells: true,
+  showNotes: true,
+  showOverrides: true,
+  showResizers: true,
+  showSelection: true,
+  showTableBorders: true,
+  showWelcomeMessage: true,
+  colNumberType: 'number',
+};
 
 export const CanvasSpreadsheet = (
-  props: GridProps & { gridApiRef: MutableRefObject<GridApi | null> }
+  props: GridProps & { gridApiRef: RefObject<GridApi | null> },
 ) => {
   const {
-    gridApiRef,
-    zoom = 1,
-    data,
-    theme: themeName,
+    canvasId,
+    canvasOptions = defaultCanvasOptions,
+    chartData = {},
     charts,
-    chartData,
-    formulaBarMode,
-    filterList,
-    functions,
-    parsedSheets,
-    sheetContent,
+    columnSizes = {},
+    controlData = null,
+    controlIsLoading = false,
+    currentSheetName = null,
+    data,
+    eventBus,
+    filterList = [],
+    formulaBarMode = 'formula',
+    functions = [],
+    gridApiRef,
+    inputFiles = null,
+    isPointClickMode = false,
+    isReadOnly = false,
+    parsedSheets = {},
+    sheetContent = '',
+    sheetControls = [],
+    showGridLines = true,
     systemMessageContent,
     tableStructure,
-    inputFiles,
-    isPointClickMode,
-    columnSizes,
-    currentSheetName,
-    viewportInteractionMode,
-    isReadOnly,
-    onAddAllFieldTotals,
-    onAddAllTableTotals,
-    onAddChart,
-    onAddField,
-    onAddTableRow,
-    onAddTableRowToEnd,
-    onApplyConditionFilter,
-    onApplyListFilter,
-    onApplySuggestion,
-    onArrangeTable,
-    onCellEditorChangeEditMode,
-    onCellEditorSubmit,
-    onCellEditorUpdateValue,
-    onChangeFieldColumnSize,
-    onChangeFieldDimension,
-    onChangeFieldKey,
-    onChangeFieldIndex,
-    onChangeDescription,
-    onChartDblClick,
-    onChartResize,
-    onCloneTable,
-    onConvertToChart,
-    onConvertToTable,
-    onCreateDerivedTable,
-    onCreateManualTable,
-    onCreateTableAction,
-    onDNDTable,
-    onDecreaseFieldColumnSize,
-    onDelete,
-    onDeleteField,
-    onDeleteTable,
-    onExpandDimTable,
-    onFlipTable,
-    onGetMoreChartKeys,
-    onIncreaseFieldColumnSize,
-    onInsertChart,
-    onMessage,
-    onMoveTable,
-    onOpenInEditor,
-    onOpenSheet,
-    onPaste,
-    onPointClickSelectValue,
-    onPromoteRow,
-    onRemoveNote,
-    onRemoveOverride,
-    onRemoveOverrideRow,
-    onRemoveTotalByIndex,
-    onScroll,
-    onSelectChartKey,
-    onSelectTableForChart,
-    onSelectionChange,
-    onShowRowReference,
-    onSortChange,
-    onStartPointClick,
-    onStopPointClick,
-    onSwapFields,
-    onToggleTableTitleOrHeaderVisibility,
-    onToggleTotalByType,
-    onUndo,
-    onUpdateFieldFilterList,
-    onUpdateNote,
-    onAutoFitFields,
-    onRemoveFieldSizes,
-    onDownloadTable,
-    onGridExpand,
-    onSwitchInput,
+    theme: themeName,
+    viewportInteractionMode = 'select',
+    zoom = 1,
   } = props;
 
-  const [app, setApp] = useState<Application | null>(null);
+  const [app, setApp] = useState<PixiApplication | null>(null);
   const [fontsLoaded, setFontsLoaded] = useState(false);
   const [bitmapFontsLoaded, setBitmapFontsLoaded] = useState(false);
-
+  const [iconsLoaded, setIconsLoaded] = useState(false);
+  const [isGridApiInitialized, setIsGridApiInitialized] = useState(false);
+  const [canvasError, setCanvasError] = useState<boolean>(false);
   const gridContainerRef = useRef<HTMLDivElement | null>(null);
-  const gridCallbacksRef = useRef<GridCallbacks>({});
 
   const { gridWidth, gridHeight } = useGridResize({ gridContainerRef, app });
 
   const scaledColumnSizes = useMemo(() => {
     return Object.fromEntries(
-      Object.entries(columnSizes).map(([key, value]) => [key, value * zoom])
+      Object.entries(columnSizes).map(([key, value]) => [
+        key,
+        Math.round(value * zoom),
+      ]),
     );
   }, [columnSizes, zoom]);
 
   const isShowAIPrompt = isFeatureFlagEnabled('askAI');
 
-  useEffect(() => {
-    if (!app || window.location.protocol !== 'http:') return;
+  const initApp = useCallback((newApp: PixiApplication) => {
+    setApp(newApp);
 
-    initDevtools({ app });
-  }, [app]);
+    if (window.location.protocol === 'http:') {
+      initDevtools({ app: newApp });
+    }
+  }, []);
 
   useEffect(() => {
     fontLoading.then(() => {
       setFontsLoaded(true);
     });
+    iconsLoading.then(() => {
+      setIconsLoaded(true);
+    });
   }, []);
 
   useEffect(() => {
-    setBitmapFontsLoaded(false);
-    initBitmapFonts(zoom, themeName);
-    setBitmapFontsLoaded(true);
-  }, [zoom, themeName]);
+    if (!fontsLoaded) return;
 
+    setBitmapFontsLoaded(false);
+    initBitmapFonts(zoom);
+    setBitmapFontsLoaded(true);
+  }, [zoom, themeName, fontsLoaded]);
+
+  // Cleanup gridApiRef on unmount.
+  // Reason: entire canvas will be empty after unmounting (e.g., switch to mobile view and back, hmr, etc.),
   useEffect(() => {
-    gridCallbacksRef.current.onScroll = onScroll;
-    gridCallbacksRef.current.onSelectionChange = onSelectionChange;
-    gridCallbacksRef.current.onMoveTable = onMoveTable;
-    gridCallbacksRef.current.onDeleteField = onDeleteField;
-    gridCallbacksRef.current.onDeleteTable = onDeleteTable;
-    gridCallbacksRef.current.onSwapFields = onSwapFields;
-    gridCallbacksRef.current.onIncreaseFieldColumnSize =
-      onIncreaseFieldColumnSize;
-    gridCallbacksRef.current.onDecreaseFieldColumnSize =
-      onDecreaseFieldColumnSize;
-    gridCallbacksRef.current.onChangeFieldColumnSize = onChangeFieldColumnSize;
-    gridCallbacksRef.current.onChangeFieldDimension = onChangeFieldDimension;
-    gridCallbacksRef.current.onChangeFieldKey = onChangeFieldKey;
-    gridCallbacksRef.current.onCreateDerivedTable = onCreateDerivedTable;
-    gridCallbacksRef.current.onCellEditorSubmit = onCellEditorSubmit;
-    gridCallbacksRef.current.onRemoveOverride = onRemoveOverride;
-    gridCallbacksRef.current.onAddTableRow = onAddTableRow;
-    gridCallbacksRef.current.onApplySuggestion = onApplySuggestion;
-    gridCallbacksRef.current.onCellEditorUpdateValue = onCellEditorUpdateValue;
-    gridCallbacksRef.current.onMessage = onMessage;
-    gridCallbacksRef.current.onDNDTable = onDNDTable;
-    gridCallbacksRef.current.onExpandDimTable = onExpandDimTable;
-    gridCallbacksRef.current.onChartResize = onChartResize;
-    gridCallbacksRef.current.onGetMoreChartKeys = onGetMoreChartKeys;
-    gridCallbacksRef.current.onSelectChartKey = onSelectChartKey;
-    gridCallbacksRef.current.onAddChart = onAddChart;
-    gridCallbacksRef.current.onConvertToChart = onConvertToChart;
-    gridCallbacksRef.current.onConvertToTable = onConvertToTable;
-    gridCallbacksRef.current.onPaste = onPaste;
-    gridCallbacksRef.current.onAddField = onAddField;
-    gridCallbacksRef.current.onRemoveNote = onRemoveNote;
-    gridCallbacksRef.current.onUpdateNote = onUpdateNote;
-    gridCallbacksRef.current.onStartPointClick = onStartPointClick;
-    gridCallbacksRef.current.onStopPointClick = onStopPointClick;
-    gridCallbacksRef.current.onPointClickSelectValue = onPointClickSelectValue;
-    gridCallbacksRef.current.onOpenInEditor = onOpenInEditor;
-    gridCallbacksRef.current.onDelete = onDelete;
-    gridCallbacksRef.current.onToggleTableTitleOrHeaderVisibility =
-      onToggleTableTitleOrHeaderVisibility;
-    gridCallbacksRef.current.onSortChange = onSortChange;
-    gridCallbacksRef.current.onApplyConditionFilter = onApplyConditionFilter;
-    gridCallbacksRef.current.onFlipTable = onFlipTable;
-    gridCallbacksRef.current.onApplyListFilter = onApplyListFilter;
-    gridCallbacksRef.current.onCellEditorChangeEditMode =
-      onCellEditorChangeEditMode;
-    gridCallbacksRef.current.onRemoveTotalByIndex = onRemoveTotalByIndex;
-    gridCallbacksRef.current.onToggleTotalByType = onToggleTotalByType;
-    gridCallbacksRef.current.onUpdateFieldFilterList = onUpdateFieldFilterList;
-    gridCallbacksRef.current.onCloneTable = onCloneTable;
-    gridCallbacksRef.current.onPromoteRow = onPromoteRow;
-    gridCallbacksRef.current.onShowRowReference = onShowRowReference;
-    gridCallbacksRef.current.onCreateTableAction = onCreateTableAction;
-    gridCallbacksRef.current.onCreateManualTable = onCreateManualTable;
-    gridCallbacksRef.current.onAddTableRowToEnd = onAddTableRowToEnd;
-    gridCallbacksRef.current.onRemoveOverrideRow = onRemoveOverrideRow;
-    gridCallbacksRef.current.onUndo = onUndo;
-    gridCallbacksRef.current.onOpenSheet = onOpenSheet;
-    gridCallbacksRef.current.onArrangeTable = onArrangeTable;
-    gridCallbacksRef.current.onAddAllFieldTotals = onAddAllFieldTotals;
-    gridCallbacksRef.current.onAddAllTableTotals = onAddAllTableTotals;
-    gridCallbacksRef.current.onInsertChart = onInsertChart;
-    gridCallbacksRef.current.onSelectTableForChart = onSelectTableForChart;
-    gridCallbacksRef.current.onChartDblClick = onChartDblClick;
-    gridCallbacksRef.current.onAutoFitFields = onAutoFitFields;
-    gridCallbacksRef.current.onRemoveFieldSizes = onRemoveFieldSizes;
-    gridCallbacksRef.current.onChangeFieldIndex = onChangeFieldIndex;
-    gridCallbacksRef.current.onChangeDescription = onChangeDescription;
-    gridCallbacksRef.current.onDownloadTable = onDownloadTable;
-    gridCallbacksRef.current.onGridExpand = onGridExpand;
-    gridCallbacksRef.current.onSwitchInput = onSwitchInput;
-  }, [
-    onAddAllFieldTotals,
-    onAddAllTableTotals,
-    onAddChart,
-    onAddField,
-    onAddTableRow,
-    onAddTableRowToEnd,
-    onApplyConditionFilter,
-    onApplyListFilter,
-    onApplySuggestion,
-    onArrangeTable,
-    onCellEditorChangeEditMode,
-    onCellEditorSubmit,
-    onCellEditorUpdateValue,
-    onChangeFieldColumnSize,
-    onChangeFieldDimension,
-    onChangeDescription,
-    onChangeFieldKey,
-    onChangeFieldIndex,
-    onChartDblClick,
-    onChartResize,
-    onCloneTable,
-    onConvertToChart,
-    onConvertToTable,
-    onCreateDerivedTable,
-    onCreateManualTable,
-    onCreateTableAction,
-    onDNDTable,
-    onDecreaseFieldColumnSize,
-    onDelete,
-    onDeleteField,
-    onDeleteTable,
-    onExpandDimTable,
-    onFlipTable,
-    onGetMoreChartKeys,
-    onIncreaseFieldColumnSize,
-    onInsertChart,
-    onMessage,
-    onMoveTable,
-    onOpenInEditor,
-    onOpenSheet,
-    onPaste,
-    onPointClickSelectValue,
-    onPromoteRow,
-    onRemoveNote,
-    onRemoveOverride,
-    onRemoveOverrideRow,
-    onRemoveTotalByIndex,
-    onScroll,
-    onSelectChartKey,
-    onSelectTableForChart,
-    onSelectionChange,
-    onShowRowReference,
-    onSortChange,
-    onStartPointClick,
-    onStopPointClick,
-    onSwapFields,
-    onToggleTableTitleOrHeaderVisibility,
-    onToggleTotalByType,
-    onUndo,
-    onUpdateFieldFilterList,
-    onUpdateNote,
-    onAutoFitFields,
-    onRemoveFieldSizes,
-    onDownloadTable,
-    onGridExpand,
-    onSwitchInput,
-  ]);
+    setIsGridApiInitialized(false);
+
+    return () => {
+      gridApiRef.current = null;
+    };
+  }, [gridApiRef]);
+
+  // Catch WebGL context lost errors
+  // Note: there are 2 Error Boundaries in this component.
+  // The first one is for catching React errors.
+  // The second one is for catching errors in PixiJS components.
+  useEffect(() => {
+    if (!isGridApiInitialized || !app?.renderer) return;
+
+    const handleContextLost = (e: Event) => {
+      e.preventDefault();
+      setCanvasError(true);
+    };
+
+    app?.canvas?.addEventListener?.('webglcontextlost', handleContextLost);
+
+    return () => {
+      app?.canvas?.removeEventListener?.('webglcontextlost', handleContextLost);
+    };
+  }, [app, canvasId, isGridApiInitialized]);
+
+  // Catch global errors and unhandled promise rejections
+  // Show only console warnings for now to avoid interfering with the user experience and e2e tests.
+  useEffect(() => {
+    const onError = (e: ErrorEvent) => {
+      // eslint-disable-next-line no-console
+      console.warn(e);
+    };
+
+    const onUnhandledRejection = (e: PromiseRejectionEvent) => {
+      // eslint-disable-next-line no-console
+      console.warn(e);
+    };
+
+    window.addEventListener('error', onError, { capture: true });
+    window.addEventListener('unhandledrejection', onUnhandledRejection, {
+      capture: true,
+    });
+
+    return () => {
+      window.removeEventListener('error', onError, { capture: true });
+      window.removeEventListener('unhandledrejection', onUnhandledRejection, {
+        capture: true,
+      });
+    };
+  }, []);
 
   return (
     <div
-      className="h-full w-full relative overflow-hidden select-none"
+      className="h-full w-full relative overflow-hidden select-none bg-bg-layer-1"
       id={canvasId}
       ref={gridContainerRef}
     >
-      {fontsLoaded && bitmapFontsLoaded && (
-        <>
-          <Stage
-            height={gridHeight}
-            options={stageOptions}
-            width={gridWidth}
-            onMount={setApp}
-          >
-            <GridStateContextProvider
-              apiRef={gridApiRef as RefObject<GridApi>}
-              app={app}
-              columnSizes={scaledColumnSizes}
-              data={data}
-              gridCallbacksRef={gridCallbacksRef}
-              gridContainerRef={gridContainerRef}
-              pointClickMode={isPointClickMode}
-              tableStructure={tableStructure}
-              themeName={themeName}
-              viewportInteractionMode={viewportInteractionMode}
-              zoom={zoom}
-            >
-              <GridViewportContextProvider>
-                <GridApiWrapper gridApiRef={gridApiRef} />
-                <GridComponents />
-              </GridViewportContextProvider>
-            </GridStateContextProvider>
-          </Stage>
-          <ContextMenu
-            apiRef={gridApiRef as RefObject<GridApi>}
+      {!canvasError && fontsLoaded && bitmapFontsLoaded && iconsLoaded && (
+        <CanvasErrorBoundary onError={() => setCanvasError(true)}>
+          <GridStateContextProvider
+            apiRef={gridApiRef}
             app={app}
-            filterList={filterList}
-            functions={functions}
-            gridCallbacksRef={gridCallbacksRef}
-            inputFiles={inputFiles}
-            parsedSheets={parsedSheets}
-          />
-          <CellEditorContextProvider
-            apiRef={gridApiRef as RefObject<GridApi>}
-            formulaBarMode={formulaBarMode}
-            gridCallbacksRef={gridCallbacksRef}
-            isReadOnly={isReadOnly}
+            canvasId={canvasId}
+            canvasOptions={canvasOptions}
+            columnSizes={scaledColumnSizes}
+            data={data}
+            eventBus={eventBus}
+            gridContainerRef={gridContainerRef}
+            pointClickMode={isPointClickMode}
+            showGridLines={showGridLines}
+            tableStructure={tableStructure}
+            themeName={themeName}
+            viewportInteractionMode={viewportInteractionMode}
             zoom={zoom}
           >
-            <CellEditor
-              apiRef={gridApiRef as RefObject<GridApi>}
-              app={app}
-              formulaBarMode={formulaBarMode}
-              functions={functions}
-              gridCallbacksRef={gridCallbacksRef}
-              inputList={inputFiles}
-              isPointClickMode={isPointClickMode}
-              parsedSheets={parsedSheets}
-              sheetContent={sheetContent}
-              theme={themeName}
-              zoom={zoom}
-            />
-          </CellEditorContextProvider>
-          {isShowAIPrompt && (
-            <AIPrompt
-              api={(gridApiRef as RefObject<GridApi>).current}
-              currentSheetName={currentSheetName}
-              gridCallbacksRef={gridCallbacksRef}
-              systemMessageContent={systemMessageContent}
-              zoom={zoom}
-            />
-          )}
-          <Tooltip apiRef={gridApiRef as RefObject<GridApi>} />
-          <Notes
-            api={(gridApiRef as RefObject<GridApi>).current}
-            gridCallbacksRef={gridCallbacksRef}
-            zoom={zoom}
-          />
-          <Charts
-            api={(gridApiRef as RefObject<GridApi>).current}
-            chartData={chartData}
-            charts={charts}
-            columnSizes={scaledColumnSizes}
-            gridCallbacksRef={gridCallbacksRef}
-            parsedSheets={parsedSheets}
-            tableStructure={tableStructure}
-            theme={themeName}
-            zoom={zoom}
-          />
-        </>
+            <GridViewportContextProvider>
+              <GridApiWrapper
+                gridApiRef={gridApiRef}
+                isGridApiInitialized={isGridApiInitialized}
+                onGridApiInitialized={() => setIsGridApiInitialized(true)}
+              >
+                {isGridApiInitialized && (
+                  <Application
+                    height={gridHeight}
+                    width={gridWidth}
+                    onInit={initApp}
+                    {...stageOptions}
+                  >
+                    <CanvasErrorBoundary onError={() => setCanvasError(true)}>
+                      <GridComponents />
+                    </CanvasErrorBoundary>
+                  </Application>
+                )}
+
+                {/* Component depends on grid api */}
+                {isGridApiInitialized &&
+                  canvasOptions.enableOverflowComponents && (
+                    <>
+                      <ContextMenu
+                        app={app}
+                        eventBus={eventBus}
+                        filterList={filterList}
+                        functions={functions}
+                        inputFiles={inputFiles}
+                        parsedSheets={parsedSheets}
+                        sheetControls={sheetControls}
+                      />
+                      <CellEditorContextProvider
+                        eventBus={eventBus}
+                        formulaBarMode={formulaBarMode}
+                        isReadOnly={isReadOnly}
+                      >
+                        <CellEditor
+                          app={app}
+                          eventBus={eventBus}
+                          formulaBarMode={formulaBarMode}
+                          functions={functions}
+                          inputList={inputFiles}
+                          isPointClickMode={isPointClickMode}
+                          parsedSheets={parsedSheets}
+                          sheetContent={sheetContent}
+                          theme={themeName}
+                        />
+                      </CellEditorContextProvider>
+                      {isShowAIPrompt && (
+                        <AIPrompt
+                          currentSheetName={currentSheetName}
+                          eventBus={eventBus}
+                          systemMessageContent={systemMessageContent}
+                        />
+                      )}
+                      <Tooltip />
+                      <Notes eventBus={eventBus} />
+                      <Charts
+                        chartData={chartData}
+                        charts={charts}
+                        eventBus={eventBus}
+                        tableStructure={tableStructure}
+                        theme={themeName}
+                      />
+                      <Control
+                        controlData={controlData}
+                        controlIsLoading={controlIsLoading}
+                        eventBus={eventBus}
+                      />
+                    </>
+                  )}
+              </GridApiWrapper>
+            </GridViewportContextProvider>
+          </GridStateContextProvider>
+        </CanvasErrorBoundary>
       )}
+
+      {canvasError && <ErrorMessage />}
     </div>
   );
 };

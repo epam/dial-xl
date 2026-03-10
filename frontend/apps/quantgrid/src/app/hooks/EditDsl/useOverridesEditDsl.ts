@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 
-import { errorFunction, OverrideValue } from '@frontend/parser';
+import { defaultRowKey, errorFunction, OverrideValue } from '@frontend/parser';
 
 import { useGridApi } from '../useGridApi';
 import { useRequestDimTable } from '../useRequestDimTable';
@@ -8,6 +8,7 @@ import { useSafeCallback } from '../useSafeCallback';
 import { useDSLUtils } from './useDSLUtils';
 import { useTableEditDsl } from './useTableEditDsl';
 import { addOverridesToTable } from './utils';
+import { bumpAIFunctionVersion } from './utils/bumpAIFunctionVersion';
 
 export function useOverridesEditDsl() {
   const { updateDSL, findEditContext } = useDSLUtils();
@@ -20,7 +21,7 @@ export function useOverridesEditDsl() {
       tableName: string,
       fieldName: string,
       overrideIndex: number,
-      value: OverrideValue
+      value: OverrideValue,
     ) => {
       const context = findEditContext(tableName);
       if (!context) return;
@@ -46,7 +47,7 @@ export function useOverridesEditDsl() {
         tableName,
       });
     },
-    [findEditContext, updateDSL]
+    [findEditContext, updateDSL],
   );
 
   const removeOverrideRow = useCallback(
@@ -66,7 +67,7 @@ export function useOverridesEditDsl() {
         tableName,
       });
     },
-    [findEditContext, updateDSL]
+    [findEditContext, updateDSL],
   );
 
   const removeTableOrOverrideRow = useCallback(
@@ -88,7 +89,7 @@ export function useOverridesEditDsl() {
         deleteTable(tableName);
       }
     },
-    [deleteTable, findEditContext, removeOverrideRow]
+    [deleteTable, findEditContext, removeOverrideRow],
   );
 
   const editOverride = useCallback(
@@ -96,7 +97,7 @@ export function useOverridesEditDsl() {
       tableName: string,
       fieldName: string,
       overrideIndex: number,
-      value: string
+      value: string,
     ) => {
       const context = findEditContext(tableName);
       if (!context) return;
@@ -108,7 +109,7 @@ export function useOverridesEditDsl() {
 
       const currentOverride = overrides.getValueAtIndex(
         fieldName,
-        overrideIndex
+        overrideIndex,
       );
       const currentValueWrapped = currentOverride
         ?.toString()
@@ -141,7 +142,7 @@ export function useOverridesEditDsl() {
         tableName,
       });
     },
-    [requestDimSchemaForFormula, deleteTable, findEditContext, updateDSL]
+    [requestDimSchemaForFormula, deleteTable, findEditContext, updateDSL],
   );
 
   const addOverrides = useCallback(
@@ -150,7 +151,7 @@ export function useOverridesEditDsl() {
       selectedRow: number,
       tableName: string,
       cells: string[][],
-      withShifting?: boolean
+      withShifting?: boolean,
     ) => {
       const context = findEditContext(tableName);
       if (!context) return;
@@ -180,7 +181,45 @@ export function useOverridesEditDsl() {
         tableName,
       });
     },
-    [findEditContext, gridApi, updateDSL]
+    [findEditContext, gridApi, updateDSL],
+  );
+
+  const regenerateOverrideAIFunctions = useCallback(
+    (tableName: string, fieldName: string, overrideIndex: number) => {
+      const context = findEditContext(tableName);
+      if (!context) return;
+
+      const { parsedTable } = context;
+      const { overrides } = parsedTable;
+
+      if (!overrides) return;
+
+      let currentOverride: OverrideValue = null;
+      if (parsedTable.isManual()) {
+        currentOverride = overrides.getValueAtIndex(fieldName, overrideIndex);
+      } else {
+        const currentOverrideIndex = overrides.getRowByKey(
+          defaultRowKey,
+          overrideIndex,
+        )?.overrideIndex;
+
+        if (currentOverrideIndex == null) return;
+
+        currentOverride = overrides.getValueAtIndex(
+          fieldName,
+          currentOverrideIndex,
+        );
+      }
+
+      if (!currentOverride || typeof currentOverride !== 'string') return;
+
+      const updatedValue = bumpAIFunctionVersion(currentOverride.toString());
+
+      if (updatedValue && updatedValue !== currentOverride) {
+        editOverride(tableName, fieldName, overrideIndex, updatedValue);
+      }
+    },
+    [editOverride, findEditContext],
   );
 
   const addOverride = useCallback(
@@ -189,11 +228,11 @@ export function useOverridesEditDsl() {
       row: number,
       tableName: string,
       value: string,
-      withShifting?: boolean
+      withShifting?: boolean,
     ) => {
       addOverrides(col, row, tableName, [[value]], withShifting);
     },
-    [addOverrides]
+    [addOverrides],
   );
 
   return {
@@ -203,5 +242,8 @@ export function useOverridesEditDsl() {
     removeOverride: useSafeCallback(removeOverride),
     removeOverrideRow: useSafeCallback(removeOverrideRow),
     removeTableOrOverrideRow: useSafeCallback(removeTableOrOverrideRow),
+    regenerateOverrideAIFunctions: useSafeCallback(
+      regenerateOverrideAIFunctions,
+    ),
   };
 }

@@ -7,6 +7,6 @@ export enum Formats {
   Currency = 'Currency',
   Date = 'Date',
   Time = 'Time',
-  DateTime = 'Date & Time',
+  DateTime = 'DateTime',
   Percents = 'Percentage',
 }

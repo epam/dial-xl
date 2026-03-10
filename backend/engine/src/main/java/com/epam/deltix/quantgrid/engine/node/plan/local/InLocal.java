@@ -1,11 +1,13 @@
 package com.epam.deltix.quantgrid.engine.node.plan.local;
 
 import com.epam.deltix.quantgrid.engine.Util;
+import com.epam.deltix.quantgrid.engine.meta.Meta;
+import com.epam.deltix.quantgrid.engine.meta.Schema;
 import com.epam.deltix.quantgrid.engine.node.expression.Expression;
-import com.epam.deltix.quantgrid.engine.node.expression.ExpressionN;
+import com.epam.deltix.quantgrid.engine.node.plan.Plan;
+import com.epam.deltix.quantgrid.engine.node.plan.Plan2;
 import com.epam.deltix.quantgrid.engine.node.plan.local.util.TableHashStrategy;
 import com.epam.deltix.quantgrid.engine.node.plan.local.util.TableIndex;
-import com.epam.deltix.quantgrid.engine.value.Column;
 import com.epam.deltix.quantgrid.engine.value.Table;
 import com.epam.deltix.quantgrid.engine.value.local.DoubleDirectColumn;
 import com.epam.deltix.quantgrid.engine.value.local.LocalTable;
@@ -14,23 +16,32 @@ import it.unimi.dsi.fastutil.doubles.DoubleArrayList;
 
 import java.util.List;
 
-public class InLocal extends ExpressionN<Column, Column> {
+public class InLocal extends Plan2<Table, Table, Table> {
 
-    public InLocal(List<Expression> leftKeys, List<Expression> rightKeys) {
-        super(Util.combine(leftKeys, rightKeys));
+    public InLocal(Plan left, List<Expression> leftKeys, Plan right, List<Expression> rightKeys) {
+        super(sourceOf(left, leftKeys), sourceOf(right, rightKeys));
     }
 
     @Override
-    protected Column evaluate(List<Column> args) {
-        int keysSize = args.size() / 2;
-        Table leftTable = new LocalTable(args.subList(0, keysSize));
-        Table rightTable = new LocalTable(args.subList(keysSize, args.size()));
+    protected Plan layout() {
+        return getLeft().getLayout();
+    }
 
-        TableHashStrategy rightStrategy = TableHashStrategy.fromColumns(List.of(rightTable.getColumns()));
-        TableHashStrategy leftStrategy = TableHashStrategy.fromColumns(List.of(leftTable.getColumns()), rightStrategy);
+    @Override
+    protected Meta meta() {
+        return new Meta(Schema.of(ColumnType.DOUBLE));
+    }
 
-        int leftSize = Util.toIntSize(leftTable.size());
-        int rightSize = Util.toIntSize(rightTable.size());
+    @Override
+    protected Table execute(Table left, Table right) {
+        List<Expression> leftKeys = expressions(0);
+        List<Expression> rightKeys = expressions(1);
+
+        TableHashStrategy rightStrategy = new TableHashStrategy(rightKeys);
+        TableHashStrategy leftStrategy = new TableHashStrategy(leftKeys, rightStrategy);
+
+        int leftSize = Util.toIntSize(left.size());
+        int rightSize = Util.toIntSize(right.size());
 
         DoubleArrayList results = new DoubleArrayList(leftSize);
 
@@ -45,11 +56,6 @@ public class InLocal extends ExpressionN<Column, Column> {
             }
         }
 
-        return new DoubleDirectColumn(results);
-    }
-
-    @Override
-    public ColumnType getType() {
-        return ColumnType.DOUBLE;
+        return new LocalTable(new DoubleDirectColumn(results));
     }
 }

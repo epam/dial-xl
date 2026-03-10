@@ -59,7 +59,9 @@ export function FormulaBarWrapper() {
         <FormulaBarHeaderSection onPanelAutoResize={handleAutoResize} />
       </Panel>
 
-      <PanelResizeHandle children={<FormulaBarDivider />} />
+      <PanelResizeHandle>
+        <FormulaBarDivider />
+      </PanelResizeHandle>
 
       {fields.length !== 0 &&
         fields.map((fieldName, index) => (
@@ -75,7 +77,9 @@ export function FormulaBarWrapper() {
               <FormulaInput fieldName={fieldName} inputIndex={index} />
             </Panel>
             {index < fields.length - 1 && (
-              <PanelResizeHandle children={<FormulaBarDivider />} />
+              <PanelResizeHandle>
+                <FormulaBarDivider />
+              </PanelResizeHandle>
             )}
           </Fragment>
         ))}

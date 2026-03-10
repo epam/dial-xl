@@ -37,7 +37,7 @@ export class Field extends ObservableObserver {
    */
   constructor(name: string) {
     super();
-    this._name = escapeFieldName(name, true, true);
+    this._name = escapeFieldName(unescapeFieldName(name), true, true);
     this._docString = new DocString([], (text) => new FieldDocLine(text));
   }
 
@@ -124,7 +124,7 @@ export class Field extends ObservableObserver {
    */
   @notifyObserver()
   public set name(value: string) {
-    this._name = escapeFieldName(value, true, true);
+    this._name = escapeFieldName(unescapeFieldName(value), true, true);
   }
 
   /**
@@ -188,7 +188,7 @@ export class Field extends ObservableObserver {
   public insertDecorator(index: number, decorator: Decorator): void {
     if (index < 0 || index >= this._decorators.length) {
       throw new Error(
-        `Decorator index ${index} is out of bounds: valid indices start from 0, the current range is [0, ${this._decorators.length}).`
+        `Decorator index ${index} is out of bounds: valid indices start from 0, the current range is [0, ${this._decorators.length}).`,
       );
     }
 

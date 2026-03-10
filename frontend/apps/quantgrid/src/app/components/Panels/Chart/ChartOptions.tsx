@@ -2,7 +2,13 @@ import { Collapse } from 'antd';
 
 import { ParsedTable } from '@frontend/parser';
 
-import { ChartLegendSection, CollapseIcon } from './Components';
+import {
+  ChartLegendPositionSection,
+  ChartLegendSection,
+  ChartShowTitleSection,
+  ChartVisualMapSection,
+  CollapseIcon,
+} from './Components';
 import { useChartOptions } from './useChartOptions';
 
 export function ChartOptions({ parsedTable }: { parsedTable: ParsedTable }) {
@@ -14,6 +20,7 @@ export function ChartOptions({ parsedTable }: { parsedTable: ParsedTable }) {
     getFirstCollapseSection,
     getSecondCollapseSection,
     showLegendSection,
+    showVisualMapSection,
   } = useChartOptions({ parsedTable });
 
   return (
@@ -31,7 +38,15 @@ export function ChartOptions({ parsedTable }: { parsedTable: ParsedTable }) {
         onChange={onFirstCollapseSectionChange}
       />
 
+      <ChartShowTitleSection parsedTable={parsedTable} />
+
+      {showVisualMapSection && (
+        <ChartVisualMapSection parsedTable={parsedTable} />
+      )}
       {showLegendSection && <ChartLegendSection parsedTable={parsedTable} />}
+      {showLegendSection && (
+        <ChartLegendPositionSection parsedTable={parsedTable} />
+      )}
 
       <Collapse
         activeKey={secondCollapseSectionActiveKeys}

@@ -45,12 +45,12 @@ export const getSuggestions = (messages: Message[]): GPTSuggestion[] => {
   const lastUserMessage = messages.reduceRight(
     (acc: Message | null, curr: Message) =>
       curr.role === 'user' && !acc ? curr : acc,
-    null
+    null,
   );
 
   const stages = lastAnswer?.custom_content?.stages;
   const changedSheetsStage = stages?.find(
-    (stage) => stage.name.trim() === 'Changed Sheets'
+    (stage) => stage.name.trim() === 'Changed Sheets',
   );
   const attachments = stages ? changedSheetsStage?.attachments : undefined;
 
@@ -78,7 +78,7 @@ export const getInitialState = (messages: Message[]): GPTState | null => {
 
   const stages = lastAnswer?.custom_content?.stages;
   const stage = stages?.find((stage) =>
-    stage.name.trim().startsWith('Receiving the project state')
+    stage.name.trim().startsWith('Receiving the project state'),
   );
   const content = stage?.content && prepareStageContent(stage?.content);
 
@@ -152,12 +152,12 @@ export const getFocusColumns = (messages: Message[]): GPTFocusColumn[] => {
       tableName: table_name,
       columnName: column_name,
       sheetName: sheet_name,
-    })
+    }),
   );
 };
 
 export const getAffectedEntitiesHighlight = (
-  messages: Message[]
+  messages: Message[],
 ): Record<string, HighlightData> => {
   if (!messages.length) return {};
 
@@ -202,7 +202,7 @@ export const getAffectedEntitiesHighlight = (
             deletedFields: string[];
           }
         >,
-        curr
+        curr,
       ) => {
         const isDeleted = curr.type === 'RemoveFieldAction';
         const isFocus = curr.isFocus;
@@ -226,11 +226,11 @@ export const getAffectedEntitiesHighlight = (
               changedFields: isDeleted
                 ? prevValue.changedFields
                 : ([...prevValue.changedFields, curr.column_name].filter(
-                    Boolean
+                    Boolean,
                   ) as string[]),
               deletedFields: isDeleted
                 ? ([...prevValue.deletedFields, curr.column_name].filter(
-                    Boolean
+                    Boolean,
                   ) as string[])
                 : prevValue.deletedFields,
             };
@@ -264,31 +264,34 @@ export const getAffectedEntitiesHighlight = (
           focusedFields: string[];
           deletedFields: string[];
         }
-      >
+      >,
     );
 
-    return Object.entries(result).reduce((acc, [tableName, value]) => {
-      const tableHighlight = value.tableFocused
-        ? Highlight.HIGHLIGHTED
-        : value.tableChange
-        ? Highlight.NORMAL
-        : undefined;
-      const focusedFieldsMapped = value.focusedFields.map((item) => ({
-        fieldName: item,
-        highlight: Highlight.HIGHLIGHTED,
-      }));
-      const changedFieldsMapped = value.changedFields.map((item) => ({
-        fieldName: item,
-        highlight: Highlight.HIGHLIGHTED,
-      }));
+    return Object.entries(result).reduce(
+      (acc, [tableName, value]) => {
+        const tableHighlight = value.tableFocused
+          ? Highlight.HIGHLIGHTED
+          : value.tableChange
+            ? Highlight.NORMAL
+            : undefined;
+        const focusedFieldsMapped = value.focusedFields.map((item) => ({
+          fieldName: item,
+          highlight: Highlight.HIGHLIGHTED,
+        }));
+        const changedFieldsMapped = value.changedFields.map((item) => ({
+          fieldName: item,
+          highlight: Highlight.HIGHLIGHTED,
+        }));
 
-      acc[tableName] = {
-        tableHighlight,
-        fieldsHighlight: [...changedFieldsMapped, ...focusedFieldsMapped],
-      };
+        acc[tableName] = {
+          tableHighlight,
+          fieldsHighlight: [...changedFieldsMapped, ...focusedFieldsMapped],
+        };
 
-      return acc;
-    }, {} as Record<string, HighlightData>);
+        return acc;
+      },
+      {} as Record<string, HighlightData>,
+    );
   } catch (e) {
     // eslint-disable-next-line no-console
     console.warn('Cannot parse actions stage or it has invalid structure', e);
@@ -298,11 +301,14 @@ export const getAffectedEntitiesHighlight = (
 };
 
 const mergeStages = (sourceStages: Stage[], newStages: Stage[]) => {
-  const sourceStagesReducer = sourceStages.reduce((acc, curr) => {
-    acc[curr.index] = curr;
+  const sourceStagesReducer = sourceStages.reduce(
+    (acc, curr) => {
+      acc[curr.index] = curr;
 
-    return acc;
-  }, {} as Record<number, Stage>);
+      return acc;
+    },
+    {} as Record<number, Stage>,
+  );
 
   newStages.forEach((stage) => {
     if (sourceStagesReducer[stage.index]) {
@@ -335,7 +341,7 @@ const mergeStages = (sourceStages: Stage[], newStages: Stage[]) => {
 
 export const mergeMessages = (
   source: Message,
-  newMessages: Partial<Message>[]
+  newMessages: Partial<Message>[],
 ) => {
   const newSource = structuredClone(source);
   newMessages.forEach((newData) => {
@@ -361,7 +367,7 @@ export const mergeMessages = (
 
         newSource.custom_content.attachments =
           newSource.custom_content.attachments.concat(
-            newData.custom_content.attachments
+            newData.custom_content.attachments,
           );
       }
 
@@ -371,7 +377,7 @@ export const mergeMessages = (
         }
         newSource.custom_content.stages = mergeStages(
           newSource.custom_content.stages,
-          newData.custom_content.stages
+          newData.custom_content.stages,
         );
       }
 

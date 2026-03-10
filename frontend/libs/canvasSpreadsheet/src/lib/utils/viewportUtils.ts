@@ -1,11 +1,10 @@
 import { CellPlacement } from '@frontend/common';
 
-import { canvasId } from '../constants';
 import { Cell } from '../types';
 
 export type CustomSizes = { [index: number]: number };
 
-export const focusSpreadsheet = () => {
+export const focusSpreadsheet = (canvasId: string) => {
   const spreadsheet = document.querySelector(`#${canvasId} canvas`);
 
   if (!spreadsheet) return;
@@ -16,7 +15,7 @@ export const focusSpreadsheet = () => {
 export function getFirstVisibleColOrRow(
   viewport: number,
   customSizes: CustomSizes,
-  dimension: number
+  dimension: number,
 ): number {
   let accumulatedSize = 0;
   let regularCount = 0;
@@ -58,7 +57,7 @@ export function getRowOrColPosition(
   viewport: number,
   columnOrRow: number,
   customSizes: CustomSizes,
-  dimension: number
+  dimension: number,
 ): number {
   let position = (columnOrRow - 1) * dimension;
 
@@ -80,7 +79,7 @@ export function getRowOrColPosition(
 export function getGridDimension(
   count: number,
   dimension: number,
-  customSizes: CustomSizes
+  customSizes: CustomSizes,
 ): number {
   let customSizesSum = 0;
 
@@ -97,7 +96,7 @@ export function getCellPlacements<T extends Pick<Cell, 'col' | 'row'>>(
   skippedRows: number,
   viewportCols: number,
   viewportRows: number,
-  cells: T[]
+  cells: T[],
 ): T[] {
   const placements: T[] = [];
 
@@ -129,7 +128,7 @@ export function getCellPlacement(
   viewportCols: number,
   viewportRows: number,
   col: number,
-  row: number
+  row: number,
 ): CellPlacement {
   const rowShift = skippedRows % viewportRows;
   const colShift = skippedCols % viewportCols;
@@ -166,4 +165,8 @@ export function toFixed(value: number, precision: number) {
   const power = Math.pow(10, precision || 0);
 
   return Math.round(value * power) / power;
+}
+
+export function snap(input: number) {
+  return Math.round(input * devicePixelRatio) / devicePixelRatio;
 }

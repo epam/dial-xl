@@ -1,44 +1,35 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback } from 'react';
 
-import { CollapseSection } from './types';
-
-const storageKey = 'projectPanelActiveKeys';
-const defaultSections: CollapseSection[] = [
-  CollapseSection.ProjectTree,
-  CollapseSection.Conversations,
-  CollapseSection.Hints,
-  CollapseSection.Inputs,
-];
+import { shallowEqualArray, useSettingState } from '../../../../hooks';
+import {
+  defaultProjectPanelSections,
+  ProjectPanelCollapseSection as CollapseSection,
+} from '../../../../utils';
 
 export function useProjectPanelCollapse(): [
   CollapseSection[],
-  (section: CollapseSection) => void
+  (section: CollapseSection) => void,
 ] {
-  const [activeKeys, setActiveKeys] = useState<CollapseSection[]>(() => {
-    try {
-      const raw = localStorage.getItem(storageKey);
+  const [activeKeys, setActiveKeys] = useSettingState(
+    'projectPanelActiveKeys',
+    {
+      fallback: defaultProjectPanelSections,
+      equals: shallowEqualArray,
+    },
+  );
 
-      return raw ? (JSON.parse(raw) as CollapseSection[]) : defaultSections;
-    } catch {
-      return defaultSections;
-    }
-  });
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(storageKey, JSON.stringify(activeKeys));
-    } catch {
-      // empty section
-    }
-  }, [activeKeys]);
-
-  const toggleSection = useCallback((section: CollapseSection) => {
-    setActiveKeys((prev) =>
-      prev.includes(section)
-        ? prev.filter((s) => s !== section)
-        : [...prev, section]
-    );
-  }, []);
+  const toggleSection = useCallback(
+    (section: CollapseSection) => {
+      setActiveKeys(
+        (prev) =>
+          prev.includes(section)
+            ? prev.filter((s) => s !== section)
+            : [...prev, section],
+        true,
+      );
+    },
+    [setActiveKeys],
+  );
 
   return [activeKeys, toggleSection];
 }

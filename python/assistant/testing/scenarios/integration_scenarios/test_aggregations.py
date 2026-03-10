@@ -23,6 +23,18 @@ async def test_average(imdb_simple_project: FrameProject):
     )
 
 
+async def test_group_by(imdb_simple_project: FrameProject):
+    answer = await imdb_simple_project.query(
+        "Calculate how many movies there were each year? Use designated function. Then take top 2."
+    )
+
+    def check(_, __, table: Table):
+        assert code_regex(table, "(?i).*GROUPBY.*")
+        assert code_regex(table, "(?i).*COUNT.*")
+
+    answer.assertion(AddTable(validator=check) & Text(substrings=["1994", "1999"]))
+
+
 async def test_sum(imdb_simple_project: FrameProject):
     answer = await imdb_simple_project.query(
         "Calculate the sum of values of rank column of Top20IMDBMovies table, use designated function."

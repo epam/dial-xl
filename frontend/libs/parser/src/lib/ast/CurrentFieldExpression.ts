@@ -1,3 +1,4 @@
+import { SheetReader } from '../SheetReader';
 import { Expression } from './Expression';
 
 export class CurrentFieldExpression implements Expression {
@@ -8,9 +9,9 @@ export class CurrentFieldExpression implements Expression {
     public start: number,
     public end: number,
     public globalOffsetStart: number,
-    public globalOffsetEnd: number
+    public globalOffsetEnd: number,
   ) {
-    this.fieldName = fullFieldName.replaceAll('[', '').replaceAll(']', '');
+    this.fieldName = SheetReader.stripQuotes(fullFieldName);
   }
 
   toString(): string {

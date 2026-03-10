@@ -1,10 +1,10 @@
-import { MutableRefObject, useRef, useState } from 'react';
+import { RefObject, useRef, useState } from 'react';
 
 type StateFunc<T> = (currValue: T) => T;
 
 export const useStateWithRef = <T>(
-  initialValue: T
-): [T, (arg: T | StateFunc<T>) => void, MutableRefObject<T>] => {
+  initialValue: T,
+): [T, (arg: T | StateFunc<T>) => void, RefObject<T>] => {
   const [value, _setValue] = useState(initialValue);
   const valueRef = useRef(initialValue);
 

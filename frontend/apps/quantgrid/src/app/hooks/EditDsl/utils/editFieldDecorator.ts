@@ -4,7 +4,7 @@ export function editFieldDecorator(
   field: Field,
   decoratorName: string,
   decoratorArgs: string,
-  shouldRemove = false
+  shouldRemove = false,
 ): boolean {
   try {
     const decorator = field.getDecorator(decoratorName);

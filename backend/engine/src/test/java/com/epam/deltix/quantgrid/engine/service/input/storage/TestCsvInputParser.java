@@ -1,19 +1,19 @@
 package com.epam.deltix.quantgrid.engine.service.input.storage;
 
+import com.epam.deltix.quantgrid.engine.service.input.ColumnMetadata;
+import com.epam.deltix.quantgrid.engine.service.input.CsvInputMetadata;
+import com.epam.deltix.quantgrid.engine.value.local.DoubleDirectColumn;
+import com.epam.deltix.quantgrid.engine.value.local.LocalTable;
+import com.epam.deltix.quantgrid.engine.value.local.StringDirectColumn;
 import com.epam.deltix.quantgrid.type.InputColumnType;
 import com.epam.deltix.quantgrid.util.ParserException;
-import it.unimi.dsi.fastutil.doubles.DoubleArrayList;
-import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
-import java.io.InputStreamReader;
-import java.io.Reader;
-import java.io.StringReader;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.LinkedHashMap;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -25,27 +25,33 @@ import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 class TestCsvInputParser {
 
     @Test
-    void testInvalidCsvSchemaInference() {
-        String csv = """
-                a, b, c, ,
+    void testInvalidCsvSchemaInference() throws IOException {
+        byte[] csvBytes = """
+                a, b, c
                 1, 2, 4
                 5, 6, 7, , 8
                 4, 5
                 7, 8, 6
-                """;
-        List<String> expectedNames = List.of("a", "b", "c", "Column4", "Column5");
-        List<InputColumnType> expectedTypes = Arrays.asList(
-                InputColumnType.DOUBLE, InputColumnType.DOUBLE, InputColumnType.DOUBLE, null, InputColumnType.DOUBLE);
+                """.getBytes();
 
-        Reader csvReader = new StringReader(csv);
-        LinkedHashMap<String, InputColumnType> schema = CsvInputParser.inferSchema(csvReader);
+        CsvInputMetadata.CsvTable schemaWithExtraHeaders = CsvInputParser.inferSchema(new ByteArrayInputStream(csvBytes), true);
+        CsvInputMetadata.CsvTable schemaNoExtraHeaders = CsvInputParser.inferSchema(new ByteArrayInputStream(csvBytes), false);
 
-        Assertions.assertEquals(expectedNames, new ArrayList<>(schema.keySet()));
-        Assertions.assertEquals(expectedTypes, new ArrayList<>(schema.values()));
+        assertThat(schemaWithExtraHeaders).isEqualTo(
+                new CsvInputMetadata.CsvTable(List.of(
+                        new ColumnMetadata("a", 0, InputColumnType.DOUBLE),
+                        new ColumnMetadata("b", 1, InputColumnType.DOUBLE),
+                        new ColumnMetadata("c", 2, InputColumnType.DOUBLE),
+                        new ColumnMetadata("Column5", 4, InputColumnType.DOUBLE))));
+        assertThat(schemaNoExtraHeaders).isEqualTo(
+                new CsvInputMetadata.CsvTable(List.of(
+                        new ColumnMetadata("a", 0, InputColumnType.DOUBLE),
+                        new ColumnMetadata("b", 1, InputColumnType.DOUBLE),
+                        new ColumnMetadata("c", 2, InputColumnType.DOUBLE))));
     }
 
     @Test
-    void testParsingNonUtf8Chars() {
+    void testParsingNonUtf8Chars() throws IOException {
         String csv = """
                 country,date,GDP,IR
                 USA,2021-01-01,21060,
@@ -57,28 +63,40 @@ class TestCsvInputParser {
         // replace "S" in "USA" with negative byte value
         bytesCsv[21] = -100;
 
-        LinkedHashMap<String, InputColumnType> schema =
-                CsvInputParser.inferSchema(new InputStreamReader(new ByteArrayInputStream(bytesCsv)));
+        CsvInputMetadata.CsvTable actualMeta =
+                CsvInputParser.inferSchema(new ByteArrayInputStream(bytesCsv), false);
 
-        LinkedHashMap<String, InputColumnType> expectedSchema = new LinkedHashMap<>();
-        expectedSchema.put("country", InputColumnType.STRING);
-        expectedSchema.put("date", InputColumnType.DATE);
-        expectedSchema.put("GDP", InputColumnType.DOUBLE);
-        expectedSchema.put("IR", InputColumnType.DOUBLE);
+        CsvInputMetadata.CsvTable expectedMeta = new CsvInputMetadata.CsvTable(List.of(
+                new ColumnMetadata("country", 0, InputColumnType.STRING),
+                new ColumnMetadata("date", 1, InputColumnType.DATE),
+                new ColumnMetadata("GDP", 2, InputColumnType.DOUBLE),
+                new ColumnMetadata("IR", 3, InputColumnType.DOUBLE)));
 
-        Assertions.assertEquals(expectedSchema, schema);
+        Assertions.assertEquals(expectedMeta, actualMeta);
 
-        Object[] data = CsvInputParser.parseCsvInput(new InputStreamReader(new ByteArrayInputStream(bytesCsv)),
-                schema.keySet().stream().toList(), schema);
+        LocalTable actualData = CsvInputParser.parseCsvInput(
+                new ByteArrayInputStream(bytesCsv),
+                null,
+                actualMeta.columns().stream()
+                        .map(ColumnMetadata::name)
+                        .toList(),
+                actualMeta.columns().stream()
+                        .map(ColumnMetadata::type)
+                        .toList());
 
-        Assertions.assertIterableEquals(ObjectArrayList.of("U�A", "China", "EU"), (ObjectArrayList<String>) data[0]);
-        Assertions.assertIterableEquals(DoubleArrayList.of(44197, 44197, 44197), (DoubleArrayList) data[1]);
-        Assertions.assertIterableEquals(DoubleArrayList.of(21060, 14688, 13085), (DoubleArrayList) data[2]);
-        Assertions.assertIterableEquals(DoubleArrayList.of(Double.NaN, 0.1, 7), (DoubleArrayList) data[3]);
+        LocalTable expectedData = new LocalTable(
+                new StringDirectColumn("U�A", "China", "EU"),
+                new DoubleDirectColumn(44197, 44197, 44197),
+                new DoubleDirectColumn(21060, 14688, 13085),
+                new DoubleDirectColumn(Double.NaN, 0.1, 7));
+        assertThat(actualData)
+                .usingComparatorForType(Comparator.comparingLong(Double::doubleToRawLongBits), Double.class)
+                .usingRecursiveComparison()
+                .isEqualTo(expectedData);
     }
 
     @Test
-    void testCustomNumbers() {
+    void testCustomNumbers() throws IOException {
         String csv = """
                 a
                 "-1,234,567.89"
@@ -87,32 +105,43 @@ class TestCsvInputParser {
                 -2.3B
                 """;
 
-        LinkedHashMap<String, InputColumnType> schema = CsvInputParser.inferSchema(new StringReader(csv));
-        assertThat(List.copyOf(schema.keySet())).isEqualTo(List.of("a"));
-        assertThat(List.copyOf(schema.values())).isEqualTo(List.of(InputColumnType.DOUBLE));
+        CsvInputMetadata.CsvTable meta = CsvInputParser.inferSchema(new ByteArrayInputStream(csv.getBytes()), false);
+        assertThat(meta).isEqualTo(
+                new CsvInputMetadata.CsvTable(List.of(new ColumnMetadata("a", 0, InputColumnType.DOUBLE))));
 
-        Object[] content = CsvInputParser.parseCsvInput(new StringReader(csv), List.copyOf(schema.keySet()), schema);
-        assertThat(content).isEqualTo(new Object[] {
-                new DoubleArrayList(new double[] {-1234567.89, 1.23E7, 1000.0, -2.3E9})
-        });
+        LocalTable actualData = CsvInputParser.parseCsvInput(
+                new ByteArrayInputStream(csv.getBytes()), null, List.of("a"), List.of(InputColumnType.DOUBLE));
+
+        LocalTable expectedData = new LocalTable(new DoubleDirectColumn(-1234567.89, 1.23E7, 1000.0, -2.3E9));
+        assertThat(actualData)
+                .usingRecursiveComparison()
+                .isEqualTo(expectedData);
     }
 
     @Test
-    void testMixedLineEnding() {
-        String csv = "a,b\r\n1,2\n3,4";
+    void testMixedLineEnding() throws IOException {
+        byte[] csvBytes = "a,b\r\n1,2\n3,4".getBytes();
 
-        LinkedHashMap<String, InputColumnType> schema = CsvInputParser.inferSchema(new StringReader(csv));
-        assertThat(List.copyOf(schema.keySet()))
-                .isEqualTo(List.of("a", "b", "Column3"));
-        assertThat(List.copyOf(schema.values()))
-                .isEqualTo(List.of(InputColumnType.DOUBLE, InputColumnType.STRING, InputColumnType.DOUBLE));
+        CsvInputMetadata.CsvTable meta = CsvInputParser.inferSchema(new ByteArrayInputStream(csvBytes), true);
+        assertThat(meta).isEqualTo(
+                new CsvInputMetadata.CsvTable(List.of(
+                        new ColumnMetadata("a", 0, InputColumnType.DOUBLE),
+                        new ColumnMetadata("b", 1, InputColumnType.STRING),
+                        new ColumnMetadata("Column3", 2, InputColumnType.DOUBLE))));
 
-        Object[] content = CsvInputParser.parseCsvInput(new StringReader(csv), List.copyOf(schema.keySet()), schema);
-        assertThat(content).isEqualTo(new Object[] {
-                new DoubleArrayList(new double[] {1}),
-                new ObjectArrayList<>(new String[] {"2\n3"}),
-                new DoubleArrayList(new double[] {4})
-        });
+        LocalTable actualData = CsvInputParser.parseCsvInput(
+                new ByteArrayInputStream(csvBytes),
+                List.of(0, 1, 2),
+                null,
+                List.of(InputColumnType.DOUBLE, InputColumnType.STRING, InputColumnType.DOUBLE));
+
+        LocalTable expectedData = new LocalTable(
+                new DoubleDirectColumn(1),
+                new StringDirectColumn("2\n3"),
+                new DoubleDirectColumn(4));
+        assertThat(actualData)
+                .usingRecursiveComparison()
+                .isEqualTo(expectedData);
     }
 
     @Test
@@ -120,9 +149,9 @@ class TestCsvInputParser {
         String csv = IntStream.range(0, 513)
                 .mapToObj(i -> "Column" + i)
                 .collect(Collectors.joining(","));
-        StringReader reader = new StringReader(csv);
+        InputStream stream = new ByteArrayInputStream(csv.getBytes());
         assertThatExceptionOfType(ParserException.class)
-                .isThrownBy(() -> CsvInputParser.inferSchema(reader))
+                .isThrownBy(() -> CsvInputParser.inferSchema(stream, false))
                 .withMessage("The document exceeds the maximum column count of 512.");
     }
 
@@ -131,9 +160,9 @@ class TestCsvInputParser {
         String csv = "a," + Stream.generate(() -> "b")
                 .limit(1_048_577)
                 .collect(Collectors.joining());
-        StringReader reader = new StringReader(csv);
+        InputStream stream = new ByteArrayInputStream(csv.getBytes());
         assertThatExceptionOfType(ParserException.class)
-                .isThrownBy(() -> CsvInputParser.inferSchema(reader))
+                .isThrownBy(() -> CsvInputParser.inferSchema(stream, false))
                 .withMessage("Value exceeds max size of 1048576 at column number 2, row 1.");
     }
 }

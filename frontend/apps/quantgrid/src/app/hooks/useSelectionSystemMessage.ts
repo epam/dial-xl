@@ -1,24 +1,22 @@
 import { useContext, useEffect, useState } from 'react';
 
-import { SystemMessageParsedContent } from '@frontend/common';
+import { SelectionEdges } from '@frontend/canvas-spreadsheet';
+import { GPTState } from '@frontend/common';
 
 import { InputsContext, ProjectContext } from '../context';
+import { useViewStore } from '../store';
 import { useGridApi } from './useGridApi';
 
+// TODO: This hook causes rerenders of the entire SpreadsheetWrapper,
+// basically because of including current selection it can't be memoized properly.
 export const useSelectionSystemMessage = () => {
   const gridApi = useGridApi();
   const { inputs } = useContext(InputsContext);
-  const { projectName, sheetName, projectSheets, selectedCell } =
-    useContext(ProjectContext);
+  const { projectName, sheetName, projectSheets } = useContext(ProjectContext);
+  const selectedCell = useViewStore((s) => s.selectedCell);
 
-  const [selection, setSelection] = useState<{
-    startCol: number;
-    startRow: number;
-    endRow: number;
-    endCol: number;
-  } | null>(null);
-  const [systemMessageContent, setSystemMessageContent] =
-    useState<SystemMessageParsedContent>();
+  const [selection, setSelection] = useState<SelectionEdges | null>(null);
+  const [systemMessageContent, setSystemMessageContent] = useState<GPTState>();
 
   useEffect(() => {
     if (!projectSheets || !sheetName || !projectName || !gridApi) return;
@@ -28,13 +26,15 @@ export const useSelectionSystemMessage = () => {
       sheets[sheet.sheetName] = sheet.content;
     }
 
-    const state: SystemMessageParsedContent = {
-      sheets,
-      inputs,
-      currentSheet: sheetName,
-      currentProjectName: projectName,
-      selection,
-      selectedTableName: selectedCell?.tableName,
+    const state: GPTState = {
+      projectState: {
+        sheets,
+        inputs,
+        currentSheet: sheetName,
+        currentProjectName: projectName,
+        selection,
+        selectedTableName: selectedCell?.tableName,
+      },
     };
 
     setSystemMessageContent(state);

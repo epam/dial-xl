@@ -1,24 +1,25 @@
-import { RefObject, useCallback, useContext, useRef } from 'react';
+import { useCallback, useContext, useRef } from 'react';
 
 import { isFormulaBarMonacoInputFocused, isModalOpen } from '@frontend/common';
 
-import { GridApi, GridCallbacks } from '../../../types';
-import { isCellEditorOpen } from '../../../utils';
+import { GridStateContext } from '../../../context';
+import { useNavigation } from '../../../hooks';
+import { GridEventBus, isCellEditorOpen } from '../../../utils';
 import { CellEditorContext } from '../CellEditorContext';
 import { SelectionEffectAfterSave } from '../types';
 import { isCellEditorHasFocus } from '../utils';
 
 type Props = {
-  apiRef: RefObject<GridApi>;
-  gridCallbacksRef: RefObject<GridCallbacks>;
+  eventBus: GridEventBus;
   isPointClickMode: boolean;
 };
 
 export function useCellEditorCompleteEdit({
-  apiRef,
-  gridCallbacksRef,
+  eventBus,
   isPointClickMode,
 }: Props) {
+  const { getCell } = useContext(GridStateContext);
+  const { arrowNavigation, tabNavigation } = useNavigation();
   const {
     codeValue,
     currentCell,
@@ -35,26 +36,26 @@ export function useCellEditorCompleteEdit({
   const skipSaveOnBlur = useRef<boolean>(false);
 
   const save = useCallback(
-    (value: string) => {
-      if (!apiRef.current || !gridCallbacksRef.current || !currentCell) return;
+    async (value: string) => {
+      if (!currentCell) return;
 
       skipSaveOnBlur.current = true;
       const { col, row } = currentCell;
-      const cell = apiRef.current.getCell(col, row);
+      const cell = getCell(col, row);
 
-      const requiredHide = gridCallbacksRef.current.onCellEditorSubmit?.({
-        editMode,
-        currentCell,
-        cell,
-        value,
-        dimFieldName,
+      const requiredHide = await new Promise<boolean>((resolve) => {
+        eventBus.emit({
+          type: 'editor/submit',
+          payload: { editMode, currentCell, cell, value, dimFieldName },
+          reply: resolve,
+        });
       });
 
       if (requiredHide) {
         hide();
       }
     },
-    [apiRef, currentCell, dimFieldName, editMode, gridCallbacksRef, hide]
+    [currentCell, dimFieldName, editMode, eventBus, getCell, hide],
   );
 
   const onEscape = useCallback(() => {
@@ -68,15 +69,18 @@ export function useCellEditorCompleteEdit({
 
     if (openedExplicitly && !isCellEditorHasFocus()) return;
 
-    gridCallbacksRef?.current?.onCellEditorUpdateValue?.(
-      codeValue.current,
-      true
-    );
+    eventBus.emit({
+      type: 'editor/value-updated',
+      payload: {
+        value: codeValue.current,
+        cancelEdit: true,
+      },
+    });
 
     hide();
   }, [
     codeValue,
-    gridCallbacksRef,
+    eventBus,
     hide,
     ignoreScrollEvent,
     openedExplicitly,
@@ -126,30 +130,28 @@ export function useCellEditorCompleteEdit({
 
   const moveSelectionAfterSave = useCallback(
     (moveSelection: SelectionEffectAfterSave) => {
-      if (!apiRef.current || isCellEditorOpen()) return;
-
-      const api = apiRef.current;
+      if (isCellEditorOpen()) return;
 
       switch (moveSelection) {
         case 'arrow-right':
-          api.arrowNavigation('ArrowRight');
+          arrowNavigation('ArrowRight');
           break;
         case 'arrow-left':
-          api.arrowNavigation('ArrowLeft');
+          arrowNavigation('ArrowLeft');
           break;
         case 'arrow-top':
-          api.arrowNavigation('ArrowUp');
+          arrowNavigation('ArrowUp');
           break;
         case 'arrow-bottom':
         case 'enter':
-          api.arrowNavigation('ArrowDown');
+          arrowNavigation('ArrowDown');
           break;
         case 'tab':
-          api.tabNavigation();
+          tabNavigation();
           break;
       }
     },
-    [apiRef]
+    [arrowNavigation, tabNavigation],
   );
 
   const onSave = useCallback(
@@ -162,7 +164,7 @@ export function useCellEditorCompleteEdit({
         moveSelectionAfterSave(moveSelection);
       }, 0);
     },
-    [codeValue, moveSelectionAfterSave, save]
+    [codeValue, moveSelectionAfterSave, save],
   );
 
   const onSaveCallback = useCallback(() => {

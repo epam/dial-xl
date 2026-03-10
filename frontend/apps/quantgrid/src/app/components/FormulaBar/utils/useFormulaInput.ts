@@ -4,13 +4,14 @@ import { GridCellEditorMode } from '@frontend/canvas-spreadsheet';
 import { extractExpression } from '@frontend/parser';
 
 import { SelectedCell, SelectedCellType } from '../../../common';
-import { AppContext, ProjectContext } from '../../../context';
+import { ProjectContext } from '../../../context';
 import { useDSLUtils, useGridApi, useSubmitCellEditor } from '../../../hooks';
+import { useFormulaBarStore } from '../../../store';
 import { isOverrideValueFormula } from '../../../utils/override';
 
 export function useFormulaInput() {
-  const { projectName, openStatusModal } = useContext(ProjectContext);
-  const { formulaBarMode } = useContext(AppContext);
+  const { projectName } = useContext(ProjectContext);
+  const formulaBarMode = useFormulaBarStore((s) => s.formulaBarMode);
   const { findTableField, findTable } = useDSLUtils();
   const { submitCellEditor } = useSubmitCellEditor();
   const gridApi = useGridApi();
@@ -38,7 +39,7 @@ export function useFormulaInput() {
 
         const fieldTotal = table.total?.getFieldTotalByIndex(
           fieldName || selectedCell.fieldName || '',
-          totalIndex
+          totalIndex,
         );
 
         if (!fieldTotal) return '=';
@@ -70,7 +71,7 @@ export function useFormulaInput() {
 
         const field = findTableField(
           tableName,
-          fieldName || selectedCell?.fieldName || value || ''
+          fieldName || selectedCell?.fieldName || value || '',
         );
 
         if (!field || !field.expressionMetadata) return null;
@@ -80,7 +81,7 @@ export function useFormulaInput() {
 
       return null;
     },
-    [findTable, findTableField, formulaBarMode]
+    [findTable, findTableField, formulaBarMode],
   );
 
   const saveFormulaInputValue = useCallback(
@@ -88,7 +89,7 @@ export function useFormulaInput() {
       code: string,
       selectedCell: SelectedCell | null,
       editMode: GridCellEditorMode,
-      dimFieldName?: string
+      dimFieldName?: string,
     ) => {
       if (!projectName || !selectedCell || !gridApi) return;
 
@@ -100,10 +101,9 @@ export function useFormulaInput() {
         cell,
         value: code,
         dimFieldName,
-        openStatusModal,
       });
     },
-    [projectName, gridApi, submitCellEditor, openStatusModal]
+    [projectName, gridApi, submitCellEditor],
   );
 
   return {

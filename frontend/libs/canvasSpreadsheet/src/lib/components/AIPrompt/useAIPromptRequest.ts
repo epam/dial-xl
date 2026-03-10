@@ -19,10 +19,10 @@ export const useAIPromptRequests = ({
   onResponseUpdate: (currentMessage: Message, isFinish?: boolean) => void;
 }) => {
   const auth = useAuth();
-  const controllerRef = useRef<AbortController>();
+  const controllerRef = useRef<AbortController>(undefined);
   const [isLoading, setIsLoading] = useState(false);
   const [isError, setIsError] = useState(false);
-  const timeoutIdRef = useRef<ReturnType<typeof setTimeout>>();
+  const timeoutIdRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const isTimeoutRef = useRef(false);
 
   const sendDialRequest = useCallback(
@@ -30,7 +30,7 @@ export const useAIPromptRequests = ({
       path: string,
       params?: Omit<RequestInit, 'headers'> & {
         headers?: Record<string, string>;
-      }
+      },
     ) => {
       const headers = params?.headers || {};
 
@@ -44,7 +44,7 @@ export const useAIPromptRequests = ({
 
       return fetch(fullPath, { ...params, headers, signal: controller.signal });
     },
-    [auth]
+    [auth],
   );
 
   const handleClearTimeout = useCallback(() => {
@@ -70,7 +70,7 @@ export const useAIPromptRequests = ({
         // Empty catch
       }
     },
-    [sendDialRequest]
+    [sendDialRequest],
   );
 
   const sendDislike = useCallback(
@@ -87,7 +87,7 @@ export const useAIPromptRequests = ({
         // Empty catch
       }
     },
-    [sendDialRequest]
+    [sendDialRequest],
   );
 
   const sendRequest = useCallback(
@@ -108,7 +108,7 @@ export const useAIPromptRequests = ({
         ];
         const res = await sendDialRequest(
           `/openai/deployments/${encodeURI(
-            qgBotDeploymentName
+            qgBotDeploymentName,
           )}/chat/completions?api-version=2024-02-15-preview`,
           {
             body: JSON.stringify({
@@ -122,7 +122,7 @@ export const useAIPromptRequests = ({
             headers: {
               'Content-Type': 'application/json',
             },
-          }
+          },
         );
 
         if (!res || !res.ok) throw new Error();
@@ -172,7 +172,7 @@ export const useAIPromptRequests = ({
         return;
       }
     },
-    [handleClearTimeout, onResponseUpdate, sendDialRequest, systemPrompt]
+    [handleClearTimeout, onResponseUpdate, sendDialRequest, systemPrompt],
   );
 
   const stopRequest = useCallback(() => {

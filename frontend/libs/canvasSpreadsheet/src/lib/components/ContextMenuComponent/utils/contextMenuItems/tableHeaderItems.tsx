@@ -1,3 +1,5 @@
+import { ItemType } from 'antd/es/menu/interface';
+
 import Icon from '@ant-design/icons';
 import {
   ChartArrowsIcon,
@@ -13,11 +15,9 @@ import {
   isFeatureFlagEnabled,
   Shortcut,
   shortcutApi,
-  TableArrowIcon,
   TableArrowsIcon,
   TableRectangleIcon,
   TableXIcon,
-  TagIcon,
 } from '@frontend/common';
 
 import { GridCell } from '../../../../types';
@@ -27,12 +27,16 @@ import {
   arrangeTableItems,
   askAIItem,
   hideItem,
+  moveTable,
   noteEditItem,
   noteRemoveItem,
+  openDetails,
   orientationItem,
 } from './commonItem';
 
-export const getTableHeaderMenuItems = (cell: GridCell) => {
+const tableHeaderMenuPath = ['TableHeaderMenu'];
+
+export const getTableHeaderMenuItems = (cell: GridCell): ItemType[] => {
   const { table, col, row } = cell;
 
   if (!table) return [];
@@ -48,24 +52,28 @@ export const getTableHeaderMenuItems = (cell: GridCell) => {
   const isShowAIPrompt = isFeatureFlagEnabled('askAI');
 
   return [
-    isShowAIPrompt ? askAIItem(col, row) : null,
+    isShowAIPrompt ? askAIItem(col, row, tableHeaderMenuPath) : null,
     isShowAIPrompt ? getDropdownDivider() : null,
+    !isChart
+      ? getDropdownItem({
+          label: 'Rename table',
+          fullPath: [...tableHeaderMenuPath, 'RenameTable'],
+          key: getDropdownMenuKey<ContextMenuKeyData>(menuKey.renameTable, {
+            col,
+            row,
+          }),
+          icon: (
+            <Icon
+              className="text-text-secondary w-[18px]"
+              component={() => <HeaderIcon />}
+            />
+          ),
+          shortcut: shortcutApi.getLabel(Shortcut.Rename),
+        })
+      : null,
     getDropdownItem({
-      label: 'Rename table',
-      key: getDropdownMenuKey<ContextMenuKeyData>(menuKey.renameTable, {
-        col,
-        row,
-      }),
-      icon: (
-        <Icon
-          className="text-text-secondary w-[18px]"
-          component={() => <HeaderIcon />}
-        />
-      ),
-      shortcut: shortcutApi.getLabel(Shortcut.Rename),
-    }),
-    getDropdownItem({
-      label: 'Delete table',
+      label: isChart ? 'Delete chart' : 'Delete table',
+      fullPath: [...tableHeaderMenuPath, 'DeleteTable'],
       key: getDropdownMenuKey<ContextMenuKeyData>(menuKey.deleteTable, {
         col,
         row,
@@ -78,53 +86,46 @@ export const getTableHeaderMenuItems = (cell: GridCell) => {
       ),
       shortcut: shortcutApi.getLabel(Shortcut.Delete),
     }),
-    getDropdownItem({
-      label: 'Move table',
-      key: getDropdownMenuKey<ContextMenuKeyData>(menuKey.moveTable, {
-        col,
-        row,
-      }),
-      icon: (
-        <Icon
-          className="text-text-secondary w-[18px]"
-          component={() => (
-            <TableArrowIcon secondaryAccentCssVar="text-accent-secondary" />
-          )}
-        />
-      ),
-    }),
-    getDropdownItem({
-      label: 'Insert',
-      key: 'Insert',
-      icon: (
-        <Icon
-          className="text-text-accent-tertiary w-[18px]"
-          component={() => <InsertFilledIcon />}
-        />
-      ),
-      children: [
-        getDropdownItem({
-          label: 'New column',
-          key: getDropdownMenuKey<ContextMenuKeyData>(menuKey.addField, {
-            col,
-            row,
-          }),
-        }),
-        getDropdownItem({
-          label: 'New row',
-          key: getDropdownMenuKey<ContextMenuKeyData>(menuKey.addRow, {
-            col,
-            row,
-          }),
-          disabled: !isManual,
-          tooltip: !isManual ? 'Only available for manual table' : undefined,
-        }),
-      ],
-    }),
-
+    moveTable(col, row, tableHeaderMenuPath, isChart),
+    !isChart
+      ? getDropdownItem({
+          label: 'Insert',
+          key: 'Insert',
+          fullPath: [...tableHeaderMenuPath, 'Insert'],
+          icon: (
+            <Icon
+              className="text-text-accent-tertiary w-[18px]"
+              component={() => <InsertFilledIcon />}
+            />
+          ),
+          children: [
+            getDropdownItem({
+              label: 'New column',
+              fullPath: [...tableHeaderMenuPath, 'Insert', 'NewColumn'],
+              key: getDropdownMenuKey<ContextMenuKeyData>(menuKey.addField, {
+                col,
+                row,
+              }),
+            }),
+            getDropdownItem({
+              label: 'New row',
+              fullPath: [...tableHeaderMenuPath, 'Insert', 'NewRow'],
+              key: getDropdownMenuKey<ContextMenuKeyData>(menuKey.addRow, {
+                col,
+                row,
+              }),
+              disabled: !isManual,
+              tooltip: !isManual
+                ? 'Only available for manual table'
+                : undefined,
+            }),
+          ],
+        })
+      : null,
     getDropdownDivider(),
     getDropdownItem({
       label: 'Download table',
+      fullPath: [...tableHeaderMenuPath, 'DownloadTable'],
       key: getDropdownMenuKey<ContextMenuKeyData>(menuKey.downloadTable, {
         col,
         row,
@@ -138,7 +139,8 @@ export const getTableHeaderMenuItems = (cell: GridCell) => {
     }),
     getDropdownDivider(),
     getDropdownItem({
-      label: 'Clone table',
+      label: isChart ? 'Clone chart' : 'Clone table',
+      fullPath: [...tableHeaderMenuPath, 'CloneTable'],
       key: getDropdownMenuKey<ContextMenuKeyData>(menuKey.cloneTable, {
         col,
         row,
@@ -154,6 +156,7 @@ export const getTableHeaderMenuItems = (cell: GridCell) => {
     }),
     getDropdownItem({
       label: 'Create derived table',
+      fullPath: [...tableHeaderMenuPath, 'CreateDerivedTable'],
       key: getDropdownMenuKey<ContextMenuKeyData>(menuKey.createDerivedTable, {
         col,
         row,
@@ -170,6 +173,7 @@ export const getTableHeaderMenuItems = (cell: GridCell) => {
     isChart
       ? getDropdownItem({
           label: 'Convert to table',
+          fullPath: [...tableHeaderMenuPath, 'ConvertToTable'],
           key: getDropdownMenuKey<ContextMenuKeyData>(menuKey.convertToTable, {
             col,
             row,
@@ -187,6 +191,7 @@ export const getTableHeaderMenuItems = (cell: GridCell) => {
     getDropdownItem({
       label: 'Convert to chart',
       key: 'ConvertToChart',
+      fullPath: [...tableHeaderMenuPath, 'ConvertToChart'],
       icon: (
         <Icon
           className="text-text-secondary w-[18px]"
@@ -201,13 +206,14 @@ export const getTableHeaderMenuItems = (cell: GridCell) => {
           .map((item) => {
             return getDropdownItem({
               label: item.label,
+              fullPath: [...tableHeaderMenuPath, 'ConvertToChart', item.type],
               key: getDropdownMenuKey<ContextMenuKeyData>(
                 menuKey.convertToChart,
                 {
                   col,
                   row,
                   chartType: item.type,
-                }
+                },
               ),
               icon: (
                 <Icon
@@ -223,6 +229,7 @@ export const getTableHeaderMenuItems = (cell: GridCell) => {
       ? getDropdownItem({
           label: 'Add chart',
           key: 'AddChart',
+          fullPath: [...tableHeaderMenuPath, 'AddChart'],
           icon: (
             <Icon
               className="text-text-secondary w-[18px]"
@@ -235,6 +242,7 @@ export const getTableHeaderMenuItems = (cell: GridCell) => {
             ...chartItems.map((item) => {
               return getDropdownItem({
                 label: item.label,
+                fullPath: [...tableHeaderMenuPath, 'AddChart', item.type],
                 key: getDropdownMenuKey<ContextMenuKeyData>(menuKey.addChart, {
                   col,
                   row,
@@ -253,31 +261,22 @@ export const getTableHeaderMenuItems = (cell: GridCell) => {
       : null,
 
     getDropdownDivider(),
-    noteEditItem(col, row, note),
-    note ? noteRemoveItem(col, row) : null,
+    noteEditItem(col, row, tableHeaderMenuPath, note),
+    note ? noteRemoveItem(col, row, tableHeaderMenuPath) : null,
     getDropdownDivider(),
-    arrangeTableItems(col, row),
-    !isChart ? orientationItem(col, row, isTableHorizontal) : null,
+    arrangeTableItems(col, row, tableHeaderMenuPath),
+    !isChart
+      ? orientationItem(col, row, tableHeaderMenuPath, isTableHorizontal)
+      : null,
     hideItem(
       col,
       row,
+      tableHeaderMenuPath,
       isTableNameHeaderHidden,
       isTableFieldsHeaderHidden,
-      isChart
+      isChart,
     ),
     getDropdownDivider(),
-    getDropdownItem({
-      label: 'Open in Editor',
-      key: getDropdownMenuKey<ContextMenuKeyData>(menuKey.openTableInEditor, {
-        col,
-        row,
-      }),
-      icon: (
-        <Icon
-          className="text-text-secondary w-[18px]"
-          component={() => <TagIcon />}
-        />
-      ),
-    }),
+    ...(openDetails(col, row, tableHeaderMenuPath, true) || []),
   ];
 };

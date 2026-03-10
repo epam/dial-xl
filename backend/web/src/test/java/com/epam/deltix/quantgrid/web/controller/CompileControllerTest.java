@@ -1,43 +1,45 @@
 package com.epam.deltix.quantgrid.web.controller;
 
-import com.epam.deltix.quantgrid.engine.service.input.storage.InputProvider;
+import com.epam.deltix.quantgrid.engine.service.ai.AiProvider;
+import com.epam.deltix.quantgrid.engine.service.ai.LocalAiProvider;
+import com.epam.deltix.quantgrid.engine.service.input.ExcelCatalog;
+import com.epam.deltix.quantgrid.engine.service.input.ExcelCell;
+import com.epam.deltix.quantgrid.engine.service.input.Range;
+import com.epam.deltix.quantgrid.engine.service.input.storage.ImportProvider;
 import com.epam.deltix.quantgrid.engine.service.input.storage.dial.DialInputProvider;
+import com.epam.deltix.quantgrid.engine.service.input.storage.dial.DialSchemaStore;
+import com.epam.deltix.quantgrid.engine.service.input.storage.local.LocalImportProvider;
+import com.epam.deltix.quantgrid.engine.store.Store;
+import com.epam.deltix.quantgrid.engine.store.local.LocalStore;
 import com.epam.deltix.quantgrid.parser.FieldKey;
 import com.epam.deltix.quantgrid.parser.OverrideKey;
 import com.epam.deltix.quantgrid.parser.ParsedKey;
 import com.epam.deltix.quantgrid.parser.TotalKey;
 import com.epam.deltix.quantgrid.util.DialFileApi;
-import com.epam.deltix.quantgrid.util.EtaggedStream;
+import com.epam.deltix.quantgrid.util.ParserException;
 import com.epam.deltix.quantgrid.web.utils.ApiMessageMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.epam.deltix.proto.Api;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
-import org.junit.jupiter.params.provider.MethodSource;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
-import org.springframework.core.io.ResourceLoader;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-import java.io.FileNotFoundException;
-import java.io.InputStream;
+import java.nio.file.Paths;
+import java.security.Principal;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -51,8 +53,18 @@ class CompileControllerTest {
     @TestConfiguration
     public static class Configuration {
         @Bean
-        public InputProvider dialInputProvider(DialFileApi fileApi) {
-            return new DialInputProvider(fileApi, "input_schemas.json");
+        public ImportProvider localImportProvider() {
+            return new LocalImportProvider();
+        }
+
+        @Bean
+        public AiProvider localAiProvider() {
+            return new LocalAiProvider();
+        }
+
+        @Bean
+        public Store store() {
+            return new LocalStore(Paths.get("./"));
         }
     }
 
@@ -60,10 +72,13 @@ class CompileControllerTest {
     private MockMvc mockMvc;
 
     @MockitoBean
+    private DialSchemaStore schemaStore;
+
+    @MockitoBean
     private DialFileApi dialFileApi;
 
-    @Autowired
-    private ResourceLoader resourceLoader;
+    @MockitoBean
+    private DialInputProvider dialInputProvider;
 
     @Test
     void testCompile() throws Exception {
@@ -98,6 +113,7 @@ class CompileControllerTest {
                                         .setTable("A")
                                         .setField("a"))
                                 .setType(Api.ColumnDataType.DOUBLE)
+                                .setIsAssignable(true)
                                 .setHash("667668fa41db37f4e12d14309f1712a49f3e1bf7e24fbb9433f842fbdb5453ca")
                                 .setFormat(Api.ColumnFormat.newBuilder()
                                         .setGeneralArgs(Api.GeneralFormatArgs.getDefaultInstance())
@@ -138,6 +154,7 @@ class CompileControllerTest {
                                         .setField("__formula"))
                                 .setType(Api.ColumnDataType.TABLE_REFERENCE)
                                 .setIsNested(true)
+                                .setIsAssignable(true)
                                 .setReferenceTableName("A")
                                 .addReferences(tableReference("A"))))
                 .build();
@@ -147,26 +164,16 @@ class CompileControllerTest {
         assertThat(actual).isEqualTo(expected);
     }
 
-    @ParameterizedTest
-    @MethodSource("inputErrors")
-    void testSchemaParsingErrors(String name, String expectedError) throws Exception {
-        String bucket = "test-bucket";
-        String etag = "test-etag";
-        String prefix = "files/" + bucket + "/";
-        String input = prefix + name + ".csv";
-        String schema = prefix + "." + name + ".schema";
-        InputStream inputStream = resourceLoader.getResource("classpath:test-inputs/malformed/" + name + ".csv")
-                .getInputStream();
-        when(dialFileApi.getAttributes(eq(input), eq(true), eq(false), isNull(), any()))
-                .thenReturn(new DialFileApi.Attributes(etag, input, null, null, List.of("READ"), null, List.of()));
-        when(dialFileApi.readFile(eq(schema), any()))
-                .thenThrow(new FileNotFoundException());
-        when(dialFileApi.getBucket(any()))
-                .thenReturn(bucket);
-        when(dialFileApi.readFile(eq(input), any()))
-                .thenReturn(new EtaggedStream(inputStream, inputStream, etag));
-
-        String formula = "INPUT(\"%s\")".formatted(input);
+    @Test
+    void testSchemaParsingErrors() throws Exception {
+        String error = "Test parsing error";
+        ArgumentCaptor<String> readMetadataPathCaptor = ArgumentCaptor.captor();
+        ArgumentCaptor<Principal> readMetadataPrincipalCaptor = ArgumentCaptor.captor();
+        when(dialInputProvider.readMetadata(
+                readMetadataPathCaptor.capture(),
+                readMetadataPrincipalCaptor.capture()))
+                .thenThrow(new ParserException(error));
+        String formula = "INPUT(\"files/test-bucket/test-file.csv\")";
         Api.Request request = Api.Request.newBuilder()
                 .setId(TEST_ID)
                 .setDimensionalSchemaRequest(Api.DimensionalSchemaRequest.newBuilder()
@@ -177,18 +184,14 @@ class CompileControllerTest {
                 .setId(TEST_ID)
                 .setDimensionalSchemaResponse(Api.DimensionalSchemaResponse.newBuilder()
                         .setFormula(formula)
-                        .setErrorMessage(expectedError))
+                        .setErrorMessage(error))
                 .build();
 
         Api.Response actual = sendRequest("/v1/schema", request);
 
+        assertThat(readMetadataPathCaptor.getValue()).isEqualTo("files/test-bucket/test-file.csv");
+        assertThat(readMetadataPrincipalCaptor.getValue()).isNotNull();
         assertThat(actual).isEqualTo(expected);
-    }
-
-    private static Stream<Arguments> inputErrors() {
-        return Stream.of(
-                Arguments.of("duplicated-column", "Column names must be unique. Duplicate found: a."),
-                Arguments.of("empty", "The document doesn't have headers."));
     }
 
     @Test
@@ -317,6 +320,80 @@ class CompileControllerTest {
 
         assertThat(response.getCompileResult().getCompilationErrorsList()).isEmpty();
         assertThat(references).isEqualTo(expected);
+    }
+
+    @Test
+    void testExcelCatalog() throws Exception {
+        Api.Request request = Api.Request.newBuilder()
+                .setId(TEST_ID)
+                .setExcelCatalogGetRequest(Api.ExcelCatalogGetRequest.newBuilder()
+                        .setPath("files/test-bucket/test-file.xlsx"))
+                .build();
+        Api.Response expected = Api.Response.newBuilder()
+                .setId(TEST_ID)
+                .setExcelCatalogGetResponse(Api.ExcelCatalogGetResponse.newBuilder()
+                        .addAllSheets(List.of("sheet1", "sheet2"))
+                        .addAllTables(List.of("table1", "table2")))
+                .build();
+
+        ArgumentCaptor<String> readExcelCatalogPathCaptor = ArgumentCaptor.captor();
+        ArgumentCaptor<Principal> readExcelCatalogPrincipalCaptor = ArgumentCaptor.captor();
+        when(dialInputProvider.readExcelCatalog(
+                readExcelCatalogPathCaptor.capture(),
+                readExcelCatalogPrincipalCaptor.capture()))
+                .thenReturn(new ExcelCatalog(List.of("sheet1", "sheet2"), List.of("table1", "table2")));
+
+        Api.Response actual = sendRequest("/v1/get_excel_catalog", request);
+
+        assertThat(readExcelCatalogPathCaptor.getValue()).isEqualTo("files/test-bucket/test-file.xlsx");
+        assertThat(readExcelCatalogPrincipalCaptor.getValue()).isNotNull();
+        assertThat(actual).isEqualTo(expected);
+    }
+
+    @Test
+    void testPreview() throws Exception {
+        Api.Request request = Api.Request.newBuilder()
+                .setId(TEST_ID)
+                .setExcelPreviewRequest(Api.ExcelPreviewRequest.newBuilder()
+                        .setPath("files/test-bucket/test-file.xlsx?sheet=sheet1")
+                        .setStartRow(0)
+                        .setEndRow(10)
+                        .setStartColumn(0)
+                        .setEndColumn(5))
+                .build();
+        Api.Response expected = Api.Response.newBuilder()
+                .setId(TEST_ID)
+                .setExcelPreviewResponse(Api.ExcelPreviewResponse.newBuilder()
+                        .addAllCell(List.of(
+                                Api.ExcelCell.newBuilder()
+                                        .setRow(1)
+                                        .setColumn(1)
+                                        .setValue("Value 1")
+                                        .build(),
+                                Api.ExcelCell.newBuilder()
+                                        .setRow(2)
+                                        .setColumn(2)
+                                        .setValue("Value 2")
+                                        .build())))
+                .build();
+
+        ArgumentCaptor<String> previewPathCaptor = ArgumentCaptor.captor();
+        ArgumentCaptor<Range> previewRangeCaptor = ArgumentCaptor.captor();
+        ArgumentCaptor<Principal> previewPrincipalCaptor = ArgumentCaptor.captor();
+        when(dialInputProvider.preview(
+                previewPathCaptor.capture(),
+                previewRangeCaptor.capture(),
+                previewPrincipalCaptor.capture()))
+                .thenReturn(List.of(
+                        new ExcelCell(1, 1, "Value 1"),
+                        new ExcelCell(2, 2, "Value 2")));
+
+        Api.Response actual = sendRequest("/v1/preview_excel_data", request);
+
+        assertThat(previewPathCaptor.getValue()).isEqualTo("files/test-bucket/test-file.xlsx?sheet=sheet1");
+        assertThat(previewRangeCaptor.getValue()).isEqualTo(new Range(0, 10, 0, 5));
+        assertThat(previewPrincipalCaptor.getValue()).isNotNull();
+        assertThat(actual).isEqualTo(expected);
     }
 
     private static Api.Reference tableReference(String table) {

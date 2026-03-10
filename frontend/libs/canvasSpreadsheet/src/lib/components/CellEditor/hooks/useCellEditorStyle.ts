@@ -1,46 +1,67 @@
-import { RefObject, useCallback } from 'react';
+import { useCallback, useContext } from 'react';
 
-import { GridApi } from '../../../types';
+import { GridStateContext, GridViewportContext } from '../../../context';
+import { getPx } from '../../../utils';
 import { CurrentCell, EditorStyle } from '../types';
-import { getCellEditorWidthPx } from '../utils';
+import { getCellEditorWidth } from '../utils';
 
 type Props = {
-  apiRef: RefObject<GridApi>;
   currentCell: CurrentCell;
   editorStyle: EditorStyle;
   setEditorStyle: (
-    editorStyle: EditorStyle | ((prev: EditorStyle) => EditorStyle)
+    editorStyle: EditorStyle | ((prev: EditorStyle) => EditorStyle),
   ) => void;
   zoom: number;
+  columnSizes: Record<string, number>;
 };
 
 export function useCellEditorStyle({
-  apiRef,
   currentCell,
   editorStyle,
   setEditorStyle,
   zoom,
+  columnSizes,
 }: Props) {
+  const { getCellX } = useContext(GridViewportContext);
+  const { gridSizes, canvasId } = useContext(GridStateContext);
+
   const updateCellEditorStyle = useCallback(
     (newCode: string) => {
-      if (!apiRef.current || !currentCell) return;
+      if (!currentCell) return;
 
-      const { col } = currentCell;
-      const x = apiRef.current.getCellX(col);
-      const currentWidth = parseInt(editorStyle.width);
+      setEditorStyle((prev) => {
+        const { col } = currentCell;
+        const x = getCellX(col);
+        const currentWidth = parseInt(prev.width);
 
-      const width = getCellEditorWidthPx(
-        apiRef.current,
-        x,
-        newCode,
-        zoom,
-        false,
-        currentWidth
-      );
+        const width = getCellEditorWidth({
+          gridSizes,
+          x,
+          value: newCode,
+          valueColumn: col,
+          zoom,
+          initial: false,
+          currentWidth,
+          columnSizes,
+          canvasId,
+        });
 
-      setEditorStyle((prev) => ({ ...prev, width }));
+        return {
+          ...prev,
+          width: getPx(width),
+        };
+      });
     },
-    [apiRef, currentCell, editorStyle.width, setEditorStyle, zoom]
+    [
+      canvasId,
+      columnSizes,
+      currentCell,
+      editorStyle.width,
+      getCellX,
+      gridSizes,
+      setEditorStyle,
+      zoom,
+    ],
   );
 
   return {

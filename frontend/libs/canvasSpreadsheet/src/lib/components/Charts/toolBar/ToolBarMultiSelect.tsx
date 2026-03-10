@@ -1,6 +1,5 @@
 import { Checkbox } from 'antd';
 import cx from 'classnames';
-import { DefaultOptionType } from 'rc-select/lib/Select';
 import { useCallback, useEffect, useState } from 'react';
 import Select, {
   ActionMeta,
@@ -12,6 +11,7 @@ import Select, {
 } from 'react-select';
 
 import { chartRowNumberSelector, SelectClasses } from '@frontend/common';
+import { DefaultOptionType } from '@rc-component/select/lib/Select';
 
 import { defaultFontSize, getSelectStyles, selectHeight } from './styles';
 import { ToolBarSelectProps } from './types';
@@ -55,12 +55,12 @@ export function ToolBarMultiSelect({
   const onChange = useCallback(
     (
       options: MultiValue<DefaultOptionType>,
-      actionMeta: ActionMeta<DefaultOptionType>
+      actionMeta: ActionMeta<DefaultOptionType>,
     ) => {
       const allOptions = getKeyValues();
       const allActualItems = allOptions.filter(
         (o) =>
-          o.value !== notSelectedItem.value && o.value !== selectAllItem.value
+          o.value !== notSelectedItem.value && o.value !== selectAllItem.value,
       );
       const allValues = allActualItems.map((o) => o.value);
 
@@ -91,9 +91,9 @@ export function ToolBarMultiSelect({
             .filter(
               (o) =>
                 o.value !== notSelectedItem.value &&
-                o.value !== selectAllItem.value
+                o.value !== selectAllItem.value,
             )
-            .map((o) => o.value as string)
+            .map((o) => o.value as string),
         );
         const allSelected = allValues.every((v) => chosenSet.has(v));
 
@@ -106,7 +106,7 @@ export function ToolBarMultiSelect({
           ];
         } else {
           finalSelected = options.filter(
-            (o) => o.value !== selectAllItem.value
+            (o) => o.value !== selectAllItem.value,
           );
         }
 
@@ -118,9 +118,9 @@ export function ToolBarMultiSelect({
             .filter(
               (f) =>
                 f.value !== notSelectedItem.value &&
-                f.value !== selectAllItem.value
+                f.value !== selectAllItem.value,
             )
-            .map((f) => f.value as string)
+            .map((f) => f.value as string),
         );
       } else if (actionMeta.action === 'deselect-option') {
         const removed = actionMeta.option;
@@ -137,14 +137,14 @@ export function ToolBarMultiSelect({
 
         // A normal item was deselected
         const isSelectAllChosen = options.some(
-          (o) => o.value === selectAllItem.value
+          (o) => o.value === selectAllItem.value,
         );
         let finalSelected: MultiValue<DefaultOptionType> = options;
 
         if (isSelectAllChosen) {
           // Remove "Select all" because not all are selected anymore
           finalSelected = options.filter(
-            (o) => o.value !== selectAllItem.value
+            (o) => o.value !== selectAllItem.value,
           );
         }
 
@@ -156,13 +156,13 @@ export function ToolBarMultiSelect({
             .filter(
               (f) =>
                 f.value !== notSelectedItem.value &&
-                f.value !== selectAllItem.value
+                f.value !== selectAllItem.value,
             )
-            .map((f) => f.value as string)
+            .map((f) => f.value as string),
         );
       }
     },
-    [chartConfig.tableName, keyName, onSelectKey, getKeyValues]
+    [chartConfig.tableName, keyName, onSelectKey, getKeyValues],
   );
 
   useEffect(() => {
@@ -171,7 +171,7 @@ export function ToolBarMultiSelect({
     const allOptions = getKeyValues();
     const allActualItems = allOptions.filter(
       (o) =>
-        o.value !== notSelectedItem.value && o.value !== selectAllItem.value
+        o.value !== notSelectedItem.value && o.value !== selectAllItem.value,
     );
 
     if (Array.isArray(selectedKey)) {
@@ -183,7 +183,7 @@ export function ToolBarMultiSelect({
       // Check if all are selected
       const chosenSet = new Set(selectedOptions.map((o) => o.value));
       const allSelected = allActualItems.every((item) =>
-        chosenSet.has(item.value as string)
+        chosenSet.has(item.value as string),
       );
 
       if (allSelected) {
@@ -214,7 +214,7 @@ export function ToolBarMultiSelect({
               'bg-bg-layer-2! text-text-primary! hover:border-stroke-accent-primary! shadow-none! text-[13px]',
               menuIsOpen
                 ? 'border-stroke-accent-primary!'
-                : 'border-stroke-primary!'
+                : 'border-stroke-primary!',
             ),
           dropdownIndicator: () =>
             'text-text-primary! hover:text-stroke-hover! pl-0!',
@@ -247,11 +247,11 @@ export function ToolBarMultiSelect({
 }
 
 const MultiValueTitle = (
-  props: MultiValueProps<DefaultOptionType, true, GroupBase<DefaultOptionType>>
+  props: MultiValueProps<DefaultOptionType, true, GroupBase<DefaultOptionType>>,
 ) => {
   const { getValue, index } = props;
   const selectedCount = getValue().filter(
-    (v) => v.value !== notSelectedItem.value && v.value !== selectAllItem.value
+    (v) => v.value !== notSelectedItem.value && v.value !== selectAllItem.value,
   ).length;
 
   return (
@@ -260,7 +260,7 @@ const MultiValueTitle = (
 };
 
 const Option = (
-  props: OptionProps<DefaultOptionType, true, GroupBase<DefaultOptionType>>
+  props: OptionProps<DefaultOptionType, true, GroupBase<DefaultOptionType>>,
 ) => {
   // Allow checkbox click to toggle selection
   const handleOptionClick = (e: React.MouseEvent) => {

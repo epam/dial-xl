@@ -43,7 +43,7 @@ public class CompiledInputTable extends CompiledAbstractTable {
 
     @Override
     public String name() {
-        return "Input(" + input.getMetadata().name() + ")";
+        return "Input(" + input.getMetadata().identifier() + ")";
     }
 
     @Override

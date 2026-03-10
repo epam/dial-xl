@@ -14,19 +14,19 @@ export function registerFunctionSignatureProvider(
   monaco: Monaco,
   codeEditor: editor.IStandaloneCodeEditor,
   functions: FunctionInfo[],
-  language: Language
+  language: Language,
 ): IDisposable {
   return languages.registerSignatureHelpProvider(language, {
     signatureHelpTriggerCharacters: ['(', ','],
     provideSignatureHelp: (
       model: editor.ITextModel,
-      position: Position
+      position: Position,
     ): signatureItem => {
       const currentLine = model.getLineContent(position.lineNumber);
       const formulaInLine = currentLine.indexOf('=', 0);
       const currentFormula = currentLine.substring(
         formulaInLine + 1,
-        position.column - 1
+        position.column - 1,
       );
       const lexer = new SheetLexer(CharStreams.fromString(currentFormula));
       const tokens = lexer.getAllTokens();
@@ -48,7 +48,7 @@ export function registerFunctionSignatureProvider(
         }
 
         const isFunctionName = functions.find(
-          (f) => f.name.toLowerCase() === text.toLowerCase()
+          (f) => f.name.toLowerCase() === text.toLowerCase(),
         );
         const isFunctionNameWithParenthesis =
           i !== tokens.length - 1 && tokens[i + 1].text === '(';
@@ -60,7 +60,7 @@ export function registerFunctionSignatureProvider(
       if (!functionName) return emptySignature;
 
       const findFunction = functions.find(
-        (f) => f.name.toLowerCase() === functionName.toLowerCase()
+        (f) => f.name.toLowerCase() === functionName.toLowerCase(),
       );
 
       const isMethodInvocation = previousCharacter === '.';

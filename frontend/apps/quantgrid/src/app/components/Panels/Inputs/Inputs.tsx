@@ -1,12 +1,10 @@
 import { Dropdown, Spin, Tree } from 'antd';
-import type { DataNode, EventDataNode } from 'antd/es/tree';
-import { useCallback, useContext, useEffect, useState } from 'react';
+import { useCallback, useContext, useState } from 'react';
 
 import Icon from '@ant-design/icons';
 import {
   CommonMetadata,
   DownOutlinedIcon,
-  DragIcon,
   FileIcon,
   MetadataNodeType,
 } from '@frontend/common';
@@ -16,46 +14,55 @@ import { useMoveResources } from '../../../hooks';
 import { constructPath } from '../../../utils';
 import { CloneFile, RenameFileModal, SelectFolder } from '../../Modals';
 import { PanelEmptyMessage } from '../PanelEmptyMessage';
-import { getNode } from './buildTree';
-import { InputChildData, useInputsContextMenu } from './useInputsContextMenu';
-import { useInputsDragDrop } from './useInputsDragDrop';
+import { InputTreeNode } from './Components';
+import {
+  useInputsContextMenu,
+  useInputsDragDrop,
+  useInputsExpand,
+  useInputsModals,
+  useInputsTree,
+} from './hooks';
 
 export function Inputs() {
   const {
     inputList,
-    inputs,
     isInputsLoading,
     updateInputsFolder,
-    expandFile,
     getInputs,
+    importSources,
+    isImportSourcesLoading,
   } = useContext(InputsContext);
   const { viewGridData } = useContext(ViewportContext);
 
   const { moveResources } = useMoveResources();
 
-  const [inputTree, setInputTree] = useState<DataNode[]>([]);
-  const [childData, setChildData] = useState<InputChildData>({});
   const [hoverKey, setHoverKey] = useState('');
-  const [renameItem, setRenameItem] = useState<CommonMetadata>();
-  const [moveItem, setMoveItem] = useState<CommonMetadata>();
-  const [cloneItem, setCloneItem] = useState<CommonMetadata>();
+
+  const {
+    renameItem,
+    moveItem,
+    cloneItem,
+    onRename,
+    onMove,
+    onClone,
+    closeRenameModal,
+    closeMoveModal,
+    closeCloneModal,
+  } = useInputsModals();
+
+  const { inputTree, childData } = useInputsTree();
 
   const { createContextMenuItems, items, onContextMenuClick } =
     useInputsContextMenu({
-      onRename: (item: CommonMetadata) => setRenameItem(item),
-      onMove: (item: CommonMetadata) => setMoveItem(item),
-      onClone: (item: CommonMetadata) => setCloneItem(item),
+      onRename,
+      onMove,
+      onClone,
     });
+
   const { onDragStart } = useInputsDragDrop(childData);
-
-  const onExpand = useCallback(
-    async (node: EventDataNode<DataNode>) => {
-      if (node.isLeaf) return;
-
-      expandFile(childData[node.key as string]);
-    },
-    [childData, expandFile]
-  );
+  const { onExpand } = useInputsExpand({
+    childData,
+  });
 
   const onOpenFolder = useCallback(
     (folder: CommonMetadata) => {
@@ -64,7 +71,7 @@ export function Inputs() {
         parentPath: constructPath([folder.parentPath, folder.name]),
       });
     },
-    [updateInputsFolder]
+    [updateInputsFolder],
   );
 
   const handleMoveToFolder = useCallback(
@@ -77,47 +84,30 @@ export function Inputs() {
         getInputs();
       });
 
-      setMoveItem(undefined);
+      closeMoveModal();
     },
-    [moveItem, moveResources, viewGridData, getInputs]
+    [moveItem, moveResources, viewGridData, getInputs, closeMoveModal],
   );
 
-  useEffect(() => {
-    if (!inputList) return;
+  const handleDoubleClick = useCallback(
+    (key: string) => {
+      const data = childData[key];
 
-    const tree: DataNode[] = [];
-    const childData: InputChildData = {};
-
-    inputList
-      .sort((a, b) => {
-        return a.nodeType === MetadataNodeType.FOLDER &&
-          b.nodeType === MetadataNodeType.ITEM
-          ? -1
-          : a.nodeType === MetadataNodeType.ITEM &&
-            b.nodeType === MetadataNodeType.FOLDER
-          ? 1
-          : a.name.localeCompare(b.name);
-      })
-      .forEach((input) => {
-        const fields = inputs[input.url]?.fields || [];
-        const key = `${input.parentPath}-${input.name}`;
-
-        const node = getNode(input, fields, key);
-        tree.push(node);
-        childData[key] = input;
-      });
-
-    setInputTree(tree);
-    setChildData(childData);
-  }, [inputList, inputs]);
+      if (data?.nodeType === MetadataNodeType.FOLDER) {
+        onOpenFolder(data);
+      }
+    },
+    [childData, onOpenFolder],
+  );
 
   return (
     <div className="overflow-auto thin-scrollbar w-full h-full bg-bg-layer-3 flex flex-col">
-      {isInputsLoading ? (
+      {isInputsLoading || isImportSourcesLoading ? (
         <div className="flex grow items-center justify-center">
           <Spin className="z-50" size="large"></Spin>
         </div>
-      ) : !inputList || inputList.length === 0 ? (
+      ) : (!inputList || inputList.length === 0) &&
+        Object.keys(importSources).length === 0 ? (
         <PanelEmptyMessage icon={<FileIcon />} message="No inputs" />
       ) : (
         <div className="min-w-[200px] pr-2 pt-2 relative">
@@ -128,7 +118,7 @@ export function Inputs() {
             <div>
               <Tree.DirectoryTree
                 className="bg-bg-layer-3 text-text-primary"
-                defaultExpandAll={true}
+                defaultExpandAll={false}
                 draggable={false}
                 icon={false}
                 loadData={onExpand}
@@ -141,41 +131,13 @@ export function Inputs() {
                   />
                 }
                 titleRender={(node) => (
-                  <div
-                    className="flex w-full items-center justify-between select-none"
-                    data-path={node.key}
-                    draggable={
-                      childData[node.key as string]?.nodeType ===
-                      MetadataNodeType.ITEM
-                    }
-                    key={node.key}
-                    onDoubleClick={() => {
-                      const data = childData[node.key as string];
-
-                      if (data.nodeType === MetadataNodeType.FOLDER) {
-                        onOpenFolder(data);
-                      }
-                    }}
-                    onDragStart={(ev) => onDragStart(node, ev)}
-                  >
-                    <div className="inline-block overflow-hidden whitespace-nowrap text-ellipsis">
-                      {node.title as string}
-                    </div>
-                    {hoverKey === node.key &&
-                      childData[node.key]?.nodeType ===
-                        MetadataNodeType.ITEM && (
-                        <div className="flex items-center pointer-events-none">
-                          <Icon
-                            className="w-[18px] text-text-secondary mr-1"
-                            component={() => <DragIcon />}
-                          />
-
-                          <span className="text-[13px] text-text-secondary">
-                            Drag
-                          </span>
-                        </div>
-                      )}
-                  </div>
+                  <InputTreeNode
+                    childData={childData}
+                    hoverKey={hoverKey}
+                    node={node}
+                    onDoubleClick={handleDoubleClick}
+                    onDragStart={onDragStart}
+                  />
                 )}
                 treeData={inputTree}
                 onMouseEnter={(e) => {
@@ -194,7 +156,7 @@ export function Inputs() {
               item={renameItem}
               onModalClose={() => {
                 viewGridData.clearCachedViewports();
-                setRenameItem(undefined);
+                closeRenameModal();
                 getInputs();
               }}
             />
@@ -203,7 +165,7 @@ export function Inputs() {
             <SelectFolder
               initialBucket={moveItem.bucket}
               initialPath={moveItem.parentPath}
-              onCancel={() => setMoveItem(undefined)}
+              onCancel={closeMoveModal}
               onOk={handleMoveToFolder}
             />
           )}
@@ -211,7 +173,7 @@ export function Inputs() {
             <CloneFile
               item={cloneItem}
               onModalClose={() => {
-                setCloneItem(undefined);
+                closeCloneModal();
                 getInputs();
               }}
             />

@@ -4,6 +4,7 @@ import { ResizeDirection } from 're-resizable';
 import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { DraggableData, DraggableEvent } from 'react-draggable';
 import { Position, ResizableDelta, Rnd } from 'react-rnd';
+import { useShallow } from 'zustand/react/shallow';
 
 import Icon from '@ant-design/icons';
 import { getPx } from '@frontend/canvas-spreadsheet';
@@ -14,7 +15,8 @@ import {
   DialChatLogoIcon,
 } from '@frontend/common';
 
-import { AppContext, ChatOverlayContext } from '../../context';
+import { ChatOverlayContext } from '../../context';
+import { useUIStore } from '../../store';
 
 const chatWindowDragHandleClass = 'chat-window-drag-handle';
 const positionOffset = 20;
@@ -37,14 +39,20 @@ const maximizedChatSize = '100%';
 const minSize = '200px';
 
 export function ChatFloatingWindow() {
-  const { toggleChatWindowPlacement, toggleChat, isChatOpen } =
-    useContext(AppContext);
+  const { toggleChat, isChatOpen, toggleChatWindowPlacement } = useUIStore(
+    useShallow((s) => ({
+      toggleChat: s.toggleChat,
+      isChatOpen: s.isChatOpen,
+      toggleChatWindowPlacement: s.toggleChatWindowPlacement,
+    })),
+  );
+
   const { attachOverlay } = useContext(ChatOverlayContext);
 
   const [isInitialized, setIsInitialized] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [rndOptions, setRndOptions] = useState<ChatWindowOptions>(
-    defaultChatWindowOptions
+    defaultChatWindowOptions,
   );
 
   const toggleExpanded = useCallback(() => {
@@ -93,7 +101,7 @@ export function ChatFloatingWindow() {
       const y = Math.max(0, data.y);
       setRndOptions({ ...rndOptions, x, y });
     },
-    [rndOptions]
+    [rndOptions],
   );
 
   const handleResizeStop = useCallback(
@@ -102,7 +110,7 @@ export function ChatFloatingWindow() {
       dir: ResizeDirection,
       ref: HTMLElement,
       delta: ResizableDelta,
-      position: Position
+      position: Position,
     ) => {
       e.stopPropagation();
 
@@ -112,22 +120,22 @@ export function ChatFloatingWindow() {
         ...position,
       });
     },
-    []
+    [],
   );
 
   const isChatHidden = useMemo(
     () => !isChatOpen || (isChatOpen && !isInitialized),
-    [isChatOpen, isInitialized]
+    [isChatOpen, isInitialized],
   );
 
   useEffect(() => {
     if (isInitialized || !isChatOpen) return;
 
     const initialHeight = getPx(
-      Math.min(window.innerHeight, parseFloat(rndOptions.height))
+      Math.min(window.innerHeight, parseFloat(rndOptions.height)),
     );
     const initialWidth = getPx(
-      Math.min(window.innerWidth, parseFloat(rndOptions.width))
+      Math.min(window.innerWidth, parseFloat(rndOptions.width)),
     );
 
     setRndOptions((prevState: any) => ({
@@ -172,7 +180,7 @@ export function ChatFloatingWindow() {
           'z-1001 flex flex-col h-full w-full border border-stroke-primary shadow-[0_2px_4px_1px_rgba(9,13,19,0.25)] bg-bg-layer-2',
           {
             hidden: isChatHidden,
-          }
+          },
         )}
         id="dialChatWindow"
       >
@@ -180,7 +188,7 @@ export function ChatFloatingWindow() {
           <div
             className={cx(
               'flex items-center h-full w-full cursor-move pl-2 chat-window-drag-handle',
-              chatWindowDragHandleClass
+              chatWindowDragHandleClass,
             )}
           >
             <span className="text-[10px] leading-[10px] text-text-secondary tracking-[0.6px] font-bold uppercase">
@@ -220,7 +228,9 @@ export function ChatFloatingWindow() {
         </div>
         <div
           className={cx('h-full w-full')}
-          ref={(el) => attachOverlay(el)}
+          ref={(el) => {
+            attachOverlay(el);
+          }}
         ></div>
       </div>
     </Rnd>

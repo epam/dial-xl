@@ -1,5 +1,6 @@
 import { Locator } from '@playwright/test';
 
+import { MenuType } from '../../enums/MenuType';
 import { MoveDirection } from '../../enums/MoveDirection';
 import { Table } from '../../logic-entities/Table';
 import { Editor } from '../Editor';
@@ -15,7 +16,7 @@ export interface WorkArea {
     rowStart: number,
     columnStrart: number,
     rowEnd: number,
-    columnEnd: number
+    columnEnd: number,
   ): void;
 
   expectSelectedRowToBe(row: number): void;
@@ -34,12 +35,23 @@ export interface WorkArea {
 
   verifyGridDimensionsEqualsTo(
     expectedRows: number,
-    expectedColumns: number
+    expectedColumns: number,
   ): void;
 
   getCellTableText(row: number, column: number): Promise<string>;
 
+  getCellDisplayValue(row: number, column: number): Promise<string>;
+
   performMenuAction(row: number, column: number, actionText: string): void;
+
+  performMenuSubAction(
+    row: number,
+    column: number,
+    groupText: string,
+    actionText: string,
+  ): void;
+
+  expectVisualizationToAppear(row: number, column: number): void;
 
   waitForComponentLoaded(): void;
 
@@ -47,13 +59,26 @@ export interface WorkArea {
 
   expectCellBecameEditable(cellText: string | undefined): void;
 
-  performCellAction(row: number, column: number, actionText: string): void;
+  performCellAction(
+    row: number,
+    column: number,
+    menuType: MenuType,
+    actionText: string,
+  ): void;
+
+  hoverCellMenuAction(
+    row: number,
+    column: number,
+    menuType: MenuType,
+    groupText: string,
+  ): void;
 
   performCellSubAction(
     row: number,
     column: number,
+    menuType: MenuType,
     groupText: string,
-    actionText: string
+    actionText: string,
   ): void;
 
   expectCellTextChange(row: number, column: number, newCellText: string): void;
@@ -86,7 +111,7 @@ export interface WorkArea {
     initialRow: number,
     initialColumn: number,
     text: string,
-    direction: MoveDirection
+    direction: MoveDirection,
   ): void;
 
   expectContextMenuVisible(): void;

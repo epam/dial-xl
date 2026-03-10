@@ -1,6 +1,6 @@
 export function createUniqueName(
   name?: string,
-  existingNames?: string[]
+  existingNames?: string[],
 ): string {
   if (!name) return '';
   if (!existingNames) return name;
@@ -32,7 +32,7 @@ export function createUniqueName(
 
 export function createUniqueFileName(
   name: string,
-  existingNames: string[]
+  existingNames: string[],
 ): string {
   if (!name) return '';
   if (!existingNames?.length) return name;

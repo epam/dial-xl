@@ -68,6 +68,11 @@ local function _heartbeat_compute_node(namespace, node_id, node_timeout)
     return 1
 end
 
+local function _count_compute_nodes(namespace)
+    local nodes_key = namespace .. '.nodes'
+    return redis.call('ZCARD', nodes_key)
+end
+
 local function _begin_compute_operation(namespace, project_id, project_timeout, operation_id, operation_timeout)
     local project_key = namespace .. '.project.' .. project_id
     local operation_key = namespace .. '.operation.' .. operation_id
@@ -189,6 +194,11 @@ local function heartbeat_compute_node(keys, args)
     return _heartbeat_compute_node(keys[1], args[1], tonumber(args[2]))
 end
 
+local function count_compute_nodes(keys, args)
+    _evict(keys[1])
+    return _count_compute_nodes(keys[1])
+end
+
 local function begin_compute_operation(keys, args)
     _evict(keys[1])
     return _begin_compute_operation(keys[1], args[1], tonumber(args[2]), args[3], tonumber(args[4]))
@@ -203,5 +213,6 @@ redis.register_function('qg_cluster_evict', evict)
 redis.register_function('qg_cluster_add_compute_node', add_compute_node)
 redis.register_function('qg_cluster_remove_compute_node', remove_compute_node)
 redis.register_function('qg_cluster_heartbeat_compute_node', heartbeat_compute_node)
+redis.register_function('qg_cluster_count_compute_nodes', count_compute_nodes)
 redis.register_function('qg_cluster_begin_compute_operation', begin_compute_operation)
 redis.register_function('qg_cluster_complete_compute_operation', complete_compute_operation)

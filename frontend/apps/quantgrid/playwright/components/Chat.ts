@@ -63,13 +63,13 @@ export class Chat extends BaseComponent {
       this.innerPage
         .locator(this.chatFrame)
         .contentFrame()
-        .locator(this.chatPromptInput)
+        .locator(this.chatPromptInput),
     ).toBeVisible();
     await expect(
       this.innerPage
         .locator(this.chatFrame)
         .contentFrame()
-        .locator(this.agentName)
+        .locator(this.agentName),
     ).toBeVisible();
     /* } else {
       await expect(
@@ -86,7 +86,7 @@ export class Chat extends BaseComponent {
       this.innerPage
         .locator(this.chatFrame)
         .contentFrame()
-        .locator(this.agentName)
+        .locator(this.agentName),
     ).toBeVisible();
 
     return await this.innerPage
@@ -106,7 +106,9 @@ export class Chat extends BaseComponent {
       .locator(this.chatPromptInput)
       .click();
     await expect(
-      this.innerPage.frameLocator(this.chatFrame).locator(this.regenerateButton)
+      this.innerPage
+        .frameLocator(this.chatFrame)
+        .locator(this.regenerateButton),
     ).toBeVisible({ timeout: 60000 });
   }
 
@@ -137,7 +139,7 @@ export class Chat extends BaseComponent {
 
   public async expectConversationNameToBe(name: string) {
     await expect(
-      this.innerPage.locator(this.conversationNameLabel).last()
+      this.innerPage.locator(this.conversationNameLabel).last(),
     ).toHaveText(name);
   }
 
@@ -150,7 +152,7 @@ export class Chat extends BaseComponent {
 
   public async expectConversationNameNotToBe(name: string) {
     await expect(
-      this.innerPage.locator(this.conversationNameLabel).last()
+      this.innerPage.locator(this.conversationNameLabel).last(),
     ).not.toHaveText(name);
   }
 
@@ -169,7 +171,7 @@ export class Chat extends BaseComponent {
 
   public async verifyResponseContains(textToCheck: string) {
     await expect(this.innerPage.locator(this.responseText)).toHaveText(
-      textToCheck
+      textToCheck,
     );
   }
 
@@ -201,30 +203,30 @@ export class Chat extends BaseComponent {
       this.innerPage
         .frameLocator(this.chatFrame)
         .locator(this.promptDisplay)
-        .first()
+        .first(),
     ).toBeVisible();
     await expect(
       this.innerPage
         .frameLocator(this.chatFrame)
         .locator(this.promptDisplay)
-        .first()
+        .first(),
     ).toHaveText(message);
   }
 
   public async verifyStages() {
     await expect(
-      this.innerPage.frameLocator(this.chatFrame).locator(this.stageCompleted)
+      this.innerPage.frameLocator(this.chatFrame).locator(this.stageCompleted),
     ).toBeVisible();
     expect(
       await this.innerPage
         .frameLocator(this.chatFrame)
         .locator(this.stageCompleted)
-        .count()
+        .count(),
     ).toBe(
       await this.innerPage
         .frameLocator(this.chatFrame)
         .locator(this.completedStageDescription)
-        .count()
+        .count(),
     );
   }
 
@@ -233,7 +235,7 @@ export class Chat extends BaseComponent {
       this.innerPage
         .frameLocator(this.chatFrame)
         .locator(this.answerContent)
-        .filter({ hasText: textToHave })
+        .filter({ hasText: textToHave }),
     ).toBeVisible({ timeout: 60000 });
   }
 
@@ -247,7 +249,9 @@ export class Chat extends BaseComponent {
 
   public async suggestedChangesShouldPresent() {
     await expect(
-      this.innerPage.frameLocator(this.chatFrame).locator(this.suggestedChanges)
+      this.innerPage
+        .frameLocator(this.chatFrame)
+        .locator(this.suggestedChanges),
     ).toBeVisible();
   }
 
@@ -270,7 +274,7 @@ export class Chat extends BaseComponent {
         );
       },
       100,
-      20000
+      20000,
     );
     if (
       await this.innerPage

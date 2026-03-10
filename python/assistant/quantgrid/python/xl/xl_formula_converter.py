@@ -19,7 +19,6 @@ from quantgrid.python.xl.types import (
 from quantgrid.utils.string import pythonize, unquote_forced
 
 
-# TODO[Functionality][Code Translation]: We need to pass converted formulas to agent,
 class XLFormulaConverter(FormulaVisitor):
     ROW_NUMBER_VARIABLE = "row_num"
     ROW_REF_VARIABLE = "row_ref"

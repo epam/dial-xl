@@ -16,6 +16,7 @@ node_modules
 *.launch
 .settings/
 *.sublime-workspace
+.ai
 
 # IDE - VSCode
 .vscode/*
@@ -41,6 +42,10 @@ testem.log
 !.yarn/sdks
 !.yarn/versions
 
+# Asset pack
+.assetpack
+/apps/quantgrid/public/pixi-assets
+
 # System Files
 .DS_Store
 Thumbs.db
@@ -63,6 +68,8 @@ libs/parser/src/lib/grammar/*
 # Tests
 /allure-results
 /allure-report
+/blob-report
 test-results
 folderName.txt
 playwright/.auth
+autotest_*.json

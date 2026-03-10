@@ -35,7 +35,8 @@ public enum AggregateType {
     PERCENTILE(new Quantile(Quantile.Type.PERCENTILE_INC), SchemaFunction.DOUBLE, 2, false),
     PERCENTILE_EXC(new Quantile(Quantile.Type.PERCENTILE_EXC), SchemaFunction.DOUBLE, 2, false),
     QUARTILE(new Quantile(Quantile.Type.QUARTILE_INC), SchemaFunction.DOUBLE, 2, false),
-    QUARTILE_EXC(new Quantile(Quantile.Type.QUARTILE_EXC), SchemaFunction.DOUBLE, 2, false);
+    QUARTILE_EXC(new Quantile(Quantile.Type.QUARTILE_EXC), SchemaFunction.DOUBLE, 2, false),
+    TEXTJOIN(new TextJoin(), SchemaFunction.STRING, 2, false);
 
     private final AggregateFunction aggregateFunction;
     private final SchemaFunction schemaFunction;
@@ -49,6 +50,7 @@ public enum AggregateType {
     @FunctionalInterface
     public interface SchemaFunction {
         SchemaFunction DOUBLE = (plan, source, argument) -> Schema.of(ColumnType.DOUBLE);
+        SchemaFunction STRING = (plan, source, argument) -> Schema.of(ColumnType.STRING);
         SchemaFunction INFERRED = (plan, source, offset) ->
                 Schema.of(plan.expression(source, offset).getType());
         SchemaFunction INPUT = (plan, source, argument) -> Schema.inputs(plan, source);

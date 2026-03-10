@@ -1,19 +1,19 @@
 import { CellPlacement } from '@frontend/common';
 
-import { Edges, GridApi, GridCell, GridTable } from '../types';
+import { Edges, GridCell, GridTable } from '../types';
 
 export const showFieldDottedSelection = (
   cell: CellPlacement,
   table: GridTable,
   endCol: number,
-  api: GridApi
+  showDottedSelection: (selection: Edges) => void,
 ) => {
   const tableRowDataStart =
     table.startRow + (table.isTableNameHeaderHidden ? 0 : 1);
   const tableColDataStart = table.startCol;
 
   if (table.isTableHorizontal) {
-    api.showDottedSelection({
+    showDottedSelection({
       startCol: tableColDataStart,
       endCol: Math.max(table.endCol, endCol),
       startRow: cell.row,
@@ -23,7 +23,7 @@ export const showFieldDottedSelection = (
     return;
   }
 
-  api.showDottedSelection({
+  showDottedSelection({
     startCol: cell.col,
     endCol: Math.max(cell.col, endCol),
     startRow: tableRowDataStart,
@@ -34,14 +34,14 @@ export const showFieldDottedSelection = (
 export const showFieldGroupDottedSelection = (
   cell: GridCell,
   table: GridTable,
-  api: GridApi
+  showDottedSelection: (selection: Edges) => void,
 ) => {
   const tableRowDataStart =
     table.startRow + (table.isTableNameHeaderHidden ? 0 : 1);
   const tableColDataStart = table.startCol;
 
   if (table.isTableHorizontal) {
-    api.showDottedSelection({
+    showDottedSelection({
       startCol: tableColDataStart,
       endCol: Math.max(table.endCol, cell.col),
       startRow: cell.startGroupColOrRow,
@@ -51,7 +51,7 @@ export const showFieldGroupDottedSelection = (
     return;
   }
 
-  api.showDottedSelection({
+  showDottedSelection({
     startCol: cell.startGroupColOrRow,
     endCol: cell.endGroupColOrRow,
     startRow: tableRowDataStart,
@@ -61,7 +61,7 @@ export const showFieldGroupDottedSelection = (
 
 export const getTableRowDottedSelection = (
   cell: CellPlacement,
-  table: GridTable
+  table: GridTable,
 ): Edges => {
   const tableRowDataStart =
     table.startRow + (table.isTableNameHeaderHidden ? 0 : 1);

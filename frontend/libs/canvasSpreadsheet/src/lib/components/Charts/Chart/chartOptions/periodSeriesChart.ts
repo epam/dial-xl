@@ -1,17 +1,22 @@
 import { EChartsOption } from 'echarts';
 
-import { ChartsData, PeriodSeries } from '@frontend/common';
+import { ChartsData, GridChart, PeriodSeries } from '@frontend/common';
 
-import { ChartConfig } from '../../types';
+import { buildLayout } from '../buildLayout';
 import { GetOptionProps, OrganizedData } from '../chartRegistry';
 import { getColor, getThemeColors } from '../common';
 
 export function organizePeriodSeriesChartData(
   chartData: ChartsData,
-  chartConfig: ChartConfig
+  gridChart: GridChart,
 ): OrganizedData | undefined {
-  const { tableName, gridChart } = chartConfig;
-  const { showLegend, customSeriesColors } = gridChart;
+  const {
+    showLegend,
+    customSeriesColors,
+    legendPosition,
+    showVisualMap,
+    tableName,
+  } = gridChart;
   const data = chartData[tableName];
 
   if (!data) return;
@@ -66,6 +71,8 @@ export function organizePeriodSeriesChartData(
   }
 
   return {
+    legendPosition,
+    showVisualMap,
     showLegend,
     legendData,
     series,
@@ -77,46 +84,41 @@ export function getPeriodSeriesChartOption({
   series,
   xAxisData,
   legendData,
+  legendPosition,
   zoom,
   theme,
   showLegend,
+  showVisualMap,
 }: GetOptionProps): EChartsOption {
-  function getValue(value: number) {
+  function z(value: number) {
     return value * zoom;
   }
 
-  const fontSize = getValue(12);
-  const { textColor, borderColor, bgColor, hoverColor } = getThemeColors(theme);
+  const fontSize = z(12);
+  const { textColor, borderColor, bgColor } = getThemeColors(theme);
+
+  const layout = buildLayout({
+    zoom,
+    textColor,
+    showLegend: !!showLegend,
+    legendPosition,
+    showDataZoom: !!showVisualMap,
+  });
 
   return {
+    textStyle: {
+      ...layout.textStyle,
+    },
     legend: {
-      type: 'scroll',
-      orient: 'vertical',
-      left: 0,
-      top: getValue(10),
-      bottom: getValue(10),
-      itemWidth: getValue(20),
-      itemHeight: getValue(10),
+      ...layout.legend,
       data: legendData,
-      textStyle: {
-        fontSize,
-        color: textColor,
-        overflow: 'break',
-        width: getValue(70),
-      },
-      show: showLegend,
     },
     grid: {
-      borderColor: '#ccc',
-      left: showLegend ? getValue(130) : getValue(10),
-      top: getValue(30),
-      right: getValue(20),
-      bottom: getValue(40),
-      containLabel: true,
+      ...layout.grid,
     },
     xAxis: {
       type: 'category',
-      boundaryGap: false,
+      boundaryGap: true,
       data: xAxisData,
       nameTextStyle: {
         fontSize,
@@ -124,6 +126,9 @@ export function getPeriodSeriesChartOption({
       axisLabel: {
         color: textColor,
         fontSize,
+      },
+      axisTick: {
+        alignWithLabel: true,
       },
     },
     yAxis: {
@@ -153,26 +158,21 @@ export function getPeriodSeriesChartOption({
     },
     dataZoom: [
       {
-        show: true,
+        show: !!showVisualMap,
         realtime: true,
         filterMode: 'empty',
-        height: getValue(20),
-        bottom: getValue(10),
+        height: z(20),
+        bottom: z(20),
         textStyle: {
           fontSize,
-        },
-        emphasis: {
-          moveHandleStyle: {
-            color: hoverColor,
-          },
         },
       },
       {
         type: 'inside',
         realtime: true,
         filterMode: 'empty',
-        height: getValue(20),
-        bottom: getValue(10),
+        height: z(20),
+        bottom: z(20),
       },
     ],
   };

@@ -47,7 +47,7 @@ public class FormatUtils {
                         "Date formatting requires single argument: string pattern. Got: %d",
                         args.size());
                 String pattern = String.valueOf(args.get(0));
-                yield new DateFormat(pattern);
+                yield DateFormat.ofPattern(pattern);
             }
             case "number" -> {
                 CompileUtil.verify(args.size() == 1 || args.size() == 2,

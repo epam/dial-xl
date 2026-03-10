@@ -20,7 +20,7 @@ export type EditLayoutDecoratorProps = {
 export function editLayoutDecorator(
   table: Table,
   parsedTable: ParsedTable,
-  props: EditLayoutDecoratorProps
+  props: EditLayoutDecoratorProps,
 ): boolean {
   const {
     rowOffset = 0,

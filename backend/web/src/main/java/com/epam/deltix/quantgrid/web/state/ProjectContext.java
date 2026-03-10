@@ -1,6 +1,7 @@
 package com.epam.deltix.quantgrid.web.state;
 
 import com.epam.deltix.quantgrid.engine.Computation;
+import com.epam.deltix.quantgrid.engine.ControlRequest;
 import com.epam.deltix.quantgrid.engine.Engine;
 import com.epam.deltix.quantgrid.engine.ResultListener;
 import com.epam.deltix.quantgrid.engine.SimilarityRequest;
@@ -14,6 +15,7 @@ import com.epam.deltix.quantgrid.parser.SheetReader;
 import com.epam.deltix.quantgrid.web.utils.ApiMessageMapper;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.epam.deltix.proto.Api;
 
 import java.security.Principal;
@@ -44,9 +46,19 @@ public class ProjectContext {
         return engine.getInputProvider();
     }
 
-    public Computation calculate(List<Api.Viewport> viewports, boolean profile, boolean index, boolean shared) {
+    public Computation calculate(List<Api.Viewport> viewports, String project, boolean profile, boolean index, boolean shared) {
         List<Viewport> viewPorts = ApiMessageMapper.toViewports(viewports);
-        return engine.compute(listener, sheets, viewPorts, null, principal, profile, index, shared);
+        return engine.compute(listener, sheets, viewPorts, null, null, principal, project, profile, index, shared);
+    }
+
+    public Computation calculateControlValues(Api.ControlValuesRequest request) {
+        ControlRequest control = new ControlRequest(
+                new FieldKey(request.getKey().getTable(), request.getKey().getField()),
+                StringUtils.isBlank(request.getQuery()) ? null : request.getQuery(),
+                request.getStartRow(), request.getEndRow()
+        );
+
+        return engine.compute(listener, sheets, List.of(), null, control, principal, request.getProject(), false, false, false);
     }
 
     public Computation similaritySearch(Api.SimilaritySearchRequest request) {
@@ -63,6 +75,6 @@ public class ProjectContext {
                 request.getUseEvaluation(),
                 request.getSearchInAll());
 
-        return engine.compute(listener, sheets, List.of(), search, principal, false, false, false);
+        return engine.compute(listener, sheets, List.of(), search, null, principal, request.getProject(), false, false, false);
     }
 }

@@ -1,6 +1,7 @@
 package com.epam.deltix.quantgrid.engine.compiler;
 
 import com.epam.deltix.quantgrid.engine.ComputationType;
+import com.epam.deltix.quantgrid.engine.ControlRequest;
 import com.epam.deltix.quantgrid.engine.ResultType;
 import com.epam.deltix.quantgrid.engine.SimilarityRequest;
 import com.epam.deltix.quantgrid.engine.SimilarityRequestField;
@@ -46,7 +47,10 @@ import com.epam.deltix.quantgrid.engine.rule.OptimizeFilter;
 import com.epam.deltix.quantgrid.engine.rule.PushDownExpand;
 import com.epam.deltix.quantgrid.engine.rule.Reduce;
 import com.epam.deltix.quantgrid.engine.rule.ReverseProjection;
+import com.epam.deltix.quantgrid.engine.service.ai.AiProvider;
+import com.epam.deltix.quantgrid.engine.service.input.storage.ImportProvider;
 import com.epam.deltix.quantgrid.engine.service.input.storage.InputProvider;
+import com.epam.deltix.quantgrid.engine.store.Store;
 import com.epam.deltix.quantgrid.parser.FieldKey;
 import com.epam.deltix.quantgrid.parser.OverrideKey;
 import com.epam.deltix.quantgrid.parser.ParsedApply;
@@ -124,19 +128,36 @@ public class Compiler {
     private final InputProvider inputProvider;
 
     @Getter
+    private final ImportProvider importProvider;
+
+    @Getter
+    private final AiProvider aiProvider;
+
+    @Getter
     private final Principal principal;
+    @Getter
+    private final Store store;
+    @Getter
+    private final String project;
     @Getter
     private final long computationId;
     @Getter
     private final ComputationType computationType;
 
-    public Compiler(InputProvider inputProvider, Principal principal) {
-       this(inputProvider, principal, 0, ComputationType.OPTIONAL);
+    public Compiler(InputProvider inputProvider, ImportProvider importProvider, AiProvider aiProvider,
+                    Principal principal, Store store, String project) {
+       this(inputProvider, importProvider, aiProvider, principal, store, project, 0, ComputationType.OPTIONAL);
     }
 
-    public Compiler(InputProvider inputProvider, Principal principal, long computationId, ComputationType computationType) {
+    public Compiler(InputProvider inputProvider, ImportProvider importProvider, AiProvider aiProvider,
+                    Principal principal, Store store,
+                    String project, long computationId, ComputationType computationType) {
         this.inputProvider = inputProvider;
+        this.importProvider = importProvider;
+        this.aiProvider = aiProvider;
         this.principal = principal;
+        this.store = store;
+        this.project = project;
         this.computationId = computationId;
         this.computationType = computationType;
     }
@@ -144,7 +165,8 @@ public class Compiler {
     public Compilation compile(List<ParsedSheet> sheets,
                                Collection<Viewport> viewports,
                                boolean index,
-                               @Nullable SimilarityRequest similarityRequest) {
+                               @Nullable SimilarityRequest similarityRequest,
+                               @Nullable ControlRequest controlRequest) {
         setSheet(sheets);
         Graph graph = new Graph();
 
@@ -152,6 +174,7 @@ public class Compiler {
         compileViewports(graph, viewports);
         compileIndices(graph, index);
         compileSimilaritySearch(sheets, graph, similarityRequest);
+        compileControlRequest(graph, controlRequest);
 
         graph = normalizeGraph(graph);
         return buildCompilation(graph);
@@ -188,7 +211,7 @@ public class Compiler {
         new Reduce(true).apply(copy);
         new OptimizeAggregate().apply(copy);
         new Deduplicate().apply(copy);
-        new AssignIdentity().apply(copy);
+        new AssignIdentity(store).apply(copy);
         new AssignTrace().apply(copy);
 
         GraphPrinter.print(Level.DEBUG, "Normalized graph", copy);
@@ -297,6 +320,23 @@ public class Compiler {
         }
     }
 
+    private void compileControlRequest(Graph graph, @Nullable ControlRequest request) {
+        if (request == null) {
+            return;
+        }
+
+        CompileKey key = CompileKey.fieldKey(request.key(), true, true);
+        CompiledResult compiled = compile(key);
+
+        CompileContext context = new CompileContext(this, key);
+        Formula formula = context.parsedField(request.key().table(), request.key().fieldName()).formula();
+        context = context.withFunction((com.epam.deltix.quantgrid.parser.ast.Function) formula);
+
+        Plan plan = CompileControl.compileRequest(context, request);
+        plan.getTraces().addAll(compiled.node().getTraces());
+        graph.add(plan);
+    }
+
     public void compileViewports(Graph graph, Collection<Viewport> viewports) {
         Map<ParsedKey, Set<Viewport>> map = new HashMap<>();
 
@@ -308,7 +348,7 @@ public class Compiler {
         for (ParsedKey key : parsed.keySet()) {
             if ((key instanceof FieldKey || key instanceof TotalKey)) {
                 Set<Viewport> all = map.computeIfAbsent(key, t -> new HashSet<>());
-                Viewport anchor = new Viewport(key, computationType, 0, 0, false, false);
+                Viewport anchor = new Viewport(key, computationType, 0, 0, 0, 0, false, false);
                 all.add(anchor);
             }
         }
@@ -506,6 +546,7 @@ public class Compiler {
     private CompiledTable compileExplode(CompileKey key) {
         ParsedTable table = parsedObject(key);
         boolean manual = CompileManual.isManual(table);
+        boolean control = CompileControl.isControlTable(table);
         ParsedApply apply = table.apply();
 
         List<FieldKey> dims = table.fields()
@@ -514,6 +555,13 @@ public class Compiler {
                 .map(fields -> fields.fields().get(0))
                 .map(field -> new FieldKey(table.tableName(), field.fieldName()))
                 .toList();
+
+        if (control) {
+            CompileUtil.verify(!manual, "Control table cannot be manual. Please remove !manual() decorator");
+            CompileUtil.verify(apply == null, "Control table cannot contain apply section. Please remove apply section");
+            CompileUtil.verify(table.overrides() == null, "Control table cannot contain override section. Please remove override section");
+            CompileUtil.verify(dims.isEmpty(), "Control table cannot contain dimensions. Please remove dim keywords");
+        }
 
         List<FieldKey> allDims = new ArrayList<>(dims);
 
@@ -604,6 +652,11 @@ public class Compiler {
         try {
             CompileContext context = new CompileContext(this, new CompileKey(fieldKey, false, false));
             CompiledResult result = compileFormula(context, fields.formula());
+
+            if (CompileControl.isControlTable(context, fieldKey.table())) {
+                CompileUtil.verify(!fields.isDim(), "Control table cannot contain dimensions");
+                CompileControl.verifyControlFormula(fields.formula());
+            }
 
             if (fields.isDim()) {
                 ParsedField first = fields.fields().get(0);

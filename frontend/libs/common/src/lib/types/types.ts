@@ -1,6 +1,7 @@
 import { MenuProps } from 'antd';
 
 import {
+  ColumnData,
   CompilationError,
   FieldKey,
   ParsingError,
@@ -10,11 +11,12 @@ import {
 export type FormulasContextMenuKeyData = {
   insertFormula?: string;
   tableName?: string;
-  type?: 'derived' | 'size' | 'copy' | 'pivot';
+  type?: 'derived' | 'size' | 'copy' | 'pivot' | 'groupBy';
 };
 
 export type InsertChartContextMenuKeyData = {
   chartType: ChartType;
+  tableName: string;
   col?: number;
   row?: number;
 };
@@ -23,6 +25,7 @@ export type MenuItem = Required<MenuProps>['items'][number];
 export type MenuItemProps = {
   label: React.ReactNode;
   key?: React.Key | null;
+  fullPath: string[];
   icon?: React.ReactNode;
   children?: MenuItem[];
   disabled?: boolean;
@@ -31,6 +34,9 @@ export type MenuItemProps = {
   shortcut?: string;
   stopPropagationOnClick?: boolean;
   onClick?: () => void;
+
+  // When content is custom we don't want to apply paddings on it
+  isCustomContent?: boolean;
 };
 
 export type GridViewport = {
@@ -125,9 +131,10 @@ export enum ChartType {
   HEATMAP = 'heat-map',
   SCATTER_PLOT = 'scatter-plot',
   PIE = 'pie-chart',
-  BAR = 'bar-chart',
-  FLAT_BAR = '2d-bar-chart',
+  CLUSTERED_BAR = 'clustered-bar-chart',
   STACKED_BAR = 'stacked-bar-chart',
+  CLUSTERED_COLUMN = 'clustered-column-chart',
+  STACKED_COLUMN = 'stacked-column-chart',
   HISTOGRAM = 'histogram',
 }
 export type FieldSortOrder = 'asc' | 'desc' | null;
@@ -136,6 +143,12 @@ export type GridListFilter = {
   value: string;
   isSelected: boolean;
   isFiltered?: boolean;
+};
+
+export type ControlData = {
+  data: ColumnData;
+  available: ColumnData;
+  selectedValues: string[];
 };
 
 export enum Highlight {
@@ -177,12 +190,15 @@ export type GridChart = {
 
   customSeriesColors: Record<string, string>;
 
+  showVisualMap: boolean;
   showLegend: boolean;
-  isEmpty: boolean;
+  showTitle: boolean;
   chartOrientation: ChartOrientation;
+  legendPosition: ChartLegendPosition;
 };
 
 export type ChartOrientation = 'horizontal' | 'vertical';
+export type ChartLegendPosition = 'top' | 'bottom' | 'left' | 'right';
 
 export type FormulaBarMode = 'formula' | 'value';
 

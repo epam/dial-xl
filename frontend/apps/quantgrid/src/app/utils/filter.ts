@@ -3,6 +3,7 @@ import {
   ApplyFilter,
   ApplySort,
   escapeTableName,
+  naValue,
   newLine,
   Sheet,
   SheetReader,
@@ -25,30 +26,30 @@ interface VirtualTableConfig {
  * @return {string} The generated DSL string.
  */
 export function createVirtualTableUniqueFieldValuesDSL(
-  config: VirtualTableConfig
+  config: VirtualTableConfig,
 ): string {
   try {
     const cloneWithoutFullApplyName = escapeTableName(
-      `${config.virtualTableName}_clone_source_table_without_full_apply`
+      `${config.virtualTableName}_clone_source_table_without_full_apply`,
     );
     const cloneWithoutOtherApplyName = escapeTableName(
-      `${config.virtualTableName}_clone_source_table_with_other_apply`
+      `${config.virtualTableName}_clone_source_table_with_other_apply`,
     );
 
     const withoutFullApplyDSL = createCloneWithoutFullApply(
       config,
-      cloneWithoutFullApplyName
+      cloneWithoutFullApplyName,
     );
 
     const withoutOtherApplyDSL = createCloneWithoutOtherApply(
       config,
-      cloneWithoutOtherApplyName
+      cloneWithoutOtherApplyName,
     );
 
     const uniqueFieldTableDSL = createUniqueFieldTable(
       config,
       cloneWithoutFullApplyName,
-      cloneWithoutOtherApplyName
+      cloneWithoutOtherApplyName,
     );
 
     return [
@@ -63,10 +64,10 @@ export function createVirtualTableUniqueFieldValuesDSL(
 
 function createCloneWithoutFullApply(
   { editableSheet, parsedTable }: VirtualTableConfig,
-  cloneWithoutFullApplyName: string
+  cloneWithoutFullApplyName: string,
 ): string {
   const sourceTable = editableSheet.getTable(
-    unescapeTableName(parsedTable.tableName)
+    unescapeTableName(parsedTable.tableName),
   );
 
   const parsedSheet = SheetReader.parseSheet(sourceTable.toDSL());
@@ -90,10 +91,10 @@ function createCloneWithoutFullApply(
 
 function createCloneWithoutOtherApply(
   { editableSheet, parsedTable, parsedField }: VirtualTableConfig,
-  cloneWithoutOtherApplyName: string
+  cloneWithoutOtherApplyName: string,
 ): string {
   const sourceTable = editableSheet.getTable(
-    unescapeTableName(parsedTable.tableName)
+    unescapeTableName(parsedTable.tableName),
   );
   const parsedSheet = SheetReader.parseSheet(sourceTable.toDSL());
   const newSheet = parsedSheet.editableSheet;
@@ -127,7 +128,7 @@ function createCloneWithoutOtherApply(
 function createUniqueFieldTable(
   { virtualTableName, searchValue, sort, parsedField }: VirtualTableConfig,
   cloneWithoutFullApplyName: string,
-  cloneWithoutOtherApplyName: string
+  cloneWithoutOtherApplyName: string,
 ): string {
   const table = new Table(virtualTableName, true);
   const { fullFieldName, fieldName } = parsedField.key;
@@ -142,7 +143,7 @@ function createUniqueFieldTable(
 
   // Add filtered field
   const fieldNameFiltered = `${fieldName}_filtered`;
-  const virtualKeyFilteredExpression = `IN(${fullFieldName}, ${cloneWithoutOtherApplyName}${fullFieldName})`;
+  const virtualKeyFilteredExpression = `IF(ISNA(${fullFieldName}), IN(TRUE, ISNA(${cloneWithoutOtherApplyName}${fullFieldName})), IN(${fullFieldName}, ${cloneWithoutOtherApplyName}${fullFieldName}))`;
   table.addField({
     name: fieldNameFiltered,
     formula: virtualKeyFilteredExpression,
@@ -153,7 +154,9 @@ function createUniqueFieldTable(
 
   // Add filter if search value exists
   const filterValue = searchValue
-    ? `CONTAINS([${fieldName}].LOWER(),${escapeValue(searchValue)})`
+    ? searchValue === naValue.toLowerCase()
+      ? `ISNA(${fullFieldName})`
+      : `CONTAINS([${fieldName}].LOWER(),${escapeValue(searchValue)})`
     : '';
 
   if (filterValue) {
@@ -161,7 +164,7 @@ function createUniqueFieldTable(
   }
 
   // Add sort
-  const sortValue = `${sort === -1 ? '-' : ''}[${fieldName}]`;
+  const sortValue = `[${fieldName}], ${sort === -1 ? '-1' : '1'}`;
   const applySort = new ApplySort();
   applySort.append(sortValue);
   apply.sort = applySort;

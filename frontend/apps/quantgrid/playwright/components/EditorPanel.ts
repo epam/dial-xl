@@ -13,6 +13,7 @@ export class EditorPanel extends BasePanel {
   constructor(page: Page) {
     super(page);
     this.panelName = 'editor';
+    this.hotkey = 'Alt+2';
     this.editor = new Editor(page, page.locator(this.monacoEditor).last());
   }
 

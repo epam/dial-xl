@@ -9,7 +9,7 @@ export class TopMenu extends BaseComponent {
 
   public async clickOnDropdownItem(itemName: string) {
     const loc = this.innerPage.locator(
-      `span.ant-menu-title-content:has(>button[data-label="${itemName}"])`
+      `span.ant-menu-title-content:has(>button[data-label="${itemName}"])`,
     );
     await expect(loc).toBeVisible();
     await loc.click();
@@ -18,7 +18,7 @@ export class TopMenu extends BaseComponent {
   public async hoverOverItem(itemName: string) {
     await this.innerPage
       .locator(
-        `span.ant-menu-title-content:has(>button[data-label="${itemName}"])`
+        `span.ant-menu-title-content:has(>button[data-label="${itemName}"])`,
       )
       .hover();
   }
@@ -31,7 +31,7 @@ export class TopMenu extends BaseComponent {
   public async performSubAction(
     topMenuItem: string,
     hoverItem: string,
-    dropdownItem: string
+    dropdownItem: string,
   ) {
     await this.innerPage.locator(this.getMenuItem(topMenuItem)).click();
     await this.hoverOverItem(hoverItem);

@@ -7,39 +7,78 @@ import { SingleValue } from 'react-select';
 import Icon from '@ant-design/icons';
 import {
   primaryButtonClasses,
+  SelectAllIcon,
   TableHeaderIcon,
   TableIcon,
 } from '@frontend/common';
 
-import { AppContext, ProjectContext } from '../../../../context';
-import { TableSelector } from '../../PivotTableWizard/components/TableSelector';
-import { toSelectOption } from '../../PivotTableWizard/utils';
+import { ProjectContext } from '../../../../context';
+import {
+  useControlStore,
+  useGroupByStore,
+  usePivotStore,
+} from '../../../../store';
+import { TableSelector, toSelectOption } from '../../Shared';
 
 export function DetailsPanelInitialView() {
-  const { changePivotTableWizardMode } = useContext(AppContext);
+  const changePivotTableWizardMode = usePivotStore(
+    (s) => s.changePivotTableWizardMode,
+  );
+  const changeGroupByTableWizardMode = useGroupByStore(
+    (s) => s.changeGroupByTableWizardMode,
+  );
+  const openControlCreateWizard = useControlStore(
+    (s) => s.openControlCreateWizard,
+  );
   const { parsedSheets } = useContext(ProjectContext);
-  const [selectedTableName, setSelectedTableName] =
+  const [selectedPivotTableName, setSelectedPivotTableName] =
+    useState<DefaultOptionType>();
+  const [selectedGroupByTableName, setSelectedGroupByTableName] =
     useState<DefaultOptionType>();
 
   const tableNameOptions = useMemo(() => {
     return Object.values(parsedSheets ?? {}).flatMap(({ tables }) =>
-      tables.map(({ tableName }) => toSelectOption(tableName))
+      tables.map(({ tableName }) => toSelectOption(tableName)),
     );
   }, [parsedSheets]);
 
-  const onChangeTableName = useCallback(
+  const onChangePivotTableName = useCallback(
     (option: SingleValue<DefaultOptionType>) => {
       if (!option) return;
-      setSelectedTableName(option);
+      setSelectedPivotTableName(option);
     },
-    []
+    [],
+  );
+
+  const onChangeGroupByTableName = useCallback(
+    (option: SingleValue<DefaultOptionType>) => {
+      if (!option) return;
+      setSelectedGroupByTableName(option);
+    },
+    [],
   );
 
   const onOpenPivotWizard = useCallback(() => {
-    if (!selectedTableName) return;
+    if (!selectedPivotTableName) return;
 
-    changePivotTableWizardMode('create', selectedTableName.value as string);
-  }, [changePivotTableWizardMode, selectedTableName]);
+    changePivotTableWizardMode(
+      'create',
+      selectedPivotTableName.value as string,
+    );
+  }, [changePivotTableWizardMode, selectedPivotTableName]);
+
+  const onOpenGroupByWizard = useCallback(() => {
+    if (!selectedGroupByTableName) return;
+
+    changeGroupByTableWizardMode(
+      'create',
+      selectedGroupByTableName.value as string,
+    );
+  }, [changeGroupByTableWizardMode, selectedGroupByTableName]);
+
+  const onOpenControlWizard = useCallback(() => {
+    openControlCreateWizard();
+  }, [openControlCreateWizard]);
 
   return (
     <div className="max-w-[370px] self-center grow justify-center flex flex-col items-center pb-1 px-4">
@@ -50,14 +89,10 @@ export function DetailsPanelInitialView() {
         )}
       />
       <span className="text-[13px] font-semibold text-text-primary text-center">
-        Select an existing chart or Pivot table to see details
+        Select an existing chart or table to see details
       </span>
 
-      <div className="flex items-center w-full text-sm text-text-secondary my-10">
-        <div className="grow border-t border-stroke-primary"></div>
-        <span className="px-3">OR</span>
-        <div className="grow border-t border-stroke-primary"></div>
-      </div>
+      <Divider />
 
       <Icon
         className="w-10 text-text-secondary mb-4"
@@ -70,9 +105,10 @@ export function DetailsPanelInitialView() {
       <div className="flex justify-center w-full mt-4">
         <div className="w-3/4">
           <TableSelector
-            selectedTableName={selectedTableName}
+            inputName="pivotSourceTableName"
+            selectedTableName={selectedPivotTableName}
             tableNameOptions={tableNameOptions}
-            onTableChange={onChangeTableName}
+            onTableChange={onChangePivotTableName}
           />
         </div>
         <Button
@@ -82,6 +118,59 @@ export function DetailsPanelInitialView() {
           Next
         </Button>
       </div>
+
+      <Divider />
+
+      <Icon
+        className="w-10 text-text-secondary mb-4"
+        component={() => <TableIcon />}
+      />
+      <span className="text-[13px] font-semibold text-text-primary text-center">
+        Create GroupBy table
+      </span>
+
+      <div className="flex justify-center w-full mt-4">
+        <div className="w-3/4">
+          <TableSelector
+            inputName="groupBySourceTableName"
+            selectedTableName={selectedGroupByTableName}
+            tableNameOptions={tableNameOptions}
+            onTableChange={onChangeGroupByTableName}
+          />
+        </div>
+        <Button
+          className={cx(primaryButtonClasses, 'h-full ml-2')}
+          onClick={onOpenGroupByWizard}
+        >
+          Next
+        </Button>
+      </div>
+
+      <Divider />
+
+      <Icon
+        className="w-10 text-text-accent-primary mb-4"
+        component={() => <SelectAllIcon />}
+      />
+
+      <div className="flex justify-center w-full">
+        <Button
+          className={cx(primaryButtonClasses, 'h-9')}
+          onClick={onOpenControlWizard}
+        >
+          Create Control
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function Divider() {
+  return (
+    <div className="flex items-center w-full text-sm text-text-secondary my-10">
+      <div className="grow border-t border-stroke-primary"></div>
+      <span className="px-3">OR</span>
+      <div className="grow border-t border-stroke-primary"></div>
     </div>
   );
 }

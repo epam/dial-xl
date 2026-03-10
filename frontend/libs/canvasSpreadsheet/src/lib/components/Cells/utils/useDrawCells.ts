@@ -1,42 +1,52 @@
 import * as PIXI from 'pixi.js';
-import { RefObject, useCallback, useContext, useEffect, useState } from 'react';
+import {
+  RefObject,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 
 import {
   formatNumberGeneral,
   FormatType,
   isGeneralFormatting,
 } from '@frontend/common';
-import { unescapeFieldName, unescapeTableName } from '@frontend/parser';
+import {
+  unescapeFieldName,
+  unescapeTableName,
+  unknownDynamicNamePrefix,
+} from '@frontend/parser';
 
-import { adjustmentFontMultiplier } from '../../../constants';
 import { GridStateContext, GridViewportContext } from '../../../context';
 import { useDraw } from '../../../hooks';
-import { Cell, GridCell, IconCell } from '../../../types';
+import { Cell, CellIcons, GridCell } from '../../../types';
 import { applyCellGraphics, cropText, hashText } from '../../../utils';
-import {
-  getCellIcon,
-  getTableHeaderContextMenuIcon,
-  isFieldSortedOrFiltered,
-  isIconRightPlacement,
-  removeIcon,
-  useCellOptions,
-  useHoverEffects,
-} from '.';
+import { getCellIcons, removeIcon, useCellOptions, useHoverEffects } from '.';
 
 type Props = {
   graphicsRef: RefObject<PIXI.Graphics | null>;
+  containerRef: RefObject<PIXI.Container | null>;
   cells: Cell[];
 };
 
-export const useDrawCells = ({ cells, graphicsRef }: Props) => {
+export const useDrawCells = ({ cells, graphicsRef, containerRef }: Props) => {
   const {
     getCell,
     gridSizes,
     columnSizes,
     theme,
-    gridApi,
-    gridCallbacks,
+    eventBus,
     isPanModeEnabled,
+    zoom,
+    gridApi,
+    canvasSymbolWidth,
+    increaseCanvasAnimatedItems,
+    decreaseCanvasAnimatedItems,
+    openTooltip,
+    closeTooltip,
+    canvasOptions,
   } = useContext(GridStateContext);
   const {
     getCellX,
@@ -44,47 +54,66 @@ export const useDrawCells = ({ cells, graphicsRef }: Props) => {
     viewportEdges,
     viewportColCount,
     viewportRowCount,
+    viewportCoords,
   } = useContext(GridViewportContext);
 
   const { hoveredTable, hoveredField } = useHoverEffects();
-  const { fontName, symbolWidth, getFontName } = useCellOptions();
+  const { fontName, getFontNameAndColor } = useCellOptions();
+  const hoveredLinkCell = useRef<PIXI.BitmapText | null>(null);
 
-  const [iconCells, setIconCells] = useState<Map<string, IconCell>>(new Map());
+  const [iconCells, setIconCells] = useState<Map<string, CellIcons>>(new Map());
+  const [isAnimatedIcons, setIsAnimatedIcons] = useState<boolean | undefined>(
+    undefined,
+  );
 
   const getFinalCellValue = useCallback(
-    (cell: GridCell | undefined, cellValue: string) => {
+    (cell: GridCell | undefined, cellValue: string | undefined) => {
+      if (cellValue === undefined || cellValue === null) {
+        return '';
+      }
+
       let finalCellValue = cellValue;
 
       if (cell?.isTableHeader) {
         finalCellValue = unescapeTableName(cellValue);
       } else if (cell?.isFieldHeader) {
-        finalCellValue = unescapeFieldName(cellValue);
+        if (cellValue.startsWith(unknownDynamicNamePrefix)) {
+          finalCellValue = 'Loading...';
+        } else {
+          finalCellValue = unescapeFieldName(cellValue);
+        }
+      } else if (
+        cell?.field?.isLoading &&
+        !cellValue &&
+        !cell.hasError &&
+        !cell.field?.hasError
+      ) {
+        return 'Loading...';
       } else if (!cell?.field?.isNested && cell?.displayValue) {
         finalCellValue = cell.displayValue;
       }
 
       return finalCellValue;
     },
-    []
+    [],
   );
 
   const updateIcons = useCallback(
     (visibleCells: Cell[]) => {
-      const graphics = graphicsRef.current;
+      const container = containerRef.current;
 
-      if (!graphics) return;
+      if (!container) return;
 
-      const iconCellsMap = iconCells;
       const visibleCellKeys = new Set(
-        visibleCells.map((cell) => `${cell.col}-${cell.row}`)
+        visibleCells.map((cell) => `${cell.col}-${cell.row}`),
       );
 
       // Remove icons that are not in visible cells
-      for (const [key, iconCell] of iconCellsMap.entries()) {
+      for (const [key, value] of iconCells.entries()) {
         if (!visibleCellKeys.has(key)) {
-          removeIcon(graphics, iconCell, 'icon');
-          removeIcon(graphics, iconCell, 'secondaryIcon');
-          iconCellsMap.delete(key);
+          iconCells.delete(key);
+          value.primaryIcons.forEach((icon) => removeIcon(icon));
+          value.secondaryIcons.forEach((icon) => removeIcon(icon));
         }
       }
 
@@ -94,69 +123,77 @@ export const useDrawCells = ({ cells, graphicsRef }: Props) => {
         const key = `${col}-${row}`;
         const cellData = getCell(col, row);
 
-        let iconCell = iconCellsMap.get(key);
-        if (!iconCell) {
-          iconCell = {};
-          iconCellsMap.set(key, iconCell);
+        let cellIcons = iconCells.get(key);
+        if (!cellIcons) {
+          cellIcons = { primaryIcons: [], secondaryIcons: [] };
+          iconCells.set(key, cellIcons);
         }
 
-        // Update primary icon
         if (cellData) {
-          const newCellIcon = getCellIcon(
+          const newCellIcons = getCellIcons(
             cellData,
-            iconCell.iconMetadata,
-            gridCallbacks,
+            cellIcons,
+            eventBus,
+            // We need grid api because icons is living outside of react context
+            // TODO: think about rewriting icons
             gridApi,
             theme.themeName,
-            gridSizes
+            gridSizes,
           );
 
-          if (newCellIcon === undefined) {
-            removeIcon(graphics, iconCell, 'icon');
+          if (newCellIcons.isSameIcon) {
+            return;
           }
 
-          if (newCellIcon?.icon) {
-            removeIcon(graphics, iconCell, 'icon');
-            iconCell.icon = newCellIcon.icon;
-            iconCell.iconMetadata = newCellIcon.iconMetadata;
+          cellIcons.primaryIcons.forEach((icon) => removeIcon(icon));
+          cellIcons.secondaryIcons.forEach((icon) => removeIcon(icon));
+
+          if (
+            newCellIcons.primaryIcons.length === 0 &&
+            newCellIcons.secondaryIcons.length === 0
+          ) {
+            iconCells.delete(key);
+
+            return;
           }
+
+          cellIcons.primaryIcons = newCellIcons.primaryIcons;
+          cellIcons.secondaryIcons = newCellIcons.secondaryIcons;
         } else {
-          removeIcon(graphics, iconCell, 'icon');
-        }
-
-        // Update secondary icon
-        if (cellData?.isTableHeader) {
-          const secondaryIcon = getTableHeaderContextMenuIcon(
-            col,
-            row,
-            iconCell.secondaryIconMetadata,
-            gridApi,
-            theme.themeName,
-            gridSizes
-          );
-
-          if (secondaryIcon) {
-            removeIcon(graphics, iconCell, 'secondaryIcon');
-            iconCell.secondaryIcon = secondaryIcon.icon;
-            iconCell.secondaryIconMetadata = secondaryIcon.iconMetadata;
-          }
-        } else {
-          removeIcon(graphics, iconCell, 'secondaryIcon');
+          iconCells.delete(key);
+          cellIcons.primaryIcons.forEach((icon) => removeIcon(icon));
+          cellIcons.secondaryIcons.forEach((icon) => removeIcon(icon));
         }
       });
 
-      setIconCells(iconCells);
-      gridApi?.closeTooltip?.();
+      const isAnimatedIconsUsed = Array.from(iconCells.entries()).some(
+        ([_, iconCells]) => {
+          const isPrimaryIconsAnimated = iconCells.primaryIcons.some(
+            (icon) => icon.metadata.isAnimatedIcon,
+          );
+          const isSecondaryIconsAnimated = iconCells.secondaryIcons.some(
+            (icon) => icon.metadata.isAnimatedIcon,
+          );
+
+          return isPrimaryIconsAnimated || isSecondaryIconsAnimated;
+        },
+      );
+
+      setIsAnimatedIcons(isAnimatedIconsUsed);
+
+      setIconCells(new Map(iconCells.entries()));
+      closeTooltip();
     },
     [
-      getCell,
-      graphicsRef,
-      gridApi,
-      gridCallbacks,
-      gridSizes,
+      containerRef,
       iconCells,
+      closeTooltip,
+      getCell,
+      eventBus,
+      gridApi,
       theme.themeName,
-    ]
+      gridSizes,
+    ],
   );
 
   useEffect(() => {
@@ -166,8 +203,33 @@ export const useDrawCells = ({ cells, graphicsRef }: Props) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [getCell, viewportColCount, viewportRowCount, cells, isPanModeEnabled]);
 
+  useEffect(() => {
+    if (isAnimatedIcons === undefined) return;
+
+    if (isAnimatedIcons) {
+      increaseCanvasAnimatedItems();
+    } else {
+      decreaseCanvasAnimatedItems();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAnimatedIcons]);
+
+  const cleanUpText = useCallback(
+    (text: PIXI.BitmapText) => {
+      if (text.destroyed) return;
+
+      text.visible = false;
+      text.removeAllListeners();
+      text.cursor = 'default';
+      text.style.fill = theme.cell.cellFontColor;
+      text.eventMode = 'none';
+      text.text = '';
+    },
+    [theme.cell.cellFontColor],
+  );
+
   const draw = useCallback(() => {
-    if (!graphicsRef.current) return;
+    if (!graphicsRef.current || !containerRef.current) return;
 
     const graphics = graphicsRef.current;
 
@@ -176,20 +238,25 @@ export const useDrawCells = ({ cells, graphicsRef }: Props) => {
     const { startCol, endCol } = viewportEdges.current;
     const { fontSize, height, width, padding } = gridSizes.cell;
 
-    const updateTextPosition = (
-      text: PIXI.BitmapText,
-      x: number,
-      y: number
-    ) => {
-      text.position.set(x + padding, y + fontSize * adjustmentFontMultiplier);
-    };
+    const viewportRightX =
+      viewportCoords.current.x2 -
+      viewportCoords.current.x1 -
+      gridSizes.scrollBar.trackSize;
 
     const renderCell = (col: number, row: number, text: PIXI.BitmapText) => {
-      text.text = '';
+      if (text.destroyed) {
+        cleanUpText(text);
+
+        return;
+      }
 
       const cell = getCell(col, row);
 
-      if (!cell || !cell?.table) return;
+      if (!cell || !cell?.table) {
+        cleanUpText(text);
+
+        return;
+      }
 
       const cellValue = cell.value;
       const isWideCell = cell.startCol !== cell.endCol;
@@ -198,12 +265,9 @@ export const useDrawCells = ({ cells, graphicsRef }: Props) => {
       const x = getCellX(col);
       const y = getCellY(row);
 
-      text.fontName = fontName;
-      text.fontSize = fontSize;
-
       // Get width for the wide (custom size) cell.
       if (isWideCell) {
-        // Only one cell from the stack of cells can draw the wide cell
+        // Only last cell from the stack of cells can draw the wide cell
         for (let checkCol = col - 1; checkCol >= startCol; checkCol--) {
           const checkCell = getCell(checkCol, row);
 
@@ -213,13 +277,15 @@ export const useDrawCells = ({ cells, graphicsRef }: Props) => {
           ) {
             text.text = '';
 
-            // Remove all icons to not render unneeded icons on wrong position
-            const iconCell = iconCells.get(`${col}-${row}`);
-
-            if (iconCell) {
-              removeIcon(graphics, iconCell, 'icon');
-              removeIcon(graphics, iconCell, 'secondaryIcon');
+            const cellIcons = iconCells.get(`${col}-${row}`);
+            if (cellIcons) {
+              cellIcons.primaryIcons.forEach((icon) => removeIcon(icon));
+              cellIcons.secondaryIcons.forEach((icon) => removeIcon(icon));
+              cellIcons.primaryIcons = [];
+              cellIcons.secondaryIcons = [];
             }
+
+            cleanUpText(text);
 
             return;
           }
@@ -270,7 +336,11 @@ export const useDrawCells = ({ cells, graphicsRef }: Props) => {
         cellWidth = getCellX(Math.min(cell.endCol, endCol) + 1) - x;
       }
 
-      if (!text.parent) return;
+      if (!text.parent) {
+        cleanUpText(text);
+
+        return;
+      }
 
       const bottomCell = getCell(col, row + 1);
       applyCellGraphics(
@@ -283,86 +353,107 @@ export const useDrawCells = ({ cells, graphicsRef }: Props) => {
         height,
         cellWidth,
         theme,
-        gridSizes
+        gridSizes,
+        canvasOptions,
       );
 
-      let iconShift = 0;
-      let iconWidth = 0;
-
       const iconCell = iconCells.get(`${col}-${row}`);
+
+      let leftIconsShift = iconCell?.primaryIcons.length ? padding : 0;
+      let rightIconsShift = iconCell?.secondaryIcons.length ? padding : 0;
+      let hasVisibleSecondaryIcons = false;
+      let effectiveRightIconsShift = rightIconsShift;
 
       const { isFieldHeader, isTableHeader, field } = cell;
       const fieldName = field?.fieldName;
 
       if (iconCell) {
-        const { icon, secondaryIcon } = iconCell;
-        const isIconHidden =
-          (isTableHeader && cell.table.tableName !== hoveredTable) ||
-          (isFieldHeader &&
-            !isFieldSortedOrFiltered(cell) &&
-            !(
-              hoveredField === fieldName &&
-              cell.table.tableName === hoveredTable
-            ));
+        const { primaryIcons, secondaryIcons } = iconCell;
+        const isTableHeaderHovered =
+          isTableHeader && hoveredTable === cell.table.tableName;
+        const isFieldHeaderHovered =
+          isFieldHeader &&
+          hoveredField === fieldName &&
+          cell.table.tableName === hoveredTable;
+        primaryIcons.forEach(({ icon, metadata: { visibleModifier } }) => {
+          const isIconVisible =
+            (visibleModifier === 'hoverField' && isFieldHeaderHovered) ||
+            (visibleModifier === 'hoverTable' && isTableHeaderHovered) ||
+            visibleModifier === 'always';
+          if (isIconVisible) {
+            if (!icon.parent) {
+              containerRef.current?.addChild(icon);
+            }
+            icon.visible = true;
+            const iconX = x + leftIconsShift;
+            const iconY = y + (height - icon.height) / 2;
 
-        if (isIconHidden) {
-          if (icon) graphics.removeChild(icon);
-          if (secondaryIcon) graphics.removeChild(secondaryIcon);
-        } else if (icon) {
-          graphics.addChild(icon);
+            leftIconsShift += icon.width;
 
-          const isIconRightPosition = isIconRightPlacement(cell);
-          const iconX =
-            x +
-            (isIconRightPosition ? cellWidth - icon.width - padding : padding);
-          const iconY = y + (height - icon.height) / 2;
-
-          iconShift = isIconRightPosition ? 0 : icon.width + padding;
-          iconWidth = icon.width + padding;
-
-          icon.position.set(iconX, iconY);
-
-          if (secondaryIcon) {
-            graphics.addChild(secondaryIcon);
-
-            const secondaryIconX = iconX - secondaryIcon.width - padding;
-            const secondaryIconY = y + (height - secondaryIcon.height) / 2;
-
-            iconWidth += secondaryIcon.width + padding;
-            secondaryIcon.position.set(secondaryIconX, secondaryIconY);
+            icon.position.set(iconX, iconY);
+          } else {
+            icon.visible = false;
           }
+        });
+        secondaryIcons.forEach(({ icon, metadata: { visibleModifier } }) => {
+          const isIconVisible =
+            (visibleModifier === 'hoverField' && isFieldHeaderHovered) ||
+            (visibleModifier === 'hoverTable' && isTableHeaderHovered) ||
+            visibleModifier === 'always';
+          if (isIconVisible) {
+            if (!icon.parent) {
+              containerRef.current?.addChild(icon);
+            }
+            icon.visible = true;
+            rightIconsShift += icon.width;
+            hasVisibleSecondaryIcons = true;
+
+            const cellRightX = x + textCellWidth;
+            const anchorRightX = isTableHeader
+              ? Math.min(cellRightX, viewportRightX)
+              : cellRightX;
+
+            const iconX = anchorRightX - rightIconsShift;
+            const iconY = y + (height - icon.height) / 2;
+
+            icon.position.set(iconX, iconY);
+          } else {
+            icon.visible = false;
+          }
+        });
+
+        if (isTableHeader && hasVisibleSecondaryIcons) {
+          const cellRightX = x + textCellWidth;
+          const clampDelta = Math.max(0, cellRightX - viewportRightX);
+          effectiveRightIconsShift = rightIconsShift + clampDelta;
+        } else {
+          effectiveRightIconsShift = rightIconsShift;
         }
       }
 
-      if (!cellValue) {
+      const finalCellValue = getFinalCellValue(cell, cellValue);
+
+      if (!finalCellValue) {
         text.text = '';
 
         return;
       }
 
-      text.fontName = getFontName(cell);
-      const finalCellValue = getFinalCellValue(cell, cellValue);
-
-      if (cell?.isUrl) {
-        const openUrl = () => {
-          window.open(finalCellValue, '_blank');
-        };
-
-        text.eventMode = 'static';
-        text.removeAllListeners('click');
-        text.addEventListener('click', openUrl);
-      }
-
       let textVal: string | undefined;
-      if (cell.field && !cell.isFieldHeader) {
+      const availableTextWidth = Math.max(
+        0,
+        textCellWidth - 2 * padding - leftIconsShift - effectiveRightIconsShift,
+      );
+
+      if (cell.field && !cell.isFieldHeader && !cell.field.isLoading) {
         if (
           isGeneralFormatting(cell.field.type, cell.field.format) ||
           cell.totalType
         ) {
           textVal = formatNumberGeneral(
             finalCellValue,
-            textCellWidth - 2 * padding - iconWidth,
-            symbolWidth
+            availableTextWidth,
+            canvasSymbolWidth,
           );
         } else if (
           cell.field?.format &&
@@ -370,8 +461,8 @@ export const useDrawCells = ({ cells, graphicsRef }: Props) => {
         ) {
           textVal = hashText(
             finalCellValue,
-            textCellWidth - 2 * padding - iconWidth,
-            symbolWidth
+            availableTextWidth,
+            canvasSymbolWidth,
           );
         }
       }
@@ -379,27 +470,92 @@ export const useDrawCells = ({ cells, graphicsRef }: Props) => {
       if (textVal === undefined) {
         textVal = cropText(
           finalCellValue,
-          textCellWidth - 2 * padding - iconWidth,
-          symbolWidth
+          availableTextWidth,
+          canvasSymbolWidth,
         );
       }
 
-      text.text = textVal;
+      const { font, color } = getFontNameAndColor(cell);
+      let resultedColor = color;
 
-      updateTextPosition(text, x + iconShift, y);
+      text.style.fontFamily = font;
+
+      text.text = textVal;
+      text.style.fontSize = fontSize;
+      text.style.lineHeight = fontSize;
+
+      if (cell?.isUrl) {
+        const openUrl = () => {
+          window.open(finalCellValue, '_blank');
+        };
+
+        text.eventMode = 'static';
+        text.cursor = 'pointer';
+
+        if (hoveredLinkCell.current === text) {
+          resultedColor = theme.cell.linkFontHoverColor;
+        }
+
+        if (text.listenerCount('click') === 0) {
+          text.addEventListener('click', openUrl);
+        }
+        if (text.listenerCount('mouseover') === 0) {
+          text.addEventListener('mouseover', (e) => {
+            openTooltip(
+              e.target.x + e.target.width / 2,
+              e.target.y,
+              finalCellValue,
+            );
+            hoveredLinkCell.current = text;
+            text.style.fill = theme.cell.linkFontHoverColor;
+          });
+        }
+        if (text.listenerCount('mouseleave') === 0) {
+          text.addEventListener('mouseleave', () => {
+            hoveredLinkCell.current = null;
+            closeTooltip();
+            text.style.fill = theme.cell.linkFontColor;
+          });
+        }
+      }
+
+      text.style.fill = resultedColor;
+
+      text.position.set(
+        x + leftIconsShift + padding,
+        y + Math.floor((height - fontSize) / 2 - zoom),
+      );
 
       if (cell?.isRightAligned) {
-        text.position.x = x + cellWidth - text.width - padding;
+        text.position.x =
+          x + cellWidth - text.width - padding - effectiveRightIconsShift;
       }
+
+      text.label = `Text(col: ${col}, row: ${row}, text: ${text.text})`;
     };
 
-    for (const { col, row, text } of cells) {
+    for (const { col, row, text, isVisible } of cells) {
+      if (!isVisible && !text.destroyed) {
+        text.visible = false;
+        text.removeAllListeners();
+        text.cursor = 'default';
+        text.style.fill = theme.cell.cellFontColor;
+        text.eventMode = 'none';
+        text.text = '';
+
+        continue;
+      }
+
       renderCell(col, row, text);
+
+      text.visible = true;
     }
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
+    canvasOptions,
     graphicsRef,
+    viewportCoords,
     viewportEdges,
     gridSizes,
     columnSizes,
@@ -408,9 +564,9 @@ export const useDrawCells = ({ cells, graphicsRef }: Props) => {
     fontName,
     theme,
     iconCells,
-    getFontName,
+    getFontNameAndColor,
     getFinalCellValue,
-    symbolWidth,
+    canvasSymbolWidth,
     hoveredTable,
     hoveredField,
     cells,

@@ -1,41 +1,50 @@
-import { Route, Routes } from 'react-router-dom';
+import { Route, Routes } from 'react-router';
 
 import {
+  AppPage,
   ErrorPage,
-  ProtectedAppPage,
+  IconsPage,
+  LoginRedirectingPage,
+  NotFoundPage,
   ProtectedDashboardPage,
-  ProtectedSharePage,
+  ProtectedProjectPage,
+  SharePage,
 } from './app';
-import { IconsPage } from './app/pages/IconsPage';
 import { routes } from './app/types';
 
 export function AppRoutes() {
   return (
     <Routes>
-      <Route element={<ProtectedDashboardPage />} path="/" />
-      <Route element={<ProtectedDashboardPage />} path={routes.recent + '/*'} />
-      <Route element={<ProtectedDashboardPage />} path={routes.home + '/*'} />
+      <Route element={<AppPage />} path="/" />
       <Route
-        element={<ProtectedDashboardPage />}
-        path={routes.sharedByMe + '/*'}
+        element={<LoginRedirectingPage isAutoRedirect={false} />}
+        path={routes.login}
       />
+      <Route element={<ProtectedDashboardPage />} path={routes.recent}>
+        <Route element={<ProtectedDashboardPage />} path="*" />
+      </Route>
+      <Route element={<ProtectedDashboardPage />} path={routes.home}>
+        <Route element={<ProtectedDashboardPage />} path="*" />
+      </Route>
+      <Route element={<ProtectedDashboardPage />} path={routes.sharedByMe}>
+        <Route element={<ProtectedDashboardPage />} path="*" />
+      </Route>
+      <Route element={<ProtectedDashboardPage />} path={routes.sharedWithMe}>
+        <Route element={<ProtectedDashboardPage />} path="*" />
+      </Route>
+      <Route element={<ProtectedDashboardPage />} path={routes.public}>
+        <Route element={<ProtectedDashboardPage />} path="*" />
+      </Route>
       <Route
-        element={<ProtectedDashboardPage />}
-        path={routes.sharedWithMe + '/*'}
-      />
-      <Route element={<ProtectedDashboardPage />} path={routes.public + '/*'} />
-      <Route
-        element={<ProtectedAppPage />}
+        element={<ProtectedProjectPage />}
         path={routes.project + '/:projectName/:sheetName?'}
       />
-      <Route
-        element={<ProtectedSharePage />}
-        path={routes.share + '/:shareId'}
-      />
+      <Route element={<SharePage />} path={routes.share + '/:shareId'} />
+      <Route element={<ErrorPage />} path={routes.error} />
       {process.env.NODE_ENV === 'development' && (
         <Route element={<IconsPage />} path="/icons" />
       )}
-      <Route element={<ErrorPage />} path="*" />
+      <Route element={<NotFoundPage />} path="*" />
     </Routes>
   );
 }

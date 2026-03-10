@@ -65,7 +65,7 @@ public class DialProjectService implements ProjectService {
         if (lock.tryLock()) {
             try {
                 Calculation calculation = new Calculation(principal, path);
-                Closeable subscription = subscribe(principal, file, calculation);
+                Closeable subscription = dial.subscribeOnFileContentEvents(file, calculation, principal);
 
                 calculations.put(path, calculation);
                 long threadId = Thread.currentThread().getId();
@@ -129,7 +129,7 @@ public class DialProjectService implements ProjectService {
     }
 
     @RequiredArgsConstructor
-    private class Calculation implements Subscriber {
+    private class Calculation implements DialFileApi.FileContentSubscriber {
 
         private final CompletableFuture<Void> future = new CompletableFuture<>();
         private final Principal principal;
@@ -139,9 +139,10 @@ public class DialProjectService implements ProjectService {
         private int updates;
 
         @Override
-        public synchronized void onUpdate(Project project) {
+        public synchronized void onUpdate(byte[] body) {
             if (!future.isDone()) {
                 try {
+                    Project project = Project.fromYaml(body);
                     updates++;
                     cancel();
                     compute(project);
@@ -281,11 +282,6 @@ public class DialProjectService implements ProjectService {
         }
     }
 
-    private Closeable subscribe(Principal principal, String file, Subscriber subscriber) throws Exception {
-        DialFileApi.FileSubscriber listener = new FileListener(principal, file, subscriber);
-        return dial.subscribeOnFileEvents(file, listener, principal);
-    }
-
     private static String getProjectFile(String path) {
         if (path.isBlank() || path.endsWith("/") || !path.startsWith("files/")) {
             throw new IllegalArgumentException("path is invalid: " + path);
@@ -296,50 +292,5 @@ public class DialProjectService implements ProjectService {
         }
 
         return path;
-    }
-
-    private interface Subscriber {
-        void onUpdate(Project project);
-
-        void onDelete();
-
-        void onError(Throwable error);
-    }
-
-    private class FileListener implements DialFileApi.FileSubscriber {
-        private final Principal principal;
-        private final String projectPath;
-        private final Subscriber subscriber;
-
-        public FileListener(Principal principal, String path, Subscriber subscriber) {
-            this.principal = principal;
-            this.projectPath = path;
-            this.subscriber = subscriber;
-        }
-
-        @Override
-        public synchronized void onOpen() throws Throwable {
-            sync(principal, projectPath, subscriber);
-        }
-
-        @Override
-        public synchronized void onEvent(DialFileApi.FileEvent event) throws Throwable {
-            sync(principal, event.path(), subscriber);
-        }
-
-        @Override
-        public synchronized void onError(Throwable error) {
-            subscriber.onError(error);
-        }
-
-        private void sync(Principal principal, String path, Subscriber subscriber) throws Throwable {
-            try (EtaggedStream stream = dial.readFile(path, principal)) {
-                String body = new String(stream.stream().readAllBytes());
-                Project project = Project.fromYaml(body);
-                subscriber.onUpdate(project);
-            } catch (FileNotFoundException notFound) {
-                subscriber.onDelete();
-            }
-        }
     }
 }

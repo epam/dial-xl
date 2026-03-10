@@ -22,7 +22,7 @@ export const mapQGDialProjectToProject = (
   projectName: string,
   bucket: string,
   path: string | null | undefined,
-  version: string
+  version: string,
 ): ProjectState => {
   const entries = Object.entries(dialProject);
   const settings = entries
@@ -41,7 +41,7 @@ export const mapQGDialProjectToProject = (
         sheetName,
         content: sheetContent,
         projectName: projectName,
-      })
+      }),
     );
 
   return {
@@ -55,7 +55,7 @@ export const mapQGDialProjectToProject = (
 };
 
 export const mapProjectToQGDialProject = (
-  project: ProjectState
+  project: ProjectState,
 ): QGDialProject => {
   const sheetEntries: QGDialProject = project.sheets.reduce<QGDialProject>(
     (acc, { sheetName, content }) => {
@@ -63,16 +63,16 @@ export const mapProjectToQGDialProject = (
 
       return acc;
     },
-    {}
+    {},
   );
 
   const settingEntries: QGDialProject = Object.entries(
-    project.settings
+    project.settings,
   ).reduce<QGDialProject>((acc, [rawKey, rawValue]) => {
     const key = rawKey as keyof ProjectSettings;
     acc[`/${key}`] = serialiseSetting(
       key,
-      rawValue as ProjectSettings[typeof key]
+      rawValue as ProjectSettings[typeof key],
     );
 
     return acc;
@@ -83,7 +83,7 @@ export const mapProjectToQGDialProject = (
 
 export function updateAIResponseIds(
   projectStateRef: Pick<ProjectState, 'settings'>,
-  updatedResponseIds: ProjectAIResponseId[] | null | undefined
+  updatedResponseIds: ProjectAIResponseId[] | null | undefined,
 ): ProjectSettings {
   if (!updatedResponseIds) return projectStateRef.settings ?? {};
 
@@ -105,7 +105,7 @@ export function updateAIResponseIds(
 export const updateSheetInProject = (
   oldProjectState: ProjectState,
   oldSheetName: string,
-  newSheetState: Partial<WorksheetState>
+  newSheetState: Partial<WorksheetState>,
 ): ProjectState => {
   const newSheetsState = oldProjectState.sheets.map((sheet) => {
     if (oldSheetName === sheet.sheetName) {
@@ -146,17 +146,19 @@ export const getProjectShareUrl = ({
   projectBucket,
   projectPath,
   invitationId,
+  relative = false,
 }: {
   projectName: string;
   projectBucket: string;
   projectPath?: string | null;
   invitationId: string;
+  relative?: boolean;
 }) => {
-  return `${window?.location.origin}${routes.share}/${invitationId}?${
-    routeParams.projectBucket
-  }=${projectBucket}&${routeParams.projectName}=${safeEncodeURIComponent(
-    projectName
-  )}${
+  return `${relative ? '' : window?.location.origin}${
+    routes.share
+  }/${invitationId}?${routeParams.projectBucket}=${projectBucket}&${
+    routeParams.projectName
+  }=${safeEncodeURIComponent(projectName)}${
     projectPath
       ? `&${routeParams.projectPath}=${safeEncodeURIComponent(projectPath)}`
       : ''
@@ -165,14 +167,18 @@ export const getProjectShareUrl = ({
 
 export const getFilesShareUrl = ({
   invitationId,
+  relative = false,
 }: {
   invitationId: string;
+  relative?: boolean;
 }) => {
-  return `${window?.location.origin}${routes.share}/${invitationId}`;
+  return `${relative ? '' : window?.location.origin}${
+    routes.share
+  }/${invitationId}`;
 };
 
 export const collectFilesFromProject = (
-  sheetContents: string[]
+  sheetContents: string[],
 ): string[] | undefined => {
   try {
     const collectedFiles = sheetContents
@@ -181,7 +187,7 @@ export const collectFilesFromProject = (
 
         const files = parsedSheet.tables
           .map((table) =>
-            table.fields.map((field) => field.expressionMetadata?.text)
+            table.fields.map((field) => field.expressionMetadata?.text),
           )
           .flat(2)
           .map((expression) => {
@@ -189,7 +195,7 @@ export const collectFilesFromProject = (
 
             const myRegexp = /INPUT\("([^)]*)"\)/g;
             const matches = [...expression.matchAll(myRegexp)].map(
-              (match) => match[1]
+              (match) => match[1],
             );
 
             return matches;
@@ -214,7 +220,7 @@ export const collectFilesFromProject = (
             lastPathSegment.indexOf(csvFileExtension);
           const lastPathSegmentWithoutExtension = lastPathSegment.substring(
             0,
-            lastPathSegmentExtensionIndex
+            lastPathSegmentExtensionIndex,
           );
 
           const schemaFile =
@@ -234,27 +240,26 @@ export const collectFilesFromProject = (
 
 export const updateFilesPathInputs = (
   sheet: string,
-  newProjectFolderPath: string
+  projectFolderCurrentPath: string,
+  newProjectFolderPath: string,
 ): string => {
+  const encodedCurrentPath = encodeApiUrl(projectFolderCurrentPath);
   const encodedNewPath = encodeApiUrl(newProjectFolderPath);
 
-  return sheet.replace(/INPUT\("([^"]+)"\)/g, (_, url: string) => {
-    if (!url.startsWith('files/')) return `INPUT("${url}")`;
-
-    const lastSlash = url.lastIndexOf('/');
-    const fileName = url.slice(lastSlash + 1);
-    const updatedUrl = `files/${encodedNewPath}/${fileName}`;
-
-    return `INPUT("${updatedUrl}")`;
-  });
+  return sheet.replaceAll(encodedCurrentPath, encodedNewPath);
 };
 
 export const updateFilesPathInputsInProject = (
   sheets: WorksheetState[],
-  newProjectFolderPath: string
+  projectFolderCurrentPath: string,
+  newProjectFolderPath: string,
 ): WorksheetState[] => {
   return sheets.map((sheet) => {
-    const content = updateFilesPathInputs(sheet.content, newProjectFolderPath);
+    const content = updateFilesPathInputs(
+      sheet.content,
+      projectFolderCurrentPath,
+      newProjectFolderPath,
+    );
 
     return { ...sheet, content };
   });
@@ -262,52 +267,72 @@ export const updateFilesPathInputsInProject = (
 
 export const updateMessagesProjectFoldersPath = (
   messages: Message[],
-  projectFolderTargetPath: string
+  projectFolderCurrentPath: string,
+  projectFolderTargetPath: string,
 ) => {
   const replacedMessages = messages.map(
     (msg): Message => ({
       ...msg,
-      content: updateFilesPathInputs(msg.content, projectFolderTargetPath),
+      content: updateFilesPathInputs(
+        msg.content,
+        projectFolderCurrentPath,
+        projectFolderTargetPath,
+      ),
       custom_content: {
         ...msg.custom_content,
         stages: msg.custom_content?.stages?.map((stage) => ({
           ...stage,
           content: stage.content
-            ? updateFilesPathInputs(stage.content, projectFolderTargetPath)
+            ? updateFilesPathInputs(
+                stage.content,
+                projectFolderCurrentPath,
+                projectFolderTargetPath,
+              )
             : undefined,
           attachments: stage.attachments?.map((attachment) => ({
             ...attachment,
             data: attachment.data
-              ? updateFilesPathInputs(attachment.data, projectFolderTargetPath)
+              ? updateFilesPathInputs(
+                  attachment.data,
+                  projectFolderCurrentPath,
+                  projectFolderTargetPath,
+                )
               : undefined,
           })),
         })),
         attachments: msg.custom_content?.attachments?.map((attachment) => ({
           ...attachment,
           data: attachment.data
-            ? updateFilesPathInputs(attachment.data, projectFolderTargetPath)
+            ? updateFilesPathInputs(
+                attachment.data,
+                projectFolderCurrentPath,
+                projectFolderTargetPath,
+              )
             : undefined,
         })),
       },
-    })
+    }),
   );
 
   return replacedMessages;
 };
 
 export const getProjectSheetsRecord = (
-  sheets: WorksheetState[]
+  sheets: WorksheetState[],
 ): Record<string, string> => {
-  return sheets.reduce((acc, sheet) => {
-    acc[sheet.sheetName] = sheet.content;
+  return sheets.reduce(
+    (acc, sheet) => {
+      acc[sheet.sheetName] = sheet.content;
 
-    return acc;
-  }, {} as Record<string, string>);
+      return acc;
+    },
+    {} as Record<string, string>,
+  );
 };
 
 const parseSetting = <K extends keyof ProjectSettings>(
   key: K,
-  value: unknown
+  value: unknown,
 ): ProjectSettings[K] => {
   if (key === projectMetadataSettingsKey && typeof value === 'string') {
     return JSON.parse(value) as ProjectSettings[K];
@@ -318,7 +343,7 @@ const parseSetting = <K extends keyof ProjectSettings>(
 
 export const serialiseSetting = <K extends keyof ProjectSettings>(
   key: K,
-  value: ProjectSettings[K]
+  value: ProjectSettings[K],
 ): string => {
   if (key === projectMetadataSettingsKey) {
     return JSON.stringify(value);
@@ -330,13 +355,13 @@ export const serialiseSetting = <K extends keyof ProjectSettings>(
 export function updateProjectSheets(
   changedSheets: DslSheetChange[],
   currentSheets: WorksheetState[],
-  projectName: string
+  projectName: string,
 ) {
   const changedSheetsCopy = changedSheets.slice();
   const sheets = currentSheets
     .map((sheet) => {
       const changedSheetIndex = changedSheetsCopy.findIndex(
-        (changedSheet) => sheet.sheetName === changedSheet.sheetName
+        (changedSheet) => sheet.sheetName === changedSheet.sheetName,
       );
 
       if (changedSheetIndex !== -1) {
@@ -356,14 +381,14 @@ export function updateProjectSheets(
           ...sheet,
           content: sheet.content,
           projectName: projectName!,
-        }))
+        })),
     ) as WorksheetState[];
 
   return sheets;
 }
 
 export const getDSLChangesFromSheets = (
-  sheets: Record<string, string>
+  sheets: Record<string, string>,
 ): DslSheetChange[] => {
   return Object.entries(sheets).map(([sheetName, content]) => ({
     sheetName,

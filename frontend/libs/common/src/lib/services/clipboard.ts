@@ -3,34 +3,89 @@ export enum ClipboardType {
   HTML = 'text/html',
 }
 
-export const rowsToHtml = (rows: string[][], objectData?: any) => {
-  return `<table data-object-data="${btoa(JSON.stringify(objectData))}">${rows
-    .map((row) => {
-      return `<tr>${row.map((cell) => `<td>${cell}</td>`).join('')}</tr>`;
-    })
-    .join('')}</table>`;
+const toBase64Utf8 = (value: unknown): string => {
+  const json = JSON.stringify(value);
+  const bytes = new TextEncoder().encode(json);
+  let binary = '';
+  for (let i = 0; i < bytes.length; i++)
+    binary += String.fromCharCode(bytes[i]);
+
+  return btoa(binary);
 };
 
-export type DataFromClipboard = { [k: string]: string };
+const escapeHtml = (s: string) =>
+  s
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
 
-export const readClipboard = async () => {
-  if (!navigator.clipboard?.read) {
-    return {};
-  }
+export const rowsToHtml = (rows: string[][], objectData?: any) => {
+  const meta = objectData
+    ? ` data-object-data="${toBase64Utf8(objectData)}"`
+    : '';
 
-  const clipboardData: DataFromClipboard = {};
+  return `<table${meta}><tbody>${rows
+    .map(
+      (row) =>
+        `<tr>${row.map((cell) => `<td>${escapeHtml(String(cell ?? ''))}</td>`).join('')}</tr>`,
+    )
+    .join('')}</tbody></table>`;
+};
 
-  const clipboardItems = await navigator.clipboard.read();
+type PendingCopy = { plain: string; html?: string } | null;
+let pendingCopy: PendingCopy = null;
+let handlersInstalled = false;
 
-  for (const clipboardItem of clipboardItems) {
-    for (const type of clipboardItem.types) {
-      clipboardData[type] = await clipboardItem
-        .getType(type)
-        .then((b: Blob) => b.text());
+const ensureClipboardHandlers = () => {
+  if (handlersInstalled) return;
+  handlersInstalled = true;
+
+  document.addEventListener('copy', (e) => {
+    if (!pendingCopy) return;
+
+    e.preventDefault();
+
+    const dt = e.clipboardData;
+    if (!dt) return;
+
+    dt.setData(ClipboardType.PLAIN, pendingCopy.plain);
+    if (pendingCopy.html) dt.setData(ClipboardType.HTML, pendingCopy.html);
+
+    pendingCopy = null;
+  });
+};
+
+export const makeCopy = async (plain: string, html?: string): Promise<void> => {
+  ensureClipboardHandlers();
+
+  pendingCopy = { plain, html };
+  const ok =
+    typeof document.execCommand === 'function' && document.execCommand('copy');
+  if (ok) return;
+
+  pendingCopy = null;
+
+  if (navigator.clipboard) {
+    if (html && navigator.clipboard.write) {
+      const clipboardItemData: Record<string, Blob> = {
+        [ClipboardType.PLAIN]: new Blob([plain], { type: ClipboardType.PLAIN }),
+        [ClipboardType.HTML]: new Blob([html], { type: ClipboardType.HTML }),
+      };
+      await navigator.clipboard.write([new ClipboardItem(clipboardItemData)]);
+
+      return;
+    }
+
+    if (navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(plain);
+
+      return;
     }
   }
 
-  return clipboardData;
+  await execCopyCommand(plain);
 };
 
 const execCopyCommand = (textToCopy: string): Promise<void> => {
@@ -44,27 +99,12 @@ const execCopyCommand = (textToCopy: string): Promise<void> => {
   textArea.select();
 
   return new Promise((res, rej) => {
-    document.execCommand('copy') ? res() : rej();
+    const ok =
+      typeof document.execCommand === 'function' &&
+      document.execCommand('copy');
     textArea.remove();
+    ok ? res() : rej(new Error('execCommand(copy) failed'));
   });
-};
-
-export const makeCopy = (plain: string, html?: string): Promise<void> => {
-  if (typeof navigator.clipboard !== 'undefined') {
-    const clipboardItemData: { [k: string]: Blob } = {
-      [ClipboardType.PLAIN]: new Blob([plain], { type: ClipboardType.PLAIN }),
-    };
-
-    if (html) {
-      clipboardItemData[ClipboardType.HTML] = new Blob([html], {
-        type: ClipboardType.HTML,
-      });
-    }
-
-    return navigator.clipboard.write([new ClipboardItem(clipboardItemData)]);
-  } else {
-    return execCopyCommand(plain);
-  }
 };
 
 // Based on ag-grid stringToArray method

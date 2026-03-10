@@ -1,20 +1,14 @@
-import { MutableRefObject } from 'react';
-
 import { AppTheme, ChartsData, GridChart } from '@frontend/common';
-import { ParsedSheets } from '@frontend/parser';
 
-import { GridApi, GridCallbacks, GridTable } from '../../types';
+import { GridTable } from '../../types';
+import { GridEventBus } from '../../utils';
 
 export type Props = {
-  gridCallbacksRef: MutableRefObject<GridCallbacks>;
-  api: GridApi | null;
+  eventBus: GridEventBus;
   chartData: ChartsData;
-  zoom?: number;
   charts?: GridChart[];
   theme: AppTheme;
-  columnSizes: Record<number, number>;
   tableStructure: GridTable[];
-  parsedSheets: ParsedSheets;
 };
 
 export type ChartConfig = {
@@ -23,11 +17,15 @@ export type ChartConfig = {
   left: number;
   width: number;
   height: number;
+  titleHeight: number;
+  titleTop: number;
+  titleLeft: number;
   toolBarTop: number;
   toolBarLeft: number;
   toolBarHeight: number;
   minResizeWidth: number;
   minResizeHeight: number;
   showToolbar: boolean;
+  showTitle: boolean;
   gridChart: GridChart;
 };

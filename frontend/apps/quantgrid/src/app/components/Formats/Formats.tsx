@@ -1,7 +1,6 @@
 import { Dropdown, Tooltip } from 'antd';
 import classNames from 'classnames';
-import { MenuInfo } from 'rc-menu/lib/interface';
-import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import Icon from '@ant-design/icons';
 import {
@@ -24,9 +23,10 @@ import {
   PercentageIcon,
 } from '@frontend/common';
 import { formatDecoratorName } from '@frontend/parser';
+import { MenuInfo } from '@rc-component/menu/lib/interface';
 
-import { ProjectContext } from '../../context';
 import { useDSLUtils, useGridApi } from '../../hooks';
+import { useViewStore } from '../../store';
 import {
   CurrencyKeyData,
   FormatKeyData,
@@ -39,13 +39,17 @@ export const Formats = () => {
   const api = useGridApi();
   const { findTable } = useDSLUtils();
 
-  const { selectedCell } = useContext(ProjectContext);
   const [selectedFormat, setSelectedFormat] = useState(FormatKeys.General);
   const [selectedFormatParams, setSelectedFormatParams] =
     useState<FormatKeyData>();
   const [selectedFormatExplicit, setSelectedFormatExplicit] = useState(false);
   const [isDisabled, setIsDisabled] = useState(false);
   const [isDigitsModeMenuOpened, setIsDigitsModeMenuOpened] = useState(false);
+  const [isFormatDropdownOpened, setIsFormatDropdownOpened] = useState(false);
+
+  const selectedCell = useViewStore((s) =>
+    isFormatDropdownOpened ? s.selectedCell : null,
+  );
 
   const selectedCellValue = useMemo(() => {
     if (!selectedCell) return undefined;
@@ -64,10 +68,11 @@ export const Formats = () => {
     );
   }, [api, selectedCell]);
 
-  const items: MenuItem[] = useMemo(
-    () => getFormatsItems(selectedCellValue ?? '', selectedFormatExplicit),
-    [selectedCellValue, selectedFormatExplicit]
-  );
+  const items: MenuItem[] = useMemo(() => {
+    if (!isFormatDropdownOpened) return [];
+
+    return getFormatsItems(selectedCellValue ?? '', selectedFormatExplicit);
+  }, [isFormatDropdownOpened, selectedCellValue, selectedFormatExplicit]);
 
   const digitsModeItems = useMemo(() => {
     return getDigitsModeItems();
@@ -75,7 +80,7 @@ export const Formats = () => {
 
   const isCommaSelected = useMemo(
     () => (selectedFormatParams as NumberKeyData)?.thousandComma ?? false,
-    [selectedFormatParams]
+    [selectedFormatParams],
   );
   const isPercentageSelected = selectedFormat === FormatKeys.Percentage;
   const isDecimalDigitsSelected = useMemo(() => {
@@ -106,7 +111,7 @@ export const Formats = () => {
 
       onFormatClick(action, data);
     },
-    [onFormatClick]
+    [onFormatClick],
   );
 
   const handlePercentageSelect = useCallback(() => {
@@ -128,7 +133,7 @@ export const Formats = () => {
 
     if (
       ![FormatKeys.Number, FormatKeys.Currency, FormatKeys.Percentage].includes(
-        selectedFormat
+        selectedFormat,
       ) ||
       !selectedFormatParams
     ) {
@@ -166,7 +171,7 @@ export const Formats = () => {
       }
       const newDecimalAmount = Math.max(
         0,
-        ((selectedFormatParams as NumberKeyData).digitsAmount ?? 1) + change
+        ((selectedFormatParams as NumberKeyData).digitsAmount ?? 1) + change,
       );
 
       if (selectedFormat === FormatKeys.Number) {
@@ -203,7 +208,7 @@ export const Formats = () => {
         return;
       }
     },
-    [onFormatClick, selectedFormat, selectedFormatParams]
+    [onFormatClick, selectedFormat, selectedFormatParams],
   );
 
   const handleTotalDigitsChange = useCallback(
@@ -226,7 +231,7 @@ export const Formats = () => {
       }
       const newTotalDigitsAmount = Math.min(
         -4,
-        ((selectedFormatParams as NumberKeyData).digitsAmount ?? 0) + change
+        ((selectedFormatParams as NumberKeyData).digitsAmount ?? 0) + change,
       );
 
       if (selectedFormat === FormatKeys.Number) {
@@ -262,7 +267,7 @@ export const Formats = () => {
         return;
       }
     },
-    [onFormatClick, selectedFormat, selectedFormatParams]
+    [onFormatClick, selectedFormat, selectedFormatParams],
   );
 
   const handleDigitsModeSelect = useCallback(
@@ -292,7 +297,7 @@ export const Formats = () => {
               ...(isCurrentFormatCompatible ? selectedFormatParams : undefined),
               digitsAmount: undefined,
               compactFormat: 'K',
-            } as NumberKeyData
+            } as NumberKeyData,
           );
           break;
         }
@@ -309,7 +314,7 @@ export const Formats = () => {
               ...(isCurrentFormatCompatible ? selectedFormatParams : undefined),
               digitsAmount: undefined,
               compactFormat: 'M',
-            } as NumberKeyData
+            } as NumberKeyData,
           );
           break;
         }
@@ -326,7 +331,7 @@ export const Formats = () => {
               ...(isCurrentFormatCompatible ? selectedFormatParams : undefined),
               digitsAmount: undefined,
               compactFormat: 'B',
-            } as NumberKeyData
+            } as NumberKeyData,
           );
           break;
         }
@@ -340,14 +345,14 @@ export const Formats = () => {
       onFormatClick,
       selectedFormat,
       selectedFormatParams,
-    ]
+    ],
   );
 
   const updateFormatInfo = useCallback(
     (
       inheritedFormat: ColumnFormat | undefined,
       tableName: string,
-      fieldName: string
+      fieldName: string,
     ) => {
       const targetTable = findTable(tableName);
 
@@ -358,7 +363,7 @@ export const Formats = () => {
       }
 
       const targetField = targetTable.fields.find(
-        (field) => field.key.fieldName === fieldName
+        (field) => field.key.fieldName === fieldName,
       );
       if (!targetField?.span) {
         setSelectedFormat(FormatKeys.General);
@@ -367,7 +372,7 @@ export const Formats = () => {
       }
 
       const existingFormatDecorator = targetField.decorators?.find(
-        (dec) => dec.decoratorName === formatDecoratorName
+        (dec) => dec.decoratorName === formatDecoratorName,
       );
       const params = existingFormatDecorator?.params ?? [];
       let dslFormat: string | undefined;
@@ -451,7 +456,7 @@ export const Formats = () => {
           break;
       }
     },
-    [findTable]
+    [findTable],
   );
 
   useEffect(() => {
@@ -476,16 +481,28 @@ export const Formats = () => {
       updateFormatInfo(
         cell.field.format,
         cell.table.tableName,
-        cell.field.fieldName
+        cell.field.fieldName,
       );
     });
 
     return () => subscription?.unsubscribe();
   }, [api, api?.selection$, updateFormatInfo]);
 
+  useEffect(() => {
+    const unsub = useViewStore.subscribe(
+      (s) => s.selectedCell,
+      () => {
+        setIsFormatDropdownOpened(false);
+        setIsDigitsModeMenuOpened(false);
+      },
+    );
+
+    return unsub;
+  }, []);
+
   return (
     <div className="flex h-full">
-      <div className="border-x border-stroke-tertiary w-28 md:w-36">
+      <div className="border-x border-stroke-tertiary w-28 md:w-36 group">
         <Tooltip
           className={classNames(isDisabled && 'cursor-not-allowed')}
           title={
@@ -495,28 +512,36 @@ export const Formats = () => {
           }
           destroyOnHidden
         >
-          <div className="h-7">
+          <div className="h-7 group">
             <Dropdown
               autoAdjustOverflow={true}
               autoFocus={true}
-              className={classNames(isDisabled && 'text-controls-text-disable')}
               destroyOnHidden={true}
               disabled={isDisabled}
-              forceRender={true}
+              forceRender={false}
               menu={{
                 items: items,
                 onClick: handleItemClick,
               }}
+              open={isFormatDropdownOpened}
               trigger={['click']}
+              onOpenChange={(isOpen) => setIsFormatDropdownOpened(isOpen)}
             >
               <div
                 className={classNames(
-                  'h-full px-3 flex items-center justify-between'
+                  'h-full px-3 flex items-center justify-between',
+                  {
+                    'text-controls-text-disable': isDisabled,
+                  },
                 )}
               >
                 <span className="text-sm">{FormatLabel[selectedFormat]}</span>
                 <Icon
-                  className="h-[18px] w-[18px] shrink-0 group-focus:rotate-180"
+                  className={classNames(
+                    'h-[18px] w-[18px] shrink-0 transition-transform',
+                    isFormatDropdownOpened && 'rotate-180',
+                    !isDisabled && 'group-hover:text-text-accent-primary',
+                  )}
                   component={() => <ChevronDown />}
                 ></Icon>
               </div>
@@ -539,7 +564,7 @@ export const Formats = () => {
               'h-[18px] flex items-center enabled:hover:text-text-accent-primary disabled:text-controls-text-disable disabled:cursor-not-allowed',
               isPercentageSelected
                 ? 'text-text-accent-primary'
-                : 'text-text-secondary'
+                : 'text-text-secondary',
             )}
             disabled={isDisabled}
             onClick={handlePercentageSelect}
@@ -563,7 +588,7 @@ export const Formats = () => {
               'h-[18px] flex items-center enabled:hover:text-text-accent-primary disabled:text-controls-text-disable disabled:cursor-not-allowed',
               isCommaSelected
                 ? 'text-text-accent-primary'
-                : 'text-text-secondary'
+                : 'text-text-secondary',
             )}
             disabled={isDisabled}
             onClick={handleCommaSelect}
@@ -576,12 +601,6 @@ export const Formats = () => {
         </Tooltip>
 
         <Dropdown
-          className={classNames(
-            'group flex items-center',
-            isDisabled
-              ? 'cursor-not-allowed text-controls-text-disable'
-              : 'text-text-secondary hover:text-text-accent-primary'
-          )}
           disabled={isDisabled}
           menu={{
             items: digitsModeItems,
@@ -598,27 +617,36 @@ export const Formats = () => {
             }
             destroyOnHidden
           >
-            <Icon
-              className={classNames('w-[18px]')}
-              component={() =>
-                isDecimalDigitsSelected ? (
-                  <DecimalDigitsIcon />
-                ) : isSignificantDigitsSelected ? (
-                  <DigitsIcon />
-                ) : isCompactDigitsSelected ? (
-                  <KMBIcon />
-                ) : (
-                  <DecimalDigitsIcon />
-                )
-              }
-            />
-            <Icon
+            <span
               className={classNames(
-                'hidden md:inline-block w-[12px] transition-all',
-                isDigitsModeMenuOpened && 'rotate-180'
+                'group flex items-center h-[18px]',
+                isDisabled
+                  ? 'cursor-not-allowed text-controls-text-disable'
+                  : 'text-text-secondary hover:text-text-accent-primary',
               )}
-              component={() => <ChevronDown />}
-            />
+            >
+              <Icon
+                className={classNames('w-[18px]')}
+                component={() =>
+                  isDecimalDigitsSelected ? (
+                    <DecimalDigitsIcon />
+                  ) : isSignificantDigitsSelected ? (
+                    <DigitsIcon />
+                  ) : isCompactDigitsSelected ? (
+                    <KMBIcon />
+                  ) : (
+                    <DecimalDigitsIcon />
+                  )
+                }
+              />
+              <Icon
+                className={classNames(
+                  'hidden md:inline-block w-[12px] transition-all',
+                  isDigitsModeMenuOpened && 'rotate-180',
+                )}
+                component={() => <ChevronDown />}
+              />
+            </span>
           </Tooltip>
         </Dropdown>
 

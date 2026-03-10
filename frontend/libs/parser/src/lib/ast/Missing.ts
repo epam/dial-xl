@@ -6,7 +6,11 @@ export class Missing {
   @Expose()
   public span: Span;
 
-  constructor(span: Span) {
+  constructor(
+    span: Span,
+    public globalOffsetStart: number,
+    public globalOffsetEnd: number,
+  ) {
     this.span = span;
   }
 }

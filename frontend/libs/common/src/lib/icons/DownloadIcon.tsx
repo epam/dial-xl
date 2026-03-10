@@ -5,7 +5,7 @@ export const DownloadIcon = () => {
       stroke="currentColor"
       strokeLinecap="round"
       strokeLinejoin="round"
-      strokeWidth="1.5"
+      strokeWidth="2"
       vectorEffect="non-scaling-stroke"
       viewBox="0 0 24 24"
       width="100%"

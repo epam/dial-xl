@@ -76,7 +76,7 @@ async def classify(inputs: dict) -> dict:
             ],
             LLMConsumer(choice),
             5,
-            1,
+            30,
         )
 
         if isinstance(response, Exception):

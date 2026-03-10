@@ -22,7 +22,9 @@ public class ControllablePlan extends Plan1<Value, Value> {
 
     @Override
     protected Plan layout() {
-        return plan(0).getLayout();
+        Plan source = plan(0);
+        Plan layout = source.getLayout();
+        return (source == layout) ? this : layout;
     }
 
     @Override

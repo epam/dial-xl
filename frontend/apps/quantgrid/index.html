@@ -1,8 +1,12 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
     <title>DIAL XL</title>
+    <meta
+      name="description"
+      content="DIAL eXpressive Logic (XL) is an AI-powered work-with-your-data platform with a natural language interface."
+    />
     <base href="/" />
 
     <meta property="og:type" content="website" />
@@ -27,7 +31,13 @@
       name="viewport"
       content="width=device-width, initial-scale=1, maximum-scale=1.0, user-scalable=no, interactive-widget=resizes-content"
     />
-    <link rel="icon" type="image/x-icon" href="favicon.ico" />
+    <link
+      rel="icon"
+      data-type="favicon"
+      type="image/x-icon"
+      href="favicon.ico"
+    />
+    <link rel="manifest" href="/manifest.json" />
     <link rel="stylesheet" href="/src/styles.css" />
   </head>
   <body>
@@ -39,6 +49,8 @@
         dialOverlayUrl,
         authClientId,
         authAuthority,
+        authAudience:
+          typeof authAudience !== 'undefined' ? authAudience : undefined,
         dialBaseUrl,
         qgBotDeploymentName,
         adminRoles,
@@ -50,6 +62,7 @@
         authScope: typeof authScope !== 'undefined' ? authScope : undefined,
         apiBaseUrl: typeof apiBaseUrl !== 'undefined' ? apiBaseUrl : undefined,
         defaultLogoUrl,
+        logLevel: typeof logLevel !== 'undefined' ? logLevel : undefined,
       };
     </script>
   </body>

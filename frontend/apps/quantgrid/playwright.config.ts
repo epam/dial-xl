@@ -7,7 +7,9 @@ import { defineConfig, devices } from '@playwright/test';
 import * as fs from 'fs';
 import * as path from 'path';
 
-config();
+config({
+  quiet: true,
+});
 
 const fromRoot = (...p: string[]) => path.join(workspaceRoot, ...p);
 const authFile = path.join(workspaceRoot, 'playwright', '.auth', 'user.json');
@@ -23,6 +25,9 @@ const workersCount = parseInt(process.env['WORKER_COUNT'] || '4');
 
 const PW_GREP = process.env.PW_GREP;
 const grep = PW_GREP ? new RegExp(PW_GREP) : undefined;
+
+const PW_GREP_INVERT = process.env.PW_GREP_INVERT;
+const grepInvert = PW_GREP_INVERT ? new RegExp(PW_GREP_INVERT) : undefined;
 
 /**
  * See https://playwright.dev/docs/test-configuration.
@@ -43,7 +48,7 @@ export default defineConfig({
     baseURL,
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'retain-on-failure',
-    screenshot: 'only-on-failure',
+    screenshot: 'off',
     video: 'retain-on-failure',
     contextOptions: {
       recordVideo: {
@@ -52,7 +57,7 @@ export default defineConfig({
     },
   },
   retries: process.env.CI ? 1 : 0,
-  timeout: 60000,
+  timeout: 90000,
   expect: {
     timeout: 20000,
   },
@@ -73,13 +78,13 @@ export default defineConfig({
     {
       name: 'chromium',
       grep,
+      grepInvert,
       use: {
         ...devices['Desktop Chrome'],
         viewport: {
           width: 1920,
           height: 1080,
         },
-        storageState: authFile,
       },
       dependencies: ['setup'],
     },

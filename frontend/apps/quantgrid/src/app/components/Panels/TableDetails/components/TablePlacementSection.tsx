@@ -32,19 +32,13 @@ export function TablePlacementSection({
     if (!startRow || !startCol || !sheetName) return;
     if (startRow < minPlacement || startCol < minPlacement) return;
 
-    moveTableTo(parsedTable.tableName, startRow, startCol);
+    moveTableTo(parsedTable.tableName, startRow, startCol, true);
 
     // TODO: workaround to select table after moving. openTable rely to viewGridData which is not updated yet
     setTimeout(() => {
       if (!gridApi) return;
 
       gridApi.moveViewportToCell(startCol, startRow, true);
-      gridApi.updateSelection({
-        startCol,
-        startRow,
-        endCol: startCol,
-        endRow: startRow,
-      });
     }, 100);
   }, [
     gridApi,
@@ -77,7 +71,7 @@ export function TablePlacementSection({
 
       return;
     },
-    [initFieldValues]
+    [initFieldValues],
   );
 
   useEffect(() => {

@@ -57,56 +57,62 @@ export function ProjectFork({ className }: Props) {
           : name,
       });
     },
-    [projectBucket, projectName, projectPath, updateForkedProjectMetadata]
+    [projectBucket, projectName, projectPath, updateForkedProjectMetadata],
   );
 
-  const items: MenuProps['items'] = forkedProject?.isExists
-    ? [
-        getDropdownItem({
-          key: 'goTo',
-          label: 'Go to base project',
-          icon: <Icon className="w-[18px]" component={() => <QGLogo />} />,
-          onClick: () =>
-            window.open(forkedProjectLink, '_blank', 'noopener,noreferrer'),
-        }),
-        getDropdownItem({
-          key: 'reset',
-          label: 'Reset to base project',
-          icon: (
-            <Icon
-              className="text-text-secondary w-[18px]"
-              component={() => <ReloadIcon />}
-            />
-          ),
-          onClick: resetProject,
-        }),
-      ]
-    : [
-        getDropdownItem({
-          key: 'restore',
-          label: 'Restore connection to base project',
-          icon: (
-            <Icon
-              className="w-[18px] text-text-secondary"
-              component={() => <SettingsIcon />}
-            />
-          ),
-          onClick: () => setIsSelectProjectOpen(true),
-        }),
-      ];
+  const items: MenuProps['items'] = useMemo(() => {
+    const projectForkPath = ['ProjectFork'];
+
+    return forkedProject?.isExists
+      ? [
+          getDropdownItem({
+            key: 'goTo',
+            fullPath: [...projectForkPath, 'GoToBaseProject'],
+            label: 'Go to base project',
+            icon: <Icon className="w-[18px]" component={() => <QGLogo />} />,
+            onClick: () =>
+              window.open(forkedProjectLink, '_blank', 'noopener,noreferrer'),
+          }),
+          getDropdownItem({
+            key: 'reset',
+            fullPath: [...projectForkPath, 'ResetToBaseProject'],
+            label: 'Reset to base project',
+            icon: (
+              <Icon
+                className="text-text-secondary w-[18px]"
+                component={() => <ReloadIcon />}
+              />
+            ),
+            onClick: resetProject,
+          }),
+        ]
+      : [
+          getDropdownItem({
+            key: 'restore',
+            fullPath: [...projectForkPath, 'RestoreConnection'],
+            label: 'Restore connection to base project',
+            icon: (
+              <Icon
+                className="w-[18px] text-text-secondary"
+                component={() => <SettingsIcon />}
+              />
+            ),
+            onClick: () => setIsSelectProjectOpen(true),
+          }),
+        ];
+  }, [forkedProject?.isExists, forkedProjectLink, resetProject]);
 
   return (
     <>
       <Dropdown
-        className="h-full flex items-center"
         menu={{ items }}
         open={isMenuOpened}
         onOpenChange={setIsMenuOpened}
       >
         <Icon
           className={cx(
-            'ml-2 h-[18px] w-[18px] cursor-pointer hover:opacity-80',
-            forkedProject?.isExists ? className : 'text-text-error'
+            'ml-2 h-[18px] w-[18px] cursor-pointer hover:opacity-80 shrink-0',
+            forkedProject?.isExists ? className : 'text-text-error',
           )}
           component={() =>
             forkedProject?.isExists ? <ForkIcon /> : <ForkExclamationIcon />
