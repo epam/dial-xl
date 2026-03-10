@@ -1,0 +1,5 @@
+CHANGED_SHEETS = "Changed Sheets"
+CLASSIFICATION = "Classification"
+DATA = "Data"
+FOCUS = "Focus"
+STANDALONE_QUESTION = "Standalone Question"
