@@ -1,4 +1,10 @@
-import * as PIXI from 'pixi.js';
+import {
+  AnimatedSprite,
+  Assets,
+  FederatedPointerEvent,
+  Sprite,
+  Texture,
+} from 'pixi.js';
 import isEqual from 'react-fast-compare';
 
 import { AppTheme, ColumnDataType } from '@frontend/common';
@@ -11,10 +17,10 @@ import {
   CellIcons,
   GridApi,
   GridCell,
+  GridEvent,
   IconMetadata,
 } from '../../../types';
 import { GridEventBus } from '../../../utils';
-import { GridEvent } from '../../GridApiWrapper';
 
 const primaryCellIcons: CellIconConfig[] = [
   {
@@ -49,13 +55,13 @@ const primaryCellIcons: CellIconConfig[] = [
     path: ({ cellData, themeName }) =>
       getFullIconName(
         getControlIcon(cellData!.field!.controlType!)!,
-        themeName
+        themeName,
       ),
     tooltip: ({ cellData }) =>
       getControlIconTooltip(cellData!.field!.controlType!),
     iconSize: ({ gridSizes }) => gridSizes.cell.controlIconSize,
     onAddEventListeners: ({ cellData, gridApi, icon }) => {
-      icon.addEventListener('pointerdown', () => {
+      icon.on('pointerdown', () => {
         if (gridApi.isPanModeEnabled) return;
 
         gridApi.event.emit({
@@ -93,7 +99,7 @@ const primaryCellIcons: CellIconConfig[] = [
         : '',
     iconSize: ({ gridSizes }) => gridSizes.cell.fontSize,
     onAddEventListeners: ({ eventBus, cellData, gridApi, icon }) => {
-      icon.addEventListener('pointerdown', () => {
+      icon.on('pointerdown', () => {
         if (gridApi.isPanModeEnabled) return;
 
         eventBus.emit({
@@ -120,7 +126,7 @@ const primaryCellIcons: CellIconConfig[] = [
     tooltip: 'Period series',
     iconSize: ({ gridSizes }) => gridSizes.cell.fontSize,
     onAddEventListeners: ({ eventBus, cellData, gridApi, icon }) => {
-      icon.addEventListener('pointerdown', () => {
+      icon.on('pointerdown', () => {
         if (gridApi.isPanModeEnabled) return;
 
         eventBus.emit({
@@ -151,7 +157,7 @@ const primaryCellIcons: CellIconConfig[] = [
         : '',
     iconSize: ({ gridSizes }) => gridSizes.cell.fontSize,
     onAddEventListeners: ({ eventBus, cellData, gridApi, icon }) => {
-      icon.addEventListener('pointerdown', () => {
+      icon.on('pointerdown', () => {
         if (gridApi.isPanModeEnabled) return;
 
         eventBus.emit({
@@ -178,7 +184,7 @@ const secondaryCellIcons: CellIconConfig[] = [
     tooltip: 'Delete table',
     iconSize: ({ gridSizes }) => gridSizes.cell.fontSize,
     onAddEventListeners: ({ eventBus, cellData, gridApi, icon }) => {
-      icon.addEventListener('pointerdown', () => {
+      icon.on('pointerdown', () => {
         if (gridApi.isPanModeEnabled) return;
 
         eventBus.emit({
@@ -199,14 +205,14 @@ const secondaryCellIcons: CellIconConfig[] = [
     tooltip: 'Context Menu',
     iconSize: ({ gridSizes }) => gridSizes.cell.fontSize,
     onAddEventListeners: ({ gridApi, icon, cellData }) => {
-      icon.addEventListener('pointerdown', (e) => {
+      icon.on('pointerdown', (e) => {
         if (gridApi.isPanModeEnabled) return;
 
         gridApi.openContextMenuAtCoords(
           e.screen.x,
           e.screen.y,
           cellData.col,
-          cellData.row
+          cellData.row,
         );
       });
     },
@@ -221,14 +227,14 @@ const secondaryCellIcons: CellIconConfig[] = [
     tooltip: 'Field context menu',
     iconSize: ({ gridSizes }) => gridSizes.cell.applyIconSize,
     onAddEventListeners: ({ cellData, gridApi, icon }) => {
-      icon.addEventListener('pointerdown', (e) => {
+      icon.on('pointerdown', (e) => {
         if (gridApi.isPanModeEnabled) return;
 
         gridApi.openContextMenuAtCoords(
           e.screen.x,
           e.screen.y,
           cellData.col,
-          cellData.row
+          cellData.row,
         );
       });
     },
@@ -239,20 +245,20 @@ const secondaryCellIcons: CellIconConfig[] = [
     enabled: ({ cellData }) =>
       !!cellData.isFieldHeader &&
       !cellData.field?.isDynamic &&
-      (!!cellData.field?.filter || !!cellData.field?.sort),
+      (!!cellData.field?.isFiltered || !!cellData.field?.sort),
     visibleModifier: 'always',
     path: ({ cellData, themeName }) => getApplyIconPath(cellData, themeName),
     tooltip: 'Sort/Filter',
     iconSize: ({ gridSizes }) => gridSizes.cell.applyIconSize,
     onAddEventListeners: ({ cellData, gridApi, icon }) => {
-      icon.addEventListener('pointerdown', (e) => {
+      icon.on('pointerdown', (e) => {
         if (gridApi.isPanModeEnabled) return;
 
         gridApi.openContextMenuAtCoords(
           e.screen.x,
           e.screen.y,
           cellData.col,
-          cellData.row
+          cellData.row,
         );
       });
     },
@@ -269,7 +275,7 @@ const secondaryCellIcons: CellIconConfig[] = [
     tooltip: 'Open control',
     iconSize: ({ gridSizes }) => gridSizes.cell.applyIconSize,
     onAddEventListeners: ({ cellData, gridApi, icon }) => {
-      icon.addEventListener('pointerdown', () => {
+      icon.on('pointerdown', () => {
         if (gridApi.isPanModeEnabled) return;
 
         gridApi.event.emit({
@@ -287,30 +293,30 @@ export const getCellIcons = (
   eventBus: GridEventBus,
   gridApi: GridApi,
   themeName: AppTheme,
-  gridSizes: GridSizes
+  gridSizes: GridSizes,
 ): CellIcons & { isSameIcon?: boolean } => {
   const visiblePrimaryIcons = primaryCellIcons.filter((icon) =>
-    icon.enabled({ cellData, eventBus, gridApi, themeName, gridSizes })
+    icon.enabled({ cellData, eventBus, gridApi, themeName, gridSizes }),
   );
   const visibleSecondaryIcons = secondaryCellIcons.filter((icon) =>
-    icon.enabled({ cellData, eventBus, gridApi, themeName, gridSizes })
+    icon.enabled({ cellData, eventBus, gridApi, themeName, gridSizes }),
   );
 
   if (visiblePrimaryIcons.length === 0 && visibleSecondaryIcons.length === 0)
     return { primaryIcons: [], secondaryIcons: [] };
 
   const highestPriorityPrimaryIconPriority = Math.min(
-    ...visiblePrimaryIcons.map((icon) => icon.priority)
+    ...visiblePrimaryIcons.map((icon) => icon.priority),
   );
   const highestPrioritySecondaryIconPriority = Math.min(
-    ...visibleSecondaryIcons.map((icon) => icon.priority)
+    ...visibleSecondaryIcons.map((icon) => icon.priority),
   );
   const highestPriorityPrimaryIcons = visiblePrimaryIcons.filter(
-    (icon) => icon.priority === highestPriorityPrimaryIconPriority
+    (icon) => icon.priority === highestPriorityPrimaryIconPriority,
   );
 
   const highestPrioritySecondaryIcons = visibleSecondaryIcons.filter(
-    (icon) => icon.priority === highestPrioritySecondaryIconPriority
+    (icon) => icon.priority === highestPrioritySecondaryIconPriority,
   );
 
   if (
@@ -343,10 +349,10 @@ export const getCellIcons = (
     highestPrioritySecondaryIcons.map(mapMetadata);
 
   const previousPrimaryMetadatas = previousIcons?.primaryIcons.map(
-    (icon) => icon.metadata
+    (icon) => icon.metadata,
   );
   const previousSecondaryMetadatas = previousIcons?.secondaryIcons.map(
-    (icon) => icon.metadata
+    (icon) => icon.metadata,
   );
   if (
     isEqual(previousPrimaryMetadatas, newPrimaryIconMetadatas) &&
@@ -362,7 +368,7 @@ export const getCellIcons = (
     isAnimatedIcon,
     onAddEventListeners,
   }: IconMetadata) => {
-    let icon: PIXI.Sprite | PIXI.AnimatedSprite | undefined;
+    let icon: Sprite | AnimatedSprite | undefined;
 
     if (isAnimatedIcon) {
       // For animated sprites, load textures first, then create sprite
@@ -370,7 +376,7 @@ export const getCellIcons = (
       const texturePaths = path as string[];
       const textures = texturePaths
         .map((p) => {
-          const asset = PIXI.Assets.get(p as string);
+          const asset = Assets.get(p as string);
           if (!asset) {
             // eslint-disable-next-line no-console
             console.error(`No appropriate icon for ${p}`);
@@ -380,36 +386,14 @@ export const getCellIcons = (
 
           return asset;
         })
-        .filter((asset) => asset !== undefined) as PIXI.Texture[];
+        .filter((asset) => asset !== undefined) as Texture[];
 
       // Create animated sprite from loaded textures
-      const animatedSprite = new PIXI.AnimatedSprite(textures);
+      const animatedSprite = new AnimatedSprite(textures);
 
       // Set size immediately - textures should be loading/loaded
       animatedSprite.height = iconSize;
       animatedSprite.width = iconSize;
-
-      // Function to ensure size stays correct when textures finish loading
-      const ensureSize = () => {
-        if (animatedSprite.texture && animatedSprite.texture.valid) {
-          animatedSprite.height = iconSize;
-          animatedSprite.width = iconSize;
-        }
-      };
-
-      // Listen for texture updates to maintain size
-      animatedSprite.on('textureupdate', ensureSize);
-
-      // Check all textures and set size when they load
-      textures.forEach((texture) => {
-        if (texture.baseTexture) {
-          if (texture.baseTexture.valid) {
-            ensureSize();
-          } else {
-            texture.baseTexture.once('loaded', ensureSize);
-          }
-        }
-      });
 
       animatedSprite.zIndex = ComponentLayer.Icon;
       animatedSprite.roundPixels = true;
@@ -419,14 +403,14 @@ export const getCellIcons = (
       icon = animatedSprite;
     } else {
       // For regular sprites, create normally
-      const asset = PIXI.Assets.get(path as string);
+      const asset = Assets.get(path as string);
       if (!asset) {
         // eslint-disable-next-line no-console
         console.error(`No appropriate icon for ${path}`);
 
         return undefined;
       }
-      icon = new PIXI.Sprite(asset);
+      icon = new Sprite(asset);
       icon.zIndex = ComponentLayer.Icon;
       icon.roundPixels = true;
       icon.height = iconSize;
@@ -434,17 +418,17 @@ export const getCellIcons = (
       icon.eventMode = 'static';
     }
 
-    icon.addEventListener('pointerover', (e: PIXI.FederatedPointerEvent) => {
+    icon.on('pointerover', (e: FederatedPointerEvent) => {
       icon.cursor = 'pointer';
 
-      const { x, y } = e.target as PIXI.Sprite;
+      const { x, y } = e.target as Sprite;
       const tooltipX = x + icon.width / 2;
       const tooltipY = y + icon.height / 2;
 
       tooltip && gridApi.openTooltip(tooltipX, tooltipY, tooltip);
     });
 
-    icon.addEventListener('pointerout', () => {
+    icon.on('pointerout', () => {
       tooltip && gridApi.closeTooltip();
     });
 
@@ -581,7 +565,7 @@ export function isFieldSortedOrFiltered(cell: GridCell): boolean {
   return !!cell.field?.sort || !!cell.field?.isFiltered;
 }
 
-export function removeIcon(container: PIXI.Container, iconCell: CellIcon) {
-  container.removeChild(iconCell.icon);
+export function removeIcon(iconCell: CellIcon) {
+  iconCell.icon.parent?.removeChild(iconCell.icon);
   iconCell.icon.destroy();
 }

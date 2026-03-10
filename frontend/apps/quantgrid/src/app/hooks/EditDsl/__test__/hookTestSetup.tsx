@@ -17,7 +17,7 @@ interface HookTestSetup<T> {
  */
 export function hookTestSetup<T>(
   hook: () => T,
-  wrapper: React.ComponentType<React.PropsWithChildren<unknown>>
+  wrapper: React.ComponentType<React.PropsWithChildren<unknown>>,
 ): HookTestSetup<T> {
   let setDslFn: (dsl: string) => void = () => {};
 
@@ -30,7 +30,7 @@ export function hookTestSetup<T>(
 
       return hook();
     },
-    { wrapper }
+    { wrapper },
   );
 
   return {

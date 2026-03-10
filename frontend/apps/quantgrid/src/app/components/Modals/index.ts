@@ -4,6 +4,7 @@ export * from './CreateTableFromImportModal';
 export * from './DashboardModals';
 export * from './DeleteModal';
 export * from './EditAIHint';
+export * from './ExcelPreviewModal';
 export * from './NewProject';
 export * from './PreUploadFile';
 export * from './ProjectModals';

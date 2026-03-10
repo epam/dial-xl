@@ -25,7 +25,7 @@ export function SearchButton({ colorSchema = 'default' }: Props) {
         colorSchema === 'read' &&
           'bg-bg-layer-4-inverted hover:!bg-bg-layer-4-inverted focus:!bg-bg-layer-4-inverted border-stroke-tertiary-inverted hover:border-stroke-tertiary-inverted! focus:border-stroke-tertiary-inverted!',
         (colorSchema === 'review' || colorSchema === 'default') &&
-          'bg-bg-layer-4! hover:bg-bg-layer-4! focus:bg-bg-layer-4! border-stroke-tertiary hover:border-stroke-tertiary! focus:border-stroke-tertiary!'
+          'bg-bg-layer-4! hover:bg-bg-layer-4! focus:bg-bg-layer-4! border-stroke-tertiary hover:border-stroke-tertiary! focus:border-stroke-tertiary!',
       )}
       icon={
         (xl || md) && (

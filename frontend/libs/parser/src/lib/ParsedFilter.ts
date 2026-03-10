@@ -1,33 +1,40 @@
 import { Expose } from 'class-transformer';
 
-import {
-  BinOpExpression,
-  Expression,
-  FunctionExpression,
-  UniOpExpression,
-} from './ast';
+import { Expression } from './ast';
 import { ParsedText } from './ParsedText';
 import { ModifyFilterProps } from './parser';
 import {
   findFieldBinOpExpressions,
-  findFieldExpressionsWithParent,
-  findFieldNameInExpression,
+  getFieldControlRefFromFilter,
   unescapeValue,
 } from './services';
 import {
+  extractConditionFiltersFromExpression,
+  getFieldNamesInExpression,
   getModifiedFilters,
-  handleBinOpExpression,
-  handleFunctionExpression,
-  handleUniOpExpression,
+  GetModifiedFiltersResult,
+  getNaIncludedFromIfIsnaExpression,
   isConstNumberOrStringExpression,
+  isExpressionIfIsnaPattern,
 } from './services/filterUtils';
 import { Span } from './Span';
 
 export type ParsedConditionFilter = {
   operator: string;
-  value: string;
+  /** Simple literal value, or null when RHS is an expression (e.g. [Column2] = 3 MOD 2). */
+  value: string | null;
   secondaryValue?: string;
 };
+
+/** Result of getFieldConditionFilters: filters array plus NA-wrapper flags (IF(ISNA([field]), thenVal, ...) pattern). */
+export type FieldConditionFiltersResult = {
+  filters: ParsedConditionFilter[];
+  hasNaWrapper: boolean;
+  /** When hasNaWrapper: true = NA included (then-branch TRUE/1), false = NA excluded (then-branch FALSE/0). */
+  naIncluded?: boolean;
+};
+
+export type { GetModifiedFiltersResult } from './services/filterUtils';
 
 export class ParsedFilter {
   @Expose()
@@ -40,7 +47,7 @@ export class ParsedFilter {
     span: Span | undefined,
     formula: ParsedText | undefined,
     public parsedExpression: Expression | undefined,
-    public text: string
+    public text: string,
   ) {
     this.span = span;
     this.formula = formula;
@@ -58,52 +65,92 @@ export class ParsedFilter {
   public getFilterExpressionsWithModify(props: ModifyFilterProps): string[] {
     if (!this.parsedExpression) return [];
 
-    const fieldFilters: Map<string, string[]> = getModifiedFilters(
+    const { fieldFilters, customExpressions } = getModifiedFilters(
       this.parsedExpression,
-      props
+      props,
     );
 
-    return Array.from(fieldFilters.entries()).map(([, filters]) => {
+    const fieldParts = Array.from(fieldFilters.entries()).map(([, filters]) => {
       if (filters.length > 1) {
         return `(${filters.join(' OR ')})`;
-      } else {
-        return filters[0];
       }
+
+      return filters[0];
     });
+
+    return [...fieldParts, ...customExpressions];
   }
 
   /**
-   * Get the text or numeric condition filter operator and value for the field
+   * Returns the result of getModifiedFilters for this filter (fieldFilters and customExpressions).
+   * Use this to unify logic: when customExpressions.length > 0 the entire filter is custom;
+   * otherwise fieldFilters contains per-field expression strings for simple filters.
+   */
+  public getModifiedFiltersResult(
+    props?: ModifyFilterProps,
+  ): GetModifiedFiltersResult {
+    if (!this.parsedExpression) {
+      return {
+        fieldFilters: new Map(),
+        fieldExpressions: new Map(),
+        customExpressions: [],
+      };
+    }
+
+    return getModifiedFilters(this.parsedExpression, props ?? {});
+  }
+
+  /**
+   * Get the full filter expression string when the field appears in any part of the filter.
+   * Returns the entire table filter formula so it can be shown and edited in the custom formula UI.
+   *
+   * @param fieldName - the field name to get the filter expression
+   */
+  public getFieldFilterExpression(fieldName: string): string | undefined {
+    if (!this.parsedExpression || !this.hasFieldFilter(fieldName)) {
+      return undefined;
+    }
+
+    return this.parsedExpression.toString();
+  }
+
+  /**
+   * Get the text or numeric condition filters and NA-wrapper flag for the field.
+   * Reuses getModifiedFilters: when the entire filter is custom, returns undefined so the UI
+   * shows custom formula mode. Otherwise uses the same per-field expression list from
+   * getModifiedFilters (fieldExpressions), extracts condition filters, and detects IF(ISNA(...)) pattern.
    *
    * @param fieldName - the field name to get the filter value
    */
-  public getFieldConditionFilter(
-    fieldName: string
-  ): ParsedConditionFilter | undefined {
+  public getFieldConditionFilters(
+    fieldName: string,
+  ): FieldConditionFiltersResult | undefined {
     if (!this.parsedExpression) return;
 
-    const expressionsWithParents = findFieldExpressionsWithParent(
-      this.parsedExpression,
-      fieldName
+    const { customExpressions, fieldExpressions } =
+      this.getModifiedFiltersResult();
+    if (customExpressions.length > 0) return undefined;
+
+    const exprs = fieldExpressions.get(fieldName);
+    if (!exprs?.length) return undefined;
+
+    const filters = exprs.flatMap((expr) =>
+      extractConditionFiltersFromExpression(expr, fieldName),
     );
-
-    if (expressionsWithParents.length === 0) return;
-
-    for (const { expression, parent } of expressionsWithParents) {
-      let result: ParsedConditionFilter | undefined;
-
-      if (parent instanceof BinOpExpression) {
-        result = handleBinOpExpression(expression, parent);
-      } else if (parent instanceof UniOpExpression) {
-        result = handleUniOpExpression(expression, parent);
-      } else if (expression instanceof FunctionExpression) {
-        result = handleFunctionExpression(expression);
-      }
-
-      if (result) return result;
+    const hasNaWrapper = exprs.some((expr) =>
+      isExpressionIfIsnaPattern(expr, fieldName),
+    );
+    let naIncluded: boolean | undefined;
+    if (hasNaWrapper) {
+      const ifIsnaExpr = exprs.find((expr) =>
+        isExpressionIfIsnaPattern(expr, fieldName),
+      );
+      naIncluded = ifIsnaExpr
+        ? getNaIncludedFromIfIsnaExpression(ifIsnaExpr, fieldName)
+        : undefined;
     }
 
-    return;
+    return { filters, hasNaWrapper, naIncluded };
   }
 
   /**
@@ -116,7 +163,7 @@ export class ParsedFilter {
 
     const fieldBinOpExpressions = findFieldBinOpExpressions(
       this.parsedExpression,
-      fieldName
+      fieldName,
     );
 
     if (fieldBinOpExpressions.length === 0) return [];
@@ -135,15 +182,23 @@ export class ParsedFilter {
   }
 
   /**
-   * Check if the field is filtered
-   *
-   * @param fieldName - the field name to check if it is filtered
+   * Get all control references (table[field]) when the field filter is
+   * control-based: [field] = Table[ControlField] or IN([field], Table[ControlField]).
+   * Returns an array; when multiple controls are involved, use custom formula mode.
+   */
+  public getFieldControlRef(
+    fieldName: string,
+  ): { controlTableName: string; controlFieldName: string }[] {
+    return getFieldControlRefFromFilter(this.parsedExpression, fieldName);
+  }
+
+  /**
+   * Returns true if the given field appears anywhere in the filter expression
+   * (simple field filter, custom expression, or control reference).
    */
   public hasFieldFilter(fieldName: string): boolean {
     if (!this.parsedExpression) return false;
 
-    const expressions = findFieldNameInExpression(this.parsedExpression);
-
-    return !!expressions.find((e) => e?.fieldName === fieldName);
+    return getFieldNamesInExpression(this.parsedExpression).has(fieldName);
   }
 }

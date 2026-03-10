@@ -69,7 +69,7 @@ export function useProjectSubscription() {
       inflightRequest,
       isTemporaryStateRef,
       remoteEtag,
-    ]
+    ],
   );
 
   const subscribeToProject = useCallback(
@@ -119,7 +119,7 @@ export function useProjectSubscription() {
                 if (e.action === 'UPDATE') onUpdateProjectNotification(e.etag);
               },
             },
-            projectSubscriptionControllerRef.current
+            projectSubscriptionControllerRef.current,
           );
         } catch (e) {
           // Aborted by the browser (for example, when a user tries to save the page).
@@ -135,7 +135,7 @@ export function useProjectSubscription() {
           }
 
           if (e instanceof DOMException && e.name === 'AbortError') {
-            toast.dismiss();
+            toast.dismiss('error');
 
             return;
           }
@@ -146,6 +146,7 @@ export function useProjectSubscription() {
 
           displayToast('error', appMessages.connectionLost);
           retries++;
+          await new Promise((resolve) => setTimeout(resolve, 2000 * retries)); // backoff
 
           continue;
         }
@@ -157,7 +158,7 @@ export function useProjectSubscription() {
       onRetryGetProject,
       onUpdateProjectNotification,
       isTemporaryStateRef,
-    ]
+    ],
   );
 
   const unsubscribeFromCurrentProject = useCallback(() => {

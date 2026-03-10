@@ -1,5 +1,5 @@
 import { useCallback, useContext } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 
 import {
   ProjectResourceContext,
@@ -13,7 +13,7 @@ export function useOpenProject() {
   const setLoading = useUIStore((s) => s.setLoading);
   const navigate = useNavigate();
   const { remoteEtag, getProjectFromServer } = useContext(
-    ProjectResourceContext
+    ProjectResourceContext,
   );
   const { initialOpenSheet } = useContext(ProjectSessionContext);
   const { subscribeToProject } = useContext(ProjectSubscriptionContext);
@@ -29,7 +29,7 @@ export function useOpenProject() {
       projectName: string;
       projectSheetName?: string | undefined;
       bucket: string;
-    }) => {
+    }): Promise<void> => {
       setLoading(true);
       navigate(
         getProjectNavigateUrl({
@@ -40,7 +40,7 @@ export function useOpenProject() {
         }),
         {
           replace: true,
-        }
+        },
       );
       subscribeToProject({
         bucket,
@@ -57,7 +57,7 @@ export function useOpenProject() {
       if (!project) return;
 
       if (project.sheets) {
-        initialOpenSheet({
+        await initialOpenSheet({
           sheetName: projectSheetName ?? project.sheets[0].sheetName,
         });
       }
@@ -76,6 +76,6 @@ export function useOpenProject() {
       remoteEtag,
       setLoading,
       subscribeToProject,
-    ]
+    ],
   );
 }

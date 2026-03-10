@@ -1,5 +1,6 @@
 import cx from 'classnames';
-import Fuse from 'fuse.js';
+import { FuseResult, RangeTuple } from 'fuse.js';
+import { Ref } from 'react';
 
 import Icon from '@ant-design/icons';
 import { ColumnsIcon, FileIcon, QGLogo, TableIcon } from '@frontend/common';
@@ -7,12 +8,13 @@ import { ColumnsIcon, FileIcon, QGLogo, TableIcon } from '@frontend/common';
 import { ISearchResult, path2str } from './search';
 
 type Props = {
-  result: Fuse.FuseResult<ISearchResult>;
+  ref?: Ref<HTMLDivElement>;
+  result: FuseResult<ISearchResult>;
   className?: string;
   onClick?: () => void;
 };
 
-function getBoldStr(source: string, intervals: ReadonlyArray<Fuse.RangeTuple>) {
+function getBoldStr(source: string, intervals: ReadonlyArray<RangeTuple>) {
   let result = '';
   let currentIndex = 0;
 
@@ -27,7 +29,7 @@ function getBoldStr(source: string, intervals: ReadonlyArray<Fuse.RangeTuple>) {
   return result;
 }
 
-export function SearchResult({ className, result, onClick }: Props) {
+export function SearchResult({ className, result, onClick, ref }: Props) {
   const icon = () => {
     switch (result.item.type) {
       case 'project': {
@@ -53,14 +55,18 @@ export function SearchResult({ className, result, onClick }: Props) {
   };
 
   return (
-    <div className={cx('flex items-center', className)} onClick={onClick}>
+    <div
+      className={cx('flex items-center', className)}
+      ref={ref}
+      onClick={onClick}
+    >
       <div className={'mr-2 h-full flex items-center'}>{icon()}</div>
       <div
         className="text-text-primary text-[13px] mr-2"
         dangerouslySetInnerHTML={{
           __html: getBoldStr(
             result.item.name,
-            result.matches?.[0].indices || []
+            result.matches?.[0].indices || [],
           ),
         }}
       ></div>

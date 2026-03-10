@@ -24,7 +24,7 @@ import {
 import { Editor, Monaco } from '@monaco-editor/react';
 
 import { ProjectContext } from '../../../context';
-import { useAntdModalStore, useThemeStore } from '../../../store';
+import { useAntdModalStore, useUserSettingsStore } from '../../../store';
 
 enum formFieldKeys {
   name = 'name',
@@ -61,7 +61,7 @@ const customQuantThemeName = 'quantMarkdown';
 
 const customizeRequiredMark = (
   label: React.ReactNode,
-  { required }: { required: boolean }
+  { required }: { required: boolean },
 ) => (
   <>
     <span className="text-text-secondary text-xs">{label}</span>
@@ -99,7 +99,7 @@ export const EditAIHint = ({
   onSave,
   onDelete,
 }: Props) => {
-  const theme = useThemeStore((s) => s.theme);
+  const theme = useUserSettingsStore((s) => s.data.appTheme);
   const confirmModal = useAntdModalStore((s) => s.confirm);
 
   const { isProjectEditable } = useContext(ProjectContext);
@@ -118,7 +118,7 @@ export const EditAIHint = ({
       triggers: hintToEdit.triggers,
       isDisabled: hintToEdit.isDisabled ?? false,
     }),
-    [hintToEdit]
+    [hintToEdit],
   );
 
   const otherHintsNames = useMemo(() => {
@@ -137,7 +137,7 @@ export const EditAIHint = ({
       setCodeEditor(editor);
       setMonaco(monaco);
     },
-    []
+    [],
   );
 
   const existingHintNameValidator = useCallback(
@@ -147,10 +147,10 @@ export const EditAIHint = ({
       return result
         ? Promise.resolve()
         : Promise.reject(
-            new Error('Same name already used for other ai hints')
+            new Error('Same name already used for other ai hints'),
           );
     },
-    [otherHintsNames]
+    [otherHintsNames],
   );
 
   const alreadyExistingTriggerValidator = useCallback(
@@ -167,11 +167,11 @@ export const EditAIHint = ({
         ? Promise.resolve()
         : Promise.reject(
             new Error(
-              'This trigger already presented in other triggers in current or other ai hints'
-            )
+              'This trigger already presented in other triggers in current or other ai hints',
+            ),
           );
     },
-    [form, otherHintsTriggers]
+    [form, otherHintsTriggers],
   );
 
   const triggersValidator = useCallback(
@@ -179,10 +179,10 @@ export const EditAIHint = ({
       return value.length > 0
         ? Promise.resolve()
         : Promise.reject(
-            new Error('AI Hint should contain at least 1 trigger')
+            new Error('AI Hint should contain at least 1 trigger'),
           );
     },
-    []
+    [],
   );
 
   const handleSave = useCallback(async () => {
@@ -283,7 +283,7 @@ export const EditAIHint = ({
                 className={classNames(
                   modalFooterButtonClasses,
                   primaryButtonClasses,
-                  'h-10'
+                  'h-10',
                 )}
                 onClick={handleSave}
               >
@@ -309,8 +309,8 @@ export const EditAIHint = ({
         !isProjectEditable
           ? 'View AI hint'
           : isNewHint
-          ? `Create new AI hint`
-          : `Edit AI hint`
+            ? `Create new AI hint`
+            : `Edit AI hint`
       }
       open
       onCancel={handleCancel}
@@ -374,7 +374,7 @@ export const EditAIHint = ({
                                     validator: (_, value) =>
                                       alreadyExistingTriggerValidator(
                                         value,
-                                        index
+                                        index,
                                       ),
                                   },
                                 ]}
@@ -384,7 +384,7 @@ export const EditAIHint = ({
                                   autoSize={{ minRows: 1 }}
                                   className={classNames(
                                     'h-[38px]',
-                                    inputClasses
+                                    inputClasses,
                                   )}
                                   placeholder="Trigger"
                                 />
@@ -393,7 +393,7 @@ export const EditAIHint = ({
                             <div
                               className={classNames(
                                 'ml-2 flex gap-1 h-[24px] my-1',
-                                index === 0 && 'mt-7'
+                                index === 0 && 'mt-7',
                               )}
                             >
                               <Tooltip

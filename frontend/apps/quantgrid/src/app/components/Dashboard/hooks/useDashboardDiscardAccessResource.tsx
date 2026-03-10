@@ -33,7 +33,7 @@ export function useDashboardDiscardAccessResource() {
 
       return `Do you want to discard shared with you ${resourceName} "${fileName}"?`;
     },
-    []
+    [],
   );
 
   const handleDiscardProject = useCallback(
@@ -41,7 +41,7 @@ export function useDashboardDiscardAccessResource() {
       item: Pick<
         ResourceMetadata,
         'name' | 'bucket' | 'nodeType' | 'parentPath' | 'resourceType'
-      >
+      >,
     ) => {
       return Promise.allSettled([
         discardResourcesAccessRequest([
@@ -65,7 +65,7 @@ export function useDashboardDiscardAccessResource() {
         ]),
       ]);
     },
-    [discardResourcesAccessRequest]
+    [discardResourcesAccessRequest],
   );
 
   const discardResourceAccess = useCallback(
@@ -74,7 +74,7 @@ export function useDashboardDiscardAccessResource() {
         ResourceMetadata,
         'name' | 'bucket' | 'nodeType' | 'parentPath' | 'resourceType'
       >,
-      onSuccess?: () => void
+      onSuccess?: () => void,
     ) => {
       confirmModal({
         icon: null,
@@ -117,7 +117,7 @@ export function useDashboardDiscardAccessResource() {
       handleDiscardProject,
       discardResourcesAccessRequest,
       confirmModal,
-    ]
+    ],
   );
 
   return {

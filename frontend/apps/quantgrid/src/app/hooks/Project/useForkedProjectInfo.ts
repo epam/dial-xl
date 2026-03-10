@@ -37,7 +37,7 @@ export function useForkedProjectInfo() {
         setForkedProject(null);
       }
     },
-    [checkProjectExistsRequest]
+    [checkProjectExistsRequest],
   );
 
   return {

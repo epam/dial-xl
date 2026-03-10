@@ -8,7 +8,7 @@ import { addLineBreaks, getThemeColors, sortNumericOrText } from '../common';
 
 export function organizeHeatMapChartData(
   chartData: ChartsData,
-  gridChart: GridChart
+  gridChart: GridChart,
 ): OrganizedData | undefined {
   const { chartSections, chartOrientation, showVisualMap, tableName } =
     gridChart;
@@ -35,7 +35,7 @@ export function organizeHeatMapChartData(
     xAxisFieldName && Array.isArray(data[xAxisFieldName]?.rawValues)
       ? (data[xAxisFieldName].rawValues as string[])
       : Array.from({ length: firstFieldData.length }, (_, i) =>
-          (i + 1).toString()
+          (i + 1).toString(),
         );
 
   const rowLabelsDisplay: string[] | undefined =
@@ -57,7 +57,7 @@ export function organizeHeatMapChartData(
   if (chartOrientation === 'vertical') {
     xAxisData = addLineBreaks([...valueFieldNames]);
     yAxisData = addLineBreaks(
-      rowLabels.map((raw) => xDisplayByRaw.get(raw) ?? raw)
+      rowLabels.map((raw) => xDisplayByRaw.get(raw) ?? raw),
     );
 
     for (let rowIdx = 0; rowIdx < rowLabels.length; rowIdx++) {
@@ -71,7 +71,7 @@ export function organizeHeatMapChartData(
   } else {
     const sortedRowLabels = sortNumericOrText(rowLabels);
     xAxisData = addLineBreaks(
-      sortedRowLabels.map((raw) => xDisplayByRaw.get(raw) ?? raw)
+      sortedRowLabels.map((raw) => xDisplayByRaw.get(raw) ?? raw),
     );
     yAxisData = [...valueFieldNames];
 

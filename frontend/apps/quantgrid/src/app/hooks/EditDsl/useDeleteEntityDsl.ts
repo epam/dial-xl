@@ -87,9 +87,9 @@ export function useDeleteEntityDsl() {
             table.apply.sort &&
             sort.isFieldUsedInSort(targetFieldName)
           ) {
-            const sortExpressions = sort.getChangedFieldSort(
+            const sortExpressions = sort.buildUpdatedSortArgs(
               targetFieldName,
-              null
+              null,
             );
 
             if (sortExpressions.length > 0) {
@@ -139,13 +139,13 @@ export function useDeleteEntityDsl() {
 
         const isDynamicField = targetFieldName === dynamicFieldName;
         const targetGroupFields = parsedTable.fields.filter(
-          (f) => f.fieldGroupIndex === targetParsedField.fieldGroupIndex
+          (f) => f.fieldGroupIndex === targetParsedField.fieldGroupIndex,
         );
         const targetExpression = targetParsedField.expression;
         const isFieldReferenceFormula =
           targetExpression instanceof FieldsReferenceExpression;
         const targetFieldGroupIndex = targetGroupFields.findIndex(
-          (f) => f.key.fieldName === targetFieldName
+          (f) => f.key.fieldName === targetFieldName,
         );
 
         const formulaFieldsCount =
@@ -179,7 +179,7 @@ export function useDeleteEntityDsl() {
 
           const { schema, errorMessage } = await getFormulaSchema(
             formula,
-            getProjectSheetsRecord(projectSheets)
+            getProjectSheetsRecord(projectSheets),
           );
 
           if (!errorMessage && schema.length >= targetFieldGroupIndex) {
@@ -216,14 +216,14 @@ export function useDeleteEntityDsl() {
         },
       ]);
     },
-    [deleteTable, findEditContext, getFormulaSchema, projectSheets, updateDSL]
+    [deleteTable, findEditContext, getFormulaSchema, projectSheets, updateDSL],
   );
 
   const deleteField = useCallback(
     (tableName: string, fieldName: string) => {
       return deleteFields(tableName, [fieldName]);
     },
-    [deleteFields]
+    [deleteFields],
   );
 
   const deleteSelectedFieldOrTable = useCallback(() => {
@@ -268,8 +268,8 @@ export function useDeleteEntityDsl() {
 
       const fieldNames = new Array(
         Math.abs(
-          tableMeta.isTableHorizontal ? startRow - endRow : startCol - endCol
-        ) + 1
+          tableMeta.isTableHorizontal ? startRow - endRow : startCol - endCol,
+        ) + 1,
       )
         .fill(0)
         .map((_, index) => {
@@ -300,7 +300,7 @@ export function useDeleteEntityDsl() {
             tableName,
             uniqueFields
               .map((item) => item?.key.fieldName)
-              .filter((item) => !!item) as string[]
+              .filter((item) => !!item) as string[],
           );
 
           return;
@@ -347,7 +347,7 @@ export function useDeleteEntityDsl() {
           tableName,
           currentCellFieldName ?? fieldName,
           startRowCell.overrideIndex,
-          startRowCell.value
+          startRowCell.value,
         );
       }
     });

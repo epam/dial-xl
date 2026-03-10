@@ -1,6 +1,5 @@
 import { Tooltip } from 'antd';
 import classNames from 'classnames';
-import type { DefaultOptionType } from 'rc-select/lib/Select';
 import { useCallback, useContext, useMemo } from 'react';
 import { SingleValue } from 'react-select';
 import Select from 'react-select';
@@ -19,6 +18,7 @@ import {
   SelectCompactClasses,
   selectStyles,
 } from '@frontend/common';
+import type { DefaultOptionType } from '@rc-component/select/lib/Select';
 
 import { ProjectContext } from '../../../context';
 import { getErrorLocationInfo } from '../../../utils';
@@ -101,7 +101,7 @@ export function ErrorPanelTopBar({
       indexErrors,
       parsingErrors,
       parsedSheets,
-    ]
+    ],
   );
 
   const compileCount = getErrorCount('compile');
@@ -114,7 +114,7 @@ export function ErrorPanelTopBar({
       const value = option?.value as string;
       onSheetChange(value);
     },
-    [onSheetChange]
+    [onSheetChange],
   );
 
   const selectedOption = useMemo(() => {
@@ -160,7 +160,7 @@ export function ErrorPanelTopBar({
       { type: 'runtime', count: runtimeCount },
       { type: 'index', count: indexCount },
     ],
-    [parsingCount, compileCount, runtimeCount, indexCount]
+    [parsingCount, compileCount, runtimeCount, indexCount],
   );
 
   return (
@@ -188,7 +188,7 @@ export function ErrorPanelTopBar({
             <Tooltip
               key={type}
               title={`${isFiltered ? 'Show' : 'Hide'} ${count} ${getIconTitle(
-                type
+                type,
               )}`}
               destroyOnHidden
             >
@@ -197,7 +197,7 @@ export function ErrorPanelTopBar({
                   'flex items-center gap-1 px-2 py-1 rounded-[3px] transition-colors bg-bg-accent-primary-alpha cursor-pointer',
                   isFiltered
                     ? 'text-text-secondary opacity-50 hover:bg-bg-accent-primary-alpha-2'
-                    : 'text-text-primary hover:bg-bg-layer-4'
+                    : 'text-text-primary hover:bg-bg-layer-4',
                 )}
                 key={type}
                 type="button"

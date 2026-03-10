@@ -1,5 +1,4 @@
-import { MenuInfo } from 'rc-menu/lib/interface';
-import { RefObject, useCallback } from 'react';
+import { useCallback, useContext } from 'react';
 
 import {
   CellPlacement,
@@ -8,17 +7,17 @@ import {
   InsertChartContextMenuKeyData,
   TableArrangeType,
 } from '@frontend/common';
+import { MenuInfo } from '@rc-component/menu/lib/interface';
 
+import { GridStateContext } from '../../../context';
 import { useAIPrompt } from '../../../hooks/useAIPrompt';
-import { GridApi } from '../../../types';
+import { GridEvent } from '../../../types';
 import { getCellContext, GridEventBus } from '../../../utils';
 import { GridCellEditorEventType } from '../../CellEditor';
-import { GridEvent } from '../../GridApiWrapper';
 import { spreadsheetMenuKeys as menuKey, totalItems } from './config';
 import { ContextMenuKeyData } from './types';
 
 type Props = {
-  apiRef: RefObject<GridApi | null>;
   eventBus: GridEventBus;
 };
 
@@ -29,8 +28,10 @@ const arrangeTableActions: Record<string, TableArrangeType> = {
   [menuKey.tableBackward]: 'backward',
 };
 
-export function useOnClickContextMenu({ apiRef, eventBus }: Props) {
-  const { openAIPrompt } = useAIPrompt(apiRef.current);
+export function useOnClickContextMenu({ eventBus }: Props) {
+  const { getCell, cellEditorEvent$, event } = useContext(GridStateContext);
+
+  const { openAIPrompt } = useAIPrompt();
 
   const onClickFormulaContextItem = useCallback(
     (action: string, data: FormulasContextMenuKeyData) => {
@@ -48,14 +49,11 @@ export function useOnClickContextMenu({ apiRef, eventBus }: Props) {
         return;
       }
     },
-    [eventBus]
+    [eventBus],
   );
 
   const onClickContextMenu = useCallback(
     (info: MenuInfo) => {
-      const api = apiRef.current;
-      if (!api) return;
-
       const parsedKey = JSON.parse(info.key);
       const data: ContextMenuKeyData = parsedKey.data;
       const action: string = parsedKey.action;
@@ -95,7 +93,8 @@ export function useOnClickContextMenu({ apiRef, eventBus }: Props) {
 
       if (
         (data as any as FormulasContextMenuKeyData).insertFormula ||
-        (data as any as FormulasContextMenuKeyData).type === 'pivot'
+        (data as any as FormulasContextMenuKeyData).type === 'pivot' ||
+        (data as any as FormulasContextMenuKeyData).type === 'groupBy'
       ) {
         const formulaData = data as FormulasContextMenuKeyData;
         onClickFormulaContextItem(action, formulaData);
@@ -111,7 +110,7 @@ export function useOnClickContextMenu({ apiRef, eventBus }: Props) {
 
       const { col, row } = data as CellPlacement;
 
-      const currentCell = api.getCell(col, row);
+      const currentCell = getCell(col, row);
 
       const currentFieldName = currentCell?.field?.fieldName;
       const currentTableName = currentCell?.table?.tableName;
@@ -123,14 +122,14 @@ export function useOnClickContextMenu({ apiRef, eventBus }: Props) {
           break;
         case menuKey.renameTable:
         case menuKey.renameField:
-          api.cellEditorEvent$.next({
+          cellEditorEvent$.current.next({
             type: GridCellEditorEventType.Rename,
             col,
             row,
           });
           break;
         case menuKey.editFormula:
-          api.cellEditorEvent$.next({
+          cellEditorEvent$.current.next({
             type: GridCellEditorEventType.Edit,
             col,
             row,
@@ -276,7 +275,7 @@ export function useOnClickContextMenu({ apiRef, eventBus }: Props) {
         }
         case menuKey.addFieldOrRow: {
           // Get cell context, because it is a menu item for the empty cell
-          const contextCell = getCellContext(api.getCell, col, row);
+          const contextCell = getCellContext(getCell, col, row);
 
           if (contextCell?.table) {
             eventBus.emit({
@@ -313,7 +312,7 @@ export function useOnClickContextMenu({ apiRef, eventBus }: Props) {
           break;
         case menuKey.moveTable:
           if (currentCell?.table) {
-            api.event.emit({
+            event.emit({
               type: GridEvent.selectAll,
               tableName: currentCell.table.tableName,
             });
@@ -499,7 +498,7 @@ export function useOnClickContextMenu({ apiRef, eventBus }: Props) {
           break;
         case menuKey.addNote:
         case menuKey.editNote:
-          api.event.emit({
+          event.emit({
             type: GridEvent.openNote,
             col,
             row,
@@ -609,7 +608,7 @@ export function useOnClickContextMenu({ apiRef, eventBus }: Props) {
           break;
         case menuKey.addTotal:
         case menuKey.editTotal:
-          api.cellEditorEvent$.next({
+          cellEditorEvent$.current.next({
             type:
               action === menuKey.addTotal
                 ? GridCellEditorEventType.AddTotal
@@ -746,7 +745,14 @@ export function useOnClickContextMenu({ apiRef, eventBus }: Props) {
           break;
       }
     },
-    [apiRef, onClickFormulaContextItem, eventBus, openAIPrompt]
+    [
+      getCell,
+      eventBus,
+      onClickFormulaContextItem,
+      openAIPrompt,
+      cellEditorEvent$,
+      event,
+    ],
   );
 
   return {

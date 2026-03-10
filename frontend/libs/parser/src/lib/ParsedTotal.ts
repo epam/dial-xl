@@ -4,7 +4,10 @@ import { escapeFieldName } from './services';
 // TODO: this class is needed only for UI for backward compatibility with implemented features
 // Probably, it should be merged with ParsedTotals to have a single class for totals
 export class ParsedTotal {
-  constructor(public totals: TableTotals, public size: number) {}
+  constructor(
+    public totals: TableTotals,
+    public size: number,
+  ) {}
 
   public getFieldTotal(fieldName: string): TotalItems | null {
     return this.totals[escapeFieldName(fieldName)] || null;
@@ -12,7 +15,7 @@ export class ParsedTotal {
 
   public getFieldTotalByIndex(
     fieldName: string,
-    index: number
+    index: number,
   ): TotalItem | null {
     const fieldTotal = this.getFieldTotal(fieldName);
 

@@ -1,21 +1,21 @@
-import { RefObject, useCallback, useContext } from 'react';
+import { useCallback, useContext } from 'react';
 
 import { Shortcut } from '@frontend/common';
 
-import { GridApi } from '../../../types';
+import { GridCell } from '../../../types';
 import { CellEditorContext } from '../CellEditorContext';
 import { CellEditorModes } from '../types';
 import { getCellContextParams } from '../utils';
 
 type Props = {
-  apiRef: RefObject<GridApi>;
+  getCell: (col: number, row: number) => GridCell | undefined;
 };
-export function useCellEditorSwitchMode({ apiRef }: Props) {
+export function useCellEditorSwitchMode({ getCell }: Props) {
   const { currentCell, editMode, restoreCellValue, displayCellEditor } =
     useContext(CellEditorContext);
 
   const switchToSecondaryEditMode = useCallback(() => {
-    if (!apiRef.current || !editMode || !currentCell) return;
+    if (!editMode || !currentCell) return;
 
     const { subShortcut } = CellEditorModes[editMode];
 
@@ -27,9 +27,9 @@ export function useCellEditorSwitchMode({ apiRef }: Props) {
     const isRenameShortcut = subShortcut === Shortcut.Rename;
 
     const { col, row } = currentCell;
-    const cell = apiRef.current.getCell(col, row);
+    const cell = getCell(col, row);
     const { isTableCell, isAddTotal, isEditTotal, hasOtherOverrides } =
-      getCellContextParams(apiRef.current, cell);
+      getCellContextParams(cell);
 
     displayCellEditor(col, row, {
       isEditExpressionShortcut: !isRenameShortcut && isEditExpressionShortcut,
@@ -41,7 +41,7 @@ export function useCellEditorSwitchMode({ apiRef }: Props) {
       isEditTotal,
       hasOtherOverrides,
     });
-  }, [apiRef, currentCell, displayCellEditor, editMode, restoreCellValue]);
+  }, [currentCell, displayCellEditor, editMode, getCell, restoreCellValue]);
 
   return {
     switchToSecondaryEditMode,

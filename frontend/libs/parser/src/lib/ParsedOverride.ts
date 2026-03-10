@@ -44,7 +44,7 @@ export class ParsedOverride {
 
   constructor(
     ctx?: Override_definitionContext | undefined,
-    params?: ParsedOverrideParams
+    params?: ParsedOverrideParams,
   ) {
     this.keys = new Set();
     this.overrideRows = this.parseOverrides(params);
@@ -62,15 +62,18 @@ export class ParsedOverride {
     keyFields.forEach((f) => this.keys.add(f));
 
     const fieldNames = overrideFields.map((field) =>
-      this.getFieldNameFromCsv(field)
+      this.getFieldNameFromCsv(field),
     );
 
     return overrideValues.map((valueRow) =>
-      valueRow.reduce((acc, curr, index) => {
-        acc[fieldNames[index]] = curr;
+      valueRow.reduce(
+        (acc, curr, index) => {
+          acc[fieldNames[index]] = curr;
 
-        return acc;
-      }, <OverrideRow>{})
+          return acc;
+        },
+        <OverrideRow>{},
+      ),
     );
   }
 
@@ -108,7 +111,7 @@ export class ParsedOverride {
     if (!this.headers) return -1;
 
     return this.headers.findIndex(
-      (header) => SheetReader.stripQuotes(header.text) === fieldName
+      (header) => SheetReader.stripQuotes(header.text) === fieldName,
     );
   }
 
@@ -166,7 +169,7 @@ export class ParsedOverride {
   }
 
   public getRowByKeys(
-    keyData: Record<string, string>
+    keyData: Record<string, string>,
   ): CachedOverrideRow | null {
     const defaultResult = { overrideRow: null, overrideIndex: null };
 
@@ -202,7 +205,7 @@ export class ParsedOverride {
     const rowIndex = this.overrideRows.findIndex((row) =>
       key === defaultRowKey
         ? row[key] === keyValue.toString()
-        : row[key]?.toString() === escapedKeyValue
+        : row[key]?.toString() === escapedKeyValue,
     );
 
     return rowIndex === -1 ? -1 : rowIndex;
@@ -235,7 +238,7 @@ export class ParsedOverride {
   public updateFieldValueByIndex(
     fieldName: string,
     index: number,
-    value: OverrideValue
+    value: OverrideValue,
   ) {
     let overrideIndex = index;
 
@@ -250,7 +253,7 @@ export class ParsedOverride {
       this.overrideRows[overrideIndex] &&
       Object.prototype.hasOwnProperty.call(
         this.overrideRows[overrideIndex],
-        fieldName
+        fieldName,
       )
     ) {
       this.overrideRows[overrideIndex][fieldName] = value;
@@ -260,7 +263,7 @@ export class ParsedOverride {
   public setFieldValueByIndex(
     fieldName: string,
     index: number,
-    value: OverrideValue
+    value: OverrideValue,
   ) {
     if (!this.overrideRows) {
       this.overrideRows = [];
@@ -277,7 +280,7 @@ export class ParsedOverride {
     key: string,
     keyValue: number,
     fieldName: string,
-    value: OverrideValue
+    value: OverrideValue,
   ) {
     if (!this.overrideRows) {
       this.overrideRows = [];
@@ -302,7 +305,7 @@ export class ParsedOverride {
   public setValueByKeys(
     keys: Record<string, string>,
     fieldName: string,
-    value: OverrideValue
+    value: OverrideValue,
   ) {
     if (!this.overrideRows) {
       this.overrideRows = [];
@@ -337,11 +340,14 @@ export class ParsedOverride {
       return;
 
     const defaultValue = value;
-    const newRow = Object.keys(this.overrideRows[0]).reduce((acc, key) => {
-      acc[key] = defaultValue;
+    const newRow = Object.keys(this.overrideRows[0]).reduce(
+      (acc, key) => {
+        acc[key] = defaultValue;
 
-      return acc;
-    }, <Record<string, string>>{});
+        return acc;
+      },
+      <Record<string, string>>{},
+    );
 
     this.overrideRows.splice(index, 0, newRow);
   }
@@ -481,7 +487,7 @@ export class ParsedOverride {
     rowsToRemove
       .reverse()
       .forEach(
-        (index) => this.overrideRows && this.overrideRows.splice(index, 1)
+        (index) => this.overrideRows && this.overrideRows.splice(index, 1),
       );
   }
 

@@ -48,6 +48,10 @@ dependencies {
     implementation 'com.github.ben-manes.caffeine:caffeine:3.1.8'
     implementation 'com.knuddels:jtokkit:1.1.0'
     implementation 'com.squareup.okhttp3:okhttp:4.12.0'
+    implementation 'org.apache.poi:poi-ooxml:5.5.0'
+    // Added log4j2 to align spark dependencies with poi-ooxml
+    implementation 'org.apache.logging.log4j:log4j-api:2.24.3'
+    implementation 'org.apache.logging.log4j:log4j-core:2.24.3'
 
     testImplementation 'com.squareup.okhttp3:mockwebserver:4.12.0'
     testImplementation 'org.springframework.security:spring-security-core:6.0.2'

@@ -63,6 +63,17 @@ public final class Util {
         return result;
     }
 
+    /**
+     * Truncates the given double index to an integer index.
+     * Treats Error or Empty values as 0!
+     */
+    public static int truncateToIntIndex(double index) {
+        long longIndex = (long) index;
+        int intIndex = (int) longIndex;
+        verify(intIndex == longIndex);
+        return intIndex;
+    }
+
     public static void verify(boolean condition) {
         if (!condition) {
             throw new IllegalStateException();

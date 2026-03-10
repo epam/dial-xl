@@ -1,4 +1,4 @@
-import { createContext, MutableRefObject } from 'react';
+import { createContext, RefObject } from 'react';
 
 import { CellPlacement } from '@frontend/common';
 
@@ -11,12 +11,12 @@ type GridViewportContextActions = {
   getCellFromCoords: (x: number, y: number) => CellPlacement;
   moveViewport: (x: number, y: number, skipMaxCheck?: boolean) => void;
 
-  gridViewportSubscriber: MutableRefObject<GridViewportSubscriber>;
+  gridViewportSubscriber: RefObject<GridViewportSubscriber>;
 };
 
 type GridViewportContextValues = {
-  viewportEdges: MutableRefObject<ViewportEdges>;
-  viewportCoords: MutableRefObject<ViewportCoords>;
+  viewportEdges: RefObject<ViewportEdges>;
+  viewportCoords: RefObject<ViewportCoords>;
   viewportColCount: number;
   viewportRowCount: number;
 };

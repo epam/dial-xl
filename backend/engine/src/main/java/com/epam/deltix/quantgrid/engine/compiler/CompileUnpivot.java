@@ -142,8 +142,8 @@ class CompileUnpivot {
                 .map(constant -> (Expression) constant).toList();
 
         ListLocal list = new ListLocal(context.scalarLayout().node(), constants);
-        InLocal isExclude = new InLocal(List.of(names.expression()), List.of(new Get(list, 0)));
-        UnaryOperator isNotExclude = new UnaryOperator(isExclude, UnaryOperation.NOT);
+        InLocal isExclude = new InLocal(names.node(), List.of(names.expression()), list, List.of(new Get(list, 0)));
+        UnaryOperator isNotExclude = new UnaryOperator(new Get(isExclude, 0), UnaryOperation.NOT);
 
         FilterLocal filtered = new FilterLocal(names.node(), isNotExclude);
         DistinctByLocal unique = new DistinctByLocal(filtered, List.of(new Get(filtered, 0)));

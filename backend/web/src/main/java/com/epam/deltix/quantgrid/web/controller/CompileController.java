@@ -10,6 +10,9 @@ import com.epam.deltix.quantgrid.engine.compiler.function.Functions;
 import com.epam.deltix.quantgrid.engine.compiler.result.CompiledResult;
 import com.epam.deltix.quantgrid.engine.compiler.result.CompiledTable;
 import com.epam.deltix.quantgrid.engine.service.ai.AiProvider;
+import com.epam.deltix.quantgrid.engine.service.input.ExcelCatalog;
+import com.epam.deltix.quantgrid.engine.service.input.ExcelCell;
+import com.epam.deltix.quantgrid.engine.service.input.Range;
 import com.epam.deltix.quantgrid.engine.service.input.storage.ImportProvider;
 import com.epam.deltix.quantgrid.engine.service.input.storage.InputProvider;
 import com.epam.deltix.quantgrid.engine.store.Store;
@@ -17,6 +20,7 @@ import com.epam.deltix.quantgrid.parser.ParsedFormula;
 import com.epam.deltix.quantgrid.parser.ParsedSheet;
 import com.epam.deltix.quantgrid.parser.ParsingError;
 import com.epam.deltix.quantgrid.parser.SheetReader;
+import com.epam.deltix.quantgrid.util.ParserException;
 import com.epam.deltix.quantgrid.web.utils.ApiMessageMapper;
 import com.google.protobuf.util.JsonFormat;
 import lombok.RequiredArgsConstructor;
@@ -163,4 +167,63 @@ public class CompileController {
         return PRINTER.print(response);
     }
 
+    @PostMapping(value = "/v1/get_excel_catalog", produces = "application/json")
+    public String getExcelCatalog(@RequestBody String body, Principal principal) {
+        Api.Request apiRequest = ApiMessageMapper.parseRequest(body, Api.Request::getExcelCatalogGetRequest, Api.ExcelCatalogGetRequest.class);
+        Api.ExcelCatalogGetRequest request = apiRequest.getExcelCatalogGetRequest();
+
+        try {
+            ExcelCatalog excelCatalog = inputProvider.readExcelCatalog(request.getPath(), principal);
+
+            Api.Response apiResponse = Api.Response.newBuilder()
+                    .setId(apiRequest.getId())
+                    .setExcelCatalogGetResponse(Api.ExcelCatalogGetResponse.newBuilder()
+                            .addAllSheets(excelCatalog.sheets())
+                            .addAllTables(excelCatalog.tables()))
+                    .build();
+
+            return formatResponse(apiResponse);
+        } catch (ParserException e) {
+            Api.Response apiResponse = Api.Response.newBuilder()
+                    .setId(apiRequest.getId())
+                    .setErrorMessage(e.getMessage())
+                    .build();
+
+            return formatResponse(apiResponse);
+        }
+    }
+
+    @PostMapping(value = "/v1/preview_excel_data", produces = "application/json")
+    public String previewExcelData(@RequestBody String body, Principal principal) {
+        Api.Request apiRequest =
+                ApiMessageMapper.parseRequest(body, Api.Request::getExcelPreviewRequest, Api.ExcelPreviewRequest.class);
+        Api.ExcelPreviewRequest request = apiRequest.getExcelPreviewRequest();
+
+        try {
+            Range range = new Range(
+                    request.getStartRow(), request.getEndRow(), request.getStartColumn(), request.getEndColumn());
+            List<ExcelCell> cells = inputProvider.preview(request.getPath(), range, principal);
+
+            Api.Response apiResponse = Api.Response.newBuilder()
+                    .setId(apiRequest.getId())
+                    .setExcelPreviewResponse(Api.ExcelPreviewResponse.newBuilder()
+                            .addAllCell(cells.stream()
+                                    .map(cell -> Api.ExcelCell.newBuilder()
+                                            .setRow(cell.row())
+                                            .setColumn(cell.column())
+                                            .setValue(cell.value())
+                                            .build())
+                                    .toList()))
+                    .build();
+
+            return formatResponse(apiResponse);
+        } catch (ParserException e) {
+            Api.Response apiResponse = Api.Response.newBuilder()
+                    .setId(apiRequest.getId())
+                    .setErrorMessage(e.getMessage())
+                    .build();
+
+            return formatResponse(apiResponse);
+        }
+    }
 }

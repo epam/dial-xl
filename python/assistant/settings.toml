@@ -13,6 +13,8 @@ experiment = "DIAL XL Assistant"
 debug = false
 recursion-limit = 20
 
+checkpoint-encryption = true
+
 [default.assistant.agents.default]
 azure-api-version = "2025-06-01"
 azure-timeout = 60
@@ -57,7 +59,7 @@ template-files = [
 [test.test.e2e]
 
 url = "http://127.0.0.1:5000"
-inference-model = "gemini-2.0-flash-lite-001"
+inference-model = "gemini-2.5-flash-lite-001"
 max-interrupt-count = 1
 
 [test.assistant.mlflow]

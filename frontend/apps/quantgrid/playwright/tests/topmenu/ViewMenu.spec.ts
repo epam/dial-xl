@@ -13,11 +13,15 @@ let browserContext: BrowserContext;
 
 let page: Page;
 
-const storagePath = `playwright/${projectName}.json`;
+const storagePath = TestFixtures.getStoragePath();
 
 test.beforeAll(async ({ browser }) => {
-  await TestFixtures.createEmptyProject(storagePath, browser, projectName);
   browserContext = await browser.newContext({ storageState: storagePath });
+  await TestFixtures.createEmptyProject(
+    storagePath,
+    browserContext,
+    projectName,
+  );
 });
 
 test.beforeEach(async () => {
@@ -32,8 +36,8 @@ test.afterEach(async () => {
 });
 
 test.afterAll(async ({ browser }) => {
+  await TestFixtures.deleteProject(browserContext, projectName);
   await browserContext.close();
-  await TestFixtures.deleteProject(browser, projectName);
 });
 
 test.describe('view menu', () => {
@@ -43,7 +47,7 @@ test.describe('view menu', () => {
     await projectPage.performMenuSubCommand(
       MenuItems.View,
       ViewMenuItems.Panels,
-      PanelsMenuItems.ProjectTree
+      PanelsMenuItems.ProjectTree,
     );
     await projectPage.expectPanelToBeVisible(Panels.ProjectTree);
   });
@@ -53,20 +57,21 @@ test.describe('view menu', () => {
     await projectPage.performMenuSubCommand(
       MenuItems.View,
       ViewMenuItems.Panels,
-      PanelsMenuItems.ProjectTree
+      PanelsMenuItems.ProjectTree,
     );
     await projectPage.expectPanelToBeVisible(Panels.ProjectTree);
     await projectPage.performMenuSubCommand(
       MenuItems.View,
       ViewMenuItems.Panels,
-      PanelsMenuItems.ProjectTree
+      PanelsMenuItems.ProjectTree,
     );
     await projectPage.expectPanelToBeHidden(Panels.ProjectTree);
   });
+
   //Project tree hotkey
   test('show project tree hotkey', async () => {
     const projectPage = await ProjectPage.createCleanInstance(page);
-    await page.keyboard.press('Alt+1');
+    await projectPage.getProjectPanel().toggle();
     await projectPage.expectPanelToBeVisible(Panels.ProjectTree);
   });
 
@@ -75,10 +80,10 @@ test.describe('view menu', () => {
     await projectPage.performMenuSubCommand(
       MenuItems.View,
       ViewMenuItems.Panels,
-      PanelsMenuItems.ProjectTree
+      PanelsMenuItems.ProjectTree,
     );
     await projectPage.expectPanelToBeVisible(Panels.ProjectTree);
-    await page.keyboard.press('Alt+1');
+    await projectPage.getProjectPanel().toggle();
     await projectPage.expectPanelToBeHidden(Panels.ProjectTree);
   });
 
@@ -88,7 +93,7 @@ test.describe('view menu', () => {
     await projectPage.performMenuSubCommand(
       MenuItems.View,
       ViewMenuItems.Panels,
-      PanelsMenuItems.CodeEditor
+      PanelsMenuItems.CodeEditor,
     );
     await projectPage.expectPanelToBeVisible(Panels.EditorPanel);
   });
@@ -98,21 +103,22 @@ test.describe('view menu', () => {
     await projectPage.performMenuSubCommand(
       MenuItems.View,
       ViewMenuItems.Panels,
-      PanelsMenuItems.CodeEditor
+      PanelsMenuItems.CodeEditor,
     );
     await projectPage.expectPanelToBeVisible(Panels.EditorPanel);
     await projectPage.performMenuSubCommand(
       MenuItems.View,
       ViewMenuItems.Panels,
-      PanelsMenuItems.CodeEditor
+      PanelsMenuItems.CodeEditor,
     );
     await projectPage.expectPanelToBeHidden(Panels.EditorPanel);
   });
+
   // Code editor hotkey
   test('show code editor hotkey', async () => {
     const projectPage = await ProjectPage.createCleanInstance(page);
 
-    await page.keyboard.press('Alt+2');
+    await projectPage.getEditorPanel().toggle();
     await projectPage.expectPanelToBeVisible(Panels.EditorPanel);
   });
 
@@ -121,12 +127,13 @@ test.describe('view menu', () => {
     await projectPage.performMenuSubCommand(
       MenuItems.View,
       ViewMenuItems.Panels,
-      PanelsMenuItems.CodeEditor
+      PanelsMenuItems.CodeEditor,
     );
     await projectPage.expectPanelToBeVisible(Panels.EditorPanel);
-    await page.keyboard.press('Alt+2');
+    await projectPage.getEditorPanel().toggle();
     await projectPage.expectPanelToBeHidden(Panels.EditorPanel);
   });
+
   //Inputs
   /*test('show inputs', async () => {
     const projectPage = await ProjectPage.createCleanInstance(page);
@@ -177,7 +184,7 @@ test.describe('view menu', () => {
     await projectPage.performMenuSubCommand(
       MenuItems.View,
       ViewMenuItems.Panels,
-      PanelsMenuItems.ErrorPanel
+      PanelsMenuItems.ErrorPanel,
     );
     await projectPage.expectPanelToBeVisible(Panels.ErrorsPanel);
   });
@@ -187,20 +194,21 @@ test.describe('view menu', () => {
     await projectPage.performMenuSubCommand(
       MenuItems.View,
       ViewMenuItems.Panels,
-      PanelsMenuItems.ErrorPanel
+      PanelsMenuItems.ErrorPanel,
     );
     await projectPage.expectPanelToBeVisible(Panels.ErrorsPanel);
     await projectPage.performMenuSubCommand(
       MenuItems.View,
       ViewMenuItems.Panels,
-      PanelsMenuItems.ErrorPanel
+      PanelsMenuItems.ErrorPanel,
     );
     await projectPage.expectPanelToBeHidden(Panels.ErrorsPanel);
   });
+
   // Error hotkey
   test('show errors hotkey', async () => {
     const projectPage = await ProjectPage.createCleanInstance(page);
-    await page.keyboard.press('Alt+3');
+    await projectPage.getErrorsPanel().toggle();
     await projectPage.expectPanelToBeVisible(Panels.ErrorsPanel);
   });
 
@@ -209,19 +217,20 @@ test.describe('view menu', () => {
     await projectPage.performMenuSubCommand(
       MenuItems.View,
       ViewMenuItems.Panels,
-      PanelsMenuItems.ErrorPanel
+      PanelsMenuItems.ErrorPanel,
     );
     await projectPage.expectPanelToBeVisible(Panels.ErrorsPanel);
-    await page.keyboard.press('Alt+3');
+    await projectPage.getErrorsPanel().toggle();
     await projectPage.expectPanelToBeHidden(Panels.ErrorsPanel);
   });
+
   //History Panel
   test('show history', async () => {
     const projectPage = await ProjectPage.createCleanInstance(page);
     await projectPage.performMenuSubCommand(
       MenuItems.View,
       ViewMenuItems.Panels,
-      PanelsMenuItems.HistoryPanel
+      PanelsMenuItems.HistoryPanel,
     );
     await projectPage.expectPanelToBeVisible(Panels.HistoryPanel);
   });
@@ -231,20 +240,21 @@ test.describe('view menu', () => {
     await projectPage.performMenuSubCommand(
       MenuItems.View,
       ViewMenuItems.Panels,
-      PanelsMenuItems.HistoryPanel
+      PanelsMenuItems.HistoryPanel,
     );
     await projectPage.expectPanelToBeVisible(Panels.HistoryPanel);
     await projectPage.performMenuSubCommand(
       MenuItems.View,
       ViewMenuItems.Panels,
-      PanelsMenuItems.HistoryPanel
+      PanelsMenuItems.HistoryPanel,
     );
     await projectPage.expectPanelToBeHidden(Panels.HistoryPanel);
   });
+
   // History hotkey
   test('show history hotkey', async () => {
     const projectPage = await ProjectPage.createCleanInstance(page);
-    await page.keyboard.press('Alt+4');
+    await projectPage.getHistoryPanel().toggle();
     await projectPage.expectPanelToBeVisible(Panels.HistoryPanel);
   });
 
@@ -253,10 +263,10 @@ test.describe('view menu', () => {
     await projectPage.performMenuSubCommand(
       MenuItems.View,
       ViewMenuItems.Panels,
-      PanelsMenuItems.HistoryPanel
+      PanelsMenuItems.HistoryPanel,
     );
     await projectPage.expectPanelToBeVisible(Panels.HistoryPanel);
-    await page.keyboard.press('Alt+4');
+    await projectPage.getHistoryPanel().toggle();
     await projectPage.expectPanelToBeHidden(Panels.HistoryPanel);
   });
 });

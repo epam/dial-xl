@@ -1,4 +1,4 @@
-import { isValid as isValidDate } from 'date-fns';
+import { format, isValid as isValidDate } from 'date-fns';
 
 import Icon from '@ant-design/icons';
 import {
@@ -29,9 +29,11 @@ import {
 
 export const getFormatsItems = (
   value: string | undefined,
-  isResetExplicitFormat: boolean
+  isResetExplicitFormat: boolean,
 ): MenuItem[] => {
+  const parsedValue = value ? parseInt(value) : undefined;
   const currencies = getGroupedCurrencies();
+  const dateNow = Date.now();
 
   const dateConfig = [
     {
@@ -45,7 +47,7 @@ export const getFormatsItems = (
           pattern: 'M-dd-yyyy',
         },
       },
-      labelDefault: '11-14-2024',
+      labelDefault: format(dateNow, 'M-dd-yyyy'),
     },
     {
       key: FormatKeys.Date,
@@ -58,7 +60,7 @@ export const getFormatsItems = (
           pattern: 'yyyy-M-dd',
         },
       },
-      labelDefault: '2024-11-14',
+      labelDefault: format(dateNow, 'yyyy-M-dd'),
     },
     {
       key: FormatKeys.Date,
@@ -71,7 +73,7 @@ export const getFormatsItems = (
           pattern: 'dd/M/yyyy',
         },
       },
-      labelDefault: '14/11/2024',
+      labelDefault: format(dateNow, 'dd/M/yyyy'),
     },
     {
       key: FormatKeys.Date,
@@ -84,7 +86,7 @@ export const getFormatsItems = (
           pattern: 'M/dd/yyyy',
         },
       },
-      labelDefault: '11/14/2024',
+      labelDefault: format(dateNow, 'M/dd/yyyy'),
     },
     {
       key: FormatKeys.Date,
@@ -97,7 +99,7 @@ export const getFormatsItems = (
           pattern: 'd LLLL yyyy',
         },
       },
-      labelDefault: '14 November 2024',
+      labelDefault: format(dateNow, 'd LLLL yyyy'),
     },
     {
       key: FormatKeys.Date,
@@ -110,7 +112,7 @@ export const getFormatsItems = (
           pattern: 'LLLL d, yyyy',
         },
       },
-      labelDefault: 'November 14, 2024',
+      labelDefault: format(dateNow, 'LLLL d, yyyy'),
     },
     {
       key: FormatKeys.Date,
@@ -123,7 +125,7 @@ export const getFormatsItems = (
           pattern: 'yyyy, LLLL d',
         },
       },
-      labelDefault: '2024, November 14',
+      labelDefault: format(dateNow, 'yyyy, LLLL d'),
     },
   ];
 
@@ -139,20 +141,20 @@ export const getFormatsItems = (
           pattern: 'HH:mm',
         },
       },
-      labelDefault: '14:30',
+      labelDefault: format(dateNow, 'HH:mm'),
     },
     {
       key: FormatKeys.Date,
       keyData: {
-        patternDate: 'hh:mm aa',
+        patternDate: 'hh:mm a',
       } as DateTimeKeyData,
       labelFormat: {
         type: FormatType.FORMAT_TYPE_DATE,
         dateArgs: {
-          pattern: 'hh:mm aa',
+          pattern: 'hh:mm a',
         },
       },
-      labelDefault: '02:30 PM',
+      labelDefault: format(dateNow, 'hh:mm a'),
     },
     {
       key: FormatKeys.Date,
@@ -165,46 +167,33 @@ export const getFormatsItems = (
           pattern: 'HH:mm:ss',
         },
       },
-      labelDefault: '14:30:00',
+      labelDefault: format(dateNow, 'HH:mm:ss'),
     },
     {
       key: FormatKeys.Date,
       keyData: {
-        patternDate: 'hh:mm:ss aa',
+        patternDate: 'hh:mm:ss a',
       } as DateTimeKeyData,
       labelFormat: {
         type: FormatType.FORMAT_TYPE_DATE,
         dateArgs: {
-          pattern: 'hh:mm:ss aa',
+          pattern: 'hh:mm:ss a',
         },
       },
-      labelDefault: '02:30:00 PM',
+      labelDefault: format(dateNow, 'hh:mm:ss a'),
     },
     {
       key: FormatKeys.Date,
       keyData: {
-        patternDate: 'h:mm aa',
+        patternDate: 'h:mm a',
       } as DateTimeKeyData,
       labelFormat: {
         type: FormatType.FORMAT_TYPE_DATE,
         dateArgs: {
-          pattern: 'h:mm aa',
+          pattern: 'h:mm a',
         },
       },
-      labelDefault: '2:30 PM',
-    },
-    {
-      key: FormatKeys.Date,
-      keyData: {
-        patternDate: 'hh:mm aaa',
-      } as DateTimeKeyData,
-      labelFormat: {
-        type: FormatType.FORMAT_TYPE_DATE,
-        dateArgs: {
-          pattern: 'hh:mm aaa',
-        },
-      },
-      labelDefault: '02:30 pm',
+      labelDefault: format(dateNow, 'h:mm a'),
     },
   ];
 
@@ -212,15 +201,15 @@ export const getFormatsItems = (
     {
       key: FormatKeys.Date,
       keyData: {
-        patternDate: 'M/dd/yyyy hh:mm aa',
+        patternDate: 'M/dd/yyyy hh:mm a',
       } as DateTimeKeyData,
       labelFormat: {
         type: FormatType.FORMAT_TYPE_DATE,
         dateArgs: {
-          pattern: 'M/dd/yyyy hh:mm aa',
+          pattern: 'M/dd/yyyy hh:mm a',
         },
       },
-      labelDefault: '11/14/2024 02:30 PM',
+      labelDefault: format(dateNow, 'M/dd/yyyy hh:mm a'),
     },
     {
       key: FormatKeys.Date,
@@ -233,7 +222,7 @@ export const getFormatsItems = (
           pattern: 'dd/M/yyyy HH:mm',
         },
       },
-      labelDefault: '14/11/2024 14:30',
+      labelDefault: format(dateNow, 'dd/M/yyyy HH:mm'),
     },
     {
       key: FormatKeys.Date,
@@ -246,46 +235,46 @@ export const getFormatsItems = (
           pattern: 'yyyy-M-dd HH:mm:ss',
         },
       },
-      labelDefault: '2024-11-14 14:30:00',
+      labelDefault: format(dateNow, 'yyyy-M-dd HH:mm:ss'),
     },
     {
       key: FormatKeys.Date,
       keyData: {
-        patternDate: 'LLLL d, yyyy hh:mm:ss aa',
+        patternDate: 'LLLL d, yyyy hh:mm:ss a',
       } as DateTimeKeyData,
       labelFormat: {
         type: FormatType.FORMAT_TYPE_DATE,
         dateArgs: {
-          pattern: 'LLLL d, yyyy hh:mm:ss aa',
+          pattern: 'LLLL d, yyyy hh:mm:ss a',
         },
       },
-      labelDefault: 'November 14, 2024 02:30:00 PM',
+      labelDefault: format(dateNow, 'LLLL d, yyyy hh:mm:ss a'),
     },
     {
       key: FormatKeys.Date,
       keyData: {
-        patternDate: 'd LLLL yyyy h:mm aa',
+        patternDate: 'd LLLL yyyy h:mm a',
       } as DateTimeKeyData,
       labelFormat: {
         type: FormatType.FORMAT_TYPE_DATE,
         dateArgs: {
-          pattern: 'd LLLL yyyy h:mm aa',
+          pattern: 'd LLLL yyyy h:mm a',
         },
       },
-      labelDefault: '14 November 2024 2:30 PM',
+      labelDefault: format(dateNow, 'd LLLL yyyy h:mm a'),
     },
     {
       key: FormatKeys.Date,
       keyData: {
-        patternDate: 'M-dd-yyyy hh:mm aa',
+        patternDate: 'M-dd-yyyy hh:mm a',
       } as DateTimeKeyData,
       labelFormat: {
         type: FormatType.FORMAT_TYPE_DATE,
         dateArgs: {
-          pattern: 'M-dd-yyyy hh:mm aa',
+          pattern: 'M-dd-yyyy hh:mm a',
         },
       },
-      labelDefault: '11-14-2024 02:30 pm',
+      labelDefault: format(dateNow, 'M-dd-yyyy hh:mm a'),
     },
     {
       key: FormatKeys.Date,
@@ -298,17 +287,22 @@ export const getFormatsItems = (
           pattern: 'yyyy, LLLL d HH:mm',
         },
       },
-      labelDefault: '2024, November 14 14:30',
+      labelDefault: format(dateNow, 'yyyy, LLLL d HH:mm'),
     },
   ];
+
+  const formatsPath = ['FormatsMenu'];
+  const currencyPath = [...formatsPath, 'Currency'];
 
   return [
     getDropdownItem({
       key: getDropdownMenuKey(FormatKeys.General),
+      fullPath: [...formatsPath, 'General'],
       label: 'General',
     }),
     getDropdownItem({
       key: getDropdownMenuKey(FormatKeys.Text),
+      fullPath: [...formatsPath, 'Text'],
       label: 'Text',
     }),
     getDropdownItem({
@@ -316,6 +310,7 @@ export const getFormatsItems = (
         thousandComma: false,
         digitsAmount: 0,
       } as NumberKeyData),
+      fullPath: [...formatsPath, 'Integer'],
       label: 'Integer',
     }),
     getDropdownItem({
@@ -323,16 +318,19 @@ export const getFormatsItems = (
         thousandComma: false,
         digitsAmount: 1,
       } as NumberKeyData),
+      fullPath: [...formatsPath, 'Number'],
       label: 'Number',
     }),
     getDropdownItem({
       key: getDropdownMenuKey(FormatKeys.Scientific, {
         digitsAmount: 1,
       } as NumberKeyData),
+      fullPath: [...formatsPath, 'Scientific'],
       label: 'Scientific',
     }),
     getDropdownItem({
       key: getDropdownMenuKey(FormatKeys.Currency),
+      fullPath: currencyPath,
       children: [
         ...currencies.mainCurrencies.map((item) =>
           getDropdownItem({
@@ -342,9 +340,10 @@ export const getFormatsItems = (
               thousandComma: false,
               currency: item.currency,
             } as CurrencyKeyData),
+            fullPath: [...currencyPath, item.code],
             label: item.currency,
             shortcut: `${item.symbol} (${item.code})`,
-          })
+          }),
         ),
         getDropdownDivider(),
         ...currencies.otherCurrencies.map((item) =>
@@ -355,59 +354,68 @@ export const getFormatsItems = (
               thousandComma: false,
               currency: item.currency,
             } as CurrencyKeyData),
+            fullPath: [...currencyPath, item.code],
             label: item.currency,
             shortcut: `${item.symbol} (${item.code})`,
-          })
+          }),
         ),
       ],
       label: 'Currency',
     }),
     getDropdownItem({
       key: getDropdownMenuKey(FormatKeys.Date),
+      fullPath: [...formatsPath, 'Date'],
       label: 'Date',
-      children: dateConfig.map((item) =>
+      children: dateConfig.map((item, idx) =>
         getDropdownItem({
           key: getDropdownMenuKey(item.key, item.keyData),
+          fullPath: [...formatsPath, 'Date', String(idx)],
           label:
-            value && isValidDate(value)
+            value && parsedValue && isValidDate(parsedValue)
               ? formatValue(value, item.labelFormat)
               : item.labelDefault,
-        })
+        }),
       ),
     }),
     getDropdownItem({
       key: FormatKeys.Time,
+      fullPath: [...formatsPath, 'Time'],
       label: 'Time',
-      children: timeConfig.map((item) =>
+      children: timeConfig.map((item, idx) =>
         getDropdownItem({
           key: getDropdownMenuKey(item.key, item.keyData),
+          fullPath: [...formatsPath, 'Time', String(idx)],
           label:
-            value && isValidDate(value)
+            value && parsedValue && isValidDate(parsedValue)
               ? formatValue(value, item.labelFormat)
               : item.labelDefault,
-        })
+        }),
       ),
     }),
     getDropdownItem({
       key: getDropdownMenuKey(FormatKeys.DateTime),
+      fullPath: [...formatsPath, 'DateTime'],
       label: 'Date & Time',
-      children: dateTimeConfig.map((item) =>
+      children: dateTimeConfig.map((item, idx) =>
         getDropdownItem({
           key: getDropdownMenuKey(item.key, item.keyData),
+          fullPath: [...formatsPath, 'DateTime', String(idx)],
           label:
-            value && isValidDate(value)
+            value && parsedValue && isValidDate(parsedValue)
               ? formatValue(value, item.labelFormat)
               : item.labelDefault,
-        })
+        }),
       ),
     }),
     getDropdownItem({
       key: getDropdownMenuKey(FormatKeys.Percentage),
+      fullPath: [...formatsPath, 'Percentage'],
       label: 'Percentage',
     }),
     getDropdownDivider(),
     getDropdownItem({
       key: getDropdownMenuKey(resetFormatKey),
+      fullPath: [...formatsPath, 'ResetExplicitFormat'],
       label: 'Reset explicit format',
       disabled: !isResetExplicitFormat,
       tooltip: !isResetExplicitFormat
@@ -418,9 +426,13 @@ export const getFormatsItems = (
 };
 
 export const getDigitsModeItems = () => {
+  const digitsPath = ['FormatsMenu', 'DigitsMode'];
+  const compactPath = [...digitsPath, 'Compact'];
+
   return [
     getDropdownItem({
       key: getDropdownMenuKey(DigitsModeKeys.DecimalDigits),
+      fullPath: [...digitsPath, 'DecimalDigits'],
       icon: (
         <Icon
           className="h-[18px] w-[18px] shrink-0"
@@ -431,6 +443,7 @@ export const getDigitsModeItems = () => {
     }),
     getDropdownItem({
       key: getDropdownMenuKey(DigitsModeKeys.TotalDigits),
+      fullPath: [...digitsPath, 'TotalDigits'],
       icon: (
         <Icon
           className="h-[18px] w-[18px] shrink-0"
@@ -441,6 +454,7 @@ export const getDigitsModeItems = () => {
     }),
     getDropdownItem({
       key: getDropdownMenuKey('Compact'),
+      fullPath: compactPath,
       icon: (
         <Icon
           className="h-[18px] w-[18px] shrink-0"
@@ -451,6 +465,7 @@ export const getDigitsModeItems = () => {
       children: [
         getDropdownItem({
           key: getDropdownMenuKey(DigitsModeKeys.CompactK),
+          fullPath: [...compactPath, 'Thousands'],
           icon: (
             <Icon
               className="h-[18px] w-[18px] shrink-0"
@@ -462,6 +477,7 @@ export const getDigitsModeItems = () => {
         }),
         getDropdownItem({
           key: getDropdownMenuKey(DigitsModeKeys.CompactM),
+          fullPath: [...compactPath, 'Millions'],
           icon: (
             <Icon
               className="h-[18px] w-[18px] shrink-0"
@@ -473,6 +489,7 @@ export const getDigitsModeItems = () => {
         }),
         getDropdownItem({
           key: getDropdownMenuKey(DigitsModeKeys.CompactB),
+          fullPath: [...compactPath, 'Billions'],
           icon: (
             <Icon
               className="h-[18px] w-[18px] shrink-0"

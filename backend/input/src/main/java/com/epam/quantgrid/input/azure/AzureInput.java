@@ -7,25 +7,23 @@ import com.azure.storage.blob.BlobContainerClientBuilder;
 import com.azure.storage.blob.models.BlobItem;
 import com.azure.storage.blob.models.ListBlobsOptions;
 import com.azure.storage.common.StorageSharedKeyCredential;
+import com.epam.deltix.quantgrid.engine.service.input.CsvInputMetadata;
 import com.epam.deltix.quantgrid.engine.service.input.DataSchema;
 import com.epam.deltix.quantgrid.engine.service.input.storage.CsvInputParser;
-import com.epam.deltix.quantgrid.type.InputColumnType;
 import com.epam.quantgrid.input.annotate.Input;
 import com.epam.quantgrid.input.annotate.Setting;
 import com.epam.quantgrid.input.api.DataCatalog;
 import com.epam.quantgrid.input.api.DataInput;
 import com.epam.quantgrid.input.api.DataStream;
 import com.epam.quantgrid.input.csv.CsvStream;
+import com.epam.quantgrid.input.util.DataUtils;
 import com.epam.quantgrid.input.util.FileUtils;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.Reader;
-import java.util.Map;
+import java.io.InputStream;
 
 @Slf4j
 @Setter
@@ -84,12 +82,8 @@ public class AzureInput implements DataInput {
         }
 
         BlobClient blobClient = containerClient().getBlobClient(dataset);
-        try (Reader reader = new BufferedReader(new InputStreamReader(blobClient.openInputStream()))) {
-            Map<String, InputColumnType> schema = CsvInputParser.inferSchema(reader, false);
-            DataSchema result = new DataSchema();
-            schema.forEach((name, type) ->
-                    result.addColumn(new DataSchema.Column(name, type.getDisplayName(), type)));
-            return result;
+        try (InputStream stream = blobClient.openInputStream()) {
+            return DataUtils.inferCsvSchema(stream);
         }
     }
 
@@ -100,8 +94,8 @@ public class AzureInput implements DataInput {
         }
 
         BlobClient blobClient = containerClient().getBlobClient(dataset);
-        try (Reader reader = new BufferedReader(new InputStreamReader(blobClient.openInputStream()))) {
-            return CsvStream.create(schema, reader);
+        try (InputStream inputStream = blobClient.openInputStream()) {
+            return CsvStream.create(inputStream, schema);
         }
     }
 }

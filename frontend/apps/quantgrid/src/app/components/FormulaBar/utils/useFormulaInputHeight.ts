@@ -10,7 +10,9 @@ const largeHeight = 41;
 const expandedHeight = 100;
 const notStrictWidthOffset = 2;
 
-export function useFormulaInputHeight(containerRef: RefObject<HTMLDivElement>) {
+export function useFormulaInputHeight(
+  containerRef: RefObject<HTMLDivElement | null>,
+) {
   const formulaBarExpanded = useFormulaBarStore((s) => s.formulaBarExpanded);
 
   const [height, setHeight] = useState(defaultHeight);
@@ -34,7 +36,7 @@ export function useFormulaInputHeight(containerRef: RefObject<HTMLDivElement>) {
 
           setHeight(adjustedHeight);
         });
-      }, 500)
+      }, 500),
     );
 
     observer.observe(containerRef.current);
@@ -46,7 +48,7 @@ export function useFormulaInputHeight(containerRef: RefObject<HTMLDivElement>) {
 
   const containerHeight = useMemo(
     () => getPx(formulaBarExpanded ? height + expandedHeight : height),
-    [formulaBarExpanded, height]
+    [formulaBarExpanded, height],
   );
 
   return {

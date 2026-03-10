@@ -91,6 +91,7 @@ export const apiMessages = {
   compileForbidden: 'Unauthorized compile request.',
   computationPower:
     'There is no computation power at the moment. Please try again later.',
+  computationServer: 'Server error happened during computation request.',
   computationClient: 'Client error happened during computation request.',
   computationForbidden: 'Unauthorized computation request.',
   cloneFileServer: 'Server error happened during cloning files',
@@ -166,4 +167,15 @@ export const apiMessages = {
   importSyncStartClient: 'Client error happened during starting import sync',
   importSyncCancelServer: 'Server error happened during canceling import sync',
   importSyncCancelClient: 'Client error happened during canceling import sync',
+  uploadFileServer: 'Server error happened during uploading file',
+  uploadFileClient: 'Client error happened during uploading file',
+  unauthorizedRequest: 'Unauthorized access. Please log in again.',
+  getSettingsServer: 'Server error happened during getting user settings.',
+  getSettingsClient: 'Client error happened during getting user settings.',
+  putSettingsServer: 'Server error happened during updating user settings.',
+  putSettingsClient: 'Client error happened during updating user settings.',
+  getExcelCatalogServer: 'Server error happened during getting excel catalog.',
+  getExcelCatalogClient: 'Client error happened during getting excel catalog.',
+  previewExcelDataServer: 'Server error happened during previewing excel data.',
+  previewExcelDataClient: 'Client error happened during previewing excel data.',
 };

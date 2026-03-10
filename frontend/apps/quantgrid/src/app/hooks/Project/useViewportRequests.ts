@@ -1,6 +1,6 @@
 import {
   Dispatch,
-  MutableRefObject,
+  RefObject,
   SetStateAction,
   useCallback,
   useContext,
@@ -8,6 +8,8 @@ import {
 } from 'react';
 
 import {
+  ApiError,
+  ApiErrorType,
   appMessages,
   CompilationError,
   FieldInfo,
@@ -28,7 +30,7 @@ import { useApiRequests } from '../useApiRequests';
 import { LongCalcAction, LongCalcRequestType } from './useLongCalculations';
 
 type Props = {
-  _projectState: MutableRefObject<ProjectState | null>;
+  _projectState: RefObject<ProjectState | null>;
   parsedSheet: ParsedSheet | null;
   currentSheetName: string | null;
   hasEditPermissions: boolean;
@@ -37,10 +39,11 @@ type Props = {
   setCurrentSheetCompilationErrors: Dispatch<
     SetStateAction<CompilationError[]>
   >;
+  onSetProjectDataLoadingError: Dispatch<SetStateAction<ApiError | null>>;
   manageRequestLifecycle: (
     action: LongCalcAction,
     reqType: LongCalcRequestType,
-    controller?: AbortController
+    controller?: AbortController,
   ) => void;
 };
 
@@ -53,6 +56,7 @@ export function useViewportRequests({
   manageRequestLifecycle,
   setCurrentSheetParsingErrors,
   setCurrentSheetCompilationErrors,
+  onSetProjectDataLoadingError,
 }: Props) {
   const {
     viewGridData,
@@ -74,16 +78,19 @@ export function useViewportRequests({
       if (!_projectState.current) return;
 
       const requestId = uniqueId();
-      const worksheets = _projectState.current.sheets.reduce((acc, curr) => {
-        if (curr.sheetName === currentSheetName) {
-          acc[curr.sheetName] =
-            curr.content + '\n' + virtualTablesDSL.join('\n');
-        } else {
-          acc[curr.sheetName] = curr.content;
-        }
+      const worksheets = _projectState.current.sheets.reduce(
+        (acc, curr) => {
+          if (curr.sheetName === currentSheetName) {
+            acc[curr.sheetName] =
+              curr.content + '\n' + virtualTablesDSL.join('\n');
+          } else {
+            acc[curr.sheetName] = curr.content;
+          }
 
-        return acc;
-      }, {} as Record<string, string>);
+          return acc;
+        },
+        {} as Record<string, string>,
+      );
 
       const controller = new AbortController();
       manageRequestLifecycle('start', 'viewport', controller);
@@ -95,7 +102,7 @@ export function useViewportRequests({
             _projectState.current.bucket,
             _projectState.current.path,
             _projectState.current.projectName,
-          ])
+          ]),
         ),
         viewports,
         worksheets,
@@ -104,15 +111,19 @@ export function useViewportRequests({
         includeCompilation: false,
       });
 
-      if (!res) {
+      if (!res.success) {
         manageRequestLifecycle('end', 'viewport', controller);
+
+        if (res.error.type !== ApiErrorType.AbortError) {
+          onSetProjectDataLoadingError(res.error);
+        }
 
         return;
       }
 
       try {
         await parseSSEResponse(
-          res,
+          res.data,
           {
             onData: (parsedData: Partial<ViewportResponse>) => {
               if (parsedData.columnData) {
@@ -128,12 +139,16 @@ export function useViewportRequests({
               }
             },
           },
-          controller
+          controller,
         );
       } catch (error) {
         // Ignore abort errors
         if (!(error instanceof DOMException && error.name === 'AbortError')) {
           displayToast('error', appMessages.calculateError);
+          onSetProjectDataLoadingError({
+            type: ApiErrorType.Unknown,
+            message: appMessages.calculateError,
+          });
         }
       } finally {
         manageRequestLifecycle('end', 'viewport', controller);
@@ -141,14 +156,15 @@ export function useViewportRequests({
     },
     [
       _projectState,
-      currentSheetName,
+      manageRequestLifecycle,
       getViewportRequest,
+      hasEditPermissions,
+      currentSheetName,
       onColumnDataResponse,
       onProfileResponse,
       onIndexResponse,
-      hasEditPermissions,
-      manageRequestLifecycle,
-    ]
+      onSetProjectDataLoadingError,
+    ],
   );
 
   const getCurrentProjectViewport = useCallback(
@@ -163,29 +179,32 @@ export function useViewportRequests({
     }) => {
       if (!_projectState.current) return;
 
-      const worksheets = _projectState.current.sheets.reduce((acc, curr) => {
-        acc[curr.sheetName] = curr.content;
+      const worksheets = _projectState.current.sheets.reduce(
+        (acc, curr) => {
+          acc[curr.sheetName] = curr.content;
 
-        if (
-          curr.sheetName === currentSheetName &&
-          overrideCurrentSheetContent
-        ) {
-          acc[curr.sheetName] = overrideCurrentSheetContent;
-        } else if (
-          curr.sheetName === currentSheetName &&
-          parsedSheet?.editableSheet &&
-          !overrideCurrentSheetContent
-        ) {
-          acc[curr.sheetName] = addChartFiltersToDefaultViewportRequest(
-            parsedSheet.clone().editableSheet,
-            viewports,
-            viewGridData,
-            acc[curr.sheetName]
-          );
-        }
+          if (
+            curr.sheetName === currentSheetName &&
+            overrideCurrentSheetContent
+          ) {
+            acc[curr.sheetName] = overrideCurrentSheetContent;
+          } else if (
+            curr.sheetName === currentSheetName &&
+            parsedSheet?.editableSheet &&
+            !overrideCurrentSheetContent
+          ) {
+            acc[curr.sheetName] = addChartFiltersToDefaultViewportRequest(
+              parsedSheet.clone().editableSheet,
+              viewports,
+              viewGridData,
+              acc[curr.sheetName],
+            );
+          }
 
-        return acc;
-      }, {} as Record<string, string>);
+          return acc;
+        },
+        {} as Record<string, string>,
+      );
 
       const requestId = uniqueId();
       viewGridData.startRequest(requestId);
@@ -200,7 +219,7 @@ export function useViewportRequests({
             _projectState.current.bucket,
             _projectState.current.path,
             _projectState.current.projectName,
-          ])
+          ]),
         ),
         viewports,
         worksheets,
@@ -209,16 +228,20 @@ export function useViewportRequests({
         includeCompilation: withCompilation,
       });
 
-      if (!res) {
+      if (!res.success) {
         manageRequestLifecycle('end', 'viewport', controller);
         viewGridData.finishRequest(requestId);
+
+        if (res.error.type !== ApiErrorType.AbortError) {
+          onSetProjectDataLoadingError(res.error);
+        }
 
         return;
       }
 
       try {
         await parseSSEResponse(
-          res,
+          res.data,
           {
             onData: (parsedData: Partial<ViewportResponse>) => {
               if (parsedData.columnData) {
@@ -239,10 +262,10 @@ export function useViewportRequests({
 
                 if (parsedData.compileResult.compilationErrors) {
                   viewGridData.setCompilationErrors(
-                    parsedData.compileResult.compilationErrors
+                    parsedData.compileResult.compilationErrors,
                   );
                   setCurrentSheetCompilationErrors(
-                    parsedData.compileResult.compilationErrors
+                    parsedData.compileResult.compilationErrors,
                   );
                 }
 
@@ -257,7 +280,7 @@ export function useViewportRequests({
                         ...error.source,
                         sheet: sheet.name || '',
                       },
-                    }))
+                    })),
                   );
 
                   if (sheet.name === currentSheetName) {
@@ -270,12 +293,16 @@ export function useViewportRequests({
               }
             },
           },
-          controller
+          controller,
         );
       } catch (error) {
         // Ignore abort errors
         if (!(error instanceof DOMException && error.name === 'AbortError')) {
           displayToast('error', appMessages.calculateError);
+          onSetProjectDataLoadingError({
+            type: ApiErrorType.Unknown,
+            message: appMessages.calculateError,
+          });
         }
       } finally {
         viewGridData.finishRequest(requestId);
@@ -298,9 +325,10 @@ export function useViewportRequests({
       onProfileResponse,
       onIndexResponse,
       setIndexErrors,
-      setCurrentSheetCompilationErrors,
       setCurrentSheetParsingErrors,
-    ]
+      setCurrentSheetCompilationErrors,
+      onSetProjectDataLoadingError,
+    ],
   );
 
   return {

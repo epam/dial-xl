@@ -8,7 +8,7 @@ import { getColor, getThemeColors } from '../common';
 
 export function organizePeriodSeriesChartData(
   chartData: ChartsData,
-  gridChart: GridChart
+  gridChart: GridChart,
 ): OrganizedData | undefined {
   const {
     showLegend,

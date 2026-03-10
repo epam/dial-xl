@@ -1,7 +1,7 @@
 import { Button } from 'antd';
 import classNames from 'classnames';
 import { Fragment, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router';
 
 import Icon from '@ant-design/icons';
 import { primaryButtonClasses, QGLogo } from '@frontend/common/lib';
@@ -17,11 +17,14 @@ export const ErrorPage = () => {
 
     // eslint-disable-next-line no-console
     console.error('Error', {
-      ...Array.from(searchParams.entries()).reduce((acc, [key, value]) => {
-        acc[key] = value;
+      ...Array.from(searchParams.entries()).reduce(
+        (acc, [key, value]) => {
+          acc[key] = value;
 
-        return acc;
-      }, {} as Record<string, any>),
+          return acc;
+        },
+        {} as Record<string, any>,
+      ),
     });
   }, [searchParams, setLoading]);
 
@@ -37,7 +40,10 @@ export const ErrorPage = () => {
           <span className="p-3 bg-bg-layer-2 break-words max-w-full">
             {Array.from(searchParams.entries()).map(([key, value]) => (
               <Fragment key={key}>
-                {key}: <span className="bg-bg-layer-4">{value}</span>
+                {key}:{' '}
+                <span className="bg-bg-layer-4">
+                  {decodeURIComponent(value)}
+                </span>
                 <br />
               </Fragment>
             ))}
@@ -45,7 +51,7 @@ export const ErrorPage = () => {
         )}
         <Button
           className={classNames(primaryButtonClasses)}
-          href={searchParams.get('redirectTo') ?? '/'}
+          href={decodeURIComponent(searchParams.get('redirectTo') ?? '/')}
         >
           Try again
         </Button>

@@ -1,10 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useContext, useEffect, useRef, useState } from 'react';
 
-import { GridChart } from '@frontend/common';
+import { ChartType, GridChart } from '@frontend/common';
 
-import { canvasId } from '../../../constants';
-import { GridApi } from '../../../types';
-import { getPx, round } from '../../../utils';
+import { GridStateContext, GridViewportContext } from '../../../context';
+import { getPx, snap } from '../../../utils';
 import { filterSelectorNames } from '../toolBar';
 import { ChartConfig } from '../types';
 
@@ -14,44 +13,46 @@ const minRows = 8;
 const minCols = 7;
 
 type UseChartsLayerArgs = {
-  api: GridApi | null;
   charts: GridChart[];
-  zoom: number;
   columnSizes: Record<number, number>;
 };
 
-export function useChartsLayer({
-  api,
-  charts,
-  zoom,
-  columnSizes,
-}: UseChartsLayerArgs) {
+export function useChartsLayer({ charts, columnSizes }: UseChartsLayerArgs) {
+  const { zoom, gridSizes, canvasId } = useContext(GridStateContext);
+  const {
+    viewportCoords,
+    getCellX,
+    getCellY,
+    gridViewportSubscriber,
+    moveViewport,
+  } = useContext(GridViewportContext);
   const [chartConfigs, setChartConfigs] = useState<ChartConfig[]>([]);
   const viewportRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const baseViewportRef = useRef<{ x: number; y: number } | null>(null);
 
-  const currentGridSizes = api?.gridSizes;
-
   const computeChartConfigs = useCallback(() => {
-    if (charts?.length === 0 || !api || !currentGridSizes) {
+    if (charts?.length === 0) {
       baseViewportRef.current = null;
       setChartConfigs([]);
 
       return;
     }
 
-    const viewport = api.getViewportCoords();
+    const viewport = viewportCoords.current;
     baseViewportRef.current = {
       x: viewport.x1 ?? 0,
       y: viewport.y1 ?? 0,
     };
 
     const newChartConfigs: ChartConfig[] = [];
-    const { rowNumber, colNumber, gridLine } = currentGridSizes;
+    const { rowNumber, colNumber, gridLine } = gridSizes;
     const xOffset = rowNumber.width;
     const yOffset = colNumber.height;
-    const inset = gridLine.width;
+    const lineW = gridLine.width;
+
+    const gx = (col: number) => snap(getCellX(col) - xOffset);
+    const gy = (row: number) => snap(getCellY(row) - yOffset);
 
     charts.forEach((chart) => {
       const { startCol, startRow, endRow, endCol, tableName } = chart;
@@ -63,85 +64,95 @@ export function useChartsLayer({
       const finalToolbarRows = showToolbar ? toolbarRows : 0;
       const totalHeaderRows = finalTitleRows + finalToolbarRows;
 
-      // Chart body position (below title and toolbar)
-      const x1 = api.getCellX(startCol) - xOffset + inset;
-      const y1 = api.getCellY(startRow + totalHeaderRows) - yOffset + inset;
+      // Outer boundaries
+      const outerLeft = gx(startCol) - lineW;
+      const outerTop = gy(startRow);
+      const outerRight = gx(endCol) - lineW / 2;
+      const outerBottom = gy(endRow) + lineW / 2;
 
-      const x2 = api.getCellX(endCol) - xOffset - inset;
-      const y2 = api.getCellY(endRow) - yOffset - inset;
+      // Body block
+      const bodyTop = gy(startRow + totalHeaderRows);
+      const bodyLeft = outerLeft;
+      const bodyRight = outerRight;
+      const bodyBottom = outerBottom;
 
-      // Top position (for title or toolbar)
-      const x3 = api.getCellX(startCol) - xOffset + inset;
-      const y3 = api.getCellY(startRow) - yOffset + inset;
+      // Body dimensions
+      const width = snap(Math.max(0, bodyRight - bodyLeft));
+      const height = snap(Math.max(0, bodyBottom - bodyTop));
 
-      // Toolbar position (below title if both exist)
-      const toolbarStartRow = startRow + finalTitleRows;
-      const yToolbar = api.getCellY(toolbarStartRow) - yOffset + inset;
+      // Title block
+      const titleTop = outerTop;
+      const titleBottom = showTitle ? gy(startRow + finalTitleRows) : outerTop;
+      const titleHeight = snap(Math.max(0, titleBottom - titleTop));
 
-      // Title position
-      const yTitle = y3;
+      // Toolbar block
+      const toolBarTop = showTitle ? titleBottom : outerTop;
+      const toolBarBottom = showToolbar
+        ? gy(startRow + totalHeaderRows)
+        : toolBarTop;
+      const toolBarHeight = snap(Math.max(0, toolBarBottom - toolBarTop));
 
-      const x4 = api.getCellX(startCol + minCols) - xOffset - inset;
-      const y4 = api.getCellY(startRow + minRows) - yOffset - inset;
-
-      const width = round(Math.abs(x2 - x1));
-      const height = round(Math.abs(y2 - y1));
-
-      const titleHeight = showTitle ? round(Math.abs(yToolbar - yTitle)) : 0;
-      const toolBarHeight = showToolbar ? round(Math.abs(y1 - yToolbar)) : 0;
-
-      const minResizeWidth = Math.min(round(Math.abs(x4 - x3)), width);
-      const minResizeHeight = Math.min(round(Math.abs(y4 - y3)), height);
+      // Min resize constraints
+      const minRight = gx(startCol + minCols);
+      const minBottom = gy(startRow + minRows);
+      const minResizeWidth = snap(
+        Math.min(Math.max(0, minRight - outerLeft), width),
+      );
+      const outerHeight = snap(Math.max(0, outerBottom - outerTop));
+      const minResizeHeight = snap(
+        Math.min(Math.max(0, minBottom - outerTop), outerHeight),
+      );
 
       newChartConfigs.push({
-        left: round(x1),
-        top: round(y1),
+        left: bodyLeft,
+        top: bodyTop,
         width,
         height,
+
         toolBarHeight,
-        toolBarTop: round(yToolbar),
-        toolBarLeft: round(x3),
+        toolBarTop: snap(toolBarTop),
+        toolBarLeft: snap(outerLeft),
+
         titleHeight,
-        titleTop: round(yTitle),
-        titleLeft: round(x3),
+        titleTop: snap(titleTop),
+        titleLeft: snap(outerLeft),
+
         minResizeWidth,
         minResizeHeight,
+
         tableName,
         showToolbar,
         showTitle,
         gridChart: chart,
       });
     });
-
     setChartConfigs(newChartConfigs);
 
     if (containerRef.current) {
       containerRef.current.style.transform = 'translate3d(0px, 0px, 0px)';
     }
-  }, [api, charts, currentGridSizes]);
+  }, [charts, getCellX, getCellY, gridSizes, viewportCoords]);
 
   const setLayerPosition = useCallback(() => {
-    if (!api) return;
-
     const dataContainer = document.getElementById(canvasId);
 
     if (
       !dataContainer ||
       !viewportRef.current ||
       !containerRef.current ||
-      !currentGridSizes
+      !gridSizes
     )
       return;
 
     const { width, height, top, left } = dataContainer.getBoundingClientRect();
-    const { scrollBar, rowNumber, colNumber } = currentGridSizes;
+    const { scrollBar, rowNumber, colNumber } = gridSizes;
     const { trackSize } = scrollBar;
-    const containerWidth = round(width - rowNumber.width - trackSize);
-    const containerHeight = round(height - colNumber.height - trackSize);
-    const translateX = round(left + rowNumber.width);
-    const translateY = round(top + rowNumber.height);
+    const containerWidth = snap(width - rowNumber.width - trackSize);
+    const containerHeight = snap(height - colNumber.height - trackSize);
+    const translateX = snap(left + rowNumber.width);
+    const translateY = snap(top + rowNumber.height);
     viewportRef.current.style.transform = `translate(${getPx(
-      translateX
+      translateX,
     )}, ${getPx(translateY)})`;
     viewportRef.current.style.width = getPx(containerWidth);
     viewportRef.current.style.height = getPx(containerHeight);
@@ -153,19 +164,26 @@ export function useChartsLayer({
     } else {
       viewportRef.current.style.display = 'block';
     }
-  }, [api, currentGridSizes]);
+  }, [canvasId, gridSizes]);
 
   // Allow scrolling spreadsheet when the mouse is over charts
   useEffect(() => {
-    if (!api) return;
-
     const container = containerRef.current;
 
     const onWheel = (e: WheelEvent) => {
+      const target = e.target as HTMLElement | null;
+      const isOverLineChart = !!target?.closest(
+        `[data-chart-type="${ChartType.LINE}"]`,
+      );
+
+      const isZoomGesture = isOverLineChart && (e.ctrlKey || e.metaKey);
+
+      if (isZoomGesture) return;
+
       if (e.deltaY) {
-        api.moveViewport(0, e.deltaY / 2);
+        moveViewport(0, e.deltaY / 2);
       } else if (e.deltaX) {
-        api.moveViewport(e.deltaX, 0);
+        moveViewport(e.deltaX, 0);
       }
 
       e.preventDefault();
@@ -175,7 +193,7 @@ export function useChartsLayer({
     return () => {
       container?.removeEventListener('wheel', onWheel, true);
     };
-  }, [api]);
+  }, [moveViewport]);
 
   useEffect(() => {
     setLayerPosition();
@@ -191,7 +209,7 @@ export function useChartsLayer({
     return () => {
       observer.disconnect();
     };
-  }, [setLayerPosition]);
+  }, [canvasId, setLayerPosition]);
 
   useEffect(() => {
     setTimeout(() => {
@@ -200,15 +218,13 @@ export function useChartsLayer({
   }, [zoom, charts, columnSizes, computeChartConfigs]);
 
   useEffect(() => {
-    if (!api) return;
-
-    const viewportUnsubscribe = api.gridViewportSubscription(() => {
+    const viewportUnsubscribe = gridViewportSubscriber.current.subscribe(() => {
       if (!containerRef.current || !baseViewportRef.current) return;
 
-      const viewport = api.getViewportCoords();
+      const viewport = viewportCoords.current;
       const { x: baseX, y: baseY } = baseViewportRef.current;
-      const dx = baseX - viewport.x1;
-      const dy = baseY - viewport.y1;
+      const dx = snap(baseX - viewport.x1);
+      const dy = snap(baseY - viewport.y1);
 
       containerRef.current.style.transform = `translate3d(${dx}px, ${dy}px, 0)`;
     });
@@ -216,7 +232,7 @@ export function useChartsLayer({
     return () => {
       viewportUnsubscribe();
     };
-  }, [api]);
+  }, [gridViewportSubscriber, viewportCoords]);
 
   return {
     chartConfigs,

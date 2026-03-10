@@ -13,7 +13,7 @@ export function useSearch(eventBus: GridEventBus, cell: GridCell | null) {
     () => () => {
       if (toRef.current) clearTimeout(toRef.current);
     },
-    []
+    [],
   );
 
   const onChange = (next: string) => {

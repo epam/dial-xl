@@ -12,13 +12,15 @@ export class ProjectTree extends BasePanel {
   }
 
   panelName = 'project';
+  hotkey = 'Alt+1';
 
   private openElement = `[data-panel="project"][data-qa="collapsed-panel-button"]`;
 
   private addImportButton =
     'span:has-text("Inputs")+span div.ant-dropdown-trigger';
 
-  private importExternalSource = "button[data-qa='create_import']";
+  private importExternalSource =
+    "button[data-qa='ProjectPanel-ImportFromExternal']";
 
   public getTreeNode(nodeName: string) {
     return this.innerPage.locator(this.nodeTitle).getByText(nodeName);

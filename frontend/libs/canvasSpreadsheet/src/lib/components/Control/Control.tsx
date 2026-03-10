@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useContext, useEffect, useRef, useState } from 'react';
 
 import {
   ControlData,
@@ -6,14 +6,15 @@ import {
   useClickOutside,
 } from '@frontend/common';
 
-import { GridApi, GridCell } from '../../types';
+import { GridStateContext, GridViewportContext } from '../../context';
+import { GridCell } from '../../types';
+import { EventTypeOpenControl, GridEvent } from '../../types';
 import {
   filterByTypeAndCast,
   focusSpreadsheet,
   getPx,
   GridEventBus,
 } from '../../utils';
-import { EventTypeOpenControl, GridEvent } from '../GridApiWrapper';
 import { ControlCheckboxes, ControlDropdown } from './components';
 
 const defaultPosition = { x: 0, y: 0 };
@@ -22,17 +23,12 @@ type Props = {
   controlData: ControlData | null;
   controlIsLoading: boolean;
   eventBus: GridEventBus;
-  api: GridApi | null;
-  zoom?: number;
 };
 
-export function Control({
-  api,
-  controlData,
-  controlIsLoading,
-  eventBus,
-  zoom = 1,
-}: Props) {
+export function Control({ controlData, controlIsLoading, eventBus }: Props) {
+  const { getCellX, getCellY, gridViewportSubscriber } =
+    useContext(GridViewportContext);
+  const { events$, zoom, canvasId } = useContext(GridStateContext);
   const [controlOpened, setControlOpened] = useState(false);
   const [controlPosition, setControlPosition] = useState(defaultPosition);
   const [cell, setCell] = useState<GridCell | null>(null);
@@ -54,7 +50,7 @@ export function Control({
       setEnableClickOutside(false);
       setCell(null);
       setControlPosition(defaultPosition);
-      focusSpreadsheet();
+      focusSpreadsheet(canvasId);
 
       eventBus.emit({
         type: 'control/close',
@@ -69,7 +65,7 @@ export function Control({
 
       if (onEscape) return;
     },
-    [controlOpened, eventBus]
+    [canvasId, controlOpened, eventBus],
   );
 
   useClickOutside(
@@ -77,13 +73,11 @@ export function Control({
     () => hideControl(),
     ['mousedown', 'contextmenu'],
     false,
-    enableClickOutside
+    enableClickOutside,
   );
 
   const showControl = useCallback(
     (cellData: GridCell) => {
-      if (!api) return;
-
       if (controlOpened) {
         hideControl();
       }
@@ -95,8 +89,8 @@ export function Control({
 
         if (!table || !field) return;
 
-        const x = api.getCellX(startCol);
-        const y = api.getCellY(row + 1);
+        const x = getCellX(startCol);
+        const y = getCellY(row + 1);
 
         // Disable click outside first when switching controls
         setEnableClickOutside(false);
@@ -135,7 +129,7 @@ export function Control({
         });
       }, 0);
     },
-    [api, controlOpened, hideControl, zoom, eventBus]
+    [controlOpened, hideControl, getCellX, getCellY, zoom, eventBus],
   );
 
   const onKeydown = useCallback(
@@ -146,7 +140,7 @@ export function Control({
 
       hideControl(true);
     },
-    [hideControl]
+    [hideControl],
   );
 
   useEffect(() => {
@@ -158,12 +152,10 @@ export function Control({
   }, [onKeydown]);
 
   useEffect(() => {
-    if (!api) return;
-
-    const gridViewportUnsubscribe = api.gridViewportSubscription(() =>
-      hideControl()
+    const gridViewportUnsubscribe = gridViewportSubscriber.current.subscribe(
+      () => hideControl(),
     );
-    const openControlSubscription = api.events$
+    const openControlSubscription = events$
       .pipe(filterByTypeAndCast<EventTypeOpenControl>(GridEvent.openControl))
       .subscribe(({ cellData }) => {
         showControl(cellData);
@@ -177,15 +169,15 @@ export function Control({
         clearTimeout(timeoutRef.current);
       }
     };
-  }, [api, hideControl, showControl]);
+  }, [events$, gridViewportSubscriber, hideControl, showControl]);
 
   return (
     <div
-      className="h-full w-full absolute left-0 top-0 pointer-events-none overflow-hidden z-[305]"
+      className="h-full w-full absolute left-0 top-0 pointer-events-none overflow-hidden z-305"
       id="controlContainer"
     >
       <div
-        className="rounded-md break-words z-600 absolute transition-opacity p-2 bg-bg-layer-0 border border-stroke-primary shadow-lg"
+        className="rounded-md wrap-break-word z-600 absolute transition-opacity p-2 bg-bg-layer-0 border border-stroke-primary shadow-lg"
         ref={clickRef}
         style={{
           top: controlPosition.y,

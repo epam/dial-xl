@@ -1,39 +1,32 @@
-import { RefObject, useCallback, useContext, useEffect } from 'react';
+import { useCallback, useContext, useEffect } from 'react';
 
-import { GridApi } from '../../../types';
+import { GridViewportContext } from '../../../context';
 import { getPx } from '../../../utils';
 import { CellEditorContext } from '../CellEditorContext';
 
-type Props = {
-  apiRef: RefObject<GridApi>;
-};
-
-export function useCellEditorViewport({ apiRef }: Props) {
+export function useCellEditorViewport() {
+  const { gridViewportSubscriber } = useContext(GridViewportContext);
   const { currentCell, isOpen, setEditorStyle } = useContext(CellEditorContext);
 
-  const onViewportChange = useCallback(() => {
-    if (!apiRef.current || !isOpen || !currentCell) return;
+  const onViewportChange = useCallback(
+    (deltaX: number, deltaY: number) => {
+      if (!isOpen || !currentCell) return;
 
-    const { col, row } = currentCell;
-
-    const x = apiRef.current.getCellX(col);
-    const y = apiRef.current.getCellY(row);
-
-    setEditorStyle((prev) => ({
-      ...prev,
-      left: getPx(x),
-      top: getPx(y),
-    }));
-  }, [apiRef, currentCell, isOpen, setEditorStyle]);
+      setEditorStyle((prev) => ({
+        ...prev,
+        left: getPx(parseInt(prev.left) - deltaX),
+        top: getPx(parseInt(prev.top) - deltaY),
+      }));
+    },
+    [currentCell, isOpen, setEditorStyle],
+  );
 
   useEffect(() => {
-    if (!apiRef.current) return;
-
     const unsubscribe =
-      apiRef.current.gridViewportSubscription(onViewportChange);
+      gridViewportSubscriber.current.subscribe(onViewportChange);
 
     return () => {
       unsubscribe();
     };
-  }, [apiRef, onViewportChange]);
+  }, [gridViewportSubscriber, onViewportChange]);
 }

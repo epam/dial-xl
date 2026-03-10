@@ -144,82 +144,185 @@ public class Dates {
             return Doubles.ERROR_NA;
         }
 
-        if (text.length() == 8) { // M/d/yyyy
-            if (isMDYYYY(text)) {
-                return toDay(digits4(text, 4), digit(text, 0), digit(text, 2));
-            }
-        } else if (text.length() == 9) { // MM/d/yyyy or M/dd/yyyy
-            if (isMMDYYYY(text)) {
-                return toDay(digits4(text, 5), digits2(text, 0), digit(text, 3));
-            } else if (isMDDYYYY(text)) {
-                return toDay(digits4(text, 5), digit(text, 0), digits2(text, 2));
-            }
-        } else { // MM/dd/yyyy or yyyy-MM-dd
-            if (isMMDDYYYY(text)) {
-                return toDay(digits4(text, 6), digits2(text, 0), digits2(text, 3));
-            } else if (isYYYYMMdd(text)) {
-                return toDay(digits4(text, 0), digits2(text, 5), digits2(text, 8));
-            }
+        if (text.length() == 10 && isYYYYMMdd(text)) {
+            return toDay(digits4(text, 0), digits2(text, 5), digits2(text, 8));
         }
 
-        return Doubles.ERROR_NA;
+        return parse(text, false);
     }
 
     private double parseDateTime(String text) {
-        if (text.length() < 19 || text.length() > 29) {
+        if (text.length() < 12 || text.length() > 32) {
             return Doubles.ERROR_NA;
         }
 
         // yyyy-MM-dd hh:mm:ss or yyyy-MM-dd hh:mm:ss.SSSSSSSSS
-        if (isYYYYMMdd(text) && isSpaceOrT(text, 10) && isTime(text, 11) && isFraction(text, 19)) {
+        if (text.length() >= 19 && text.length() <= 29
+                && isYYYYMMdd(text) && isSpaceOrT(text, 10) && isTime(text, 11) && isFraction(text, 19)) {
             return toDay(digits4(text, 0), digits2(text, 5), digits2(text, 8),
                     digits2(text, 11), digits2(text, 14), digits2(text, 17),
                     fraction(text, 20));
-        } else if (text.length() == 20) {  // M/d/yyyy hh:mm:ss AM
-            if (isMDYYYY(text) && isSpace(text, 8) && isTime(text, 9) && isSpace(text, 17) && isAPM(text, 18)) {
-                return toDay(digits4(text, 4), digit(text, 0), digit(text, 2),
-                        digits2(text, 9) + (isP(text, 18) ? 12 : 0), digits2(text, 12), digits2(text, 15),
-                        0);
+        }
+
+        return parse(text, true);
+    }
+
+    private static double parse(String text, boolean time) {
+        int month, day, year = 0;
+        int position = 0;
+
+        char c = charAt(text, position++);
+        if (!isDigit(c)) {
+            return Doubles.ERROR_NA;
+        }
+        month = digit(c);
+        c = charAt(text, position++);
+        if (isDigit(c)) {
+            month = 10 * month + digit(c);
+            c = charAt(text, position++);
+        }
+
+        if (c != '/' && c != '-' && c != '.') {
+            return Doubles.ERROR_NA;
+        }
+        char dateSeparator = c;
+
+        c = charAt(text, position++);
+        if (!isDigit(c)) {
+            return Doubles.ERROR_NA;
+        }
+        day = digit(c);
+        c = charAt(text, position++);
+        if (isDigit(c)) {
+            day = 10 * day + digit(c);
+            c = charAt(text, position++);
+        }
+
+        if (c != dateSeparator) {
+            return Doubles.ERROR_NA;
+        }
+
+        for (int i = 0; i < 4; ++i) {
+            c = charAt(text, position++);
+            if (!isDigit(c)) {
+                return Doubles.ERROR_NA;
             }
-        } else if (text.length() == 21) {  // MM/d/yyyy hh:mm:ss AM or M/dd/yyyy hh:mm:ss PM
-            if (isMMDYYYY(text) && isSpace(text, 9) && isTime(text, 10) && isSpace(text, 18) && isAPM(text, 19)) {
-                return toDay(digits4(text, 5), digits2(text, 0), digit(text, 3),
-                        digits2(text, 10) + (isP(text, 19) ? 12 : 0), digits2(text, 13), digits2(text, 16),
-                        0);
-            } else if (isMDDYYYY(text) && isSpace(text, 9) && isTime(text, 10) && isSpace(text, 18) && isAPM(text, 19)) {
-                return toDay(digits4(text, 5), digit(text, 0), digits2(text, 2),
-                        digits2(text, 10) + (isP(text, 19) ? 12 : 0), digits2(text, 13), digits2(text, 16),
-                        0);
+            year = 10 * year + digit(c);
+        }
+
+        if (!time) {
+            // M/d/yyyy or M-d-yyyy or M.d.yyyy
+            return position == text.length()
+                    ? toDay(year, month, day)
+                    : Doubles.ERROR_NA;
+        }
+
+        c = charAt(text, position++);
+        if (c != ' ') {
+            return Doubles.ERROR_NA;
+        }
+
+        c = charAt(text, position++);
+        if (!isDigit(c)) {
+            return Doubles.ERROR_NA;
+        }
+        int hour = digit(c);
+        c = charAt(text, position++);
+        if (isDigit(c)) {
+            hour = 10 * hour + digit(c);
+            c = charAt(text, position++);
+        }
+
+        int minute = 0, second = 0, nanosecond = 0;
+        boolean hasMinute = false;
+        if (c == ':') {
+            hasMinute = true;
+            c = charAt(text, position++);
+            if (!isDigit(c)) {
+                return Doubles.ERROR_NA;
             }
-        } else if (text.length() == 22) { // MM/dd/yyyy hh:mm:ss AM
-            if (isMMDDYYYY(text) && isSpace(text, 10) && isTime(text, 11) && isSpace(text, 19) && isAPM(text, 20)) {
-                return toDay(digits4(text, 6), digits2(text, 0), digits2(text, 3),
-                        digits2(text, 11) + (isP(text, 20) ? 12 : 0), digits2(text, 14), digits2(text, 17),
-                        0);
+            minute = digit(c);
+            c = charAt(text, position++);
+            if (isDigit(c)) {
+                minute = 10 * minute + digit(c);
+                c = charAt(text, position++);
+            }
+
+            if (c == ':') {
+                c = charAt(text, position++);
+                if (!isDigit(c)) {
+                    return Doubles.ERROR_NA;
+                }
+                second = digit(c);
+                c = charAt(text, position++);
+                if (isDigit(c)) {
+                    second = 10 * second + digit(c);
+                    c = charAt(text, position++);
+                }
+
+                if (c == '.') {
+                    int nanosCount = 0;
+                    int multiplier = 100_000_000;
+                    do {
+                        c = charAt(text, position++);
+                        if (nanosCount == 9) {
+                            break;
+                        }
+                        if (!isDigit(c)) {
+                            break;
+                        }
+                        nanosecond += multiplier * digit(c);
+                        multiplier /= 10;
+                        ++nanosCount;
+                    } while (true);
+                    if (nanosCount == 0) {
+                        return Doubles.ERROR_NA;
+                    }
+                }
             }
         }
 
-        return Doubles.ERROR_NA;
+        if (c == ' ' && is12hour(hour)) {
+            // M/d/yyyy h a or M/d/yyyy h:m a or M/d/yyyy h:m:s a or M/d/yyyy h:m:s.S a
+            return parseAPM(text, position, year, month, day, hour, minute, second, nanosecond);
+        }
+
+        // M/d/yyyy H:m or M/d/yyyy H:m:s or M/d/yyyy H:m:s.S
+        return hasMinute && position == text.length() + 1
+                ? toDay(year, month, day, hour, minute, second, nanosecond)
+                : Doubles.ERROR_NA;
     }
 
-    private static boolean isMDYYYY(String text) {
-        return isDigit(text, 0) && isSlash(text, 1) && isDigit(text, 2)
-                && isSlash(text, 3) && isDigits4(text, 4);
+    private static double parseAPM(
+            String text, int position, int year, int month, int day, int hour, int minute, int second, long nanosecond) {
+        char a = charAt(text, position++);
+        char b = charAt(text, position++);
+        int shift = 0;
+        if (a == 'p' && b == 'm' || a == 'P' && b == 'M') {
+            shift = 12;
+        } else if (!(a == 'a' && b == 'm' || a == 'A' && b == 'M')) {
+            return Doubles.ERROR_NA;
+        }
+
+        return text.length() == position
+                ? toDay(year, month, day, to24hour(hour, shift), minute, second, nanosecond)
+                : Doubles.ERROR_NA;
     }
 
-    private static boolean isMMDYYYY(String text) {
-        return isDigits2(text, 0) && isSlash(text, 2) && isDigit(text, 3)
-                && isSlash(text, 4) && isDigits4(text, 5);
+    private static char charAt(String text, int i) {
+        return i < text.length() ? text.charAt(i) : 0;
     }
 
-    private static boolean isMDDYYYY(String text) {
-        return isDigit(text, 0) && isSlash(text, 1) && isDigits2(text, 2)
-                && isSlash(text, 4) && isDigits4(text, 5);
+    private static int digit(char c) {
+        return c - '0';
     }
 
-    private static boolean isMMDDYYYY(String text) {
-        return isDigits2(text, 0) && isSlash(text, 2) && isDigits2(text, 3)
-                && isSlash(text, 5) && isDigits4(text, 6);
+    private static int to24hour(int hour, int shift) {
+        return (hour % 12) + shift;
+    }
+
+    private static boolean is12hour(int hour) {
+        return hour >= 1 && hour <= 12;
     }
 
     private static boolean isYYYYMMdd(String text) {
@@ -231,12 +334,6 @@ public class Dates {
         return isDigits2(text, index) && isColon(text, index + 2)
                 && isDigits2(text, index + 3)  && isColon(text, index + 5)
                 && isDigits2(text, index + 6);
-    }
-
-    private static boolean isAPM(String text, int index) {
-        char a = text.charAt(index);
-        char b = text.charAt(index + 1);
-        return (a == 'A' || a == 'P') && b == 'M';
     }
 
     private static boolean isFraction(String text, int index) {
@@ -253,16 +350,8 @@ public class Dates {
         return true;
     }
 
-    private boolean isSlash(String text, int index) {
-        return text.charAt(index) == '/';
-    }
-
     private boolean isHyphen(String text, int index) {
         return text.charAt(index) == '-';
-    }
-
-    private boolean isSpace(String text, int index) {
-        return text.charAt(index) == ' ';
     }
 
     private boolean isSpaceOrT(String text, int index) {
@@ -274,12 +363,12 @@ public class Dates {
         return text.charAt(index) == ':';
     }
 
-    private boolean isP(String text, int index) {
-        return text.charAt(index) == 'P';
-    }
-
     private boolean isDigit(String text, int index) {
         char c = text.charAt(index);
+        return isDigit(c);
+    }
+
+    private boolean isDigit(char c) {
         return '0' <= c && c <= '9';
     }
 

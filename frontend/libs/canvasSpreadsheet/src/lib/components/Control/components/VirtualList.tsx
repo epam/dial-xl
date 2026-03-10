@@ -1,6 +1,7 @@
-import VirtualList, { ListRef } from 'rc-virtual-list';
 import { Key, ReactNode } from 'react';
 import { useEffect, useRef } from 'react';
+
+import VirtualList, { ListRef } from '@rc-component/virtual-list';
 
 type Props<T> = {
   data: T[];

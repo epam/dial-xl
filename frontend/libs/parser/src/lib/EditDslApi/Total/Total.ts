@@ -97,7 +97,7 @@ export class Total extends ObservableObserver {
       }
     }
     throw new Error(
-      `Field '${fieldName}' not found in any FieldGroup of this Total.`
+      `Field '${fieldName}' not found in any FieldGroup of this Total.`,
     );
   }
 
@@ -131,7 +131,7 @@ export class Total extends ObservableObserver {
       }
     }
     throw new Error(
-      `Field '${fieldName}' not found in any FieldGroup of this Total.`
+      `Field '${fieldName}' not found in any FieldGroup of this Total.`,
     );
   }
 

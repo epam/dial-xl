@@ -1,4 +1,4 @@
-import Fuse from 'fuse.js';
+import { IFuseOptions } from 'fuse.js';
 
 import {
   csvFileExtension,
@@ -30,7 +30,7 @@ export const tabToSingleRouteMap: { [key in DashboardTab]: string } = {
   examples: routes.public,
 };
 
-export const dashboardFuseOptions: Fuse.IFuseOptions<any> = {
+export const dashboardFuseOptions: IFuseOptions<any> = {
   includeScore: true,
   shouldSort: true,
   includeMatches: true,
@@ -45,7 +45,7 @@ export const dashboardFuseOptions: Fuse.IFuseOptions<any> = {
 
 export function filterDashboardItems(
   items: DashboardItem[],
-  filter: DashboardFilter
+  filter: DashboardFilter,
 ) {
   if (filter === 'all') return items;
 
@@ -73,7 +73,7 @@ export function sortDashboardItems(
   items: DashboardItem[],
   sortKey: DashboardSortType,
   sortFn: ((a: DashboardItem, b: DashboardItem) => number) | undefined,
-  sortAsc: boolean
+  sortAsc: boolean,
 ): DashboardItem[] {
   return items.sort((a, b) => {
     const aIsFolder = a.nodeType === MetadataNodeType.FOLDER;

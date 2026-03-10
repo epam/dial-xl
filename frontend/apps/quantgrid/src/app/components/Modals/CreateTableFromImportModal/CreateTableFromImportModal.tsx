@@ -1,6 +1,6 @@
 import { Checkbox, Input, Modal, Spin } from 'antd';
 import cx from 'classnames';
-import Fuse from 'fuse.js';
+import Fuse, { IFuseOptions } from 'fuse.js';
 import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import Select from 'react-select';
 import { toast } from 'react-toastify';
@@ -20,6 +20,7 @@ import {
   SelectClasses,
   selectStyles,
 } from '@frontend/common';
+import { escapeValue } from '@frontend/parser';
 
 import { ProjectContext } from '../../../context';
 import {
@@ -31,7 +32,7 @@ import {
 import { useCreateTableFromImportModalStore } from '../../../store';
 
 const newVersionValue = 'newVersion';
-const fuseOptions: Fuse.IFuseOptions<any> = {
+const fuseOptions: IFuseOptions<any> = {
   includeScore: true,
   shouldSort: true,
   includeMatches: true,
@@ -67,7 +68,7 @@ export function CreateTableFromImportModal() {
 
   const [schema, setSchema] = useState<ImportSchema | null>(null);
   const [selectedColumns, setSelectedColumns] = useState<Set<string>>(
-    new Set()
+    new Set(),
   );
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -140,7 +141,7 @@ export function CreateTableFromImportModal() {
 
       if (response?.syncs) {
         const syncList = Object.values(response.syncs).filter(
-          (s) => s.status === 'SUCCEEDED'
+          (s) => s.status === 'SUCCEEDED',
         );
         setVersions(syncList);
       } else {
@@ -175,7 +176,7 @@ export function CreateTableFromImportModal() {
 
   const selectedVersionSync = useMemo(
     () => versions.find((v) => v.version === selectedVersion),
-    [versions, selectedVersion]
+    [versions, selectedVersion],
   );
 
   const currentSchemaColumns = useMemo<Record<
@@ -213,7 +214,8 @@ export function CreateTableFromImportModal() {
     (version: string, schemaCols: Record<string, ImportColumn>) => {
       if (!datasetKey) return;
 
-      const formula = `IMPORT("${sourceName}/${datasetKey}", ${version})`;
+      const path = `${sourceName}/${datasetKey}`;
+      const formula = `IMPORT(${escapeValue(path)}, ${version})`;
 
       createExpandedTable({
         row: row ?? 0,
@@ -223,11 +225,12 @@ export function CreateTableFromImportModal() {
         tableName: datasetKey,
         keys: [],
         type: ColumnDataType.TABLE_VALUE,
+        isAssignable: false,
         isSourceDimField: true,
         variant: 'dimFormula',
       });
     },
-    [col, datasetKey, createExpandedTable, row, sourceName]
+    [col, datasetKey, createExpandedTable, row, sourceName],
   );
 
   const handleSubmit = useCallback(async () => {
@@ -247,8 +250,8 @@ export function CreateTableFromImportModal() {
       }
       const selectedSchema: Record<string, ImportColumn> = Object.fromEntries(
         Object.entries(schemaCols).filter(([columnName]) =>
-          selectedColumns.has(columnName)
-        )
+          selectedColumns.has(columnName),
+        ),
       );
       requestAndCreateTable(versionToUse, selectedSchema);
       close();
@@ -262,8 +265,8 @@ export function CreateTableFromImportModal() {
     const selectedSchema: ImportSchema = {
       columns: Object.fromEntries(
         Object.entries(schema.columns).filter(([columnName]) =>
-          selectedColumns.has(columnName)
-        )
+          selectedColumns.has(columnName),
+        ),
       ),
     };
 
@@ -285,7 +288,7 @@ export function CreateTableFromImportModal() {
       toast.info(
         ok === undefined
           ? 'Pulling new data has started'
-          : 'Failed to start pulling data'
+          : 'Failed to start pulling data',
       );
       close();
 
@@ -346,12 +349,12 @@ export function CreateTableFromImportModal() {
 
   const totalColumnsCount = useMemo(
     () => (currentSchemaColumns ? Object.keys(currentSchemaColumns).length : 0),
-    [currentSchemaColumns]
+    [currentSchemaColumns],
   );
 
   const okDisabled = useMemo(
     () => isSubmitting || selectedColumns.size === 0 || totalColumnsCount === 0,
-    [isSubmitting, selectedColumns.size, totalColumnsCount]
+    [isSubmitting, selectedColumns.size, totalColumnsCount],
   );
 
   const okText = useMemo(() => {
@@ -381,7 +384,7 @@ export function CreateTableFromImportModal() {
         className: cx(
           modalFooterButtonClasses,
           primaryButtonClasses,
-          primaryDisabledButtonClasses
+          primaryDisabledButtonClasses,
         ),
         disabled: okDisabled,
         loading: isSubmitting,
@@ -442,7 +445,7 @@ export function CreateTableFromImportModal() {
                       onChange={(opt) =>
                         setSelectedVersion(
                           (opt as { value: string } | null)?.value ??
-                            newVersionValue
+                            newVersionValue,
                         )
                       }
                     />
@@ -530,7 +533,7 @@ export function CreateTableFromImportModal() {
                             </div>
                           </div>
                         </Checkbox>
-                      )
+                      ),
                     )}
                   </div>
                 </div>

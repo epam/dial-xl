@@ -16,6 +16,7 @@ export type CreateExpandedTableParams = {
   schema: string[];
   keys: string[];
   type: ColumnDataType;
+  isAssignable: boolean;
 
   // mode toggles
   variant: TableVariant;
@@ -23,4 +24,5 @@ export type CreateExpandedTableParams = {
   // additional parameters
   keyValues?: string | number;
   isSourceDimField?: boolean;
+  createInNewSheet?: boolean;
 };

@@ -17,7 +17,7 @@ export class ParsedFields {
   constructor(
     span: Span | undefined,
     fields: ParsedField[],
-    formula: ParsedText | undefined
+    formula: ParsedText | undefined,
   ) {
     this.span = span;
     this.fields = fields;

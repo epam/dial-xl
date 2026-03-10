@@ -348,7 +348,7 @@ public class Compiler {
         for (ParsedKey key : parsed.keySet()) {
             if ((key instanceof FieldKey || key instanceof TotalKey)) {
                 Set<Viewport> all = map.computeIfAbsent(key, t -> new HashSet<>());
-                Viewport anchor = new Viewport(key, computationType, 0, 0, false, false);
+                Viewport anchor = new Viewport(key, computationType, 0, 0, 0, 0, false, false);
                 all.add(anchor);
             }
         }

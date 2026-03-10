@@ -43,7 +43,7 @@ export interface OrganizedData {
 
 type OrganizeDataFn = (
   data: ChartsData,
-  gridChart: GridChart
+  gridChart: GridChart,
 ) => OrganizedData | undefined;
 
 export type GetOptionProps = {

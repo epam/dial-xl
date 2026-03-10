@@ -12,6 +12,7 @@ import java.sql.DatabaseMetaData;
 import java.sql.JDBCType;
 import java.sql.ResultSet;
 import java.sql.Statement;
+import java.util.Collection;
 
 public abstract class JdbcInput implements DataInput {
 
@@ -85,10 +86,7 @@ public abstract class JdbcInput implements DataInput {
 
     @Override
     public DataStream getStream(String dataset, DataSchema schema) throws Exception {
-        String table = dataset.replace('/', '.');
-        String names = String.join(",", schema.getColumns().keySet());
-
-        String query = "select %s from %s".formatted(names, table);
+        String query = buildQuery(dataset, schema.getColumns().keySet());
         Connection connection = null;
         Statement statement = null;
         ResultSet set = null;
@@ -107,6 +105,8 @@ public abstract class JdbcInput implements DataInput {
     }
 
     protected abstract Connection getConnection() throws Exception;
+
+    protected abstract String buildQuery(String dataset, Collection<String> columns);
 
     private InputColumnType toInputColumnType(JDBCType type) {
         return switch (type) {

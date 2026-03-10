@@ -67,7 +67,7 @@ export function useChartEditDsl() {
 
       return args;
     },
-    [viewGridData]
+    [viewGridData],
   );
 
   const chartResize = useCallback(
@@ -102,7 +102,7 @@ export function useChartEditDsl() {
         endCol: col + cols - 1,
       });
     },
-    [gridApi, findEditContext, updateDSL]
+    [gridApi, findEditContext, updateDSL],
   );
 
   const updateSelectorValue = useCallback(
@@ -110,7 +110,7 @@ export function useChartEditDsl() {
       tableName: string,
       fieldName: string,
       value: number | string,
-      hasNoData: boolean
+      hasNoData: boolean,
     ) => {
       const context = findEditContext(tableName, fieldName);
 
@@ -132,7 +132,7 @@ export function useChartEditDsl() {
           const success = editFieldDecorator(
             field,
             chartSelectorDecoratorName,
-            decoratorArgs
+            decoratorArgs,
           );
           if (!success) return;
         } else {
@@ -141,7 +141,7 @@ export function useChartEditDsl() {
           const success = editFieldDecorator(
             fieldToRemoveSelector,
             chartSelectorDecoratorName,
-            decoratorArgs
+            decoratorArgs,
           );
           if (!success) return;
         }
@@ -154,7 +154,7 @@ export function useChartEditDsl() {
         historyTitle,
       });
     },
-    [findEditContext, updateDSL]
+    [findEditContext, updateDSL],
   );
 
   const addChart = useCallback(
@@ -182,7 +182,7 @@ export function useChartEditDsl() {
         [targetCol, targetRow] = getNewTablePlacementFromSourceTable(
           tableName,
           viewGridData,
-          parsedSheets
+          parsedSheets,
         );
       }
 
@@ -254,7 +254,7 @@ export function useChartEditDsl() {
       gridApi,
       getInitialRowNumberArgs,
       openPanel,
-    ]
+    ],
   );
 
   const updateChartSections = useCallback(
@@ -286,7 +286,7 @@ export function useChartEditDsl() {
             table.moveFieldBeforeOrAfter(
               sourceFieldName,
               validTarget ? targetFieldName : null,
-              true
+              true,
             );
 
             currentFieldOrder.splice(sourceIndex, 1);
@@ -327,7 +327,7 @@ export function useChartEditDsl() {
         tableName,
       });
     },
-    [findEditContext, updateDSL]
+    [findEditContext, updateDSL],
   );
 
   const updateChartOrientation = useCallback(
@@ -357,7 +357,7 @@ export function useChartEditDsl() {
         const success = editTableDecorator(
           table,
           visualizationDecoratorName,
-          args
+          args,
         );
         if (!success) return;
       }
@@ -367,7 +367,7 @@ export function useChartEditDsl() {
         const success = editTableDecorator(
           table,
           visualizationDecoratorName,
-          args
+          args,
         );
         if (!success) return;
       }
@@ -386,7 +386,7 @@ export function useChartEditDsl() {
         historyTitle,
       });
     },
-    [findEditContext, getInitialRowNumberArgs, updateDSL]
+    [findEditContext, getInitialRowNumberArgs, updateDSL],
   );
 
   const setChartType = useCallback(
@@ -411,7 +411,7 @@ export function useChartEditDsl() {
       const success = editTableDecorator(
         table,
         visualizationDecoratorName,
-        visualizationArgs
+        visualizationArgs,
       );
 
       if (!success) return;
@@ -445,7 +445,7 @@ export function useChartEditDsl() {
         tableName,
       });
     },
-    [findEditContext, getInitialRowNumberArgs, updateDSL, viewGridData]
+    [findEditContext, getInitialRowNumberArgs, updateDSL, viewGridData],
   );
 
   return {

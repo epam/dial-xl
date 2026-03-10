@@ -19,7 +19,7 @@ class SparkInputProviderTest extends SharedLocalSparkTest {
     @Test
     void testFullReadCpi() {
         InputMetadata metadata = TestInputs.readMetadata(CPI_CSV);
-        List<String> readColumns = List.copyOf(metadata.columnTypes().keySet());
+        List<String> readColumns = metadata.names();
 
         SparkValue value = new SparkInputProvider().readData(readColumns, metadata, null);
         Dataset<Row> dataset = value.getDataset();
@@ -62,7 +62,7 @@ class SparkInputProviderTest extends SharedLocalSparkTest {
     @Test
     void testReadAllTypesWithNull() {
         InputMetadata metadata = TestInputs.readMetadata(ALL_TYPES_CSV);
-        List<String> readColumns = List.copyOf(metadata.columnTypes().keySet());
+        List<String> readColumns = metadata.names();
         SparkValue value = new SparkInputProvider().readData(readColumns, metadata, null);
 
         Dataset<Row> dataset = value.getDataset();

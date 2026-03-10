@@ -207,7 +207,8 @@ async def generate_actions(
     )
 
     system_prompt = (
-        f"Generate the code according to the request in a proper format according to a plan. "
+        f"Generate the code according to the request "
+        f"in a proper format according to a plan. "
         f"Decide on how many steps of the plan you want to generate.\n\n"
         f"<code_documentation>\n{docs}\n</code_documentation>\n"
         f"<project_state>\n{rendered_project_state}\n</project_state>\n\n"
@@ -231,10 +232,13 @@ async def generate_actions(
 @with_stage("Fixing")
 async def generate_fix_actions(
     stage: Stage,
+    errors_to_fix: str,
     runtime: ToolRuntime[Context, ActionsAgentState],
 ) -> tuple[str, ProjectArtifact]:
     """
     Fix errors in project stage by editing or deleting+creating tables.
+    Args:
+        errors_to_fix: str - problems or errors that need fixing.
     """
     resources = runtime.context.resources.get_agent("actions")
     docs = resources.raw_files["doc"].content.decode("utf-8")
@@ -250,7 +254,7 @@ async def generate_fix_actions(
         f"{docs}"
     )
 
-    fixing_prompt = f"Project state with errors:\n{rendered_project_state}"
+    fixing_prompt = f"Project state with errors:\n{rendered_project_state}\n\nErrors:\n{errors_to_fix}"
 
     model = runtime.context.default_agent_model
     actions = await model.ainvoke_with_structure(

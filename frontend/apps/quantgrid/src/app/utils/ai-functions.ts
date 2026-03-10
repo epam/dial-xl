@@ -1,7 +1,7 @@
 import { OverrideValue } from '@frontend/parser';
 
 export const getIsAIFunctionsInExpression = (
-  expression: string | OverrideValue
+  expression: string | OverrideValue,
 ) => {
   if (typeof expression !== 'string') {
     return false;

@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useContext, useMemo } from 'react';
 
 import Icon from '@ant-design/icons';
 import {
@@ -14,12 +14,12 @@ import {
   TableIcon,
 } from '@frontend/common';
 
-import { Edges, GridApi } from '../../types';
+import { GridStateContext } from '../../context';
+import { Edges } from '../../types';
 import { AIPromptAction, AIPromptSection } from './types';
 
 export const useAIPromptSuggestions = ({
-  api,
-  selection,
+  selectionEdges,
   previousPrompts,
   isSuggestionReview,
   isTextAnswer,
@@ -33,8 +33,7 @@ export const useAIPromptSuggestions = ({
   onAddNote,
   onHide,
 }: {
-  api: GridApi | null;
-  selection: Edges | null;
+  selectionEdges: Edges | null;
   previousPrompts: string[];
   isSuggestionReview: boolean;
   isTextAnswer: boolean;
@@ -48,6 +47,8 @@ export const useAIPromptSuggestions = ({
   onAddNote: () => void;
   onHide: () => void;
 }) => {
+  const { getCell } = useContext(GridStateContext);
+
   const predefinedPromptsSection: AIPromptSection = useMemo(() => {
     return {
       section: 'Suggestions',
@@ -125,7 +126,7 @@ export const useAIPromptSuggestions = ({
   // Showed before user send
   const promptsMenuItems = useMemo(() => {
     return [predefinedPromptsSection, previousUserPromptsSection].filter(
-      Boolean
+      Boolean,
     ) as AIPromptSection[];
   }, [predefinedPromptsSection, previousUserPromptsSection]);
 
@@ -181,8 +182,9 @@ export const useAIPromptSuggestions = ({
 
   const textAnswerItems: AIPromptSection = useMemo(() => {
     let showAddNote = false;
-    if (selection) {
-      const cell = api?.getCell(selection.startCol, selection.startRow);
+    if (selectionEdges) {
+      // eslint-disable-next-line react-hooks/refs
+      const cell = getCell(selectionEdges.startCol, selectionEdges.startRow);
 
       if (cell?.table?.tableName && cell.field?.fieldName) {
         showAddNote = true;
@@ -248,7 +250,7 @@ export const useAIPromptSuggestions = ({
         },
       ].filter(Boolean) as AIPromptAction[],
     };
-  }, [api, onAddNote, onHide, onNewMessage, onTryAgain, selection]);
+  }, [getCell, onAddNote, onHide, onNewMessage, onTryAgain, selectionEdges]);
 
   const contextMenuItems: AIPromptSection[] = useMemo(() => {
     if (isLoading || isError) {

@@ -20,7 +20,7 @@ describe('createVirtualHistogramChartTableDSL', () => {
       parsedTable,
       'virtualTableName',
       'f1',
-      10
+      10,
     );
 
     // Assert
@@ -48,7 +48,7 @@ describe('createVirtualChartTableDSL', () => {
     const result = createVirtualChartTableDSL(
       parsedTable,
       parsedField,
-      'virtualTableName'
+      'virtualTableName',
     );
 
     // Assert
@@ -57,7 +57,7 @@ table virtualTableName
   dim [f1] = t1[f1].UNIQUE()
   [has_values] = t1.FILTER([f1] = $[f1]).COUNT() > 0
 apply
-sort -[has_values],[f1]
+sort [has_values], -1, [f1], 1
 `.replaceAll('\r\n', '\n');
 
     expect(result.replaceAll('\r\n', '\n').trim()).toBe(expectedDSL.trim());
@@ -81,7 +81,7 @@ table t1
     const result = createVirtualChartTableDSL(
       parsedTable,
       parsedField,
-      'virtualTableName'
+      'virtualTableName',
     );
 
     // Assert
@@ -90,7 +90,7 @@ table virtualTableName
   dim [f1] = t1[f1].UNIQUE()
   [has_values] = t1.FILTER($[f2] = "2" AND $[f3] = "3" AND [f1] = $[f1]).COUNT() > 0
 apply
-sort -[has_values],[f1]
+sort [has_values], -1, [f1], 1
 `.replaceAll('\r\n', '\n');
 
     expect(result.replaceAll('\r\n', '\n').trim()).toBe(expectedDSL.trim());
@@ -133,7 +133,7 @@ table t1
       dsl,
       parsedTable,
       selectedKeys,
-      mockViewGridData
+      mockViewGridData,
     );
 
     // Assert
@@ -165,7 +165,7 @@ sort [f1]`;
       dsl,
       parsedTable,
       selectedKeys,
-      mockViewGridData
+      mockViewGridData,
     );
 
     // Assert
@@ -201,7 +201,7 @@ filter [f3] = "existing"
       dsl,
       parsedTable,
       selectedKeys,
-      mockViewGridData
+      mockViewGridData,
     );
 
     // Assert

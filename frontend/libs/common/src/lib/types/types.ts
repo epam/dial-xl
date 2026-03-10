@@ -11,7 +11,7 @@ import {
 export type FormulasContextMenuKeyData = {
   insertFormula?: string;
   tableName?: string;
-  type?: 'derived' | 'size' | 'copy' | 'pivot';
+  type?: 'derived' | 'size' | 'copy' | 'pivot' | 'groupBy';
 };
 
 export type InsertChartContextMenuKeyData = {
@@ -25,6 +25,7 @@ export type MenuItem = Required<MenuProps>['items'][number];
 export type MenuItemProps = {
   label: React.ReactNode;
   key?: React.Key | null;
+  fullPath: string[];
   icon?: React.ReactNode;
   children?: MenuItem[];
   disabled?: boolean;
@@ -33,6 +34,9 @@ export type MenuItemProps = {
   shortcut?: string;
   stopPropagationOnClick?: boolean;
   onClick?: () => void;
+
+  // When content is custom we don't want to apply paddings on it
+  isCustomContent?: boolean;
 };
 
 export type GridViewport = {

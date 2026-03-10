@@ -1,4 +1,4 @@
-import { useContext, useEffect, useState } from 'react';
+import { RefObject, useContext, useEffect, useState } from 'react';
 
 import {
   EventTypeColumnResize,
@@ -10,16 +10,16 @@ import {
 import { CachedViewport } from '@frontend/common';
 
 import { ProjectContext } from '../context';
-import { useViewStore } from '../store';
+import { useUserSettingsStore } from '../store';
 import { useGridApi } from './useGridApi';
 
 const maxColumnAutoWidth = 1000;
 const minColumnAutoWidth = 50;
 
-export function useColumnSizes(viewport: CachedViewport) {
+export function useColumnSizes(viewportRef: RefObject<CachedViewport>) {
   const gridApi = useGridApi();
   const { projectName, sheetName } = useContext(ProjectContext);
-  const zoom = useViewStore((s) => s.zoom);
+  const zoom = useUserSettingsStore((s) => s.data.zoom);
 
   const [columnSizes, setColumnSizes] = useState<Record<string, number>>({});
 
@@ -34,7 +34,7 @@ export function useColumnSizes(viewport: CachedViewport) {
         gridApi.clearSelection();
 
         const columnWidths: Record<string, Record<string, number>> = JSON.parse(
-          localStorage.getItem('columnWidths') || '{}'
+          localStorage.getItem('columnWidths') || '{}',
         );
         const sheetColumnWidths =
           columnWidths[projectName + '/' + sheetName] || {};
@@ -58,8 +58,8 @@ export function useColumnSizes(viewport: CachedViewport) {
     const columnResizeDbClickSubscription = gridApi.events$
       .pipe(
         filterByTypeAndCast<EventTypeColumnResizeDbClick>(
-          GridEvent.columnResizeDbClick
-        )
+          GridEvent.columnResizeDbClick,
+        ),
       )
       .subscribe((event) => {
         gridApi.clearSelection();
@@ -68,16 +68,16 @@ export function useColumnSizes(viewport: CachedViewport) {
 
         const col = +column;
 
-        const { startRow, endRow } = viewport;
+        const { startRow, endRow } = viewportRef.current;
 
         const maxSymbols = gridApi.getColumnContentMaxSymbols(
           col,
           startRow,
-          endRow
+          endRow,
         );
 
         const columnWidths: Record<string, Record<string, number>> = JSON.parse(
-          localStorage.getItem('columnWidths') || '{}'
+          localStorage.getItem('columnWidths') || '{}',
         );
 
         const sheetColumnWidths =
@@ -88,7 +88,10 @@ export function useColumnSizes(viewport: CachedViewport) {
 
         sheetColumnWidths[column] = Math.max(
           minColumnAutoWidth,
-          Math.min(maxColumnAutoWidth, maxSymbols * symbolWidth + paddingOffset)
+          Math.min(
+            maxColumnAutoWidth,
+            maxSymbols * symbolWidth + paddingOffset,
+          ),
         );
 
         columnWidths[projectName + '/' + sheetName] = sheetColumnWidths;
@@ -101,7 +104,7 @@ export function useColumnSizes(viewport: CachedViewport) {
     return () => {
       columnResizeDbClickSubscription.unsubscribe();
     };
-  }, [gridApi, projectName, sheetName, viewport, zoom]);
+  }, [gridApi, projectName, sheetName, viewportRef, zoom]);
 
   useEffect(() => {
     if (!gridApi || !projectName || !sheetName) return;
@@ -109,14 +112,14 @@ export function useColumnSizes(viewport: CachedViewport) {
     const resetColumnSizesSubscription = gridApi.events$
       .pipe(
         filterByTypeAndCast<EventTypeResetCurrentColumnSizes>(
-          GridEvent.resetCurrentColumnSizes
-        )
+          GridEvent.resetCurrentColumnSizes,
+        ),
       )
       .subscribe(() => {
         gridApi.clearSelection();
 
         const columnWidths: Record<string, Record<string, number>> = JSON.parse(
-          localStorage.getItem('columnWidths') || '{}'
+          localStorage.getItem('columnWidths') || '{}',
         );
 
         columnWidths[projectName + '/' + sheetName] = {};
@@ -128,7 +131,7 @@ export function useColumnSizes(viewport: CachedViewport) {
     return () => {
       resetColumnSizesSubscription.unsubscribe();
     };
-  }, [gridApi, projectName, sheetName, viewport, zoom]);
+  }, [gridApi, projectName, sheetName, viewportRef, zoom]);
 
   useEffect(() => {
     if (!projectName || !sheetName) {
@@ -138,7 +141,7 @@ export function useColumnSizes(viewport: CachedViewport) {
     }
 
     const columnWidths: Record<string, Record<string, number>> = JSON.parse(
-      localStorage.getItem('columnWidths') || '{}'
+      localStorage.getItem('columnWidths') || '{}',
     );
 
     const sheetColumnWidths = columnWidths[projectName + '/' + sheetName] || {};

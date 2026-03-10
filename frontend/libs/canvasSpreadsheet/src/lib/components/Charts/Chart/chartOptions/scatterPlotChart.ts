@@ -21,7 +21,7 @@ const defaultDotSize = 10;
 
 export function organizeScatterPlotChartData(
   chartData: ChartsData,
-  gridChart: GridChart
+  gridChart: GridChart,
 ): OrganizedData | undefined {
   const {
     chartSections,
@@ -32,13 +32,7 @@ export function organizeScatterPlotChartData(
   } = gridChart;
   const data = chartData[tableName];
 
-  if (
-    !data ||
-    !Object.keys(data).length ||
-    !chartSections ||
-    !chartSections.length
-  )
-    return;
+  if (!data || !Object.keys(data).length || !chartSections?.length) return;
 
   const legendData: string[] = [];
   const xAxisValuesSet: Set<string> = new Set();
@@ -60,7 +54,7 @@ export function organizeScatterPlotChartData(
         ? (data[xAxisFieldName].rawValues as string[])
         : Array.from(
             { length: data[valueFieldNames[0]]?.rawValues.length },
-            (_, i) => (i + 1).toString()
+            (_, i) => (i + 1).toString(),
           );
 
     const sectionXAxisDisp: string[] | undefined =
@@ -94,7 +88,7 @@ export function organizeScatterPlotChartData(
   if (!isNumericXAxis) {
     xAxisRawSorted = sortNumericOrText(allRawX);
     xIndexByRaw = new Map<string, number>(
-      xAxisRawSorted.map((r, idx) => [r, idx])
+      xAxisRawSorted.map((r, idx) => [r, idx]),
     );
   }
 
@@ -172,7 +166,7 @@ export function organizeScatterPlotChartData(
   let xAxisData: string[] | undefined;
   if (!isNumericXAxis) {
     const xAxisDisplayData = xAxisRawSorted.map(
-      (raw) => xDisplayByRaw.get(raw) ?? raw
+      (raw) => xDisplayByRaw.get(raw) ?? raw,
     );
     xAxisData = addLineBreaks(xAxisDisplayData);
   }
@@ -291,7 +285,7 @@ export function getScatterPlotChartOption({
               ({ marker, data, seriesName }: any) =>
                 `${marker}${seriesName}<span style="float: right; margin-left: 20px"><b>${
                   data?.displayValue?.[1] || data?.value?.[1] || ''
-                }</b></span>`
+                }</b></span>`,
             )
             .join('<br/>')
         );

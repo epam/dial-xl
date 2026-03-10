@@ -9,6 +9,7 @@ import {
 } from '@frontend/common';
 
 import { FileReference } from '../common';
+import { WithCustomProgressBar } from '../components';
 import { renameProjectHistory, renameRecentProject } from '../services';
 import { displayToast } from '../utils';
 import { useApiRequests } from './useApiRequests';
@@ -31,18 +32,30 @@ export function useRenameFile() {
       newName: string;
       newNameIsFull?: boolean;
     }) => {
-      toast.loading(`Renaming ${name}...`, { toastId: 'loading' });
-
       const initialFileName = name.substring(0, name.lastIndexOf('.'));
       const fileExtension = name.substring(name.lastIndexOf('.'));
       const isProject = fileExtension === dialProjectFileExtension;
       const newFullFileName = newNameIsFull ? newName : newName + fileExtension;
+
+      const renamingToast = toast(WithCustomProgressBar, {
+        customProgressBar: true,
+        data: {
+          message: isProject ? `Renaming project...` : `Renaming ${name}...`,
+        },
+        progress: 0,
+      });
+
       const res = isProject
         ? await renameProjectRequest({
             fileName: name,
             newFileName: newFullFileName,
             parentPath,
             bucket,
+            onProgress: (progress: number) => {
+              toast.update(renamingToast, {
+                progress: progress / 100,
+              });
+            },
           })
         : await renameFileRequest({
             fileName: name,
@@ -52,7 +65,7 @@ export function useRenameFile() {
           });
 
       if (!res) {
-        toast.dismiss('loading');
+        toast.dismiss(renamingToast);
 
         return;
       }
@@ -88,17 +101,17 @@ export function useRenameFile() {
         renameRecentProject(initialFileName, newName, bucket, parentPath);
       }
 
-      toast.dismiss('loading');
+      toast.dismiss(renamingToast);
       displayToast(
         'success',
         isProject
           ? appMessages.renameProjectSuccess
-          : appMessages.renameFileSuccess
+          : appMessages.renameFileSuccess,
       );
 
       return {};
     },
-    [renameFileRequest, renameProjectRequest, deleteFileRequest]
+    [renameFileRequest, renameProjectRequest, deleteFileRequest],
   );
 
   return {

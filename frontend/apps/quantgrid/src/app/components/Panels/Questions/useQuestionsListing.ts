@@ -17,7 +17,7 @@ export const useQuestionsListing = () => {
 
   const getQuestions = useCallback(
     async (
-      { additional }: { additional?: boolean } = { additional: false }
+      { additional }: { additional?: boolean } = { additional: false },
     ) => {
       if (!projectBucket || !projectName) return;
 
@@ -35,7 +35,7 @@ export const useQuestionsListing = () => {
 
       setIsQuestionsLoading(false);
     },
-    [getQuestionsApi, projectBucket, projectName, projectPath, token]
+    [getQuestionsApi, projectBucket, projectName, projectPath, token],
   );
 
   return {

@@ -4,6 +4,7 @@ import test, { BrowserContext, Page } from '@playwright/test';
 import { Field } from '../../logic-entities/Field';
 import { SpreadSheet } from '../../logic-entities/SpreadSheet';
 import { Table } from '../../logic-entities/Table';
+import { ProjectPage } from '../../pages/ProjectPage';
 import { TestFixtures } from '../TestFixtures';
 
 const projectName = TestFixtures.addGuid('autotest_hiddenheaders');
@@ -20,25 +21,27 @@ let browserContext: BrowserContext;
 
 let page: Page;
 
-const storagePath = `playwright/${projectName}.json`;
+const storagePath = TestFixtures.getStoragePath();
 
 test.beforeAll(async ({ browser }) => {
   const Table1 = new Table(table1Row, table1Column, table1Name);
   Table1.addField(new Field('Field1', '5'));
   Table1.addField(new Field('Field2', '7'));
   spreadsheet.addTable(Table1);
+  browserContext = await browser.newContext({ storageState: storagePath });
   await TestFixtures.createProjectNew(
     storagePath,
-    browser,
+    browserContext,
     projectName,
-    spreadsheet
+    spreadsheet,
   );
-  browserContext = await browser.newContext({ storageState: storagePath });
 });
 
 test.beforeEach(async () => {
   page = await browserContext.newPage();
   await TestFixtures.openProject(page, projectName);
+  const projectPage = await ProjectPage.createCleanInstance(page);
+  await projectPage.hideAllPanels();
 });
 
 test.afterEach(async () => {
@@ -46,8 +49,8 @@ test.afterEach(async () => {
 });
 
 test.afterAll(async ({ browser }) => {
+  await TestFixtures.deleteProject(browserContext, projectName);
   await browserContext.close();
-  await TestFixtures.deleteProject(browser, projectName);
 });
 
 test.describe('hidden headers', () => {

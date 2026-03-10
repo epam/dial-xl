@@ -2,6 +2,8 @@
 import { BrowserContext, expect, Page, test } from '@playwright/test';
 
 import { FormulasMenu } from '../../components/FormulasMenu';
+import { GridMenuItem } from '../../enums/GridMenuItem';
+import { MenuType } from '../../enums/MenuType';
 import { Field } from '../../logic-entities/Field';
 import { SpreadSheet } from '../../logic-entities/SpreadSheet';
 import { Table } from '../../logic-entities/Table';
@@ -22,7 +24,7 @@ let browserContext: BrowserContext;
 
 let page: Page;
 
-const storagePath = `playwright/${projectName}.json`;
+const storagePath = TestFixtures.getStoragePath();
 
 function assertIndex(suggestionsList: string[], item: string, bound = 2) {
   const index = suggestionsList.findIndex((item) => item.startsWith(item));
@@ -43,19 +45,21 @@ test.beforeAll(async ({ browser }) => {
   Table3.addField(new Field('SField', '5'));
   Table3.addField(new Field('M W Field', '123'));
   spreadsheet.addTable(Table3);
+  browserContext = await browser.newContext({ storageState: storagePath });
   await TestFixtures.createProjectNew(
     storagePath,
-    browser,
+    browserContext,
     projectName,
-    spreadsheet
+    spreadsheet,
   );
-  browserContext = await browser.newContext({ storageState: storagePath });
 });
 
 test.beforeEach(async () => {
   page = await browserContext.newPage();
   await TestFixtures.openProject(page, projectName);
   await TestFixtures.expectTableToBeDisplayed(page, spreadsheet.getTable(0));
+  const projectPage = await ProjectPage.createCleanInstance(page);
+  await projectPage.hideAllPanels();
 });
 
 test.afterEach(async () => {
@@ -63,8 +67,8 @@ test.afterEach(async () => {
 });
 
 test.afterAll(async ({ browser }) => {
+  await TestFixtures.deleteProject(browserContext, projectName);
   await browserContext.close();
-  await TestFixtures.deleteProject(browser, projectName);
 });
 
 test.describe('Intelisense', () => {
@@ -73,7 +77,7 @@ test.describe('Intelisense', () => {
     const projectPage = await ProjectPage.createInstance(page);
     await projectPage.clickOnGridCell(
       table.getTop() + 1,
-      table.getLeft() + table.width()
+      table.getLeft() + table.width(),
     );
     await projectPage
       .getVisualization()
@@ -123,8 +127,8 @@ test.describe('Intelisense', () => {
       .getSuggestionsList();
     expect(
       suggestionsList.findIndex((item) =>
-        item.startsWith(spreadsheet.getTable(0).getName())
-      )
+        item.startsWith(spreadsheet.getTable(0).getName()),
+      ),
     ).toBe(1);
     await projectPage
       .getVisualization()
@@ -175,7 +179,7 @@ test.describe('Intelisense', () => {
     const projectPage = await ProjectPage.createInstance(page);
     await projectPage.clickOnGridCell(
       table.getTop() + 1,
-      table.getLeft() + table.width()
+      table.getLeft() + table.width(),
     );
     await projectPage
       .getVisualization()
@@ -211,7 +215,7 @@ test.describe('Intelisense', () => {
     const table = spreadsheet.getTable(1);
     await projectPage
       .getVisualization()
-      .performCellAction(table.getTop() + 1, table.getLeft(), 'Edit formula');
+      .performCellAction(table.getTop() + 1, table.getLeft(), MenuType.TableField, GridMenuItem.EditFormula);
     await projectPage.getVisualization().getCellEditor().removeCharaters(6);
     await projectPage.getVisualization().getCellEditor().requestIntellisense();
     await projectPage
@@ -246,7 +250,7 @@ test.describe('Intelisense', () => {
       .getIntellisensePopup()
       .selectSuggestion('RANGE');
     await expect(
-      projectPage.getVisualization().getCellEditor().getValueLocator()
+      projectPage.getVisualization().getCellEditor().getValueLocator(),
     ).toHaveText(':RANGE()');
     await projectPage
       .getVisualization()
@@ -274,7 +278,7 @@ test.describe('Intelisense', () => {
       .getIntellisensePopup()
       .selectSuggestion(spreadsheet.getTable(0).getName());
     await expect(
-      projectPage.getVisualization().getCellEditor().getValueLocator()
+      projectPage.getVisualization().getCellEditor().getValueLocator(),
     ).toHaveText('=' + spreadsheet.getTable(0).getName());
     await projectPage
       .getVisualization()
@@ -299,7 +303,7 @@ test.describe('Intelisense', () => {
     const projectPage = await ProjectPage.createInstance(page);
     await projectPage.clickOnGridCell(
       table.getTop() + 1,
-      table.getLeft() + table.width()
+      table.getLeft() + table.width(),
     );
     await projectPage
       .getVisualization()
@@ -316,7 +320,7 @@ test.describe('Intelisense', () => {
       .getIntellisensePopup()
       .selectSuggestion(table.getField(0).getName());
     await expect(
-      projectPage.getVisualization().getCellEditor().getValueLocator()
+      projectPage.getVisualization().getCellEditor().getValueLocator(),
     ).toHaveText(`=[${table.getField(0).getName()}]`);
     await projectPage
       .getVisualization()
@@ -331,7 +335,7 @@ test.describe('Intelisense', () => {
     const projectPage = await ProjectPage.createInstance(page);
     await projectPage.clickOnGridCell(
       table.getTop() + 1,
-      table.getLeft() + table.width()
+      table.getLeft() + table.width(),
     );
     await projectPage
       .getVisualization()
@@ -393,7 +397,7 @@ test.describe('Intelisense', () => {
     const projectPage = await ProjectPage.createInstance(page);
     await projectPage.clickOnGridCell(
       table.getTop() + 1,
-      table.getLeft() + table.width()
+      table.getLeft() + table.width(),
     );
     await projectPage
       .getVisualization()
@@ -482,7 +486,7 @@ test.describe('Intelisense', () => {
       .getIntellisensePopup()
       .selectSuggestion(table.getName());
     await expect(
-      projectPage.getVisualization().getCellEditor().getValueLocator()
+      projectPage.getVisualization().getCellEditor().getValueLocator(),
     ).toHaveText('=' + table.getName());
     await projectPage
       .getVisualization()
@@ -529,7 +533,7 @@ test.describe('Intelisense', () => {
       .getIntellisensePopup()
       .selectSuggestion(table.getName());
     await expect(
-      projectPage.getVisualization().getCellEditor().getValueLocator()
+      projectPage.getVisualization().getCellEditor().getValueLocator(),
     ).toHaveText('=' + table.getName());
     await projectPage
       .getVisualization()
@@ -581,7 +585,7 @@ test.describe('Intelisense', () => {
       .getIntellisensePopup()
       .selectSuggestion(spreadsheet.getTable(2).getName());
     await expect(
-      projectPage.getVisualization().getCellEditor().getValueLocator()
+      projectPage.getVisualization().getCellEditor().getValueLocator(),
     ).toHaveText('=' + spreadsheet.getTable(2).getName());
     await projectPage
       .getVisualization()
@@ -615,7 +619,7 @@ test.describe('Intelisense', () => {
       .getIntellisensePopup()
       .selectSuggestion(spreadsheet.getTable(2).getName());
     await expect(
-      projectPage.getVisualization().getCellEditor().getValueLocator()
+      projectPage.getVisualization().getCellEditor().getValueLocator(),
     ).toHaveText('=' + spreadsheet.getTable(2).getName());
     await projectPage
       .getVisualization()
@@ -630,7 +634,7 @@ test.describe('Intelisense', () => {
     const table = spreadsheet.getTable(1);
     await projectPage.clickOnGridCell(
       table.getFieldHeadersRow(),
-      table.getLeft()
+      table.getLeft(),
     );
     await projectPage.getFormulaEditor().focus();
     await projectPage.getFormulaEditor().removeCharaters(6);
@@ -649,7 +653,7 @@ test.describe('Intelisense', () => {
       .getIntellisensePopup()
       .selectSuggestion('RANGE');
     await expect(projectPage.getFormulaEditor().getValueLocator()).toHaveText(
-      '=RANGE()'
+      '=RANGE()',
     );
     await projectPage.getFormulaEditor().cancelSettingValue();
   });
@@ -672,7 +676,7 @@ test.describe('Intelisense', () => {
       .getIntellisensePopup()
       .selectSuggestion(spreadsheet.getTable(0).getName());
     await expect(projectPage.getFormulaEditor().getValueLocator()).toHaveText(
-      '=' + spreadsheet.getTable(0).getName()
+      '=' + spreadsheet.getTable(0).getName(),
     );
     await projectPage.getFormulaEditor().cancelSettingValue();
   });
@@ -713,7 +717,7 @@ test.describe('Intelisense', () => {
     await formulasMenu.menuShouldPresent();
     await formulasMenu.selectItemByPath(['Aggregations', 'COUNT']);
     await expect(
-      projectPage.getVisualization().getCellEditor().getValueLocator()
+      projectPage.getVisualization().getCellEditor().getValueLocator(),
     ).toHaveText('=COUNT()');
     await formulasMenu.menuShouldHidden();
     await projectPage.getVisualization().getCellEditor().cancelSettingValue();

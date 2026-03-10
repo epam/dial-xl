@@ -1,16 +1,13 @@
 import { Col, Row, Space } from 'antd';
-import { twMerge } from 'tailwind-merge';
 
 import {
-  secondaryButtonClasses,
-  secondaryDisabledButtonClasses,
-} from '@frontend/common/lib';
-import {
-  ArrayFieldTemplateItemType,
+  ArrayFieldItemTemplateProps,
   FormContextType,
   RJSFSchema,
   StrictRJSFSchema,
 } from '@rjsf/utils';
+
+import { ArrayFieldItemButtonsTemplate } from './ArrayFieldItemButtonsTemplate';
 
 const BTN_GRP_STYLE = {
   width: '100%',
@@ -20,103 +17,47 @@ const BTN_STYLE = {
   width: 'calc(100% / 4)',
 };
 
-/** The `ArrayFieldItemTemplate` component is the template used to render an items of an array.
+/** The `ArrayFieldItemTemplate` component is the template used to render an item of an array.
+ * Uses a stable ArrayFieldItemButtonsTemplate import to avoid "Cannot create components during render".
  *
- * @param props - The `ArrayFieldTemplateItemType` props for the component
+ * @param props - The `ArrayFieldItemTemplateProps` props for the component
  */
 export function ArrayFieldItemTemplate<
   T = any,
   S extends StrictRJSFSchema = RJSFSchema,
-  F extends FormContextType = any
->(props: ArrayFieldTemplateItemType<T, S, F>) {
+  F extends FormContextType = any,
+>(props: ArrayFieldItemTemplateProps<T, S, F>) {
   const {
+    buttonsProps,
     children,
-    disabled,
-    hasCopy,
-    hasMoveDown,
-    hasMoveUp,
-    hasRemove,
+    displayLabel,
+    hasDescription,
     hasToolbar,
-    index,
-    onCopyIndexClick,
-    onDropIndexClick,
-    onReorderClick,
-    readonly,
+    itemKey,
     registry,
-    uiSchema,
   } = props;
-  const { CopyButton, MoveDownButton, MoveUpButton, RemoveButton } =
-    registry.templates.ButtonTemplates;
   const { rowGutter = 24, toolbarAlign = 'bottom' } = registry.formContext;
+  const margin = hasDescription ? -8 : 16;
 
   return (
     <Row
       align={toolbarAlign}
       gutter={rowGutter}
-      justify={'end'}
-      key={`array-item-${index}`}
+      justify="end"
+      key={`array-item-${itemKey}`}
     >
       <Col flex="1">{children}</Col>
 
       {hasToolbar && (
-        <Col flex="192px">
+        <Col
+          flex="192px"
+          style={{ marginTop: displayLabel ? `${margin}px` : undefined }}
+        >
           <Space.Compact style={BTN_GRP_STYLE}>
-            {(hasMoveUp || hasMoveDown) && (
-              <MoveUpButton
-                className={twMerge(
-                  secondaryButtonClasses,
-                  secondaryDisabledButtonClasses,
-                  'rounded-none first:rounded-l-sm last:rounded-r-sm'
-                )}
-                disabled={disabled || readonly || !hasMoveUp}
-                registry={registry}
-                style={BTN_STYLE}
-                uiSchema={uiSchema}
-                onClick={onReorderClick(index, index - 1)}
-              />
-            )}
-            {(hasMoveUp || hasMoveDown) && (
-              <MoveDownButton
-                className={twMerge(
-                  secondaryButtonClasses,
-                  secondaryDisabledButtonClasses,
-                  'rounded-none first:rounded-l-sm last:rounded-r-sm'
-                )}
-                disabled={disabled || readonly || !hasMoveDown}
-                registry={registry}
-                style={BTN_STYLE}
-                uiSchema={uiSchema}
-                onClick={onReorderClick(index, index + 1)}
-              />
-            )}
-            {hasCopy && (
-              <CopyButton
-                className={twMerge(
-                  secondaryButtonClasses,
-                  secondaryDisabledButtonClasses,
-                  'rounded-none first:rounded-l-sm last:rounded-r-sm'
-                )}
-                disabled={disabled || readonly}
-                registry={registry}
-                style={BTN_STYLE}
-                uiSchema={uiSchema}
-                onClick={onCopyIndexClick(index)}
-              />
-            )}
-            {hasRemove && (
-              <RemoveButton
-                className={twMerge(
-                  secondaryButtonClasses,
-                  secondaryDisabledButtonClasses,
-                  'rounded-none first:rounded-l-sm last:rounded-r-sm !bg-bg-error'
-                )}
-                disabled={disabled || readonly}
-                registry={registry}
-                style={BTN_STYLE}
-                uiSchema={uiSchema}
-                onClick={onDropIndexClick(index)}
-              />
-            )}
+            <ArrayFieldItemButtonsTemplate
+              {...buttonsProps}
+              style={BTN_STYLE}
+            />
           </Space.Compact>
         </Col>
       )}

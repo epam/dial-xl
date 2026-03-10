@@ -177,9 +177,14 @@ public class DialFileApi implements AutoCloseable {
             httpPut.setHeader(HttpHeaders.IF_MATCH, etag); // passes only if file exists and it has this etag
         }
 
-        MultipartEntityBuilder entityBuilder = MultipartEntityBuilder.create();
-        entityBuilder.addPart("file", new BinaryBody("file.txt", contentType, writer));
-        httpPut.setEntity(entityBuilder.build());
+        if (path.startsWith("files/")) {
+            MultipartEntityBuilder entityBuilder = MultipartEntityBuilder.create();
+            entityBuilder.addPart("file", new BinaryBody("file.txt", contentType, writer));
+            httpPut.setEntity(entityBuilder.build());
+        } else {
+            StreamingEntity entity = new StreamingEntity(writer, contentType);
+            httpPut.setEntity(entity);
+        }
 
         return httpClient.execute(httpPut, response -> {
             try (InputStream ignore = response.getEntity().getContent()) {
@@ -344,7 +349,7 @@ public class DialFileApi implements AutoCloseable {
             String etag = (String) metadata.get("etag");
             String name = (String) metadata.get("name");
             String parent = (String) metadata.get("parentPath");
-            Long updatedAt = (Long) metadata.get("updatedAt");
+            Number updatedAt = (Number) metadata.get("updatedAt");
             @SuppressWarnings("unchecked")
             List<String> permissions = (List<String>) metadata.getOrDefault("permissions", List.of());
             String nextToken = (String) metadata.get("nextToken");
@@ -356,7 +361,15 @@ public class DialFileApi implements AutoCloseable {
             }
 
             List<Attributes> items = nestedItems.stream().map(Attributes::parse).toList();
-            return new Attributes(etag, name, parent, updatedAt, permissions, nextToken, items);
+            return new Attributes(
+                    etag, name, parent, updatedAt == null ? null : updatedAt.longValue(), permissions, nextToken, items);
+        }
+
+        public String fullPath() {
+            if (parentPath == null) {
+                return name;
+            }
+            return parentPath + "/" + name;
         }
     }
 

@@ -1,4 +1,4 @@
-import { RefObject } from 'react';
+import { Application } from 'pixi.js';
 
 import {
   AppTheme,
@@ -8,9 +8,7 @@ import {
   Shortcut,
 } from '@frontend/common';
 import { ParsedSheets } from '@frontend/parser';
-import { Application } from '@pixi/app';
 
-import { GridApi } from '../../types';
 import { GridEventBus } from '../../utils';
 
 export type CurrentCell = {
@@ -23,13 +21,12 @@ export type EditorStyle = {
   left: string;
   width: string;
   height: string;
+  outlineWidth: string;
 };
 
 export type Props = {
   app: Application | null;
-  apiRef: RefObject<GridApi>;
   eventBus: GridEventBus;
-  zoom?: number;
   theme: AppTheme;
   functions?: FunctionInfo[];
   parsedSheets: ParsedSheets;
@@ -44,6 +41,7 @@ export const defaultStyle: EditorStyle = {
   left: '0px',
   width: '0px',
   height: '0px',
+  outlineWidth: '0px',
 };
 
 export type GridCellEditorOpenOptions = {

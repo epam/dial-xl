@@ -1,3 +1,5 @@
+import { vi } from 'vitest';
+
 import { ColumnDataType, CompilationError } from '@frontend/common';
 import { dynamicFieldName, SheetReader } from '@frontend/parser';
 
@@ -7,6 +9,14 @@ import {
   getFirstTableFromDSL,
   getTablesFromDSL,
 } from './utils';
+
+vi.mock('../../../store/UserSettingsStore', () => ({
+  useUserSettingsStore: Object.assign(() => ({}), {
+    getState: () => ({ data: {} }),
+    setState: () => {},
+    subscribe: () => () => {},
+  }),
+}));
 
 describe('ViewGridData', () => {
   let viewGridData: ViewGridData;
@@ -37,6 +47,7 @@ describe('ViewGridData', () => {
         fallbackChunks: {},
 
         nestedColumnNames: new Set(),
+        dynamicFields: [],
         isDynamicFieldsRequested: false,
 
         total: {},
@@ -120,7 +131,7 @@ describe('ViewGridData', () => {
         const chunk = actualTableData.fallbackChunks[chunkIndex];
 
         const hasSomeFieldFromPreviousTableDefinition = table.fields.some(
-          ({ key: { fieldName } }) => fieldName in chunk
+          ({ key: { fieldName } }) => fieldName in chunk,
         );
 
         expect(hasSomeFieldFromPreviousTableDefinition).toBe(false);
@@ -144,7 +155,7 @@ describe('ViewGridData', () => {
       // Act
       viewGridData.updateTableMeta(table);
       columnUpdates.forEach((columnUpdate) =>
-        viewGridData.saveNewColumnData(columnUpdate)
+        viewGridData.saveNewColumnData(columnUpdate),
       );
 
       // Assert
@@ -166,7 +177,7 @@ describe('ViewGridData', () => {
       // Act
       viewGridData.updateTableMeta(table);
       columnUpdates.forEach((columnUpdate) =>
-        viewGridData.saveNewColumnData(columnUpdate)
+        viewGridData.saveNewColumnData(columnUpdate),
       );
 
       // Assert
@@ -188,7 +199,7 @@ describe('ViewGridData', () => {
       // Act
       viewGridData.updateTableMeta(table);
       columnUpdates.forEach((columnUpdate) =>
-        viewGridData.saveNewColumnData(columnUpdate)
+        viewGridData.saveNewColumnData(columnUpdate),
       );
 
       // Assert
@@ -209,13 +220,13 @@ describe('ViewGridData', () => {
 
       // skip 2 first batches
       const columnUpdatesWithoutTopBatches = columnUpdates.filter(
-        (columnUpdate) => +columnUpdate.startRow >= 2000
+        (columnUpdate) => +columnUpdate.startRow >= 2000,
       );
 
       // Act
       viewGridData.updateTableMeta(table);
       columnUpdatesWithoutTopBatches.forEach((columnUpdate) =>
-        viewGridData.saveNewColumnData(columnUpdate)
+        viewGridData.saveNewColumnData(columnUpdate),
       );
 
       // Assert
@@ -243,19 +254,19 @@ describe('ViewGridData', () => {
       const { columnUpdates } = generateTablesWithData(dsl, { rowCount: 400 });
       const table = getFirstTableFromDSL(dsl);
       const columnUpdatesTopBatch = columnUpdates.filter(
-        (columnUpdate) => +columnUpdate.startRow < 200
+        (columnUpdate) => +columnUpdate.startRow < 200,
       );
       const columnUpdatesBottomBatch = columnUpdates.filter(
-        (columnUpdate) => +columnUpdate.startRow >= 200
+        (columnUpdate) => +columnUpdate.startRow >= 200,
       );
 
       // Act
       viewGridData.updateTableMeta(table);
       columnUpdatesBottomBatch.forEach((columnUpdate) =>
-        viewGridData.saveNewColumnData(columnUpdate)
+        viewGridData.saveNewColumnData(columnUpdate),
       );
       columnUpdatesTopBatch.forEach((columnUpdate) =>
-        viewGridData.saveNewColumnData(columnUpdate)
+        viewGridData.saveNewColumnData(columnUpdate),
       );
 
       // Assert
@@ -275,16 +286,16 @@ describe('ViewGridData', () => {
       const { columnUpdates } = generateTablesWithData(dsl, { rowCount: 100 });
       const table = getFirstTableFromDSL(dsl);
       const columnUpdatesOnlyOnFieldF1 = columnUpdates.filter(
-        (columnUpdate) => columnUpdate.fieldKey?.field === 'f1'
+        (columnUpdate) => columnUpdate.fieldKey?.field === 'f1',
       );
       // Act
       viewGridData.updateTableMeta(table);
       columnUpdates.forEach((columnUpdate) =>
-        viewGridData.saveNewColumnData(columnUpdate)
+        viewGridData.saveNewColumnData(columnUpdate),
       );
       viewGridData.updateTableMeta(table);
       columnUpdatesOnlyOnFieldF1.forEach((columnUpdate) =>
-        viewGridData.saveNewColumnData(columnUpdate)
+        viewGridData.saveNewColumnData(columnUpdate),
       );
 
       // Assert
@@ -332,7 +343,7 @@ describe('ViewGridData', () => {
 
       // Assert
       const tableDynamicFields = viewGridData.getTableDynamicFields(
-        table.tableName
+        table.tableName,
       );
       const tableData = viewGridData.getTableData(table.tableName);
       expect(tableDynamicFields).toEqual(dynamicFields);
@@ -454,7 +465,7 @@ describe('ViewGridData', () => {
         viewGridData.saveNewColumnData(columnUpdate);
       });
       viewGridData.updateTableOrder(
-        tablesWithData.map(({ table }) => table.tableName)
+        tablesWithData.map(({ table }) => table.tableName),
       );
 
       // Assert
@@ -477,7 +488,7 @@ describe('ViewGridData', () => {
           for (let i = 0; i < columnData.length; ++i) {
             // has received data in columns
             expect(gridData[currentRow + i + 1][currentCol]?.value).toBe(
-              columnData[i]
+              columnData[i],
             );
           }
         });
@@ -523,7 +534,7 @@ describe('ViewGridData', () => {
         viewGridData.updateTableMeta(table);
       });
       viewGridData.updateTableOrder(
-        tablesWithData.map(({ table }) => table.tableName)
+        tablesWithData.map(({ table }) => table.tableName),
       );
 
       // Assert
@@ -546,7 +557,7 @@ describe('ViewGridData', () => {
           for (let i = 0; i < columnData.length; ++i) {
             // has received data in columns
             expect(gridData[currentRow + i + 1][currentCol]?.value).toBe(
-              columnData[i]
+              columnData[i],
             );
           }
         });
@@ -581,10 +592,10 @@ describe('ViewGridData', () => {
       };
 
       const firstBatch = columnUpdates.filter(
-        (_, index) => index < columnUpdates.length / 2
+        (_, index) => index < columnUpdates.length / 2,
       );
       const secondBatch = columnUpdates.filter(
-        (_, index) => index >= columnUpdates.length / 2
+        (_, index) => index >= columnUpdates.length / 2,
       );
 
       // Act
@@ -602,7 +613,7 @@ describe('ViewGridData', () => {
         viewGridData.saveNewColumnData(columnUpdate);
       });
       viewGridData.updateTableOrder(
-        tablesWithData.map(({ table }) => table.tableName)
+        tablesWithData.map(({ table }) => table.tableName),
       );
 
       // Assert
@@ -625,7 +636,7 @@ describe('ViewGridData', () => {
           for (let i = 0; i < columnData.length; ++i) {
             // has received data in columns
             expect(gridData[currentRow + i + 1][currentCol]?.value).toBe(
-              columnData[i]
+              columnData[i],
             );
           }
         });
@@ -654,7 +665,7 @@ describe('ViewGridData', () => {
       // Act
       viewGridData.updateTableMeta(table);
       columnUpdates.forEach((columnUpdate) =>
-        viewGridData.saveNewColumnData(columnUpdate)
+        viewGridData.saveNewColumnData(columnUpdate),
       );
       viewGridData.setCompilationErrors(errors);
 
@@ -695,7 +706,7 @@ describe('ViewGridData', () => {
     // Act
     viewGridData.updateTableMeta(table);
     columnUpdates.forEach((columnUpdate) =>
-      viewGridData.saveNewColumnData(columnUpdate)
+      viewGridData.saveNewColumnData(columnUpdate),
     );
     viewGridData.setCompilationErrors(errors);
 

@@ -10,6 +10,7 @@ interface ParsedFormulaInfo {
   isInputFunction: boolean;
   isImportFunction: boolean;
   isPivotFunction: boolean;
+  isGroupByFunction: boolean;
 }
 
 export const getParsedFormulaInfo = (formula: string): ParsedFormulaInfo => {
@@ -24,12 +25,14 @@ export const getParsedFormulaInfo = (formula: string): ParsedFormulaInfo => {
     const isInputFunction = fns.some((f) => f.name === 'INPUT');
     const isPivotFunction = fns.some((f) => f.name === 'PIVOT');
     const isImportFunction = fns.some((f) => f.name === 'IMPORT');
+    const isGroupByFunction = fns.some((f) => f.name === 'GROUPBY');
 
     return {
       isFieldReferenceFormula,
       isInputFunction,
       isImportFunction,
       isPivotFunction,
+      isGroupByFunction,
     };
   } catch {
     return {
@@ -37,6 +40,7 @@ export const getParsedFormulaInfo = (formula: string): ParsedFormulaInfo => {
       isInputFunction: false,
       isImportFunction: false,
       isPivotFunction: false,
+      isGroupByFunction: false,
     };
   }
 };

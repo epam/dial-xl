@@ -6,7 +6,7 @@ import Icon from '@ant-design/icons';
 import { CloseIcon, DotsIcon } from '@frontend/common';
 import { unescapeTableName } from '@frontend/parser';
 
-import { getPx } from '../../../utils';
+import { getPx, snap } from '../../../utils';
 import { ChartConfig } from '../types';
 
 type Props = {
@@ -14,6 +14,7 @@ type Props = {
   isHidden: boolean;
   isHovered: boolean;
   isMoving: boolean;
+  isSelected: boolean;
   moveMode: boolean;
   zoom: number;
   onSelectChart: () => void;
@@ -21,7 +22,7 @@ type Props = {
   onRenameTable: (oldName: string, newName: string) => void;
   onOpenContextMenu: (
     e: React.MouseEvent<any>,
-    chartConfig: ChartConfig
+    chartConfig: ChartConfig,
   ) => void;
   onDeleteChart: () => void;
 };
@@ -31,6 +32,7 @@ export function ChartTitle({
   isHidden,
   isHovered,
   isMoving,
+  isSelected,
   moveMode,
   zoom,
   onSelectChart,
@@ -64,7 +66,7 @@ export function ChartTitle({
 
       onStartMoveChart(e);
     },
-    [onStartMoveChart, moveMode, isEditing]
+    [onStartMoveChart, moveMode, isEditing],
   );
 
   const onStartRename = useCallback(
@@ -74,14 +76,14 @@ export function ChartTitle({
       if (moveMode) return;
       setIsEditing(true);
     },
-    [moveMode]
+    [moveMode],
   );
 
   const handleTextMouseDown = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
       e.stopPropagation();
     },
-    []
+    [],
   );
 
   const handleBlur = useCallback(() => {
@@ -104,7 +106,7 @@ export function ChartTitle({
         setIsEditing(false);
       }
     },
-    [chartConfig.gridChart.tableName]
+    [chartConfig.gridChart.tableName],
   );
 
   const handleTitleClick = useCallback(
@@ -112,16 +114,22 @@ export function ChartTitle({
       e.stopPropagation();
       onSelectChart();
     },
-    [onSelectChart]
+    [onSelectChart],
   );
+
+  const bw = snap(zoom);
 
   return (
     <div
       className={cx(
-        'absolute bg-bg-layer-3 border-x-[0.3px] border-x-stroke-primary flex items-center justify-between px-3',
+        'absolute bg-bg-layer-3 flex items-center justify-between px-3 box-border border-solid',
         {
           'bg-transparent': isMoving,
-        }
+          'z-100': isSelected,
+        },
+        isSelected
+          ? 'border-stroke-accent-primary'
+          : 'border-stroke-tertiary-inverted-alpha',
       )}
       style={{
         left: getPx(chartConfig.titleLeft),
@@ -130,6 +138,10 @@ export function ChartTitle({
         height: getPx(chartConfig.titleHeight),
         display: isHidden ? 'none' : 'flex',
         pointerEvents: moveMode ? 'none' : 'auto',
+        borderLeftWidth: bw,
+        borderRightWidth: bw,
+        borderTopWidth: bw,
+        borderBottomWidth: 0,
       }}
       onClick={handleTitleClick}
       onMouseDown={handleMouseDown}
@@ -157,7 +169,7 @@ export function ChartTitle({
                 'text-text-primary font-medium truncate cursor-text px-2 py-1 rounded transition-colors text-center max-w-full',
                 {
                   'hover:bg-bg-layer-1': isHovered && !moveMode,
-                }
+                },
               )}
               style={{ fontSize: getPx(14 * zoom) }}
               onClick={onStartRename}
@@ -174,7 +186,7 @@ export function ChartTitle({
           'absolute right-3 flex items-center justify-center gap-2 transition-opacity duration-200 ease-in-out shrink-0',
           isHovered && !isEditing
             ? 'opacity-100 pointer-events-auto'
-            : 'opacity-0 pointer-events-none'
+            : 'opacity-0 pointer-events-none',
         )}
         onMouseDown={(e) => e.stopPropagation()}
       >

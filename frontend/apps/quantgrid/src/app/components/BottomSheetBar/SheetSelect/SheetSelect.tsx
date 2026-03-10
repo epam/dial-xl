@@ -23,6 +23,7 @@ import { ChatOverlayContext, ProjectContext } from '../../../context';
 import { useProjectMode, useWorksheetActions } from '../../../hooks';
 
 const defaultScrollDelta = 25;
+const sheetSelectPath = 'BottomSheetSelect';
 
 export const SheetSelect = () => {
   const sheetsItemsRef = useRef<HTMLDivElement>(null);
@@ -41,71 +42,80 @@ export const SheetSelect = () => {
   const [isSheetSelectDropdownOpened, setIsSheetSelectDropdownOpened] =
     useState(false);
 
+  const [activeContextSheet, setActiveContextSheet] = useState<string | null>(
+    null,
+  );
+  const activeSheetActions = useMemo<MenuItem[]>(() => {
+    if (!activeContextSheet) return [];
+
+    const projectSheet = projectSheets?.find(
+      (s) => s.sheetName === activeContextSheet,
+    );
+    if (!projectSheet) return [];
+
+    return [
+      getDropdownItem({
+        key: 'selectSheet',
+        fullPath: [sheetSelectPath, activeContextSheet, 'SelectWorksheet'],
+        label: 'Select Worksheet',
+        onClick: () => openSheet(projectSheet),
+        disabled: sheetName === activeContextSheet,
+        tooltip:
+          sheetName === activeContextSheet
+            ? 'Sheet already selected'
+            : undefined,
+      }),
+      getDropdownItem({
+        key: 'renameSheet',
+        fullPath: [sheetSelectPath, activeContextSheet, 'RenameWorksheet'],
+        label: 'Rename Worksheet',
+        disabled: !isDefaultMode || answerIsGenerating,
+        tooltip: !isDefaultMode
+          ? disabledTooltips.notAllowedChanges
+          : answerIsGenerating
+            ? disabledTooltips.answerIsGenerating
+            : undefined,
+        onClick: () => renameWorksheetAction(projectSheet.sheetName),
+      }),
+      getDropdownItem({
+        key: 'deleteSheet',
+        fullPath: [sheetSelectPath, activeContextSheet, 'DeleteWorksheet'],
+        label: 'Delete Worksheet',
+        disabled: !isDefaultMode || answerIsGenerating,
+        tooltip: !isDefaultMode
+          ? disabledTooltips.notAllowedChanges
+          : answerIsGenerating
+            ? disabledTooltips.answerIsGenerating
+            : undefined,
+        onClick: () => deleteWorksheetAction(projectSheet.sheetName),
+      }),
+    ];
+  }, [
+    activeContextSheet,
+    projectSheets,
+    sheetName,
+    isDefaultMode,
+    answerIsGenerating,
+    openSheet,
+    renameWorksheetAction,
+    deleteWorksheetAction,
+  ]);
+
   const sheetsDropdownItems: MenuProps['items'] = useMemo(
     () =>
       projectSheets
         ?.map((sheet) =>
           getDropdownItem({
             key: sheet.sheetName,
+            fullPath: [sheetSelectPath, sheet.sheetName],
             label: sheet.sheetName,
             onClick: async () => {
               openSheet(sheet);
             },
-          })
+          }),
         )
         .filter(Boolean) as MenuProps['items'],
-    [openSheet, projectSheets]
-  );
-
-  const getSheetActions = useCallback(
-    (name: string): MenuItem[] => {
-      const projectSheet = projectSheets?.find(
-        (sheet) => sheet.sheetName === name
-      );
-
-      if (!projectSheet) return [];
-
-      return [
-        getDropdownItem({
-          key: 'selectSheet',
-          label: 'Select Worksheet',
-          onClick: () => openSheet(projectSheet),
-          disabled: sheetName === name,
-          tooltip: sheetName === name ? 'Sheet already selected' : undefined,
-        }),
-        getDropdownItem({
-          key: 'renameSheet',
-          label: 'Rename Worksheet',
-          disabled: !isDefaultMode || answerIsGenerating,
-          tooltip: !isDefaultMode
-            ? disabledTooltips.notAllowedChanges
-            : answerIsGenerating
-            ? disabledTooltips.answerIsGenerating
-            : undefined,
-          onClick: () => renameWorksheetAction(projectSheet.sheetName),
-        }),
-        getDropdownItem({
-          key: 'deleteSheet',
-          label: 'Delete Worksheet',
-          disabled: !isDefaultMode || answerIsGenerating,
-          tooltip: !isDefaultMode
-            ? disabledTooltips.notAllowedChanges
-            : answerIsGenerating
-            ? disabledTooltips.answerIsGenerating
-            : undefined,
-          onClick: () => deleteWorksheetAction(projectSheet.sheetName),
-        }),
-      ];
-    },
-    [
-      projectSheets,
-      sheetName,
-      isDefaultMode,
-      answerIsGenerating,
-      openSheet,
-      renameWorksheetAction,
-      deleteWorksheetAction,
-    ]
+    [openSheet, projectSheets],
   );
 
   const checkSheetWrapper = useCallback(() => {
@@ -132,7 +142,7 @@ export const SheetSelect = () => {
 
       checkSheetWrapper();
     },
-    [checkSheetWrapper]
+    [checkSheetWrapper],
   );
 
   const scrollRight = useCallback(() => {
@@ -148,7 +158,7 @@ export const SheetSelect = () => {
 
     sheetsItemsRef.current.scrollLeft = Math.max(
       0,
-      sheetsItemsRef.current.scrollLeft - defaultScrollDelta
+      sheetsItemsRef.current.scrollLeft - defaultScrollDelta,
     );
 
     checkSheetWrapper();
@@ -215,15 +225,25 @@ export const SheetSelect = () => {
             {projectSheets?.map((sheet) => (
               <Dropdown
                 key={sheet.sheetName}
-                menu={{ items: getSheetActions(sheet.sheetName) }}
+                menu={{
+                  items:
+                    activeContextSheet === sheet.sheetName
+                      ? activeSheetActions
+                      : [],
+                }}
                 trigger={['contextMenu']}
+                onOpenChange={(open) => {
+                  if (open) setActiveContextSheet(sheet.sheetName);
+                  else if (activeContextSheet === sheet.sheetName)
+                    setActiveContextSheet(null);
+                }}
               >
                 <button
                   className={classNames(
                     'px-3 py-2 text-sm text-text-secondary leading-none text-nowrap h-[31px]',
                     sheetName === sheet.sheetName
                       ? 'bg-bg-accent-primary-alpha-2 border-t border-stroke-accent-primary'
-                      : 'hover:bg-bg-accent-primary-alpha'
+                      : 'hover:bg-bg-accent-primary-alpha',
                   )}
                   id={`bottom-bar-sheet-${sheet.sheetName}`}
                   onClick={() => openSheet({ sheetName: sheet.sheetName })}
@@ -249,7 +269,7 @@ export const SheetSelect = () => {
           <Tooltip placement="bottom" title="Create worksheet" destroyOnHidden>
             <button
               className={classNames(
-                'flex items-center justify-center p-2 h-full shrink-0 text-sm text-text-secondary hover:bg-bg-accent-primary-alpha'
+                'flex items-center justify-center p-2 h-full shrink-0 text-sm text-text-secondary hover:bg-bg-accent-primary-alpha',
               )}
               onClick={() => createWorksheetAction()}
             >
@@ -265,23 +285,29 @@ export const SheetSelect = () => {
       {sheetName && (
         <div className="flex @[200px]:hidden items-center h-[31px]">
           <Dropdown
-            className="flex items-center"
             menu={{ items: sheetsDropdownItems }}
             trigger={['click']}
             onOpenChange={setIsSheetSelectDropdownOpened}
           >
-            <div className="h-full">
+            <div className="h-full flex items-center">
               <Dropdown
                 key={sheetName}
-                menu={{ items: getSheetActions(sheetName) }}
+                menu={{
+                  items:
+                    activeContextSheet === sheetName ? activeSheetActions : [],
+                }}
                 trigger={['contextMenu']}
+                onOpenChange={(open) => {
+                  if (open) setActiveContextSheet(sheetName);
+                  else setActiveContextSheet(null);
+                }}
               >
                 <div className="h-full gap-1 px-3 py-2 text-sm text-text-secondary leading-none text-nowrap bg-bg-accent-primary-alpha-2 border-t border-stroke-accent-primary">
                   <span>{sheetName}</span>
                   <Icon
                     className={classNames(
                       'w-[14px] text-text-secondary leading-none transition-all',
-                      isSheetSelectDropdownOpened && 'rotate-180'
+                      isSheetSelectDropdownOpened && 'rotate-180',
                     )}
                     component={() => <ChevronDown />}
                   />

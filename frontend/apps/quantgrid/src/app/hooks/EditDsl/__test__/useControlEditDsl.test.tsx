@@ -1,3 +1,5 @@
+import { vi } from 'vitest';
+
 import { act, RenderHookResult } from '@testing-library/react';
 
 import { ViewGridData } from '../../../context';
@@ -20,7 +22,7 @@ describe('useControlEditDsl', () => {
   });
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     const hookRender = hookTestSetup(useControlEditDsl, Wrapper);
     hook = hookRender.result;
     setDsl = hookRender.setDsl;
@@ -80,7 +82,7 @@ describe('useControlEditDsl', () => {
 
       // Act
       act(() =>
-        hook.current.updateSelectedControlValue('t1', 'f1', ['1', '10'])
+        hook.current.updateSelectedControlValue('t1', 'f1', ['1', '10']),
       );
 
       // Assert
@@ -112,7 +114,7 @@ describe('useControlEditDsl', () => {
 
       // Act
       act(() =>
-        hook.current.updateSelectedControlValue('t1', 'f1', ['APPLE', 'IBM'])
+        hook.current.updateSelectedControlValue('t1', 'f1', ['APPLE', 'IBM']),
       );
 
       // Assert
@@ -235,7 +237,7 @@ describe('useControlEditDsl', () => {
             name: 'f2',
             dependency: 'Data',
           },
-        ])
+        ]),
       );
 
       // Assert

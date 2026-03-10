@@ -38,7 +38,7 @@ export function useGridEvents() {
         }
       }
     },
-    []
+    [],
   );
 
   const handleViewportEvent = useCallback(
@@ -66,7 +66,7 @@ export function useGridEvents() {
         }
       }
     },
-    []
+    [],
   );
 
   const handleEditorEvent = useCallback((ev: GridBusEvent, s: GridServices) => {
@@ -75,7 +75,7 @@ export function useGridEvents() {
         s.onCellEditorUpdateValue(
           ev.payload.value,
           ev.payload.cancelEdit,
-          ev.payload.dimFieldName
+          ev.payload.dimFieldName,
         );
         break;
       }
@@ -100,6 +100,7 @@ export function useGridEvents() {
     switch (ev.type) {
       case 'charts/dblclick': {
         s.changePivotTableWizardMode(null);
+        s.changeGroupByTableWizardMode(null);
         s.openPanel(PanelName.Details);
         break;
       }
@@ -116,7 +117,7 @@ export function useGridEvents() {
           ev.payload.tableName,
           ev.payload.fieldName,
           ev.payload.key,
-          ev.payload.isNoDataKey
+          ev.payload.isNoDataKey,
         );
         break;
       }
@@ -129,7 +130,7 @@ export function useGridEvents() {
           ev.payload.tableName,
           ev.payload.chartType,
           ev.payload.col,
-          ev.payload.row
+          ev.payload.row,
         );
         break;
       }
@@ -155,7 +156,7 @@ export function useGridEvents() {
         }
       }
     },
-    []
+    [],
   );
   const handleTablesEvent = useCallback((ev: GridBusEvent, s: GridServices) => {
     switch (ev.type) {
@@ -167,7 +168,7 @@ export function useGridEvents() {
         s.moveTable(
           ev.payload.tableName,
           ev.payload.rowDelta,
-          ev.payload.colDelta
+          ev.payload.colDelta,
         );
         break;
       }
@@ -190,7 +191,7 @@ export function useGridEvents() {
       case 'tables/toggle-title-or-header-visibility': {
         s.toggleTableTitleOrHeaderVisibility(
           ev.payload.tableName,
-          ev.payload.toggleTableHeader
+          ev.payload.toggleTableHeader,
         );
         break;
       }
@@ -199,7 +200,7 @@ export function useGridEvents() {
           ev.payload.col,
           ev.payload.row,
           ev.payload.tableName,
-          ev.payload.value
+          ev.payload.value,
         );
         break;
       }
@@ -232,7 +233,7 @@ export function useGridEvents() {
           ev.payload.action,
           ev.payload.type,
           ev.payload.insertFormula,
-          ev.payload.tableName
+          ev.payload.tableName,
         );
         break;
       }
@@ -241,7 +242,7 @@ export function useGridEvents() {
           ev.payload.tableName,
           ev.payload.fieldName,
           ev.payload.descriptionFieldName,
-          ev.payload.isRemove
+          ev.payload.isRemove,
         );
         break;
       }
@@ -256,7 +257,7 @@ export function useGridEvents() {
           ev.payload.cells,
           ev.payload.hideTableHeader,
           ev.payload.hideFieldHeader,
-          ev.payload.customTableName
+          ev.payload.customTableName,
         );
         break;
       }
@@ -265,7 +266,7 @@ export function useGridEvents() {
           ev.payload.tableName,
           ev.payload.fieldName,
           ev.payload.col,
-          ev.payload.row
+          ev.payload.row,
         );
         break;
       }
@@ -274,7 +275,7 @@ export function useGridEvents() {
           ev.payload.tableName,
           ev.payload.fieldName,
           ev.payload.col,
-          ev.payload.row
+          ev.payload.row,
         );
         break;
       }
@@ -304,7 +305,7 @@ export function useGridEvents() {
         s.addField(
           ev.payload.tableName,
           ev.payload.fieldText,
-          ev.payload.insertOptions
+          ev.payload.insertOptions,
         );
         break;
       }
@@ -312,7 +313,7 @@ export function useGridEvents() {
         s.swapFieldsByDirection(
           ev.payload.tableName,
           ev.payload.fieldName,
-          ev.payload.direction
+          ev.payload.direction,
         );
         break;
       }
@@ -336,7 +337,7 @@ export function useGridEvents() {
         s.onChangeFieldColumnSize(
           ev.payload.tableName,
           ev.payload.fieldName,
-          ev.payload.valueAdd
+          ev.payload.valueAdd,
         );
         break;
       }
@@ -344,7 +345,7 @@ export function useGridEvents() {
         s.changeFieldDimension(
           ev.payload.tableName,
           ev.payload.fieldName,
-          ev.payload.isRemove
+          ev.payload.isRemove,
         );
         break;
       }
@@ -352,7 +353,7 @@ export function useGridEvents() {
         s.changeFieldKey(
           ev.payload.tableName,
           ev.payload.fieldName,
-          ev.payload.isRemove
+          ev.payload.isRemove,
         );
         break;
       }
@@ -360,7 +361,7 @@ export function useGridEvents() {
         s.changeFieldIndex(
           ev.payload.tableName,
           ev.payload.fieldName,
-          ev.payload.isRemove
+          ev.payload.isRemove,
         );
         break;
       }
@@ -368,7 +369,7 @@ export function useGridEvents() {
         s.createControlFromField(
           ev.payload.tableName,
           ev.payload.fieldName,
-          ev.payload.type
+          ev.payload.type,
         );
         break;
       }
@@ -390,7 +391,7 @@ export function useGridEvents() {
         s.removeTotalByIndex(
           ev.payload.tableName,
           ev.payload.fieldName,
-          ev.payload.index
+          ev.payload.index,
         );
         break;
       }
@@ -398,7 +399,7 @@ export function useGridEvents() {
         s.toggleTotalByType(
           ev.payload.tableName,
           ev.payload.fieldName,
-          ev.payload.type
+          ev.payload.type,
         );
         break;
       }
@@ -425,7 +426,8 @@ export function useGridEvents() {
             ev.payload.tableName,
             ev.payload.fieldName,
             ev.payload.values,
-            ev.payload.isNumeric
+            ev.payload.type,
+            ev.payload.isNumeric,
           );
           break;
         }
@@ -435,8 +437,30 @@ export function useGridEvents() {
             ev.payload.fieldName,
             ev.payload.operator,
             ev.payload.value,
-            ev.payload.filterType
+            ev.payload.filterType,
           );
+          break;
+        }
+        case 'filters/custom-formula-applied': {
+          s.applyCustomFormulaFilter(
+            ev.payload.tableName,
+            ev.payload.fieldName,
+            ev.payload.expression,
+          );
+          break;
+        }
+        case 'filters/control-applied': {
+          s.applyControlFilter(
+            ev.payload.tableName,
+            ev.payload.fieldName,
+            ev.payload.controlTableName,
+            ev.payload.controlFieldName,
+            ev.payload.controlType,
+          );
+          break;
+        }
+        case 'filters/cleared': {
+          s.clearFieldFilters(ev.payload.tableName, ev.payload.fieldName);
           break;
         }
         case 'filters/update-list': {
@@ -450,7 +474,7 @@ export function useGridEvents() {
         }
       }
     },
-    []
+    [],
   );
   const handleControlEvent = useCallback(
     (ev: GridBusEvent, s: GridServices) => {
@@ -463,7 +487,7 @@ export function useGridEvents() {
           s.updateSelectedControlValue(
             ev.payload.tableName,
             ev.payload.fieldName,
-            ev.payload.values
+            ev.payload.values,
           );
           break;
         }
@@ -478,7 +502,7 @@ export function useGridEvents() {
         }
       }
     },
-    []
+    [],
   );
   const handleNotesEvent = useCallback((ev: GridBusEvent, s: GridServices) => {
     switch (ev.type) {
@@ -505,14 +529,14 @@ export function useGridEvents() {
             ev.payload.tableName,
             ev.payload.fieldName,
             ev.payload.overrideIndex,
-            ev.payload.value
+            ev.payload.value,
           );
           break;
         }
         case 'overrides/remove-row': {
           s.removeTableOrOverrideRow(
             ev.payload.tableName,
-            ev.payload.overrideIndex
+            ev.payload.overrideIndex,
           );
           break;
         }
@@ -520,7 +544,7 @@ export function useGridEvents() {
           s.regenerateOverride(
             ev.payload.tableName,
             ev.payload.fieldName,
-            ev.payload.overrideIndex
+            ev.payload.overrideIndex,
           );
           break;
         }
@@ -531,7 +555,7 @@ export function useGridEvents() {
         }
       }
     },
-    []
+    [],
   );
   const handleSortEvent = useCallback((ev: GridBusEvent, s: GridServices) => {
     switch (ev.type) {
@@ -539,7 +563,7 @@ export function useGridEvents() {
         s.changeFieldSort(
           ev.payload.tableName,
           ev.payload.fieldName,
-          ev.payload.order
+          ev.payload.order,
         );
         break;
       }
@@ -572,7 +596,7 @@ export function useGridEvents() {
         s.openInEditor(
           ev.payload.tableName,
           ev.payload.fieldName,
-          ev.payload.openOverride
+          ev.payload.openOverride,
         );
         break;
       }
@@ -622,6 +646,6 @@ export function useGridEvents() {
       handleTotalsEvent,
       handleViewportEvent,
       handleControlEvent,
-    ]
+    ],
   );
 }

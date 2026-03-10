@@ -1,4 +1,4 @@
-import { createContext, MutableRefObject } from 'react';
+import { createContext, RefObject } from 'react';
 
 import {
   ProjectAIResponseId,
@@ -30,11 +30,11 @@ export type ProjectResourceValues = {
 };
 
 type ProjectResourceInternalValues = {
-  _projectState: MutableRefObject<ProjectState | null>;
-  remoteEtag: MutableRefObject<string | null>;
-  inflightRequest: MutableRefObject<'get' | 'put' | null>;
-  localDsl: MutableRefObject<WorksheetState[] | null>;
-  inflightDsl: MutableRefObject<WorksheetState[] | null>;
+  _projectState: RefObject<ProjectState | null>;
+  remoteEtag: RefObject<string | null>;
+  inflightRequest: RefObject<'get' | 'put' | null>;
+  localDsl: RefObject<WorksheetState[] | null>;
+  inflightDsl: RefObject<WorksheetState[] | null>;
 };
 
 type ProjectResourceInternalActions = {
@@ -60,14 +60,14 @@ export type ProjectResourceActions = {
       isTemporaryState: boolean;
       onSuccess?: () => void;
       onFail?: () => void;
-    }
+    },
   ) => Promise<void>;
   setLongCalcStatus: (status: LongCalcStatus) => void;
   cancelAllImportSyncRequests: () => void;
   manageRequestLifecycle: (
     action: LongCalcAction,
     reqType: LongCalcRequestType,
-    controller?: AbortController
+    controller?: AbortController,
   ) => void;
 };
 
@@ -77,5 +77,5 @@ type ProjectResourceContextType = ProjectResourceActions &
   ProjectResourceInternalValues;
 
 export const ProjectResourceContext = createContext<ProjectResourceContextType>(
-  {} as ProjectResourceContextType
+  {} as ProjectResourceContextType,
 );

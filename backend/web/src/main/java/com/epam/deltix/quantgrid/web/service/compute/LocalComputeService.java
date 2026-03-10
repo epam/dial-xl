@@ -7,6 +7,7 @@ import com.epam.deltix.quantgrid.engine.compiler.Compilation;
 import com.epam.deltix.quantgrid.engine.compiler.result.CompiledResult;
 import com.epam.deltix.quantgrid.engine.compiler.result.CompiledSimpleColumn;
 import com.epam.deltix.quantgrid.engine.compiler.result.format.BooleanFormat;
+import com.epam.deltix.quantgrid.engine.compiler.result.format.GeneralFormat;
 import com.epam.deltix.quantgrid.engine.embeddings.EmbeddingModels;
 import com.epam.deltix.quantgrid.engine.node.Trace;
 import com.epam.deltix.quantgrid.engine.service.input.DataSchema;
@@ -16,6 +17,8 @@ import com.epam.deltix.quantgrid.engine.value.DoubleColumn;
 import com.epam.deltix.quantgrid.engine.value.StringColumn;
 import com.epam.deltix.quantgrid.engine.value.Table;
 import com.epam.deltix.quantgrid.engine.value.local.LocalTable;
+import com.epam.deltix.quantgrid.engine.value.local.StringDirectColumn;
+import com.epam.deltix.quantgrid.engine.value.local.StructColumn;
 import com.epam.deltix.quantgrid.parser.FieldKey;
 import com.epam.deltix.quantgrid.parser.ParsedKey;
 import com.epam.deltix.quantgrid.parser.ParsedSheet;
@@ -387,11 +390,57 @@ public class LocalComputeService implements ComputeService {
         }
 
         @Override
-        public void onUpdate(ParsedKey key, long start, long end, boolean content, boolean raw,
+        public void onUpdate(ParsedKey key, long startRow, long endRow,
+                             long startCol, long endCol, boolean content, boolean raw,
                              Table value, String error, ResultType type) {
 
-            Api.ColumnData data = ApiMessageMapper.toColumnData(
-                    key, start, end, content, raw, value, error, type);
+            if (value != null && type.pivotType() != null) {
+                boolean withColumns = (startCol >= 0 && endCol >= 0);
+                StructColumn struct = (StructColumn) value.getColumn(0);
+
+                {   // names
+                    StringDirectColumn namesData = new StringDirectColumn(struct.getNames().toArray(String[]::new));
+                    Api.ColumnData data = ApiMessageMapper.toColumnData(key,
+                            withColumns ? startCol : startRow, withColumns ? endCol : endRow,
+                            content, raw, new LocalTable(namesData), null, type);
+
+                    Api.Response response = Api.Response.newBuilder()
+                            .setId(id)
+                            .setStatus(Api.Status.SUCCEED)
+                            .setColumnData(data)
+                            .build();
+
+                    callback.onUpdate(response);
+                }
+
+                if (withColumns) {
+                    List<String> names = struct.getNames();
+                    Table columns = struct.getTable();
+
+                    for (int col = (int) startCol, end = Math.min(names.size(), (int) endCol); col < end; col++) {
+                        FieldKey columnKey = new FieldKey(key.table(), names.get(col));
+                        LocalTable columnData = new LocalTable(columns.getColumn(col));
+                        ResultType columnType = new ResultType(null, null, type.pivotType(),
+                                type.pivotFormat(), type.isNested(), true);
+
+                        Api.ColumnData data = ApiMessageMapper.toColumnData(columnKey, startRow, endRow,
+                                content, raw, columnData, null, columnType);
+
+                        Api.Response response = Api.Response.newBuilder()
+                                .setId(id)
+                                .setStatus(Api.Status.SUCCEED)
+                                .setColumnData(data)
+                                .build();
+
+                        callback.onUpdate(response);
+                    }
+                }
+
+                return;
+            }
+
+            Api.ColumnData data = ApiMessageMapper.toColumnData(key, startRow, endRow,
+                    content, raw, value, error, type);
 
             Api.Response response = Api.Response.newBuilder()
                     .setId(id)
@@ -478,7 +527,7 @@ public class LocalComputeService implements ComputeService {
             Table flags = result != null ? new LocalTable(result.getStringColumn(1)) : null;
 
             ResultType flagType = new ResultType(null, null,
-                    ColumnType.DOUBLE, BooleanFormat.INSTANCE, type.isNested());
+                    ColumnType.DOUBLE, BooleanFormat.INSTANCE, type.isNested(), type.isAssignable());
 
             data = ApiMessageMapper.toColumnData(key, start, end, false, true, values, error, type);
             available = ApiMessageMapper.toColumnData(key, start, end, false, true, flags, error, flagType);
@@ -511,10 +560,9 @@ public class LocalComputeService implements ComputeService {
         @Override
         public void onUpdate(
                 ParsedKey key,
-                long start,
-                long end,
-                boolean content,
-                boolean raw,
+                long startRow, long endRow,
+                long startCol, long endCol,
+                boolean content, boolean raw,
                 Table value,
                 String error,
                 ResultType type) {

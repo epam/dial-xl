@@ -6,6 +6,9 @@ import com.epam.deltix.quantgrid.engine.compiler.result.CompiledColumn;
 import com.epam.deltix.quantgrid.type.ColumnType;
 import lombok.experimental.UtilityClass;
 
+import java.util.Arrays;
+import java.util.List;
+
 @UtilityClass
 public class SimpleOrNestedValidators {
     public final ResultValidator<CompiledColumn> DOUBLE = forType(ColumnType.DOUBLE);
@@ -48,4 +51,12 @@ public class SimpleOrNestedValidators {
         }, ResultValidator.NO_CONVERTER);
     }
 
+    @SafeVarargs
+    @SuppressWarnings("unchecked")
+    public static List<ResultValidator<CompiledColumn>> list(
+            ResultValidator<? extends CompiledColumn>... validators) {
+        return Arrays.stream(validators)
+                .map(validator -> (ResultValidator<CompiledColumn>) validator)
+                .toList();
+    }
 }

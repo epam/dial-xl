@@ -1,3 +1,5 @@
+import logging
+
 from collections.abc import Iterable, Sequence
 from contextlib import AbstractAsyncContextManager, AbstractContextManager
 from types import TracebackType
@@ -15,14 +17,21 @@ from langgraph.checkpoint.serde.base import SerializerProtocol
 from langgraph.checkpoint.serde.encrypted import EncryptedSerializer
 from public import public
 
+from dial.xl.assistant.config.assistant_config import AssistantConfig
 from dial.xl.assistant.dto.checkpoint import CheckpointDTO, SerializedTaskWrite
-from dial.xl.assistant.env import ENV
 from dial.xl.assistant.loading.load_checkpoints import load_checkpoints
+
+LOGGER = logging.getLogger(__name__)
 
 
 @public
 class DIALChatCheckpointAdapter:
-    def __init__(self, checkpointer: BaseCheckpointSaver[str]) -> None:
+    def __init__(
+        self,
+        checkpointer: BaseCheckpointSaver[str],
+        serde: SerializerProtocol,
+        config: AssistantConfig,
+    ) -> None:
         self.checkpointer = checkpointer
 
         # TODO: Out checkpointer implementation is not optimal,
@@ -31,10 +40,22 @@ class DIALChatCheckpointAdapter:
         #   plus DIALChatCheckpointContext does the same thing.
         #  Probably, we can make use of non-serializing InMemorySaver,
         #  due to the fact that DIAL chats are used as long temp storage.
-        aes_key = bytes.fromhex(ENV.aes_key.get_secret_value())
-        self.serde = EncryptedSerializer.from_pycryptodome_aes(
-            self.checkpointer.serde, key=aes_key
-        )
+
+        self.serde = serde
+        if config.langgraph.checkpoint_encryption:
+            aes_secret = config.langgraph.checkpoint_encryption_aes
+            assert aes_secret is not None
+
+            aes_bytes = bytes.fromhex(aes_secret.get_secret_value())
+            self.serde = EncryptedSerializer.from_pycryptodome_aes(
+                self.serde, key=aes_bytes
+            )
+        else:
+            LOGGER.warning(
+                "Langgraph checkpoint encryption is turned off! "
+                "Make sure you don't accidentally expose unencrypted checkpoint data"
+                "to user-editable DIAL storage."
+            )
 
     def create_context(self, request: Request) -> "DIALChatCheckpointContext":
         return DIALChatCheckpointContext(

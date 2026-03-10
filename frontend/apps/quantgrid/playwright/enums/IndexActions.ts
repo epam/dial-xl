@@ -1,4 +1,5 @@
+/* eslint-disable @typescript-eslint/no-duplicate-enum-values */
 export enum IndexActions {
-  AddKey = 'Mark as a key column',
-  RemoveKey = 'Unmark as key column',
+  AddKey = 'ToggleKey',
+  RemoveKey = 'ToggleKey',
 }

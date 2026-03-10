@@ -1,5 +1,4 @@
 import { Form } from 'antd';
-import type { DefaultOptionType } from 'rc-select/lib/Select';
 import { useCallback, useEffect, useMemo } from 'react';
 
 import {
@@ -11,6 +10,7 @@ import {
   SheetReader,
   TableReferenceExpression,
 } from '@frontend/parser';
+import type { DefaultOptionType } from '@rc-component/select/lib/Select';
 
 import {
   useDeleteEntityDsl,
@@ -42,7 +42,7 @@ export function EditControlsSection({ parsedTable, tables }: Props) {
 
   const tableOptions: DefaultOptionType[] = useMemo(
     () => tables.map(({ value, label }) => ({ value, label })),
-    [tables]
+    [tables],
   );
 
   const initialControls: ControlRow[] = useMemo(() => {
@@ -53,7 +53,7 @@ export function EditControlsSection({ parsedTable, tables }: Props) {
       x instanceof FieldReferenceExpression;
 
     const parseFieldToControl = (
-      field: (typeof parsedTable.fields)[number]
+      field: (typeof parsedTable.fields)[number],
     ): ControlRow | null => {
       const expr = field.expression;
       if (!expr) return null;
@@ -61,7 +61,7 @@ export function EditControlsSection({ parsedTable, tables }: Props) {
       const fx = findFunctionExpressions(expr).find(
         (f) =>
           (f.name === 'DROPDOWN' || f.name === 'CHECKBOX') &&
-          f.arguments.length === 1
+          f.arguments.length === 1,
       );
       if (!fx) return null;
 
@@ -111,7 +111,7 @@ export function EditControlsSection({ parsedTable, tables }: Props) {
 
       deleteField(parsedTable.tableName, control.name);
     },
-    [deleteField, form, parsedTable.tableName]
+    [deleteField, form, parsedTable.tableName],
   );
 
   const handleSaveControl = useCallback(
@@ -147,7 +147,7 @@ export function EditControlsSection({ parsedTable, tables }: Props) {
         renameField(tableName, initialControl.name, data.name);
       }
     },
-    [addField, editExpression, form, initialControls, parsedTable, renameField]
+    [addField, editExpression, form, initialControls, parsedTable, renameField],
   );
 
   useEffect(() => {

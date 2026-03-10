@@ -9,6 +9,7 @@ export * from './Control';
 export * from './CornerRect';
 export * from './DNDSelection';
 export * from './DottedSelection';
+export * from './ErrorMessage';
 export * from './Errors';
 export * from './GridApiWrapper';
 export * from './GridComponents';

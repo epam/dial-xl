@@ -7,5 +7,5 @@ export const ProtectedDashboardPage = withAuthenticationRequired(
   DashboardPage,
   {
     OnRedirecting: () => <LoginRedirectingPage />,
-  }
+  },
 );

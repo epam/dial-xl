@@ -5,6 +5,7 @@ import { Canvas } from '../../components/Canvas';
 import { FieldMenuItem } from '../../enums/FieldMenuItem';
 import { GridMenuItem } from '../../enums/GridMenuItem';
 import { IndexActions } from '../../enums/IndexActions';
+import { MenuType } from '../../enums/MenuType';
 import { expectCellTextToBe } from '../../helpers/canvasExpects';
 import { Field } from '../../logic-entities/Field';
 import { SpreadSheet } from '../../logic-entities/SpreadSheet';
@@ -45,7 +46,7 @@ let browserContext: BrowserContext;
 
 let page: Page;
 
-const storagePath = `playwright/${projectName}.json`;
+const storagePath = TestFixtures.getStoragePath();
 
 //let table3Size = 4;
 
@@ -69,13 +70,13 @@ test.beforeAll(async ({ browser }) => {
   if (dataType !== 'default') {
     spreadsheet = getProjectSpreadSheeet(dataType, spreadsheet);
   }
+  browserContext = await browser.newContext({ storageState: storagePath });
   await TestFixtures.createProjectNew(
     storagePath,
-    browser,
+    browserContext,
     projectName,
-    spreadsheet
+    spreadsheet,
   );
-  browserContext = await browser.newContext({ storageState: storagePath });
 });
 
 test.beforeEach(async () => {
@@ -83,6 +84,8 @@ test.beforeEach(async () => {
   await TestFixtures.openProject(page, projectName);
   await TestFixtures.expectTableToBeDisplayed(page, spreadsheet.getTable(0));
   await TestFixtures.expectTableToBeDisplayed(page, spreadsheet.getTable(1));
+  const projectPage = await ProjectPage.createCleanInstance(page);
+  await projectPage.hideAllPanels();
 });
 
 test.afterEach(async () => {
@@ -90,8 +93,8 @@ test.afterEach(async () => {
 });
 
 test.afterAll(async ({ browser }) => {
+  await TestFixtures.deleteProject(browserContext, projectName);
   await browserContext.close();
-  await TestFixtures.deleteProject(browser, projectName);
 });
 
 test.describe('field actions', () => {
@@ -106,21 +109,21 @@ test.describe('field actions', () => {
         <Canvas>projectPage.getVisualization(),
         spreadsheet.getTable(0).getFieldHeadersRow(),
         spreadsheet.getTable(0).getLeft(),
-        'Field1'
+        'Field1',
       );
       await expectCellTextToBe(
         <Canvas>projectPage.getVisualization(),
         spreadsheet.getTable(0).getFieldHeadersRow(),
         spreadsheet.getTable(0).getLeft() + 1,
-        'Field2'
+        'Field2',
       );
       await expectCellTextToBe(
         <Canvas>projectPage.getVisualization(),
         spreadsheet.getTable(0).getFieldHeadersRow(),
         spreadsheet.getTable(0).getLeft() + 2,
-        'Field3'
+        'Field3',
       );
-    }
+    },
   );
 
   test(
@@ -135,7 +138,8 @@ test.describe('field actions', () => {
         .performCellAction(
           spreadsheet.getTable(1).getFieldHeadersRow(),
           spreadsheet.getTable(1).getLeft(),
-          GridMenuItem.RenameField
+          MenuType.TableField,
+          GridMenuItem.RenameColumn,
         );
       const newName = 'Field1New';
       await projectPage.getVisualization().setCellValue(newName);
@@ -144,10 +148,10 @@ test.describe('field actions', () => {
         .expectCellTextChange(
           spreadsheet.getTable(1).getFieldHeadersRow(),
           spreadsheet.getTable(1).getLeft(),
-          newName
+          newName,
         );
       spreadsheet.getTable(1).getField(0).updateName(newName);
-    }
+    },
   );
 
   test(
@@ -161,7 +165,7 @@ test.describe('field actions', () => {
         .getVisualization()
         .clickOnCell(
           spreadsheet.getTable(1).getFieldHeadersRow(),
-          spreadsheet.getTable(1).getLeft()
+          spreadsheet.getTable(1).getLeft(),
         );
       await page.keyboard.press('F2');
       const newName = 'Field1HotKey';
@@ -171,10 +175,10 @@ test.describe('field actions', () => {
         .expectCellTextChange(
           spreadsheet.getTable(1).getFieldHeadersRow(),
           spreadsheet.getTable(1).getLeft(),
-          newName
+          newName,
         );
       spreadsheet.getTable(1).getField(0).updateName(newName);
-    }
+    },
   );
 
   test(
@@ -188,14 +192,15 @@ test.describe('field actions', () => {
         .getVisualization()
         .getCellTableText(
           spreadsheet.getTable(1).getFieldHeadersRow(),
-          spreadsheet.getTable(1).getLeft()
+          spreadsheet.getTable(1).getLeft(),
         );
       await projectPage
         .getVisualization()
         .performCellAction(
           spreadsheet.getTable(1).getFieldHeadersRow(),
           spreadsheet.getTable(1).getLeft(),
-          GridMenuItem.RenameField
+          MenuType.TableField,
+          GridMenuItem.RenameColumn,
         );
       const newName = 'Field1Cancel';
       await projectPage.getVisualization().setCellValueAndCancel(newName);
@@ -204,9 +209,9 @@ test.describe('field actions', () => {
         .expectCellTextChange(
           spreadsheet.getTable(1).getFieldHeadersRow(),
           spreadsheet.getTable(1).getLeft(),
-          fieldValue || ''
+          fieldValue || '',
         );
-    }
+    },
   );
 
   test(
@@ -221,8 +226,9 @@ test.describe('field actions', () => {
         .performCellSubAction(
           spreadsheet.getTable(1).getFieldHeadersRow(),
           spreadsheet.getTable(1).getLeft() + 1,
-          GridMenuItem.DeleteGroup,
-          'Delete column'
+          MenuType.TableField,
+          GridMenuItem.Delete,
+          GridMenuItem.DeleteColumn,
         );
       await projectPage
         .getVisualization()
@@ -230,12 +236,12 @@ test.describe('field actions', () => {
           spreadsheet.getTable(1).getFieldHeadersRow(),
           spreadsheet.getTable(1).getLeft() +
             spreadsheet.getTable(1).width() -
-            1
+            1,
         );
       spreadsheet
         .getTable(1)
         .removeField(spreadsheet.getTable(1).getField(1).getName());
-    }
+    },
   );
 
   test(
@@ -249,7 +255,7 @@ test.describe('field actions', () => {
         .getVisualization()
         .clickOnCell(
           spreadsheet.getTable(1).getFieldHeadersRow(),
-          spreadsheet.getTable(1).getLeft() + 1
+          spreadsheet.getTable(1).getLeft() + 1,
         );
       await page.keyboard.press('Delete');
       await projectPage
@@ -258,12 +264,12 @@ test.describe('field actions', () => {
           spreadsheet.getTable(1).getFieldHeadersRow(),
           spreadsheet.getTable(1).getLeft() +
             spreadsheet.getTable(1).width() -
-            1
+            1,
         );
       spreadsheet
         .getTable(1)
         .removeField(spreadsheet.getTable(1).getField(1).getName());
-    }
+    },
   );
 
   test(
@@ -277,38 +283,39 @@ test.describe('field actions', () => {
         .getVisualization()
         .getCellTableText(
           spreadsheet.getTable(2).getFieldHeadersRow(),
-          spreadsheet.getTable(2).getLeft() + 1
+          spreadsheet.getTable(2).getLeft() + 1,
         );
       const leftFieldValue = await projectPage
         .getVisualization()
         .getCellTableText(
           spreadsheet.getTable(2).getFieldHeadersRow(),
-          spreadsheet.getTable(2).getLeft()
+          spreadsheet.getTable(2).getLeft(),
         );
       await projectPage
         .getVisualization()
         .performCellSubAction(
           spreadsheet.getTable(2).getFieldHeadersRow(),
           spreadsheet.getTable(2).getLeft() + 1,
-          GridMenuItem.ColumnGroup,
-          spreadsheet.getTable(2).getMenu().SwapLeft()
+          MenuType.TableField,
+          GridMenuItem.Column,
+          spreadsheet.getTable(2).getMenu().SwapLeft(),
         );
       await projectPage
         .getVisualization()
         .expectCellTextChange(
           spreadsheet.getTable(2).getFieldHeadersRow(),
           spreadsheet.getTable(2).getLeft(),
-          curFieldValue || ''
+          curFieldValue || '',
         );
       await projectPage
         .getVisualization()
         .expectCellTextChange(
           spreadsheet.getTable(2).getFieldHeadersRow(),
           spreadsheet.getTable(2).getLeft() + 1,
-          leftFieldValue || ''
+          leftFieldValue || '',
         );
       spreadsheet.getTable(2).swapFields(0, 1);
-    }
+    },
   );
 
   test(
@@ -322,38 +329,39 @@ test.describe('field actions', () => {
         .getVisualization()
         .getCellTableText(
           spreadsheet.getTable(2).getFieldHeadersRow(),
-          spreadsheet.getTable(2).getLeft() + 2
+          spreadsheet.getTable(2).getLeft() + 2,
         );
       const rightFieldValue = await projectPage
         .getVisualization()
         .getCellTableText(
           spreadsheet.getTable(2).getFieldHeadersRow(),
-          spreadsheet.getTable(2).getLeft() + 3
+          spreadsheet.getTable(2).getLeft() + 3,
         );
       await projectPage
         .getVisualization()
         .performCellSubAction(
           spreadsheet.getTable(2).getFieldHeadersRow(),
           spreadsheet.getTable(2).getLeft() + 2,
-          GridMenuItem.ColumnGroup,
-          spreadsheet.getTable(2).getMenu().SwapRight()
+          MenuType.TableField,
+          GridMenuItem.Column,
+          spreadsheet.getTable(2).getMenu().SwapRight(),
         );
       await projectPage
         .getVisualization()
         .expectCellTextChange(
           spreadsheet.getTable(2).getFieldHeadersRow(),
           spreadsheet.getTable(2).getLeft() + 3,
-          curFieldValue || ''
+          curFieldValue || '',
         );
       await projectPage
         .getVisualization()
         .expectCellTextChange(
           spreadsheet.getTable(2).getFieldHeadersRow(),
           spreadsheet.getTable(2).getLeft() + 2,
-          rightFieldValue || ''
+          rightFieldValue || '',
         );
       spreadsheet.getTable(2).swapFields(2, 3);
-    }
+    },
   );
 
   test(
@@ -367,19 +375,19 @@ test.describe('field actions', () => {
         .getVisualization()
         .getCellTableText(
           spreadsheet.getTable(2).getFieldHeadersRow(),
-          spreadsheet.getTable(2).getLeft() + 1
+          spreadsheet.getTable(2).getLeft() + 1,
         );
       const leftFieldValue = await projectPage
         .getVisualization()
         .getCellTableText(
           spreadsheet.getTable(2).getFieldHeadersRow(),
-          spreadsheet.getTable(2).getLeft()
+          spreadsheet.getTable(2).getLeft(),
         );
       await projectPage
         .getVisualization()
         .clickOnCell(
           spreadsheet.getTable(2).getFieldHeadersRow(),
-          spreadsheet.getTable(2).getLeft() + 1
+          spreadsheet.getTable(2).getLeft() + 1,
         );
       await page.keyboard.press('Shift+Alt+ArrowLeft');
       await projectPage
@@ -387,17 +395,17 @@ test.describe('field actions', () => {
         .expectCellTextChange(
           spreadsheet.getTable(2).getFieldHeadersRow(),
           spreadsheet.getTable(2).getLeft(),
-          curFieldValue || ''
+          curFieldValue || '',
         );
       await projectPage
         .getVisualization()
         .expectCellTextChange(
           spreadsheet.getTable(2).getFieldHeadersRow(),
           spreadsheet.getTable(2).getLeft() + 1,
-          leftFieldValue || ''
+          leftFieldValue || '',
         );
       spreadsheet.getTable(2).swapFields(0, 1);
-    }
+    },
   );
 
   test(
@@ -411,19 +419,19 @@ test.describe('field actions', () => {
         .getVisualization()
         .getCellTableText(
           spreadsheet.getTable(2).getFieldHeadersRow(),
-          spreadsheet.getTable(2).getLeft() + 2
+          spreadsheet.getTable(2).getLeft() + 2,
         );
       const rightFieldValue = await projectPage
         .getVisualization()
         .getCellTableText(
           spreadsheet.getTable(2).getFieldHeadersRow(),
-          spreadsheet.getTable(2).getLeft() + 3
+          spreadsheet.getTable(2).getLeft() + 3,
         );
       await projectPage
         .getVisualization()
         .clickOnCell(
           spreadsheet.getTable(2).getFieldHeadersRow(),
-          spreadsheet.getTable(2).getLeft() + 2
+          spreadsheet.getTable(2).getLeft() + 2,
         );
       await page.keyboard.press('Shift+Alt+ArrowRight');
       await projectPage
@@ -431,17 +439,17 @@ test.describe('field actions', () => {
         .expectCellTextChange(
           spreadsheet.getTable(2).getFieldHeadersRow(),
           spreadsheet.getTable(2).getLeft() + 3,
-          curFieldValue || ''
+          curFieldValue || '',
         );
       await projectPage
         .getVisualization()
         .expectCellTextChange(
           spreadsheet.getTable(2).getFieldHeadersRow(),
           spreadsheet.getTable(2).getLeft() + 2,
-          rightFieldValue || ''
+          rightFieldValue || '',
         );
       spreadsheet.getTable(2).swapFields(2, 3);
-    }
+    },
   );
 
   test(
@@ -455,19 +463,24 @@ test.describe('field actions', () => {
         .getVisualization()
         .getCellTableText(
           spreadsheet.getTable(2).getFieldHeadersRow(),
-          spreadsheet.getTable(2).getLeft()
+          spreadsheet.getTable(2).getLeft(),
         );
       await projectPage
         .getVisualization()
         .hoverCellMenuAction(
           spreadsheet.getTable(2).getFieldHeadersRow(),
           spreadsheet.getTable(2).getLeft(),
-          GridMenuItem.ColumnGroup
+          MenuType.TableField,
+          GridMenuItem.Column,
         );
       await projectPage.assertCellMenuItemDisabled(
-        spreadsheet.getTable(2).getMenu().SwapLeft()
+        TestFixtures.generateDataQa(
+          MenuType.TableField,
+          GridMenuItem.Column,
+          spreadsheet.getTable(2).getMenu().SwapLeft(),
+        ),
       );
-    }
+    },
   );
 
   test(
@@ -481,19 +494,24 @@ test.describe('field actions', () => {
         .getVisualization()
         .getCellTableText(
           spreadsheet.getTable(2).getFieldHeadersRow(),
-          spreadsheet.getTable(2).getLeft() + 3
+          spreadsheet.getTable(2).getLeft() + 3,
         );
       await projectPage
         .getVisualization()
         .hoverCellMenuAction(
           spreadsheet.getTable(2).getFieldHeadersRow(),
           spreadsheet.getTable(2).getLeft() + 3,
-          GridMenuItem.ColumnGroup
+          MenuType.TableField,
+          GridMenuItem.Column,
         );
       await projectPage.assertCellMenuItemDisabled(
-        spreadsheet.getTable(2).getMenu().SwapRight()
+        TestFixtures.generateDataQa(
+          MenuType.TableField,
+          GridMenuItem.Column,
+          spreadsheet.getTable(2).getMenu().SwapRight(),
+        ),
       );
-    }
+    },
   );
 
   test(
@@ -508,14 +526,15 @@ test.describe('field actions', () => {
         .performCellAction(
           spreadsheet.getTable(2).getFieldHeadersRow(),
           spreadsheet.getTable(2).getLeft(),
-          'Edit formula'
+          MenuType.TableField,
+          GridMenuItem.EditFormula
         );
       await new Promise((resolve) => setTimeout(resolve, 300));
       const newValue = '222';
       await projectPage.getVisualization().setCellValue(newValue);
       await expect(projectPage.getFormula()).toHaveText('=' + newValue);
       spreadsheet.getTable(2).getField(0).updateValue(newValue);*/
-    }
+    },
   );
 
   test(
@@ -542,7 +561,7 @@ test.describe('field actions', () => {
         );
       await expect(projectPage.getFormula()).toHaveText('=' + newValue);
       spreadsheet.getTable(2).getField(0).updateValue(newValue);*/
-    }
+    },
   );
 
   test(
@@ -557,15 +576,16 @@ test.describe('field actions', () => {
         .performCellSubAction(
           spreadsheet.getTable(2).getFieldHeadersRow(),
           spreadsheet.getTable(2).getLeft(),
-          GridMenuItem.IndexGroup,
-          IndexActions.AddKey
+          MenuType.TableField,
+          GridMenuItem.Index,
+          IndexActions.AddKey,
         );
 
       await projectPage
         .getVisualization()
         .expectFieldToBeKey(
           spreadsheet.getTable(2).getFieldHeadersRow(),
-          spreadsheet.getTable(2).getLeft()
+          spreadsheet.getTable(2).getLeft(),
         );
 
       await projectPage
@@ -573,10 +593,11 @@ test.describe('field actions', () => {
         .performCellSubAction(
           spreadsheet.getTable(2).getFieldHeadersRow(),
           spreadsheet.getTable(2).getLeft(),
-          GridMenuItem.IndexGroup,
-          IndexActions.RemoveKey
+          MenuType.TableField,
+          GridMenuItem.Index,
+          IndexActions.RemoveKey,
         );
-    }
+    },
   );
 
   test(
@@ -591,18 +612,19 @@ test.describe('field actions', () => {
         .performCellSubAction(
           spreadsheet.getTable(0).getFieldHeadersRow(),
           spreadsheet.getTable(0).getLeft(),
-          GridMenuItem.IndexGroup,
-          IndexActions.RemoveKey
+          MenuType.TableField,
+          GridMenuItem.Index,
+          IndexActions.RemoveKey,
         );
 
       await projectPage
         .getVisualization()
         .expectFieldNotBeKey(
           spreadsheet.getTable(0).getFieldHeadersRow(),
-          spreadsheet.getTable(0).getLeft()
+          spreadsheet.getTable(0).getLeft(),
         );
       spreadsheet.getTable(0).getField(0).removeKey();
-    }
+    },
   );
 
   //add dimension
@@ -618,30 +640,32 @@ test.describe('field actions', () => {
         .performCellAction(
           spreadsheet.getTable(0).getFieldHeadersRow(),
           spreadsheet.getTable(0).getLeft() + 1,
-          FieldMenuItem.MakeDimension
+          MenuType.TableField,
+          FieldMenuItem.MakeDimension,
         );
 
       await projectPage
         .getVisualization()
         .expectCellToNotBeDim(
           spreadsheet.getTable(0).getFirstCellCoord(),
-          spreadsheet.getTable(0).getLeft() + 1
+          spreadsheet.getTable(0).getLeft() + 1,
         );
 
       await projectPage
         .getVisualization()
         .expectFieldIsDimension(
           spreadsheet.getTable(0).getFieldHeadersRow(),
-          spreadsheet.getTable(0).getLeft() + 1
+          spreadsheet.getTable(0).getLeft() + 1,
         );
       await projectPage
         .getVisualization()
         .performCellAction(
           spreadsheet.getTable(0).getFieldHeadersRow(),
           spreadsheet.getTable(0).getLeft() + 1,
-          FieldMenuItem.RemoveDimension
+          MenuType.TableField,
+          FieldMenuItem.RemoveDimension,
         );
-    }
+    },
   );
 
   test(
@@ -656,23 +680,24 @@ test.describe('field actions', () => {
         .performCellAction(
           spreadsheet.getTable(0).getFieldHeadersRow(),
           spreadsheet.getTable(0).getLeft() + 2,
-          FieldMenuItem.RemoveDimension
+          MenuType.TableField,
+          FieldMenuItem.RemoveDimension,
         );
 
       await projectPage
         .getVisualization()
         .expectCellToBeDim(
           spreadsheet.getTable(0).getFirstCellCoord(),
-          spreadsheet.getTable(0).getLeft() + 2
+          spreadsheet.getTable(0).getLeft() + 2,
         );
       await projectPage
         .getVisualization()
         .expectFieldIsNotDimension(
           spreadsheet.getTable(0).getFieldHeadersRow(),
-          spreadsheet.getTable(0).getLeft() + 2
+          spreadsheet.getTable(0).getLeft() + 2,
         );
       spreadsheet.getTable(0).getField(2).removeDim();
-    }
+    },
   );
 
   test('filter by value', async () => {});

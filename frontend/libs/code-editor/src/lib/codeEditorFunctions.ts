@@ -9,11 +9,11 @@ import { SheetSemanticProvider } from './SheetSemanticProvider';
 export function registerQuantgridLanguage(
   monaco: Monaco,
   language: string,
-  theme: AppTheme
+  theme: AppTheme,
 ) {
   const languageAlreadyRegistered = monaco.languages
     .getLanguages()
-    .find((l) => l.id === language);
+    .find((l: languages.ILanguageExtensionPoint) => l.id === language);
 
   if (languageAlreadyRegistered) return;
 
@@ -23,7 +23,7 @@ export function registerQuantgridLanguage(
   monaco.languages.setMonarchTokensProvider('plaintext', monarchLanguageDef);
   monaco.languages.registerDocumentSemanticTokensProvider(
     language,
-    new SheetSemanticProvider()
+    new SheetSemanticProvider(),
   );
 
   monaco.languages.setLanguageConfiguration(language, {

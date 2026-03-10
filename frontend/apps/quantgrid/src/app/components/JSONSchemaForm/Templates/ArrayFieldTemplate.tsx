@@ -4,11 +4,10 @@ import { useContext } from 'react';
 
 import { primaryButtonClasses } from '@frontend/common/lib';
 import {
-  ArrayFieldTemplateItemType,
   ArrayFieldTemplateProps,
+  buttonId,
   FormContextType,
   GenericObjectType,
-  getTemplate,
   getUiOptions,
   RJSFSchema,
   StrictRJSFSchema,
@@ -18,20 +17,20 @@ import { ArrayFieldTitleTemplate } from './ArrayFieldTitleTemplate';
 
 /** The `ArrayFieldTemplate` component is the template used to render all items in an array.
  *
- * @param props - The `ArrayFieldTemplateItemType` props for the component
+ * @param props - The `ArrayFieldTemplateProps` for the component
  */
 export function ArrayFieldTemplate<
   T = any,
   S extends StrictRJSFSchema = RJSFSchema,
-  F extends FormContextType = any
+  F extends FormContextType = any,
 >(props: ArrayFieldTemplateProps<T, S, F>) {
   const {
     canAdd,
     className,
     disabled,
-    formContext,
-    idSchema,
+    fieldPathId,
     items,
+    optionalDataControl,
     onAddClick,
     readonly,
     registry,
@@ -41,41 +40,32 @@ export function ArrayFieldTemplate<
     uiSchema,
   } = props;
   const uiOptions = getUiOptions<T, S, F>(uiSchema);
-  const ArrayFieldItemTemplate = getTemplate<'ArrayFieldItemTemplate', T, S, F>(
-    'ArrayFieldItemTemplate',
-    registry,
-    uiOptions
-  );
-  // const ArrayFieldTitleTemplate = getTemplate<
-  //   'ArrayFieldTitleTemplate',
-  //   T,
-  //   S,
-  //   F
-  // >('ArrayFieldTitleTemplate', registry, uiOptions);
-  // Button templates are not overridden in the uiSchema
+  const showOptionalDataControlInTitle = !readonly && !disabled;
   const {
     ButtonTemplates: { AddButton },
   } = registry.templates;
   const { labelAlign = 'right', rowGutter = 24 } =
-    formContext as GenericObjectType;
+    registry.formContext as GenericObjectType;
 
   const { getPrefixCls } = useContext(ConfigProvider.ConfigContext);
   const prefixCls = getPrefixCls('form');
   const labelClsBasic = `${prefixCls}-item-label`;
   const labelColClassName = classNames(
     labelClsBasic,
-    labelAlign === 'left' && `${labelClsBasic}-left`
-    // labelCol.className,
+    labelAlign === 'left' && `${labelClsBasic}-left`,
   );
 
   return (
-    <fieldset className={className} id={idSchema.$id}>
+    <fieldset className={className} id={fieldPathId.$id}>
       <Row gutter={rowGutter}>
         {(uiOptions.title || title) && (
           <Col className={labelColClassName} span={24}>
             <ArrayFieldTitleTemplate
               description={uiOptions.description || schema.description}
-              idSchema={idSchema}
+              fieldPathId={fieldPathId}
+              optionalDataControl={
+                showOptionalDataControlInTitle ? optionalDataControl : undefined
+              }
               registry={registry}
               required={required}
               schema={schema}
@@ -85,12 +75,8 @@ export function ArrayFieldTemplate<
           </Col>
         )}
         <Col className="row array-item-list" span={24}>
-          {items &&
-            items.map(
-              ({ key, ...itemProps }: ArrayFieldTemplateItemType<T, S, F>) => (
-                <ArrayFieldItemTemplate key={key} {...itemProps} />
-              )
-            )}
+          {!showOptionalDataControlInTitle ? optionalDataControl : undefined}
+          {items}
         </Col>
 
         {canAdd && (
@@ -100,6 +86,7 @@ export function ArrayFieldTemplate<
                 <AddButton
                   className={classNames('array-item-add', primaryButtonClasses)}
                   disabled={disabled || readonly}
+                  id={buttonId(fieldPathId, 'add')}
                   registry={registry}
                   uiSchema={uiSchema}
                   onClick={onAddClick}

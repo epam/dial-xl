@@ -1,6 +1,5 @@
 import { Form, Input, Tooltip } from 'antd';
 import cx from 'classnames';
-import type { DefaultOptionType } from 'rc-select/lib/Select';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 
 import Icon from '@ant-design/icons';
@@ -10,6 +9,7 @@ import {
   inputClasses,
   TrashIcon,
 } from '@frontend/common';
+import type { DefaultOptionType } from '@rc-component/select/lib/Select';
 
 import { FormSelect } from './FormSelect';
 import { ControlRow, ControlWizardSaveProps } from './utils';
@@ -76,7 +76,7 @@ export function ControlRowForm({
         ['controls', nameIndex, 'valueTable'],
         ['controls', nameIndex, 'valueField'],
       ] as const,
-    [nameIndex]
+    [nameIndex],
   );
 
   const save = useCallback(
@@ -115,16 +115,18 @@ export function ControlRowForm({
         })
         .catch(() => {});
     },
-    [form, nameIndex, onSave, paths]
+    [form, nameIndex, onSave, paths],
   );
 
   const tableOptsMerged = useMemo(
     () => mergeOption(tableOptions, row?.valueTable ?? null),
-    [tableOptions, row?.valueTable]
+    [tableOptions, row?.valueTable],
   );
 
   const fieldOptions = useMemo(() => {
-    const base = row?.valueTable ? fieldsByTable.get(row.valueTable) ?? [] : [];
+    const base = row?.valueTable
+      ? (fieldsByTable.get(row.valueTable) ?? [])
+      : [];
 
     return mergeOption(base, row?.valueField ?? null);
   }, [fieldsByTable, row?.valueTable, row?.valueField]);
@@ -149,7 +151,9 @@ export function ControlRowForm({
       const prevField = snap?.valueField;
       const prevDependency = snap?.dependency;
 
-      const newFieldOptions = newTable ? fieldsByTable.get(newTable) ?? [] : [];
+      const newFieldOptions = newTable
+        ? (fieldsByTable.get(newTable) ?? [])
+        : [];
 
       const hasPrevField =
         prevField != null && newFieldOptions.some((o) => o.value === prevField);
@@ -179,7 +183,7 @@ export function ControlRowForm({
 
       save(changedKeys);
     },
-    [fieldsByTable, form, nameIndex, save]
+    [fieldsByTable, form, nameIndex, save],
   );
 
   return (
@@ -313,7 +317,7 @@ export function ControlRowForm({
 
 function mergeOption(
   options: DefaultOptionType[],
-  value: string | null | undefined
+  value: string | null | undefined,
 ) {
   if (!value) return options;
   const exists = options.some((o) => o?.value === value);
@@ -327,7 +331,7 @@ function isValidControl(c?: Partial<ControlRow>) {
 
 function shallowDiffKeys(
   a: Partial<ControlRow> | undefined,
-  b: Partial<ControlRow> | undefined
+  b: Partial<ControlRow> | undefined,
 ) {
   const changed: (keyof ControlRow)[] = [];
   for (const k of trackKeys) {

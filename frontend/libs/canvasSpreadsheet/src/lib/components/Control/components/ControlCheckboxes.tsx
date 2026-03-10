@@ -60,7 +60,7 @@ export function ControlCheckboxes({
       });
       onClose?.();
     },
-    [checkedSet, cell, eventBus, onClose]
+    [checkedSet, cell, eventBus, onClose],
   );
 
   const normalizedCheckedSet = useMemo(() => {
@@ -105,7 +105,7 @@ export function ControlCheckboxes({
         itemKey={(i) => i.value}
         renderItem={(item) => {
           const isChecked = normalizedCheckedSet.has(
-            normalizeControlValue(item.value)
+            normalizeControlValue(item.value),
           );
 
           return (

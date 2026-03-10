@@ -2,13 +2,13 @@ import { useCallback } from 'react';
 import { AuthContextProps } from 'react-oidc-context';
 
 import {
+  ApiRequestFunction,
   filesEndpointType,
   Question,
   QuestionMetadata,
   questionsApiMessages,
 } from '@frontend/common';
 
-import { ApiRequestFunction } from '../../types';
 import { constructPath, displayToast, encodeApiUrl } from '../../utils';
 import { getDeploymentRouteSegments } from '../../utils/deployments';
 import { useBackendRequest } from './useBackendRequests';
@@ -43,8 +43,8 @@ export const useQuestionsRequests = (auth: AuthContextProps) => {
 
         const res = await sendDialRequest(
           encodeApiUrl(
-            constructPath([...getDeploymentRouteSegments(), 'questions'])
-          ) + `/?${searchQueryParams.toString()}` // Required due to issue with fast api
+            constructPath([...getDeploymentRouteSegments(), 'questions']),
+          ) + `/?${searchQueryParams.toString()}`, // Required due to issue with fast api
         );
 
         if (!res.ok) {
@@ -62,7 +62,7 @@ export const useQuestionsRequests = (auth: AuthContextProps) => {
         return undefined;
       }
     },
-    [sendDialRequest]
+    [sendDialRequest],
   );
 
   const getQuestion = useCallback<
@@ -92,8 +92,8 @@ export const useQuestionsRequests = (auth: AuthContextProps) => {
               ...getDeploymentRouteSegments(),
               'questions',
               question_file,
-            ])
-          ) + `?${searchQueryParams.toString()}`
+            ]),
+          ) + `?${searchQueryParams.toString()}`,
         );
 
         if (!res.ok) {
@@ -111,7 +111,7 @@ export const useQuestionsRequests = (auth: AuthContextProps) => {
         return undefined;
       }
     },
-    [sendDialRequest]
+    [sendDialRequest],
   );
 
   const deleteQuestion = useCallback<
@@ -141,11 +141,11 @@ export const useQuestionsRequests = (auth: AuthContextProps) => {
               ...getDeploymentRouteSegments(),
               'questions',
               question_file,
-            ])
+            ]),
           ) + `?${searchQueryParams.toString()}`,
           {
             method: 'DELETE',
-          }
+          },
         );
 
         if (!res.ok) {
@@ -161,7 +161,7 @@ export const useQuestionsRequests = (auth: AuthContextProps) => {
         return undefined;
       }
     },
-    [sendDialRequest]
+    [sendDialRequest],
   );
 
   return {

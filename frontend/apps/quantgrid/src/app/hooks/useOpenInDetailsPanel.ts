@@ -21,13 +21,13 @@ export function useOpenInDetailsPanel() {
       const tableStructure = viewGridData.getGridTableStructure();
 
       const findStructure = tableStructure.find(
-        (t) => t.tableName === tableName
+        (t) => t.tableName === tableName,
       );
 
       if (!findStructure) {
         for (const [sheetName, parsedSheet] of Object.entries(parsedSheets)) {
           const table = parsedSheet.tables.find(
-            (t) => t.tableName === tableName
+            (t) => t.tableName === tableName,
           );
 
           if (table) {
@@ -51,7 +51,7 @@ export function useOpenInDetailsPanel() {
 
       openPanel(PanelName.Details);
     },
-    [gridApi, openPanel, openTable, parsedSheets, viewGridData]
+    [gridApi, openPanel, openTable, parsedSheets, viewGridData],
   );
 
   return { openInDetailsPanel };

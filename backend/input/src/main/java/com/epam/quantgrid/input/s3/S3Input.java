@@ -1,14 +1,13 @@
 package com.epam.quantgrid.input.s3;
 
 import com.epam.deltix.quantgrid.engine.service.input.DataSchema;
-import com.epam.deltix.quantgrid.engine.service.input.storage.CsvInputParser;
-import com.epam.deltix.quantgrid.type.InputColumnType;
 import com.epam.quantgrid.input.annotate.Input;
 import com.epam.quantgrid.input.annotate.Setting;
 import com.epam.quantgrid.input.api.DataCatalog;
 import com.epam.quantgrid.input.api.DataInput;
 import com.epam.quantgrid.input.api.DataStream;
 import com.epam.quantgrid.input.csv.CsvStream;
+import com.epam.quantgrid.input.util.DataUtils;
 import com.epam.quantgrid.input.util.FileUtils;
 import lombok.Getter;
 import lombok.Setter;
@@ -21,11 +20,8 @@ import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Response;
 import software.amazon.awssdk.services.s3.model.S3Object;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.Reader;
-import java.util.Map;
+import java.io.InputStream;
 
 @Setter
 @Getter
@@ -87,12 +83,8 @@ public class S3Input implements DataInput {
                     .bucket(bucket)
                     .key(dataset)
                     .build();
-            try (Reader reader = new BufferedReader(new InputStreamReader(s3.getObject(request)))) {
-                Map<String, InputColumnType> schema = CsvInputParser.inferSchema(reader, false);
-                DataSchema result = new DataSchema();
-                schema.forEach((name, type) ->
-                        result.addColumn(new DataSchema.Column(name, type.getDisplayName(), type)));
-                return result;
+            try (InputStream stream = s3.getObject(request)) {
+                return DataUtils.inferCsvSchema(stream);
             }
         }
     }
@@ -108,8 +100,8 @@ public class S3Input implements DataInput {
                 .key(dataset)
                 .build();
         try (S3Client s3Client = s3Client();
-            Reader reader = new BufferedReader(new InputStreamReader(s3Client.getObject(request)))) {
-            return CsvStream.create(schema, reader);
+             InputStream stream = s3Client.getObject(request)) {
+            return CsvStream.create(stream, schema);
         }
     }
 

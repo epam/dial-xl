@@ -1,22 +1,19 @@
-import { useCallback, useContext, useEffect, useState } from 'react';
+import { useCallback, useContext } from 'react';
 
-import { GridEvent } from '../components';
 import { GridStateContext } from '../context';
-import { Edges } from '../types';
+import { GridEvent } from '../types';
 
 export function useSelection() {
   const {
     gridSizes,
-    selection$,
+    selectionEdges,
     setSelectionEdges,
     getCell,
     tableStructure,
     selectedTable,
     eventBus,
-    gridApi,
+    event,
   } = useContext(GridStateContext);
-
-  const [selectionEdges, setLocalSelectionEdges] = useState<Edges | null>(null);
 
   const stopMoveTable = useCallback(() => {
     if (!selectionEdges) return;
@@ -29,16 +26,16 @@ export function useSelection() {
       endCol: startCol,
     });
 
-    gridApi.event.emit({
+    event.emit({
       type: GridEvent.stopMoveEntity,
     });
-  }, [gridApi, selectionEdges, setSelectionEdges]);
+  }, [event, selectionEdges, setSelectionEdges]);
 
   const completeMoveTable = useCallback(() => {
     if (!selectedTable || !selectionEdges) return;
 
     const findTable = tableStructure.find(
-      (table) => table.tableName === selectedTable
+      (table) => table.tableName === selectedTable,
     );
 
     if (!findTable) return;
@@ -59,11 +56,11 @@ export function useSelection() {
 
     setSelectionEdges(selectionEdges);
 
-    gridApi.event.emit({
+    event.emit({
       type: GridEvent.stopMoveEntity,
     });
   }, [
-    gridApi,
+    event,
     eventBus,
     selectedTable,
     selectionEdges,
@@ -74,7 +71,7 @@ export function useSelection() {
   const selectTableByName = useCallback(
     (tableName: string) => {
       const findTable = tableStructure.find(
-        (table) => table.tableName === tableName
+        (table) => table.tableName === tableName,
       );
 
       if (!findTable) return;
@@ -90,14 +87,14 @@ export function useSelection() {
         },
         {
           selectedTable: tableName,
-        }
+        },
       );
 
-      gridApi.event.emit({
+      event.emit({
         type: GridEvent.startMoveEntity,
       });
     },
-    [gridApi, setSelectionEdges, tableStructure]
+    [event, setSelectionEdges, tableStructure],
   );
 
   const selectTable = useCallback(() => {
@@ -120,13 +117,13 @@ export function useSelection() {
       },
       {
         selectedTable: table.tableName,
-      }
+      },
     );
 
-    gridApi.event.emit({
+    event.emit({
       type: GridEvent.startMoveEntity,
     });
-  }, [getCell, gridApi, selectionEdges, setSelectionEdges]);
+  }, [getCell, event, selectionEdges, setSelectionEdges]);
 
   const selectRow = useCallback(() => {
     if (!selectionEdges) return;
@@ -195,18 +192,6 @@ export function useSelection() {
       endCol,
     });
   }, [getCell, gridSizes, selectionEdges, setSelectionEdges]);
-
-  useEffect(() => {
-    const selectionSubscription = selection$.subscribe(
-      (edges: Edges | null) => {
-        setLocalSelectionEdges(edges);
-      }
-    );
-
-    return () => {
-      selectionSubscription.unsubscribe();
-    };
-  }, [selection$]);
 
   return {
     selectRow,

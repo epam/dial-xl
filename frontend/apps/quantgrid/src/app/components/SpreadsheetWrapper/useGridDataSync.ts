@@ -1,10 +1,4 @@
-import {
-  MutableRefObject,
-  useCallback,
-  useContext,
-  useEffect,
-  useState,
-} from 'react';
+import { RefObject, useCallback, useContext, useEffect, useState } from 'react';
 
 import {
   GridData,
@@ -25,8 +19,8 @@ interface GridDataSyncResult {
 }
 
 export function useGridDataSync(
-  currentViewport: MutableRefObject<ViewportEdges | null>,
-  currentExtendedViewport: MutableRefObject<ViewportEdges | null>
+  currentViewport: RefObject<ViewportEdges | null>,
+  currentExtendedViewport: RefObject<ViewportEdges | null>,
 ): GridDataSyncResult {
   const { viewGridData } = useContext(ViewportContext);
   const { projectName } = useContext(ProjectContext);
@@ -49,11 +43,11 @@ export function useGridDataSync(
         const { startRow, endRow, startCol, endCol } = currentViewport.current;
         const [extStartRow, extEndRow] = getExtendedRoundedBorders(
           startRow,
-          endRow
+          endRow,
         );
         const [extStartCol, extEndCol] = getExtendedRoundedBorders(
           startCol,
-          endCol
+          endCol,
         );
 
         const extendedViewport = {

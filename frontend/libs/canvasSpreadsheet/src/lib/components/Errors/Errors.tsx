@@ -1,17 +1,19 @@
-import * as PIXI from 'pixi.js';
-import { useCallback, useContext } from 'react';
+import { Graphics } from 'pixi.js';
+import { useCallback, useContext, useRef } from 'react';
 
-import { Container, Graphics } from '@pixi/react';
-
-import { ComponentLayer } from '../../constants';
 import { GridStateContext, GridViewportContext } from '../../context';
-import { useCellUtils } from '../../hooks';
+import { useCellUtils, useDraw } from '../../hooks';
 import { Color } from '../../types';
 import { useErrors } from './useErrors';
 import { CellError } from './utils';
 
-export function Errors() {
-  const { theme, gridSizes, gridApi, getCell } = useContext(GridStateContext);
+type Props = {
+  zIndex: number;
+};
+
+export function Errors({ zIndex }: Props) {
+  const { theme, gridSizes, openTooltip, closeTooltip, getCell } =
+    useContext(GridStateContext);
   const { getCellY, getCellX } = useContext(GridViewportContext);
   const { calculateCellDimensions } = useCellUtils();
   const { errors } = useErrors();
@@ -26,21 +28,17 @@ export function Errors() {
       const width = Math.abs(x2 - x1);
       const tooltipX = isHorizontalFieldError ? x1 : x1 + width;
 
-      gridApi.openTooltip(
-        tooltipX,
-        y1 - gridSizes.error.tooltipMargin,
-        message
-      );
+      openTooltip(tooltipX, y1 - gridSizes.error.tooltipMargin, message);
     },
-    [getCellX, getCellY, gridApi, gridSizes]
+    [getCellX, getCellY, openTooltip, gridSizes],
   );
 
   const drawLeftErrorBorder = useCallback(
     (
       errorRect: CellError,
-      graphics: PIXI.Graphics,
+      graphics: Graphics,
       lineWidth: number,
-      borderColor: Color
+      borderColor: Color,
     ) => {
       const col = errorRect.startCol;
       for (let row = errorRect.startRow; row <= errorRect.endRow; row++) {
@@ -57,21 +55,20 @@ export function Errors() {
 
         if (cell?.table?.tableName === errorRect.tableName) {
           graphics
-            .lineStyle(lineWidth, borderColor)
             .moveTo(x, y)
             .lineTo(x, y + height)
-            .endFill();
+            .stroke({ width: lineWidth, color: borderColor });
         }
       }
     },
-    [calculateCellDimensions, getCell]
+    [calculateCellDimensions, getCell],
   );
   const drawRightErrorBorder = useCallback(
     (
       errorRect: CellError,
-      graphics: PIXI.Graphics,
+      graphics: Graphics,
       lineWidth: number,
-      borderColor: Color
+      borderColor: Color,
     ) => {
       const col = errorRect.endCol;
       for (let row = errorRect.startRow; row <= errorRect.endRow; row++) {
@@ -88,22 +85,21 @@ export function Errors() {
 
         if (cell?.table?.tableName === errorRect.tableName) {
           graphics
-            .lineStyle(lineWidth, borderColor)
             .moveTo(x + width, y)
             .lineTo(x + width, y + height)
-            .endFill();
+            .stroke({ width: lineWidth, color: borderColor });
         }
       }
     },
-    [calculateCellDimensions, getCell]
+    [calculateCellDimensions, getCell],
   );
 
   const drawTopErrorBorder = useCallback(
     (
       errorRect: CellError,
-      graphics: PIXI.Graphics,
+      graphics: Graphics,
       lineWidth: number,
-      borderColor: Color
+      borderColor: Color,
     ) => {
       const row = errorRect.startRow;
       for (let col = errorRect.startCol; col <= errorRect.endCol; col++) {
@@ -120,22 +116,21 @@ export function Errors() {
 
         if (cell?.table?.tableName === errorRect.tableName) {
           graphics
-            .lineStyle(lineWidth, borderColor)
             .moveTo(x, y)
             .lineTo(x + width, y)
-            .endFill();
+            .stroke({ width: lineWidth, color: borderColor });
         }
       }
     },
-    [calculateCellDimensions, getCell]
+    [calculateCellDimensions, getCell],
   );
 
   const drawBottomErrorBorder = useCallback(
     (
       errorRect: CellError,
-      graphics: PIXI.Graphics,
+      graphics: Graphics,
       lineWidth: number,
-      borderColor: Color
+      borderColor: Color,
     ) => {
       const row = errorRect.endRow;
       for (let col = errorRect.startCol; col <= errorRect.endCol; col++) {
@@ -152,18 +147,17 @@ export function Errors() {
 
         if (cell?.table?.tableName === errorRect.tableName) {
           graphics
-            .lineStyle(lineWidth, borderColor)
             .moveTo(x, y + height)
             .lineTo(x + width, y + height)
-            .endFill();
+            .stroke({ width: lineWidth, color: borderColor });
         }
       }
     },
-    [calculateCellDimensions, getCell]
+    [calculateCellDimensions, getCell],
   );
 
   const drawErrorsBorders = useCallback(
-    (graphics: PIXI.Graphics, errorRect: CellError) => {
+    (graphics: Graphics, errorRect: CellError) => {
       const { borderColor } = theme.error;
       const { width: lineWidth } = gridSizes.error;
 
@@ -180,11 +174,16 @@ export function Errors() {
       drawTopErrorBorder,
       gridSizes.error,
       theme.error,
-    ]
+    ],
   );
 
-  const draw = useCallback(
-    (graphics: PIXI.Graphics, cell: CellError) => {
+  const graphicsRefs = useRef<Map<string, Graphics>>(new Map());
+
+  const draw = useCallback(() => {
+    errors.forEach((cell) => {
+      const graphics = graphicsRefs.current.get(cell.key);
+      if (!graphics) return;
+
       const { borderColor } = theme.error;
       const { width: lineWidth, circleRadius } = gridSizes.error;
 
@@ -200,33 +199,42 @@ export function Errors() {
       if (isShowErrorCircle) {
         const circleX = isHorizontalFieldError ? x : x + width;
         graphics
-          .lineStyle(lineWidth, borderColor)
-          .beginFill(borderColor)
-          .drawCircle(circleX, y, circleRadius)
-          .endFill();
+          .circle(circleX, y, circleRadius)
+          .fill({ color: borderColor })
+          .stroke({ width: lineWidth, color: borderColor });
       }
-    },
-    [
-      theme.error,
-      gridSizes.error,
-      calculateCellDimensions,
-      getCell,
-      drawErrorsBorders,
-    ]
-  );
+    });
+  }, [
+    errors,
+    theme.error,
+    gridSizes.error,
+    calculateCellDimensions,
+    getCell,
+    drawErrorsBorders,
+  ]);
+
+  useDraw(draw);
 
   return (
-    <Container zIndex={ComponentLayer.Error}>
+    <pixiContainer label="Errors" zIndex={zIndex}>
       {errors.map((cell) => (
-        <Graphics
+        <pixiGraphics
           cursor="pointer"
-          draw={(g: PIXI.Graphics) => draw(g, cell)}
+          draw={() => {}}
           eventMode="static"
           key={cell.key}
-          onmouseout={() => gridApi.closeTooltip()}
-          onmouseover={() => onMouseOver(cell)}
+          label={`ErrorGraphics_${cell.key}`}
+          ref={(ref: Graphics | null) => {
+            if (ref) {
+              graphicsRefs.current.set(cell.key, ref);
+            } else {
+              graphicsRefs.current.delete(cell.key);
+            }
+          }}
+          onMouseOut={() => closeTooltip()}
+          onMouseOver={() => onMouseOver(cell)}
         />
       ))}
-    </Container>
+    </pixiContainer>
   );
 }

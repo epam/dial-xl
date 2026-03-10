@@ -3,7 +3,7 @@ import { Table_nameContext } from '../index';
 
 export function findTableNameInExpression(
   expression: Expression,
-  result: TableReferenceExpression[] = []
+  result: TableReferenceExpression[] = [],
 ): TableReferenceExpression[] {
   if (!expression) {
     return result;
@@ -20,7 +20,7 @@ export function findTableNameInExpression(
       start.start,
       stop?.stop || start.start + text.length,
       start.start,
-      stop?.stop || start.start + text.length
+      stop?.stop || start.start + text.length,
     );
 
     result.push(tableReference);

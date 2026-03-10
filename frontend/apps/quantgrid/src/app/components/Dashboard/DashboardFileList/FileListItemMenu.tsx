@@ -83,7 +83,12 @@ export function FileListItemMenu({
 
       await moveResources([item], path, bucket, () => refetchData());
     },
-    [item, moveResources, refetchData]
+    [item, moveResources, refetchData],
+  );
+
+  const fileListItemMenuPath = useMemo(
+    () => ['FileListItemMenu', item.name],
+    [item.name],
   );
 
   const contextMenuItems: MenuProps['items'] = useMemo(
@@ -92,6 +97,7 @@ export function FileListItemMenu({
         !isFolder
           ? getDropdownItem({
               key: 'download',
+              fullPath: [...fileListItemMenuPath, 'Download'],
               label: 'Download',
               icon: (
                 <Icon
@@ -100,7 +106,9 @@ export function FileListItemMenu({
                 />
               ),
               onClick: async () => {
-                toast.loading(`Downloading file '${item.name}'...`);
+                const toastId = toast.loading(
+                  `Downloading file '${item.name}'...`,
+                );
                 const result = await downloadFiles({
                   files: [
                     {
@@ -110,7 +118,7 @@ export function FileListItemMenu({
                     },
                   ],
                 });
-                toast.dismiss();
+                toast.dismiss(toastId);
                 if (!result) {
                   toast.error('Error happened during downloading file');
                 }
@@ -120,6 +128,7 @@ export function FileListItemMenu({
         !isFolder && isAbleToEdit
           ? getDropdownItem({
               key: 'rename',
+              fullPath: [...fileListItemMenuPath, 'Rename'],
               label: 'Rename',
               icon: (
                 <Icon
@@ -135,6 +144,7 @@ export function FileListItemMenu({
         !isFolder
           ? getDropdownItem({
               key: 'clone',
+              fullPath: [...fileListItemMenuPath, 'Clone'],
               label: 'Clone',
               icon: (
                 <Icon
@@ -150,6 +160,7 @@ export function FileListItemMenu({
         isAbleToEdit
           ? getDropdownItem({
               key: 'moveTo',
+              fullPath: [...fileListItemMenuPath, 'MoveTo'],
               label: 'Move to',
               icon: (
                 <Icon
@@ -165,6 +176,7 @@ export function FileListItemMenu({
 
         getDropdownItem({
           key: 'share',
+          fullPath: [...fileListItemMenuPath, 'Share'],
           label: 'Share',
           icon: (
             <Icon
@@ -181,6 +193,7 @@ export function FileListItemMenu({
         item.isSharedByMe
           ? getDropdownItem({
               key: 'unshare',
+              fullPath: [...fileListItemMenuPath, 'Unshare'],
               label: 'Unshare',
               icon: (
                 <Icon
@@ -197,7 +210,7 @@ export function FileListItemMenu({
                     nodeType: item.nodeType,
                     resourceType: item.resourceType,
                   },
-                  () => refetchData()
+                  () => refetchData(),
                 );
               },
             })
@@ -205,6 +218,7 @@ export function FileListItemMenu({
         isSharedWithMe
           ? getDropdownItem({
               key: 'discard',
+              fullPath: [...fileListItemMenuPath, 'DiscardAccess'],
               label: 'Discard access',
               icon: (
                 <Icon
@@ -221,7 +235,7 @@ export function FileListItemMenu({
                     nodeType: item.nodeType,
                     resourceType: item.resourceType,
                   },
-                  () => refetchData()
+                  () => refetchData(),
                 );
               },
             })
@@ -229,6 +243,7 @@ export function FileListItemMenu({
         isAbleToEdit
           ? getDropdownItem({
               key: 'delete',
+              fullPath: [...fileListItemMenuPath, 'Delete'],
               label: 'Delete',
               icon: (
                 <Icon
@@ -236,7 +251,7 @@ export function FileListItemMenu({
                     'w-[18px]',
                     disabledDelete
                       ? 'text-controls-text-disable'
-                      : 'text-text-secondary'
+                      : 'text-text-secondary',
                   )}
                   component={() => <TrashIcon />}
                 />
@@ -250,17 +265,18 @@ export function FileListItemMenu({
       ].filter(Boolean) as MenuProps['items'],
     [
       isFolder,
+      fileListItemMenuPath,
       isAbleToEdit,
       isAbleToShare,
       item,
       isSharedWithMe,
+      disabledDelete,
       downloadFiles,
-      refetchData,
       revokeResourceAccess,
+      refetchData,
       discardResourceAccess,
       deleteResources,
-      disabledDelete,
-    ]
+    ],
   );
 
   return (

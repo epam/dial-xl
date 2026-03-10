@@ -7,7 +7,7 @@ type Options = {
 
 export function useBusyIndicator(
   isBusy: boolean,
-  { delay = 300, minDuration = 250 }: Options = {}
+  { delay = 300, minDuration = 250 }: Options = {},
 ) {
   const [visible, setVisible] = useState(false);
   const showTimer = useRef<number | null>(null);

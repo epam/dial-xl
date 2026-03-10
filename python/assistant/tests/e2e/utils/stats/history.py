@@ -32,7 +32,7 @@ ALPHA = 0.2
 BETA = 0.2
 FRAC_FAILED = 0.33
 N_MONTE_CARLO = 1000
-BUCKET_NAME = "deltix-staging-dial-quantgrid-test-results"
+BUCKET_NAME = "test-dial-xl-test-results"
 TEST_RESULTS_PREFIX = "test-results/"
 MAX_RUN_COUNT = 7
 

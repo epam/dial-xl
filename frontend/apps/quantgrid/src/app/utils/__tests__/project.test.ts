@@ -21,7 +21,7 @@ describe('updateFilesPathInputsInProject', () => {
   it('updates paths that already point to the same project', () => {
     // Arrange
     const sheets = prepareSheets(
-      'dim [src] = INPUT("files/2tPJCVWm/appdata/xl/test_clone/departments.csv")'
+      'dim [src] = INPUT("files/2tPJCVWm/appdata/xl/test_clone/departments.csv")',
     );
     const pathToReplace = '2tPJCVWm/appdata/xl/test_clone';
 
@@ -29,80 +29,80 @@ describe('updateFilesPathInputsInProject', () => {
     const [{ content: result }] = updateFilesPathInputsInProject(
       sheets,
       pathToReplace,
-      newPath
+      newPath,
     );
 
     // Assert
     expect(result).toBe(
-      `dim [src] = INPUT("files/${encodedNewPath}/departments.csv")`
+      `dim [src] = INPUT("files/${encodedNewPath}/departments.csv")`,
     );
   });
 
   it('updates a path that points to a different bucket and project (with appdata/xl)', () => {
     const sheets = prepareSheets(
-      'dim [x] = INPUT("files/3aPFKVNw/appdata/xl/another_project/HR/departments4.csv")'
+      'dim [x] = INPUT("files/3aPFKVNw/appdata/xl/another_project/HR/departments4.csv")',
     );
     const pathToReplace = '3aPFKVNw/appdata/xl/another_project/HR';
 
     const [{ content: result }] = updateFilesPathInputsInProject(
       sheets,
       pathToReplace,
-      newPath
+      newPath,
     );
 
     expect(result).toBe(
-      `dim [x] = INPUT("files/${encodedNewPath}/departments4.csv")`
+      `dim [x] = INPUT("files/${encodedNewPath}/departments4.csv")`,
     );
   });
 
   it('updates a path that has no appdata/xl segment', () => {
     const sheets = prepareSheets(
-      'dim [x] = INPUT("files/3aPFKVNw/another_project/history.csv")'
+      'dim [x] = INPUT("files/3aPFKVNw/another_project/history.csv")',
     );
     const pathToReplace = '3aPFKVNw/another_project';
 
     const [{ content: result }] = updateFilesPathInputsInProject(
       sheets,
       pathToReplace,
-      newPath
+      newPath,
     );
 
     expect(result).toBe(
-      `dim [x] = INPUT("files/${encodedNewPath}/history.csv")`
+      `dim [x] = INPUT("files/${encodedNewPath}/history.csv")`,
     );
   });
 
   it('updates a file that lives at the bucket root', () => {
     const sheets = prepareSheets(
-      'dim [x] = INPUT("files/3aPFKVNw/my_file.csv")'
+      'dim [x] = INPUT("files/3aPFKVNw/my_file.csv")',
     );
     const pathToReplace = '3aPFKVNw';
 
     const [{ content: result }] = updateFilesPathInputsInProject(
       sheets,
       pathToReplace,
-      newPath
+      newPath,
     );
 
     expect(result).toBe(
-      `dim [x] = INPUT("files/${encodedNewPath}/my_file.csv")`
+      `dim [x] = INPUT("files/${encodedNewPath}/my_file.csv")`,
     );
   });
 
   it('leaves non-storage URLs unchanged', () => {
     const sheets = prepareSheets(
-      'dim [x] = INPUT("https://example.com/external/file.csv")'
+      'dim [x] = INPUT("https://example.com/external/file.csv")',
     );
     const pathToReplace = '3aPFKVNw';
 
     const [{ content: result }] = updateFilesPathInputsInProject(
       sheets,
       pathToReplace,
-      newPath
+      newPath,
     );
 
     expect(result).toBe(
-      'dim [x] = INPUT("https://example.com/external/file.csv")'
+      'dim [x] = INPUT("https://example.com/external/file.csv")',
     );
   });
 });

@@ -1,13 +1,12 @@
-import { RefObject, useCallback } from 'react';
+import { useCallback, useContext } from 'react';
 
 import { FormulaBarMode } from '@frontend/common';
 
-import { GridApi } from '../../../types';
+import { GridStateContext } from '../../../context';
 import { CurrentCell, GridCellEditorMode } from '../types';
 import { isCellEditorValueFormula, isCellValueTypeChanged } from '../utils';
 
 type Props = {
-  apiRef: RefObject<GridApi>;
   formulaBarMode: FormulaBarMode;
   openedExplicitly: boolean;
   currentCell: CurrentCell;
@@ -17,12 +16,11 @@ type Props = {
     col: number | undefined,
     row: number | undefined,
     editMode: GridCellEditorMode,
-    codeValue: string
+    codeValue: string,
   ) => void;
 };
 
 export function useCellEditorMode({
-  apiRef,
   formulaBarMode,
   openedExplicitly,
   currentCell,
@@ -30,19 +28,20 @@ export function useCellEditorMode({
   editMode,
   updateDottedSelectionVisibility,
 }: Props) {
+  const { getCell, hideDottedSelection } = useContext(GridStateContext);
+
   const updateEditModeOnCodeChange = useCallback(
     (newCodeValue: string, oldCodeValue: string) => {
-      if (!apiRef.current || !currentCell || !editMode) return;
+      if (!currentCell || !editMode) return;
       if (openedExplicitly && formulaBarMode === 'value') return;
 
-      const api = apiRef.current;
       const { col, row } = currentCell;
-      const cell = api.getCell(col, row);
+      const cell = getCell(col, row);
 
       const isRenaming = ['rename_table', 'rename_field'].includes(editMode);
       const isEmptyCellEditMode = editMode === 'empty_cell';
       const isEditingOverride = ['edit_override', 'add_override'].includes(
-        editMode
+        editMode,
       );
       const isEditingExpression =
         editMode === 'edit_cell_expression' ||
@@ -64,13 +63,13 @@ export function useCellEditorMode({
             col,
             row,
             'edit_cell_expression',
-            newCodeValue
+            newCodeValue,
           );
 
           return;
         }
 
-        api.hideDottedSelection();
+        hideDottedSelection();
 
         return;
       }
@@ -96,7 +95,7 @@ export function useCellEditorMode({
             col,
             row,
             'edit_cell_expression',
-            newCodeValue
+            newCodeValue,
           );
 
           return;
@@ -114,14 +113,15 @@ export function useCellEditorMode({
       }
     },
     [
-      apiRef,
       currentCell,
       editMode,
       formulaBarMode,
+      getCell,
+      hideDottedSelection,
       openedExplicitly,
       setEditMode,
       updateDottedSelectionVisibility,
-    ]
+    ],
   );
 
   return {

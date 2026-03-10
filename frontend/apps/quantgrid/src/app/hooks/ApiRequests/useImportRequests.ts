@@ -3,6 +3,7 @@ import { AuthContextProps } from 'react-oidc-context';
 
 import {
   apiMessages,
+  ApiRequestFunction,
   ImportCatalog,
   ImportCatalogListRequest,
   ImportConnection,
@@ -30,7 +31,6 @@ import {
   ProtoStruct,
 } from '@frontend/common';
 
-import { ApiRequestFunction } from '../../types';
 import { displayToast } from '../../utils';
 import { useBackendRequest } from './useBackendRequests';
 
@@ -75,7 +75,7 @@ export const useImportRequests = (auth: AuthContextProps) => {
             method: 'POST',
             body,
             headers,
-          }
+          },
         );
 
         if (!res.ok) {
@@ -94,7 +94,7 @@ export const useImportRequests = (auth: AuthContextProps) => {
         return;
       }
     },
-    [sendAuthorizedRequest]
+    [sendAuthorizedRequest],
   );
 
   const getImportDefinition = useCallback<
@@ -116,7 +116,7 @@ export const useImportRequests = (auth: AuthContextProps) => {
             method: 'POST',
             body,
             headers,
-          }
+          },
         );
 
         if (!res.ok) {
@@ -135,7 +135,7 @@ export const useImportRequests = (auth: AuthContextProps) => {
         return;
       }
     },
-    [sendAuthorizedRequest]
+    [sendAuthorizedRequest],
   );
 
   // ------- Sources -------
@@ -171,7 +171,7 @@ export const useImportRequests = (auth: AuthContextProps) => {
         return;
       }
     },
-    [sendAuthorizedRequest]
+    [sendAuthorizedRequest],
   );
 
   const getImportSource = useCallback<
@@ -209,7 +209,7 @@ export const useImportRequests = (auth: AuthContextProps) => {
         return;
       }
     },
-    [sendAuthorizedRequest]
+    [sendAuthorizedRequest],
   );
 
   const createImportSource = useCallback<
@@ -254,7 +254,7 @@ export const useImportRequests = (auth: AuthContextProps) => {
         return;
       }
     },
-    [sendAuthorizedRequest]
+    [sendAuthorizedRequest],
   );
 
   const updateImportSource = useCallback<
@@ -299,7 +299,7 @@ export const useImportRequests = (auth: AuthContextProps) => {
         return;
       }
     },
-    [sendAuthorizedRequest]
+    [sendAuthorizedRequest],
   );
 
   const deleteImportSource = useCallback<
@@ -334,7 +334,7 @@ export const useImportRequests = (auth: AuthContextProps) => {
         return;
       }
     },
-    [sendAuthorizedRequest]
+    [sendAuthorizedRequest],
   );
 
   // ------- Connection Test -------
@@ -357,7 +357,7 @@ export const useImportRequests = (auth: AuthContextProps) => {
             method: 'POST',
             body,
             headers,
-          }
+          },
         );
 
         if (!res.ok) {
@@ -376,7 +376,7 @@ export const useImportRequests = (auth: AuthContextProps) => {
         return;
       }
     },
-    [sendAuthorizedRequest]
+    [sendAuthorizedRequest],
   );
 
   // ------- Catalog / Discover -------
@@ -415,7 +415,7 @@ export const useImportRequests = (auth: AuthContextProps) => {
         return;
       }
     },
-    [sendAuthorizedRequest]
+    [sendAuthorizedRequest],
   );
 
   const discoverImportDataset = useCallback<
@@ -441,7 +441,7 @@ export const useImportRequests = (auth: AuthContextProps) => {
             method: 'POST',
             body,
             headers,
-          }
+          },
         );
 
         if (!res.ok) {
@@ -460,7 +460,7 @@ export const useImportRequests = (auth: AuthContextProps) => {
         return;
       }
     },
-    [sendAuthorizedRequest]
+    [sendAuthorizedRequest],
   );
 
   // ------- Syncs -------
@@ -503,7 +503,7 @@ export const useImportRequests = (auth: AuthContextProps) => {
         return;
       }
     },
-    [sendAuthorizedRequest]
+    [sendAuthorizedRequest],
   );
 
   const getImportSync = useCallback<
@@ -541,7 +541,7 @@ export const useImportRequests = (auth: AuthContextProps) => {
         return;
       }
     },
-    [sendAuthorizedRequest]
+    [sendAuthorizedRequest],
   );
 
   const startImportSync = useCallback<
@@ -588,7 +588,7 @@ export const useImportRequests = (auth: AuthContextProps) => {
         return;
       }
     },
-    [sendAuthorizedRequest]
+    [sendAuthorizedRequest],
   );
 
   const cancelImportSync = useCallback<
@@ -623,7 +623,7 @@ export const useImportRequests = (auth: AuthContextProps) => {
         return;
       }
     },
-    [sendAuthorizedRequest]
+    [sendAuthorizedRequest],
   );
 
   return {

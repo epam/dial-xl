@@ -7,11 +7,16 @@ import { PanelProps } from '../../../../common';
 import { ProjectContext } from '../../../../context';
 import {
   useControlStore,
+  useGroupByStore,
   usePivotStore,
   useViewStore,
 } from '../../../../store';
 import { ChartOptions } from '../../Chart';
 import { ControlWizard } from '../../ControlWizard';
+import {
+  GroupByTableWizard,
+  GroupByWizardContextProvider,
+} from '../../GroupByTableWizard';
 import { PanelToolbar } from '../../PanelToolbar';
 import { PivotTableWizard } from '../../PivotTableWizard';
 import { PivotWizardContextProvider } from '../../PivotTableWizard';
@@ -31,11 +36,22 @@ export function DetailsPanel({
         pivotTableName: s.pivotTableName,
         pivotTableWizardMode: s.pivotTableWizardMode,
         changePivotTableWizardMode: s.changePivotTableWizardMode,
-      }))
+      })),
     );
+  const {
+    groupByTableName,
+    groupByTableWizardMode,
+    changeGroupByTableWizardMode,
+  } = useGroupByStore(
+    useShallow((s) => ({
+      groupByTableName: s.groupByTableName,
+      groupByTableWizardMode: s.groupByTableWizardMode,
+      changeGroupByTableWizardMode: s.changeGroupByTableWizardMode,
+    })),
+  );
   const controlWizardIsOpen = useControlStore((s) => s.isOpen);
   const openControlCreateWizard = useControlStore(
-    (s) => s.openControlCreateWizard
+    (s) => s.openControlCreateWizard,
   );
   const closeControlWizard = useControlStore((s) => s.closeControlWizard);
 
@@ -48,6 +64,7 @@ export function DetailsPanel({
     if (!selectedCell) {
       setSelectedParsedTable(null);
       changePivotTableWizardMode(null);
+      changePivotTableWizardMode(null);
       closeControlWizard();
 
       return;
@@ -55,7 +72,7 @@ export function DetailsPanel({
 
     const timeoutId = setTimeout(() => {
       const foundTable = parsedSheet?.tables.find(
-        ({ tableName }) => tableName === selectedCell.tableName
+        ({ tableName }) => tableName === selectedCell.tableName,
       );
 
       setSelectedParsedTable(foundTable || null);
@@ -79,6 +96,14 @@ export function DetailsPanel({
       ) {
         changePivotTableWizardMode(null);
       }
+
+      if (
+        (groupByTableWizardMode === 'edit' &&
+          groupByTableName !== foundTable?.tableName) ||
+        (foundTable && groupByTableWizardMode === 'create')
+      ) {
+        changeGroupByTableWizardMode(null);
+      }
     }, 200);
 
     return () => clearTimeout(timeoutId);
@@ -90,7 +115,12 @@ export function DetailsPanel({
     pivotTableName,
     pivotTableWizardMode,
     selectedCell,
+    groupByTableWizardMode,
+    groupByTableName,
+    changeGroupByTableWizardMode,
   ]);
+
+  if (!isActive) return null;
 
   return (
     <PanelWrapper isActive={isActive} panelName={panelName}>
@@ -104,6 +134,10 @@ export function DetailsPanel({
         <PivotWizardContextProvider>
           <PivotTableWizard />
         </PivotWizardContextProvider>
+      ) : groupByTableWizardMode ? (
+        <GroupByWizardContextProvider>
+          <GroupByTableWizard />
+        </GroupByWizardContextProvider>
       ) : controlWizardIsOpen ? (
         <ControlWizard parsedTable={selectedParsedTable} />
       ) : selectedParsedTable && !selectedParsedTable.isChart() ? (

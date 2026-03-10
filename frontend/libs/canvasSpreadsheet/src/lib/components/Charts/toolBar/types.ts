@@ -6,6 +6,7 @@ export type ToolBarProps = {
   chartConfig: ChartConfig;
   isMoving: boolean;
   isHidden: boolean;
+  isSelected: boolean;
   moveMode: boolean;
   zoom: number;
   onLoadMoreKeys: (tableName: string, fieldName: string) => void;
@@ -13,7 +14,7 @@ export type ToolBarProps = {
     tableName: string,
     fieldName: string,
     key: string | string[],
-    isNoDataKey?: boolean
+    isNoDataKey?: boolean,
   ) => void;
   onSelectChart: () => void;
   onStartMoveChart: (e: MouseEvent<HTMLDivElement>) => void;
@@ -28,6 +29,6 @@ export type ToolBarSelectProps = {
     tableName: string,
     fieldName: string,
     key: string | string[],
-    isNoDataKey?: boolean
+    isNoDataKey?: boolean,
   ) => void;
 };

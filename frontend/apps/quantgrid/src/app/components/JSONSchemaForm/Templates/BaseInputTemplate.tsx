@@ -1,6 +1,7 @@
 import { Input, InputNumber } from 'antd';
 import classNames from 'classnames';
-import { ChangeEvent, FocusEvent } from 'react';
+import type { MouseEvent } from 'react';
+import { ChangeEvent, FocusEvent, useCallback } from 'react';
 
 import { inputClasses } from '@frontend/common/lib';
 import {
@@ -27,11 +28,11 @@ const INPUT_STYLE = {
 export function BaseInputTemplate<
   T = any,
   S extends StrictRJSFSchema = RJSFSchema,
-  F extends FormContextType = any
+  F extends FormContextType = any,
 >(props: BaseInputTemplateProps<T, S, F>) {
   const {
     disabled,
-    formContext,
+    htmlName,
     id,
     onBlur,
     onChange,
@@ -40,14 +41,26 @@ export function BaseInputTemplate<
     options,
     placeholder,
     readonly,
+    registry,
     schema,
     value,
     type,
   } = props;
   const inputProps = getInputProps<T, S, F>(schema, type, options, false);
-  const { readonlyAsDisabled = true } = formContext as GenericObjectType;
+  const { readonlyAsDisabled = true } = (registry.formContext ??
+    {}) as GenericObjectType;
+  const { ClearButton } = registry.templates.ButtonTemplates;
 
   const handleNumberChange = (nextValue: number | null) => onChange(nextValue);
+
+  const handleClear = useCallback(
+    (e: MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      onChange(options.emptyValue ?? '');
+    },
+    [onChange, options.emptyValue],
+  );
 
   const handleTextChange = onChangeOverride
     ? onChangeOverride
@@ -65,15 +78,15 @@ export function BaseInputTemplate<
       <InputNumber
         disabled={disabled || (readonlyAsDisabled && readonly)}
         id={id}
-        list={schema.examples ? examplesId<T>(id) : undefined}
-        name={id}
+        list={schema.examples ? examplesId(id) : undefined}
+        name={htmlName || id}
         placeholder={placeholder}
         style={INPUT_STYLE}
         onBlur={!readonly ? handleBlur : undefined}
         onChange={!readonly ? handleNumberChange : undefined}
         onFocus={!readonly ? handleFocus : undefined}
         {...inputProps}
-        aria-describedby={ariaDescribedByIds<T>(id, !!schema.examples)}
+        aria-describedby={ariaDescribedByIds(id, !!schema.examples)}
         className={classNames(inputClasses)}
         value={value}
       />
@@ -81,15 +94,15 @@ export function BaseInputTemplate<
       <Input.Password
         disabled={disabled || (readonlyAsDisabled && readonly)}
         id={id}
-        list={schema.examples ? examplesId<T>(id) : undefined}
-        name={id}
+        list={schema.examples ? examplesId(id) : undefined}
+        name={htmlName || id}
         placeholder={placeholder}
         style={INPUT_STYLE}
         onBlur={!readonly ? handleBlur : undefined}
         onChange={!readonly ? handleTextChange : undefined}
         onFocus={!readonly ? handleFocus : undefined}
         {...inputProps}
-        aria-describedby={ariaDescribedByIds<T>(id, !!schema.examples)}
+        aria-describedby={ariaDescribedByIds(id, !!schema.examples)}
         className={classNames(inputClasses)}
         value={value}
       />
@@ -97,15 +110,15 @@ export function BaseInputTemplate<
       <Input
         disabled={disabled || (readonlyAsDisabled && readonly)}
         id={id}
-        list={schema.examples ? examplesId<T>(id) : undefined}
-        name={id}
+        list={schema.examples ? examplesId(id) : undefined}
+        name={htmlName || id}
         placeholder={placeholder}
         style={INPUT_STYLE}
         onBlur={!readonly ? handleBlur : undefined}
         onChange={!readonly ? handleTextChange : undefined}
         onFocus={!readonly ? handleFocus : undefined}
         {...inputProps}
-        aria-describedby={ariaDescribedByIds<T>(id, !!schema.examples)}
+        aria-describedby={ariaDescribedByIds(id, !!schema.examples)}
         className={classNames(inputClasses)}
         value={value}
       />
@@ -114,14 +127,17 @@ export function BaseInputTemplate<
   return (
     <>
       {input}
+      {options.allowClearTextInputs && !readonly && !disabled && value && (
+        <ClearButton registry={registry} onClick={handleClear} />
+      )}
       {Array.isArray(schema.examples) && (
-        <datalist id={examplesId<T>(id)}>
+        <datalist id={examplesId(id)}>
           {(schema.examples as string[])
             .concat(
               schema.default &&
                 !schema.examples.includes(schema.default.toString())
                 ? ([schema.default] as string[])
-                : []
+                : [],
             )
             .map((example) => {
               return <option key={example} value={example} />;

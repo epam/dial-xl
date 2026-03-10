@@ -3,7 +3,12 @@ import { useCallback, useContext } from 'react';
 import { PanelName } from '../common';
 import { LayoutContext } from '../context';
 import { EventBusMessages } from '../services';
-import { useControlStore, usePivotStore, useViewStore } from '../store';
+import {
+  useControlStore,
+  useGroupByStore,
+  usePivotStore,
+  useViewStore,
+} from '../store';
 import { useCreateTableDsl, useTableEditDsl } from './EditDsl';
 import useEventBus from './useEventBus';
 import { useGridApi } from './useGridApi';
@@ -13,12 +18,14 @@ function useCreateTableAction() {
   const { cloneTable } = useTableEditDsl();
   const { createDerivedTable } = useCreateTableDsl();
   const gridApi = useGridApi();
-  const selectedCell = useViewStore((s) => s.selectedCell);
   const changePivotTableWizardMode = usePivotStore(
-    (s) => s.changePivotTableWizardMode
+    (s) => s.changePivotTableWizardMode,
+  );
+  const changeGroupByTableWizardMode = useGroupByStore(
+    (s) => s.changeGroupByTableWizardMode,
   );
   const openControlCreateWizard = useControlStore(
-    (s) => s.openControlCreateWizard
+    (s) => s.openControlCreateWizard,
   );
   const { openPanel } = useContext(LayoutContext);
 
@@ -27,8 +34,10 @@ function useCreateTableAction() {
       action: string,
       type: string | undefined,
       insertFormula: string | undefined,
-      tableName: string | undefined
+      tableName: string | undefined,
     ) => {
+      const selectedCell = useViewStore.getState().selectedCell;
+
       if (action === 'CreateControl') {
         openControlCreateWizard();
         openPanel(PanelName.Details);
@@ -62,6 +71,10 @@ function useCreateTableAction() {
             changePivotTableWizardMode('create', tableName);
             openPanel(PanelName.Details);
             break;
+          case 'groupBy':
+            changeGroupByTableWizardMode('create', tableName);
+            openPanel(PanelName.Details);
+            break;
           case 'size':
           default:
             break;
@@ -74,14 +87,14 @@ function useCreateTableAction() {
     },
     [
       openControlCreateWizard,
-      selectedCell,
       gridApi,
       eventBus,
       cloneTable,
       createDerivedTable,
       changePivotTableWizardMode,
+      changeGroupByTableWizardMode,
       openPanel,
-    ]
+    ],
   );
 
   return {

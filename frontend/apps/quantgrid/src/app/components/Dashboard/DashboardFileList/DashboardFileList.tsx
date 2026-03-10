@@ -140,7 +140,7 @@ export function DashboardFileList() {
             <span className="inline-flex items-center gap-1">
               <Popover
                 content={
-                  <span className="flex flex-col gap-2">
+                  <span className="flex flex-col gap-2 p-2">
                     {sharedWith.map((user) => (
                       <span
                         className="flex items-center gap-2 text-text-primary"
@@ -159,12 +159,12 @@ export function DashboardFileList() {
                                       permission === 'View',
                                     'bg-bg-accent-tertiary':
                                       permission === 'Share',
-                                  }
+                                  },
                                 )}
                                 key={permission}
                                 label={permission}
                               />
-                            )
+                            ),
                           )}
                         </div>
                         {user.user}
@@ -222,7 +222,7 @@ export function DashboardFileList() {
                 'absolute left-0 top-0 size-full bg-bg-layer-2 flex flex-col gap-3 items-center justify-center border border-dashed',
                 isOver
                   ? 'border-stroke-accent-secondary text-text-accent-secondary'
-                  : 'text-text-secondary'
+                  : 'text-text-secondary',
               )}
               id="dashboard-drop"
               onDragEnter={handleDragEnter}
@@ -243,7 +243,7 @@ export function DashboardFileList() {
                     <div
                       className={classNames(
                         'shrink-0 md:shrink-1 flex items-center',
-                        item.classNames
+                        item.classNames,
                       )}
                       key={item.sortKey}
                     >

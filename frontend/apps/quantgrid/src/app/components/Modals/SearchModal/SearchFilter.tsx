@@ -19,7 +19,7 @@ export function SearchFilter({ selected, filterName, onClick }: Props) {
       className={cx(
         'h-[30px] text-[13px] px-3 mr-2',
         defaultTabClasses,
-        selected ? selectedTabClasses : notSelectedTabClasses
+        selected ? selectedTabClasses : notSelectedTabClasses,
       )}
       onClick={onClick}
     >

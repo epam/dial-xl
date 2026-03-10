@@ -51,8 +51,9 @@ export interface CodeEditorProps {
   theme: AppTheme;
   codeEditorPlace: CodeEditorPlace;
   onCodeChange?: (code: string) => void;
+  onContentHeightChange?: (height: number) => void;
   onEditorReady?: (
-    codeEditor: editor.IStandaloneCodeEditor | undefined
+    codeEditor: editor.IStandaloneCodeEditor | undefined,
   ) => void;
   onSaveButton?: OnSaveButton;
   onEnter?: OnEnter;

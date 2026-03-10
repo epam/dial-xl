@@ -35,8 +35,10 @@ export interface FieldInfo {
   overrideKey?: OverrideKey;
   type: ColumnDataType;
   isNested: boolean;
-  hash?: string;
+  isAssignable: boolean;
   referenceTableName?: string;
+  hash?: string;
+  format?: ColumnFormat;
 }
 
 interface Source {
@@ -52,6 +54,8 @@ export interface Viewport {
   totalKey?: TotalKey;
   start_row: number;
   end_row: number;
+  start_column?: number;
+  end_column?: number;
   is_content?: boolean;
   is_raw: boolean;
 }
@@ -569,5 +573,42 @@ export interface ControlValuesResponse {
   controlValuesResponse: {
     data: ColumnData;
     available: ColumnData;
+  };
+}
+
+// Excel inputs
+
+export interface ExcelCatalogGetRequest {
+  excelCatalogGetRequest: {
+    path: string;
+  };
+}
+
+export interface ExcelCatalogGetResponse {
+  excelCatalogGetResponse: {
+    sheets: string[];
+    tables: string[];
+  };
+}
+
+export interface ExcelPreviewRequest {
+  excelPreviewRequest: {
+    path: string;
+    start_row: number;
+    end_row: number;
+    start_column: number;
+    end_column: number;
+  };
+}
+
+export interface ExcelPreviewCell {
+  row: number;
+  column: number;
+  value: string;
+}
+
+export interface ExcelPreviewResponse {
+  excelPreviewResponse: {
+    cell: ExcelPreviewCell[];
   };
 }

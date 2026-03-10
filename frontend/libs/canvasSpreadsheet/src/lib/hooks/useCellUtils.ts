@@ -21,7 +21,7 @@ export function useCellUtils() {
 
       return { x: x1, y: y1, width, height };
     },
-    [getCellX, getCellY]
+    [getCellX, getCellY],
   );
 
   const getDashedRectPolygons = useCallback(
@@ -43,7 +43,7 @@ export function useCellUtils() {
         { x: endX - offset, y: startY + offset },
       ];
     },
-    [getCellX, getCellY]
+    [getCellX, getCellY],
   );
 
   return {

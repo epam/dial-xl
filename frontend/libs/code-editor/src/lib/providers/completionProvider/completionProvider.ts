@@ -23,13 +23,13 @@ export function registerCompletionProvider(
   parsedSheets: ParsedSheets,
   language: Language,
   currentTableName?: string,
-  currentFieldName?: string
+  currentFieldName?: string,
 ): IDisposable {
   return languages.registerCompletionItemProvider(language, {
     provideCompletionItems: (
       model: editor.ITextModel,
       position: Position,
-      context: languages.CompletionContext
+      context: languages.CompletionContext,
     ) => {
       const currentWord = model.getWordUntilPosition(position);
 

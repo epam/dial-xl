@@ -4,6 +4,7 @@ import { useContext } from 'react';
 
 import { primaryButtonClasses } from '@frontend/common/lib';
 import {
+  buttonId,
   canExpand,
   FormContextType,
   GenericObjectType,
@@ -35,15 +36,15 @@ const isString = (val: unknown): val is string => typeof val === 'string';
 export function ObjectFieldTemplate<
   T = any,
   S extends StrictRJSFSchema = RJSFSchema,
-  F extends FormContextType = any
+  F extends FormContextType = any,
 >(props: ObjectFieldTemplateProps<T, S, F>) {
   const {
     description,
     disabled,
-    formContext,
+    fieldPathId,
     formData,
-    idSchema,
-    onAddClick,
+    onAddProperty,
+    optionalDataControl,
     properties,
     readonly,
     required,
@@ -52,7 +53,7 @@ export function ObjectFieldTemplate<
     title,
     uiSchema,
   } = props;
-  // Button templates are not overridden in the uiSchema
+  const showOptionalDataControlInTitle = !readonly && !disabled;
   const {
     ButtonTemplates: { AddButton },
   } = registry.templates;
@@ -60,17 +61,19 @@ export function ObjectFieldTemplate<
     colSpan = 24,
     labelAlign = 'right',
     rowGutter = 24,
-  } = formContext as GenericObjectType;
+  } = registry.formContext as GenericObjectType;
 
   const findSchema = (element: ObjectFieldTemplatePropertyType): S =>
-    element.content.props.schema;
+    // TODO: fix types
+    (element.content.props as any).schema;
 
   const findSchemaType = (element: ObjectFieldTemplatePropertyType) =>
     findSchema(element).type;
 
   const findUiSchema = (
-    element: ObjectFieldTemplatePropertyType
-  ): UiSchema<T, S, F> | undefined => element.content.props.uiSchema;
+    element: ObjectFieldTemplatePropertyType,
+    // TODO: fix types
+  ): UiSchema<T, S, F> | undefined => (element.content.props as any).uiSchema;
 
   const findUiSchemaField = (element: ObjectFieldTemplatePropertyType) =>
     getUiOptions(findUiSchema(element)).field;
@@ -115,18 +118,22 @@ export function ObjectFieldTemplate<
   const labelClsBasic = `${prefixCls}-item-label`;
   const labelColClassName = classNames(
     labelClsBasic,
-    labelAlign === 'left' && `${labelClsBasic}-left`
-    // labelCol.className,
+    labelAlign === 'left' && `${labelClsBasic}-left`,
   );
 
   return (
-    <fieldset id={idSchema.$id}>
+    <fieldset id={fieldPathId.$id}>
       <Row gutter={rowGutter}>
         {title && (
           <Col className={labelColClassName} span={24}>
             <TitleFieldTemplate
-              description={description}
-              id={titleId<T>(idSchema)}
+              description={
+                typeof description === 'string' ? description : undefined
+              }
+              id={titleId(fieldPathId)}
+              optionalDataControl={
+                showOptionalDataControlInTitle ? optionalDataControl : undefined
+              }
               registry={registry}
               required={required}
               schema={schema}
@@ -135,12 +142,16 @@ export function ObjectFieldTemplate<
             />
           </Col>
         )}
+        {!showOptionalDataControlInTitle ? (
+          <Col span={24}>{optionalDataControl}</Col>
+        ) : undefined}
         {properties
           .filter((e) => !e.hidden)
           // Support custom order property
           .sort((a, b) => {
-            const aOrder = a.content.props.schema.order;
-            const bOrder = b.content.props.schema.order;
+            // TODO: fix types
+            const aOrder = (a.content.props as any).schema.order;
+            const bOrder = (b.content.props as any).schema.order;
 
             if (aOrder !== undefined && bOrder === undefined) return -1;
             if (aOrder === undefined && bOrder !== undefined) return 1;
@@ -159,16 +170,17 @@ export function ObjectFieldTemplate<
       {canExpand(schema, uiSchema, formData) && (
         <Col span={24}>
           <Row gutter={rowGutter} justify="end">
-            <Col flex="192px">
+            <Col className="mt-3" flex="192px">
               <AddButton
                 className={classNames(
-                  'object-property-expand mt-3',
-                  primaryButtonClasses
+                  'object-property-expand',
+                  primaryButtonClasses,
                 )}
                 disabled={disabled || readonly}
+                id={buttonId(fieldPathId, 'add')}
                 registry={registry}
                 uiSchema={uiSchema}
-                onClick={onAddClick(schema)}
+                onClick={onAddProperty}
               />
             </Col>
           </Row>

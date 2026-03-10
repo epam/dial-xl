@@ -39,7 +39,7 @@ export function useFormulaInput() {
 
         const fieldTotal = table.total?.getFieldTotalByIndex(
           fieldName || selectedCell.fieldName || '',
-          totalIndex
+          totalIndex,
         );
 
         if (!fieldTotal) return '=';
@@ -71,7 +71,7 @@ export function useFormulaInput() {
 
         const field = findTableField(
           tableName,
-          fieldName || selectedCell?.fieldName || value || ''
+          fieldName || selectedCell?.fieldName || value || '',
         );
 
         if (!field || !field.expressionMetadata) return null;
@@ -81,7 +81,7 @@ export function useFormulaInput() {
 
       return null;
     },
-    [findTable, findTableField, formulaBarMode]
+    [findTable, findTableField, formulaBarMode],
   );
 
   const saveFormulaInputValue = useCallback(
@@ -89,7 +89,7 @@ export function useFormulaInput() {
       code: string,
       selectedCell: SelectedCell | null,
       editMode: GridCellEditorMode,
-      dimFieldName?: string
+      dimFieldName?: string,
     ) => {
       if (!projectName || !selectedCell || !gridApi) return;
 
@@ -103,7 +103,7 @@ export function useFormulaInput() {
         dimFieldName,
       });
     },
-    [projectName, gridApi, submitCellEditor]
+    [projectName, gridApi, submitCellEditor],
   );
 
   return {

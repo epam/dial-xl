@@ -19,7 +19,7 @@ import { createUniqueName } from './createUniqueName';
 export const autoRenameTables = (
   dsl: string,
   sheetName: string,
-  projectSheets: WorksheetState[]
+  projectSheets: WorksheetState[],
 ) => {
   try {
     const parsedSheet = SheetReader.parseSheet(dsl);
@@ -29,13 +29,13 @@ export const autoRenameTables = (
 
     const existingNames = new Set(
       extractProjectTableNames(
-        projectSheets.filter((s) => s.sheetName !== sheetName)
-      ).map(unescapeTableName)
+        projectSheets.filter((s) => s.sheetName !== sheetName),
+      ).map(unescapeTableName),
     );
 
     const hasTableNameChanges = processTableNames(
       editableSheet.tables,
-      existingNames
+      existingNames,
     );
 
     return hasTableNameChanges ? editableSheet.toDSL() : dsl;
@@ -46,7 +46,7 @@ export const autoRenameTables = (
 
 const processTableNames = (
   tables: Table[],
-  existingNames: Set<string>
+  existingNames: Set<string>,
 ): boolean => {
   let hasTableNameChanges = false;
 
@@ -56,7 +56,7 @@ const processTableNames = (
     if (existingNames.has(currentTableName)) {
       const newTableName = createUniqueName(
         currentTableName,
-        Array.from(existingNames)
+        Array.from(existingNames),
       );
       existingNames.add(newTableName);
 
@@ -77,7 +77,7 @@ const processTableNames = (
 };
 
 export const extractProjectTableNames = (
-  projectSheets: WorksheetState[] | null
+  projectSheets: WorksheetState[] | null,
 ) => {
   let tableNames: string[] = [];
 
@@ -88,7 +88,7 @@ export const extractProjectTableNames = (
       const parsedSheet = SheetReader.parseSheet(sheet.content);
 
       tableNames = tableNames.concat(
-        parsedSheet.tables.map((table) => unescapeTableName(table.tableName))
+        parsedSheet.tables.map((table) => unescapeTableName(table.tableName)),
       );
     } catch (error) {
       /* empty */

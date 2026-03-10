@@ -28,7 +28,7 @@ export function usePromoteRow() {
         const currentFieldName = f.key.fieldName;
         const overrideValue = overrides.getValueAtIndex(
           currentFieldName,
-          dataIndex
+          dataIndex,
         );
 
         if (overrideValue !== null) {
@@ -36,7 +36,7 @@ export function usePromoteRow() {
 
           const uniqueNewFieldName = createUniqueName(
             sanitizedNewName || defaultFieldName,
-            Object.values(fieldsMapping)
+            Object.values(fieldsMapping),
           );
           fieldsMapping[currentFieldName] = uniqueNewFieldName;
 
@@ -57,7 +57,7 @@ export function usePromoteRow() {
         tableName,
       });
     },
-    [findEditContext, updateDSL]
+    [findEditContext, updateDSL],
   );
 
   return {

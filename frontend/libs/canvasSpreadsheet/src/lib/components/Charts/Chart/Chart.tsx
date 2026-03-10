@@ -40,7 +40,7 @@ export const Chart = React.memo(function Chart({
 }: Props) {
   const chartBuilder = useMemo(
     () => chartRegistry[gridChart.chartType],
-    [gridChart.chartType]
+    [gridChart.chartType],
   );
 
   const [chartOptions, setChartOptions] = useState<EChartsOption>({});
@@ -75,7 +75,7 @@ export const Chart = React.memo(function Chart({
         onEchartsMouseDown(params.event);
       });
     },
-    [onSelectChart, onChartDblClick, onEchartsMouseDown]
+    [onSelectChart, onChartDblClick, onEchartsMouseDown],
   );
 
   useEffect(() => {
@@ -87,10 +87,10 @@ export const Chart = React.memo(function Chart({
       setChartOptions((prevOptions) =>
         isEqual(
           normalizeForCompare(prevOptions),
-          normalizeForCompare(updatedChartOptions)
+          normalizeForCompare(updatedChartOptions),
         )
           ? prevOptions
-          : updatedChartOptions
+          : updatedChartOptions,
       );
     }, debounceDelay);
 

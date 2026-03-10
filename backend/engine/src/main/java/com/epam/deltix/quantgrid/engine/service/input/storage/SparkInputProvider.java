@@ -2,14 +2,17 @@ package com.epam.deltix.quantgrid.engine.service.input.storage;
 
 import com.epam.deltix.quantgrid.engine.Util;
 import com.epam.deltix.quantgrid.engine.node.plan.spark.util.DatasetUtil;
+import com.epam.deltix.quantgrid.engine.service.input.ColumnMetadata;
+import com.epam.deltix.quantgrid.engine.service.input.CsvInputMetadata;
+import com.epam.deltix.quantgrid.engine.service.input.ExcelCatalog;
+import com.epam.deltix.quantgrid.engine.service.input.ExcelCell;
 import com.epam.deltix.quantgrid.engine.service.input.InputMetadata;
+import com.epam.deltix.quantgrid.engine.service.input.Range;
 import com.epam.deltix.quantgrid.engine.spark.ScalaUtil;
 import com.epam.deltix.quantgrid.engine.spark.Spark;
 import com.epam.deltix.quantgrid.engine.value.StringColumn;
-import com.epam.deltix.quantgrid.engine.value.Table;
 import com.epam.deltix.quantgrid.engine.value.spark.SparkDatasetTable;
 import com.epam.deltix.quantgrid.engine.value.spark.SparkValue;
-import com.epam.deltix.quantgrid.type.ColumnType;
 import com.epam.deltix.quantgrid.type.InputColumnType;
 import com.epam.deltix.quantgrid.util.Dates;
 import com.epam.deltix.quantgrid.util.Doubles;
@@ -47,6 +50,16 @@ public class SparkInputProvider implements InputProvider {
     );
 
     @Override
+    public List<ExcelCell> preview(String input, Range range, Principal principal) {
+        throw new UnsupportedOperationException("SparkInputProvider does not support previewing excel sheets");
+    }
+
+    @Override
+    public ExcelCatalog readExcelCatalog(String path, Principal principal) {
+        throw new UnsupportedOperationException("SparkInputProvider does not support reading excel catalog");
+    }
+
+    @Override
     public InputMetadata readMetadata(String input, Principal principal) {
         throw new UnsupportedOperationException("SparkInputProvider does not support reading metadata");
     }
@@ -56,11 +69,16 @@ public class SparkInputProvider implements InputProvider {
         // ensure s3a file system is used for reading
         String path = metadata.path().replace("s3://", "s3a://");
 
-        Dataset<Row> rows = switch (metadata.type()) {
-            case CSV -> readCsv(path, readColumns, metadata.columnTypes());
-        };
+        if (metadata instanceof CsvInputMetadata csvMetadata) {
+            LinkedHashMap<String, InputColumnType> columnTypes = new LinkedHashMap<>();
+            for (ColumnMetadata column : csvMetadata.table().columns()) {
+                columnTypes.put(column.name(), column.type());
+            }
+            Dataset<Row> rows = readCsv(path, readColumns, columnTypes);
+            return new SparkDatasetTable(rows);
+        }
 
-        return new SparkDatasetTable(rows);
+        throw new IllegalArgumentException("Unsupported input metadata type: " + metadata.getClass());
     }
 
     @Override

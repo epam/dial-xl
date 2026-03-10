@@ -7,7 +7,9 @@ import { defineConfig, devices } from '@playwright/test';
 import * as fs from 'fs';
 import * as path from 'path';
 
-config();
+config({
+  quiet: true,
+});
 
 const fromRoot = (...p: string[]) => path.join(workspaceRoot, ...p);
 const authFile = path.join(workspaceRoot, 'playwright', '.auth', 'user.json');
@@ -23,6 +25,9 @@ const workersCount = parseInt(process.env['WORKER_COUNT'] || '4');
 
 const PW_GREP = process.env.PW_GREP;
 const grep = PW_GREP ? new RegExp(PW_GREP) : undefined;
+
+const PW_GREP_INVERT = process.env.PW_GREP_INVERT;
+const grepInvert = PW_GREP_INVERT ? new RegExp(PW_GREP_INVERT) : undefined;
 
 /**
  * See https://playwright.dev/docs/test-configuration.
@@ -73,13 +78,13 @@ export default defineConfig({
     {
       name: 'chromium',
       grep,
+      grepInvert,
       use: {
         ...devices['Desktop Chrome'],
         viewport: {
           width: 1920,
           height: 1080,
         },
-        storageState: authFile,
       },
       dependencies: ['setup'],
     },

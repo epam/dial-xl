@@ -7,9 +7,8 @@ import {
   useInterval,
 } from '@frontend/common';
 
-import { canvasId } from '../../constants';
 import { GridStateContext, GridViewportContext } from '../../context';
-import { DocumentScrollOptions, Edges, SelectionEdges } from '../../types';
+import { DocumentScrollOptions, GridEvent, SelectionEdges } from '../../types';
 import {
   getMousePosition,
   isCellEditorOpen,
@@ -17,7 +16,6 @@ import {
   normalizeCol,
   normalizeRow,
 } from '../../utils';
-import { GridEvent } from '../GridApiWrapper';
 
 export const maxInterval = 600;
 export const minInterval = 100;
@@ -27,39 +25,42 @@ export function useSelection() {
   const {
     app,
     getCell,
-    gridApi,
     gridSizes,
+    selectionEdges,
     setSelectionEdges,
-    selection$,
+    selectionEdgesRef,
     eventBus,
+    event,
     pointClickMode,
     isTableDragging,
     isPanModeEnabled,
+    canvasId,
   } = useContext(GridStateContext);
   const { getCellFromCoords, viewportEdges, moveViewport } =
     useContext(GridViewportContext);
 
   const isMouseDown = useRef<boolean>(false);
-  const documentScrollInterval = useRef<number | null>(null);
+  const [documentScrollInterval, setDocumentScrollInterval] = useState<
+    number | null
+  >(null);
   const documentScrollOptions = useRef<DocumentScrollOptions | null>(null);
   const anchorRef = useRef<{ startCol: number; startRow: number } | null>(null);
 
-  const [selectionEdges, setLocalSelectionEdges] = useState<Edges | null>(null);
   const [isColumnSelection, setIsColumnSelection] = useState(false);
   const [isRowSelection, setIsRowSelection] = useState(false);
 
   const onDocumentMouseClick = useCallback(() => {
     isMouseDown.current = false;
-    documentScrollInterval.current = null;
+    setDocumentScrollInterval(null);
     anchorRef.current = null;
     setIsColumnSelection(false);
     setIsRowSelection(false);
     document.body.style.userSelect = 'auto';
 
-    gridApi.event.emit({
+    event.emit({
       type: GridEvent.stopMoveEntity,
     });
-  }, [gridApi]);
+  }, [event]);
 
   const onCanvasMouseMove = useCallback(
     (e: Event) => {
@@ -67,7 +68,7 @@ export function useSelection() {
       if (!anchor) return;
 
       const { startCol: fixedStartCol, startRow: fixedStartRow } = anchor;
-      const mousePosition = getMousePosition(e as MouseEvent);
+      const mousePosition = getMousePosition(e as MouseEvent, canvasId);
 
       if (
         !isMouseDown.current ||
@@ -118,6 +119,7 @@ export function useSelection() {
       setSelectionEdges(selection, { silent: pointClickMode });
     },
     [
+      canvasId,
       getCell,
       getCellFromCoords,
       gridSizes,
@@ -127,12 +129,12 @@ export function useSelection() {
       pointClickMode,
       selectionEdges,
       setSelectionEdges,
-    ]
+    ],
   );
 
   const onDocumentMouseMove = useCallback(
     (e: MouseEvent) => {
-      documentScrollInterval.current = null;
+      setDocumentScrollInterval(null);
       const container = document.getElementById(canvasId);
 
       if (!container || !isMouseDown.current || isTableDragging) return;
@@ -164,10 +166,7 @@ export function useSelection() {
         onCanvasMouseMove(e);
       }
 
-      documentScrollInterval.current = Math.max(
-        interval * maxInterval,
-        minInterval
-      );
+      setDocumentScrollInterval(Math.max(interval * maxInterval, minInterval));
       documentScrollOptions.current = {
         pageX,
         pageY,
@@ -178,21 +177,27 @@ export function useSelection() {
       };
       e.preventDefault();
     },
-    [isColumnSelection, isRowSelection, isTableDragging, onCanvasMouseMove]
+    [
+      canvasId,
+      isColumnSelection,
+      isRowSelection,
+      isTableDragging,
+      onCanvasMouseMove,
+    ],
   );
 
   const onCanvasMouseDown = useCallback(
     (e: Event) => {
       if (isPanModeEnabled) return;
 
-      const mousePosition = getMousePosition(e as MouseEvent);
+      const mousePosition = getMousePosition(e as MouseEvent, canvasId);
 
       if (!mousePosition) return;
 
       const { x, y } = mousePosition;
       const { edges, rowNumber, colNumber } = gridSizes;
 
-      if (!isClickInsideCanvas(x, y, gridSizes, true, true)) return;
+      if (!isClickInsideCanvas(x, y, canvasId, gridSizes, true, true)) return;
 
       if (!pointClickMode) {
         if (
@@ -208,7 +213,7 @@ export function useSelection() {
 
       if ((e as MouseEvent).button === 0) {
         isMouseDown.current = true;
-        gridApi.event.emit({
+        event.emit({
           type: GridEvent.startMoveMode,
         });
 
@@ -270,24 +275,25 @@ export function useSelection() {
       };
     },
     [
-      getCell,
-      getCellFromCoords,
-      gridApi,
+      canvasId,
+      isPanModeEnabled,
       gridSizes,
       pointClickMode,
+      getCellFromCoords,
+      getCell,
       setSelectionEdges,
-      isPanModeEnabled,
-    ]
+      event,
+    ],
   );
 
   const onCanvasMouseClick = useCallback(() => {
     document.body.style.pointerEvents = 'auto';
     isMouseDown.current = false;
     anchorRef.current = null;
-    gridApi.event.emit({
+    event.emit({
       type: GridEvent.stopMoveMode,
     });
-  }, [gridApi]);
+  }, [event]);
 
   const documentAutoScroll = useCallback(() => {
     if (!documentScrollOptions.current || !selectionEdges) return;
@@ -336,7 +342,7 @@ export function useSelection() {
       if ((e.target as HTMLElement).tagName === 'CANVAS') {
         eventBus.emit({
           type: 'selection/point-click-value-picked',
-          payload: selectionEdges,
+          payload: selectionEdgesRef.current,
         });
       }
       setIsColumnSelection(false);
@@ -344,24 +350,12 @@ export function useSelection() {
       anchorRef.current = null;
       document.body.style.userSelect = 'auto';
     },
-    [eventBus, pointClickMode, selectionEdges]
+    [eventBus, pointClickMode, selectionEdgesRef],
   );
 
   useInterval(() => {
     documentAutoScroll();
-  }, documentScrollInterval.current);
-
-  useEffect(() => {
-    const selectionSubscription = selection$.subscribe(
-      (edges: Edges | null) => {
-        setLocalSelectionEdges(edges);
-      }
-    );
-
-    return () => {
-      selectionSubscription.unsubscribe();
-    };
-  }, [selection$]);
+  }, documentScrollInterval);
 
   useEffect(() => {
     document.addEventListener('click', onDocumentMouseClick, false);
@@ -376,20 +370,20 @@ export function useSelection() {
   }, [onDocumentMouseUp, onDocumentMouseClick, onDocumentMouseMove]);
 
   useEffect(() => {
-    if (!app) return;
+    if (!app?.renderer) return;
 
-    app.view.addEventListener?.('pointerdown', onCanvasMouseDown);
-    app.view.addEventListener?.('mousemove', onCanvasMouseMove);
-    app.view.addEventListener?.('click', onCanvasMouseClick);
+    app.canvas.addEventListener?.('pointerdown', onCanvasMouseDown);
+    app.canvas.addEventListener?.('pointermove', onCanvasMouseMove);
+    app.canvas.addEventListener?.('click', onCanvasMouseClick);
 
     return () => {
-      app?.view?.removeEventListener?.('pointerdown', onCanvasMouseDown);
-      app?.view?.removeEventListener?.('mousemove', onCanvasMouseMove);
-      app?.view?.removeEventListener?.('click', onCanvasMouseClick);
+      if (!app?.renderer) return;
+
+      app?.canvas?.removeEventListener?.('pointerdown', onCanvasMouseDown);
+      app?.canvas?.removeEventListener?.('pointermove', onCanvasMouseMove);
+      app?.canvas?.removeEventListener?.('click', onCanvasMouseClick);
     };
   }, [app, onCanvasMouseClick, onCanvasMouseDown, onCanvasMouseMove]);
 
-  return {
-    selectionEdges,
-  };
+  return null;
 }

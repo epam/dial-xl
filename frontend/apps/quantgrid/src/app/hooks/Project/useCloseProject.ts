@@ -1,5 +1,5 @@
 import { useCallback, useContext } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 
 import { LongCalcStatuses } from '../../common';
 import {
@@ -36,6 +36,6 @@ export function useCloseProject() {
 
       if (!skipNavigate) navigate(routes.home);
     },
-    [res, ses, sub, navigate]
+    [res, ses, sub, navigate],
   );
 }

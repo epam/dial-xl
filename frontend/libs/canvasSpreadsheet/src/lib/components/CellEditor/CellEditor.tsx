@@ -4,6 +4,7 @@ import { useContext, useEffect, useMemo } from 'react';
 import { CodeEditor } from '@frontend/code-editor';
 
 import { cellEditorContainerId, cellEditorWrapperId } from '../../constants';
+import { GridStateContext } from '../../context';
 import { CellEditorContext } from './CellEditorContext';
 import { CellEditorTooltip } from './CellEditorTooltip';
 import {
@@ -18,7 +19,6 @@ import { Props } from './types';
 import { getCellEditorColor, shouldDisableHelpers } from './utils';
 
 export function CellEditor({
-  apiRef,
   app,
   eventBus,
   functions,
@@ -27,9 +27,9 @@ export function CellEditor({
   formulaBarMode,
   isPointClickMode,
   sheetContent,
-  zoom = 1,
   inputList = [],
 }: Props) {
+  const { zoom, getCell } = useContext(GridStateContext);
   const {
     currentFieldName,
     currentTableName,
@@ -38,17 +38,16 @@ export function CellEditor({
     isOpen,
     mouseOverSwitcherTooltip,
     onCodeChange,
+    onContentHeightChange,
     setCode,
     setCodeEditor,
     setFocus,
   } = useContext(CellEditorContext);
 
   const { onStartPointClick, onStopPointClick } = usePointAndClick({
-    apiRef,
     eventBus,
   });
   useCellEditorEvents({
-    apiRef,
     app,
     formulaBarMode,
   });
@@ -62,13 +61,13 @@ export function CellEditor({
     onTabCallback,
     onEscape,
     onBlur,
-  } = useCellEditorCompleteEdit({ apiRef, eventBus, isPointClickMode });
-  const { switchToSecondaryEditMode } = useCellEditorSwitchMode({ apiRef });
-  useCellEditorViewport({ apiRef });
+  } = useCellEditorCompleteEdit({ eventBus, isPointClickMode });
+  const { switchToSecondaryEditMode } = useCellEditorSwitchMode({ getCell });
+  useCellEditorViewport();
 
   const disableHelpers = useMemo(
     () => shouldDisableHelpers(editMode),
-    [editMode]
+    [editMode],
   );
 
   useEffect(() => {
@@ -85,8 +84,8 @@ export function CellEditor({
     >
       <div
         className={cx(
-          'absolute z-305 outline-solid outline-[1.5px] pointer-events-auto',
-          getCellEditorColor(editMode)
+          'absolute z-305 outline-solid bg-bg-layer-3 pointer-events-auto',
+          getCellEditorColor(editMode),
         )}
         id={cellEditorWrapperId}
         style={{ display: isOpen ? 'block' : 'none', ...editorStyle }}
@@ -122,6 +121,7 @@ export function CellEditor({
           onBlur={onBlur}
           onBottomArrow={onBottomArrowCallback}
           onCodeChange={onCodeChange}
+          onContentHeightChange={onContentHeightChange}
           onCtrlEnter={onCtrlEnterCallback}
           onEditorReady={setCodeEditor}
           onEnter={onSaveCallback}

@@ -2,7 +2,6 @@ package com.epam.quantgrid.input.csv;
 
 import com.epam.deltix.quantgrid.engine.service.input.DataSchema;
 import com.epam.deltix.quantgrid.engine.service.input.storage.CsvInputParser;
-import com.epam.deltix.quantgrid.engine.service.input.storage.InputUtils;
 import com.epam.deltix.quantgrid.engine.value.local.LocalTable;
 import com.epam.deltix.quantgrid.type.ColumnType;
 import com.epam.deltix.quantgrid.type.InputColumnType;
@@ -10,8 +9,9 @@ import com.epam.quantgrid.input.api.DataRow;
 import com.epam.quantgrid.input.api.DataStream;
 import lombok.extern.slf4j.Slf4j;
 
-import java.io.Reader;
-import java.util.LinkedHashMap;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.List;
 
 
@@ -28,13 +28,14 @@ public class CsvStream implements DataStream {
         this.row = new DataRow(types);
     }
 
-    public static CsvStream create(DataSchema schema, Reader reader) {
-        LinkedHashMap<String, InputColumnType> columnTypes = new LinkedHashMap<>();
+    public static CsvStream create(InputStream stream, DataSchema schema) throws IOException {
+        List<String> names = new ArrayList<>();
+        List<InputColumnType> types = new ArrayList<>();
         for (DataSchema.Column column : schema.getColumns().values()) {
-            columnTypes.put(column.getColumn(), column.getTarget());
+            names.add(column.getColumn());
+            types.add(column.getTarget());
         }
-        LocalTable table = InputUtils.toLocalTable(
-                CsvInputParser.parseCsvInput(reader, null, columnTypes));
+        LocalTable table = CsvInputParser.parseCsvInput(stream, null, names, types);
         return new CsvStream(schema.toColumnTypes(), table);
     }
 

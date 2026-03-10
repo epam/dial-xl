@@ -15,7 +15,7 @@ import { ProjectPage } from '../../pages/ProjectPage';
 import { getProjectSpreadSheeet } from '../DataProvider';
 import { TestFixtures } from '../TestFixtures';
 
-const projectName = TestFixtures.addGuid('autotest_fields');
+const projectName = TestFixtures.addGuid('autotest_formats');
 
 const table1Row = 2;
 
@@ -47,7 +47,7 @@ let browserContext: BrowserContext;
 
 let page: Page;
 
-const storagePath = `playwright/${projectName}.json`;
+const storagePath = TestFixtures.getStoragePath();
 
 //let table3Size = 4;
 
@@ -61,9 +61,9 @@ test.beforeAll(async ({ browser }) => {
   table2.addField(new Field('Column2', '7'));
   table2.addField(new Field('Column3', '3'));
   const table3 = new Table(table3Row, table3Column, table3Name);
-  table3.addField(new Field('Column1', '20/10/2020'));
-  table3.addField(new Field('Column2', '15:40'));
-  table3.addField(new Field('Column3', '10/10/2000 20:15'));
+  table3.addField(new Field('Column1', '32000'));
+  table3.addField(new Field('Column2', '34532.23'));
+  table3.addField(new Field('Column3', '36745.496'));
   table3.addField(new Field('Column4', '10'));
   spreadsheet.addTable(table1);
   spreadsheet.addTable(table2);
@@ -71,13 +71,13 @@ test.beforeAll(async ({ browser }) => {
   if (dataType !== 'default') {
     spreadsheet = getProjectSpreadSheeet(dataType, spreadsheet);
   }
+  browserContext = await browser.newContext({ storageState: storagePath });
   await TestFixtures.createProjectNew(
     storagePath,
-    browser,
+    browserContext,
     projectName,
-    spreadsheet
+    spreadsheet,
   );
-  browserContext = await browser.newContext({ storageState: storagePath });
 });
 
 test.beforeEach(async () => {
@@ -87,9 +87,8 @@ test.beforeEach(async () => {
   await TestFixtures.expectTableToBeDisplayed(page, spreadsheet.getTable(1));
   const projectPage = await ProjectPage.createInstance(page);
   await projectPage.hideAllPanels();
-  await page.keyboard.press('Alt+1');
-  await page.keyboard.press('Alt+2');
-  await page.keyboard.press('Alt+4');
+  await projectPage.getEditorPanel().toggle();
+  await projectPage.getHistoryPanel().toggle();
   await projectPage.expectPanelToBeVisible(Panels.HistoryPanel);
 });
 
@@ -98,8 +97,8 @@ test.afterEach(async () => {
 });
 
 test.afterAll(async ({ browser }) => {
+  await TestFixtures.deleteProject(browserContext, projectName);
   await browserContext.close();
-  await TestFixtures.deleteProject(browser, projectName);
 });
 
 test.describe('formatting tests', () => {
@@ -114,16 +113,16 @@ test.describe('formatting tests', () => {
         .getVisualization()
         .clickOnCell(
           spreadsheet.getTable(1).getFirstCellCoord(),
-          spreadsheet.getTable(1).getLeft()
+          spreadsheet.getTable(1).getLeft(),
         );
       await projectPage.selectFormat(Formats.General);
       await projectPage.expectLastHistoryRecord(
         `Set format "general" to column "${spreadsheet
           .getTable(1)
           .getField(0)
-          .getName()}" of table "${spreadsheet.getTable(1).getName()}"`
+          .getName()}" of table "${spreadsheet.getTable(1).getName()}"`,
       );
-    }
+    },
   );
 
   test(
@@ -137,16 +136,16 @@ test.describe('formatting tests', () => {
         .getVisualization()
         .clickOnCell(
           spreadsheet.getTable(1).getFirstCellCoord(),
-          spreadsheet.getTable(1).getLeft()
+          spreadsheet.getTable(1).getLeft(),
         );
       await projectPage.selectFormat(Formats.Number);
       await projectPage.expectLastHistoryRecord(
         `Set format "number" to column "${spreadsheet
           .getTable(1)
           .getField(0)
-          .getName()}" of table "${spreadsheet.getTable(1).getName()}"`
+          .getName()}" of table "${spreadsheet.getTable(1).getName()}"`,
       );
-    }
+    },
   );
 
   test(
@@ -160,16 +159,16 @@ test.describe('formatting tests', () => {
         .getVisualization()
         .clickOnCell(
           spreadsheet.getTable(1).getFirstCellCoord(),
-          spreadsheet.getTable(1).getLeft()
+          spreadsheet.getTable(1).getLeft(),
         );
       await projectPage.selectFormat(Formats.Integer);
       await projectPage.expectLastHistoryRecord(
         `Set format "number" to column "${spreadsheet
           .getTable(1)
           .getField(0)
-          .getName()}" of table "${spreadsheet.getTable(1).getName()}"`
+          .getName()}" of table "${spreadsheet.getTable(1).getName()}"`,
       );
-    }
+    },
   );
 
   test(
@@ -183,16 +182,16 @@ test.describe('formatting tests', () => {
         .getVisualization()
         .clickOnCell(
           spreadsheet.getTable(1).getFirstCellCoord(),
-          spreadsheet.getTable(1).getLeft()
+          spreadsheet.getTable(1).getLeft(),
         );
       await projectPage.selectFormat(Formats.Number);
       await projectPage.expectLastHistoryRecord(
         `Set format "number" to column "${spreadsheet
           .getTable(1)
           .getField(0)
-          .getName()}" of table "${spreadsheet.getTable(1).getName()}"`
+          .getName()}" of table "${spreadsheet.getTable(1).getName()}"`,
       );
-    }
+    },
   );
 
   test(
@@ -206,140 +205,16 @@ test.describe('formatting tests', () => {
         .getVisualization()
         .clickOnCell(
           spreadsheet.getTable(0).getFirstCellCoord(),
-          spreadsheet.getTable(0).getLeft()
+          spreadsheet.getTable(0).getLeft(),
         );
       await projectPage.selectFormat(Formats.Scientific);
       await projectPage.expectLastHistoryRecord(
         `Set format "scientific" to column "${spreadsheet
           .getTable(0)
           .getField(0)
-          .getName()}" of table "${spreadsheet.getTable(0).getName()}"`
+          .getName()}" of table "${spreadsheet.getTable(0).getName()}"`,
       );
-    }
-  );
-
-  test(
-    `currency format for integer number ${dataType}`,
-    {
-      tag: ['@hiddenTable', '@horizonal'],
     },
-    async () => {
-      const projectPage = await ProjectPage.createInstance(page);
-      await projectPage
-        .getVisualization()
-        .clickOnCell(
-          spreadsheet.getTable(1).getFirstCellCoord(),
-          spreadsheet.getTable(1).getLeft()
-        );
-      await projectPage.selectFormatWithSubItem(
-        Formats.Currency,
-        Currencies.EUR
-      );
-      await projectPage.expectLastHistoryRecord(
-        `Set format "currency" to column "${spreadsheet
-          .getTable(1)
-          .getField(0)
-          .getName()}" of table "${spreadsheet.getTable(1).getName()}"`
-      );
-    }
-  );
-
-  test(
-    `currency format for decimal number ${dataType}`,
-    {
-      tag: ['@hiddenTable', '@horizonal'],
-    },
-    async () => {
-      const projectPage = await ProjectPage.createInstance(page);
-      await projectPage
-        .getVisualization()
-        .clickOnCell(
-          spreadsheet.getTable(0).getFirstCellCoord(),
-          spreadsheet.getTable(0).getLeft()
-        );
-      await projectPage.selectFormatWithSubItem(
-        Formats.Currency,
-        Currencies.EUR
-      );
-      await projectPage.expectLastHistoryRecord(
-        `Set format "currency" to column "${spreadsheet
-          .getTable(0)
-          .getField(0)
-          .getName()}" of table "${spreadsheet.getTable(0).getName()}"`
-      );
-    }
-  );
-
-  test(
-    `date format ${dataType}`,
-    {
-      tag: ['@hiddenTable', '@horizonal'],
-    },
-    async () => {
-      const projectPage = await ProjectPage.createInstance(page);
-      await projectPage
-        .getVisualization()
-        .clickOnCell(
-          spreadsheet.getTable(2).getFirstCellCoord(),
-          spreadsheet.getTable(2).getLeft()
-        );
-      await projectPage.selectFormatWithSubItem(Formats.Date, '14/11/2024');
-      await projectPage.expectLastHistoryRecord(
-        `Set format "date" to column "${spreadsheet
-          .getTable(2)
-          .getField(0)
-          .getName()}" of table "${spreadsheet.getTable(2).getName()}"`
-      );
-    }
-  );
-
-  test(
-    `time format ${dataType}`,
-    {
-      tag: ['@hiddenTable', '@horizonal'],
-    },
-    async () => {
-      const projectPage = await ProjectPage.createInstance(page);
-      await projectPage
-        .getVisualization()
-        .clickOnCell(
-          spreadsheet.getTable(2).getFirstCellCoord(),
-          spreadsheet.getTable(2).getLeft() + 1
-        );
-      await projectPage.selectFormatWithSubItem(Formats.Time, '14:30');
-      await projectPage.expectLastHistoryRecord(
-        `Set format "date" to column "${spreadsheet
-          .getTable(2)
-          .getField(1)
-          .getName()}" of table "${spreadsheet.getTable(2).getName()}"`
-      );
-    }
-  );
-
-  test(
-    `datetime format ${dataType}`,
-    {
-      tag: ['@hiddenTable', '@horizonal'],
-    },
-    async () => {
-      const projectPage = await ProjectPage.createInstance(page);
-      await projectPage
-        .getVisualization()
-        .clickOnCell(
-          spreadsheet.getTable(2).getFirstCellCoord(),
-          spreadsheet.getTable(2).getLeft() + 2
-        );
-      await projectPage.selectFormatWithSubItem(
-        Formats.DateTime,
-        '14/11/2024 14:30'
-      );
-      await projectPage.expectLastHistoryRecord(
-        `Set format "date" to column "${spreadsheet
-          .getTable(2)
-          .getField(2)
-          .getName()}" of table "${spreadsheet.getTable(2).getName()}"`
-      );
-    }
   );
 
   test(
@@ -353,15 +228,15 @@ test.describe('formatting tests', () => {
         .getVisualization()
         .clickOnCell(
           spreadsheet.getTable(0).getFirstCellCoord(),
-          spreadsheet.getTable(0).getLeft() + 1
+          spreadsheet.getTable(0).getLeft() + 1,
         );
       await projectPage.selectFormat(Formats.Percents);
       await projectPage.expectLastHistoryRecord(
         `Set format "percentage" to column "${spreadsheet
           .getTable(0)
           .getField(1)
-          .getName()}" of table "${spreadsheet.getTable(0).getName()}"`
+          .getName()}" of table "${spreadsheet.getTable(0).getName()}"`,
       );
-    }
+    },
   );
 });

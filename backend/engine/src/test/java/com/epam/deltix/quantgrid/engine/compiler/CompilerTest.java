@@ -1022,10 +1022,6 @@ class CompilerTest {
 
                 table B
                   dim [a], [*] = PIVOT(A[a], A[c], A[[d],[b]], "PERCENTILE")
-                  [p1] = [1]
-                  [p2] = [2]
-                  [p3] = [3]
-                  [p4] = [4]
                 """;
 
         ResultCollector data = executeWithoutErrors(dsl);
@@ -1044,14 +1040,11 @@ class CompilerTest {
                 +------------+-----+---+---+
                 
                 Table: B
-                +------------+---+-----+-----+----+----+
-                |          a | * |  p1 |  p2 | p3 | p4 |
-                +------------+---+-----+-----+----+----+
-                | PERCENTILE | 1 | 1.5 | 3.5 |  1 |  6 |
-                |          - | 2 |   - |   - |  - |  - |
-                |          - | 3 |   - |   - |  - |  - |
-                |          - | 4 |   - |   - |  - |  - |
-                +------------+---+-----+-----+----+----+
+                +------------+-----+-----+---+---+
+                |          a |   1 |   2 | 3 | 4 |
+                +------------+-----+-----+---+---+
+                | PERCENTILE | 1.5 | 3.5 | 1 | 6 |
+                +------------+-----+-----+---+---+
                 """);
     }
 
@@ -1189,6 +1182,111 @@ class CompilerTest {
         ResultCollector data = executeWithoutErrors(dsl);
         data.verify("B", "c", Doubles.ERROR_NA, Doubles.ERROR_NA, Doubles.ERROR_NA, 2.5, Doubles.ERROR_NA, Doubles.ERROR_NA);
         data.verify("B", "d", Doubles.ERROR_NA, Doubles.ERROR_NA, Doubles.ERROR_NA, 4, Doubles.ERROR_NA, Doubles.ERROR_NA);
+    }
+
+    @Test
+    void testTextJoin() {
+        String dsl = """
+                !manual()
+                table Source
+                  [a]
+                  [b] = NA
+                  [r] = ROW()
+                override
+                [a]
+                "1"
+                "2"
+                "4"
+                
+                "3"
+            
+                !manual()
+                table Test
+                  [delimiter]
+                  [simple] = Source[a].TEXTJOIN([delimiter])
+                  [nested] = Source.FILTER(ROW() <= Source[r])[a].TEXTJOIN([delimiter])
+                  [na] = Source[b].TEXTJOIN([delimiter])
+                override
+                [delimiter]
+                
+                ","
+                NA
+                """;
+
+        ResultCollector data = executeWithoutErrors(dsl);
+        data.verify("""
+                Table: Source
+                +---+----+---+
+                | a |  b | r |
+                +---+----+---+
+                | 1 | NA | 1 |
+                | 2 | NA | 2 |
+                | 4 | NA | 3 |
+                |   | NA | 4 |
+                | 3 | NA | 5 |
+                +---+----+---+
+
+                Table: Test
+                +-----------+----------+--------+----+
+                | delimiter |   simple | nested | na |
+                +-----------+----------+--------+----+
+                |           |     1243 |   1243 | NA |
+                |         , | 1,2,4,,3 | 2,4,,3 | NA |
+                |        NA |       NA |     NA | NA |
+                +-----------+----------+--------+----+
+                """);
+    }
+
+    @Test
+    void testTextJoinInPivotAndGroupBy() {
+        String dsl = """
+                !manual()
+                table Source
+                  [delimiter] = ","
+                  [name]
+                  [value]
+                override
+                [name],[value]
+                "a",1
+                "b",2
+                "a",11
+                "b",22
+
+                table Pivot
+                  dim [*] = PIVOT(, Source[name], Source[[value], [delimiter]], "TEXTJOIN")
+
+                table GroupBy
+                  dim [name], [value] = GROUPBY(Source[name], Source[[value], [delimiter]], "TEXTJOIN")
+                """;
+
+        ResultCollector data = executeWithoutErrors(dsl);
+
+        data.verify("""
+                Table: GroupBy
+                +------+-------+
+                | name | value |
+                +------+-------+
+                |    a |  1,11 |
+                |    b |  2,22 |
+                +------+-------+
+                
+                Table: Pivot
+                +------+------+
+                |    a |    b |
+                +------+------+
+                | 1,11 | 2,22 |
+                +------+------+
+                
+                Table: Source
+                +-----------+------+-------+
+                | delimiter | name | value |
+                +-----------+------+-------+
+                |         , |    a |     1 |
+                |         , |    b |     2 |
+                |         , |    a |    11 |
+                |         , |    b |    22 |
+                +-----------+------+-------+
+                """);
     }
 
     @Test
@@ -2802,11 +2900,11 @@ class CompilerTest {
     }
 
     @Test
-    void testSimpleSplit() {
+    void testSimpleTextSplit() {
         String dsl = """
                 table A
-                    dim [a] = SPLIT("text1--text2-text3", "-")
-                        [b] = SPLIT("text1--text2-text4", "-")
+                    dim [a] = TEXTSPLIT("text1--text2-text3", "-")
+                        [b] = TEXTSPLIT("text1--text2-text4", "-")
                 """;
 
         ResultCollector data = executeWithoutErrors(dsl);
@@ -2816,7 +2914,7 @@ class CompilerTest {
     }
 
     @Test
-    void testNestedSplit() {
+    void testNestedTextSplit() {
         String dsl = """
                 !manual()
                 table A
@@ -2829,8 +2927,8 @@ class CompilerTest {
 
                 table B
                     dim [x] = A
-                    dim [y] = SPLIT([x][a], [x][b])
-                        [z] = SPLIT([x][a], [y])
+                    dim [y] = TEXTSPLIT([x][a], [x][b])
+                        [z] = TEXTSPLIT([x][a], [y])
                 """;
 
         ResultCollector data = executeWithoutErrors(dsl);
@@ -2841,7 +2939,7 @@ class CompilerTest {
     }
 
     @Test
-    void testNestedSplitWithDifferentDimensions() {
+    void testNestedTextSplitWithDifferentDimensions() {
         String dsl = """
                 !manual()
                 table A
@@ -2853,7 +2951,7 @@ class CompilerTest {
 
                 table B
                     dim [x] = A
-                    dim [y] = SPLIT([x][a], "-")
+                    dim [y] = TEXTSPLIT([x][a], "-")
                 """;
 
         ResultCollector data = executeWithoutErrors(dsl);
@@ -3778,16 +3876,37 @@ class CompilerTest {
                       [d] = ROW()
                 apply
                   filter [a] < 3 AND [b] < 4
-                  sort [b], [a]
+                  sort [b], 1, [a]
                 override
                   row, [c]
                   1, 10
+                
+                table B
+                  dim [a] = RANGE(3)
+                  dim [b] = RANGE(4)
+                apply
+                  sort [a], [b]
                 """;
 
-        ResultCollector collector = executeWithoutErrors(dsl);
-        collector.verify("A", "a", 1, 2, 1, 2, 1, 2);
-        collector.verify("A", "b", 1, 1, 2, 2, 3, 3);
-        collector.verify("A", "c", 10, 3, 3, 4, 4, 5);
+        ResultCollector collector = executeWithErrors(dsl);
+        collector.verify("""
+                Table: A
+                +---+---+----+---+
+                | a | b |  c | d |
+                +---+---+----+---+
+                | 1 | 1 | 10 | 1 |
+                | 2 | 1 |  3 | 2 |
+                | 1 | 2 |  3 | 3 |
+                | 2 | 2 |  4 | 4 |
+                | 1 | 3 |  4 | 5 |
+                | 2 | 3 |  5 | 6 |
+                +---+---+----+---+
+                
+                Table: B
+                ERR >> B    - Can't apply sort. Make sure you do not use overridden columns in sort for a table without keys. Error: Argument #2 order must be 1 (ascending) or -1 (descending)
+                ERR >> B[a] - Can't apply sort. Make sure you do not use overridden columns in sort for a table without keys. Error: Argument #2 order must be 1 (ascending) or -1 (descending)
+                ERR >> B[b] - Can't apply sort. Make sure you do not use overridden columns in sort for a table without keys. Error: Argument #2 order must be 1 (ascending) or -1 (descending)
+                """);
     }
 
     @Test
@@ -6445,24 +6564,18 @@ class CompilerTest {
                
                 table B
                   dim [*] = PIVOT(, A[indicator], A[val], "SUM")
-                      [result0] = [indicator0]
-                      [result1] = [indicator1]
                 
                 table C
                   dim [company], [sum] = PIVOT(A[company], , A[val], "SUM")
                 
                 table D
                   dim [company], [*] = PIVOT(A[company], A[indicator],,)
-                      [result0] = [indicator0]
-                      [result1] = [indicator1]
-               
+                
                 table E
                   dim [company] = PIVOT(A[company],,,)
                 
                 table F
                   dim [*] = PIVOT(,A[indicator],,)
-                      [result0] = [indicator0]
-                      [result1] = [indicator1]
                 
                 table G
                   dim [sum] = PIVOT(,,A[val], "SUM")[val]
@@ -6490,12 +6603,11 @@ class CompilerTest {
                 +-----+----------+------------+-------+
                 
                 Table: B
-                +------------+---------+---------+
-                |          * | result0 | result1 |
-                +------------+---------+---------+
-                | indicator0 |      30 |      25 |
-                | indicator1 |       - |       - |
-                +------------+---------+---------+
+                +------------+------------+
+                | indicator0 | indicator1 |
+                +------------+------------+
+                |         30 |         25 |
+                +------------+------------+
                 
                 Table: C
                 +----------+-----+
@@ -6507,13 +6619,13 @@ class CompilerTest {
                 +----------+-----+
                 
                 Table: D
-                +----------+------------+---------+---------+
-                |  company |          * | result0 | result1 |
-                +----------+------------+---------+---------+
-                | company0 | indicator0 |         |         |
-                | company1 | indicator1 |         |         |
-                | company2 |          - |         |         |
-                +----------+------------+---------+---------+
+                +----------+------------+------------+
+                |  company | indicator0 | indicator1 |
+                +----------+------------+------------+
+                | company0 |            |            |
+                | company1 |            |            |
+                | company2 |            |            |
+                +----------+------------+------------+
                 
                 Table: E
                 +----------+
@@ -6525,12 +6637,11 @@ class CompilerTest {
                 +----------+
                 
                 Table: F
-                +------------+---------+---------+
-                |          * | result0 | result1 |
-                +------------+---------+---------+
-                | indicator0 |         |         |
-                | indicator1 |       - |       - |
-                +------------+---------+---------+
+                +------------+------------+
+                | indicator0 | indicator1 |
+                +------------+------------+
+                |            |            |
+                +------------+------------+
                 
                 Table: G
                 +-----+
@@ -6545,6 +6656,46 @@ class CompilerTest {
                 +-----+
                 |  65 |
                 +-----+
+                """);
+    }
+
+    @Test
+    void testNestedPivot() {
+        String dsl = """
+                table A
+                  dim [val] = RANGE(10)
+                      [company] = "company" & ([val] MOD 3)
+                      [indicator] = "indicator" & ([val] MOD 2)
+                      [index] = [val] MOD 3
+               
+                table B
+                  [company], [*] = PIVOT(A[company], A[indicator], A[val], "SUM")
+                """;
+
+        ResultCollector data = executeWithoutErrors(dsl);
+        data.verify("""
+                Table: A
+                +-----+----------+------------+-------+
+                | val |  company |  indicator | index |
+                +-----+----------+------------+-------+
+                |   1 | company1 | indicator1 |     1 |
+                |   2 | company2 | indicator0 |     2 |
+                |   3 | company0 | indicator1 |     0 |
+                |   4 | company1 | indicator0 |     1 |
+                |   5 | company2 | indicator1 |     2 |
+                |   6 | company0 | indicator0 |     0 |
+                |   7 | company1 | indicator1 |     1 |
+                |   8 | company2 | indicator0 |     2 |
+                |   9 | company0 | indicator1 |     0 |
+                |  10 | company1 | indicator0 |     1 |
+                +-----+----------+------------+-------+
+                
+                Table: B
+                +---------+------------+------------+
+                | company | indicator0 | indicator1 |
+                +---------+------------+------------+
+                |       3 |          3 |          3 |
+                +---------+------------+------------+
                 """);
     }
 
@@ -6747,4 +6898,465 @@ class CompilerTest {
                 """);
     }
 
+    @Test
+    void testMinMaxWithText() {
+        String dsl = """
+                table Data
+                  dim [value] = RANGE(10)
+                      [company] = "company-" & [value] MOD 3
+                      [indicator] = "indicator-" & [value] MOD 2
+                      [text] = "text-" & [value]
+                
+                table Min
+                  dim [company], [*] = PIVOT(Data[company], Data[indicator], Data[text], "MIN")
+                      [min1] = [indicator-0]
+                      [min2] = [indicator-1]
+                      [min3] = MIN(Data[text])
+                      [min4] = MIN(FILTER(Data[text], [company] = Data[company]))
+                
+                table Max
+                  dim [company], [*] = PIVOT(Data[company], Data[indicator], Data[text], "MAX")
+                      [min1] = [indicator-0]
+                      [min2] = [indicator-1]
+                      [min3] = MAX(Data[text])
+                      [min4] = MAX(FILTER(Data[text], [company] = Data[company]))
+                """;
+
+        ResultCollector data = executeWithoutErrors(dsl);
+        data.verify("""
+                Table: Data
+                +-------+-----------+-------------+---------+
+                | value |   company |   indicator |    text |
+                +-------+-----------+-------------+---------+
+                |     1 | company-1 | indicator-1 |  text-1 |
+                |     2 | company-2 | indicator-0 |  text-2 |
+                |     3 | company-0 | indicator-1 |  text-3 |
+                |     4 | company-1 | indicator-0 |  text-4 |
+                |     5 | company-2 | indicator-1 |  text-5 |
+                |     6 | company-0 | indicator-0 |  text-6 |
+                |     7 | company-1 | indicator-1 |  text-7 |
+                |     8 | company-2 | indicator-0 |  text-8 |
+                |     9 | company-0 | indicator-1 |  text-9 |
+                |    10 | company-1 | indicator-0 | text-10 |
+                +-------+-----------+-------------+---------+
+                
+                Table: Max
+                +-----------+-------------+-------------+--------+--------+--------+--------+
+                |   company | indicator-0 | indicator-1 |   min1 |   min2 |   min3 |   min4 |
+                +-----------+-------------+-------------+--------+--------+--------+--------+
+                | company-0 |      text-6 |      text-9 | text-6 | text-9 | text-9 | text-9 |
+                | company-1 |      text-4 |      text-7 | text-4 | text-7 | text-9 | text-7 |
+                | company-2 |      text-8 |      text-5 | text-8 | text-5 | text-9 | text-8 |
+                +-----------+-------------+-------------+--------+--------+--------+--------+
+                
+                Table: Min
+                +-----------+-------------+-------------+---------+--------+--------+--------+
+                |   company | indicator-0 | indicator-1 |    min1 |   min2 |   min3 |   min4 |
+                +-----------+-------------+-------------+---------+--------+--------+--------+
+                | company-0 |      text-6 |      text-3 |  text-6 | text-3 | text-1 | text-3 |
+                | company-1 |     text-10 |      text-1 | text-10 | text-1 | text-1 | text-1 |
+                | company-2 |      text-2 |      text-5 |  text-2 | text-5 | text-1 | text-2 |
+                +-----------+-------------+-------------+---------+--------+--------+--------+
+                """);
+    }
+
+    @Test
+    void testErr() {
+        String dsl = """
+                table A
+                  [a] = ERR("F(")
+                  [b] = ERR("1+")
+                  [c] = ERR("1'"2")
+                  [d] = ERR("1")
+                """;
+
+        ResultCollector data = executeWithErrors(dsl);
+        data.verify("""
+                Table: A
+                ERR >> A[a] - Invalid formula: no viable alternative at input 'F('
+                ERR >> A[b] - Invalid formula: mismatched input '<EOF>' expecting {'-', 'TRUE', 'FALSE', 'NA', '$', 'NOT', '{', '(', FLOAT, IDENTIFIER, STRING_LITERAL, FIELD_NAME, MULTI_WORD_TABLE_IDENTIFIER}
+                ERR >> A[c] - Invalid formula: token recognition error at: '"2'
+                ERR >> A[d] - Valid formula
+                """);
+    }
+
+    @Test
+    void testGroupBy() {
+        String dsl = """
+                !manual()
+                table Data
+                  [company]
+                  [indicator]
+                  [amount]
+                  [revenue] = [amount] + 10
+                override
+                [company], [indicator], [amount]
+                "Apple", "GDP", 1
+                "Apple", "WTF", 2
+                "Microsoft", "GDP", 3
+                "Microsoft", "WTF", 4
+                "Microsoft", "GDP", 5
+                "Google", "GDP", 6
+               
+                table ResultA
+                  dim [company], [amount] = GROUPBY(Data[company], Data[amount], "SUM")
+               
+                table ResultB
+                  dim [company], [min], [average], [max] = GROUPBY(Data[company], Data[amount], {"MIN", "AVERAGE", "MAX"})
+               
+                table ResultC
+                  dim [company], [sum of amount], [sum of revenue] = GROUPBY(Data[company], Data[[amount], [revenue]], "SUM")
+               
+                table ResultD
+                  dim [company], [indicator], [correlation], [sum] = GROUPBY(Data[[company], [indicator]], Data[[amount], [amount], [revenue]], {"CORREL", "SUM"}, Data[company] = "Microsoft")
+               """;
+
+        ResultCollector data = executeWithoutErrors(dsl);
+        data.verify("""
+                Table: Data
+                +-----------+-----------+--------+---------+
+                |   company | indicator | amount | revenue |
+                +-----------+-----------+--------+---------+
+                |     Apple |       GDP |      1 |      11 |
+                |     Apple |       WTF |      2 |      12 |
+                | Microsoft |       GDP |      3 |      13 |
+                | Microsoft |       WTF |      4 |      14 |
+                | Microsoft |       GDP |      5 |      15 |
+                |    Google |       GDP |      6 |      16 |
+                +-----------+-----------+--------+---------+
+                
+                Table: ResultA
+                +-----------+--------+
+                |   company | amount |
+                +-----------+--------+
+                |     Apple |      3 |
+                |    Google |      6 |
+                | Microsoft |     12 |
+                +-----------+--------+
+                
+                Table: ResultB
+                +-----------+-----+---------+-----+
+                |   company | min | average | max |
+                +-----------+-----+---------+-----+
+                |     Apple |   1 |     1.5 |   2 |
+                |    Google |   6 |       6 |   6 |
+                | Microsoft |   3 |       4 |   5 |
+                +-----------+-----+---------+-----+
+                
+                Table: ResultC
+                +-----------+---------------+----------------+
+                |   company | sum of amount | sum of revenue |
+                +-----------+---------------+----------------+
+                |     Apple |             3 |             23 |
+                |    Google |             6 |             16 |
+                | Microsoft |            12 |             42 |
+                +-----------+---------------+----------------+
+                
+                Table: ResultD
+                +-----------+-----------+-------------+-----+
+                |   company | indicator | correlation | sum |
+                +-----------+-----------+-------------+-----+
+                | Microsoft |       GDP |           1 |  28 |
+                | Microsoft |       WTF |          NA |  14 |
+                +-----------+-----------+-------------+-----+
+                """);
+    }
+
+    @Test
+    void testExcelTableInput() {
+        String input = "test.xlsx?table=Table1";
+        String dsl = """
+                table A
+                  dim [string], [bool], [double], [date-time], [date] = INPUT("%1$s")[[string], [bool], [double], [date-time], [date]]
+                
+                table B
+                  dim [fields] = INPUT("%1$s").FIELDS()
+                """.formatted(input);
+
+        ResultCollector data = executeWithoutErrors(dsl);
+        data.verify("""
+                Table: A
+                +--------+-------+--------+------------------------+------------+
+                | string |  bool | double |              date-time |       date |
+                +--------+-------+--------+------------------------+------------+
+                |        |  TRUE |      1 |   2/2/2026 12:00:00 AM |   2/2/2026 |
+                |   TRUE |       |    -20 |  12/4/2024 12:00:00 AM |  12/4/2024 |
+                |      1 | FALSE |        | 11/11/2011 12:00:00 PM | 11/11/2011 |
+                |    abc |  TRUE |    -19 |                        |            |
+                |        |       |        |                        |            |
+                |     NA |    NA |     NA |                     NA |         NA |
+                |        |       |        |                        |            |
+                +--------+-------+--------+------------------------+------------+
+                
+                Table: B
+                +-----------+
+                |    fields |
+                +-----------+
+                |      bool |
+                |      date |
+                | date-time |
+                |    double |
+                |    string |
+                +-----------+
+                """);
+    }
+
+    @Test
+    void testExcelSheetInputWithHeaders() {
+        String input = "test.xlsx?sheet=Sheet1&headers=true";
+        String dsl = """
+                table A
+                  dim [Column2], [Column2_2], [string], [bool], [double], [date-time], [date], [Column8], [a], [b], [c] = \
+                    INPUT("%1$s")[[Column2], [Column2_2], [string], [bool], [double], [date-time], [date], [Column8], [a], [b], [c]]
+                
+                table B
+                  dim [fields] = INPUT("%1$s").FIELDS()
+                """.formatted(input);
+
+        ResultCollector data = executeWithoutErrors(dsl);
+        data.verify("""
+                Table: A
+                +---------+-----------+--------+-------+--------+------------------------+------------+---------+---+---+---+
+                | Column2 | Column2_2 | string |  bool | double |              date-time |       date | Column8 | a | b | c |
+                +---------+-----------+--------+-------+--------+------------------------+------------+---------+---+---+---+
+                |         |           |        |  TRUE |      1 |   2/2/2026 12:00:00 AM |   2/2/2026 |         | 1 | 2 | 3 |
+                |         |           |   TRUE |       |    -20 |  12/4/2024 12:00:00 AM |  12/4/2024 |         | 4 | 5 | 6 |
+                |         |           |      1 | FALSE |        | 11/11/2011 12:00:00 PM | 11/11/2011 |         |   |   |   |
+                |         |           |    abc |  TRUE |    -19 |                        |            |         |   |   |   |
+                |         |           |        |       |        |                        |            |         |   |   |   |
+                |         |           |     NA |    NA |     NA |                     NA |         NA |         |   |   |   |
+                |         |           |        |       |        |                        |            |     asd |   |   |   |
+                |         |           |        |       |        |                        |            |     dsa |   |   |   |
+                |         |           |        |       |        |                        |            |         |   |   |   |
+                |         |         e |      f |     g |        |                        |            |         |   |   |   |
+                |         |         7 |      8 |     9 |        |                        |            |         |   |   |   |
+                |         |        10 |     11 |    12 |        |                        |            |         |   |   |   |
+                +---------+-----------+--------+-------+--------+------------------------+------------+---------+---+---+---+
+                
+                Table: B
+                +-----------+
+                |    fields |
+                +-----------+
+                |   Column2 |
+                | Column2_2 |
+                |   Column8 |
+                |         a |
+                |         b |
+                |      bool |
+                |         c |
+                |      date |
+                | date-time |
+                |    double |
+                |    string |
+                +-----------+
+                """);
+    }
+
+    @Test
+    void testExcelSheetInput() {
+        String input = "test.xlsx?sheet=Sheet1";
+        String dsl = """
+                table A
+                  dim [Column1], [Column2], [Column3], [Column4], [Column5], [Column6], [Column7], [Column8], [Column9], [Column10], [Column11] = \
+                    INPUT("%1$s")[[Column1], [Column2], [Column3], [Column4], [Column5], [Column6], [Column7], [Column8], [Column9], [Column10], [Column11]]
+                
+                table B
+                  dim [fields] = INPUT("%1$s").FIELDS()
+                """.formatted(input);
+
+        ResultCollector data = executeWithoutErrors(dsl);
+        data.verify("""
+                Table: A
+                +---------+---------+---------+---------+---------+------------------------+------------+---------+---------+----------+----------+
+                | Column1 | Column2 | Column3 | Column4 | Column5 |                Column6 |    Column7 | Column8 | Column9 | Column10 | Column11 |
+                +---------+---------+---------+---------+---------+------------------------+------------+---------+---------+----------+----------+
+                | Column2 |         |  string |    bool |  double |              date-time |       date |         |       a |        b |        c |
+                |         |         |         |    TRUE |       1 |               2/2/2026 |   2/2/2026 |         |       1 |        2 |        3 |
+                |         |         |    TRUE |         |     -20 |              12/4/2024 |  12/4/2024 |         |       4 |        5 |        6 |
+                |         |         |       1 |   FALSE |         | 11/11/2011 12:00:00 PM | 11/11/2011 |         |         |          |          |
+                |         |         |     abc |    TRUE |     -19 |                        |            |         |         |          |          |
+                |         |         |         |         |         |                        |            |         |         |          |          |
+                |         |         |      NA |      NA |      NA |                     NA |         NA |         |         |          |          |
+                |         |         |         |         |         |                        |            |     asd |         |          |          |
+                |         |         |         |         |         |                        |            |     dsa |         |          |          |
+                |         |         |         |         |         |                        |            |         |         |          |          |
+                |         |       e |       f |       g |         |                        |            |         |         |          |          |
+                |         |       7 |       8 |       9 |         |                        |            |         |         |          |          |
+                |         |      10 |      11 |      12 |         |                        |            |         |         |          |          |
+                +---------+---------+---------+---------+---------+------------------------+------------+---------+---------+----------+----------+
+                
+                Table: B
+                +----------+
+                |   fields |
+                +----------+
+                |  Column1 |
+                | Column10 |
+                | Column11 |
+                |  Column2 |
+                |  Column3 |
+                |  Column4 |
+                |  Column5 |
+                |  Column6 |
+                |  Column7 |
+                |  Column8 |
+                |  Column9 |
+                +----------+
+                """);
+    }
+
+    @Test
+    void testInvalidFormat() {
+        String dsl = """
+                table Table1
+                  !format("date", "M/dd/yyyy hh:mm aa")
+                  [Column1] = 123
+                """;
+
+        ResultCollector data = executeWithErrors(dsl);
+        data.verify("""
+                Table: Table1
+                ERR >> Table1[Column1] - Invalid date format: M/dd/yyyy hh:mm aa. Error: Too many pattern letters: a
+                """);
+    }
+
+    @Test
+    void testTextBeforeAfter() {
+        String dsl = """
+                !manual()
+                table From
+                  [text] = "1, 2, 3"
+                  [delimiter] = ", "
+                  [from]
+                  [before] = TEXTBEFORE([text], [delimiter], [from])
+                  [after] = TEXTAFTER([text], [delimiter], [from])
+                override
+                [from]
+                0
+                1
+                2
+                3
+                -1
+                -2
+                -3
+                -2147483648
+                
+                !manual()
+                table NoFrom
+                    [text] = "1,2.3"
+                    [delimiter]
+                    [before] = TEXTBEFORE([text], [delimiter])
+                    [after] = TEXTAFTER([text], [delimiter])
+                override
+                [delimiter]
+                ","
+                "."
+                
+                table Nested
+                    dim [from] = RANGE(3)
+                    dim [before] = From.FILTER(TEXTBEFORE("1, 2, 3", ", ", [from]) = From[before])[from]
+                
+                !manual()
+                table EmptyDelimiter
+                    [text] = "abc"
+                    [delimiter] = ""
+                    [from]
+                    [before] = TEXTBEFORE([text], [delimiter], [from])
+                    [after] = TEXTAFTER([text], [delimiter], [from])
+                override
+                [from]
+                -1
+                0
+                1
+                
+                !manual()
+                table EmptyText
+                    [text] = ""
+                    [delimiter] = ","
+                    [from]
+                    [before] = TEXTBEFORE([text], [delimiter], [from])
+                    [after] = TEXTAFTER([text], [delimiter], [from])
+                override
+                [from]
+                -1
+                0
+                1
+                
+                !manual()
+                table Edges
+                    [text] = "...."
+                    [delimiter] = ".."
+                    [from]
+                    [before] = TEXTBEFORE([text], [delimiter], [from])
+                    [after] = TEXTAFTER([text], [delimiter], [from])
+                override
+                [from]
+                -2
+                -1
+                1
+                2
+                """;
+
+        ResultCollector data = executeWithErrors(dsl);
+        data.verify("""
+                Table: Edges
+                +------+-----------+------+--------+-------+
+                | text | delimiter | from | before | after |
+                +------+-----------+------+--------+-------+
+                | .... |        .. |   -2 |        |    .. |
+                | .... |        .. |   -1 |     .. |       |
+                | .... |        .. |    1 |        |    .. |
+                | .... |        .. |    2 |     .. |       |
+                +------+-----------+------+--------+-------+
+                
+                Table: EmptyDelimiter
+                +------+-----------+------+--------+-------+
+                | text | delimiter | from | before | after |
+                +------+-----------+------+--------+-------+
+                |  abc |           |   -1 |    abc |       |
+                |  abc |           |    0 |     NA |    NA |
+                |  abc |           |    1 |        |   abc |
+                +------+-----------+------+--------+-------+
+                
+                Table: EmptyText
+                +------+-----------+------+--------+-------+
+                | text | delimiter | from | before | after |
+                +------+-----------+------+--------+-------+
+                |      |         , |   -1 |     NA |    NA |
+                |      |         , |    0 |     NA |    NA |
+                |      |         , |    1 |     NA |    NA |
+                +------+-----------+------+--------+-------+
+                
+                Table: From
+                +---------+-----------+----------------+--------+-------+
+                |    text | delimiter |           from | before | after |
+                +---------+-----------+----------------+--------+-------+
+                | 1, 2, 3 |        ,  |              0 |     NA |    NA |
+                | 1, 2, 3 |        ,  |              1 |      1 |  2, 3 |
+                | 1, 2, 3 |        ,  |              2 |   1, 2 |     3 |
+                | 1, 2, 3 |        ,  |              3 |     NA |    NA |
+                | 1, 2, 3 |        ,  |             -1 |   1, 2 |     3 |
+                | 1, 2, 3 |        ,  |             -2 |      1 |  2, 3 |
+                | 1, 2, 3 |        ,  |             -3 |     NA |    NA |
+                | 1, 2, 3 |        ,  | -2,147,483,648 |     NA |    NA |
+                +---------+-----------+----------------+--------+-------+
+                
+                Table: Nested
+                +------+--------+
+                | from | before |
+                +------+--------+
+                |    1 |      1 |
+                |    1 |     -2 |
+                |    2 |      2 |
+                |    2 |     -1 |
+                +------+--------+
+                
+                Table: NoFrom
+                +-------+-----------+--------+-------+
+                |  text | delimiter | before | after |
+                +-------+-----------+--------+-------+
+                | 1,2.3 |         , |      1 |   2.3 |
+                | 1,2.3 |         . |    1,2 |     3 |
+                +-------+-----------+--------+-------+
+                """);
+    }
 }

@@ -9,7 +9,7 @@ export const requestWebNotificationsPermissions =
 
 export const webNotify = async (
   title: string,
-  options: NotificationOptions
+  options: NotificationOptions,
 ): Promise<Notification | undefined> => {
   const permission = await requestWebNotificationsPermissions();
 

@@ -1,11 +1,11 @@
 import {
   Dispatch,
-  MutableRefObject,
+  RefObject,
   SetStateAction,
   useCallback,
   useContext,
 } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { toast } from 'react-toastify';
 
 import {
@@ -33,10 +33,11 @@ type Props = {
   setCurrentSheetName: Dispatch<SetStateAction<string | null>>;
   setParsedSheet: Dispatch<SetStateAction<ParsedSheet | null>>;
   cancelAllViewportRequests: () => void;
-  currentSheetNameRef: MutableRefObject<string | null>;
+  currentSheetNameRef: RefObject<string | null>;
   isProjectEditable: boolean;
-  isTemporaryStateRef: MutableRefObject<boolean>;
-  isTemporaryStateEditableRef: MutableRefObject<boolean>;
+  isTemporaryStateRef: RefObject<boolean>;
+  isTemporaryStateEditableRef: RefObject<boolean>;
+  resetRuntimeErrors: () => void;
 };
 
 export function useSheetNavigation({
@@ -47,10 +48,11 @@ export function useSheetNavigation({
   setCurrentSheetName,
   isTemporaryStateRef,
   isTemporaryStateEditableRef,
+  resetRuntimeErrors,
 }: Props) {
   const { clearTablesData } = useContext(ViewportContext);
   const { _projectState, updateProjectOnServer, setProjectState } = useContext(
-    ProjectResourceContext
+    ProjectResourceContext,
   );
   const navigate = useNavigate();
   const eventBus = useEventBus<EventBusMessages>();
@@ -64,7 +66,7 @@ export function useSheetNavigation({
       }: {
         sendPutWorksheet?: boolean;
         responseIds?: ProjectAIResponseId[];
-      } = {}
+      } = {},
     ): Promise<boolean | undefined> => {
       const projectStateRef = _projectState.current;
       if (!projectStateRef?.projectName) return;
@@ -72,11 +74,11 @@ export function useSheetNavigation({
       const sheets = updateProjectSheets(
         changedSheets,
         projectStateRef.sheets,
-        projectStateRef.projectName
+        projectStateRef.projectName,
       );
 
       const currentSheet = sheets.find(
-        (sheet) => sheet.sheetName === currentSheetNameRef.current
+        (sheet) => sheet.sheetName === currentSheetNameRef.current,
       );
       if (!currentSheet) {
         setCurrentSheetName(sheets[0]?.sheetName);
@@ -92,6 +94,8 @@ export function useSheetNavigation({
       }
 
       if (sendPutWorksheet) {
+        resetRuntimeErrors();
+
         return new Promise<boolean | undefined>((resolve) => {
           updateProjectOnServer(newProjectStateRequest, {
             isTemporaryState: isTemporaryStateRef.current,
@@ -110,20 +114,21 @@ export function useSheetNavigation({
       setProjectState,
       updateProjectOnServer,
       isTemporaryStateRef,
-    ]
+      resetRuntimeErrors,
+    ],
   );
 
   const manuallyUpdateSheetContent = useCallback(
     async (
       changeItems: DslSheetChange[],
-      sendPutWorksheet = true
+      sendPutWorksheet = true,
     ): Promise<boolean | undefined> => {
       const projectState = _projectState.current;
       if (!projectState) return;
 
       if (isTemporaryStateRef.current && !isTemporaryStateEditableRef.current) {
         toast.info(
-          'Cannot update project due to you have pending AI changes or you are in Preview changes mode'
+          'Cannot update project due to you have pending AI changes or you are in Preview changes mode',
         );
 
         return;
@@ -143,7 +148,7 @@ export function useSheetNavigation({
       isTemporaryStateEditableRef,
       isTemporaryStateRef,
       updateSheetContent,
-    ]
+    ],
   );
 
   const openSheet = useCallback(
@@ -160,7 +165,7 @@ export function useSheetNavigation({
       }
 
       let resultedSheetContent = projectState.sheets.find(
-        (sheet) => sheet.sheetName === sheetName
+        (sheet) => sheet.sheetName === sheetName,
       )?.content;
       let resultedSheetName = sheetName;
 
@@ -171,7 +176,7 @@ export function useSheetNavigation({
         if (!resultedSheetContent) {
           // eslint-disable-next-line no-console
           console.warn(
-            'Redirect to home because sheet content not exists when opening sheet'
+            'Redirect to home because sheet content not exists when opening sheet',
           );
           eventBus.publish({
             topic: 'CloseCurrentProject',
@@ -190,7 +195,7 @@ export function useSheetNavigation({
           projectPath: projectState.path,
           projectSheetName: resultedSheetName,
         }),
-        { replace: true }
+        { replace: true },
       );
 
       return { resultedSheetContent, resultedSheetName };
@@ -204,7 +209,7 @@ export function useSheetNavigation({
       setCurrentSheetName,
       setParsedSheet,
       eventBus,
-    ]
+    ],
   );
 
   const initialOpenSheet = useCallback(
@@ -219,20 +224,20 @@ export function useSheetNavigation({
         resultedSheetName,
         _projectState.current.projectName,
         _projectState.current.bucket,
-        _projectState.current.path
+        _projectState.current.path,
       );
       updateSheetContent(
         [{ sheetName: resultedSheetName, content: resultedSheetContent }],
         {
           sendPutWorksheet: false,
-        }
+        },
       );
 
       if (!_projectState.current.sheets || !isProjectEditable) return;
       let updatedSheetContent = autoRenameTables(
         resultedSheetContent,
         resultedSheetName,
-        _projectState.current.sheets
+        _projectState.current.sheets,
       );
 
       if (resultedSheetContent === updatedSheetContent) return;
@@ -242,7 +247,7 @@ export function useSheetNavigation({
         { sheetName: resultedSheetName, content: updatedSheetContent },
       ]);
     },
-    [_projectState, isProjectEditable, openSheet, updateSheetContent]
+    [_projectState, isProjectEditable, openSheet, updateSheetContent],
   );
 
   return {

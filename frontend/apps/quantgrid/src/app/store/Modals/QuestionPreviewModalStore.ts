@@ -41,5 +41,5 @@ export const useQuestionPreviewModalStore = create<QuestionPreviewModalStore>()(
       _resolver?.(false);
       set(initialState);
     },
-  })
+  }),
 );

@@ -49,6 +49,7 @@ export const spreadsheetMenuKeys = {
   sortAsc: 'SortAsc',
   sortDesc: 'SortDesc',
   clearSort: 'ClearSort',
+  filter: 'Filter',
   numFilter: 'NumFilter',
   textFilter: 'TextFilter',
   customTotal: 'CustomTotal',

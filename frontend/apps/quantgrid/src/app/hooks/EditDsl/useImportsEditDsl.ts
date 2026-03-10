@@ -26,7 +26,7 @@ export function useImportsEditDsl() {
   const syncImports = useCallback(
     async (
       importSources: Record<string, ImportSource>,
-      usedImports: Map<string, ImportArgs>
+      usedImports: Map<string, ImportArgs>,
     ) => {
       if (!parsedSheets || usedImports.size === 0) return;
 
@@ -34,7 +34,7 @@ export function useImportsEditDsl() {
         `Starting sync for ${usedImports.size} import dataset(s)…`,
         {
           toastId,
-        }
+        },
       );
 
       const collectSyncs: Array<
@@ -44,7 +44,7 @@ export function useImportsEditDsl() {
       for (const { dataset, source, version } of usedImports.values()) {
         // Get sourceId for a source name, needed for an api call
         const sourceId = Object.values(importSources).find(
-          (src) => src.name === source
+          (src) => src.name === source,
         )?.source;
 
         if (!sourceId) continue;
@@ -94,7 +94,7 @@ export function useImportsEditDsl() {
           } catch {
             toast.error(`Sync failed for ${sourceName}/${dataset}.`);
           }
-        })
+        }),
       );
 
       toast.dismiss(toastId);
@@ -117,12 +117,12 @@ export function useImportsEditDsl() {
               const updatedFormula = applyAllUpdates(formula, updatedVersion);
               if (updatedFormula !== formula) {
                 const table = sheet.getTable(
-                  unescapeTableName(parsedTable.tableName)
+                  unescapeTableName(parsedTable.tableName),
                 );
                 if (table) {
                   table.setFieldFormula(
                     parsedField.key.fieldName,
-                    updatedFormula
+                    updatedFormula,
                   );
                   sheetChanged = true;
                 }
@@ -144,7 +144,7 @@ export function useImportsEditDsl() {
         toast.error('Failed to update IMPORT versions in DSL.');
       }
     },
-    [parsedSheets, listImportSyncs, fullProjectPath, runImportSync, updateDSL]
+    [parsedSheets, listImportSyncs, fullProjectPath, runImportSync, updateDSL],
   );
 
   const failSingleImportField = useCallback(() => {
@@ -156,7 +156,7 @@ export function useImportsEditDsl() {
     async (
       tableName: string,
       fieldName: string,
-      importSources: Record<string, ImportSource>
+      importSources: Record<string, ImportSource>,
     ) => {
       if (!parsedSheets || !fullProjectPath) return;
 
@@ -174,14 +174,14 @@ export function useImportsEditDsl() {
 
       // Get sourceId for a source name, needed for an api call
       const sourceId = Object.values(importSources).find(
-        (s) => s.name === source
+        (s) => s.name === source,
       )?.source;
 
       if (!sourceId) return;
 
       toast.loading(
         `Syncing ${source}/${dataset} for ${tableName}.${fieldName}…`,
-        { toastId }
+        { toastId },
       );
 
       // Get syncs for source/dataset
@@ -216,7 +216,7 @@ export function useImportsEditDsl() {
           parsedField.expressionMetadata.text,
           source,
           dataset,
-          newVersion
+          newVersion,
         );
         table.setFieldFormula(fieldName, newFormula);
 
@@ -249,7 +249,7 @@ export function useImportsEditDsl() {
       failSingleImportField,
       runImportSync,
       updateDSL,
-    ]
+    ],
   );
 
   const renameImportSourceDsl = useCallback(
@@ -269,7 +269,7 @@ export function useImportsEditDsl() {
 
         for (const parsedTable of parsedSheet.tables) {
           const table = sheet.getTable(
-            unescapeTableName(parsedTable.tableName)
+            unescapeTableName(parsedTable.tableName),
           );
           if (!table) continue;
 
@@ -280,7 +280,7 @@ export function useImportsEditDsl() {
             const updatedFormula = replaceImportSourceInFormula(
               formula,
               from,
-              to
+              to,
             );
             if (updatedFormula !== formula) {
               table.setFieldFormula(parsedField.key.fieldName, updatedFormula);
@@ -302,7 +302,7 @@ export function useImportsEditDsl() {
 
       updateDSL(dslChanges);
     },
-    [parsedSheets, updateDSL]
+    [parsedSheets, updateDSL],
   );
 
   return {
@@ -314,7 +314,7 @@ export function useImportsEditDsl() {
 
 function findTargetSync(
   syncs: Record<string, ImportSync>,
-  version: number
+  version: number,
 ): ImportSync | null {
   let targetSync: ImportSync | null = null;
   for (const sync of Object.values(syncs)) {
@@ -334,7 +334,7 @@ function findTargetSync(
 
 function applyAllUpdates(
   formula: string,
-  updatedVersion: Map<string, number>
+  updatedVersion: Map<string, number>,
 ): string {
   let next = formula;
   for (const [key, ver] of updatedVersion.entries()) {
@@ -350,7 +350,7 @@ function bumpImportVersionInFormula(
   formula: string,
   sourceName: string,
   dataset: string,
-  newVersion: number
+  newVersion: number,
 ) {
   if (!formula) return formula;
 
@@ -366,7 +366,7 @@ function bumpImportVersionInFormula(
 function replaceImportSourceInFormula(
   formula: string,
   oldName: string,
-  newName: string
+  newName: string,
 ): string {
   if (!formula) return formula;
 

@@ -51,7 +51,7 @@ export function TableHeadersSection({
       fieldHeaderChecked,
       toggleTableTitleOrHeaderVisibility,
       openTable,
-    ]
+    ],
   );
 
   useEffect(() => {

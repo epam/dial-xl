@@ -1,16 +1,13 @@
 import { AppTheme, ChartsData, GridChart } from '@frontend/common';
 
-import { GridApi, GridTable } from '../../types';
+import { GridTable } from '../../types';
 import { GridEventBus } from '../../utils';
 
 export type Props = {
   eventBus: GridEventBus;
-  api: GridApi | null;
   chartData: ChartsData;
-  zoom?: number;
   charts?: GridChart[];
   theme: AppTheme;
-  columnSizes: Record<number, number>;
   tableStructure: GridTable[];
 };
 

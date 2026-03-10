@@ -36,7 +36,7 @@ export const useDashboardActions = (projects: string[]) => {
   }, [useUserRoot, urlFolderPath]);
 
   const bucket = useMemo(() => {
-    return useUserRoot ? userBucket : urlBucket ?? userBucket;
+    return useUserRoot ? userBucket : (urlBucket ?? userBucket);
   }, [useUserRoot, userBucket, urlBucket]);
 
   const handleCreateNewProject = useCallback(() => {
@@ -127,7 +127,7 @@ export const useDashboardActions = (projects: string[]) => {
           okButtonProps: {
             className: classNames(
               modalFooterButtonClasses,
-              primaryButtonClasses
+              primaryButtonClasses,
             ),
           },
           onOk: action,
@@ -138,7 +138,7 @@ export const useDashboardActions = (projects: string[]) => {
 
       action();
     },
-    [bucket, folderPath, uploadFiles, useUserRoot]
+    [bucket, folderPath, uploadFiles, useUserRoot],
   );
 
   return { handleCreateNewProject, handleUploadFiles, handleCreateEmptyFolder };

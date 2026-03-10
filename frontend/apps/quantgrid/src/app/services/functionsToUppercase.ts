@@ -3,7 +3,7 @@ import { findFunctionExpressions, SheetReader } from '@frontend/parser';
 
 export function functionsToUppercase(
   expression: string,
-  functions: FunctionInfo[]
+  functions: FunctionInfo[],
 ): string {
   if (!expression || functions.length === 0) return expression;
 

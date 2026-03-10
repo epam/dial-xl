@@ -271,6 +271,7 @@ type FiltersEvent =
         tableName: string;
         fieldName: string;
         values: string[];
+        type: 'selected' | 'unselected';
         isNumeric: boolean;
       };
     }
@@ -293,6 +294,28 @@ type FiltersEvent =
         searchValue: string;
         sort: 1 | -1;
       };
+    }
+  | {
+      type: 'filters/custom-formula-applied';
+      payload: {
+        tableName: string;
+        fieldName: string;
+        expression: string;
+      };
+    }
+  | {
+      type: 'filters/control-applied';
+      payload: {
+        tableName: string;
+        fieldName: string;
+        controlTableName: string;
+        controlFieldName: string;
+        controlType: ControlType;
+      };
+    }
+  | {
+      type: 'filters/cleared';
+      payload: { tableName: string; fieldName: string };
     };
 
 type ControlEvent =

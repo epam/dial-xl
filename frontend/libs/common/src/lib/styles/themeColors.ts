@@ -1,6 +1,69 @@
 import { AppTheme } from '../types';
 
-export const themeColors: Record<AppTheme, Record<string, string>> = {
+export interface ThemeColors {
+  bgAccentPrimary: string;
+  bgAccentPrimaryAlpha: string;
+  bgAccentPrimaryAlphaRGB: string;
+  bgAccentPrimaryAlpha2: string;
+  bgAccentSecondary: string;
+  bgAccentSecondaryAlpha: string;
+  bgAccentTertiary: string;
+  bgAccentTertiaryAlpha: string;
+  bgAccentTertiaryAlphaSolid: string;
+  bgError: string;
+  bgGridAccentPrimaryAlpha: string;
+  bgGridField: string;
+  bgGridHeader: string;
+  bgGridColoredCell: string;
+  bgGridInverted: string;
+  bgGridLayerMain: string;
+  bgInverted: string;
+  bgLayer0: string;
+  bgLayer1: string;
+  bgLayer2: string;
+  bgLayer3: string;
+  bgLayer4: string;
+  bgLayer5: string;
+  bgLayer4Inverted: string;
+  bgScrollbarHover: string;
+  controlsBgAccentHover: string;
+  controlsBgAccent: string;
+  controlsBgAccentHoverSecondary: string;
+  controlsBgAccentSecondary: string;
+  controlsBgDisable: string;
+  controlsTextDisable: string;
+  controlsTextPermanent: string;
+  strokeAccentPrimary: string;
+  strokeAccentSecondary: string;
+  strokeAccentTertiary: string;
+  strokeError: string;
+  strokeGridAccentPrimary: string;
+  strokeGridError: string;
+  strokeGridMain: string;
+  strokeGridTable: string;
+  strokeGrid: string;
+  strokeHoverFocus: string;
+  strokeHover: string;
+  strokePrimary: string;
+  strokeSecondary: string;
+  strokeTertiary: string;
+  strokeTertiaryInverted: string;
+  strokeTertiaryInvertedAlpha: string;
+  textAccentPrimary: string;
+  textAccentSecondary: string;
+  textAccentTertiary: string;
+  textError: string;
+  textGridPrimary: string;
+  textInverted: string;
+  textPrimary: string;
+  textSecondary: string;
+  textWarning: string;
+  warningInverted: string;
+}
+
+export type PixiThemeColors = Record<keyof ThemeColors, number | string>;
+
+export const themesColors: Record<AppTheme, ThemeColors> = {
   [AppTheme.ThemeLight]: {
     bgAccentPrimary: 'rgba(132, 62, 243)',
     bgAccentPrimaryAlpha: 'rgba(132, 62, 243, 0.1)',
@@ -49,6 +112,7 @@ export const themeColors: Record<AppTheme, Record<string, string>> = {
     strokeSecondary: '#b7bdc3',
     strokeTertiary: '#dde1e6',
     strokeTertiaryInverted: '#03070d',
+    strokeTertiaryInvertedAlpha: 'rgba(3,7,13,0.5)',
     textAccentPrimary: '#843ef3',
     textAccentSecondary: '#009d9f',
     textAccentTertiary: '#2764d9',
@@ -108,6 +172,7 @@ export const themeColors: Record<AppTheme, Record<string, string>> = {
     strokeSecondary: '#4c535d',
     strokeTertiary: '#03070d',
     strokeTertiaryInverted: '#dde1e6',
+    strokeTertiaryInvertedAlpha: 'rgba(221,225,230,0.5)',
     textAccentPrimary: '#a972ff',
     textAccentSecondary: '#009d9f',
     textAccentTertiary: '#5c8dea',
@@ -167,6 +232,7 @@ export const themeColors: Record<AppTheme, Record<string, string>> = {
     strokeSecondary: '#b7bdc3',
     strokeTertiary: '#03070d',
     strokeTertiaryInverted: '#dde1e6',
+    strokeTertiaryInvertedAlpha: 'rgba(221,225,230,0.5)',
     textAccentPrimary: '#a972ff',
     textAccentSecondary: '#009d9f',
     textAccentTertiary: '#5c8dea',
@@ -193,7 +259,7 @@ export function themeColorToKebab(str: string): string {
 
 export function generateThemeCSS(theme: AppTheme): string {
   let css = `.${theme} {\n`;
-  for (const [key, val] of Object.entries(themeColors[theme])) {
+  for (const [key, val] of Object.entries(themesColors[theme])) {
     css += `  --color-${themeColorToKebab(key)}: ${val};\n`;
   }
   css += '}\n';
@@ -224,13 +290,11 @@ export function getHexColor(color: string): number | string {
   return color;
 }
 
-export function convertThemeForCanvas(
-  colorObj: Record<string, string>
-): Record<string, number | string> {
+export function convertThemeForCanvas(colorObj: ThemeColors): PixiThemeColors {
   const convertedTheme: Record<string, number | string> = {};
   for (const [key, val] of Object.entries(colorObj)) {
     convertedTheme[key] = getHexColor(val);
   }
 
-  return convertedTheme;
+  return convertedTheme as PixiThemeColors;
 }

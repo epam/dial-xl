@@ -1,8 +1,8 @@
 import {
   JSX,
   PropsWithChildren,
-  RefObject,
   useCallback,
+  useContext,
   useEffect,
   useMemo,
   useRef,
@@ -21,9 +21,11 @@ import {
   overrideKeyFieldMessage,
 } from '@frontend/common';
 
-import { GridApi, GridCell } from '../../../types';
+import { GridStateContext, GridViewportContext } from '../../../context';
+import { GridCell } from '../../../types';
 import {
   getCellContext,
+  getPx,
   GridEventBus,
   shouldNotOverrideCell,
 } from '../../../utils';
@@ -42,8 +44,11 @@ import {
 } from '../types';
 import {
   getCellContextParams,
+  getCellEditorHeight,
+  getCellEditorMaxWidth,
   getCellEditorParams,
   getCellEditorStyle,
+  getCellEditorSymbolsRequiredWidth,
   isCellEditorHasFocus,
   isSaveOnArrowEnabled,
   shouldSendUpdateEvent,
@@ -51,21 +56,27 @@ import {
 import { CellEditorContext } from './CellEditorContext';
 
 type CellEditorContextProps = {
-  apiRef: RefObject<GridApi>;
   eventBus: GridEventBus;
   formulaBarMode: FormulaBarMode;
   isReadOnly: boolean;
-  zoom: number;
 };
 
 export function CellEditorContextProvider({
-  apiRef,
   children,
   eventBus,
   formulaBarMode,
   isReadOnly,
-  zoom,
 }: PropsWithChildren<CellEditorContextProps>): JSX.Element {
+  const {
+    hideDottedSelection,
+    gridSizes,
+    getCell,
+    setCellValue,
+    zoom,
+    columnSizes,
+    canvasId,
+  } = useContext(GridStateContext);
+  const { getCellX, getCellY, moveViewport } = useContext(GridViewportContext);
   // Editor Visibility and Mode
   const [isOpen, setIsOpen] = useState<boolean>(false);
   const [openedExplicitly, setOpenedExplicitly] = useState<boolean>(false);
@@ -98,17 +109,16 @@ export function CellEditorContextProvider({
   const mouseOverSwitcherTooltip = useRef<boolean>(false);
 
   const { restoreCellValue, restoreSelection } = useCellEditorRestore({
-    apiRef,
     currentCell,
     editedCalculatedCellValue,
     setEditedCalculatedCellValue,
   });
   const { updateCellEditorStyle } = useCellEditorStyle({
-    apiRef,
     currentCell,
     editorStyle,
     setEditorStyle,
     zoom,
+    columnSizes,
   });
 
   const hide = useCallback(() => {
@@ -126,7 +136,7 @@ export function CellEditorContextProvider({
     codeValue.current = '';
 
     if (isDottedSelection.current) {
-      apiRef.current?.hideDottedSelection();
+      hideDottedSelection();
       isDottedSelection.current = false;
     }
 
@@ -140,15 +150,13 @@ export function CellEditorContextProvider({
       // @ts-ignore
       document.activeElement?.blur();
     }
-  }, [restoreCellValue, restoreSelection, eventBus, apiRef]);
+  }, [restoreCellValue, restoreSelection, eventBus, hideDottedSelection]);
 
   const { updateDottedSelectionVisibility } = useCellEditorDottedSelection({
-    apiRef,
     isDottedSelection,
   });
 
   const { updateEditModeOnCodeChange } = useCellEditorMode({
-    apiRef,
     formulaBarMode,
     openedExplicitly,
     currentCell,
@@ -183,17 +191,69 @@ export function CellEditorContextProvider({
       updateCellEditorStyle,
       updateEditModeOnCodeChange,
       openedWithNextChar,
-    ]
+    ],
+  );
+
+  const onContentHeightChange = useCallback(
+    (contentHeight: number) => {
+      if (!currentCell) return;
+
+      const code = codeValue.current;
+      const isMultiline = code.includes('\n');
+
+      const y = getCellY(currentCell.row);
+      const x = getCellX(currentCell.col);
+
+      setEditorStyle((prev) => {
+        const requiredSingleLineWidth = getCellEditorSymbolsRequiredWidth({
+          value: code,
+          zoom,
+        });
+        const maxWidth = getCellEditorMaxWidth({
+          canvasId,
+          gridSizes,
+          x,
+        });
+        const isWidthEnough = maxWidth >= requiredSingleLineWidth;
+
+        const shouldApplyHeight = isMultiline || !isWidthEnough;
+        if (!shouldApplyHeight) {
+          return prev;
+        }
+
+        return {
+          ...prev,
+          height: getPx(
+            getCellEditorHeight({
+              canvasId,
+              gridSizes,
+              y,
+              contentHeight,
+            }),
+          ),
+        };
+      });
+    },
+    [canvasId, currentCell, getCellX, getCellY, gridSizes, zoom],
   );
 
   const openCellEditor = useCallback(
     (col: number, row: number, value: string, initialWidth: number) => {
-      if (!apiRef.current) return;
-
-      const api = apiRef.current;
-      const x = api.getCellX(col);
-      const y = api.getCellY(row);
-      const result = getCellEditorStyle(api, x, y, value, zoom, initialWidth);
+      const x = getCellX(col);
+      const y = getCellY(row);
+      const result = getCellEditorStyle({
+        canvasId,
+        gridSizes,
+        x,
+        y,
+        value,
+        valueColumn: col,
+        valueRow: row,
+        columnSizes,
+        zoom,
+        cellWidth: initialWidth,
+        moveViewport,
+      });
 
       if (!result) return;
 
@@ -206,7 +266,7 @@ export function CellEditorContextProvider({
       setEditorStyle(style);
       setIsOpen(true);
     },
-    [apiRef, zoom]
+    [canvasId, columnSizes, getCellX, getCellY, gridSizes, moveViewport, zoom],
   );
 
   const showErrorMessage = useCallback(
@@ -232,15 +292,14 @@ export function CellEditorContextProvider({
 
       return !!message;
     },
-    [editMode, eventBus]
+    [editMode, eventBus],
   );
 
   const displayCellEditor = useCallback(
     (col: number, row: number, options: GridCellEditorOpenOptions) => {
-      if (!apiRef.current || isReadOnly) return;
+      if (isReadOnly) return;
 
-      const api = apiRef.current;
-      const cell = api.getCell(col, row);
+      const cell = getCell(col, row);
       const {
         isEditExpressionShortcut: isEditExpression,
         isRenameShortcut,
@@ -254,7 +313,7 @@ export function CellEditorContextProvider({
         isTableCell,
         isTotalCell,
         hasOtherCellsInField,
-      } = getCellContextParams(api, cell);
+      } = getCellContextParams(cell);
 
       // Check to filter out alt+f2 shortcut for table header
       if (
@@ -290,7 +349,7 @@ export function CellEditorContextProvider({
       if (shouldTriggerSuggest) {
         setTimeout(
           () => codeEditor.getAction('editor.action.triggerSuggest')?.run(),
-          10
+          10,
         );
       }
 
@@ -309,19 +368,18 @@ export function CellEditorContextProvider({
       // Hide value for table cell when editor opened
       if (isTableCell && cell) {
         setEditedCalculatedCellValue(cell.value || '');
-        api.setCellValue(col, row, '');
+        setCellValue(col, row, '');
       }
 
       // TODO: probably we need to get real width of the cell, not a default one, because entire column can be different size
-      const { gridSizes } = api;
       const { width } = gridSizes.cell;
       const initialWidth = isTableHeader ? 0 : Math.max(0, width);
 
       // Case when we are writing formula to the right or bottom of a vertical or horizontal table
-      const contextCell = getCellContext(api.getCell, col, row);
+      const contextCell = getCellContext(getCell, col, row);
 
       setCurrentTableName(
-        cell?.table?.tableName ?? contextCell?.table?.tableName ?? ''
+        cell?.table?.tableName ?? contextCell?.table?.tableName ?? '',
       );
       setCurrentFieldName(cell?.field?.fieldName || '');
       setCurrentCell({ col, row });
@@ -338,24 +396,26 @@ export function CellEditorContextProvider({
       }, 0);
     },
     [
-      apiRef,
+      isReadOnly,
+      getCell,
       editMode,
       openedExplicitly,
       formulaBarMode,
       codeEditor,
       updateDottedSelectionVisibility,
+      gridSizes.cell,
       openCellEditor,
-      eventBus,
       showErrorMessage,
-      isReadOnly,
-    ]
+      eventBus,
+      setCellValue,
+    ],
   );
 
   // Additional effect to check enable/disable save on arrow
   // onCodeChange() doesn't set correct value on typing first character
   useEffect(() => {
     setSaveOnArrowEnabled(
-      isSaveOnArrowEnabled(codeValue.current, openedWithNextChar)
+      isSaveOnArrowEnabled(codeValue.current, openedWithNextChar),
     );
   }, [openedWithNextChar]);
 
@@ -394,6 +454,7 @@ export function CellEditorContextProvider({
       setIsOpen,
       setOpenedExplicitly,
       setOpenedWithNextChar,
+      onContentHeightChange,
     }),
     [
       codeEditor,
@@ -408,11 +469,12 @@ export function CellEditorContextProvider({
       hide,
       isOpen,
       onCodeChange,
+      onContentHeightChange,
       openedExplicitly,
       openedWithNextChar,
       restoreCellValue,
       saveOnArrowEnabled,
-    ]
+    ],
   );
 
   return (

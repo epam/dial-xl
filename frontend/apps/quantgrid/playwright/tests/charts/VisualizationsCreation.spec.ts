@@ -32,24 +32,24 @@ let browserContext: BrowserContext;
 
 let page: Page;
 
-const storagePath = `playwright/${projectName}.json`;
+const storagePath = TestFixtures.getStoragePath();
 
 test.beforeAll(async ({ browser }) => {
   const table1Dsl = `!layout(${table1Row}, ${table1Column}, "title", "headers")\ntable ${table1Name}\n[Field1] = 1\n[Field2] = 9\n`;
   const table2Dsl = `!layout(${table2Row}, ${table2Column}, "title", "headers")\ntable ${table2Name}\n[Field1] = 5\n[Field2] = 4\n`;
   const table3Dsl = `!layout(${table3Row}, ${table3Column}, "title", "headers")\ntable ${table3Name}\n[Field1] = 5\n[Field2] = 7\n`;
+  browserContext = await browser.newContext({ storageState: storagePath });
   await TestFixtures.createProject(
     storagePath,
-    browser,
+    browserContext,
     projectName,
     table3Row,
     table3Column,
     table3Name,
     table1Dsl,
     table2Dsl,
-    table3Dsl
+    table3Dsl,
   );
-  browserContext = await browser.newContext({ storageState: storagePath });
 });
 
 test.beforeEach(async () => {
@@ -58,8 +58,10 @@ test.beforeEach(async () => {
   await TestFixtures.expectCellTableToBeDisplayed(
     page,
     table1Row,
-    table1Column
+    table1Column,
   );
+  const projectPage = await ProjectPage.createCleanInstance(page);
+  await projectPage.hideAllPanels();
 });
 
 test.afterEach(async () => {
@@ -69,8 +71,8 @@ test.afterEach(async () => {
 });
 
 test.afterAll(async ({ browser }) => {
+  await TestFixtures.deleteProject(browserContext, projectName);
   await browserContext.close();
-  await TestFixtures.deleteProject(browser, projectName);
 });
 
 test.describe('add visualization', () => {
@@ -82,7 +84,7 @@ test.describe('add visualization', () => {
         table2Row,
         table2Column,
         GridMenuItem.AddChart,
-        VisualizationsMenuItems.Line
+        VisualizationsMenuItems.Line,
       );
     await projectPage
       .getVisualization()
@@ -97,7 +99,7 @@ test.describe('add visualization', () => {
         table2Row,
         table2Column,
         GridMenuItem.AddChart,
-        VisualizationsMenuItems.Heatmap
+        VisualizationsMenuItems.Heatmap,
       );
     await projectPage
       .getVisualization()
@@ -112,7 +114,7 @@ test.describe('add visualization', () => {
         table2Row,
         table2Column,
         GridMenuItem.AddChart,
-        VisualizationsMenuItems.Scatterplot
+        VisualizationsMenuItems.Scatterplot,
       );
     await projectPage
       .getVisualization()
@@ -127,7 +129,7 @@ test.describe('add visualization', () => {
         table2Row,
         table2Column,
         GridMenuItem.AddChart,
-        VisualizationsMenuItems.PieChart
+        VisualizationsMenuItems.PieChart,
       );
     await projectPage
       .getVisualization()
@@ -142,7 +144,7 @@ test.describe('add visualization', () => {
         table2Row,
         table2Column,
         GridMenuItem.AddChart,
-        VisualizationsMenuItems.BarChart
+        VisualizationsMenuItems.BarChart,
       );
     await projectPage
       .getVisualization()
@@ -157,7 +159,7 @@ test.describe('add visualization', () => {
         table2Row,
         table2Column,
         GridMenuItem.AddChart,
-        VisualizationsMenuItems.StackedBar
+        VisualizationsMenuItems.StackedBar,
       );
     await projectPage
       .getVisualization()
@@ -172,7 +174,7 @@ test.describe('add visualization', () => {
         table2Row,
         table2Column,
         GridMenuItem.AddChart,
-        VisualizationsMenuItems.Histogram
+        VisualizationsMenuItems.Histogram,
       );
     await projectPage
       .getVisualization()
@@ -187,7 +189,7 @@ test.describe('add visualization', () => {
         table2Row,
         table2Column,
         GridMenuItem.AddChart,
-        VisualizationsMenuItems.PeriodSeries
+        VisualizationsMenuItems.PeriodSeries,
       );
     await projectPage
       .getVisualization()

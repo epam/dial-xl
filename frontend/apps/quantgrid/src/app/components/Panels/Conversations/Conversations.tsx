@@ -21,7 +21,7 @@ import {
   LayoutContext,
   ProjectContext,
 } from '../../../context';
-import { useUIStore } from '../../../store';
+import { useUIStore, useUserSettingsStore } from '../../../store';
 import { PanelEmptyMessage } from '../PanelEmptyMessage';
 import {
   ConversationsTreeChildData,
@@ -29,12 +29,14 @@ import {
 } from './useConversationsTreeContextMenu';
 
 export const Conversations = () => {
-  const { toggleChat, isChatOpen, chatWindowPlacement } = useUIStore(
+  const { toggleChat, isChatOpen } = useUIStore(
     useShallow((s) => ({
       toggleChat: s.toggleChat,
       isChatOpen: s.isChatOpen,
-      chatWindowPlacement: s.chatWindowPlacement,
-    }))
+    })),
+  );
+  const chatWindowPlacement = useUserSettingsStore(
+    (s) => s.data.chatWindowPlacement,
   );
 
   const { userBucket } = useContext(ApiContext);
@@ -55,10 +57,10 @@ export const Conversations = () => {
     useConversationTreeContextMenu();
 
   const [conversationTreeData, setConversationTreeData] = useState<DataNode[]>(
-    []
+    [],
   );
   const [selectedKeys, setSelectedKeys] = useState<TreeProps['selectedKeys']>(
-    []
+    [],
   );
   const [childData, setChildData] = useState<ConversationsTreeChildData>({});
 
@@ -92,7 +94,7 @@ export const Conversations = () => {
       overlay,
       toggleChat,
       togglePanel,
-    ]
+    ],
   );
 
   useEffect(() => {
@@ -106,7 +108,7 @@ export const Conversations = () => {
       .map((conversation, index) => {
         const { name, id, isPlayback, parentPath } = conversation;
         const isUserLocalConversation = parentPath?.startsWith(
-          bindConversationsSharedRootFolder
+          bindConversationsSharedRootFolder,
         );
 
         childData[`0-0-${index}`] = {

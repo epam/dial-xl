@@ -6,7 +6,20 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-import static com.epam.deltix.quantgrid.engine.compiler.function.FunctionType.*;
+
+import static com.epam.deltix.quantgrid.engine.compiler.function.FunctionType.AGGREGATIONS;
+import static com.epam.deltix.quantgrid.engine.compiler.function.FunctionType.ARRAY;
+import static com.epam.deltix.quantgrid.engine.compiler.function.FunctionType.CONTROL;
+import static com.epam.deltix.quantgrid.engine.compiler.function.FunctionType.CREATE_TABLE;
+import static com.epam.deltix.quantgrid.engine.compiler.function.FunctionType.DATE;
+import static com.epam.deltix.quantgrid.engine.compiler.function.FunctionType.EVALUATION;
+import static com.epam.deltix.quantgrid.engine.compiler.function.FunctionType.LOGICAL;
+import static com.epam.deltix.quantgrid.engine.compiler.function.FunctionType.LOOKUP;
+import static com.epam.deltix.quantgrid.engine.compiler.function.FunctionType.MATH;
+import static com.epam.deltix.quantgrid.engine.compiler.function.FunctionType.PERIOD_SERIES;
+import static com.epam.deltix.quantgrid.engine.compiler.function.FunctionType.TABLE;
+import static com.epam.deltix.quantgrid.engine.compiler.function.FunctionType.TEXT;
+
 @UtilityClass
 public class Functions {
 
@@ -52,9 +65,15 @@ public class Functions {
                     List.of(TABLE),
                     new Argument("table", "the table which the fields to come from")),
             new Function("TOTAL", "Return a row of a row table by total position",
-                    List.of(AGGREGATIONS),
+                    List.of(),
                     new Argument("table", "the table where the total is defined"),
                     new Argument("position", "the total row position in the table. Default: 1", false, true)),
+            new Function("GROUPBY", "Make an aggregated table from a table",
+                    List.of(CREATE_TABLE, TABLE),
+                    new Argument("rows", "a table or array to make rows from"),
+                    new Argument("values", "a table or array to make aggregations from"),
+                    new Argument("functions", "aggregation functions. Example: \"SUM\" or {\"SUM\", \"COUNT\"}"),
+                    new Argument("filter", "condition to filter data before aggregation", false, true)),
             new Function("UNPIVOT", "Make a pivot longer table from a table",
                     List.of(CREATE_TABLE, TABLE),
                     new Argument("table", "the table to unpivot"),
@@ -270,8 +289,16 @@ public class Functions {
                     new Argument("value", "is the substring")),
             new Function("SPLIT", "Split a text by a delimiter",
                     List.of(TEXT),
-                    new Argument("text", "is the text to split"),
-                    new Argument("delimiter", "is the delimiter to split by")),
+                    new Argument("text", "The text you want to split."),
+                    new Argument("delimiter", "The text used as a delimiter.")),
+            new Function("TEXTSPLIT", "Split a text by a delimiter",
+                    List.of(TEXT),
+                    new Argument("text", "The text you want to split."),
+                    new Argument("delimiter", "The text used as a delimiter.")),
+            new Function("TEXTJOIN", "Join texts with a delimiter",
+                    List.of(TEXT, AGGREGATIONS),
+                    new Argument("text", "Text item to be joined."),
+                    new Argument("delimiter", "The character(s) used to join the text items.")),
             new Function("STRIP", "Return the text with leading and trailing spaces removed",
                     List.of(TEXT),
                     new Argument("text", "is the text to remove leading and trailing spaces from"),
@@ -287,7 +314,7 @@ public class Functions {
             new Function("UNICHAR", "Return the unicode character specified by a number", List.of(TEXT),
                     new Argument("code", "is the code of the character from 1 to 65535")),
             new Function("DATERANGE", "Generates an array of dates from date1 to date2 (inclusive bounds)",
-                    List.of(DATE, ARRAY),
+                         List.of(DATE, ARRAY),
                     new Argument("date1", "The left border of the generated dates"),
                     new Argument("date2", "The right border of the generated dates"),
                     new Argument("increment", "The increment size between the generated dates. Default: 1", false, true),
@@ -391,7 +418,23 @@ public class Functions {
             new Function("AIVALUE", "Generates a text value", List.of(TEXT),
                     new Argument("model", "Model"),
                     new Argument("version", "Use a different number or text to generate a new answer. Default is 0", false, true),
-                    new Argument("prompt", "Prompt or context", true))
+                    new Argument("prompt", "Prompt or context", true)),
+            new Function("ERR", "Produces a compilation error if the expression cannot be parsed as a formula",
+                    List.of(TEXT),
+                    new Argument("expression", "Expression to parse")),
+            new Function("TEXTBEFORE", "Returns the part of the text before the occurrence of a delimiter",
+                    List.of(TEXT),
+                    new Argument("text", "The text you are searching within. Wildcard characters are not allowed."
+                            + " If text is an empty string, Excel returns empty text."),
+                    new Argument("delimiter", "The text that marks the point before which you want to extract."),
+                    new Argument("occurrence", "The occurrence of the delimiter after which you want to extract the text."
+                            + " By default, occurrence = 1. A negative number starts searching text from the end.", false, true)),
+            new Function("TEXTAFTER", "Returns the part of the text after the occurrence of a delimiter",
+                    List.of(TEXT),
+                    new Argument("text", "The text you are searching within. Wildcard characters not allowed."),
+                    new Argument("delimiter", "The text that marks the point after which you want to extract."),
+                    new Argument("occurrence", "The occurrence of the delimiter after which you want to extract the text."
+                            + " By default, occurrence = 1. A negative number starts searching text from the end.", false, true))
             );
 
     private static final Map<String, Function> FUNCTION_MAP = FUNCTIONS.stream()

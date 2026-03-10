@@ -44,7 +44,7 @@ export const AIHints = () => {
                       <Icon
                         className={classNames(
                           'group-hover:hidden w-[18px] text-text-secondary',
-                          selectedHintsIndexes.includes(index) && 'hidden'
+                          selectedHintsIndexes.includes(index) && 'hidden',
                         )}
                         component={() => <HintStarIcon />}
                       />
@@ -52,7 +52,7 @@ export const AIHints = () => {
                         checked={selectedHintsIndexes.includes(index)}
                         rootClassName={classNames(
                           'group-hover:flex',
-                          !selectedHintsIndexes.includes(index) && 'hidden'
+                          !selectedHintsIndexes.includes(index) && 'hidden',
                         )}
                         onClick={(e) => {
                           e.preventDefault();
@@ -68,8 +68,8 @@ export const AIHints = () => {
                       hint.isDisabled
                         ? 'text-text-secondary'
                         : !hintsValidationResult[index]
-                        ? 'text-text-error'
-                        : ''
+                          ? 'text-text-error'
+                          : '',
                     )}
                   >
                     {hint.name}

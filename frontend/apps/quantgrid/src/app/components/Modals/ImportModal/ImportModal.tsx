@@ -40,7 +40,7 @@ export function ImportModal() {
           projectBucket,
           projectPath,
           projectName,
-        ])
+        ]),
       ),
       source,
     });

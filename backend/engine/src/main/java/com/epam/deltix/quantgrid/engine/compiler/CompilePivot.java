@@ -65,6 +65,7 @@ import static com.epam.deltix.quantgrid.engine.node.plan.local.aggregate.Aggrega
 import static com.epam.deltix.quantgrid.engine.node.plan.local.aggregate.AggregateType.STDEVP;
 import static com.epam.deltix.quantgrid.engine.node.plan.local.aggregate.AggregateType.STDEVS;
 import static com.epam.deltix.quantgrid.engine.node.plan.local.aggregate.AggregateType.SUM;
+import static com.epam.deltix.quantgrid.engine.node.plan.local.aggregate.AggregateType.TEXTJOIN;
 
 @UtilityClass
 public class CompilePivot {
@@ -74,7 +75,8 @@ public class CompilePivot {
 
     private final EnumSet<AggregateType> AGGREGATIONS = EnumSet.of(
             COUNT, FIRST, LAST, SINGLE, SUM, AVERAGE, MIN, MAX, STDEVP, STDEVS, GEOMEAN, MEDIAN,
-            CORREL, MODE, INDEX, MINBY, MAXBY, PERIODSERIES, PERCENTILE, PERCENTILE_EXC, QUARTILE, QUARTILE_EXC
+            CORREL, MODE, INDEX, MINBY, MAXBY, PERIODSERIES, PERCENTILE, PERCENTILE_EXC, QUARTILE, QUARTILE_EXC,
+            TEXTJOIN
     );
 
     public FieldKey pivotKey(String table) {
@@ -258,15 +260,16 @@ public class CompilePivot {
     private List<ResultValidator<CompiledNestedColumn>> valueValidators(AggregateType type) {
         return switch (type) {
             case COUNT, FIRST, LAST, SINGLE -> List.of(NestedColumnValidators.ANY);
-            case SUM, AVERAGE, MIN, MAX, STDEVP, STDEVS, GEOMEAN, MEDIAN -> List.of(NestedColumnValidators.DOUBLE);
+            case SUM, AVERAGE, STDEVP, STDEVS, GEOMEAN, MEDIAN -> List.of(NestedColumnValidators.DOUBLE);
             case CORREL, PERCENTILE, PERCENTILE_EXC, QUARTILE, QUARTILE_EXC ->
                     List.of(NestedColumnValidators.DOUBLE, NestedColumnValidators.DOUBLE);
-            case MODE -> List.of(NestedColumnValidators.STRING_OR_DOUBLE, NestedColumnValidators.STRING_OR_DOUBLE);
+            case MIN, MAX, MODE -> List.of(NestedColumnValidators.STRING_OR_DOUBLE);
             case INDEX, MINBY, MAXBY -> List.of(NestedColumnValidators.ANY, NestedColumnValidators.DOUBLE);
             case PERIODSERIES -> List.of(NestedColumnValidators.DOUBLE, NestedColumnValidators.DOUBLE,
                     NestedColumnValidators.STRING);
             case COUNT_ALL, FIRSTS, LASTS ->
                     throw new IllegalArgumentException("Unsupported aggregation type: " + type);
+            case TEXTJOIN -> List.of(NestedColumnValidators.STRING, NestedColumnValidators.STRING);
         };
     }
 

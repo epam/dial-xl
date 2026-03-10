@@ -1,7 +1,6 @@
 import { Button, ColorPicker, Tooltip } from 'antd';
 import { AggregationColor } from 'antd/es/color-picker/color';
 import cx from 'classnames';
-import { DefaultOptionType } from 'rc-select/lib/Select';
 import { useCallback, useContext, useEffect, useRef, useState } from 'react';
 import Select, { SingleValue } from 'react-select';
 
@@ -20,6 +19,7 @@ import {
   escapeValue,
   ParsedTable,
 } from '@frontend/parser';
+import { DefaultOptionType } from '@rc-component/select/lib/Select';
 
 import {
   AppSpreadsheetInteractionContext,
@@ -56,7 +56,7 @@ export function ChartSeriesSection({
   const [colorPickerOpen, setColorPickerOpen] = useState(false);
   const [selectedColor, setSelectedColor] = useState<string>();
   const [selectedField, setSelectedField] = useState<FieldOption>();
-  const selectedFieldRef = useRef<FieldOption>();
+  const selectedFieldRef = useRef<FieldOption>(undefined);
 
   const handleColorSubmit = useCallback(() => {
     if (!selectedField || !sheetName || !selectedColor) return;
@@ -70,7 +70,7 @@ export function ChartSeriesSection({
       fieldName,
       chartSeriesColorDecoratorName,
       escapeValue(selectedColor),
-      historyTitle
+      historyTitle,
     );
     openTable(sheetName, tableName);
   }, [
@@ -101,7 +101,7 @@ export function ChartSeriesSection({
       setSelectedColor(option?.color || defaultColor);
       selectedFieldRef.current = option as FieldOption;
     },
-    []
+    [],
   );
 
   const handleRemoveColor = useCallback(
@@ -117,12 +117,12 @@ export function ChartSeriesSection({
         tableName,
         fieldName,
         chartSeriesColorDecoratorName,
-        historyTitle
+        historyTitle,
       );
       openTable(sheetName, tableName);
       setSelectedColor(defaultColor);
     },
-    [openTable, parsedTable, removeFieldDecorator, selectedField, sheetName]
+    [openTable, parsedTable, removeFieldDecorator, selectedField, sheetName],
   );
 
   useEffect(() => {
@@ -158,7 +158,7 @@ export function ChartSeriesSection({
       if (selectedFieldRef?.current?.value) {
         const fieldName = selectedFieldRef.current.value;
         const foundSelectedField = updatedFieldOptions.find(
-          (f) => f.value === fieldName
+          (f) => f.value === fieldName,
         );
 
         if (foundSelectedField) {
@@ -210,7 +210,7 @@ export function ChartSeriesSection({
                     className={cx(
                       secondaryButtonClasses,
                       secondaryDisabledButtonClasses,
-                      'text-[13px] font-semibold h-5 w-full rounded-none!'
+                      'text-[13px] font-semibold h-5 w-full rounded-none!',
                     )}
                     onClick={handleApplyColor}
                   >

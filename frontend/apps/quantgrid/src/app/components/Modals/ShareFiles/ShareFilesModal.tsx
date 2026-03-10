@@ -115,17 +115,21 @@ export function ShareFilesModal() {
           resource.bucket,
           resource.parentPath,
           resource.name,
-        ])
+        ]),
       );
-      const sharedMatchedResourcesFile = sharedByMeResources?.find(
+
+      const sharedByMeResourcesData = sharedByMeResources.success
+        ? sharedByMeResources.data
+        : [];
+      const sharedMatchedResourcesFile = sharedByMeResourcesData.find(
         (item) =>
-          item.nodeType === MetadataNodeType.ITEM && item.url === resourceUrl
+          item.nodeType === MetadataNodeType.ITEM && item.url === resourceUrl,
       );
-      const sharedMatchedResourceFolders = sharedByMeResources
+      const sharedMatchedResourceFolders = sharedByMeResourcesData
         ?.filter(
           (item) =>
             item.nodeType === MetadataNodeType.FOLDER &&
-            resourceUrl.startsWith(item.url)
+            resourceUrl.startsWith(item.url),
         )
         .sort((a, b) => a.url.length - b.url.length);
 
@@ -147,12 +151,17 @@ export function ShareFilesModal() {
         ...sharedMatchedResource.sharedWith.map((item) => ({
           name: item.user,
           permissions: normalizePermissionsLabels(item.permissions),
-        }))
+        })),
       );
 
       setSharedUsers(sharedUsers);
     },
-    [getSharedByMeResources, projectPermissions, user?.profile.name, userBucket]
+    [
+      getSharedByMeResources,
+      projectPermissions,
+      user?.profile.name,
+      userBucket,
+    ],
   );
 
   const processResources = useCallback(
@@ -162,7 +171,7 @@ export function ShareFilesModal() {
       const resourcesUrls = await collectResourceAndDependentFileUrls(
         initialResources,
         false,
-        isShareConnectedChats
+        isShareConnectedChats,
       );
 
       if (!resourcesUrls?.length) {
@@ -175,11 +184,11 @@ export function ShareFilesModal() {
         .map(convertUrlToMetadata)
         .filter(Boolean) as ResourceMetadata[];
       const notUserResources = mappedResources.filter(
-        (res) => res.bucket !== userBucket
+        (res) => res.bucket !== userBucket,
       );
       if (notUserResources.length && isWriteShare) {
         setErrorMessage(
-          `It's not allowed to share resources with "WRITE" permissions which is not yours. You can clone the project and share it with "WRITE" permissions`
+          `It's not allowed to share resources with "WRITE" permissions which is not yours. You can clone the project and share it with "WRITE" permissions`,
         );
         setIsShowErrorCloneButton(true);
 
@@ -191,8 +200,8 @@ export function ShareFilesModal() {
           const path = res.url.startsWith(`${filesEndpointType}/`)
             ? res.url.replace(`${filesEndpointType}/`, '')
             : res.url.startsWith(`${conversationsEndpointType}/`)
-            ? res.url.replace(`${conversationsEndpointType}/`, '')
-            : res.url;
+              ? res.url.replace(`${conversationsEndpointType}/`, '')
+              : res.url;
 
           return getResourceMetadata({
             path: decodeApiUrl(path),
@@ -202,7 +211,7 @@ export function ShareFilesModal() {
               ? MetadataResourceType.CONVERSATION
               : MetadataResourceType.FILE,
           });
-        })
+        }),
       );
 
       const mappedResourcesResults = mappedResources.map((resource, index) => ({
@@ -213,7 +222,7 @@ export function ShareFilesModal() {
         ({ result }) =>
           result.status === 'fulfilled' &&
           result.value &&
-          !result.value.permissions?.includes('SHARE')
+          !result.value.permissions?.includes('SHARE'),
       );
       if (unshareableResources.length) {
         setErrorMessage(appMessages.shareNotAllowedError);
@@ -230,22 +239,22 @@ export function ShareFilesModal() {
               result.status === 'fulfilled' &&
               resource.nodeType === 'FOLDER' &&
               resource.resourceType === 'CONVERSATION'
-            )
+            ),
         )
         .filter(({ result }) => result.status === 'rejected' || !result.value);
       if (failedResources.length) {
         setErrorMessage(
-          'Warning: Cannot share some of the referenced files. They are either deleted or inaccessible.'
+          'Warning: Cannot share some of the referenced files. They are either deleted or inaccessible.',
         );
       }
 
       return mappedResourcesResults
         .filter(
-          (item) => item.result.status === 'fulfilled' && item.result.value
+          (item) => item.result.status === 'fulfilled' && item.result.value,
         )
         .map(
           (item) =>
-            (item.result as PromiseFulfilledResult<ResourceMetadata>).value.url
+            (item.result as PromiseFulfilledResult<ResourceMetadata>).value.url,
         );
     },
     [
@@ -254,7 +263,7 @@ export function ShareFilesModal() {
       isShareConnectedChats,
       isWriteShare,
       userBucket,
-    ]
+    ],
   );
 
   const generateShareLink = useCallback(async () => {
@@ -278,10 +287,10 @@ export function ShareFilesModal() {
             projectBucket: resources[0].bucket,
             projectName: resources[0].name.replaceAll(
               dialProjectFileExtension,
-              ''
+              '',
             ),
             projectPath: resources[0].parentPath,
-          })
+          }),
       );
       setIsLoading(false);
 
@@ -359,13 +368,13 @@ export function ShareFilesModal() {
     setFileCount(resources.length);
     setIsShareConnectedChats(
       resources.some((resource) =>
-        resource.name.endsWith(dialProjectFileExtension)
-      )
+        resource.name.endsWith(dialProjectFileExtension),
+      ),
     );
 
     if (fileCount > 1) {
       setDescriptionText(
-        'These resources and their updates will be visible to users with the link.'
+        'These resources and their updates will be visible to users with the link.',
       );
     } else {
       const file = resources[0];
@@ -375,7 +384,7 @@ export function ShareFilesModal() {
       const label = isFolder ? 'folder' : isProject ? 'project' : 'file';
 
       setDescriptionText(
-        `This ${label} and its updates will be visible to users with the link.`
+        `This ${label} and its updates will be visible to users with the link.`,
       );
     }
   }, [fileCount, isOpen, resources]);
@@ -422,7 +431,7 @@ export function ShareFilesModal() {
                 className={classNames(
                   primaryButtonClasses,
                   primaryDisabledButtonClasses,
-                  'h-10 text-base'
+                  'h-10 text-base',
                 )}
                 onClick={() => cloneCurrentProjectAction()}
               >
@@ -486,7 +495,7 @@ export function ShareFilesModal() {
                   'w-6',
                   isCopied
                     ? 'text-text-accent-primary'
-                    : 'group-enabled:text-text-secondary group-hover:group-enabled:text-text-accent-primary'
+                    : 'group-enabled:text-text-secondary group-hover:group-enabled:text-text-accent-primary',
                 )}
                 component={() => (isCopied ? <CheckIcon /> : <CopyIcon />)}
               ></Icon>
@@ -519,7 +528,7 @@ export function ShareFilesModal() {
                     </span>
                     <span
                       className={classNames(
-                        'shrink-0 flex items-center gap-1'
+                        'shrink-0 flex items-center gap-1',
                         // user.isAuthor && 'font-bold'
                       )}
                     >

@@ -72,7 +72,7 @@ backendCompute:
     JAVA_OPTS: |
       -server
       -Djava.awt.headless=true
-      -Xms1600m
+      -Xms2g
       -Xmx2g
       -XX:+AlwaysActAsServerClassMachine
       -XX:+AlwaysPreTouch

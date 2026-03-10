@@ -160,7 +160,7 @@ public class Engine implements ExecutionHandler {
             for (ParsedFields fields : table.fields()) {
                 for (ParsedField field : fields.fields()) {
                     Viewport viewport = new Viewport(new FieldKey(table.tableName(), field.fieldName()),
-                            ComputationType.REQUIRED, 0, 1000, true, false);
+                            ComputationType.REQUIRED, 0, 1000, 0, 1000, true, false);
                     viewports.add(viewport);
                 }
             }
@@ -172,7 +172,7 @@ public class Engine implements ExecutionHandler {
                     Formula formula = field.formula();
                     if (formula != null) {
                         TotalKey key = new TotalKey(table.tableName(), field.fields().get(0).fieldName(), i + 1);
-                        Viewport viewport = new Viewport(key, ComputationType.REQUIRED, 0, 1000, true, false);
+                        Viewport viewport = new Viewport(key, ComputationType.REQUIRED, 0, 1000, 0, 1000, true, false);
                         viewports.add(viewport);
                     }
                 }
@@ -190,7 +190,7 @@ public class Engine implements ExecutionHandler {
     @TestOnly
     public Computation compute(ResultListener handler, String dsl, Principal principal, boolean shared, FieldKey... fields) {
         ParsedSheet parsedSheet = SheetReader.parseSheet(dsl);
-        List<Viewport> viewports = Arrays.stream(fields).map(field -> new Viewport(field, ComputationType.REQUIRED, 0, 1000, true, false)).toList();
+        List<Viewport> viewports = Arrays.stream(fields).map(field -> new Viewport(field, ComputationType.REQUIRED, 0, 1000, 0, 1000, true, false)).toList();
         return compute(handler, List.of(parsedSheet), viewports, null, null, principal, "test", true, true, shared);
     }
 
@@ -321,7 +321,8 @@ public class Engine implements ExecutionHandler {
                 Computation computation = computations.get(result.getComputationId());
                 notify(() ->
                         computation.onViewportResult(result.getKey(), result.getResultType(),
-                        result.getStart(), result.getEnd(),
+                        result.getStartRow(), result.getEndRow(),
+                        result.getStartCol(), result.getEndCol(),
                         result.isContent(), result.isRaw(),
                         table, error));
             }

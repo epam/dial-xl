@@ -2,7 +2,7 @@ import { Expression, FunctionExpression } from '../ast';
 
 export function findFunctionExpressions(
   expression: Expression,
-  result: FunctionExpression[] = []
+  result: FunctionExpression[] = [],
 ): FunctionExpression[] {
   if (!expression) {
     return result;

@@ -1,6 +1,7 @@
 import { AntdModalBridge } from './AntdModalBridge';
 import { ChangeNameModal } from './ChangeNameModal';
 import { DeleteModal } from './DeleteModal';
+import { ExcelPreviewModal } from './ExcelPreviewModal';
 import { ImportModal } from './ImportModal';
 import { NewProjectModal } from './NewProject';
 import { SearchModal } from './SearchModal';
@@ -22,6 +23,7 @@ export function ProjectModals() {
       <ShareFilesModal />
       <ShortcutsHelpModal />
       <SyncImportsConfirmModal />
+      <ExcelPreviewModal />
     </>
   );
 }

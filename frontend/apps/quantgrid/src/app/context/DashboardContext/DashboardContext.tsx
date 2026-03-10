@@ -1,6 +1,7 @@
 import { createContext } from 'react';
 
 import {
+  ApiError,
   ResourceMetadata,
   SharedByMeMetadata,
   SharedWithMeMetadata,
@@ -19,7 +20,7 @@ type DashboardContextActions = {
   search: (searchValue: string) => void;
   sortChange: (
     newSortType: DashboardSortType,
-    newSortFn: DashboardSortFn | undefined
+    newSortFn: DashboardSortFn | undefined,
   ) => void;
   setFilter: (filter: DashboardFilter) => void;
   refetchData: () => void;
@@ -46,6 +47,7 @@ type DashboardContextValues = {
   >[];
   loadingDashboard: boolean;
   selectedItems: DashboardItem[];
+  loadingError: ApiError | null;
 };
 
 export const DashboardContext = createContext<

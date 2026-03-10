@@ -1,4 +1,5 @@
-import fetchMock from 'jest-fetch-mock';
+import { vi } from 'vitest';
+import createFetchMock from 'vitest-fetch-mock';
 
 import { ColumnDataType } from '@frontend/common';
 import { act, RenderHookResult } from '@testing-library/react';
@@ -7,6 +8,9 @@ import { useDeleteEntityDsl } from '../useDeleteEntityDsl';
 import { createWrapper, initialProps } from './createWrapper';
 import { hookTestSetup } from './hookTestSetup';
 import { TestWrapperProps } from './types';
+
+const fetchMock = createFetchMock(vi);
+fetchMock.enableMocks();
 
 let Wrapper: React.FC<React.PropsWithChildren>;
 
@@ -24,7 +28,7 @@ describe('useDeleteEntityDsl', () => {
   });
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     const hookRender = hookTestSetup(useDeleteEntityDsl, Wrapper);
     hook = hookRender.result;
     setDsl = hookRender.setDsl;
@@ -47,7 +51,7 @@ describe('useDeleteEntityDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Delete column [f2] from table "t2"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }]
+        [{ sheetName: props.sheetName, content: expectedDsl }],
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -66,7 +70,7 @@ describe('useDeleteEntityDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Delete column [f2'[a']] from table "t2"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }]
+        [{ sheetName: props.sheetName, content: expectedDsl }],
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -105,7 +109,7 @@ describe('useDeleteEntityDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Delete column [f2] from table "t1"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }]
+        [{ sheetName: props.sheetName, content: expectedDsl }],
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -126,7 +130,7 @@ describe('useDeleteEntityDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Delete column [f2] from table "t1"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }]
+        [{ sheetName: props.sheetName, content: expectedDsl }],
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -146,7 +150,7 @@ describe('useDeleteEntityDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Delete column [f2] from table "t1"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }]
+        [{ sheetName: props.sheetName, content: expectedDsl }],
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -155,8 +159,8 @@ describe('useDeleteEntityDsl', () => {
 
     it('should delete field sort with removed field', async () => {
       // Arrange
-      const dsl = 'table t1 [f1]=1\n[f2]=2\napply\nsort [f2],[f1]';
-      const expectedDsl = 'table t1 [f1]=1\napply\nsort [f1]\r\n';
+      const dsl = 'table t1 [f1]=1\n[f2]=2\napply\nsort [f2], 1, [f1]';
+      const expectedDsl = 'table t1 [f1]=1\napply\nsort [f1], 1\r\n';
       setDsl(dsl);
 
       // Act
@@ -165,7 +169,7 @@ describe('useDeleteEntityDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Delete column [f2] from table "t1"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }]
+        [{ sheetName: props.sheetName, content: expectedDsl }],
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -185,7 +189,7 @@ describe('useDeleteEntityDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Delete column [f2] from table "t1"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }]
+        [{ sheetName: props.sheetName, content: expectedDsl }],
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -204,7 +208,7 @@ describe('useDeleteEntityDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Delete column [b] from table "t1"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }]
+        [{ sheetName: props.sheetName, content: expectedDsl }],
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -223,7 +227,7 @@ describe('useDeleteEntityDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Delete column [a] from table "t1"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }]
+        [{ sheetName: props.sheetName, content: expectedDsl }],
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -244,7 +248,7 @@ describe('useDeleteEntityDsl', () => {
             schema: ['a', 'b', 'c'],
             keys: [],
           },
-        })
+        }),
       );
 
       // Act
@@ -253,7 +257,7 @@ describe('useDeleteEntityDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Delete column [b] from table "t1"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }]
+        [{ sheetName: props.sheetName, content: expectedDsl }],
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },

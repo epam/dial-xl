@@ -1,9 +1,9 @@
 import cx from 'classnames';
-import type { DefaultOptionType } from 'rc-select/lib/Select';
 import { useCallback, useMemo } from 'react';
 import Select, { SingleValue } from 'react-select';
 
 import { SelectClasses, selectStyles } from '@frontend/common';
+import type { DefaultOptionType } from '@rc-component/select/lib/Select';
 
 import {
   CustomSingleValueWithIcon,
@@ -49,7 +49,7 @@ export function FormSelect({
     return cx(
       isSelected
         ? 'bg-bg-accent-primary-alpha! text-text-accent-primary!'
-        : 'bg-bg-layer-0! text-text-primary! hover:bg-bg-accent-primary-alpha!'
+        : 'bg-bg-layer-0! text-text-primary! hover:bg-bg-accent-primary-alpha!',
     );
   }, []);
 
@@ -75,7 +75,7 @@ export function FormSelect({
             'bg-bg-layer-2! text-text-primary! hover:border-stroke-accent-primary! shadow-none! text-[13px]',
             menuIsOpen
               ? 'border-stroke-accent-primary!'
-              : 'border-stroke-primary!'
+              : 'border-stroke-primary!',
           ),
         input: () => 'm-0! p-0!',
         clearIndicator: () => 'p-0!',

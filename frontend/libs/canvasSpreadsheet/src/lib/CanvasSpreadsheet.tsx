@@ -1,6 +1,13 @@
 import {
-  MutableRefObject,
+  Application as PixiApplication,
+  BitmapText,
+  Container,
+  Graphics,
+  Sprite,
+} from 'pixi.js';
+import {
   RefObject,
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -8,10 +15,10 @@ import {
 } from 'react';
 
 import { isFeatureFlagEnabled } from '@frontend/common';
-import { Application } from '@pixi/app';
 import { initDevtools } from '@pixi/devtools';
-import { Stage } from '@pixi/react';
+import { Application, extend } from '@pixi/react';
 
+import { CanvasErrorBoundary } from './CanvasErrorBoundary';
 import {
   AIPrompt,
   CellEditor,
@@ -19,81 +26,104 @@ import {
   Charts,
   ContextMenu,
   Control,
+  ErrorMessage,
   GridApiWrapper,
   GridComponents,
   Notes,
   Tooltip,
 } from './components';
-import { canvasId } from './constants';
 import {
   GridStateContextProvider,
   GridViewportContextProvider,
 } from './context';
 import { useGridResize } from './hooks';
-import {
-  initBitmapFonts,
-  loadFonts,
-  loadIcons,
-  setupPixi,
-  stageOptions,
-} from './setup';
-import { GridApi, GridProps } from './types';
+import { initBitmapFonts, loadFonts, loadIcons, stageOptions } from './setup';
+import { CanvasOptions, GridApi, GridProps } from './types';
 
-setupPixi();
+// Extend PixiJS components for use in @pixi/react
+extend({ Container, Graphics, Sprite, BitmapText });
+
 const fontLoading = loadFonts();
 const iconsLoading = loadIcons();
 
+const defaultCanvasOptions: CanvasOptions = {
+  enableMoveTable: true,
+  enableOverflowComponents: true,
+  placement: 'body',
+  showDNDSelection: true,
+  showDottedSelection: true,
+  showErrors: true,
+  showExpandButton: true,
+  showHiddenCells: true,
+  showNotes: true,
+  showOverrides: true,
+  showResizers: true,
+  showSelection: true,
+  showTableBorders: true,
+  showWelcomeMessage: true,
+  colNumberType: 'number',
+};
+
 export const CanvasSpreadsheet = (
-  props: GridProps & { gridApiRef: MutableRefObject<GridApi | null> }
+  props: GridProps & { gridApiRef: RefObject<GridApi | null> },
 ) => {
   const {
-    gridApiRef,
-    zoom = 1,
-    data,
-    theme: themeName,
+    canvasId,
+    canvasOptions = defaultCanvasOptions,
+    chartData = {},
     charts,
-    chartData,
-    formulaBarMode,
-    filterList,
-    functions,
-    parsedSheets,
-    sheetContent,
+    columnSizes = {},
+    controlData = null,
+    controlIsLoading = false,
+    currentSheetName = null,
+    data,
+    eventBus,
+    filterList = [],
+    formulaBarMode = 'formula',
+    functions = [],
+    gridApiRef,
+    inputFiles = null,
+    isPointClickMode = false,
+    isReadOnly = false,
+    parsedSheets = {},
+    sheetContent = '',
+    sheetControls = [],
+    showGridLines = true,
     systemMessageContent,
     tableStructure,
-    inputFiles,
-    isPointClickMode,
-    columnSizes,
-    currentSheetName,
-    viewportInteractionMode,
-    isReadOnly,
-    eventBus,
-    controlData,
-    controlIsLoading,
+    theme: themeName,
+    viewportInteractionMode = 'select',
+    zoom = 1,
   } = props;
 
-  const [app, setApp] = useState<Application | null>(null);
+  const [app, setApp] = useState<PixiApplication | null>(null);
   const [fontsLoaded, setFontsLoaded] = useState(false);
   const [bitmapFontsLoaded, setBitmapFontsLoaded] = useState(false);
   const [iconsLoaded, setIconsLoaded] = useState(false);
   const [isGridApiInitialized, setIsGridApiInitialized] = useState(false);
+  const [canvasError, setCanvasError] = useState<boolean>(false);
   const gridContainerRef = useRef<HTMLDivElement | null>(null);
 
   const { gridWidth, gridHeight } = useGridResize({ gridContainerRef, app });
 
   const scaledColumnSizes = useMemo(() => {
     return Object.fromEntries(
-      Object.entries(columnSizes).map(([key, value]) => [key, value * zoom])
+      Object.entries(columnSizes).map(([key, value]) => [
+        key,
+        Math.round(value * zoom),
+      ]),
     );
   }, [columnSizes, zoom]);
 
   const isShowAIPrompt = isFeatureFlagEnabled('askAI');
 
-  useEffect(() => {
-    if (!app || window.location.protocol !== 'http:') return;
+  const initApp = useCallback((newApp: PixiApplication) => {
+    setApp(newApp);
 
-    initDevtools({ app });
-    app.stop();
-  }, [app]);
+    if (window.location.protocol === 'http:') {
+      initDevtools({ app: newApp });
+    }
+  }, []);
 
   useEffect(() => {
     fontLoading.then(() => {
@@ -108,116 +138,168 @@ export const CanvasSpreadsheet = (
     if (!fontsLoaded) return;
 
     setBitmapFontsLoaded(false);
-    initBitmapFonts(zoom, themeName);
+    initBitmapFonts(zoom);
     setBitmapFontsLoaded(true);
   }, [zoom, themeName, fontsLoaded]);
 
+  // Cleanup gridApiRef on unmount.
+  // Reason: entire canvas will be empty after unmounting (e.g., switch to mobile view and back, hmr, etc.),
+  useEffect(() => {
+    setIsGridApiInitialized(false);
+
+    return () => {
+      gridApiRef.current = null;
+    };
+  }, [gridApiRef]);
+
+  // Catch WebGL context lost errors
+  // Note: there are 2 Error Boundaries in this component.
+  // The first one is for catching React errors.
+  // The second one is for catching errors in PixiJS components.
+  useEffect(() => {
+    if (!isGridApiInitialized || !app?.renderer) return;
+
+    const handleContextLost = (e: Event) => {
+      e.preventDefault();
+      setCanvasError(true);
+    };
+
+    app?.canvas?.addEventListener?.('webglcontextlost', handleContextLost);
+
+    return () => {
+      app?.canvas?.removeEventListener?.('webglcontextlost', handleContextLost);
+    };
+  }, [app, canvasId, isGridApiInitialized]);
+
+  // Catch global errors and unhandled promise rejections
+  // Show only console warnings for now to avoid interfering with the user experience and e2e tests.
+  useEffect(() => {
+    const onError = (e: ErrorEvent) => {
+      // eslint-disable-next-line no-console
+      console.warn(e);
+    };
+
+    const onUnhandledRejection = (e: PromiseRejectionEvent) => {
+      // eslint-disable-next-line no-console
+      console.warn(e);
+    };
+
+    window.addEventListener('error', onError, { capture: true });
+    window.addEventListener('unhandledrejection', onUnhandledRejection, {
+      capture: true,
+    });
+
+    return () => {
+      window.removeEventListener('error', onError, { capture: true });
+      window.removeEventListener('unhandledrejection', onUnhandledRejection, {
+        capture: true,
+      });
+    };
+  }, []);
+
   return (
     <div
-      className="h-full w-full relative overflow-hidden select-none"
+      className="h-full w-full relative overflow-hidden select-none bg-bg-layer-1"
       id={canvasId}
       ref={gridContainerRef}
     >
-      {fontsLoaded && bitmapFontsLoaded && iconsLoaded && (
-        <>
-          <Stage
-            height={gridHeight}
-            options={stageOptions}
-            width={gridWidth}
-            onMount={setApp}
+      {!canvasError && fontsLoaded && bitmapFontsLoaded && iconsLoaded && (
+        <CanvasErrorBoundary onError={() => setCanvasError(true)}>
+          <GridStateContextProvider
+            apiRef={gridApiRef}
+            app={app}
+            canvasId={canvasId}
+            canvasOptions={canvasOptions}
+            columnSizes={scaledColumnSizes}
+            data={data}
+            eventBus={eventBus}
+            gridContainerRef={gridContainerRef}
+            pointClickMode={isPointClickMode}
+            showGridLines={showGridLines}
+            tableStructure={tableStructure}
+            themeName={themeName}
+            viewportInteractionMode={viewportInteractionMode}
+            zoom={zoom}
           >
-            <GridStateContextProvider
-              apiRef={gridApiRef as RefObject<GridApi>}
-              app={app}
-              columnSizes={scaledColumnSizes}
-              data={data}
-              eventBus={eventBus}
-              gridContainerRef={gridContainerRef}
-              pointClickMode={isPointClickMode}
-              tableStructure={tableStructure}
-              themeName={themeName}
-              viewportInteractionMode={viewportInteractionMode}
-              zoom={zoom}
-            >
-              <GridViewportContextProvider>
-                <GridApiWrapper
-                  gridApiRef={gridApiRef}
-                  onGridApiInitialized={() => setIsGridApiInitialized(true)}
-                />
-                {isGridApiInitialized && <GridComponents />}
-              </GridViewportContextProvider>
-            </GridStateContextProvider>
-          </Stage>
-
-          {/* Component depends on grid api */}
-          {isGridApiInitialized && (
-            <>
-              <ContextMenu
-                apiRef={gridApiRef as RefObject<GridApi>}
-                app={app}
-                eventBus={eventBus}
-                filterList={filterList}
-                functions={functions}
-                inputFiles={inputFiles}
-                parsedSheets={parsedSheets}
-              />
-              <CellEditorContextProvider
-                apiRef={gridApiRef as RefObject<GridApi>}
-                eventBus={eventBus}
-                formulaBarMode={formulaBarMode}
-                isReadOnly={isReadOnly}
-                zoom={zoom}
+            <GridViewportContextProvider>
+              <GridApiWrapper
+                gridApiRef={gridApiRef}
+                isGridApiInitialized={isGridApiInitialized}
+                onGridApiInitialized={() => setIsGridApiInitialized(true)}
               >
-                <CellEditor
-                  apiRef={gridApiRef as RefObject<GridApi>}
-                  app={app}
-                  eventBus={eventBus}
-                  formulaBarMode={formulaBarMode}
-                  functions={functions}
-                  inputList={inputFiles}
-                  isPointClickMode={isPointClickMode}
-                  parsedSheets={parsedSheets}
-                  sheetContent={sheetContent}
-                  theme={themeName}
-                  zoom={zoom}
-                />
-              </CellEditorContextProvider>
-              {isShowAIPrompt && (
-                <AIPrompt
-                  api={(gridApiRef as RefObject<GridApi>).current}
-                  currentSheetName={currentSheetName}
-                  eventBus={eventBus}
-                  systemMessageContent={systemMessageContent}
-                  zoom={zoom}
-                />
-              )}
-              <Tooltip apiRef={gridApiRef as RefObject<GridApi>} />
-              <Notes
-                api={(gridApiRef as RefObject<GridApi>).current}
-                eventBus={eventBus}
-                zoom={zoom}
-              />
-              <Charts
-                api={(gridApiRef as RefObject<GridApi>).current}
-                chartData={chartData}
-                charts={charts}
-                columnSizes={scaledColumnSizes}
-                eventBus={eventBus}
-                tableStructure={tableStructure}
-                theme={themeName}
-                zoom={zoom}
-              />
-              <Control
-                api={(gridApiRef as RefObject<GridApi>).current}
-                controlData={controlData}
-                controlIsLoading={controlIsLoading}
-                eventBus={eventBus}
-                zoom={zoom}
-              />
-            </>
-          )}
-        </>
+                {isGridApiInitialized && (
+                  <Application
+                    height={gridHeight}
+                    width={gridWidth}
+                    onInit={initApp}
+                    {...stageOptions}
+                  >
+                    <CanvasErrorBoundary onError={() => setCanvasError(true)}>
+                      <GridComponents />
+                    </CanvasErrorBoundary>
+                  </Application>
+                )}
+
+                {/* Component depends on grid api */}
+                {isGridApiInitialized &&
+                  canvasOptions.enableOverflowComponents && (
+                    <>
+                      <ContextMenu
+                        app={app}
+                        eventBus={eventBus}
+                        filterList={filterList}
+                        functions={functions}
+                        inputFiles={inputFiles}
+                        parsedSheets={parsedSheets}
+                        sheetControls={sheetControls}
+                      />
+                      <CellEditorContextProvider
+                        eventBus={eventBus}
+                        formulaBarMode={formulaBarMode}
+                        isReadOnly={isReadOnly}
+                      >
+                        <CellEditor
+                          app={app}
+                          eventBus={eventBus}
+                          formulaBarMode={formulaBarMode}
+                          functions={functions}
+                          inputList={inputFiles}
+                          isPointClickMode={isPointClickMode}
+                          parsedSheets={parsedSheets}
+                          sheetContent={sheetContent}
+                          theme={themeName}
+                        />
+                      </CellEditorContextProvider>
+                      {isShowAIPrompt && (
+                        <AIPrompt
+                          currentSheetName={currentSheetName}
+                          eventBus={eventBus}
+                          systemMessageContent={systemMessageContent}
+                        />
+                      )}
+                      <Tooltip />
+                      <Notes eventBus={eventBus} />
+                      <Charts
+                        chartData={chartData}
+                        charts={charts}
+                        eventBus={eventBus}
+                        tableStructure={tableStructure}
+                        theme={themeName}
+                      />
+                      <Control
+                        controlData={controlData}
+                        controlIsLoading={controlIsLoading}
+                        eventBus={eventBus}
+                      />
+                    </>
+                  )}
+              </GridApiWrapper>
+            </GridViewportContextProvider>
+          </GridStateContextProvider>
+        </CanvasErrorBoundary>
       )}
+
+      {canvasError && <ErrorMessage />}
     </div>
   );
 };

@@ -37,14 +37,14 @@ export function useLongCalculations() {
 
       pendingViewportReqs.current.push({ controller, timer });
     },
-    [longCalcStatusRef, setLongCalcStatus]
+    [longCalcStatusRef, setLongCalcStatus],
   );
 
   // Helper function to clean up a completed/aborted viewport request
   const unregisterViewportReq = useCallback(
     (controller: AbortController) => {
       const entryIdx = pendingViewportReqs.current.findIndex(
-        (req) => req.controller === controller
+        (req) => req.controller === controller,
       );
 
       if (entryIdx !== -1) {
@@ -62,7 +62,7 @@ export function useLongCalculations() {
         }
       }
     },
-    [longCalcStatusRef, setLongCalcStatus]
+    [longCalcStatusRef, setLongCalcStatus],
   );
 
   const manageViewportRequestLifecycle = useCallback(
@@ -79,7 +79,7 @@ export function useLongCalculations() {
           if (controller) {
             viewportRequestControllers.current =
               viewportRequestControllers.current.filter(
-                (c) => c !== controller
+                (c) => c !== controller,
               );
             unregisterViewportReq(controller);
           }
@@ -109,7 +109,7 @@ export function useLongCalculations() {
       registerViewportReq,
       setLongCalcStatus,
       unregisterViewportReq,
-    ]
+    ],
   );
 
   const manageImportSyncRequestLifecycle = useCallback(
@@ -138,7 +138,7 @@ export function useLongCalculations() {
           break;
       }
     },
-    []
+    [],
   );
 
   // Helper function to manage the request lifecycle (active counts, timers, status)
@@ -146,7 +146,7 @@ export function useLongCalculations() {
     (
       action: LongCalcAction,
       reqType: LongCalcRequestType,
-      controller?: AbortController
+      controller?: AbortController,
     ) => {
       if (reqType === 'viewport') {
         manageViewportRequestLifecycle(action, controller);
@@ -154,7 +154,7 @@ export function useLongCalculations() {
         manageImportSyncRequestLifecycle(action, controller);
       }
     },
-    [manageViewportRequestLifecycle, manageImportSyncRequestLifecycle]
+    [manageViewportRequestLifecycle, manageImportSyncRequestLifecycle],
   );
 
   const cancelAllViewportRequests = useCallback(() => {

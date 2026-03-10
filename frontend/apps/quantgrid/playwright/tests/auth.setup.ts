@@ -12,18 +12,9 @@ const folderNameFile = path.join(
   workspaceRoot,
   'playwright',
   'run-state',
-  'folderName.txt'
+  'folderName.txt',
 );
-const authFile = path.resolve(
-  __dirname,
-  '..',
-  '..',
-  '..',
-  '..',
-  'playwright',
-  '.auth',
-  'user.json'
-);
+const authFile = TestFixtures.getStoragePath();
 
 const username = process.env['QUANTGRID_TEST_USERNAME'];
 const password = process.env['QUANTGRID_TEST_PASSWORD'];
@@ -33,20 +24,8 @@ const authEnabled = true;
 
 setup('authenticate', async ({ page }) => {
   await page.goto('/');
-  // Perform authentication steps. Replace these actions with your own.
   if (authEnabled) {
-    let loginPage: LoginPage | undefined;
-    switch (authType) {
-      case 'keycloak':
-        loginPage = LoginPage.createKeycloakPage(page);
-        break;
-      case 'auth0':
-        loginPage = LoginPage.createAuth0Page(page);
-        break;
-      default:
-        loginPage = undefined;
-    }
-    if (loginPage) await loginPage.doLogin(username, password);
+    await TestFixtures.performLogin(page, username, password, authType);
   }
   const startPage = new ProjectSelection(page);
   await expect(startPage.getWelcomeElement()).toBeVisible();
@@ -72,7 +51,7 @@ setup('authenticate', async ({ page }) => {
   fs.mkdirSync(path.dirname(folderNameFile), { recursive: true });
   fs.writeFileSync(
     folderNameFile,
-    `${rootFolder}\n${dateFormat}\n${folderName}`
+    `${rootFolder}\n${dateFormat}\n${folderName}`,
   );
   await startPage.addNewProject('autotest_empty', [
     rootFolder,

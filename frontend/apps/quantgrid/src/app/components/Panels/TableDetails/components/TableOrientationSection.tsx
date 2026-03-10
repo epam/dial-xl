@@ -40,7 +40,7 @@ export function TableOrientationSection({
         openTable(sheetName, tableName);
       });
     },
-    [flipTable, openTable, parsedTable, sheetName]
+    [flipTable, openTable, parsedTable, sheetName],
   );
 
   useEffect(() => {

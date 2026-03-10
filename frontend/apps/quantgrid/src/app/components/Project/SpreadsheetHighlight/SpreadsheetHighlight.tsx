@@ -14,7 +14,7 @@ export function SpreadsheetHighlight() {
         {
           'ring-stroke-accent-secondary': isAIPreviewMode,
           'ring-stroke-accent-tertiary': isAIPendingMode,
-        }
+        },
       )}
     ></div>
   );

@@ -5,6 +5,7 @@ interface Window {
     authClientSecret?: string;
     authAuthority?: string;
     authProvider?: string;
+    authAudience?: string;
     authScope?: string;
     apiBaseUrl?: string;
     dialBaseUrl?: string;
@@ -15,5 +16,8 @@ interface Window {
     defaultLeftPanelSize?: number;
     defaultRightPanelSize?: number;
     defaultLogoUrl?: string;
+
+    // DEBUG - 4, INFO - 3, WARN - 2, ERROR - 1, OFF - 0
+    logLevel?: number;
   };
 }

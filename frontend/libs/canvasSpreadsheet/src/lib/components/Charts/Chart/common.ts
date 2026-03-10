@@ -35,7 +35,7 @@ export function getThemeColors(theme: AppTheme) {
 // when we add configurable sorting for charts.
 export function sortNumericOrText<T extends string>(
   array: T[],
-  enabled = false
+  enabled = false,
 ): T[] {
   if (!enabled) return array;
 
@@ -59,4 +59,8 @@ export function addLineBreaks<T extends string>(array: T[]): string[] {
 
 export function isHtmlColor(color: string): boolean {
   return /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/i.test(color.trim());
+}
+
+export function makeUniqueLabel(label: string, occ: number) {
+  return occ <= 1 ? label : label + '\u200B'.repeat(occ - 1);
 }

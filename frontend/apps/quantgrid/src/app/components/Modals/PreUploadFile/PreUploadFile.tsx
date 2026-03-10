@@ -33,7 +33,7 @@ type Props = {
   onOk: (
     parentPath: string | null | undefined,
     parentBucket: string,
-    files: ResultedFile[]
+    files: ResultedFile[],
   ) => void;
   onCancel: () => void;
 };
@@ -57,7 +57,7 @@ export function PreUploadFile({
   const [errorMessages, setErrorMessages] = useState<string[]>([]);
   const [selectedFiles, setSelectedFiles] = useState<ResultedFile[]>([]);
   const [storagePathFileNames, setStoragePathFileNames] = useState<string[]>(
-    []
+    [],
   );
 
   const handleClose = useCallback(() => {
@@ -110,8 +110,8 @@ export function PreUploadFile({
             existingFileNames.map((name) =>
               name.endsWith(processedFile.extension)
                 ? name.slice(0, -processedFile.extension.length)
-                : name
-            )
+                : name,
+            ),
           );
           existingFileNames.push(processedFile.name + processedFile.extension);
         } else {
@@ -121,7 +121,7 @@ export function PreUploadFile({
 
       setSelectedFiles(resultedFiles.concat(processedFiles));
     },
-    [processFiles, selectedFiles, storagePathFileNames]
+    [processFiles, selectedFiles, storagePathFileNames],
   );
 
   const handleSelectFolder = useCallback(
@@ -129,7 +129,7 @@ export function PreUploadFile({
       setPath(parentPath);
       setBucket(bucket);
     },
-    []
+    [],
   );
 
   const handleRenameFile = useCallback((newName: string, fileIndex: number) => {
@@ -143,13 +143,13 @@ export function PreUploadFile({
         }
 
         return value;
-      })
+      }),
     );
   }, []);
 
   const handleRemoveFile = useCallback((fileIndex: number) => {
     setSelectedFiles((values) =>
-      values.filter((_value, index) => index !== fileIndex)
+      values.filter((_value, index) => index !== fileIndex),
     );
   }, []);
 
@@ -198,29 +198,29 @@ export function PreUploadFile({
 
     if (invalidNamesFiles.length) {
       invalidNamesMessage = `The symbols ${notAllowedSymbols} and a dot at the end are not allowed in file name. Please rename or delete them from uploading files list: \n- ${invalidNamesFiles.join(
-        '\n- '
+        '\n- ',
       )}`;
     }
     if (invalidFileExtensionFiles.length) {
       invalidFileExtensionMessage = `It is only allowed to upload next file extensions: ${allowedExtensions?.join(
-        ', '
+        ', ',
       )}. Next files couldn't be uploaded:\n- ${invalidFileExtensionFiles.join(
-        '\n- '
+        '\n- ',
       )}`;
     }
     if (invalidSizesFiles.length) {
       invalidSizesMessage = `Max file size up to 512 Mb. Next files couldn't be uploaded:\n- ${invalidSizesFiles.join(
-        '\n- '
+        '\n- ',
       )}`;
     }
     if (invalidAlreadyExistedFiles.length) {
       invalidAlreadyExistedMessage = `Files which you trying to upload already presented in selected folder. Please rename or delete them from uploading files list:\n- ${invalidAlreadyExistedFiles.join(
-        '\n- '
+        '\n- ',
       )}`;
     }
     if (invalidSameNameFiles.length) {
       invalidSameNamesMessage = `It's not allowed to upload files with same names and extensions. Please rename or delete them from uploading files list:\n- ${invalidSameNameFiles.join(
-        '\n- '
+        '\n- ',
       )}`;
     }
 
@@ -245,12 +245,10 @@ export function PreUploadFile({
   const handleGetPathFiles = useCallback(async () => {
     setStoragePathFileNames([]);
 
-    const files =
-      (await getFiles({
-        path: `${bucket}/${path ? path + '/' : ''}`,
-        suppressErrors: true,
-      })) ?? [];
-
+    const filesRes = await getFiles({
+      path: `${bucket}/${path ? path + '/' : ''}`,
+    });
+    const files = filesRes.success ? filesRes.data : [];
     setStoragePathFileNames(files.map((file) => file.name));
   }, [getFiles, path, bucket]);
 
@@ -369,7 +367,7 @@ export function PreUploadFile({
             className={classNames(
               primaryButtonClasses,
               primaryDisabledButtonClasses,
-              'h-10 text-base'
+              'h-10 text-base',
             )}
             disabled={selectedFiles.length === 0}
             onClick={() => handleUploadFiles()}

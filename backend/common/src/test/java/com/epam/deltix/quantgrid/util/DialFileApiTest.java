@@ -177,6 +177,72 @@ class DialFileApiTest {
         }
     }
 
+    @Test
+    void testReadFile() throws Exception {
+        try (MockWebServer server = startMockWebServer();
+            DialFileApi api = new DialFileApi(server.url("/").toString())) {
+            String content = "file content";
+            String etag = "test-etag";
+            server.enqueue(new MockResponse().setHeader("ETag", etag).setBody(content));
+
+            try (EtaggedStream actual = api.readFile("files/bucket/folder/test.txt", PRINCIPAL)){
+                RecordedRequest request = server.takeRequest();
+                Assertions.assertEquals("/v1/files/bucket/folder/test.txt", request.getPath());
+
+                Assertions.assertEquals(etag, actual.etag());
+                Assertions.assertArrayEquals(content.getBytes(), actual.stream().readAllBytes());
+            }
+        }
+    }
+
+    @Test
+    void testGetAttributes() throws Exception {
+        try (MockWebServer server = startMockWebServer();
+             DialFileApi api = new DialFileApi(server.url("/").toString())) {
+            String content = """
+                    {
+                        "name": "folder",
+                        "permissions": ["READ", "WRITE"],
+                        "nextToken": "next-token",
+                        "items": [{
+                            "name": "test.txt",
+                            "parentPath": "folder/",
+                            "etag": "test-etag",
+                            "updatedAt": 123,
+                            "permissions": ["READ"]
+                        }]
+                    }
+                    """;
+            server.enqueue(new MockResponse().setBody(content));
+
+            DialFileApi.Attributes expected = new DialFileApi.Attributes(
+                    null,
+                    "folder",
+                    null,
+                    null,
+                    List.of("READ", "WRITE"),
+                    "next-token",
+                    List.of(new DialFileApi.Attributes(
+                            "test-etag",
+                            "test.txt",
+                            "folder/",
+                            123L,
+                            List.of("READ"),
+                            null,
+                            List.of())));
+
+            DialFileApi.Attributes actual =
+                    api.getAttributes("files/bucket/folder/", true, true, "token", PRINCIPAL);
+
+            RecordedRequest request = server.takeRequest();
+            Assertions.assertEquals(
+                    "/v1/metadata/files/bucket/folder/?permissions=true&recursive=true&token=token",
+                    request.getPath());
+
+            Assertions.assertEquals(expected, actual);
+        }
+    }
+
     private static MockWebServer startMockWebServer() throws IOException {
         MockWebServer server = new MockWebServer();
         QueueDispatcher dispatcher = new QueueDispatcher();

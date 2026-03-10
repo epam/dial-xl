@@ -1,24 +1,25 @@
-import { RefObject, useCallback, useContext, useRef } from 'react';
+import { useCallback, useContext, useRef } from 'react';
 
 import { isFormulaBarMonacoInputFocused, isModalOpen } from '@frontend/common';
 
-import { GridApi } from '../../../types';
+import { GridStateContext } from '../../../context';
+import { useNavigation } from '../../../hooks';
 import { GridEventBus, isCellEditorOpen } from '../../../utils';
 import { CellEditorContext } from '../CellEditorContext';
 import { SelectionEffectAfterSave } from '../types';
 import { isCellEditorHasFocus } from '../utils';
 
 type Props = {
-  apiRef: RefObject<GridApi>;
   eventBus: GridEventBus;
   isPointClickMode: boolean;
 };
 
 export function useCellEditorCompleteEdit({
-  apiRef,
   eventBus,
   isPointClickMode,
 }: Props) {
+  const { getCell } = useContext(GridStateContext);
+  const { arrowNavigation, tabNavigation } = useNavigation();
   const {
     codeValue,
     currentCell,
@@ -36,11 +37,11 @@ export function useCellEditorCompleteEdit({
 
   const save = useCallback(
     async (value: string) => {
-      if (!apiRef.current || !currentCell) return;
+      if (!currentCell) return;
 
       skipSaveOnBlur.current = true;
       const { col, row } = currentCell;
-      const cell = apiRef.current.getCell(col, row);
+      const cell = getCell(col, row);
 
       const requiredHide = await new Promise<boolean>((resolve) => {
         eventBus.emit({
@@ -54,7 +55,7 @@ export function useCellEditorCompleteEdit({
         hide();
       }
     },
-    [apiRef, currentCell, dimFieldName, editMode, eventBus, hide]
+    [currentCell, dimFieldName, editMode, eventBus, getCell, hide],
   );
 
   const onEscape = useCallback(() => {
@@ -129,30 +130,28 @@ export function useCellEditorCompleteEdit({
 
   const moveSelectionAfterSave = useCallback(
     (moveSelection: SelectionEffectAfterSave) => {
-      if (!apiRef.current || isCellEditorOpen()) return;
-
-      const api = apiRef.current;
+      if (isCellEditorOpen()) return;
 
       switch (moveSelection) {
         case 'arrow-right':
-          api.arrowNavigation('ArrowRight');
+          arrowNavigation('ArrowRight');
           break;
         case 'arrow-left':
-          api.arrowNavigation('ArrowLeft');
+          arrowNavigation('ArrowLeft');
           break;
         case 'arrow-top':
-          api.arrowNavigation('ArrowUp');
+          arrowNavigation('ArrowUp');
           break;
         case 'arrow-bottom':
         case 'enter':
-          api.arrowNavigation('ArrowDown');
+          arrowNavigation('ArrowDown');
           break;
         case 'tab':
-          api.tabNavigation();
+          tabNavigation();
           break;
       }
     },
-    [apiRef]
+    [arrowNavigation, tabNavigation],
   );
 
   const onSave = useCallback(
@@ -165,7 +164,7 @@ export function useCellEditorCompleteEdit({
         moveSelectionAfterSave(moveSelection);
       }, 0);
     },
-    [codeValue, moveSelectionAfterSave, save]
+    [codeValue, moveSelectionAfterSave, save],
   );
 
   const onSaveCallback = useCallback(() => {

@@ -19,7 +19,7 @@ export function MoveMode() {
     useShallow((s) => ({
       setViewportInteractionMode: s.setViewportInteractionMode,
       viewportInteractionMode: s.viewportInteractionMode,
-    }))
+    })),
   );
 
   const handleChange = useCallback(
@@ -28,7 +28,7 @@ export function MoveMode() {
 
       setViewportInteractionMode(mode);
     },
-    [setViewportInteractionMode, viewportInteractionMode]
+    [setViewportInteractionMode, viewportInteractionMode],
   );
 
   return (
@@ -40,7 +40,7 @@ export function MoveMode() {
             <Tooltip
               placement="top"
               title={`Enable Select Mode (${shortcutApi.getLabel(
-                Shortcut.ChangeViewportInteractionMode
+                Shortcut.ChangeViewportInteractionMode,
               )})`}
               destroyOnHidden
             >
@@ -49,7 +49,7 @@ export function MoveMode() {
                   ' w-[16px]',
                   viewportInteractionMode === 'select'
                     ? 'text-text-accent-primary'
-                    : 'text-text-secondary'
+                    : 'text-text-secondary',
                 )}
                 component={() => <CursorIcon />}
               />
@@ -62,7 +62,7 @@ export function MoveMode() {
             <Tooltip
               placement="top"
               title={`Enable Pan Mode (${shortcutApi.getLabel(
-                Shortcut.ChangeViewportInteractionMode
+                Shortcut.ChangeViewportInteractionMode,
               )})`}
               destroyOnHidden
             >
@@ -71,7 +71,7 @@ export function MoveMode() {
                   ' w-[16px]',
                   viewportInteractionMode === 'pan'
                     ? 'text-text-accent-primary'
-                    : 'text-text-secondary'
+                    : 'text-text-secondary',
                 )}
                 component={() => <HandIcon />}
               />

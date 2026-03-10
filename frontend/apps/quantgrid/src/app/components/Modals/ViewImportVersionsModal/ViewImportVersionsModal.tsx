@@ -55,7 +55,7 @@ export function ViewImportVersionsModal() {
           projectBucket,
           projectPath,
           projectName,
-        ])
+        ]),
       );
 
       const response = await listImportSyncs({

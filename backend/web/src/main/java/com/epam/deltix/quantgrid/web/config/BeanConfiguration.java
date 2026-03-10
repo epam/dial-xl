@@ -14,6 +14,7 @@ import com.epam.deltix.quantgrid.engine.service.input.storage.InputProvider;
 import com.epam.deltix.quantgrid.engine.service.input.storage.dial.DialDataStore;
 import com.epam.deltix.quantgrid.engine.service.input.storage.dial.DialImportProvider;
 import com.epam.deltix.quantgrid.engine.service.input.storage.dial.DialInputProvider;
+import com.epam.deltix.quantgrid.engine.service.input.storage.dial.DialSchemaStore;
 import com.epam.deltix.quantgrid.engine.service.input.storage.local.LocalDataStore;
 import com.epam.deltix.quantgrid.engine.service.input.storage.local.LocalImportProvider;
 import com.epam.deltix.quantgrid.engine.service.input.storage.local.LocalInputProvider;
@@ -22,14 +23,17 @@ import com.epam.deltix.quantgrid.engine.store.dial.DialLock;
 import com.epam.deltix.quantgrid.engine.store.dial.DialStore;
 import com.epam.deltix.quantgrid.engine.store.local.LocalStore;
 import com.epam.deltix.quantgrid.util.DialFileApi;
+import com.epam.deltix.quantgrid.web.redis.GcpCredentialsResolver;
 import io.kubernetes.client.openapi.ApiClient;
 import okhttp3.Dispatcher;
 import okhttp3.OkHttpClient;
 import org.redisson.Redisson;
 import org.redisson.api.RedissonClient;
 import org.redisson.config.Config;
+import org.redisson.config.CredentialsResolver;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Lazy;
@@ -44,6 +48,7 @@ import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import javax.annotation.Nullable;
 
@@ -51,10 +56,32 @@ import javax.annotation.Nullable;
 @EnableScheduling
 public class BeanConfiguration {
 
+    @ConditionalOnProperty(name = "web.redis.provider.name", havingValue = "gcp-memory-store")
+    public CredentialsResolver gcpCredentialsResolver(@Value("${web.redis.provider.account") String account) {
+        return new GcpCredentialsResolver(account);
+    }
+
     @Bean
     @Nullable
-    public RedissonClient redis(@Value("${web.redis:#{null}}") String config) throws Exception {
-        return (config == null) ? null : Redisson.create(Config.fromYAML(config));
+    public RedissonClient redis(@Value("${web.redis:#{null}}") String yaml, Optional<CredentialsResolver> resolver)
+            throws Exception {
+        if (yaml == null) {
+            return null;
+        }
+
+        Config config = Config.fromYAML(yaml);
+
+        if (resolver.isPresent()) {
+            if (config.isSingleConfig()) {
+                config.useSingleServer().setCredentialsResolver(resolver.get());
+            } else if (config.isClusterConfig()) {
+                config.useClusterServers().setCredentialsResolver(resolver.get());
+            } else if (config.isSentinelConfig()) {
+                config.useSentinelServers().setCredentialsResolver(resolver.get());
+            }
+        }
+
+        return Redisson.create(config);
     }
 
     @Bean
@@ -70,10 +97,8 @@ public class BeanConfiguration {
 
     @Bean
     @ConditionalOnDialStorageEnabled
-    public InputProvider dialInputProvider(
-            DialFileApi dialFileApi,
-            @Value("${web.storage.dial.schemaFile:appdata/xl/input_schemas.json}") String schemaFile) {
-        return new DialInputProvider(dialFileApi, schemaFile);
+    public InputProvider dialInputProvider(DialFileApi dialFileApi, DialSchemaStore schemaStore) {
+        return new DialInputProvider(dialFileApi, schemaStore);
     }
 
     @Bean
@@ -184,7 +209,7 @@ public class BeanConfiguration {
 
     @Bean
     @ConditionalOnMissingBean(DataStore.class)
-    public LocalDataStore localDataStore(@Value("${web.storage.local.resultsFolder}") String resultsFolder) {
+    public LocalDataStore localDataStore() {
         return new LocalDataStore();
     }
 
@@ -197,5 +222,18 @@ public class BeanConfiguration {
     @Lazy
     public ApiClient kubernetesApiClient() throws IOException {
         return io.kubernetes.client.util.Config.defaultClient();
+    }
+
+    @Bean
+    @ConditionalOnDialStorageEnabled
+    public DialSchemaStore schemaStoreApi(
+            Clock clock,
+            DialFileApi dialFileApi,
+            @Value("${web.storage.dial.appKey}") String key,
+            @Value("${web.storage.dial.input_metadata.path:.input_metadata/}") String path,
+            @Value("${web.storage.dial.input_metadata.cleanup.updateAfter:15d}") Duration updateAfter,
+            @Value("${web.storage.dial.input_metadata.cleanup.deleteAfter:30d}") Duration deleteAfter) {
+        DialToken dialToken = new DialToken("api-key", key);
+        return new DialSchemaStore(clock, dialFileApi, dialToken, path, updateAfter, deleteAfter);
     }
 }

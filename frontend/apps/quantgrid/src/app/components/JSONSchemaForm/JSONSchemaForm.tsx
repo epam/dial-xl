@@ -12,6 +12,14 @@ import { ErrorTransformer, RJSFSchema, UiSchema } from '@rjsf/utils';
 import validator from '@rjsf/validator-ajv8';
 
 import {
+  AddButton,
+  ClearButton,
+  CopyButton,
+  MoveDownButton,
+  MoveUpButton,
+  RemoveButton,
+} from './ButtonTemplates';
+import {
   ArrayFieldItemTemplate,
   ArrayFieldTemplate,
   ArrayFieldTitleTemplate,
@@ -23,13 +31,21 @@ import {
 import { SelectWidget } from './Widgets';
 
 const templates: any = {
+  ArrayFieldItemTemplate,
+  ArrayFieldTemplate,
+  ArrayFieldTitleTemplate,
+  BaseInputTemplate,
   DescriptionFieldTemplate: DescriptionTemplate,
-  FieldTemplate: FieldTemplate,
-  BaseInputTemplate: BaseInputTemplate,
-  ArrayFieldTitleTemplate: ArrayFieldTitleTemplate,
-  ArrayFieldTemplate: ArrayFieldTemplate,
-  ArrayFieldItemTemplate: ArrayFieldItemTemplate,
-  ObjectFieldTemplate: ObjectFieldTemplate,
+  FieldTemplate,
+  ObjectFieldTemplate,
+  ButtonTemplates: {
+    AddButton,
+    ClearButton,
+    CopyButton,
+    MoveDownButton,
+    MoveUpButton,
+    RemoveButton,
+  },
 };
 
 const widgets: any = {
@@ -43,7 +59,7 @@ const uiSchema: UiSchema = {
         modalFooterButtonClasses,
         primaryButtonClasses,
         primaryDisabledButtonClasses,
-        'right-0'
+        'right-0',
       ),
     },
     norender: true,

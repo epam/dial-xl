@@ -23,18 +23,24 @@ web:
             cleanupInterval: PT1H
           sourceDefinitions:
             - id: airbyte-postgres
-              name: Postgres (Airbyte)
+              name: Postgres
               image: airbyte/source-postgres:3.6.35
             - id: airbyte-s3
-              name: S3 (Airbyte)
+              name: S3
               image: airbyte/source-s3:4.14.6
             - id: airbyte-dial # For testing purposes
-              name: DIAL (Airbyte)
+              name: DIAL
               image: ${SYNC_DIAL_SOURCE_IMAGE:}
               secret: ${SYNC_DIAL_SOURCE_SECRET:}
               enabled: ${SYNC_DIAL_SOURCE_ENABLED:false}
   heartbeatPeriodMillis: 5000
 
 spring:
+  servlet:
+    multipart:
+      enabled: true
+      file-size-threshold: 16GB
+      max-file-size: 16GB
+      max-request-size: 16GB
   security:
     enabled: ${SECURITY_ENABLED:false}

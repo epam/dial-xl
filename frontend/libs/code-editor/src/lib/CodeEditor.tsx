@@ -39,6 +39,7 @@ export function CodeEditor({
   onEditorReady,
   onEscape,
   onCodeChange,
+  onContentHeightChange,
   onSaveButton,
   onUndo,
   onRedo,
@@ -149,11 +150,11 @@ export function CodeEditor({
         | 'onRedo'
         | 'onTab'
         | 'onRightArrow'
-        | 'onCtrlEnter'
+        | 'onCtrlEnter',
     ) => {
       callbacks.current[callback]?.();
     },
-    []
+    [],
   );
 
   useEditorRegisterProviders({
@@ -203,7 +204,7 @@ export function CodeEditor({
         }
       }, 0);
     },
-    [codeEditor, onStartPointClick, onStopPointClick]
+    [codeEditor, onStartPointClick, onStopPointClick],
   );
 
   const setCodeEditorValue = useCallback(
@@ -236,14 +237,14 @@ export function CodeEditor({
         checkEnablePointAndClick(value);
       }
     },
-    [codeEditor, checkEnablePointAndClick, options.readOnly]
+    [codeEditor, checkEnablePointAndClick, options.readOnly],
   );
 
   const setEditorFocus = useCallback(
     (
       { cursorOffset }: { cursorOffset?: number | undefined } = {
         cursorOffset: undefined,
-      }
+      },
     ) => {
       codeEditor?.focus();
 
@@ -255,8 +256,8 @@ export function CodeEditor({
         const length = model.getValueLength();
         codeEditor?.setPosition(
           model.getPositionAt(
-            cursorOffset < 0 ? length + cursorOffset : cursorOffset
-          )
+            cursorOffset < 0 ? length + cursorOffset : cursorOffset,
+          ),
         );
 
         return;
@@ -271,7 +272,7 @@ export function CodeEditor({
       const lastColumn = model.getLineMaxColumn(lastLine);
       codeEditor?.setPosition({ lineNumber: lastLine, column: lastColumn });
     },
-    [codeEditor]
+    [codeEditor],
   );
 
   const jumpToDSLPosition = useCallback(
@@ -286,7 +287,7 @@ export function CodeEditor({
       codeEditor?.setPosition(position);
       codeEditor?.revealLineInCenterIfOutsideViewport(position.lineNumber);
     },
-    [codeEditor]
+    [codeEditor],
   );
 
   useEffect(() => {
@@ -396,13 +397,30 @@ export function CodeEditor({
     });
   }, [checkEnablePointAndClick, codeEditor]);
 
+  const onContentHeightChangeRef = useRef<
+    ((height: number) => void) | undefined
+  >(undefined);
+  useEffect(() => {
+    onContentHeightChangeRef.current = onContentHeightChange;
+  }, [onContentHeightChange]);
+
+  useEffect(() => {
+    if (!codeEditor) return;
+
+    onContentHeightChangeRef.current?.(codeEditor.getContentHeight());
+
+    codeEditor.onDidContentSizeChange((e) => {
+      onContentHeightChangeRef.current?.(e.contentHeight);
+    });
+  }, [codeEditor]);
+
   const codeChangeCallback = useCallback(
     async (value: string | undefined, _: editor.IModelContentChangedEvent) => {
       if (onCodeChange) onCodeChange(value || '');
 
       checkEnablePointAndClick(value);
     },
-    [onCodeChange, checkEnablePointAndClick]
+    [onCodeChange, checkEnablePointAndClick],
   );
 
   /**
@@ -444,16 +462,16 @@ export function CodeEditor({
 
       editor.onDidFocusEditorText(() => {
         editor.addCommand(KeyMod.CtrlCmd | KeyCode.KeyS, () =>
-          callbacks.current.onSaveButton?.(true)
+          callbacks.current.onSaveButton?.(true),
         );
       });
 
       monaco.editor.registerCommand(
         CustomCommands.SuggestionInsertFunction,
-        (_, modelId: string) => {
+        (_: any, modelId: string) => {
           if (!modelId) return;
 
-          const editors = monaco.editor.getEditors();
+          const editors: editor.ICodeEditor[] = monaco.editor.getEditors();
 
           // To get Position we need first to get correct editor instance by model id
           const currentEditor = editors.find((e) => {
@@ -474,15 +492,15 @@ export function CodeEditor({
           });
 
           currentEditor.getAction('editor.action.triggerParameterHints')?.run();
-        }
+        },
       );
 
       monaco.editor.registerCommand(
         CustomCommands.SuggestionAcceptTableOrField,
-        (_, modelId: string) => {
+        (_: any, modelId: string) => {
           if (!modelId) return;
 
-          const editors = monaco.editor.getEditors();
+          const editors: editor.ICodeEditor[] = monaco.editor.getEditors();
 
           // To get Position we need first to get correct editor instance by model id
           const currentEditor = editors.find((e) => {
@@ -494,7 +512,7 @@ export function CodeEditor({
           if (!currentEditor) return;
 
           currentEditor.trigger('', 'editor.action.triggerSuggest', {});
-        }
+        },
       );
 
       // Go to table context menu item
@@ -547,7 +565,7 @@ export function CodeEditor({
             const field = getFieldAtPosition(
               parsedSheet,
               position.lineNumber,
-              offset
+              offset,
             );
 
             if (!field) return;
@@ -561,7 +579,7 @@ export function CodeEditor({
         },
       });
     },
-    []
+    [],
   );
 
   return (
@@ -579,39 +597,4 @@ export function CodeEditor({
       onMount={onCodeEditorMount}
     />
   );
-}
-
-// https://github.com/microsoft/vscode/issues/183324
-// Override ResizeObserver to get rid of the ResizeObserver loop limit
-// Wait for monaco-editor fix and remove lines below
-
-// Save a reference to the original ResizeObserver
-const OriginalResizeObserver = window.ResizeObserver;
-
-// Create a new ResizeObserver constructor
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore
-window.ResizeObserver = function (callback) {
-  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-  // @ts-ignore
-  const wrappedCallback = (entries, observer) => {
-    window.requestAnimationFrame(() => {
-      callback(entries, observer);
-    });
-  };
-
-  // Create an instance of the original ResizeObserver
-  // with the wrapped callback
-  return new OriginalResizeObserver(wrappedCallback);
-};
-
-// Copy over static methods, if any
-for (const staticMethod in OriginalResizeObserver) {
-  if (
-    Object.prototype.hasOwnProperty.call(OriginalResizeObserver, staticMethod)
-  ) {
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore
-    window.ResizeObserver[staticMethod] = OriginalResizeObserver[staticMethod];
-  }
 }

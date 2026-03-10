@@ -6,31 +6,39 @@ import Bowser from 'bowser';
 import { WebStorageStateStore } from 'oidc-client-ts';
 import * as ReactDOM from 'react-dom/client';
 import { AuthProvider, AuthProviderProps } from 'react-oidc-context';
-import { BrowserRouter } from 'react-router-dom';
+import { BrowserRouter } from 'react-router';
 import { ToastContainer } from 'react-toastify';
 
-import { ApiContextProvider, CommonProvider, Loader } from './app';
+import { ApiContextProvider, CommonProvider } from './app';
 import { AppRoutes } from './AppRoutes';
 import { StyleProvider } from '@ant-design/cssinjs';
 import { Log } from 'oidc-client-ts';
 
 import './styles.css';
 
-Log.setLevel(Log.ERROR);
+const logLevel = window.externalEnv.logLevel as unknown as number;
+if (typeof logLevel === 'number' && logLevel >= 0 && logLevel <= 4) {
+  Log.setLevel(logLevel);
+} else {
+  Log.setLevel(Log.ERROR);
+}
+
 Log.setLogger(console);
 const root = ReactDOM.createRoot(
-  document.getElementById('root') as HTMLElement
+  document.getElementById('root') as HTMLElement,
 );
 
 const browser = Bowser.getParser(window.navigator.userAgent);
 const isAuth0 = window.externalEnv.authAuthority?.includes('auth0');
-const extraQueryParams = isAuth0
-  ? {
-      extraQueryParams: {
-        audience: 'chat',
-      },
-    }
-  : undefined;
+const audience = window.externalEnv.authAudience;
+const extraQueryParams =
+  isAuth0 && audience
+    ? {
+        extraQueryParams: {
+          audience,
+        },
+      }
+    : undefined;
 const scope = window.externalEnv.authScope || 'openid profile email';
 
 // Clear url params from auth params
@@ -38,6 +46,7 @@ const search = new URLSearchParams(window.location.search);
 search.delete('state');
 search.delete('session_state');
 search.delete('code');
+search.delete('iss');
 const finalSearchParams = search.size > 0 ? '?' + search.toString() : '';
 //
 
@@ -45,7 +54,7 @@ const oidcConfig: AuthProviderProps = {
   authority: window.externalEnv.authAuthority || '',
   client_id: window.externalEnv.authClientId || '',
   redirect_uri: encodeURI(
-    window.location.origin + window.location.pathname + finalSearchParams
+    window.location.origin + window.location.pathname + finalSearchParams,
   ),
   automaticSilentRenew: true,
   // monitorSession: true causing 'error=login_required' in Firefox with infinite loop
@@ -55,6 +64,7 @@ const oidcConfig: AuthProviderProps = {
     window.history.replaceState({}, document.title, window.location.pathname);
   },
   scope,
+  loadUserInfo: true,
   ...extraQueryParams,
 };
 
@@ -65,9 +75,7 @@ root.render(
         <CommonProvider>
           <StyleProvider layer>
             <ConfigProvider
-              theme={{
-                cssVar: true,
-              }}
+              modal={{ mask: { enabled: true, blur: false } }}
               wave={{ disabled: true }}
             >
               <ApiContextProvider>
@@ -81,13 +89,11 @@ root.render(
                   theme="colored"
                   closeOnClick
                 />
-
-                <Loader />
               </ApiContextProvider>
             </ConfigProvider>
           </StyleProvider>
         </CommonProvider>
       </div>
     </BrowserRouter>
-  </AuthProvider>
+  </AuthProvider>,
 );

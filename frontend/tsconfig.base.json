@@ -2,7 +2,7 @@
   "compilerOptions": {
     "baseUrl": ".",
     "composite": true,
-    "customConditions": ["development"],
+    "customConditions": ["frontend"],
     "declarationMap": true,
     "emitDeclarationOnly": true,
     "emitDecoratorMetadata": true,
@@ -10,7 +10,7 @@
     "importHelpers": true,
     "isolatedModules": true,
     "lib": ["es2022", "DOM", "DOM.Iterable"],
-    "types": ["node", "react", "react-dom"],
+    "types": ["node", "react", "react-dom", "vitest/globals"],
     "jsx": "react-jsx",
     "module": "esnext",
     "moduleResolution": "bundler",

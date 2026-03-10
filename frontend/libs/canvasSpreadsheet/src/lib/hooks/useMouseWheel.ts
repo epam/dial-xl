@@ -13,10 +13,12 @@ export function useMouseWheel() {
     (e: WheelEvent) => {
       const { deltaX, deltaY, shiftKey } = e;
 
-      let smoothDeltaX =
-        Math.sign(deltaX) * Math.min(Math.abs(deltaX), maxScrollDelta);
-      let smoothDeltaY =
-        Math.sign(deltaY) * Math.min(Math.abs(deltaY), maxScrollDelta);
+      let smoothDeltaX = Math.ceil(
+        Math.sign(deltaX) * Math.min(Math.abs(deltaX), maxScrollDelta),
+      );
+      let smoothDeltaY = Math.ceil(
+        Math.sign(deltaY) * Math.min(Math.abs(deltaY), maxScrollDelta),
+      );
 
       smoothDeltaX *= scrollSpeed;
       smoothDeltaY *= scrollSpeed;
@@ -29,16 +31,18 @@ export function useMouseWheel() {
 
       e.preventDefault();
     },
-    [moveViewport]
+    [moveViewport],
   );
 
   useEffect(() => {
-    if (!app) return;
+    if (!app?.renderer) return;
 
-    app.view.addEventListener?.('wheel', onWheel as EventListener);
+    app.canvas.addEventListener?.('wheel', onWheel as EventListener);
 
     return () => {
-      app?.view?.removeEventListener?.('wheel', onWheel as EventListener);
+      if (!app?.renderer) return;
+
+      app?.canvas?.removeEventListener?.('wheel', onWheel as EventListener);
     };
   }, [app, moveViewport, onWheel]);
 }

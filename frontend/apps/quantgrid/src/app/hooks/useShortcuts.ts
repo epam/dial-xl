@@ -7,11 +7,18 @@ import {
   Shortcut,
   shortcutApi,
   ShortcutHandlersMap,
+  zoomValues,
 } from '@frontend/common';
 
 import { PanelName } from '../common';
 import { ChatOverlayContext, LayoutContext, UndoRedoContext } from '../context';
-import { useSearchModalStore, useUIStore, useViewStore } from '../store';
+import {
+  useSearchModalStore,
+  useUIStore,
+  useUserSettingsStore,
+  useViewStore,
+} from '../store';
+import { defaultZoom } from '../utils';
 import { useGridApi } from './useGridApi';
 import { useProjectActions } from './useProjectActions';
 
@@ -27,23 +34,21 @@ export function useShortcuts() {
     useShallow((s) => ({
       setViewportInteractionMode: s.setViewportInteractionMode,
       viewportInteractionMode: s.viewportInteractionMode,
-    }))
+    })),
   );
-  const { toggleChat, chatWindowPlacement } = useUIStore(
+  const { toggleChat } = useUIStore(
     useShallow((s) => ({
       toggleChat: s.toggleChat,
-      chatWindowPlacement: s.chatWindowPlacement,
-    }))
+    })),
+  );
+  const chatWindowPlacement = useUserSettingsStore(
+    (s) => s.data.chatWindowPlacement,
   );
   const { isAIPendingChanges } = useContext(ChatOverlayContext);
   const gridApi = useGridApi();
   const openSearchModal = useSearchModalStore((s) => s.open);
-  const { setZoom, updateZoomWithWheel } = useViewStore(
-    useShallow((s) => ({
-      setZoom: s.setZoom,
-      updateZoomWithWheel: s.updateZoomWithWheel,
-    }))
-  );
+  const zoom = useUserSettingsStore((s) => s.data.zoom);
+  const setSetting = useUserSettingsStore((s) => s.patch);
 
   const { createProjectAction } = useProjectActions();
 
@@ -54,6 +59,17 @@ export function useShortcuts() {
       toggleChat();
     }
   }, [toggleChat, chatWindowPlacement, togglePanel]);
+
+  const updateZoomWithWheel = useCallback(
+    (direction: number) => {
+      const idx = zoomValues.findIndex((v) => v === zoom);
+      const next = idx + direction;
+      if (next < 0 || next >= zoomValues.length) return;
+
+      setSetting({ zoom: zoomValues[next] });
+    },
+    [setSetting, zoom],
+  );
 
   const shortcutGlobalHandlersMap: Partial<ShortcutHandlersMap> = useMemo(
     () => ({
@@ -68,11 +84,11 @@ export function useShortcuts() {
       [Shortcut.UndoAction]: () => undo(),
       [Shortcut.ZoomIn]: () => updateZoomWithWheel(1),
       [Shortcut.ZoomOut]: () => updateZoomWithWheel(-1),
-      [Shortcut.ZoomReset]: () => setZoom(1),
+      [Shortcut.ZoomReset]: () => setSetting({ zoom: defaultZoom }),
       [Shortcut.SearchWindow]: () => openSearchModal(),
       [Shortcut.ChangeViewportInteractionMode]: () =>
         setViewportInteractionMode(
-          viewportInteractionMode === 'select' ? 'pan' : 'select'
+          viewportInteractionMode === 'select' ? 'pan' : 'select',
         ),
 
       // just prevent save web page on save
@@ -87,11 +103,11 @@ export function useShortcuts() {
       redo,
       undo,
       updateZoomWithWheel,
-      setZoom,
+      setSetting,
       openSearchModal,
       setViewportInteractionMode,
       viewportInteractionMode,
-    ]
+    ],
   );
 
   const handleEvent = useCallback(
@@ -110,7 +126,7 @@ export function useShortcuts() {
         if (shortcutApi.is(shortcutKey as Shortcut, event)) {
           const isUndoAIPromptHandle =
             [Shortcut.UndoAction, Shortcut.RedoAction].includes(
-              shortcutKey as Shortcut
+              shortcutKey as Shortcut,
             ) && isAIPendingChanges;
 
           if (isNoteOpen() || isUndoAIPromptHandle) break;
@@ -130,7 +146,7 @@ export function useShortcuts() {
         }
       }
     },
-    [gridApi, isAIPendingChanges, shortcutGlobalHandlersMap]
+    [gridApi, isAIPendingChanges, shortcutGlobalHandlersMap],
   );
 
   const handleWheelEvent = useCallback(
@@ -141,7 +157,7 @@ export function useShortcuts() {
         event.stopImmediatePropagation();
       }
     },
-    [updateZoomWithWheel]
+    [updateZoomWithWheel],
   );
 
   useEffect(() => {

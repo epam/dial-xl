@@ -1,7 +1,7 @@
-import { ConfigProvider, Tooltip } from 'antd';
+import { Col, ConfigProvider, Divider, Row, Tooltip } from 'antd';
 import classNames from 'classnames';
+import DOMPurify from 'dompurify';
 import { useContext } from 'react';
-import sanitize from 'sanitize-html';
 
 import Icon from '@ant-design/icons';
 import { iconClasses, QuestionIcon } from '@frontend/common/lib';
@@ -19,13 +19,14 @@ import {
 export function TitleFieldTemplate<
   T = any,
   S extends StrictRJSFSchema = RJSFSchema,
-  F extends FormContextType = any
+  F extends FormContextType = any,
 >({
   id,
   required,
   registry,
   title,
   description,
+  optionalDataControl,
 }: TitleFieldProps<T, S, F> & { description?: string }) {
   const { formContext } = registry;
   const { colon = true } = formContext;
@@ -41,7 +42,7 @@ export function TitleFieldTemplate<
     }
 
     const control: HTMLLabelElement | null = document.querySelector(
-      `[id="${id}"]`
+      `[id="${id}"]`,
     );
     if (control && control.focus) {
       control.focus();
@@ -55,7 +56,7 @@ export function TitleFieldTemplate<
     [`${prefixCls}-item-no-colon`]: !colon,
   });
 
-  return title ? (
+  let heading = title ? (
     <label
       className={labelClassName}
       htmlFor={id}
@@ -67,7 +68,9 @@ export function TitleFieldTemplate<
         <Tooltip
           title={
             <div
-              dangerouslySetInnerHTML={{ __html: sanitize(description) }}
+              dangerouslySetInnerHTML={{
+                __html: DOMPurify.sanitize(description),
+              }}
             ></div>
           }
           destroyOnHidden
@@ -75,7 +78,7 @@ export function TitleFieldTemplate<
           <Icon
             className={classNames(
               iconClasses,
-              'w-[18px] text-text-secondary ml-1 hover:cursor-help hover:text-text-accent-primary'
+              'w-[18px] text-text-secondary ml-1 hover:cursor-help hover:text-text-accent-primary',
             )}
             component={() => <QuestionIcon />}
           />
@@ -83,4 +86,22 @@ export function TitleFieldTemplate<
       )}
     </label>
   ) : null;
+
+  if (optionalDataControl) {
+    heading = (
+      <Row>
+        <Col flex="auto">{heading}</Col>
+        <Col flex="none">{optionalDataControl}</Col>
+      </Row>
+    );
+  }
+
+  if (!heading) return null;
+
+  return (
+    <>
+      {heading}
+      <Divider size="small" style={{ marginBlock: '1px' }} />
+    </>
+  );
 }

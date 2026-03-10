@@ -87,6 +87,11 @@ public class CompiledPivotTable extends CompiledAbstractTable {
     }
 
     @Override
+    public List<String> keys(CompileContext context) {
+        return keys.stream().map(key -> key.name).toList();
+    }
+
+    @Override
     public CompiledTable with(Plan node, List<FieldKey> dimensions, int currentRef, int queryRef, boolean nested) {
         CompileUtil.verify(currentRef <= 0);
         CompileUtil.verify(queryRef == REF_NA);

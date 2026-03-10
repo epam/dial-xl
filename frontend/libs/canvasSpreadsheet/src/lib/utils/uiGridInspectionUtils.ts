@@ -1,4 +1,5 @@
 import { cellEditorWrapperId, noteTextAreaId } from '../constants';
+import { CanvasOptions } from '../types';
 
 export const isCellEditorFocused = (): boolean => {
   const cellEditor = document.getElementById(cellEditorWrapperId);
@@ -18,8 +19,22 @@ export const isCellEditorOpen = (): boolean => {
   return cellEditor.style.display !== 'none';
 };
 
-export const isCanvasEvent = (e: KeyboardEvent): boolean => {
+export const isCanvasEvent = (
+  e: KeyboardEvent,
+  canvasOptions: CanvasOptions,
+): boolean => {
   const targetElement = e.target as HTMLElement;
+
+  // This check is specifically for canvas inside the modal,
+  // and the main canvas should not be affected
+  if (
+    canvasOptions.placement === 'modal' &&
+    targetElement.className.includes('ant-modal')
+  ) {
+    const canvasElement = targetElement.querySelector('canvas');
+
+    return !!canvasElement;
+  }
 
   return targetElement.tagName === 'BODY';
 };

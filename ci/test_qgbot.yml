@@ -10,35 +10,37 @@ include:
   variables:
     GIT_DEPTH: 0
     AWS_DEFAULT_REGION: us-east-1
-    AWS_ROLE_ARN: arn:aws:iam::725751206603:role/GitLab-CI-project-1542-role
-    CORE_MODEL: anthropic.claude-v4-5-sonnet-v1
-    CLASSIFICATION_MODEL: anthropic.claude-v4-5-sonnet-v1
-    LLM_NAME: gemini-2.0-flash-lite-001
-    LLM_HINT_SELECTION_NAME: gpt-4o-2024-08-06
+    AWS_ROLE_ARN: arn:aws:iam::619071342561:role/test-dialxl-test-results
+
+    OVERRIDE_ASSISTANT__LANGGRAPH__CHECKPOINT-ENCRYPTION: "False"
+
+    ENV_TYPE: "test"
+
+    LOG_LEVEL: "DEBUG"
+    PYDANTIC_V2: "True"
+    DIAL_SDK_LOG: "INFO"
+    
+    WEB_CONCURRENCY: 8
+    UVICORN_LIMIT_CONCURRENCY: "512"
+    UVICORN_TIMEOUT_KEEP_ALIVE: "600"
+
   before_script:
     - pip install awscli
     - apt-get update && apt-get install -y git
     - apt-get update && apt-get install -y make && apt-get install -y protobuf-compiler && apt-get install -y wget && apt-get install -y curl && apt-get install -y jq
-    - !reference [.cloud-auth, before_script]
+    - !reference [ .cloud-auth, before_script ]
   script:
-    - echo "Bot version " $BOT_VERSION
-    - echo "LLM name " $LLM_NAME
-    - echo "Core model " $CORE_MODEL
-    - echo "Classification model " $CLASSIFICATION_MODEL
-    - echo "AI hint model " $AI_HINT_MODEL
-    - echo "Max fix attempts " $MAX_FIX_ATTEMPTS
-
-    - pip install poetry==1.8.3
+    - pip install poetry>=2.0
     - cd ./python/
     - make build_client_package
     - cd ./assistant/
     - poetry install
-    - poetry run python -m run_local &> qg.log &
+    - poetry run python -m run &> qg.log &
     - |
       if poetry run python -m scripts.healthcheck --addr http://localhost:5000; then
-        poetry run nox -s ${PYTEST_TEST_TYPE}_tests
+        make run-e2e-${PYTEST_TEST_TYPE}
       else
-        echo "QG server failed to start"
+        echo "DIAL XL Assistant server failed to start."
         exit 1
       fi
   interruptible: true

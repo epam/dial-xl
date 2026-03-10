@@ -1,7 +1,7 @@
 // Copy of antd description template implementation, but with inner html set
 // node_modules/@rjsf/antd/src/templates/DescriptionField/index.tsx
 
-import sanitizeHtml from 'sanitize-html';
+import DOMPurify from 'dompurify';
 
 import {
   DescriptionFieldProps,
@@ -17,7 +17,7 @@ import {
 export function DescriptionTemplate<
   T = any,
   S extends StrictRJSFSchema = RJSFSchema,
-  F extends FormContextType = any
+  F extends FormContextType = any,
 >(props: DescriptionFieldProps<T, S, F>) {
   const { id, description } = props;
   if (!description) {
@@ -28,7 +28,7 @@ export function DescriptionTemplate<
     <span
       dangerouslySetInnerHTML={
         typeof description === 'string'
-          ? { __html: sanitizeHtml(description) }
+          ? { __html: DOMPurify.sanitize(description) }
           : undefined
       }
       id={id}

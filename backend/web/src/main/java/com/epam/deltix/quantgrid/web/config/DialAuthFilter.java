@@ -43,6 +43,7 @@ public class DialAuthFilter extends OncePerRequestFilter {
         } catch (AuthenticationException e) {
             SecurityContextHolder.clearContext();
             response.sendError(HttpServletResponse.SC_UNAUTHORIZED, e.getMessage());
+            return;
         }
 
         filterChain.doFilter(request, response);

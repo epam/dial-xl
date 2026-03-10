@@ -122,8 +122,10 @@ class CompileControl {
             results = context.compileArgument(2, converter)
                     .transform(expression ->  expression, values.format());
 
-            condition = values.transform(expression ->
-                    new InLocal(List.of(expression), List.of(results.expression())), BooleanFormat.INSTANCE);
+            condition = values.transform(expression -> {
+                InLocal plan = new InLocal(values.node(), List.of(expression), results.node(), List.of(results.expression()));
+                return new Get(plan, 0);
+            }, BooleanFormat.INSTANCE);
         } else {
             CompiledNestedColumn empty = new CompiledNestedColumn(
                     new ListLocal(context.scalarLayout().node(), List.of()),

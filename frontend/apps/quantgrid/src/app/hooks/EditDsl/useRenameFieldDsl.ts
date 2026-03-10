@@ -24,7 +24,7 @@ export function useRenameFieldDsl() {
       tableName: string,
       oldFieldName: string,
       newFieldName: string,
-      withShowHeaders = false
+      withShowHeaders = false,
     ) => {
       const context = findEditContext(tableName, oldFieldName);
       if (!context || !context.parsedField) return;
@@ -54,10 +54,10 @@ export function useRenameFieldDsl() {
 
         if (sort && table.apply.sort && sort.isFieldUsedInSort(oldFieldName)) {
           const fieldSortOrder = sort.getFieldSortOrder(oldFieldName);
-          const sortExpressions = sort.getChangedFieldSort(
+          const sortExpressions = sort.buildUpdatedSortArgs(
             oldFieldName,
             fieldSortOrder,
-            uniqueNewFieldName
+            uniqueNewFieldName,
           );
 
           if (sortExpressions.length > 0) {
@@ -101,12 +101,12 @@ export function useRenameFieldDsl() {
             try {
               const parsedExpression = SheetReader.parseFormula(expression);
               const expressionFields = findFieldNameInExpression(
-                parsedExpression
+                parsedExpression,
               )
                 .filter(
                   (i) =>
                     i.tableName === tableName &&
-                    i.fieldName === `[${oldFieldName}]`
+                    i.fieldName === `[${oldFieldName}]`,
                 )
                 .sort((a, b) => b.start - a.start);
 
@@ -135,7 +135,7 @@ export function useRenameFieldDsl() {
 
       if (withShowHeaders) {
         const layoutDecorator = parsedTable.decorators.find(
-          ({ decoratorName }) => decoratorName === layoutDecoratorName
+          ({ decoratorName }) => decoratorName === layoutDecoratorName,
         );
 
         if (layoutDecorator) {
@@ -162,7 +162,7 @@ export function useRenameFieldDsl() {
         tableName,
       });
     },
-    [findEditContext, updateDSL]
+    [findEditContext, updateDSL],
   );
 
   return {

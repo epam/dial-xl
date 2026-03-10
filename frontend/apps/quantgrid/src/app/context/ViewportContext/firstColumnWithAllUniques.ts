@@ -7,7 +7,7 @@ import { ColumnChunk } from '@frontend/common';
  */
 export function firstColumnWithAllUniques(
   chunks: { [p: number]: ColumnChunk },
-  fieldNames: string[]
+  fieldNames: string[],
 ): string | null {
   const live: Map<string, Set<string>> = new Map();
   for (const col of fieldNames) live.set(col, new Set());

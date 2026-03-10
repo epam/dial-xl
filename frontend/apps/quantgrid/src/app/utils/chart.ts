@@ -64,7 +64,7 @@ export const chartsWithRowNumber: ChartType[] = [ChartType.PIE];
 
 // Get chart orientation when creating a new chart based on table
 export function getChartInitialOrientation(
-  chartType: ChartType
+  chartType: ChartType,
 ): ChartOrientation {
   if (!chartsWithOrientation.includes(chartType)) return 'vertical';
 
@@ -78,7 +78,7 @@ export function createVirtualHistogramChartTableDSL(
   table: ParsedTable,
   virtualTableName: string,
   fieldName: string,
-  bucketCount: number
+  bucketCount: number,
 ): string {
   const { tableName } = table;
   try {
@@ -110,7 +110,7 @@ export function createVirtualHistogramChartTableDSL(
 export function createVirtualChartTableDSL(
   parsedTable: ParsedTable,
   parsedField: ParsedField,
-  virtualTableName: string
+  virtualTableName: string,
 ): string {
   const { tableName, fullFieldName, fieldName } = parsedField.key;
 
@@ -132,10 +132,10 @@ export function createVirtualChartTableDSL(
       : `${tableName}${fullFieldName}.UNIQUE()`;
     const otherFilters = getFilterFormulaFromOtherSelectors(
       parsedTable,
-      fieldName
+      fieldName,
     );
     const hasValuesFieldFormula = `${tableName}.FILTER(${otherFilters}${fullFieldName} = $${fullFieldName}).COUNT() > 0`;
-    const sortFormula = `-[${hasValuesFieldName}],${fullFieldName}`;
+    const sortFormula = `[${hasValuesFieldName}], -1, ${fullFieldName}, 1`;
 
     table.addField({
       name: fieldName,
@@ -168,18 +168,18 @@ export function createVirtualChartTableDSL(
  */
 function getFilterFormulaFromOtherSelectors(
   table: ParsedTable,
-  currentFieldName: string
+  currentFieldName: string,
 ): string {
   const selectors = table.fields
     .filter(
       (f: ParsedField) =>
         f.key.fieldName !== currentFieldName &&
         f.isChartSelector() &&
-        f.getChartSelectorValue() !== undefined
+        f.getChartSelectorValue() !== undefined,
     )
     .map(
       (f: ParsedField) =>
-        `$${f.key.fullFieldName} = "${f.getChartSelectorValue()}"`
+        `$${f.key.fullFieldName} = "${f.getChartSelectorValue()}"`,
     )
     .join(' AND ');
 
@@ -192,7 +192,7 @@ function getFilterFormulaFromOtherSelectors(
  */
 export function isCustomChartSelector(fieldName: string): boolean {
   return [chartRowNumberSelector, histogramChartSeriesSelector].includes(
-    fieldName
+    fieldName,
   );
 }
 
@@ -204,14 +204,14 @@ export function applySelectorFiltersToChartTables(
   sheetContent: string,
   table: ParsedTable,
   tableSelectedKeys: SelectedChartKey[],
-  viewGridData: ViewGridData
+  viewGridData: ViewGridData,
 ): string {
   const { tableName, apply } = table;
 
   const keysFilterFormula = buildKeysFilterFormula(
     tableName,
     tableSelectedKeys,
-    viewGridData
+    viewGridData,
   );
 
   if (!keysFilterFormula || !editableSheet) return sheetContent;
@@ -258,10 +258,10 @@ export function applySelectorFiltersToChartTables(
 function buildKeysFilterFormula(
   tableName: string,
   tableSelectedKeys: SelectedChartKey[],
-  viewGridData: ViewGridData
+  viewGridData: ViewGridData,
 ): string {
   const filteredKeys = tableSelectedKeys.filter(
-    (item) => !isCustomChartSelector(item.fieldName)
+    (item) => !isCustomChartSelector(item.fieldName),
   );
 
   if (filteredKeys.length === 0) {
@@ -289,7 +289,7 @@ export function buildHistogramChartRequest(
   chartViewportRequest: Viewport[],
   table: ParsedTable,
   viewGridData: ViewGridData,
-  parsedSheets: ParsedSheets
+  parsedSheets: ParsedSheets,
 ): string {
   const { tableName } = table;
   const tableSelectorValues = table.getChartSelectorValues();
@@ -299,12 +299,12 @@ export function buildHistogramChartRequest(
   const unescapedTableName = unescapeTableName(tableName);
   const virtualTableName = getOrCreateVirtualTableName(
     tableName,
-    unescapedTableName
+    unescapedTableName,
   );
 
   viewGridData.addChartVirtualTableData(
     tableName,
-    escapeTableName(virtualTableName)
+    escapeTableName(virtualTableName),
   );
 
   const visualisationValues = table.getVisualisationDecoratorValues();
@@ -313,14 +313,14 @@ export function buildHistogramChartRequest(
     histogramDefaultBucketCount,
     visualisationValues?.length === 2
       ? parseInt(visualisationValues[1])
-      : histogramDefaultBucketCount
+      : histogramDefaultBucketCount,
   );
 
   const virtualTableDSL = createVirtualHistogramChartTableDSL(
     table,
     virtualTableName,
     tableSelectorValues[0],
-    histogramBucketsCount
+    histogramBucketsCount,
   );
 
   for (const fieldName of [
@@ -342,7 +342,7 @@ export function buildHistogramChartRequest(
 
   function getOrCreateVirtualTableName(
     tableName: string,
-    unescapedTableName: string
+    unescapedTableName: string,
   ): string {
     const virtualTableName =
       viewGridData.getChartVirtualTableDataName(tableName);
@@ -351,7 +351,7 @@ export function buildHistogramChartRequest(
 
     return createUniqueName(
       `${unescapedTableName}_histogram_data_${uniqueId()}`,
-      collectTableNames(parsedSheets)
+      collectTableNames(parsedSheets),
     );
   }
 

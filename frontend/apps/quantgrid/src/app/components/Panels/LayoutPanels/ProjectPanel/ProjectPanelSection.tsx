@@ -1,8 +1,8 @@
 import { ReactNode, useMemo, useRef } from 'react';
 
+import { ProjectPanelCollapseSection as CollapseSection } from '../../../../utils';
 import { ProjectPanelSectionContent } from './ProjectPanelSectionContent';
 import { ProjectPanelSectionHeader } from './ProjectPanelSectionHeader';
-import { CollapseSection } from './types';
 
 function isElementVisibleInScrollParent(element: HTMLElement) {
   const parent = element.parentElement;

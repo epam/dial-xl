@@ -87,7 +87,7 @@ export const useOnFormatClick = () => {
           return;
       }
     },
-    [api, setFormat]
+    [api, setFormat],
   );
 
   return {

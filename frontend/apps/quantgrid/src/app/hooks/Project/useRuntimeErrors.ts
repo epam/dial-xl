@@ -8,7 +8,7 @@ export function useRuntimeErrors() {
   const { viewGridData } = useContext(ViewportContext);
 
   const [runtimeErrors, setRuntimeErrors] = useState<RuntimeError[] | null>(
-    null
+    null,
   );
 
   useEffect(() => {

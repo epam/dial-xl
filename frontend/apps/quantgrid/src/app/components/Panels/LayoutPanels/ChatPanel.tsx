@@ -34,6 +34,8 @@ import { ChatPanelView } from '../../ChatWrapper';
 import { PanelToolbar } from '../PanelToolbar';
 import { PanelWrapper } from './PanelWrapper';
 
+const chatPanelPath = ['ChatPanel'];
+
 export function ChatPanel({ panelName, position, isActive }: PanelProps) {
   const {
     overlay,
@@ -80,13 +82,14 @@ export function ChatPanel({ panelName, position, isActive }: PanelProps) {
 
         return getDropdownItem({
           key: `${item.id}_${i}`,
+          fullPath: [...chatPanelPath, 'Conversations', item.id],
           label: (
             <Tooltip placement="top" title={formattedName} destroyOnHidden>
               <span
                 className={classNames(
                   'flex items-center gap-1',
                   selectedConversation?.id === item.id &&
-                    'text-text-accent-primary'
+                    'text-text-accent-primary',
                 )}
               >
                 <span className="truncate max-w-[270px]">{formattedName}</span>
@@ -105,6 +108,7 @@ export function ChatPanel({ panelName, position, isActive }: PanelProps) {
       .map((item) =>
         getDropdownItem({
           key: item.id,
+          fullPath: [...chatPanelPath, 'UserLocalConversations', item.id],
           label: (
             <span className="flex items-center gap-1">
               <Tooltip
@@ -124,7 +128,7 @@ export function ChatPanel({ panelName, position, isActive }: PanelProps) {
                   className={classNames(
                     'truncate max-w-[270px]',
                     selectedConversation?.id === item.id &&
-                      'text-text-accent-primary italic'
+                      'text-text-accent-primary italic',
                   )}
                 >
                   {item.name}
@@ -137,7 +141,7 @@ export function ChatPanel({ panelName, position, isActive }: PanelProps) {
 
             overlay.selectConversation(item.id);
           },
-        })
+        }),
       );
 
     return [
@@ -159,9 +163,12 @@ export function ChatPanel({ panelName, position, isActive }: PanelProps) {
     const isSelectedConversationUserLocal =
       selectedConversation.bucket !== projectBucket;
 
+    const chatActionsPath = [...chatPanelPath, 'CurrentChatActions'];
+
     return [
       getDropdownItem({
         key: 'rename',
+        fullPath: [...chatActionsPath, 'Rename'],
         label: 'Rename',
         onClick: () => onRenameConversation(),
         disabled: !isSelectedConversationUserLocal && isReadOnlyProjectChats,
@@ -172,6 +179,7 @@ export function ChatPanel({ panelName, position, isActive }: PanelProps) {
       }),
       getDropdownItem({
         key: 'delete',
+        fullPath: [...chatActionsPath, 'Delete'],
         label: 'Delete',
         disabled: !isSelectedConversationUserLocal && isReadOnlyProjectChats,
         tooltip:
@@ -186,13 +194,13 @@ export function ChatPanel({ panelName, position, isActive }: PanelProps) {
             okButtonProps: {
               className: classNames(
                 modalFooterButtonClasses,
-                primaryButtonClasses
+                primaryButtonClasses,
               ),
             },
             cancelButtonProps: {
               className: classNames(
                 modalFooterButtonClasses,
-                secondaryButtonClasses
+                secondaryButtonClasses,
               ),
             },
             onOk: async () => {
@@ -203,6 +211,7 @@ export function ChatPanel({ panelName, position, isActive }: PanelProps) {
       }),
       getDropdownItem({
         key: 'import',
+        fullPath: [...chatActionsPath, 'Import'],
         label: 'Import',
         onClick: async () => {
           let result: LatestExportConversationsFormat;
@@ -219,10 +228,11 @@ export function ChatPanel({ panelName, position, isActive }: PanelProps) {
       }),
       getDropdownItem({
         key: 'export',
+        fullPath: [...chatActionsPath, 'Export'],
         label: 'Export',
         onClick: async () => {
           const { exportConversation } = await overlay.exportConversation(
-            selectedConversation.id
+            selectedConversation.id,
           );
 
           const fileName = getExportConversationFileName();
@@ -234,6 +244,7 @@ export function ChatPanel({ panelName, position, isActive }: PanelProps) {
         : [
             getDropdownItem({
               key: 'create-playback',
+              fullPath: [...chatActionsPath, 'CreatePlayback'],
               label: 'Create Playback',
               onClick: () => {
                 createPlayback(selectedConversation.id);
@@ -244,6 +255,7 @@ export function ChatPanel({ panelName, position, isActive }: PanelProps) {
         ? [
             getDropdownItem({
               key: 'stop-playback',
+              fullPath: [...chatActionsPath, 'StopPlayback'],
               label: 'Stop Playback',
               onClick: async () => {
                 await overlay.stopSelectedPlaybackConversation();
@@ -278,12 +290,8 @@ export function ChatPanel({ panelName, position, isActive }: PanelProps) {
         position={position}
         title={
           projectConversations.length && !isAIPreview && !isAIPendingChanges ? (
-            <Dropdown
-              className="max-h-[60vh]"
-              menu={{ items: getConversations() }}
-              trigger={['hover']}
-            >
-              <span className="flex items-center overflow-hidden gap-1 cursor-pointer">
+            <Dropdown menu={{ items: getConversations() }} trigger={['hover']}>
+              <span className="max-h-[60vh] flex items-center overflow-hidden gap-1 cursor-pointer">
                 <span className="truncate leading-none">
                   {selectedConversationName}
                 </span>
@@ -294,7 +302,7 @@ export function ChatPanel({ panelName, position, isActive }: PanelProps) {
               </span>
             </Dropdown>
           ) : (
-            selectedConversationName ?? 'Chat'
+            (selectedConversationName ?? 'Chat')
           )
         }
       >

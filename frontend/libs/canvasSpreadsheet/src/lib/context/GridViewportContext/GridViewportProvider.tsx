@@ -41,7 +41,7 @@ export function GridViewportContextProvider({
   } = useContext(GridStateContext);
 
   const gridViewportSubscriber = useRef<GridViewportSubscriber>(
-    new GridViewportSubscriber()
+    new GridViewportSubscriber(),
   );
 
   const [viewportColCount, setViewportColCount] = useState(0);
@@ -89,13 +89,20 @@ export function GridViewportContextProvider({
         gridSizes.scrollBar.trackSize +
         gridSizes.gridLine.width;
 
-      const x1 = skipMaxCheck
-        ? Math.max(prevX1 + x, 0)
-        : Math.min(Math.max(prevX1 + x, 0), maxX);
+      const x1 = Math.ceil(
+        skipMaxCheck
+          ? Math.max(prevX1 + x, 0)
+          : Math.min(Math.max(prevX1 + x, 0), maxX),
+      );
 
-      const y1 = skipMaxCheck
-        ? Math.max(prevY1 + y, 0)
-        : Math.min(Math.max(prevY1 + y, 0), maxY);
+      const y1 = Math.ceil(
+        skipMaxCheck
+          ? Math.max(prevY1 + y, 0)
+          : Math.min(Math.max(prevY1 + y, 0), maxY),
+      );
+
+      const resultedXChange = x1 - prevX1;
+      const resultedYChange = y1 - prevY1;
 
       const x2 = x1 + gridWidth;
       const y2 = y1 + gridHeight;
@@ -109,7 +116,7 @@ export function GridViewportContextProvider({
       const firstVisibleEndCol = getFirstVisibleColOrRow(
         x2,
         columnSizesRef.current,
-        cell.width
+        cell.width,
       );
       const firstVisibleEndRow = getFirstVisibleColOrRow(y2, {}, cell.height);
       const endCol = firstVisibleEndCol + extendedColsCount;
@@ -135,7 +142,7 @@ export function GridViewportContextProvider({
       if (growCols || growRows) {
         updateMaxRowOrCol(
           growCols ? endCol + viewportPrefetchCols : null,
-          growRows ? endRow + viewportPrefetchRows : null
+          growRows ? endRow + viewportPrefetchRows : null,
         );
         edgesWasExtended.current = true;
       }
@@ -148,10 +155,13 @@ export function GridViewportContextProvider({
         edgesWasExtended.current = true;
       }
 
-      gridViewportSubscriber.current.changeViewport(x, y);
+      gridViewportSubscriber.current.changeViewport(
+        resultedXChange,
+        resultedYChange,
+      );
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [fullWidth, gridWidth, fullHeight, gridHeight, gridSizes]
+    [fullWidth, gridWidth, fullHeight, gridHeight, gridSizes],
   );
 
   const getCellX = useCallback(
@@ -161,11 +171,11 @@ export function GridViewportContextProvider({
           viewportCoords.current.x1,
           col,
           columnSizesRef.current,
-          gridSizes.cell.width
+          gridSizes.cell.width,
         ) + gridSizes.rowNumber.width
       );
     },
-    [gridSizes]
+    [gridSizes],
   );
 
   const getCellY = useCallback(
@@ -175,12 +185,12 @@ export function GridViewportContextProvider({
           viewportCoords.current.y1,
           row,
           {},
-          gridSizes.cell.height
+          gridSizes.cell.height,
         ) + gridSizes.colNumber.height
       );
     },
 
-    [gridSizes]
+    [gridSizes],
   );
 
   const getCellFromCoords = useCallback(
@@ -194,14 +204,14 @@ export function GridViewportContextProvider({
         getFirstVisibleColOrRow(
           absoluteX,
           columnSizesRef.current,
-          gridSizes.cell.width
+          gridSizes.cell.width,
         ) + 1;
       const row =
         getFirstVisibleColOrRow(absoluteY, {}, gridSizes.cell.height) + 1;
 
       return { col, row };
     },
-    [gridSizes]
+    [gridSizes],
   );
 
   useEffect(() => {
@@ -210,10 +220,10 @@ export function GridViewportContextProvider({
 
   useEffect(() => {
     setViewportRowCount(
-      Math.floor(gridHeight / gridSizes.cell.height) + extendedRowsCount
+      Math.floor(gridHeight / gridSizes.cell.height) + extendedRowsCount,
     );
     setViewportColCount(
-      Math.floor(gridWidth / gridSizes.cell.width) + extendedColsCount
+      Math.floor(gridWidth / gridSizes.cell.width) + extendedColsCount,
     );
   }, [gridHeight, gridWidth, gridSizes]);
 
@@ -240,7 +250,7 @@ export function GridViewportContextProvider({
       viewportColCount,
       viewportRowCount,
       getCellFromCoords,
-    ]
+    ],
   );
 
   return (

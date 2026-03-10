@@ -86,11 +86,14 @@ export function useControlValues() {
 
       setControlIsLoading(true);
 
-      const sheets = projectSheets.reduce((acc, sheet) => {
-        acc[sheet.sheetName] = sheet.content;
+      const sheets = projectSheets.reduce(
+        (acc, sheet) => {
+          acc[sheet.sheetName] = sheet.content;
 
-        return acc;
-      }, {} as Record<string, string>);
+          return acc;
+        },
+        {} as Record<string, string>,
+      );
 
       const key: FieldKey = {
         table: unescapeTableName(tableName),
@@ -181,7 +184,7 @@ export function useControlValues() {
         setControlIsLoading(false);
       }
     },
-    [calculateControlValues, projectName, projectSheets, selectedValuesMap]
+    [calculateControlValues, projectName, projectSheets, selectedValuesMap],
   );
 
   const isCached = useCallback((tableName: string, fieldName: string) => {
@@ -265,7 +268,7 @@ export function useControlValues() {
         searchValue,
       });
     },
-    [clearCache, isCached, sendGetControlValuesRequest]
+    [clearCache, isCached, sendGetControlValuesRequest],
   );
 
   const onCloseControl = useCallback(() => {

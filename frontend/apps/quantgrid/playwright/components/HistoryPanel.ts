@@ -2,6 +2,7 @@ import { BasePanel } from './BasePanel';
 
 export class HistoryPanel extends BasePanel {
   panelName = 'undoRedo';
+  hotkey = 'Alt+4';
 
   public historyItem(text: string) {
     return this.getPanelRootLocator().locator(`div[title*='${text}']`);

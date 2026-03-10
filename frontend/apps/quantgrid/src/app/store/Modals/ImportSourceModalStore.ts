@@ -48,5 +48,5 @@ export const useImportSourceModalStore = create<ImportSourceModalStore>()(
       _resolver?.(false);
       set(initialState);
     },
-  })
+  }),
 );

@@ -18,7 +18,7 @@ import {
   shortcutApi,
 } from '@frontend/common';
 
-import { GridCell } from '../../../../types';
+import { GridCell, SheetControl } from '../../../../types';
 import { GridEventBus } from '../../../../utils';
 import { spreadsheetMenuKeys as menuKey } from '../config';
 import { ContextMenuKeyData } from '../types';
@@ -44,13 +44,25 @@ import {
   totalItem,
 } from './commonItem';
 
-export const getTableFieldMenuItems = (
-  col: number,
-  row: number,
-  cell: GridCell,
-  eventBus: GridEventBus,
-  filterList: GridListFilter[]
-): ItemType[] => {
+const tableFieldMenuPath = ['TableFieldMenu'];
+
+export const getTableFieldMenuItems = ({
+  col,
+  row,
+  cell,
+  eventBus,
+  filterList,
+  sheetControls,
+  onClose,
+}: {
+  col: number;
+  row: number;
+  cell: GridCell;
+  eventBus: GridEventBus;
+  filterList: GridListFilter[];
+  sheetControls: SheetControl[];
+  onClose: () => void;
+}): ItemType[] => {
   const { field, table } = cell;
 
   if (!table || !field) return [];
@@ -98,19 +110,33 @@ export const getTableFieldMenuItems = (
   const hasAIFunction = field?.isAIFunctions;
 
   return [
-    isShowAIPrompt ? askAIItem(col, row) : null,
-    hasAIFunction ? aiRegenerateItem(col, row) : null,
+    isShowAIPrompt ? askAIItem(col, row, tableFieldMenuPath) : null,
+    hasAIFunction ? aiRegenerateItem(col, row, tableFieldMenuPath) : null,
     isShowAIPrompt || hasAIFunction ? getDropdownDivider() : null,
-    moveTable(col, row, isChart),
+    moveTable(col, row, tableFieldMenuPath, isChart),
     getDropdownDivider(),
-    !isComplexOrDynamic && !isControl ? sortItem(col, row, isNumeric) : null,
-    filterType && !isControl && !isComplexOrDynamic
-      ? filterItem(col, row, cell, eventBus, filterList)
+    !isComplexOrDynamic && !isControl
+      ? sortItem(col, row, tableFieldMenuPath, isNumeric)
       : null,
-    !isControl ? totalItem(col, row, totalFieldTypes, isComplex) : null,
+    filterType && !isControl && !isComplexOrDynamic
+      ? filterItem({
+          col,
+          row,
+          parentPath: tableFieldMenuPath,
+          cell,
+          eventBus,
+          filterList,
+          sheetControls,
+          onClose,
+        })
+      : null,
+    !isControl
+      ? totalItem(col, row, tableFieldMenuPath, totalFieldTypes, isComplex)
+      : null,
     !isControl && !isComplexOrDynamic ? getDropdownDivider() : null,
     getDropdownItem({
       label: 'Edit formula',
+      fullPath: [...tableFieldMenuPath, 'EditFormula'],
       key: getDropdownMenuKey<ContextMenuKeyData>(menuKey.editFormula, {
         col,
         row,
@@ -123,10 +149,11 @@ export const getTableFieldMenuItems = (
       ),
       shortcut: shortcutApi.getLabel(Shortcut.EditExpression),
     }),
-    isInput ? switchInput(col, row) : null,
-    isImport ? syncImport(col, row) : null,
+    isInput ? switchInput(col, row, tableFieldMenuPath) : null,
+    isImport ? syncImport(col, row, tableFieldMenuPath) : null,
     getDropdownItem({
       label: 'Rename column',
+      fullPath: [...tableFieldMenuPath, 'RenameColumn'],
       key: getDropdownMenuKey<ContextMenuKeyData>(menuKey.renameField, {
         col,
         row,
@@ -143,6 +170,7 @@ export const getTableFieldMenuItems = (
     getDropdownItem({
       label: 'Create control',
       key: 'createControl',
+      fullPath: [...tableFieldMenuPath, 'CreateControl'],
       icon: (
         <Icon
           className="text-text-accent-primary w-[18px]"
@@ -152,12 +180,13 @@ export const getTableFieldMenuItems = (
       children: [
         getDropdownItem({
           label: 'Dropdown',
+          fullPath: [...tableFieldMenuPath, 'CreateControl', 'Dropdown'],
           key: getDropdownMenuKey<ContextMenuKeyData>(
             menuKey.createDropdownControlFromField,
             {
               col,
               row,
-            }
+            },
           ),
           icon: (
             <Icon
@@ -168,12 +197,13 @@ export const getTableFieldMenuItems = (
         }),
         getDropdownItem({
           label: 'Checkbox',
+          fullPath: [...tableFieldMenuPath, 'CreateControl', 'Checkbox'],
           key: getDropdownMenuKey<ContextMenuKeyData>(
             menuKey.createCheckboxControlFromField,
             {
               col,
               row,
-            }
+            },
           ),
           icon: (
             <Icon
@@ -188,6 +218,7 @@ export const getTableFieldMenuItems = (
       ? fieldTagsItem(
           col,
           row,
+          tableFieldMenuPath,
           isKey,
           isDynamic,
           isManual,
@@ -195,30 +226,39 @@ export const getTableFieldMenuItems = (
           isIndex,
           isDescription,
           isText,
-          fieldNames
+          fieldNames,
         )
       : null,
     showCollapseNestedField || showExpandNestedField
-      ? dimensionItem(col, row, showCollapseNestedField, isDynamic)
+      ? dimensionItem(
+          col,
+          row,
+          tableFieldMenuPath,
+          showCollapseNestedField,
+          isDynamic,
+        )
       : null,
     getDropdownDivider(),
-    insertItem(col, row, isTableHorizontal, isManual),
-    deleteItem(col, row, table, false),
-    fieldItem(col, row, cell, table, isDynamic),
+    insertItem(col, row, tableFieldMenuPath, isTableHorizontal, isManual),
+    deleteItem(col, row, tableFieldMenuPath, table, false),
+    fieldItem(col, row, tableFieldMenuPath, cell, table, isDynamic),
     getDropdownDivider(),
-    noteEditItem(col, row, note),
-    note ? noteRemoveItem(col, row) : null,
+    noteEditItem(col, row, tableFieldMenuPath, note),
+    note ? noteRemoveItem(col, row, tableFieldMenuPath) : null,
     getDropdownDivider(),
-    arrangeTableItems(col, row),
-    !isChart ? orientationItem(col, row, isTableHorizontal) : null,
+    arrangeTableItems(col, row, tableFieldMenuPath),
+    !isChart
+      ? orientationItem(col, row, tableFieldMenuPath, isTableHorizontal)
+      : null,
     hideItem(
       col,
       row,
+      tableFieldMenuPath,
       isTableNameHeaderHidden,
       isTableFieldsHeaderHidden,
-      isChart
+      isChart,
     ),
     getDropdownDivider(),
-    ...(openDetails(col, row, false) || []),
+    ...(openDetails(col, row, tableFieldMenuPath, false) || []),
   ];
 };

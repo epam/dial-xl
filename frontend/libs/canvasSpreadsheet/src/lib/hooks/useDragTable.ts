@@ -1,8 +1,12 @@
 import { useCallback, useContext, useEffect, useRef } from 'react';
 
-import { EventTypeMoveChartOrTable, GridEvent } from '../components';
 import { GridStateContext, GridViewportContext } from '../context';
-import { Coordinates, GridCell } from '../types';
+import {
+  Coordinates,
+  EventTypeMoveChartOrTable,
+  GridCell,
+  GridEvent,
+} from '../types';
 import {
   filterByTypeAndCast,
   getMousePosition,
@@ -16,14 +20,16 @@ const movementThreshold = 5;
 
 export function useDragTable() {
   const {
-    gridApi,
+    event,
     gridSizes,
     getCell,
     eventBus,
-    selection$,
+    selectionEdges,
     setSelectionEdges,
     setIsTableDragging,
     isPanModeEnabled,
+    events$,
+    canvasId,
   } = useContext(GridStateContext);
   const { getCellFromCoords } = useContext(GridViewportContext);
 
@@ -39,13 +45,13 @@ export function useDragTable() {
     (e: MouseEvent) => {
       if (isPanModeEnabled) return;
 
-      const mousePosition = getMousePosition(e);
+      const mousePosition = getMousePosition(e, canvasId);
 
       if (!mousePosition) return;
 
       const { x, y } = mousePosition;
 
-      if (!isClickInsideCanvas(x, y, gridSizes)) return;
+      if (!isClickInsideCanvas(x, y, canvasId, gridSizes)) return;
 
       const { col, row } = getCellFromCoords(x, y);
       const cell = getCell(col, row);
@@ -64,7 +70,7 @@ export function useDragTable() {
         };
       }
     },
-    [getCell, getCellFromCoords, gridSizes, isPanModeEnabled]
+    [canvasId, getCell, getCellFromCoords, gridSizes, isPanModeEnabled],
   );
 
   const onMouseUp = useCallback(
@@ -74,7 +80,7 @@ export function useDragTable() {
       document.body.style.cursor = 'default';
       isMouseDown.current = false;
 
-      gridApi.event.emit({
+      event.emit({
         type: GridEvent.stopMoveMode,
       });
 
@@ -85,10 +91,8 @@ export function useDragTable() {
         return;
       }
 
-      const mousePosition = getMousePosition(e);
+      const mousePosition = getMousePosition(e, canvasId);
       if (!mousePosition) return;
-
-      const selectionEdges = selection$.getValue();
 
       if (
         !selectedCell.current ||
@@ -111,7 +115,7 @@ export function useDragTable() {
         },
       });
 
-      gridApi.event.emit({
+      event.emit({
         type: GridEvent.stopMoveEntity,
       });
 
@@ -123,14 +127,21 @@ export function useDragTable() {
       setIsTableDragging(false);
       setSelectionEdges(selectionEdges);
     },
-    [eventBus, gridApi, selection$, setIsTableDragging, setSelectionEdges]
+    [
+      canvasId,
+      eventBus,
+      event,
+      selectionEdges,
+      setIsTableDragging,
+      setSelectionEdges,
+    ],
   );
 
   const onMouseMove = useCallback(
     (e: MouseEvent) => {
       if (!isMouseDown.current) return;
 
-      const mousePosition = getMousePosition(e);
+      const mousePosition = getMousePosition(e, canvasId);
       if (!mousePosition) return;
 
       const { x, y } = mousePosition;
@@ -151,12 +162,11 @@ export function useDragTable() {
 
       if (!isDragging.current) return;
 
-      gridApi.event.emit({
+      event.emit({
         type: GridEvent.startMoveEntity,
       });
 
       const { col, row } = getCellFromCoords(x, y);
-      const selectionEdges = selection$.getValue();
 
       if (
         !selectedCell.current ||
@@ -189,30 +199,29 @@ export function useDragTable() {
           endCol: nextEndCol,
           endRow: nextEndRow,
         },
-        { selectedTable: tableName, silent: true }
+        { selectedTable: tableName, silent: true },
       );
 
       moveViewportToCell(col, row);
     },
     [
-      gridApi,
+      canvasId,
+      event,
       getCellFromCoords,
       gridSizes,
       moveViewportToCell,
-      selection$,
+      selectionEdges,
       setIsTableDragging,
       setSelectionEdges,
-    ]
+    ],
   );
 
   useEffect(() => {
-    if (!gridApi.events$) return;
-
-    const startMoveChartOrTableSubscription = gridApi.events$
+    const startMoveChartOrTableSubscription = events$
       .pipe(
         filterByTypeAndCast<EventTypeMoveChartOrTable>(
-          GridEvent.moveChartOrTable
-        )
+          GridEvent.moveChartOrTable,
+        ),
       )
       .subscribe(({ cell, x, y }) => {
         if (!cell?.table) return;
@@ -236,7 +245,7 @@ export function useDragTable() {
           endRow,
         });
 
-        gridApi.event.emit({
+        event.emit({
           type: GridEvent.startMoveMode,
         });
       });
@@ -244,7 +253,7 @@ export function useDragTable() {
     return () => {
       startMoveChartOrTableSubscription.unsubscribe();
     };
-  }, [getCellFromCoords, gridApi, setSelectionEdges]);
+  }, [event, events$, getCellFromCoords, setSelectionEdges]);
 
   useEffect(() => {
     document.addEventListener('mouseup', onMouseUp, false);

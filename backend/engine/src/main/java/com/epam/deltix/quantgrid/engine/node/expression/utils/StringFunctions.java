@@ -1,5 +1,6 @@
 package com.epam.deltix.quantgrid.engine.node.expression.utils;
 
+import com.epam.deltix.quantgrid.engine.Util;
 import com.epam.deltix.quantgrid.util.Doubles;
 import com.epam.deltix.quantgrid.util.Strings;
 import lombok.experimental.UtilityClass;
@@ -278,5 +279,63 @@ public class StringFunctions {
             offset -= textToStrip.length();
         }
         return offset;
+    }
+
+    public String textBefore(String text, String delimiter, double occurrence) {
+        if (Strings.isError(text)) {
+            return text;
+        }
+        if (Strings.isError(delimiter)) {
+            return delimiter;
+        }
+        if (Doubles.isError(occurrence)) {
+            return Doubles.toStringError(occurrence);
+        }
+
+        int index = indexOf(text, delimiter, Util.truncateToIntIndex(occurrence));
+        return index < 0 ? Strings.ERROR_NA : text.substring(0, index);
+    }
+
+    public String textAfter(String text, String delimiter, double occurrence) {
+        if (Strings.isError(text)) {
+            return text;
+        }
+        if (Strings.isError(delimiter)) {
+            return delimiter;
+        }
+        if (Doubles.isError(occurrence)) {
+            return Doubles.toStringError(occurrence);
+        }
+
+        int index = indexOf(text, delimiter, Util.truncateToIntIndex(occurrence));
+        return index < 0 ? Strings.ERROR_NA : text.substring(index + delimiter.length());
+    }
+
+    private int indexOf(String text, String delimiter, int occurrence) {
+        if (occurrence == 0) {
+            return -1;
+        }
+
+        if (occurrence > 0) {
+            if (delimiter.isEmpty()) {
+                return 0;
+            }
+            for (int i = 0; ; i += delimiter.length()) {
+                i = text.indexOf(delimiter, i);
+                if (i < 0 || --occurrence == 0) {
+                    return i;
+                }
+            }
+        }
+
+        if (delimiter.isEmpty()) {
+            return text.length();
+        }
+        for (int i = text.length() - 1; ; i -= delimiter.length()) {
+            i = text.lastIndexOf(delimiter, i);
+            if (i < 0 || ++occurrence == 0) {
+                return i;
+            }
+        }
     }
 }

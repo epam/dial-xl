@@ -56,7 +56,7 @@ export function ProjectTreeRenameModal({
         handleOk();
       }
     },
-    [isOpened, newName, oldName, handleOk]
+    [isOpened, newName, oldName, handleOk],
   );
 
   useEffect(() => {
@@ -92,7 +92,7 @@ export function ProjectTreeRenameModal({
         className: cx(
           modalFooterButtonClasses,
           primaryButtonClasses,
-          primaryDisabledButtonClasses
+          primaryDisabledButtonClasses,
         ),
         disabled: !newName || oldName === newName,
       }}

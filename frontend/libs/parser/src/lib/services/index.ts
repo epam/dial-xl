@@ -4,6 +4,7 @@ export * from './compareParsedSheets';
 export * from './escapeUtils';
 export * from './extractExpression';
 export * from './findFieldBinOpExpression';
+export * from './findFieldControlRefInFilter';
 export * from './findFieldExpressionsWithParent';
 export * from './findFieldNameInExpression';
 export * from './findFunctionExpressions';

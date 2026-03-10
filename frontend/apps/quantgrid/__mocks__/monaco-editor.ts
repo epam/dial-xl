@@ -1,8 +1,8 @@
-// Jest manual mock for `monaco-editor` (and its ESM sub-path)
+// Vitest manual mock for `monaco-editor` (and its ESM sub-path)
+import { vi } from 'vitest';
 
 // ---- cheap helpers -------------------------------------------------
-const noop = () => {};
-const fn = () => jest.fn();
+const fn = () => vi.fn();
 
 // ---- enums / const tables ------------------------------------------
 export const MarkerSeverity = { Hint: 1, Info: 2, Warning: 4, Error: 8 };
@@ -12,7 +12,10 @@ export const KeyMod = { CtrlCmd: 2048, Shift: 1024, Alt: 512, WinCtrl: 256 };
 
 // ---- light-weight classes ------------------------------------------
 export class Position {
-  constructor(public lineNumber: number, public column: number) {}
+  constructor(
+    public lineNumber: number,
+    public column: number,
+  ) {}
 }
 
 export class Range {
@@ -20,7 +23,7 @@ export class Range {
     public startLineNumber: number,
     public startColumn: number,
     public endLineNumber: number,
-    public endColumn: number
+    public endColumn: number,
   ) {}
 }
 

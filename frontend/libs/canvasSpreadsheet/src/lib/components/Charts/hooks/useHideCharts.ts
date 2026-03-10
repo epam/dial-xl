@@ -1,23 +1,22 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useContext, useEffect, useState } from 'react';
 
-import { GridApi } from '../../../types';
+import { GridViewportContext } from '../../../context';
 import { ChartConfig } from '../types';
 
-export const useHideCharts = (
-  api: GridApi | null,
-  chartConfigs: ChartConfig[]
-) => {
+export const useHideCharts = (chartConfigs: ChartConfig[]) => {
+  const { viewportEdges, gridViewportSubscriber } =
+    useContext(GridViewportContext);
   const [hiddenCharts, setHiddenCharts] = useState<string[]>([]);
 
   const updateHiddenCharts = useCallback(() => {
-    if (!api || chartConfigs.length === 0) return;
+    if (chartConfigs.length === 0) return;
 
     const {
       startCol: vStartCol,
       endCol: vEndCol,
       endRow: vEndRow,
       startRow: vStartRow,
-    } = api.getViewportEdges();
+    } = viewportEdges.current;
 
     const hidden: string[] = [];
 
@@ -37,21 +36,19 @@ export const useHideCharts = (
     }
 
     setHiddenCharts(hidden);
-  }, [api, chartConfigs]);
+  }, [chartConfigs, viewportEdges]);
 
   useEffect(() => {
-    if (!api) return;
-
     updateHiddenCharts();
 
-    const unsubscribe = api.gridViewportSubscription(() => {
+    const unsubscribe = gridViewportSubscriber.current.subscribe(() => {
       updateHiddenCharts();
     });
 
     return () => {
       unsubscribe();
     };
-  }, [api, updateHiddenCharts]);
+  }, [gridViewportSubscriber, updateHiddenCharts]);
 
   useEffect(() => {
     updateHiddenCharts();

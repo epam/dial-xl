@@ -1,4 +1,4 @@
-import * as PIXI from 'pixi.js';
+import { FederatedPointerEvent, Graphics } from 'pixi.js';
 import {
   useCallback,
   useContext,
@@ -8,14 +8,12 @@ import {
   useState,
 } from 'react';
 
-import { Graphics, useApp } from '@pixi/react';
+import { useApplication } from '@pixi/react';
 
-import { ComponentLayer } from '../../constants';
 import { GridStateContext, GridViewportContext } from '../../context';
 import { useDraw } from '../../hooks';
-import { GridCell } from '../../types';
+import { GridCell, GridEvent } from '../../types';
 import { getMousePosition } from '../../utils';
-import { GridEvent } from '../GridApiWrapper';
 
 type BorderState = {
   visible: boolean;
@@ -27,14 +25,18 @@ type BorderState = {
   cell?: GridCell;
 };
 
-export const TableMoveHandle = () => {
-  const app = useApp();
+type Props = {
+  zIndex: number;
+};
 
-  const { getCell, gridSizes, gridApi } = useContext(GridStateContext);
+export const TableMoveHandle = ({ zIndex }: Props) => {
+  const { app } = useApplication();
+
+  const { getCell, gridSizes, event, canvasId } = useContext(GridStateContext);
   const { getCellFromCoords, getCellX, getCellY, viewportEdges } =
     useContext(GridViewportContext);
 
-  const graphicsRef = useRef<PIXI.Graphics>(null);
+  const graphicsRef = useRef<Graphics>(null);
 
   const [state, setState] = useState<BorderState>({
     visible: false,
@@ -47,14 +49,14 @@ export const TableMoveHandle = () => {
 
   const borderThickness = useMemo(
     () => gridSizes.cell.tableMoveBorderWidth,
-    [gridSizes]
+    [gridSizes],
   );
 
   // Find a table near a pointer
   const findTableNearPointer = useCallback(
     (
       clientX: number,
-      clientY: number
+      clientY: number,
     ): { cell: GridCell; col: number; row: number } | null => {
       const offsets = [
         { dx: 0, dy: 0 },
@@ -75,12 +77,12 @@ export const TableMoveHandle = () => {
 
       return null;
     },
-    [getCell, getCellFromCoords, borderThickness]
+    [getCell, getCellFromCoords, borderThickness],
   );
 
   const handleMouseMove = useCallback(
     (e: Event) => {
-      const mousePosition = getMousePosition(e as MouseEvent);
+      const mousePosition = getMousePosition(e as MouseEvent, canvasId);
       if (!mousePosition) return;
 
       const { x: clientX, y: clientY } = mousePosition;
@@ -96,7 +98,7 @@ export const TableMoveHandle = () => {
                 tableName: null,
                 cell: undefined,
               }
-            : prev
+            : prev,
         );
 
         return;
@@ -147,7 +149,7 @@ export const TableMoveHandle = () => {
                 tableName: null,
                 cell: undefined,
               }
-            : prev
+            : prev,
         );
 
         return;
@@ -167,24 +169,33 @@ export const TableMoveHandle = () => {
         cell,
       });
     },
-    [findTableNearPointer, getCell, getCellX, getCellY, viewportEdges]
+    [
+      canvasId,
+      findTableNearPointer,
+      getCell,
+      getCellX,
+      getCellY,
+      viewportEdges,
+    ],
   );
 
   useEffect(() => {
-    if (!app) return;
+    if (!app?.renderer) return;
 
-    app.view.addEventListener?.('mousemove', handleMouseMove, true);
+    app.canvas.addEventListener?.('mousemove', handleMouseMove, true);
 
     return () => {
-      app?.view?.removeEventListener?.('mousemove', handleMouseMove, true);
+      if (!app?.renderer) return;
+
+      app?.canvas?.removeEventListener?.('mousemove', handleMouseMove, true);
     };
   }, [app, handleMouseMove]);
 
   const handlePointerDown = useCallback(
-    (e: PIXI.FederatedPointerEvent) => {
-      if (!state.tableName || !gridApi) return;
+    (e: FederatedPointerEvent) => {
+      if (!state.tableName) return;
 
-      const mousePosition = getMousePosition(e);
+      const mousePosition = getMousePosition(e, canvasId);
       if (!mousePosition) return;
 
       // Prevent selecting one cell while start moving the table
@@ -192,14 +203,14 @@ export const TableMoveHandle = () => {
       ne?.stopPropagation();
 
       const { x, y } = mousePosition;
-      gridApi.event.emit({
+      event.emit({
         type: GridEvent.moveChartOrTable,
         cell: state.cell,
         x,
         y,
       });
     },
-    [gridApi, state.cell, state.tableName]
+    [canvasId, event, state.cell, state.tableName],
   );
 
   const draw = useCallback(() => {
@@ -213,32 +224,32 @@ export const TableMoveHandle = () => {
     const { x, y, width, height, cell } = state;
     const t = borderThickness;
 
-    graphics.beginFill(0x000000, 0.01);
-
     // top border
-    graphics.drawRect(x, y - t / 2, width, t);
+    graphics.rect(x, y - t / 2, width, t);
     // bottom border
-    graphics.drawRect(x, y + height - t / 2, width, t);
+    graphics.rect(x, y + height - t / 2, width, t);
     // left border
-    graphics.drawRect(x - t / 2, y, t, height);
+    graphics.rect(x - t / 2, y, t, height);
 
     if (cell?.table?.chartType) {
       // right border (only for charts)
-      graphics.drawRect(x + width - t / 2, y, t, height);
+      graphics.rect(x + width - t / 2, y, t, height);
     }
 
-    graphics.endFill();
+    graphics.fill({ color: 0x000000, alpha: 0.01 });
   }, [state, borderThickness]);
 
   useDraw(draw);
 
   return (
-    <Graphics
+    <pixiGraphics
       cursor={state.visible ? 'grab' : 'default'}
+      draw={() => {}}
       eventMode={state.visible ? 'static' : 'auto'}
-      pointerdown={handlePointerDown}
+      label="TableMoveHandle"
       ref={graphicsRef}
-      zIndex={ComponentLayer.TableMoveHandle}
+      zIndex={zIndex}
+      onPointerDown={handlePointerDown}
     />
   );
 };

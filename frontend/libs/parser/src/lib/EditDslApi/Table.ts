@@ -144,7 +144,7 @@ export class Table extends ObservableObserver {
     this._applyIndex = this.setIndexedNode(
       value,
       this._applyTotals,
-      this._applyIndex
+      this._applyIndex,
     );
   }
 
@@ -376,7 +376,7 @@ export class Table extends ObservableObserver {
   public moveFieldBeforeOrAfter(
     sourceFieldName: string,
     targetFieldName: string | null,
-    isBefore: boolean
+    isBefore: boolean,
   ): void {
     // 1) Locate the source field (which group it's in, and the index inside that group).
     const { groupIndex: srcGroupIndex } =
@@ -517,7 +517,7 @@ export class Table extends ObservableObserver {
     let groupIndex = 0;
     for (const group of this._fieldGroups) {
       const index = Array.from(group.fieldNames).indexOf(
-        unescapeFieldName(name)
+        unescapeFieldName(name),
       );
       if (index !== -1) {
         const targetField = group.getField(name);
@@ -654,7 +654,7 @@ export class Table extends ObservableObserver {
   public insertDecorator(index: number, decorator: Decorator): void {
     if (index < 0 || index > this._decorators.length) {
       throw new Error(
-        `Decorator index ${index} is out of bounds: valid indices range from 0 to ${this._decorators.length}.`
+        `Decorator index ${index} is out of bounds: valid indices range from 0 to ${this._decorators.length}.`,
       );
     }
 

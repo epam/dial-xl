@@ -1,73 +1,32 @@
 package com.epam.deltix.quantgrid.engine.service.input.storage;
 
-import com.epam.deltix.quantgrid.engine.service.input.InputMetadata;
-import com.epam.deltix.quantgrid.engine.service.input.InputType;
 import com.epam.deltix.quantgrid.engine.value.Column;
 import com.epam.deltix.quantgrid.engine.value.local.DoubleDirectColumn;
 import com.epam.deltix.quantgrid.engine.value.local.LocalTable;
 import com.epam.deltix.quantgrid.engine.value.local.StringDirectColumn;
-import com.epam.deltix.quantgrid.type.InputColumnType;
-import com.epam.deltix.quantgrid.util.EtaggedStream;
 import com.epam.deltix.quantgrid.util.ParserException;
 import it.unimi.dsi.fastutil.doubles.DoubleArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import lombok.experimental.UtilityClass;
-import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.codec.digest.DigestUtils;
+import org.apache.commons.io.FilenameUtils;
+import org.apache.logging.log4j.util.Strings;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.Reader;
-import java.io.UncheckedIOException;
-import java.security.Principal;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Objects;
+import java.util.Map;
+import java.util.Set;
 
-@Slf4j
 @UtilityClass
 public class InputUtils {
-    public static LocalTable readTable(StreamFactory streamFactory, List<String> readColumns, InputMetadata metadata, Principal principal) {
-        // Avoid using Files.newBufferedReader(inputPath) https://stackoverflow.com/a/43446789
-        try (EtaggedStream stream = streamFactory.getInputStream(metadata.path(), principal);
-             Reader reader = new BufferedReader(new InputStreamReader(stream.stream()))) {
-            if (!"*".equals(metadata.etag()) && !Objects.equals(stream.etag(), metadata.etag())) {
-                throw new IllegalStateException("File %s has been modified. Expected ETag: %s, but was %s".formatted(
-                        metadata.path(), metadata.etag(), stream.etag()));
-            }
+    private static final int MAX_COLUMN_DEDUPLICATION_COUNT = Integer.MAX_VALUE;
 
-            return switch (metadata.type()) {
-                case CSV -> toLocalTable(
-                        CsvInputParser.parseCsvInput(reader, readColumns, metadata.columnTypes()));
-            };
-        } catch (IOException e) {
-            log.error("Failed to read input file: {}", metadata.path(), e);
-            throw new UncheckedIOException("Failed to read input file: " + metadata.name(), e);
+    public LocalTable toLocalTable(Object[] values) {
+        if (values.length == 0) {
+            return LocalTable.ZERO;
         }
-    }
 
-    public static InputMetadata readMetadata(StreamFactory streamFactory, String name, String path, InputType type, Principal principal) {
-        // Avoid using Files.newBufferedReader(inputPath) https://stackoverflow.com/a/43446789
-        try (EtaggedStream stream = streamFactory.getInputStream(path, principal);
-             Reader reader = new BufferedReader(new InputStreamReader(stream.stream()))) {
-
-            try {
-                LinkedHashMap<String, InputColumnType> columnTypes = switch (type) {
-                    case CSV -> CsvInputParser.inferSchema(reader, true);
-                };
-
-                return new InputMetadata(name, path, stream.etag(), type, columnTypes);
-            } catch (ParserException e) {
-                throw new InvalidInputException(stream.etag(), e);
-            }
-
-        } catch (IOException e) {
-            log.error("Failed to read input file: {}", path, e);
-            throw new UncheckedIOException("Failed to read input file: " + name, e);
-        }
-    }
-
-    public static LocalTable toLocalTable(Object[] values) {
         Column[] columns = new Column[values.length];
         for (int i = 0; i < values.length; i++) {
             Object value = values[i];
@@ -83,7 +42,54 @@ public class InputUtils {
         return new LocalTable(columns);
     }
 
-    public interface StreamFactory {
-        EtaggedStream getInputStream(String path, Principal principal) throws IOException;
+    public String getSchemaPath(String path, String etag) {
+        String hash = DigestUtils.sha256Hex(path + "/" + etag);
+        StringBuilder result = new StringBuilder();
+        result.append(hash, 0, 8);
+        for (int i = 8; i < hash.length(); i += 8) {
+            result.append('/');
+            result.append(hash, i, i + 8);
+        }
+        result.append('.');
+        result.append(FilenameUtils.getExtension(path));
+        result.append(".json");
+        return result.toString();
+    }
+
+    public Map<String, String> parseQueryParameters(String query) {
+        if (Strings.isBlank(query)) {
+            return Map.of();
+        }
+
+        String[] pairs = query.split("&");
+        LinkedHashMap<String, String> params = new LinkedHashMap<>();
+        for (String pair : pairs) {
+            String[] keyValue = pair.split("=", 2);
+            String key = URLDecoder.decode(keyValue[0], StandardCharsets.UTF_8);
+            String value = keyValue.length > 1 ? URLDecoder.decode(keyValue[1], StandardCharsets.UTF_8) : null;
+            params.put(key, value);
+        }
+        return params;
+    }
+
+    public String generateColumnName(Set<String> existingNames, int index) {
+        String name = toColumnName(index);
+        if (!existingNames.contains(name)) {
+            return name;
+        }
+
+        for (int i = 1; i < MAX_COLUMN_DEDUPLICATION_COUNT; ++i) {
+            String deduplicatedName = name + "_" + (i + 1);
+            if (!existingNames.contains(deduplicatedName)) {
+                return deduplicatedName;
+            }
+        }
+
+        throw new ParserException("Cannot generate a new column name. Maximum number " + MAX_COLUMN_DEDUPLICATION_COUNT
+                + " is reached.");
+    }
+
+    public String toColumnName(int index) {
+        return "Column" + (index + 1);
     }
 }

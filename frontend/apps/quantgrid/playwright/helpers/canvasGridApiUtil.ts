@@ -28,7 +28,7 @@ export async function waitForCanvasGridApi(page: Page) {
 
 export async function updateRegularSelection(
   page: Page,
-  selection: RegularSelect[] | null
+  selection: RegularSelect[] | null,
 ) {
   await waitForCanvasGridApi(page);
   await page.evaluate((selection) => {
@@ -38,7 +38,7 @@ export async function updateRegularSelection(
 
 export async function selectCell(
   page: Page,
-  cellCoordinates: CellGridPosition
+  cellCoordinates: CellGridPosition,
 ) {
   await waitForCanvasGridApi(page);
   const selectedRange: RegularSelect = {
@@ -71,9 +71,19 @@ export async function getCellText(page: Page, position: CellGridPosition) {
   }, position);
 }
 
+export async function getCellDisplayValue(
+  page: Page,
+  position: CellGridPosition,
+) {
+  return await page.evaluate((position) => {
+    return window.canvasGridApi.getCell(position.col, position.row)
+      ?.displayValue;
+  }, position);
+}
+
 export async function getCellCoordinates(
   page: Page,
-  position: CellGridPosition
+  position: CellGridPosition,
 ): Promise<{ x: number; y: number }> {
   await waitForCanvasGridApi(page);
   const x = await getCellX(page, position.col);

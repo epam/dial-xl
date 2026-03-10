@@ -2,7 +2,7 @@ import { Shortcut, shortcutApi } from '@frontend/common';
 import { getTokens } from '@frontend/parser';
 
 import { cellEditorWrapperId } from '../../../constants';
-import { GridApi, GridCell } from '../../../types';
+import { GridCell } from '../../../types';
 import { CellEditorExplicitOpenOptions, GridCellEditorMode } from '../types';
 
 export const isCellEditorHasFocus = (): boolean => {
@@ -24,7 +24,7 @@ export const canOpenCellEditor = (event: KeyboardEvent) => {
 };
 
 export const shouldSendUpdateEvent = (
-  editMode: GridCellEditorMode
+  editMode: GridCellEditorMode,
 ): boolean => {
   const correctModes: GridCellEditorMode[] = [
     'edit_field_expression',
@@ -50,7 +50,7 @@ export const shouldDisableHelpers = (editMode: GridCellEditorMode): boolean => {
 
 export const isCellEditorValueFormula = (
   value: string | undefined | null,
-  isNewFieldFormula = false
+  isNewFieldFormula = false,
 ) => {
   if (!value || typeof value === 'number') return false;
 
@@ -67,7 +67,7 @@ export const isCellEditorValueFormula = (
 
 export const isCellValueTypeChanged = (
   newValue: string,
-  oldValue: string
+  oldValue: string,
 ): boolean => {
   const isNewValueFormula = isCellEditorValueFormula(newValue);
   const isOldValueFormula = isCellEditorValueFormula(oldValue);
@@ -78,8 +78,8 @@ export const isCellValueTypeChanged = (
   );
 };
 
-export const isOtherCellsInField = (cell: GridCell, api: GridApi): boolean => {
-  if (!cell.table || !api) {
+export const isOtherCellsInField = (cell: GridCell): boolean => {
+  if (!cell.table) {
     return false;
   }
 
@@ -110,7 +110,7 @@ export const isOtherCellsInField = (cell: GridCell, api: GridApi): boolean => {
 
 export const isSaveOnArrowEnabled = (
   value: string,
-  openedWithNextChar: string
+  openedWithNextChar: string,
 ): boolean => !!openedWithNextChar && value.indexOf('=') === -1;
 
 /**
@@ -120,7 +120,7 @@ export const isSaveOnArrowEnabled = (
  */
 export const canOpenExplicitlyWithTarget = (
   options?: CellEditorExplicitOpenOptions,
-  cell?: GridCell
+  cell?: GridCell,
 ): boolean => {
   if (options?.targetTableName && options?.targetFieldName) {
     const { targetTableName, targetFieldName } = options;

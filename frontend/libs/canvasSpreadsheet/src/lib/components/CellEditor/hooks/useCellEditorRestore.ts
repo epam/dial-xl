@@ -1,60 +1,61 @@
-import { RefObject, useCallback } from 'react';
+import { useCallback, useContext } from 'react';
 
-import { GridApi } from '../../../types';
+import { GridStateContext } from '../../../context';
 import { CurrentCell } from '../types';
 import { isEditableTableCell } from '../utils';
 
 type Props = {
-  apiRef: RefObject<GridApi>;
   currentCell: CurrentCell;
   editedCalculatedCellValue: string;
   setEditedCalculatedCellValue: (value: string) => void;
 };
 
 export function useCellEditorRestore({
-  apiRef,
   currentCell,
   editedCalculatedCellValue,
   setEditedCalculatedCellValue,
 }: Props) {
-  const restoreSelection = useCallback(() => {
-    if (!apiRef.current || !currentCell) return;
+  const { selectionEdges, getCell, setSelectionEdges, setCellValue } =
+    useContext(GridStateContext);
 
-    const api = apiRef.current;
+  const restoreSelection = useCallback(() => {
+    if (!currentCell) return;
+
     const { col, row } = currentCell;
-    const selection = apiRef.current.selection$.getValue();
     const isSelectionDifferent =
-      !selection ||
-      (selection && selection.startRow !== row && selection.startCol !== col);
+      !selectionEdges ||
+      (selectionEdges &&
+        selectionEdges.startRow !== row &&
+        selectionEdges.startCol !== col);
 
     if (!isSelectionDifferent) return;
 
-    const cell = api.getCell(col, row);
+    const cell = getCell(col, row);
     const endCol = cell?.endCol ?? col;
 
-    api.updateSelection({
+    setSelectionEdges({
       startRow: row,
       startCol: col,
       endRow: row,
       endCol,
     });
-  }, [apiRef, currentCell]);
+  }, [currentCell, getCell, selectionEdges, setSelectionEdges]);
 
   const restoreCellValue = useCallback(() => {
-    if (!apiRef.current || !currentCell || !editedCalculatedCellValue) return;
+    if (!currentCell || !editedCalculatedCellValue) return;
 
-    const api = apiRef.current;
     const { col, row } = currentCell;
-    const cell = api.getCell(col, row);
+    const cell = getCell(col, row);
 
     if (isEditableTableCell(cell)) {
-      api.setCellValue(col, row, editedCalculatedCellValue);
+      setCellValue(col, row, editedCalculatedCellValue);
       setEditedCalculatedCellValue('');
     }
   }, [
-    apiRef,
     currentCell,
     editedCalculatedCellValue,
+    getCell,
+    setCellValue,
     setEditedCalculatedCellValue,
   ]);
 

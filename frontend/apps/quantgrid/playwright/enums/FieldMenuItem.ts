@@ -1,4 +1,4 @@
 export enum FieldMenuItem {
-  MakeDimension = 'Expand all',
-  RemoveDimension = 'Collapse all',
+  MakeDimension = 'ExpandAll',
+  RemoveDimension = 'CollapseAll',
 }

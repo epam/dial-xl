@@ -1,7 +1,7 @@
-import { ConfigProvider, Tooltip } from 'antd';
+import { Col, ConfigProvider, Row, Tooltip } from 'antd';
 import classNames from 'classnames';
+import DOMPurify from 'dompurify';
 import { useContext } from 'react';
-import sanitize from 'sanitize-html';
 
 import Icon from '@ant-design/icons';
 import { iconClasses, QuestionIcon } from '@frontend/common/lib';
@@ -19,13 +19,14 @@ import {
 export function ArrayFieldTitleTemplate<
   T = any,
   S extends StrictRJSFSchema = RJSFSchema,
-  F extends FormContextType = any
+  F extends FormContextType = any,
 >({
   required,
   registry,
   title,
-  idSchema,
+  fieldPathId,
   description,
+  optionalDataControl,
 }: ArrayFieldTitleProps<T, S, F> & { description?: string }) {
   const { formContext } = registry;
   const { colon = true } = formContext;
@@ -36,12 +37,12 @@ export function ArrayFieldTitleTemplate<
   }
 
   const handleLabelClick = () => {
-    if (!idSchema.$id) {
+    if (!fieldPathId?.$id) {
       return;
     }
 
     const control: HTMLLabelElement | null = document.querySelector(
-      `[id="${idSchema.$id}"]`
+      `[id="${fieldPathId.$id}"]`,
     );
     if (control && control.focus) {
       control.focus();
@@ -55,10 +56,10 @@ export function ArrayFieldTitleTemplate<
     [`${prefixCls}-item-no-colon`]: !colon,
   });
 
-  return title ? (
+  const labelElement = title ? (
     <label
       className={labelClassName}
-      htmlFor={idSchema.$id}
+      htmlFor={fieldPathId?.$id}
       title={typeof title === 'string' ? title : ''}
       onClick={handleLabelClick}
     >
@@ -67,7 +68,9 @@ export function ArrayFieldTitleTemplate<
         <Tooltip
           title={
             <div
-              dangerouslySetInnerHTML={{ __html: sanitize(description) }}
+              dangerouslySetInnerHTML={{
+                __html: DOMPurify.sanitize(description),
+              }}
             ></div>
           }
           destroyOnHidden
@@ -75,7 +78,7 @@ export function ArrayFieldTitleTemplate<
           <Icon
             className={classNames(
               iconClasses,
-              'w-[18px] ml-1 hover:cursor-help hover:text-text-accent-primary'
+              'w-[18px] ml-1 hover:cursor-help hover:text-text-accent-primary',
             )}
             component={() => <QuestionIcon />}
           />
@@ -83,4 +86,16 @@ export function ArrayFieldTitleTemplate<
       )}
     </label>
   ) : null;
+
+  if (!labelElement) return null;
+  if (optionalDataControl) {
+    return (
+      <Row>
+        <Col flex="auto">{labelElement}</Col>
+        <Col flex="none">{optionalDataControl}</Col>
+      </Row>
+    );
+  }
+
+  return labelElement;
 }

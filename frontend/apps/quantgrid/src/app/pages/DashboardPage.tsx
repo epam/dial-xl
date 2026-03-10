@@ -1,10 +1,14 @@
 import { useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router';
 
 import { projectFolderAppdata, projectFolderXl } from '@frontend/common';
 
 import { Dashboard, DashboardModals } from '../components';
-import { DashboardContextProvider } from '../context';
+import {
+  DashboardContextProvider,
+  SettingsGate,
+  UserSettingsSyncProvider,
+} from '../context';
 import { useUIStore } from '../store';
 import { routes } from '../types';
 
@@ -39,9 +43,13 @@ export function DashboardPage() {
   }, [pathname, search, navigate]);
 
   return (
-    <DashboardContextProvider>
-      <Dashboard />
-      <DashboardModals />
-    </DashboardContextProvider>
+    <UserSettingsSyncProvider>
+      <SettingsGate>
+        <DashboardContextProvider>
+          <Dashboard />
+          <DashboardModals />
+        </DashboardContextProvider>
+      </SettingsGate>
+    </UserSettingsSyncProvider>
   );
 }

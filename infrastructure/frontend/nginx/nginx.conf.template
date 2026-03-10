@@ -71,11 +71,10 @@ http {
             include headers-common.conf;
         }
 
-        location ~ ^/v1/files/ {
+        location ~ ^/v1/bucket/upload {
+            client_max_body_size 15G;
             include cors.conf;
             proxy_pass http://backend;
-            # 512M as hardcoded in DIAL Core
-            client_max_body_size 512M;
             include proxy-common.conf;
             include headers-common.conf;
         }

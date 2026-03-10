@@ -33,7 +33,7 @@ export function useProjectMode() {
 
   const isCSVViewMode: boolean = useMemo(() => {
     return !!projectPath?.startsWith(
-      constructPath([projectFoldersRootPrefix, csvTempFolder])
+      constructPath([projectFoldersRootPrefix, csvTempFolder]),
     );
   }, [projectPath]);
 
@@ -43,11 +43,20 @@ export function useProjectMode() {
     );
   }, [isAIPendingMode, isAIPreviewMode, isReadOnlyMode, isCSVViewMode]);
 
-  return {
-    isReadOnlyMode,
-    isAIPendingMode,
-    isAIPreviewMode,
-    isCSVViewMode,
-    isDefaultMode,
-  };
+  return useMemo(
+    () => ({
+      isReadOnlyMode,
+      isAIPendingMode,
+      isAIPreviewMode,
+      isCSVViewMode,
+      isDefaultMode,
+    }),
+    [
+      isReadOnlyMode,
+      isAIPendingMode,
+      isAIPreviewMode,
+      isCSVViewMode,
+      isDefaultMode,
+    ],
+  );
 }

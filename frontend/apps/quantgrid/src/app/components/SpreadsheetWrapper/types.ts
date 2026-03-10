@@ -17,12 +17,13 @@ import {
 import { ControlType, OverrideValue, TotalType } from '@frontend/parser';
 
 import { PanelName, SelectedCell } from '../../common';
+import { GroupByTableWizardMode, PivotTableWizardMode } from '../../store';
 
 export interface SelectionServices {
   data: GridData;
   getSelectedCell: (
     sel: SelectionEdges | null,
-    data: GridData
+    data: GridData,
   ) => CellPlacement | null;
   updateSelectedCell: (selectedCell: SelectedCell | null) => void;
   switchPointClickMode: (on: boolean, source?: 'cell-editor') => void;
@@ -60,25 +61,32 @@ export interface EditorServices {
   onCellEditorUpdateValue: (
     value: string,
     cancelEdit: boolean,
-    dimFieldName?: string
+    dimFieldName?: string,
   ) => void;
 }
 
 export interface ChartsServices {
-  changePivotTableWizardMode: (x: any) => void;
+  changePivotTableWizardMode: (
+    mode: PivotTableWizardMode,
+    tableName?: string,
+  ) => void;
+  changeGroupByTableWizardMode: (
+    mode: GroupByTableWizardMode,
+    tableName?: string,
+  ) => void;
   openPanel: (p: PanelName) => void;
   addChart: (
     tableName: string,
     chartType: ChartType,
     col?: number,
-    row?: number
+    row?: number,
   ) => void;
   chartResize: (tableName: string, cols: number, rows: number) => void;
   selectChartKey: (
     tableName: string,
     fieldName: string,
     key: string | string[],
-    hasNoData?: boolean
+    hasNoData?: boolean,
   ) => void;
   getMoreChartKeys: (tableName: string, fieldName: string) => void;
   setChartType: (tableName: string, chartType: ChartType) => void;
@@ -97,13 +105,13 @@ export interface TablesServices {
   moveTableTo: (tableName: string, row: number, col: number) => void;
   toggleTableTitleOrHeaderVisibility: (
     tableName: string,
-    toggleTableHeader: boolean
+    toggleTableHeader: boolean,
   ) => void;
   addTableRow: (
     col: number,
     row: number,
     tableName: string,
-    value: string
+    value: string,
   ) => void;
   addTableRowToEnd: (tableName: string, value: string) => void;
   promoteRow: (tableName: string, dataIndex: number) => void;
@@ -115,13 +123,13 @@ export interface TablesServices {
     action: string,
     type: string | undefined,
     insertFormula: string | undefined,
-    tableName: string | undefined
+    tableName: string | undefined,
   ) => void;
   changeFieldDescription: (
     tableName: string,
     fieldName: string,
     descriptionFieldName: string,
-    isRemove?: boolean
+    isRemove?: boolean,
   ) => void;
   createDerivedTable: (tableName: string) => void;
   createManualTable: (
@@ -130,19 +138,19 @@ export interface TablesServices {
     cells: string[][],
     hideTableHeader?: boolean,
     hideFieldHeader?: boolean,
-    customTableName?: string
+    customTableName?: string,
   ) => void;
   expandDimTable: (
     tableName: string,
     fieldName: string,
     col: number,
-    row: number
+    row: number,
   ) => Promise<void>;
   showRowReference: (
     tableName: string,
     fieldName: string,
     col: number,
-    row: number
+    row: number,
   ) => Promise<void>;
   convertToTable: (tableName: string) => void;
 }
@@ -153,7 +161,7 @@ export interface FieldsServices {
   swapFieldsByDirection: (
     tableName: string,
     fieldName: string,
-    direction: HorizontalDirection
+    direction: HorizontalDirection,
   ) => void;
   autoFitTableFields: (tableName: string) => void;
   removeFieldSizes: (tableName: string) => void;
@@ -162,27 +170,27 @@ export interface FieldsServices {
   onChangeFieldColumnSize: (
     tableName: string,
     fieldName: string,
-    valueAdd: number
+    valueAdd: number,
   ) => void;
   changeFieldDimension: (
     tableName: string,
     fieldName: string,
-    isRemove?: boolean
+    isRemove?: boolean,
   ) => void;
   changeFieldKey: (
     tableName: string,
     fieldName: string,
-    isRemove?: boolean
+    isRemove?: boolean,
   ) => void;
   changeFieldIndex: (
     tableName: string,
     fieldName: string,
-    isRemove?: boolean
+    isRemove?: boolean,
   ) => void;
   createControlFromField: (
     tableName: string,
     fieldName: string,
-    type: ControlType
+    type: ControlType,
   ) => void;
   regenerateAIFunctions: (tableName: string, fieldName: string) => void;
 }
@@ -191,12 +199,12 @@ export interface TotalsServices {
   removeTotalByIndex: (
     tableName: string,
     fieldName: string,
-    index: number
+    index: number,
   ) => void;
   toggleTotalByType: (
     tableName: string,
     fieldName: string,
-    type: TotalType
+    type: TotalType,
   ) => void;
   addAllFieldTotals: (tableName: string, fieldName: string) => void;
   createAllTableTotals: (tableName: string) => void;
@@ -207,15 +215,29 @@ export interface FiltersServices {
     tableName: string,
     fieldName: string,
     values: string[],
-    isNumeric: boolean
+    type: 'selected' | 'unselected',
+    isNumeric: boolean,
   ) => void;
   applyConditionFilter: (
     tableName: string,
     fieldName: string,
     operator: string,
     value: string | string[] | null,
-    filterType: GridFilterType
+    filterType: GridFilterType,
   ) => void;
+  applyControlFilter: (
+    tableName: string,
+    fieldName: string,
+    controlTableName: string,
+    controlFieldName: string,
+    controlType: ControlType,
+  ) => void;
+  applyCustomFormulaFilter: (
+    tableName: string,
+    fieldName: string,
+    expression: string,
+  ) => void;
+  clearFieldFilters: (tableName: string, fieldName: string) => void;
   onUpdateFieldFilterList: ({
     tableName,
     fieldName,
@@ -246,7 +268,7 @@ export interface ControlServices {
   updateSelectedControlValue: (
     tableName: string,
     fieldName: string,
-    values: string[]
+    values: string[],
   ) => void;
   onCloseControl: () => void;
 }
@@ -256,13 +278,13 @@ export interface OverridesServices {
     tableName: string,
     fieldName: string,
     overrideIndex: number,
-    value: OverrideValue
+    value: OverrideValue,
   ) => void;
   removeTableOrOverrideRow: (tableName: string, overrideIndex: number) => void;
   regenerateOverride: (
     tableName: string,
     fieldName: string,
-    overrideIndex: number
+    overrideIndex: number,
   ) => void;
 }
 
@@ -283,7 +305,7 @@ export interface SortServices {
   changeFieldSort: (
     tableName: string,
     fieldName: string,
-    order: FieldSortOrder
+    order: FieldSortOrder,
   ) => void;
 }
 
@@ -293,7 +315,7 @@ export interface SystemServices {
   openInEditor: (
     tableName: string,
     fieldName?: string,
-    openOverride?: boolean
+    openOverride?: boolean,
   ) => void;
   openInDetailsPanel: (tableName: string) => void;
   applySuggestion: (s: GPTSuggestion[] | null, f: GPTFocusColumn[]) => void;

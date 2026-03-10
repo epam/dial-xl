@@ -1,15 +1,15 @@
 import { Tooltip as AntdTooltip } from 'antd';
-import { RefObject, useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useContext, useEffect, useState } from 'react';
 import { Subscription } from 'rxjs';
 
 import { cellEditorWrapperId } from '../../constants';
-import { GridApi } from '../../types';
-import { filterByTypeAndCast, getPx } from '../../utils';
+import { GridStateContext } from '../../context';
 import {
   EventTypeStartMoveMode,
   EventTypeStopMoveMode,
   GridEvent,
-} from '../GridApiWrapper';
+} from '../../types';
+import { filterByTypeAndCast, getPx } from '../../utils';
 import {
   GridTooltipEventClose,
   GridTooltipEventOpen,
@@ -18,11 +18,9 @@ import {
 
 const defaultPosition = { x: -9999, y: -9999 };
 
-type Props = {
-  apiRef: RefObject<GridApi>;
-};
+export function Tooltip() {
+  const { events$, tooltipEvent$ } = useContext(GridStateContext);
 
-export function Tooltip({ apiRef }: Props) {
   const [tooltipOpen, setTooltipOpen] = useState(false);
   const [tooltipPos, setTooltipPos] = useState(defaultPosition);
   const [targetPos, setTargetPos] = useState(defaultPosition);
@@ -30,11 +28,6 @@ export function Tooltip({ apiRef }: Props) {
   const [restrictOpening, setRestrictOpening] = useState(false);
   const [width, setWidth] = useState(0);
   const [height, setHeight] = useState(0);
-
-  const api = useMemo(() => {
-    return apiRef.current;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [apiRef.current]);
 
   const clear = useCallback(() => {
     setTooltipOpen(false);
@@ -71,58 +64,58 @@ export function Tooltip({ apiRef }: Props) {
         setTooltipOpen(true);
       }, 1000);
     },
-    [restrictOpening, targetPos]
+    [restrictOpening, targetPos],
   );
 
   useEffect(() => {
-    if (!api) return;
-
     const subscriptions: Subscription[] = [];
 
     subscriptions.push(
-      api.tooltipEvent$
+      tooltipEvent$.current
         .pipe(
-          filterByTypeAndCast<GridTooltipEventOpen>(GridTooltipEventType.Open)
+          filterByTypeAndCast<GridTooltipEventOpen>(GridTooltipEventType.Open),
         )
         .subscribe(({ x, y, content }) => {
           showTooltip(x, y, content);
-        })
+        }),
     );
 
     subscriptions.push(
-      api.tooltipEvent$
+      tooltipEvent$.current
         .pipe(
-          filterByTypeAndCast<GridTooltipEventClose>(GridTooltipEventType.Close)
+          filterByTypeAndCast<GridTooltipEventClose>(
+            GridTooltipEventType.Close,
+          ),
         )
         .subscribe(() => {
           clear();
-        })
+        }),
     );
 
     subscriptions.push(
-      api.events$
+      events$
         .pipe(
-          filterByTypeAndCast<EventTypeStartMoveMode>(GridEvent.startMoveMode)
+          filterByTypeAndCast<EventTypeStartMoveMode>(GridEvent.startMoveMode),
         )
         .subscribe(() => {
           setRestrictOpening(true);
-        })
+        }),
     );
 
     subscriptions.push(
-      api.events$
+      events$
         .pipe(
-          filterByTypeAndCast<EventTypeStopMoveMode>(GridEvent.stopMoveMode)
+          filterByTypeAndCast<EventTypeStopMoveMode>(GridEvent.stopMoveMode),
         )
         .subscribe(() => {
           setRestrictOpening(false);
-        })
+        }),
     );
 
     return () => {
       subscriptions.forEach((subscription) => subscription.unsubscribe());
     };
-  }, [api, clear, showTooltip]);
+  }, [clear, events$, showTooltip, tooltipEvent$]);
 
   return (
     <div

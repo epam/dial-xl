@@ -61,7 +61,7 @@ export function ChangeNameModal() {
         className: cx(
           modalFooterButtonClasses,
           primaryButtonClasses,
-          primaryDisabledButtonClasses
+          primaryDisabledButtonClasses,
         ),
         disabled: okDisabled,
       }}

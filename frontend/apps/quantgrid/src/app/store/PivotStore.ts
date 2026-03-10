@@ -10,7 +10,7 @@ export type PivotState = {
 export type PivotActions = {
   changePivotTableWizardMode: (
     mode: PivotTableWizardMode,
-    tableName?: string
+    tableName?: string,
   ) => void;
 };
 

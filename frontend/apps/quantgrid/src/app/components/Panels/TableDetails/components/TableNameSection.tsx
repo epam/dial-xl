@@ -34,7 +34,7 @@ export function TableNameSection({ tableName, id, placeholder }: Props) {
     (event: ChangeEvent<HTMLInputElement>) => {
       setInputTableName(event.target.value);
     },
-    []
+    [],
   );
 
   const handleRenameTable = useCallback(() => {
@@ -56,7 +56,7 @@ export function TableNameSection({ tableName, id, placeholder }: Props) {
 
       setInputTableName(unescapeTableName(tableName));
     },
-    [tableName]
+    [tableName],
   );
 
   useEffect(() => {

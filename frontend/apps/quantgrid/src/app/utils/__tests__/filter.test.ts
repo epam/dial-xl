@@ -28,9 +28,9 @@ table virtualTableName_clone_source_table_with_other_apply [f1]=1
 
 table virtualTableName
   dim [f1] = virtualTableName_clone_source_table_without_full_apply[f1].UNIQUE()
-  [f1_filtered] = IN([f1], virtualTableName_clone_source_table_with_other_apply[f1])
+  [f1_filtered] = IF(ISNA([f1]), IN(TRUE, ISNA(virtualTableName_clone_source_table_with_other_apply[f1])), IN([f1], virtualTableName_clone_source_table_with_other_apply[f1]))
 apply
-sort [f1]`.replaceAll('\r\n', '\n');
+sort [f1], 1`.replaceAll('\r\n', '\n');
 
     expect(result.replaceAll('\r\n', '\n').trim()).toBe(expectedDSL.trim());
   });
@@ -66,9 +66,9 @@ filter [f2] = 2
 
 table virtualTableName
   dim [f1] = virtualTableName_clone_source_table_without_full_apply[f1].UNIQUE()
-  [f1_filtered] = IN([f1], virtualTableName_clone_source_table_with_other_apply[f1])
+  [f1_filtered] = IF(ISNA([f1]), IN(TRUE, ISNA(virtualTableName_clone_source_table_with_other_apply[f1])), IN([f1], virtualTableName_clone_source_table_with_other_apply[f1]))
 apply
-sort [f1]`.replaceAll('\r\n', '\n');
+sort [f1], 1`.replaceAll('\r\n', '\n');
     expect(result.replaceAll('\r\n', '\n').trim()).toBe(expectedDSL.trim());
   });
 
@@ -101,12 +101,49 @@ table virtualTableName_clone_source_table_with_other_apply
 
 table virtualTableName
   dim [f1] = virtualTableName_clone_source_table_without_full_apply[f1].UNIQUE()
-  [f1_filtered] = IN([f1], virtualTableName_clone_source_table_with_other_apply[f1])
+  [f1_filtered] = IF(ISNA([f1]), IN(TRUE, ISNA(virtualTableName_clone_source_table_with_other_apply[f1])), IN([f1], virtualTableName_clone_source_table_with_other_apply[f1]))
 apply
 filter CONTAINS([f1].LOWER(),12)
-sort [f1]`.replaceAll('\r\n', '\n');
+sort [f1], 1`.replaceAll('\r\n', '\n');
     expect(result.replaceAll('\r\n', '\n').trim()).toBe(expectedDSL.trim());
   });
+
+  it('should create new virtual tables filtered by NA search', () => {
+    // Arrange
+    const dsl = 'table t1\r\n[f1]=1\r\n[f2]=2';
+    const parsedDsl = SheetReader.parseSheet(dsl);
+    const parsedTable = parsedDsl.tables[0];
+    const parsedField = parsedTable.fields[0];
+
+    // Act
+    const result = createVirtualTableUniqueFieldValuesDSL({
+      editableSheet: parsedDsl.editableSheet!,
+      parsedTable,
+      parsedField,
+      virtualTableName: 'virtualTableName',
+      searchValue: 'n/a',
+      sort: 1,
+    });
+
+    // Assert
+    const expectedDSL = `
+table virtualTableName_clone_source_table_without_full_apply
+[f1]=1
+[f2]=2
+
+table virtualTableName_clone_source_table_with_other_apply
+[f1]=1
+[f2]=2
+
+table virtualTableName
+  dim [f1] = virtualTableName_clone_source_table_without_full_apply[f1].UNIQUE()
+  [f1_filtered] = IF(ISNA([f1]), IN(TRUE, ISNA(virtualTableName_clone_source_table_with_other_apply[f1])), IN([f1], virtualTableName_clone_source_table_with_other_apply[f1]))
+apply
+filter ISNA([f1])
+sort [f1], 1`.replaceAll('\r\n', '\n');
+    expect(result.replaceAll('\r\n', '\n').trim()).toBe(expectedDSL.trim());
+  });
+
   it('should create new virtual tables with negative sorting', () => {
     // Arrange
     const dsl = 'table t1\r\n[f1]=1\r\n[f2]=2';
@@ -136,9 +173,9 @@ table virtualTableName_clone_source_table_with_other_apply
 
 table virtualTableName
   dim [f1] = virtualTableName_clone_source_table_without_full_apply[f1].UNIQUE()
-  [f1_filtered] = IN([f1], virtualTableName_clone_source_table_with_other_apply[f1])
+  [f1_filtered] = IF(ISNA([f1]), IN(TRUE, ISNA(virtualTableName_clone_source_table_with_other_apply[f1])), IN([f1], virtualTableName_clone_source_table_with_other_apply[f1]))
 apply
-sort -[f1]`.replaceAll('\r\n', '\n');
+sort [f1], -1`.replaceAll('\r\n', '\n');
     expect(result.replaceAll('\r\n', '\n').trim()).toBe(expectedDSL.trim());
   });
 });

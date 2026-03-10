@@ -3,6 +3,7 @@ import { expect, Page } from '@playwright/test';
 import { WorkArea } from '../components/abstractions/WorkArea';
 import { Chat } from '../components/Chat';
 import { ChatPanel } from '../components/ChatPanel';
+import { DetailsPanel } from '../components/DetailsPanel';
 import { Editor } from '../components/Editor';
 import { EditorPanel } from '../components/EditorPanel';
 import { ErrorsPanel } from '../components/ErrorsPanel';
@@ -48,7 +49,10 @@ export class ProjectPage {
   private formatSelector = 'div.ant-dropdown-trigger:has(span.text-sm)';
 
   private formatLabel = (formatLabel: string) =>
-    `button[data-label='${formatLabel}']`;
+    `button[data-qa='FormatsMenu-${formatLabel}']`;
+
+  private formatSubLabel = (formatLabel: string, itemName: string) =>
+    `button[data-qa='FormatsMenu-${formatLabel}-${itemName}']`;
 
   private formulaEditorMode = 'div#formula+div>div>span[role="img"]';
 
@@ -80,6 +84,8 @@ export class ProjectPage {
 
   private chat: Chat;
 
+  private details: DetailsPanel;
+
   public getVisualization() {
     return this.grid;
   }
@@ -90,6 +96,34 @@ export class ProjectPage {
 
   public getFormulaEditor() {
     return this.formulaBar;
+  }
+
+  public getProjectPanel() {
+    return this.projectTree;
+  }
+
+  public getEditorPanel() {
+    return this.editor;
+  }
+
+  public getHistoryPanel() {
+    return this.history;
+  }
+
+  public getErrorsPanel() {
+    return this.errors;
+  }
+
+  public getChatPanel() {
+    return this.chatPanel;
+  }
+
+  public getDetailsPanel() {
+    return this.details;
+  }
+
+  public getInputsPanel() {
+    return this.inputs;
   }
 
   constructor(page: Page) {
@@ -104,7 +138,7 @@ export class ProjectPage {
     const projectPage = new ProjectPage(page);
     projectPage.formulaBar = new Editor(
       page,
-      page.locator(projectPage.formulaEditorLocator)
+      page.locator(projectPage.formulaEditorLocator),
     );
     projectPage.grid = TestFixtures.getVisualComponent(page);
     projectPage.menu = new TopMenu(page);
@@ -115,6 +149,7 @@ export class ProjectPage {
     projectPage.editor = new EditorPanel(page);
     projectPage.chat = new Chat(page);
     projectPage.chatPanel = new ChatPanel(page);
+    projectPage.details = new DetailsPanel(page);
     // await projectPage.chat.waitForChat();
     await projectPage.openEditor();
     await projectPage.getEditor().focus();
@@ -127,7 +162,7 @@ export class ProjectPage {
     const projectPage = new ProjectPage(page);
     projectPage.formulaBar = new Editor(
       page,
-      page.locator(projectPage.formulaEditorLocator)
+      page.locator(projectPage.formulaEditorLocator),
     );
     projectPage.grid = TestFixtures.getVisualComponent(page);
     projectPage.menu = new TopMenu(page);
@@ -138,6 +173,7 @@ export class ProjectPage {
     projectPage.editor = new EditorPanel(page);
     projectPage.chat = new Chat(page);
     projectPage.chatPanel = new ChatPanel(page);
+    projectPage.details = new DetailsPanel(page);
     await projectPage.grid.waitForComponentLoaded();
 
     return projectPage;
@@ -151,15 +187,17 @@ export class ProjectPage {
   public async selectFormatWithSubItem(formatName: string, itemName: string) {
     await this.innerPage.locator(this.formatSelector).click();
     await expect(
-      this.innerPage.locator(this.formatLabel(formatName))
+      this.innerPage.locator(this.formatLabel(formatName)),
     ).toBeVisible();
     await new Promise((resolve) => setTimeout(resolve, 500));
     await this.innerPage.locator(this.formatLabel(formatName)).hover();
     await expect(
-      this.innerPage.locator(this.formatLabel(itemName))
+      this.innerPage.locator(this.formatSubLabel(formatName, itemName)),
     ).toBeVisible();
     await new Promise((resolve) => setTimeout(resolve, 300));
-    await this.innerPage.locator(this.formatLabel(itemName)).click();
+    await this.innerPage
+      .locator(this.formatSubLabel(formatName, itemName))
+      .click();
   }
 
   public async openEditor() {
@@ -172,7 +210,8 @@ export class ProjectPage {
     }
   }
 
-  public addDSL = async (dsl: string) => await this.getEditor().applyDSL(dsl);
+  public addDSL = async (dsl: string, clickNeeded = true) =>
+    await this.getEditor().applyDSL(dsl, clickNeeded);
 
   public getFormula() {
     return this.innerPage.locator(this.formulaValue);
@@ -193,8 +232,12 @@ export class ProjectPage {
     await this.formulaBar.typeValue(formula);
   }
 
-  public async getCellText(row: number, column: number) {
+  public async getCellInnerValue(row: number, column: number) {
     return await this.grid.getCellTableText(row, column);
+  }
+
+  public async getCellVisibleValue(row: number, column: number) {
+    return await this.grid.getCellDisplayValue(row, column);
   }
 
   public async projectShouldBeInProjectsTree(projectName: string) {
@@ -211,16 +254,16 @@ export class ProjectPage {
 
   public titleShouldContainProjectName = async (projectName: string) =>
     await expect(
-      this.innerPage.locator(this.projectTitle).first()
+      this.innerPage.locator(this.projectTitle).first(),
     ).toContainText(projectName);
 
   public assertGridDimensions = async (
     expectedRowsCount: number,
-    expectedColumnsCount: number
+    expectedColumnsCount: number,
   ) =>
     this.grid.verifyGridDimensionsEqualsTo(
       expectedRowsCount,
-      expectedColumnsCount
+      expectedColumnsCount,
     );
 
   public clickOnGridCell = async (row: number, column: number) =>
@@ -238,7 +281,7 @@ export class ProjectPage {
   public async performMenuSubCommand(
     menuItem: string,
     hoverItem: string,
-    dropdownItem: string
+    dropdownItem: string,
   ) {
     await this.menu.performSubAction(menuItem, hoverItem, dropdownItem);
   }
@@ -250,6 +293,7 @@ export class ProjectPage {
     await this.history.closePanel();
     await this.errors.closePanel();
     await this.chatPanel.closePanel();
+    await this.details.closePanel();
   }
 
   public async showProjectPanel() {
@@ -270,6 +314,8 @@ export class ProjectPage {
         return this.inputs;
       case Panels.ChatPanel:
         return this.chatPanel;
+      case Panels.DetailsPanel:
+        return this.details;
       default:
         return null;
     }
@@ -289,14 +335,12 @@ export class ProjectPage {
     const exp = new RegExp(text, 'g');
     await expect(this.history.getHistoryItems().first()).toHaveAttribute(
       'title',
-      exp
+      exp,
     );
   }
 
-  public async assertCellMenuItemDisabled(itemName: string) {
-    await expect(
-      this.innerPage.getByText(itemName, { exact: true })
-    ).toBeDisabled();
+  public async assertCellMenuItemDisabled(itemLocator: string) {
+    await expect(this.innerPage.locator(itemLocator)).toBeDisabled();
   }
 
   public async openFormulasList() {

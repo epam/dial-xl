@@ -61,7 +61,7 @@ export function useFindTableKeys() {
 
       return values ? values : tableRow + firstRowNum;
     },
-    [viewGridData]
+    [viewGridData],
   );
 
   return {

@@ -1,16 +1,16 @@
 import { useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { debounce } from 'ts-debounce';
 
-import { useApp } from '@pixi/react';
+import { useApplication } from '@pixi/react';
 
 import { GridStateContext, GridViewportContext } from '../../../context';
 import { getMousePosition } from '../../../utils';
 
 export function useHoverEffects() {
-  const { getCell } = useContext(GridStateContext);
+  const { getCell, canvasId } = useContext(GridStateContext);
   const { getCellFromCoords } = useContext(GridViewportContext);
 
-  const app = useApp();
+  const { app } = useApplication();
 
   const [hoveredTable, setHoveredTable] = useState<string | null>(null);
   const [hoveredField, setHoveredField] = useState<string | null>(null);
@@ -29,7 +29,7 @@ export function useHoverEffects() {
     (e: Event) => {
       if (mouseDown.current) return;
 
-      const mousePosition = getMousePosition(e as MouseEvent);
+      const mousePosition = getMousePosition(e as MouseEvent, canvasId);
 
       if (!mousePosition) return;
 
@@ -51,22 +51,24 @@ export function useHoverEffects() {
         setHoveredField(null);
       }
     },
-    [getCell, getCellFromCoords]
+    [canvasId, getCell, getCellFromCoords],
   );
 
   useEffect(() => {
-    if (!app) return;
+    if (!app?.renderer) return;
 
     const debouncedOnMouseMove = debounce(onMouseMove, 50);
 
-    app.view.addEventListener?.('mousemove', debouncedOnMouseMove);
-    app.view.addEventListener?.('mousedown', onMouseDown);
-    app.view.addEventListener?.('mouseup', onMouseUp);
+    app.canvas.addEventListener?.('mousemove', debouncedOnMouseMove);
+    app.canvas.addEventListener?.('mousedown', onMouseDown);
+    app.canvas.addEventListener?.('mouseup', onMouseUp);
 
     return () => {
-      app?.view?.removeEventListener?.('mousemove', debouncedOnMouseMove);
-      app?.view?.removeEventListener?.('mousedown', onMouseDown);
-      app?.view?.removeEventListener?.('mouseup', onMouseUp);
+      if (!app?.renderer) return;
+
+      app?.canvas?.removeEventListener?.('mousemove', debouncedOnMouseMove);
+      app?.canvas?.removeEventListener?.('mousedown', onMouseDown);
+      app?.canvas?.removeEventListener?.('mouseup', onMouseUp);
     };
   }, [app, onMouseDown, onMouseMove, onMouseUp]);
 

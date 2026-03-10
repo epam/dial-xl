@@ -24,7 +24,7 @@ export function ChatButton() {
     useShallow((s) => ({
       toggleChat: s.toggleChat,
       isChatOpen: s.isChatOpen,
-    }))
+    })),
   );
   const [isHovered, setIsHovered] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -48,7 +48,7 @@ export function ChatButton() {
       setRatioPos(getRatioPos());
       document.body.style.pointerEvents = 'auto';
     },
-    []
+    [],
   );
 
   const handleWindowResize = useCallback(() => {
@@ -56,11 +56,11 @@ export function ChatButton() {
       ...prev,
       x: Math.min(
         ratioPos.rx * window.innerWidth,
-        window.innerWidth - defaultButtonOffsetX
+        window.innerWidth - defaultButtonOffsetX,
       ),
       y: Math.min(
         ratioPos.ry * window.innerHeight,
-        window.innerHeight - defaultButtonOffsetY
+        window.innerHeight - defaultButtonOffsetY,
       ),
     }));
   }, [ratioPos]);
@@ -105,7 +105,7 @@ export function ChatButton() {
           className={cx(
             'flex items-center cursor-move w-full absolute bg-bg-inverted px-[6px] py-1 rounded-[3px]',
             buttonDragHandleClass,
-            { hidden: !isHovered && !isDragging }
+            { hidden: !isHovered && !isDragging },
           )}
         >
           <Icon

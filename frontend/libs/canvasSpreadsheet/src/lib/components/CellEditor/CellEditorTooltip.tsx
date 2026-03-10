@@ -1,6 +1,6 @@
 import { Tooltip } from 'antd';
 import cx from 'classnames';
-import { MutableRefObject, useCallback, useState } from 'react';
+import { RefObject, useCallback, useState } from 'react';
 
 import { getPx } from '../../utils';
 import { CellEditorModes, GridCellEditorMode } from './types';
@@ -10,7 +10,7 @@ type Props = {
   editMode: GridCellEditorMode;
   bottomOffset: string;
   zoom: number;
-  mouseOverSwitcherTooltip: MutableRefObject<boolean>;
+  mouseOverSwitcherTooltip: RefObject<boolean>;
   onSecondaryEditModeSwitch: () => void;
   onCloseTooltip: () => void;
 };
@@ -33,13 +33,13 @@ export function CellEditorTooltip({
     mouseOverSwitcherTooltip.current = false;
   }, [mouseOverSwitcherTooltip]);
 
-  if (!editMode) return;
+  if (!editMode || editMode === 'empty_cell') return;
 
   return (
     <div
       className={cx(
         'absolute border border-b-0 rounded-t-[4px] pl-2 ml-[-2px] mb-px whitespace-nowrap',
-        getCellEditorColor(editMode, true)
+        getCellEditorColor(editMode, true),
       )}
       style={{
         bottom: bottomOffset,

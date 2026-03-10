@@ -12,6 +12,7 @@ import {
   useRef,
   useState,
 } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 
 import Icon from '@ant-design/icons';
 import {
@@ -25,11 +26,7 @@ import {
   TableAIIcon,
   TableIcon,
 } from '@frontend/common';
-import {
-  dynamicFieldName,
-  unescapeFieldName,
-  unescapeTableName,
-} from '@frontend/parser';
+import { unescapeFieldName, unescapeTableName } from '@frontend/parser';
 
 import { ChatOverlayContext, ProjectContext } from '../../../context';
 import { useRenameFieldDsl, useTableEditDsl } from '../../../hooks';
@@ -54,7 +51,11 @@ export function ProjectTree() {
     parsedSheet,
     diffData,
   } = useContext(ProjectContext);
-  const selectedCell = useViewStore((s) => s.selectedCell);
+  const [selectedTableName, selectedFieldName] = useViewStore(
+    useShallow(
+      (s) => [s.selectedCell?.tableName, s.selectedCell?.fieldName] as const,
+    ),
+  );
   const { isAIPendingChanges, isAIPreview } = useContext(ChatOverlayContext);
   const { renameTable, moveTableToSheet } = useTableEditDsl();
   const { renameField } = useRenameFieldDsl();
@@ -63,8 +64,8 @@ export function ProjectTree() {
 
   const treeRef = useRef<ComponentRef<typeof Tree>>(null);
   const prevParentRef = useRef<HTMLElement | null>(null);
-  const onRenameTableRef = useRef<RenameItemCallback>();
-  const onRenameFieldRef = useRef<RenameItemCallback>();
+  const onRenameTableRef = useRef<RenameItemCallback>(undefined);
+  const onRenameFieldRef = useRef<RenameItemCallback>(undefined);
 
   const { items, onContextMenuClick, createContextMenuItems, moveToNode } =
     useProjectTreeContextMenu(onRenameTableRef, onRenameFieldRef);
@@ -72,7 +73,7 @@ export function ProjectTree() {
   const [projectTreeData, setProjectTreeData] = useState<DataNode[]>([]);
   const [expandedKeys, setExpandedKeys] = useState<string[]>([]);
   const [selectedKeys, setSelectedKeys] = useState<TreeProps['selectedKeys']>(
-    []
+    [],
   );
   const [childData, setChildData] = useState<ProjectTreeChildData>({});
   const expandedSheets = useRef<Set<string>>(new Set());
@@ -85,7 +86,7 @@ export function ProjectTree() {
     (data: ProjectTreeChildData[string]) => {
       setRenamingLeafData(data);
     },
-    []
+    [],
   );
 
   useEffect(() => {
@@ -112,14 +113,14 @@ export function ProjectTree() {
           !diffData ||
           diffData?.defaultHighlight !== Highlight.DIMMED ||
           value.tables.some(
-            (table) => !!diffData.data[unescapeTableName(table.tableName)]
+            (table) => !!diffData.data[unescapeTableName(table.tableName)],
           );
 
         acc[key] = isPresented;
 
         return acc;
       },
-      {} as Record<string, boolean>
+      {} as Record<string, boolean>,
     );
 
     children = sortedSheets.map((sheet, index) => {
@@ -161,7 +162,7 @@ export function ProjectTree() {
               sheetName === name && 'text-text-accent-primary!',
               {
                 'text-text-secondary opacity-50': !diffSheets[name],
-              }
+              },
             )}
             id={key}
             title={name}
@@ -203,7 +204,7 @@ export function ProjectTree() {
                       tableHighlight === 'HIGHLIGHTED',
                     'text-text-secondary opacity-50':
                       tableHighlight === 'DIMMED',
-                  }
+                  },
                 )}
                 id={key}
                 title={t.tableName}
@@ -233,64 +234,62 @@ export function ProjectTree() {
                 }
               />
             ),
-            children: t.fields
-              .filter((f) => f.key.fieldName !== dynamicFieldName)
-              .map((f, fieldIndex) => {
-                // Child data to comfortable access needed information for navigation to field
-                childData[`0-0-${index}-${tableIndex}-${fieldIndex}`] = {
-                  tableName: t.tableName,
-                  sheetName: name,
-                  fieldName: f.key.fieldName,
-                };
-                const fieldHighlight =
-                  tableDiff?.fieldsHighlight?.find(
-                    (item) =>
-                      item.fieldName === unescapeFieldName(f.key.fieldName)
-                  )?.highlight ?? diffData?.defaultHighlight;
+            children: t.getUserVisibleFields().map((f, fieldIndex) => {
+              // Child data to comfortable access needed information for navigation to field
+              childData[`0-0-${index}-${tableIndex}-${fieldIndex}`] = {
+                tableName: t.tableName,
+                sheetName: name,
+                fieldName: f.key.fieldName,
+              };
+              const fieldHighlight =
+                tableDiff?.fieldsHighlight?.find(
+                  (item) =>
+                    item.fieldName === unescapeFieldName(f.key.fieldName),
+                )?.highlight ?? diffData?.defaultHighlight;
 
-                const key = `0-0-${index}-${tableIndex}-${fieldIndex}`;
+              const key = `0-0-${index}-${tableIndex}-${fieldIndex}`;
 
-                return {
-                  key,
-                  title: (
-                    <span
-                      className={classNames(
-                        'truncate flex justify-between group items-center',
-                        {
-                          'text-text-secondary opacity-50':
-                            fieldHighlight === 'DIMMED',
-                        }
-                      )}
-                      id={key}
-                      title={f.key.fieldName}
-                    >
-                      <span className="truncate">{f.key.fieldName}</span>
-                    </span>
-                  ),
-                  className: classNames(isPointClickMode && 'point-click'),
-                  icon: (
-                    <Icon
-                      className={cx('size-[18px]', {
-                        'text-text-accent-tertiary':
-                          fieldHighlight === 'HIGHLIGHTED',
+              return {
+                key,
+                title: (
+                  <span
+                    className={classNames(
+                      'truncate flex justify-between group items-center',
+                      {
                         'text-text-secondary opacity-50':
                           fieldHighlight === 'DIMMED',
-                        'text-text-secondary':
-                          fieldHighlight !== 'HIGHLIGHTED' &&
-                          fieldHighlight !== 'DIMMED',
-                      })}
-                      component={() =>
-                        isViewChanges && fieldHighlight !== 'DIMMED' ? (
-                          <ColumnsAIIcon />
-                        ) : (
-                          <ColumnsIcon />
-                        )
-                      }
-                    />
-                  ),
-                  isLeaf: true,
-                };
-              }),
+                      },
+                    )}
+                    id={key}
+                    title={f.key.fieldName}
+                  >
+                    <span className="truncate">{f.key.fieldName}</span>
+                  </span>
+                ),
+                className: classNames(isPointClickMode && 'point-click'),
+                icon: (
+                  <Icon
+                    className={cx('size-[18px]', {
+                      'text-text-accent-tertiary':
+                        fieldHighlight === 'HIGHLIGHTED',
+                      'text-text-secondary opacity-50':
+                        fieldHighlight === 'DIMMED',
+                      'text-text-secondary':
+                        fieldHighlight !== 'HIGHLIGHTED' &&
+                        fieldHighlight !== 'DIMMED',
+                    })}
+                    component={() =>
+                      isViewChanges && fieldHighlight !== 'DIMMED' ? (
+                        <ColumnsAIIcon />
+                      ) : (
+                        <ColumnsIcon />
+                      )
+                    }
+                  />
+                ),
+                isLeaf: true,
+              };
+            }),
           } as DataNode;
         }),
       };
@@ -326,7 +325,7 @@ export function ProjectTree() {
 
       moveToNode(data);
     },
-    [childData, moveToNode]
+    [childData, moveToNode],
   );
 
   const onExpand = useCallback(
@@ -336,7 +335,7 @@ export function ProjectTree() {
         node: EventDataNode<DataNode>;
         expanded: boolean;
         nativeEvent: Event;
-      }
+      },
     ) => {
       const { expanded, node, nativeEvent } = info;
       const parsedKey = node.key.toString().split('-');
@@ -356,7 +355,7 @@ export function ProjectTree() {
         if (isTable && tableName) expandedTables.current.delete(tableName);
       }
     },
-    [childData]
+    [childData],
   );
 
   const onSaveName = useCallback(
@@ -369,7 +368,7 @@ export function ProjectTree() {
         renameField(
           renamingLeafData.tableName,
           renamingLeafData.fieldName,
-          newName
+          newName,
         );
 
         return;
@@ -382,7 +381,7 @@ export function ProjectTree() {
       renameTable,
       renamingLeafData?.fieldName,
       renamingLeafData?.tableName,
-    ]
+    ],
   );
 
   const onCancelEditing = useCallback(() => {
@@ -395,14 +394,14 @@ export function ProjectTree() {
       // otherwise it's not registering events for on drop
       node.key.toString().split('-').length === 3 ||
       node.key.toString().split('-').length === 4,
-    []
+    [],
   );
 
   const handleNodeDropAllowed = useCallback(
     ({ dropNode }: { dropNode: DataNode }) => {
       return dropNode.key.toString().split('-').length === 3;
     },
-    []
+    [],
   );
 
   const handleDrop = useCallback(
@@ -421,7 +420,7 @@ export function ProjectTree() {
 
       moveTableToSheet(tableName, sourceSheetName, destinationSheetName);
     },
-    [childData, moveTableToSheet]
+    [childData, moveTableToSheet],
   );
 
   useEffect(() => {
@@ -440,7 +439,7 @@ export function ProjectTree() {
         child.children?.forEach((child) => {
           const tableName = childData[child.key.toString()].tableName;
 
-          if (tableName === selectedCell?.tableName) {
+          if (tableName === selectedTableName) {
             localSelectedKeys = [child.key];
             if (!expandedTables.current.has(child.key.toString())) {
               tablesToExpand.push(child.key.toString());
@@ -449,7 +448,7 @@ export function ProjectTree() {
             child.children?.forEach((child) => {
               const fieldName = childData[child.key.toString()].fieldName;
 
-              if (fieldName === selectedCell?.fieldName) {
+              if (fieldName === selectedFieldName) {
                 localSelectedKeys = [child.key];
               }
             });
@@ -476,8 +475,8 @@ export function ProjectTree() {
   }, [
     childData,
     projectTreeData,
-    selectedCell?.fieldName,
-    selectedCell?.tableName,
+    selectedFieldName,
+    selectedTableName,
     sheetName,
   ]);
 
@@ -487,14 +486,14 @@ export function ProjectTree() {
       prevParentRef.current?.classList.remove(tableSelectedNodeClass);
       prevParentRef.current = null;
 
-      if (!selectedCell?.fieldName || !selectedCell.tableName) return;
+      if (!selectedFieldName || !selectedTableName) return;
 
       const parentKey = Object.keys(childData).find((key) => {
         const d = childData[key];
 
         return (
           d.sheetName === sheetName &&
-          d.tableName === selectedCell.tableName &&
+          d.tableName === selectedFieldName &&
           !d.fieldName
         );
       });
@@ -502,7 +501,7 @@ export function ProjectTree() {
 
       const span = document.getElementById(parentKey);
       const wrapper = span?.closest<HTMLElement>(
-        '.ant-tree-node-content-wrapper'
+        '.ant-tree-node-content-wrapper',
       );
       if (!wrapper) return;
 
@@ -512,9 +511,9 @@ export function ProjectTree() {
   }, [
     childData,
     sheetName,
-    selectedCell?.fieldName,
-    selectedCell?.tableName,
     selectedKeys,
+    selectedFieldName,
+    selectedTableName,
   ]);
 
   if (!projectName) {

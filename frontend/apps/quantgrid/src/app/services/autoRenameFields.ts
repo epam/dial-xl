@@ -33,7 +33,7 @@ export const autoRenameFields = (dsl: string): string => {
           if (existingNames.has(currentFieldName)) {
             const newFieldName = createUniqueName(
               currentFieldName,
-              Array.from(allFieldNamesSet)
+              Array.from(allFieldNamesSet),
             );
             allFieldNamesSet.add(newFieldName);
 

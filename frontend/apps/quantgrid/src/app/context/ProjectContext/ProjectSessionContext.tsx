@@ -1,6 +1,7 @@
 import { createContext } from 'react';
 
 import {
+  ApiError,
   CompilationError,
   DslSheetChange,
   FieldInfo,
@@ -40,6 +41,7 @@ export type ProjectSessionValues = {
   hasEditPermissions: boolean; // User has edit permissions for a project
 
   beforeTemporaryState: ProjectState | null;
+  projectDataLoadingError: ApiError | null;
 };
 
 type ProjectSessionInternalValues = {
@@ -62,11 +64,11 @@ export type ProjectSessionActions = {
   setCurrentSheetName: (sheetName: string | null) => void;
   updateSheetContent: (
     changeItems: DslSheetChange[],
-    args?: { sendPutWorksheet?: boolean; responseIds?: ProjectAIResponseId[] }
+    args?: { sendPutWorksheet?: boolean; responseIds?: ProjectAIResponseId[] },
   ) => Promise<boolean | undefined>;
   manuallyUpdateSheetContent: (
     changeItems: DslSheetChange[],
-    sendPutWorksheet?: boolean
+    sendPutWorksheet?: boolean,
   ) => Promise<boolean | undefined>;
   startTemporaryState: () => void;
   resolveTemporaryState: (args: {
@@ -83,7 +85,7 @@ export type ProjectSessionActions = {
   }) => void;
   getVirtualProjectViewport: (
     viewports: Viewport[],
-    virtualTablesDSL: string[]
+    virtualTablesDSL: string[],
   ) => void;
 
   setIsProjectReadonlyByUser: (value: boolean) => void;
@@ -93,6 +95,7 @@ export type ProjectSessionActions = {
   initConflictResolving: () => void;
   resolveConflictUsingServerChanges: () => void;
   resolveConflictUsingLocalChanges: () => void;
+  setProjectDataLoadingError: (error: ApiError | null) => void;
 };
 
 type ProjectSessionContextType = ProjectSessionActions &
@@ -101,5 +104,5 @@ type ProjectSessionContextType = ProjectSessionActions &
   ProjectSessionInternalValues;
 
 export const ProjectSessionContext = createContext<ProjectSessionContextType>(
-  {} as ProjectSessionContextType
+  {} as ProjectSessionContextType,
 );

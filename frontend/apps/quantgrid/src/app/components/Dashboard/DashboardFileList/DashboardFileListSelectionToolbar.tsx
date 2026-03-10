@@ -107,8 +107,8 @@ export function DashboardFileListSelectionToolbar() {
   const onSelectAll = useCallback(() => {
     setSelectedItems(
       displayedDashboardItems.filter(
-        (i) => i.nodeType !== MetadataNodeType.FOLDER
-      )
+        (i) => i.nodeType !== MetadataNodeType.FOLDER,
+      ),
     );
   }, [displayedDashboardItems, setSelectedItems]);
 
@@ -121,12 +121,14 @@ export function DashboardFileListSelectionToolbar() {
   }, [deleteResources, refetchData, selectedItems]);
 
   const onDownload = useCallback(async () => {
-    toast.loading(`Downloading ${selectedItems.length} files...`);
+    const toastId = toast.loading(
+      `Downloading ${selectedItems.length} files...`,
+    );
     const result = await downloadFiles({
       files: selectedItems,
     });
 
-    toast.dismiss();
+    toast.dismiss(toastId);
     if (!result) {
       toast.error('Error happened during downloading files');
     }
@@ -151,7 +153,7 @@ export function DashboardFileListSelectionToolbar() {
         parentPath,
         nodeType,
         items: [],
-      }))
+      })),
     );
   }, [selectedItems]);
 
@@ -165,7 +167,7 @@ export function DashboardFileListSelectionToolbar() {
 
       await moveResources(selectedItems, path, bucket, () => refetchData());
     },
-    [moveResources, refetchData, selectedItems]
+    [moveResources, refetchData, selectedItems],
   );
 
   return (

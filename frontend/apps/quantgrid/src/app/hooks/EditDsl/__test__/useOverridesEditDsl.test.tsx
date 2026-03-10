@@ -1,3 +1,5 @@
+import { vi } from 'vitest';
+
 import { act, RenderHookResult } from '@testing-library/react';
 
 import { useOverridesEditDsl } from '../useOverridesEditDsl';
@@ -19,7 +21,7 @@ describe('useOverridesEditDsl', () => {
   });
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     const hookRender = hookTestSetup(useOverridesEditDsl, Wrapper);
     hook = hookRender.result;
@@ -40,7 +42,7 @@ describe('useOverridesEditDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Remove override 4 from table "t1"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }]
+        [{ sheetName: props.sheetName, content: expectedDsl }],
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -60,7 +62,7 @@ describe('useOverridesEditDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Remove override 4 from table "t1"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }]
+        [{ sheetName: props.sheetName, content: expectedDsl }],
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -81,7 +83,7 @@ describe('useOverridesEditDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Remove override 4 from table "t1"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }]
+        [{ sheetName: props.sheetName, content: expectedDsl }],
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -101,7 +103,7 @@ describe('useOverridesEditDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Remove override 2 from table "t1"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }]
+        [{ sheetName: props.sheetName, content: expectedDsl }],
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -120,7 +122,7 @@ describe('useOverridesEditDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Remove override 3 from table "t1"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }]
+        [{ sheetName: props.sheetName, content: expectedDsl }],
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -174,7 +176,7 @@ describe('useOverridesEditDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Remove override row from "t1"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }]
+        [{ sheetName: props.sheetName, content: expectedDsl }],
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -196,7 +198,7 @@ describe('useOverridesEditDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Remove override row from "t1"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }]
+        [{ sheetName: props.sheetName, content: expectedDsl }],
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -236,7 +238,7 @@ describe('useOverridesEditDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Edit override 555 in table "t1"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }]
+        [{ sheetName: props.sheetName, content: expectedDsl }],
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -256,7 +258,7 @@ describe('useOverridesEditDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Edit override 555 in table "t1"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }]
+        [{ sheetName: props.sheetName, content: expectedDsl }],
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -276,7 +278,7 @@ describe('useOverridesEditDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Edit override 555 in table "t1"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }]
+        [{ sheetName: props.sheetName, content: expectedDsl }],
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -312,7 +314,7 @@ describe('useOverridesEditDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Add override "111" to table "t1"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }]
+        [{ sheetName: props.sheetName, content: expectedDsl }],
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -332,7 +334,7 @@ describe('useOverridesEditDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Add override "111" to table "t1"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }]
+        [{ sheetName: props.sheetName, content: expectedDsl }],
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -354,13 +356,13 @@ describe('useOverridesEditDsl', () => {
         hook.current.addOverrides(1, 4, 't1', [
           ['5', '6'],
           ['7', '8'],
-        ])
+        ]),
       );
 
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Add multiple overrides to table "t1"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }]
+        [{ sheetName: props.sheetName, content: expectedDsl }],
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -380,13 +382,13 @@ describe('useOverridesEditDsl', () => {
         hook.current.addOverrides(2, 4, 't1', [
           ['5', '6'],
           ['7', '8'],
-        ])
+        ]),
       );
 
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Add multiple overrides to table "t1"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }]
+        [{ sheetName: props.sheetName, content: expectedDsl }],
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -410,7 +412,7 @@ describe('useOverridesEditDsl', () => {
         // Assert
         expect(props.appendToFn).toHaveBeenCalledWith(
           `Edit override AIVALUE("model", 1,"") in table "t1"`,
-          [{ sheetName: props.sheetName, content: expectedDsl }]
+          [{ sheetName: props.sheetName, content: expectedDsl }],
         );
         expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
           { sheetName: props.sheetName, content: expectedDsl },
@@ -430,7 +432,7 @@ describe('useOverridesEditDsl', () => {
         // Assert
         expect(props.appendToFn).not.toHaveBeenCalledWith(
           `Edit override AIVALUE("model",1,"") in table "t1"`,
-          [{ sheetName: props.sheetName, content: expectedDsl }]
+          [{ sheetName: props.sheetName, content: expectedDsl }],
         );
         expect(props.manuallyUpdateSheetContent).not.toHaveBeenCalled();
       });
@@ -448,7 +450,7 @@ describe('useOverridesEditDsl', () => {
         // Assert
         expect(props.appendToFn).toHaveBeenCalledWith(
           `Edit override AIVALUE("model",4,"") in table "t1"`,
-          [{ sheetName: props.sheetName, content: expectedDsl }]
+          [{ sheetName: props.sheetName, content: expectedDsl }],
         );
         expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
           { sheetName: props.sheetName, content: expectedDsl },
@@ -468,13 +470,14 @@ describe('useOverridesEditDsl', () => {
         // Assert
         expect(props.appendToFn).toHaveBeenCalledWith(
           `Edit override AIVALUE("model",2,"")+AIVALUE("model",3,"") in table "t1"`,
-          [{ sheetName: props.sheetName, content: expectedDsl }]
+          [{ sheetName: props.sheetName, content: expectedDsl }],
         );
         expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
           { sheetName: props.sheetName, content: expectedDsl },
         ]);
       });
     });
+
     describe('usual table', () => {
       it('should regenerate override in table if version not presented', () => {
         // Arrange
@@ -490,7 +493,7 @@ describe('useOverridesEditDsl', () => {
         // Assert
         expect(props.appendToFn).toHaveBeenCalledWith(
           `Edit override AIVALUE("model", 1,"") in table "t1"`,
-          [{ sheetName: props.sheetName, content: expectedDsl }]
+          [{ sheetName: props.sheetName, content: expectedDsl }],
         );
         expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
           { sheetName: props.sheetName, content: expectedDsl },
@@ -510,7 +513,7 @@ describe('useOverridesEditDsl', () => {
         // Assert
         expect(props.appendToFn).not.toHaveBeenCalledWith(
           `Edit override AIVALUE("model",1,"") in table "t1"`,
-          [{ sheetName: props.sheetName, content: expectedDsl }]
+          [{ sheetName: props.sheetName, content: expectedDsl }],
         );
         expect(props.manuallyUpdateSheetContent).not.toHaveBeenCalled();
       });
@@ -528,7 +531,7 @@ describe('useOverridesEditDsl', () => {
         // Assert
         expect(props.appendToFn).toHaveBeenCalledWith(
           `Edit override AIVALUE("model",4,"") in table "t1"`,
-          [{ sheetName: props.sheetName, content: expectedDsl }]
+          [{ sheetName: props.sheetName, content: expectedDsl }],
         );
         expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
           { sheetName: props.sheetName, content: expectedDsl },
@@ -548,7 +551,7 @@ describe('useOverridesEditDsl', () => {
         // Assert
         expect(props.appendToFn).toHaveBeenCalledWith(
           `Edit override AIVALUE("model",2,"")+AIVALUE("model",3,"") in table "t1"`,
-          [{ sheetName: props.sheetName, content: expectedDsl }]
+          [{ sheetName: props.sheetName, content: expectedDsl }],
         );
         expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
           { sheetName: props.sheetName, content: expectedDsl },

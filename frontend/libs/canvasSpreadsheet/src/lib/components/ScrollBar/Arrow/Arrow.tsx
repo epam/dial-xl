@@ -1,7 +1,5 @@
-import * as PIXI from 'pixi.js';
+import { Graphics } from 'pixi.js';
 import { useCallback, useContext, useMemo, useRef, useState } from 'react';
-
-import { Graphics } from '@pixi/react';
 
 import { GridStateContext, GridViewportContext } from '../../../context';
 import { useDraw } from '../../../hooks';
@@ -21,9 +19,9 @@ export function Arrow({ place }: Props) {
     useContext(GridStateContext);
   const { moveViewport } = useContext(GridViewportContext);
 
-  const graphicsRef = useRef<PIXI.Graphics>(null);
+  const graphicsRef = useRef<Graphics>(null);
   const [isArrowHovered, setIsArrowHovered] = useState(false);
-  const mouseDownInterval = useRef<ReturnType<typeof setInterval>>();
+  const mouseDownInterval = useRef<ReturnType<typeof setInterval>>(undefined);
 
   const isHorizontal = place === 'left' || place === 'right';
 
@@ -41,8 +39,8 @@ export function Arrow({ place }: Props) {
       y: isHorizontal
         ? gridHeight - arrowWrapperSize + shiftPosition
         : place === 'up'
-        ? shiftPosition
-        : gridHeight - trackSize - arrowWrapperSize + shiftPosition,
+          ? shiftPosition
+          : gridHeight - trackSize - arrowWrapperSize + shiftPosition,
       width: arrowSize,
       height: arrowSize,
     };
@@ -96,8 +94,8 @@ export function Arrow({ place }: Props) {
       y: isHorizontal
         ? gridHeight - arrowWrapperSize
         : place === 'up'
-        ? 0
-        : gridHeight - trackSize - arrowWrapperSize,
+          ? 0
+          : gridHeight - trackSize - arrowWrapperSize,
       width: arrowWrapperSize,
       height: arrowWrapperSize,
     };
@@ -127,8 +125,8 @@ export function Arrow({ place }: Props) {
     const moveY = isHorizontal
       ? 0
       : place === 'up'
-      ? -gridSizes.cell.height
-      : gridSizes.cell.height;
+        ? -gridSizes.cell.height
+        : gridSizes.cell.height;
 
     moveViewport(moveX, moveY);
     mouseDownInterval.current = setInterval(() => {
@@ -155,20 +153,18 @@ export function Arrow({ place }: Props) {
     g.clear();
 
     // We need to draw wrapper to have events not only on arrow but in bigger sizes
-    g.beginFill(theme.scrollBar.trackColor, 0.01)
-      .drawRect(
-        arrowWrapperRect.x,
-        arrowWrapperRect.y,
-        arrowWrapperRect.width,
-        arrowWrapperRect.height
-      )
-      .beginFill(
-        isArrowHovered
-          ? theme.scrollBar.thumbColorHovered
-          : theme.scrollBar.thumbColor,
-        1
-      )
-      .drawPolygon(arrowCoords);
+    g.rect(
+      arrowWrapperRect.x,
+      arrowWrapperRect.y,
+      arrowWrapperRect.width,
+      arrowWrapperRect.height,
+    ).fill({ color: theme.scrollBar.trackColor, alpha: 0.01 });
+
+    g.poly(arrowCoords.flatMap((c) => [c.x, c.y])).fill({
+      color: isArrowHovered
+        ? theme.scrollBar.thumbColorHovered
+        : theme.scrollBar.thumbColor,
+    });
   }, [
     arrowCoords,
     arrowWrapperRect.height,
@@ -184,14 +180,15 @@ export function Arrow({ place }: Props) {
   useDraw(drawArrow);
 
   return (
-    <Graphics
+    <pixiGraphics
       cursor="pointer"
+      draw={() => {}}
       eventMode="static"
-      onpointerdown={onMouseDown}
-      onpointerout={onMouseOut}
-      onpointerover={onMouseOver}
-      onpointerup={onMouseUp}
       ref={graphicsRef}
+      onPointerDown={onMouseDown}
+      onPointerOut={onMouseOut}
+      onPointerOver={onMouseOver}
+      onPointerUp={onMouseUp}
     />
   );
 }

@@ -42,9 +42,9 @@ export const useChatAnsweringTabUpdate = (answerIsGenerating: boolean) => {
       newDotsAmount === 0
         ? '/faviconProgress/progressFavicon1.png'
         : newDotsAmount === 1
-        ? '/faviconProgress/progressFavicon2.png'
-        : '/faviconProgress/progressFavicon3.png',
-      'image/png'
+          ? '/faviconProgress/progressFavicon2.png'
+          : '/faviconProgress/progressFavicon3.png',
+      'image/png',
     );
   }, []);
 

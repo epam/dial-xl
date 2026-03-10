@@ -27,7 +27,7 @@ export function createErrorCell(
   cell: GridCell,
   message: string,
   isFieldError: boolean,
-  isCellFieldError?: boolean
+  isCellFieldError?: boolean,
 ): CellError | null {
   if (!cell.table) return null;
 

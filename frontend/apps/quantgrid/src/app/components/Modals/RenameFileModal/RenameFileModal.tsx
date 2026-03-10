@@ -101,7 +101,7 @@ export function RenameFileModal({ item, onModalClose }: Props) {
         handleOk();
       }
     },
-    [handleOk, initialFileName, isOpen, newFileName]
+    [handleOk, initialFileName, isOpen, newFileName],
   );
 
   useEffect(() => {
@@ -139,7 +139,7 @@ export function RenameFileModal({ item, onModalClose }: Props) {
         className: cx(
           modalFooterButtonClasses,
           primaryButtonClasses,
-          primaryDisabledButtonClasses
+          primaryDisabledButtonClasses,
         ),
         disabled:
           !newFileName ||

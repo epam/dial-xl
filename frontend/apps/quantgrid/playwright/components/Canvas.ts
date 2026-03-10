@@ -1,8 +1,13 @@
 /* eslint-disable no-console */
-import { Page } from '@playwright/test';
+import { expect, Page } from '@playwright/test';
 
+import { MenuType } from '../enums/MenuType';
 import { MoveDirection } from '../enums/MoveDirection';
-import { getCellCoordinates, getCellText } from '../helpers/canvasGridApiUtil';
+import {
+  getCellCoordinates,
+  getCellDisplayValue,
+  getCellText,
+} from '../helpers/canvasGridApiUtil';
 import { Table } from '../logic-entities/Table';
 import { WorkArea } from './abstractions/WorkArea';
 import { BaseComponent } from './BaseComponent';
@@ -19,12 +24,16 @@ export class Canvas extends BaseComponent implements WorkArea {
     super(page);
     this.canvasCellEditor = new Editor(
       page,
-      page.locator(this.canvasCellEditorRootLocator)
+      page.locator(this.canvasCellEditorRootLocator),
     );
   }
 
   public async getCellTableText(row: number, column: number) {
     return await getCellText(this.innerPage, { col: column, row: row });
+  }
+
+  public async getCellDisplayValue(row: number, column: number) {
+    return await getCellDisplayValue(this.innerPage, { col: column, row: row });
   }
 
   public async clickOnCell(row: number, column: number) {
@@ -50,7 +59,7 @@ export class Canvas extends BaseComponent implements WorkArea {
     rowStart: number,
     columnStrart: number,
     rowEnd: number,
-    columnEnd: number
+    columnEnd: number,
   ) {
     await this.innerPage.locator(this.rootLocator).getAttribute('class');
   }
@@ -77,14 +86,14 @@ export class Canvas extends BaseComponent implements WorkArea {
   }
   public async verifyGridDimensionsEqualsTo(
     expectedRows: number,
-    expectedColumns: number
+    expectedColumns: number,
   ) {
     await this.innerPage.locator(this.rootLocator).getAttribute('class');
   }
   public async performMenuAction(
     row: number,
     column: number,
-    actionText: string
+    actionText: string,
   ) {
     await this.innerPage.locator(this.rootLocator).getAttribute('class');
   }
@@ -102,7 +111,8 @@ export class Canvas extends BaseComponent implements WorkArea {
   public async performCellAction(
     row: number,
     column: number,
-    actionText: string
+    menuType: MenuType,
+    actionText: string,
   ) {
     const coords = await getCellCoordinates(this.innerPage, {
       col: column,
@@ -111,22 +121,41 @@ export class Canvas extends BaseComponent implements WorkArea {
     await this.innerPage
       .locator(this.rootLocator)
       .click({ position: coords, button: 'right' });
-    await this.innerPage.getByText(actionText, { exact: true }).click();
+    const dataQa = `${menuType}-${actionText}`;
+    await this.innerPage.locator(`[data-qa="${dataQa}"]`).click();
   }
   public async performCellSubAction(
     row: number,
     column: number,
+    menuType: MenuType,
     groupText: string,
-    actionText: string
+    actionText: string,
   ) {
-    await this.hoverCellMenuAction(row, column, groupText);
-    await this.innerPage.getByText(actionText, { exact: true }).click();
+    const dataQa = `${menuType}-${groupText}-${actionText}`;
+    const subItem = this.innerPage.locator(`[data-qa="${dataQa}"]`);
+    let retries = 0;
+    let successfull = false;
+    do {
+      try {
+        do {
+          await this.hoverCellMenuAction(row, column, menuType, groupText);
+          await expect(subItem).toBeVisible();
+        } while (!(await subItem.boundingBox()) && retries++ < 5);
+        await subItem.click();
+        successfull = true;
+      } catch (error) {
+        console.log(
+          `Error performing cell sub action '${actionText}': ${error}`,
+        );
+      }
+    } while (!successfull && retries++ < 5);
   }
 
   public async hoverCellMenuAction(
     row: number,
     column: number,
-    groupText: string
+    menuType: MenuType,
+    groupText: string,
   ) {
     const coords = await getCellCoordinates(this.innerPage, {
       col: column,
@@ -135,22 +164,33 @@ export class Canvas extends BaseComponent implements WorkArea {
     await this.innerPage
       .locator(this.rootLocator)
       .click({ position: coords, button: 'right' });
-    await this.innerPage.getByText(groupText, { exact: true }).hover();
+    const dataQa = `${menuType}-${groupText}`;
+    const item = this.innerPage.locator(`[data-qa="${dataQa}"]`);
+    await expect(item).toBeVisible();
+    const box = await item.boundingBox();
+    await item.hover();
   }
 
   public async performMenuSubAction(
     row: number,
     column: number,
     groupText: string,
-    actionText: string
+    actionText: string,
   ) {
-    await this.performCellSubAction(row, column, groupText, actionText);
+    // This method is used for table header menus
+    await this.performCellSubAction(
+      row,
+      column,
+      MenuType.TableHeader,
+      groupText,
+      actionText,
+    );
   }
 
   public async expectCellTextChange(
     row: number,
     column: number,
-    newCellText: string
+    newCellText: string,
   ) {
     await this.innerPage.locator(this.rootLocator).getAttribute('class');
   }
@@ -194,7 +234,7 @@ export class Canvas extends BaseComponent implements WorkArea {
     initialRow: number,
     initialColumn: number,
     text: string,
-    direction: MoveDirection
+    direction: MoveDirection,
   ) {
     await this.innerPage.locator(this.rootLocator).getAttribute('class');
   }

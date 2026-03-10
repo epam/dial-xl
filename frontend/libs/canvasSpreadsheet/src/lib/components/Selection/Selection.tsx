@@ -1,9 +1,6 @@
-import * as PIXI from 'pixi.js';
+import { Container, Graphics, Sprite } from 'pixi.js';
 import { useCallback, useContext, useEffect, useMemo, useRef } from 'react';
 
-import { Graphics } from '@pixi/react';
-
-import { ComponentLayer } from '../../constants';
 import { GridStateContext, GridViewportContext } from '../../context';
 import { useCellUtils, useDraw } from '../../hooks';
 import { Rectangle } from '../../types';
@@ -11,7 +8,11 @@ import { drawDashedRect } from '../../utils';
 import { getFullIconName } from '../Cells/utils';
 import { useSelection } from './useSelection';
 
-export function Selection() {
+type Props = {
+  zIndex: number;
+};
+
+export function Selection({ zIndex }: Props) {
   const {
     gridSizes,
     theme,
@@ -19,23 +20,24 @@ export function Selection() {
     pointClickMode,
     selectedTable,
     isTableDragging,
+    selectedChart,
+    selectionEdges,
   } = useContext(GridStateContext);
   const { getCellX, getCellY, gridViewportSubscriber } =
     useContext(GridViewportContext);
 
   const selectionCoordsRef = useRef<Rectangle | null>(null);
-  const graphicsRef = useRef<PIXI.Graphics>(null);
+  const containerRef = useRef<Container>(null);
+  const graphicsRef = useRef<Graphics>(null);
   const dirtyRef = useRef(false);
   const prevRectRef = useRef<Rectangle | null>(null);
   const prevSelectedTableRef = useRef<string | null>(null);
 
   const { getDashedRectPolygons } = useCellUtils();
-  const { selectionEdges } = useSelection();
+  useSelection();
 
   const moveTableIcon = useMemo(() => {
-    return PIXI.Sprite.from(getFullIconName('useArrowsMove', theme.themeName), {
-      resourceOptions: { scale: 4 },
-    });
+    return Sprite.from(getFullIconName('useArrowsMove', theme.themeName));
   }, [theme]);
 
   const getSelectionCoords = useCallback((): null | void => {
@@ -57,9 +59,9 @@ export function Selection() {
 
     const next: Rectangle = {
       x: Math.min(x1, x2),
-      y: Math.min(y1, y2),
-      width: Math.abs(x2 - x1),
-      height: Math.abs(y2 - y1),
+      y: Math.min(y1 + gridSizes.gridLine.width, y2 + gridSizes.gridLine.width),
+      width: Math.abs(x2 - x1) - gridSizes.gridLine.width,
+      height: Math.abs(y2 - y1) - gridSizes.gridLine.width,
     };
 
     const prev = prevRectRef.current;
@@ -77,7 +79,13 @@ export function Selection() {
     selectionCoordsRef.current = next;
     dirtyRef.current = true;
     prevSelectedTableRef.current = selectedTable;
-  }, [getCellX, getCellY, selectionEdges, selectedTable]);
+  }, [
+    getCellX,
+    getCellY,
+    selectionEdges,
+    selectedTable,
+    gridSizes.gridLine.width,
+  ]);
 
   useEffect(() => {
     return gridViewportSubscriber.current.subscribe(() => {
@@ -90,32 +98,46 @@ export function Selection() {
   }, [getSelectionCoords]);
 
   const draw = useCallback((): undefined | null | void => {
-    if (!graphicsRef.current) return;
+    if (!graphicsRef.current || !containerRef.current) return;
 
     const graphics = graphicsRef.current;
+    const container = containerRef.current;
+
+    // Do not draw selection under the selected chart
+    if (selectedChart && !isTableDragging) {
+      graphics.clear();
+      moveTableIcon.visible = false;
+
+      return;
+    }
 
     if (!dirtyRef.current) return;
     dirtyRef.current = false;
 
     const selectionCoords = selectionCoordsRef.current;
     graphics.clear();
-    graphics.removeChildren();
+    moveTableIcon.visible = false;
+
     if (!selectionCoords) return;
 
-    const { borderColor, bgColor, bgAlpha } = theme.selection;
+    const { borderColor, bgColor, bgAlpha, alpha, alignment } = theme.selection;
     const { x, y, width, height } = selectionCoords;
     const { selection } = gridSizes;
 
     if (!selectionEdges) return null;
 
     if (selectedTable && !isTableDragging) {
+      // eslint-disable-next-line react-hooks/immutability
       moveTableIcon.x = x + selection.moveTableIconMargin;
       moveTableIcon.y = y + selection.moveTableIconMargin;
       moveTableIcon.width = selection.moveTableIconWidth;
       moveTableIcon.height = selection.moveTableIconHeight;
-      graphics.addChild(moveTableIcon);
-    } else {
-      graphics.removeChild(moveTableIcon);
+      moveTableIcon.visible = true;
+
+      // Add icon to container if not already added
+      if (!moveTableIcon.parent) {
+        container.addChild(moveTableIcon);
+      }
     }
 
     if (pointClickMode) {
@@ -133,10 +155,14 @@ export function Selection() {
     }
 
     graphics
-      .lineStyle(gridSizes.selection.width, borderColor)
-      .beginFill(bgColor, bgAlpha)
-      .drawRect(x, y, width, height)
-      .endFill();
+      .rect(x, y, width, height)
+      .fill({ color: bgColor, alpha: bgAlpha })
+      .stroke({
+        width: gridSizes.selection.width,
+        color: borderColor,
+        alpha,
+        alignment,
+      });
   }, [
     getDashedRectPolygons,
     gridSizes,
@@ -145,6 +171,7 @@ export function Selection() {
     pointClickError,
     pointClickMode,
     selectedTable,
+    selectedChart,
     selectionEdges,
     theme.pointClickSelection,
     theme.selection,
@@ -152,5 +179,13 @@ export function Selection() {
 
   useDraw(draw);
 
-  return <Graphics ref={graphicsRef} zIndex={ComponentLayer.Selection} />;
+  return (
+    <pixiContainer label="Selection" ref={containerRef} zIndex={zIndex}>
+      <pixiGraphics
+        draw={() => {}}
+        label="SelectionGraphics"
+        ref={graphicsRef}
+      />
+    </pixiContainer>
+  );
 }

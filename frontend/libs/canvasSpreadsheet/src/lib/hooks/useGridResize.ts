@@ -1,9 +1,9 @@
-import * as PIXI from 'pixi.js';
+import { Application } from 'pixi.js';
 import { RefObject, useCallback, useEffect, useState } from 'react';
 
 type Props = {
   gridContainerRef: RefObject<HTMLDivElement | null>;
-  app: PIXI.Application | null;
+  app: Application | null;
 };
 
 export function useGridResize({ gridContainerRef, app }: Props) {
@@ -13,7 +13,7 @@ export function useGridResize({ gridContainerRef, app }: Props) {
     if (gridContainerRef.current) {
       const { width, height } =
         gridContainerRef.current.getBoundingClientRect();
-      setGridSize({ width, height });
+      setGridSize({ width: Math.floor(width), height: Math.floor(height) });
     }
   }, [gridContainerRef]);
 
@@ -27,10 +27,10 @@ export function useGridResize({ gridContainerRef, app }: Props) {
     const observer = new ResizeObserver((entries) => {
       for (const entry of entries) {
         const { width, height } = entry.contentRect;
-        setGridSize({ width, height });
+        setGridSize({ width: Math.floor(width), height: Math.floor(height) });
 
         if (app && app.renderer) {
-          app.renderer?.resize(width, height);
+          app.renderer?.resize(Math.floor(width), Math.floor(height));
           app.render?.();
         }
       }

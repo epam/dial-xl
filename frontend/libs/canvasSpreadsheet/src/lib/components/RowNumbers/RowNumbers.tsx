@@ -1,4 +1,9 @@
-import * as PIXI from 'pixi.js';
+import {
+  BitmapText,
+  Container,
+  FederatedPointerEvent,
+  Graphics,
+} from 'pixi.js';
 import {
   useCallback,
   useContext,
@@ -8,32 +13,38 @@ import {
   useState,
 } from 'react';
 
-import { Container, Graphics } from '@pixi/react';
-
-import { adjustmentFontMultiplier, ComponentLayer } from '../../constants';
 import { GridStateContext, GridViewportContext } from '../../context';
 import { useDraw } from '../../hooks';
-import { Cell, Color, Edges } from '../../types';
+import { Cell, Color } from '../../types';
 import { getMousePosition } from '../../utils';
 
-export function RowNumbers() {
-  const { getBitmapFontName, theme, gridSizes, selection$ } =
-    useContext(GridStateContext);
+type Props = {
+  zIndex: number;
+};
+
+export function RowNumbers({ zIndex }: Props) {
+  const {
+    getBitmapFontName,
+    theme,
+    gridSizes,
+    selectionEdges,
+    zoom,
+    canvasId,
+  } = useContext(GridStateContext);
   const { getCellY, viewportEdges, getCellFromCoords, gridViewportSubscriber } =
     useContext(GridViewportContext);
 
-  const [selectionEdges, setSelectionEdges] = useState<Edges | null>(null);
-
-  const graphicsRef = useRef<PIXI.Graphics>(null);
+  const containerRef = useRef<Container>(null);
+  const graphicsRef = useRef<Graphics>(null);
   const [rowNumbers, _setRowNumbers] = useState<Cell[]>([]);
   const [hoveredRow, setHoveredRow] = useState<number>();
   const freeCells = useRef<Cell[]>([]);
   const rowNumbersRef = useRef<Cell[]>([]);
 
   const fontName = useMemo(() => {
-    const { fontColorName, fontFamily } = theme.rowNumber;
+    const { fontFamily } = theme.rowNumber;
 
-    return getBitmapFontName(fontFamily, fontColorName);
+    return getBitmapFontName(fontFamily);
   }, [getBitmapFontName, theme]);
 
   const selectedRows = useMemo(
@@ -43,11 +54,11 @@ export function RowNumbers() {
           .filter(
             ({ row }) =>
               Math.min(selectionEdges.startRow, selectionEdges.endRow) <= row &&
-              row <= Math.max(selectionEdges.startRow, selectionEdges.endRow)
+              row <= Math.max(selectionEdges.startRow, selectionEdges.endRow),
           )
           .map(({ row }) => row)) ||
       undefined,
-    [rowNumbers, selectionEdges]
+    [rowNumbers, selectionEdges],
   );
 
   const isFullSelectedRows = useMemo(
@@ -56,7 +67,7 @@ export function RowNumbers() {
       Math.min(selectionEdges.startCol, selectionEdges.endCol) === 1 &&
       gridSizes.edges.col ===
         Math.max(selectionEdges.startCol, selectionEdges.endCol),
-    [gridSizes.edges.col, selectionEdges]
+    [gridSizes.edges.col, selectionEdges],
   );
 
   const setRowNumbers = useCallback((newRowNumbers: Cell[]) => {
@@ -65,10 +76,10 @@ export function RowNumbers() {
   }, []);
 
   const handleMouseMove = useCallback(
-    (e: PIXI.FederatedPointerEvent) => {
+    (e: FederatedPointerEvent) => {
       if (!graphicsRef.current) return;
 
-      const mousePosition = getMousePosition(e);
+      const mousePosition = getMousePosition(e, canvasId);
 
       if (!mousePosition) return;
 
@@ -77,7 +88,7 @@ export function RowNumbers() {
       setHoveredRow(row);
       graphicsRef.current.cursor = 'e-resize';
     },
-    [getCellFromCoords]
+    [canvasId, getCellFromCoords],
   );
 
   const handleMouseOut = useCallback(() => {
@@ -129,8 +140,13 @@ export function RowNumbers() {
       }
 
       if (!appendedText) {
-        appendedText = new PIXI.BitmapText('', { fontName });
-        graphicsRef.current.addChild(appendedText);
+        appendedText = new BitmapText({
+          text: '',
+          style: { fontFamily: fontName },
+        });
+        if (containerRef.current) {
+          containerRef.current.addChild(appendedText);
+        }
       }
 
       updatedRowNumbers.push({ row, col: 0, text: appendedText });
@@ -148,40 +164,41 @@ export function RowNumbers() {
     return () => unsubscribe();
   }, [gridViewportSubscriber, updateRowNumbers]);
 
-  useEffect(() => {
-    const subscription = selection$.subscribe((selection) => {
-      setSelectionEdges(selection);
-    });
-
-    return () => subscription.unsubscribe();
-  }, [selection$]);
-
   const draw = useCallback(() => {
     if (!graphicsRef.current || !viewportEdges.current) return;
 
     const graphics = graphicsRef.current;
     const { rowNumber, gridLine } = gridSizes;
-    const { bgColorSelected, bgColorFullSelected, bgColorHover, bgColor } =
-      theme.rowNumber;
+    const {
+      bgColorSelected,
+      bgColorFullSelected,
+      bgColorHover,
+      bgColor,
+      fontColor,
+    } = theme.rowNumber;
 
     graphics.clear();
 
     rowNumbersRef.current.forEach(({ row, text }) => {
-      drawRow(
+      drawRow({
         row,
         graphics,
         bgColor,
+        fontColor,
         rowNumber,
         gridLine,
         bgColorHover,
         bgColorFullSelected,
         bgColorSelected,
-        text
-      );
+        text,
+        zoom,
+      });
     });
 
     freeCells.current.slice(1).forEach((cell) => {
-      graphicsRef.current?.removeChild(cell.text);
+      if (cell.text.parent) {
+        cell.text.parent.removeChild(cell.text);
+      }
       cell.text.destroy();
     });
     freeCells.current = freeCells.current.slice(0, 1);
@@ -201,40 +218,55 @@ export function RowNumbers() {
   useDraw(draw);
 
   return (
-    <Container zIndex={ComponentLayer.RowNumbers}>
-      <Graphics
-        onmousemove={handleMouseMove}
-        onmouseout={handleMouseOut}
+    <pixiContainer label="RowNumbers" ref={containerRef} zIndex={zIndex}>
+      <pixiGraphics
+        draw={() => {}}
+        eventMode="static"
+        label="RowNumbersGraphics"
         ref={graphicsRef}
-        interactive
+        onMouseMove={handleMouseMove}
+        onMouseOut={handleMouseOut}
       />
-    </Container>
+    </pixiContainer>
   );
 
-  function drawRow(
-    row: number,
-    graphics: PIXI.Graphics,
-    bgColor: Color,
+  function drawRow({
+    row,
+    graphics,
+    bgColor,
+    fontColor,
+    rowNumber,
+    gridLine,
+    bgColorHover,
+    bgColorFullSelected,
+    bgColorSelected,
+    text,
+    zoom,
+  }: {
+    row: number;
+    graphics: Graphics;
+    bgColor: Color;
+    fontColor: Color;
     rowNumber: {
       minWidth: number;
       width: number;
       height: number;
       fontSize: number;
       padding: number;
-    },
-    gridLine: { width: number },
-    bgColorHover: Color,
-    bgColorFullSelected: Color,
-    bgColorSelected: Color,
-    text: PIXI.BitmapText
-  ) {
+    };
+    gridLine: { width: number };
+    bgColorHover: Color;
+    bgColorFullSelected: Color;
+    bgColorSelected: Color;
+    text: BitmapText;
+    zoom: number;
+  }) {
     const y = getCellY(row);
 
     // We need to draw rectangle with default background to have it under computed background with transparency
     graphics
-      .beginFill(bgColor)
-      .drawRect(0, y, rowNumber.width - gridLine.width, rowNumber.height)
-      .endFill();
+      .rect(0, y, rowNumber.width - gridLine.width, rowNumber.height)
+      .fill({ color: bgColor });
 
     // drawing additional rect with customized(potentially with alpha) background
     const isSelectedRow = selectedRows?.includes(row);
@@ -242,23 +274,24 @@ export function RowNumbers() {
       hoveredRow === row
         ? bgColorHover
         : isSelectedRow
-        ? isFullSelectedRows
-          ? bgColorFullSelected
-          : bgColorSelected
-        : undefined;
+          ? isFullSelectedRows
+            ? bgColorFullSelected
+            : bgColorSelected
+          : undefined;
 
     if (computedBgColor) {
       graphics
-        .beginFill(computedBgColor)
-        .drawRect(0, y, rowNumber.width - gridLine.width, rowNumber.height)
-        .endFill();
+        .rect(0, y, rowNumber.width - gridLine.width, rowNumber.height)
+        .fill({ color: computedBgColor });
     }
 
-    text.fontName = fontName;
-    text.fontSize = rowNumber.fontSize;
+    text.style.fontFamily = fontName;
+    text.style.fontSize = rowNumber.fontSize;
+    text.style.lineHeight = rowNumber.fontSize;
+    text.style.fill = fontColor;
     text.text = row.toString();
 
     text.x = rowNumber.padding;
-    text.y = y + rowNumber.fontSize * adjustmentFontMultiplier;
+    text.y = y + Math.floor((rowNumber.height - rowNumber.fontSize) / 2 - zoom);
   }
 }

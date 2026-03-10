@@ -12,7 +12,7 @@ import { getColor, getThemeColors } from '../common';
 
 export function organizeHistogramChartData(
   chartData: ChartsData,
-  gridChart: GridChart
+  gridChart: GridChart,
 ): OrganizedData | undefined {
   const { chartSections, customSeriesColors, selectedKeys } = gridChart;
   const selectedSeries = selectedKeys[histogramChartSeriesSelector] as string;
@@ -46,7 +46,7 @@ export function organizeHistogramChartData(
     return;
 
   const xAxisData = bucketNumbers.map(
-    (_, i) => `${lowerBounds[i]} -\n ${upperBounds[i]}`
+    (_, i) => `${lowerBounds[i]} -\n ${upperBounds[i]}`,
   );
 
   const series: EChartsOption['series'] = [

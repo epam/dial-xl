@@ -1,4 +1,4 @@
-import { ReactElement, ReactNode } from 'react';
+import { type JSX, ReactElement, ReactNode } from 'react';
 
 import { CommonMetadata, ForkedFrom } from '@frontend/common';
 import { OverrideValue } from '@frontend/parser';
@@ -59,7 +59,7 @@ export type LayoutPanelProps = {
 };
 
 export type PanelPositionProps = {
-  active: ReactElement[];
+  active: ReactElement<any>[];
   minimized: MinimizedPanelProps[];
 };
 

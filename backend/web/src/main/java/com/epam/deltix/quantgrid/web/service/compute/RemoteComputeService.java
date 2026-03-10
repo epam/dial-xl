@@ -267,6 +267,15 @@ public class RemoteComputeService implements ComputeService {
         }
 
         @Override
+        public synchronized void onOpen(@NotNull EventSource eventSource, @NotNull Response response) {
+            HttpStatusCode status = HttpStatusCode.valueOf(response.code());
+            if (!status.isSameCodeAs(HttpStatus.OK)) {
+                ResponseStatusException error = new ResponseStatusException(status, "Remote error");
+                onFailure(eventSource, error, response);
+            }
+        }
+
+        @Override
         public synchronized void onEvent(@NotNull EventSource source, String id, String type, @NotNull String data) {
             if (!completed) {
                 switch (data) {
@@ -300,6 +309,7 @@ public class RemoteComputeService implements ComputeService {
                 completed = true;
                 future.completeExceptionally(error);
                 callback.onFailure(error);
+                source.cancel();
             }
         }
 

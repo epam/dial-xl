@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 
 import { appMessages } from '@frontend/common';
 
@@ -38,11 +38,11 @@ export function useAcceptShare() {
           projectBucket,
           projectName,
           projectPath,
-        })
+        }),
       );
       displayToast('info', appMessages.acceptProjectShareRequest);
     },
-    [acceptShareRequest, navigate]
+    [acceptShareRequest, navigate],
   );
 
   const acceptShareFiles = useCallback(
@@ -55,7 +55,7 @@ export function useAcceptShare() {
 
       navigate(routes.sharedWithMe);
     },
-    [acceptShareRequest, navigate]
+    [acceptShareRequest, navigate],
   );
 
   return {

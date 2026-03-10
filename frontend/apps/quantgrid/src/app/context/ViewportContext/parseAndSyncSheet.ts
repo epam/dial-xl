@@ -8,7 +8,7 @@ export function parseAndSyncSheet(
   viewGridData: ViewGridData,
   content: string | undefined,
   isDSLChange: boolean,
-  diffData: TableHighlightDataMap | null
+  diffData: TableHighlightDataMap | null,
 ) {
   try {
     const sheet = SheetReader.parseSheet(content);
@@ -18,20 +18,26 @@ export function parseAndSyncSheet(
     sheet.tables.forEach((table) => {
       if (table.hasDynamicFields()) {
         const cachedDynamicFields = viewGridData.getTableDynamicFields(
-          table.tableName
+          table.tableName,
         );
 
         if (cachedDynamicFields) {
           // should add cached dynamic fields to the table until new updated dynamic fields come, if we had such
-          table.setDynamicFields(cachedDynamicFields);
+          const totalColumns = cachedDynamicFields.length;
+          table.setDynamicFields(
+            cachedDynamicFields,
+            0,
+            totalColumns,
+            totalColumns,
+          );
         }
       }
 
       viewGridData.updateTableMeta(table, {
         highlightData: diffData
-          ? diffData.data?.[unescapeTableName(table.tableName)] ?? {
+          ? (diffData.data?.[unescapeTableName(table.tableName)] ?? {
               tableHighlight: diffData.defaultHighlight,
-            }
+            })
           : undefined,
         isDSLChange,
       });

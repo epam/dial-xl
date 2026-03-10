@@ -11,12 +11,12 @@ import { ViewGridData } from '../../../context';
 export function getNewTablePlacementFromSourceTable(
   tableName: string,
   viewGridData: ViewGridData,
-  parsedSheets: ParsedSheets
+  parsedSheets: ParsedSheets,
 ): [number, number] {
   const tableStructure = viewGridData.getGridTableStructure();
 
   const findTableStructure = tableStructure.find(
-    (table) => table.tableName === tableName
+    (table) => table.tableName === tableName,
   );
 
   if (findTableStructure) {
@@ -27,7 +27,7 @@ export function getNewTablePlacementFromSourceTable(
 
   for (const sheetName of Object.keys(parsedSheets)) {
     const table = parsedSheets[sheetName].tables.find(
-      (t) => t.tableName === tableName
+      (t) => t.tableName === tableName,
     );
 
     if (table) {

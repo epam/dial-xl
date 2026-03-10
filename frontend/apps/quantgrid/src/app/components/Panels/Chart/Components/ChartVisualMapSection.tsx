@@ -42,7 +42,7 @@ export function ChartVisualMapSection({
         '',
         showVisualMapDecoratorName,
         message,
-        checked
+        checked,
       );
       openTable(sheetName, tableName);
     });

@@ -265,7 +265,7 @@ public class DoubleFunctions {
             return Doubles.ERROR_NA; // #DIV/0!
         }
 
-        return a / b;
+        return Doubles.normalizeNaN(a / b); // inf divisions
     }
 
     public double pow(double a, double b) {

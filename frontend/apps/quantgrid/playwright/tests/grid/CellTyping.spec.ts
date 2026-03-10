@@ -21,7 +21,7 @@ let browserContext: BrowserContext;
 
 let page: Page;
 
-const storagePath = `playwright/${projectName}.json`;
+const storagePath = TestFixtures.getStoragePath();
 
 test.beforeAll(async ({ browser }) => {
   const Table1 = new Table(table1Row, table1Column, table1Name);
@@ -29,19 +29,21 @@ test.beforeAll(async ({ browser }) => {
   Table1.addField(new Field('Field2', '7'));
   Table1.addField(new Field('Field_F', '[Field1]-[Field2]'));
   spreadsheet.addTable(Table1);
+  browserContext = await browser.newContext({ storageState: storagePath });
   await TestFixtures.createProjectNew(
     storagePath,
-    browser,
+    browserContext,
     projectName,
-    spreadsheet
+    spreadsheet,
   );
-  browserContext = await browser.newContext({ storageState: storagePath });
 });
 
 test.beforeEach(async () => {
   page = await browserContext.newPage();
   await TestFixtures.openProject(page, projectName);
   await TestFixtures.expectTableToBeDisplayed(page, spreadsheet.getTable(0));
+  const projectPage = await ProjectPage.createCleanInstance(page);
+  await projectPage.hideAllPanels();
 });
 
 test.afterEach(async () => {
@@ -49,8 +51,8 @@ test.afterEach(async () => {
 });
 
 test.afterAll(async ({ browser }) => {
+  await TestFixtures.deleteProject(browserContext, projectName);
   await browserContext.close();
-  await TestFixtures.deleteProject(browser, projectName);
 });
 
 test.describe('cell typing', () => {
@@ -86,7 +88,7 @@ test.describe('cell typing', () => {
       .typeValue(
         `=${table.getName()}[${table.getField(0).getName()}]`,
         false,
-        true
+        true,
       );
     await projectPage.getVisualization().getCellEditor().finishLine();
     await projectPage.getVisualization().expectTableHeaderToAppear(8, 8);
@@ -105,7 +107,7 @@ test.describe('cell typing', () => {
       .typeValue(
         `:${table.getName()}[${table.getField(0).getName()}]`,
         false,
-        true
+        true,
       );
     await projectPage.getVisualization().getCellEditor().finishLine();
     await projectPage.getVisualization().expectTableHeaderToAppear(8, 6);
@@ -233,7 +235,7 @@ test.describe('cell typing', () => {
     directionKey: string,
     textToType: string,
     x: number,
-    y: number
+    y: number,
   ) {
     await projectPage
       .getVisualization()
@@ -271,9 +273,9 @@ test.describe('cell typing', () => {
     await projectPage.getVisualization().getCellEditor().closeTooltip();
     await projectPage.clickOnGridCell(9, 3);
     await expect(
-      projectPage.getVisualization().getCellEditor().getValueLocator()
+      projectPage.getVisualization().getCellEditor().getValueLocator(),
     ).toHaveText(
-      /=Table(.*)\(ROW\(\)(.*)-(.*)2\)\[Column2\]-Table(.*)\(ROW\(\)(.*)-(.*)1\)\[Column2\]/
+      /=Table(.*)\(ROW\(\)(.*)-(.*)2\)\[Column2\]-Table(.*)\(ROW\(\)(.*)-(.*)1\)\[Column2\]/,
     );
     await page.keyboard.press('Enter');
     await projectPage.getVisualization().expectTableToAppear(10, 3);

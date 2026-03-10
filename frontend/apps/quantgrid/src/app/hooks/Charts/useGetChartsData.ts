@@ -30,7 +30,7 @@ export function useGetChartsData() {
   const sendChartDataViewports = useCallback(
     (
       selectedKeys: SelectedChartKey[],
-      tablesWithoutSelectors: ChartTableWithoutSelectors[] = []
+      tablesWithoutSelectors: ChartTableWithoutSelectors[] = [],
     ) => {
       if (
         !projectName ||
@@ -50,7 +50,7 @@ export function useGetChartsData() {
 
       const chartViewportRequest = viewGridData.buildChartViewportRequest(
         selectedKeys,
-        tablesWithoutSelectors
+        tablesWithoutSelectors,
       );
 
       if (chartViewportRequest.length === 0) return;
@@ -62,7 +62,7 @@ export function useGetChartsData() {
 
         const { table } = tableData;
         const tableSelectedKeys = selectedKeys.filter(
-          (i) => i.tableName === tableName
+          (i) => i.tableName === tableName,
         );
 
         updatedSheetContent = applySelectorFiltersToChartTables(
@@ -70,7 +70,7 @@ export function useGetChartsData() {
           updatedSheetContent,
           table,
           tableSelectedKeys,
-          viewGridData
+          viewGridData,
         );
 
         if (table.getChartType() === ChartType.HISTOGRAM) {
@@ -78,7 +78,7 @@ export function useGetChartsData() {
             chartViewportRequest,
             table,
             viewGridData,
-            parsedSheets
+            parsedSheets,
           );
 
           virtualTablesDSl += virtualTableDSL;
@@ -99,7 +99,7 @@ export function useGetChartsData() {
       sheetContent,
       sheetName,
       viewGridData,
-    ]
+    ],
   );
 
   return {
@@ -109,12 +109,12 @@ export function useGetChartsData() {
 
 export function sortChartTablesDesc(
   selectedKeys: SelectedChartKey[],
-  viewGridData: ViewGridData
+  viewGridData: ViewGridData,
 ) {
   const chartTableNames = new Set(
     selectedKeys
       .filter((i) => i.chartType !== ChartType.PERIOD_SERIES)
-      .map((i) => i.tableName)
+      .map((i) => i.tableName),
   );
 
   return Array.from(chartTableNames).sort((a, b) => {

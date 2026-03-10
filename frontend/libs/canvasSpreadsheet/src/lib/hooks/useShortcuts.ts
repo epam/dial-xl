@@ -1,11 +1,4 @@
-import {
-  RefObject,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-} from 'react';
+import { useCallback, useContext, useEffect, useMemo, useRef } from 'react';
 
 import {
   KeyboardCode,
@@ -14,11 +7,11 @@ import {
   ShortcutHandlersMap,
 } from '@frontend/common';
 
-import { GridEvent } from '../components';
 import { GridStateContext } from '../context';
-import { GridApi, HorizontalDirection } from '../types';
+import { GridEvent, HorizontalDirection } from '../types';
 import { isCanvasEvent, isCellEditorOpen } from '../utils';
 import { useAIPrompt } from './useAIPrompt';
+import { useClipboardTarget } from './useClipboardTarget';
 import { useCopyPaste } from './useCopyPaste';
 import { useExtendSelectionNextAvailable } from './useExtendSelectionNextAvailable';
 import { useNavigation } from './useNavigation';
@@ -74,9 +67,16 @@ const toArrowDir = (e: KeyboardEvent): KeyboardCode | null => {
 const stepIntervalMs = 16; // repeat cadence while holding (~60fps)
 const initialRepeatDelayMs = 140; // delay before the second step (prevents double tap feel)
 
-export function useShortcuts(gridApi: RefObject<GridApi>) {
-  const { eventBus, selection$, selectedTable, isPanModeEnabled } =
-    useContext(GridStateContext);
+export function useShortcuts() {
+  const {
+    event,
+    eventBus,
+    selectedTable,
+    isPanModeEnabled,
+    getCell,
+    selectionEdges,
+    canvasOptions,
+  } = useContext(GridStateContext);
   const {
     arrowNavigation,
     extendSelection,
@@ -84,7 +84,7 @@ export function useShortcuts(gridApi: RefObject<GridApi>) {
     moveSelectionToEdge,
     tabNavigation,
   } = useNavigation();
-  const { openAIPrompt } = useAIPrompt(gridApi.current);
+  const { openAIPrompt } = useAIPrompt();
   const { copy, paste } = useCopyPaste();
   const { selectRow, selectColumn, stopMoveTable, completeMoveTable } =
     useSelection();
@@ -95,15 +95,15 @@ export function useShortcuts(gridApi: RefObject<GridApi>) {
   const heldDirRef = useRef<KeyboardCode | null>(null);
   const rafIdRef = useRef<number | null>(null);
   const nextAllowedTsRef = useRef<number>(0);
+  const stepRef = useRef<((ts: number) => void) | undefined>(undefined);
 
   const handleSwapFields = useCallback(
     (e: KeyboardEvent, direction: HorizontalDirection) => {
-      if (!gridApi?.current || !isCanvasEvent(e)) return;
-      const selection = selection$.getValue();
-      if (!selection) return;
+      if (!isCanvasEvent(e, canvasOptions)) return;
+      if (!selectionEdges) return;
 
-      const { startCol, startRow } = selection;
-      const cell = gridApi.current.getCell(startCol, startRow);
+      const { startCol, startRow } = selectionEdges;
+      const cell = getCell(startCol, startRow);
       if (!cell || !cell.table || !cell.field) return;
 
       eventBus.emit({
@@ -115,69 +115,49 @@ export function useShortcuts(gridApi: RefObject<GridApi>) {
         },
       });
     },
-    [gridApi, eventBus, selection$]
-  );
-
-  const handleCopy = useCallback(
-    (e: KeyboardEvent) => {
-      if (!gridApi?.current || !isCanvasEvent(e)) return;
-
-      copy(gridApi.current);
-    },
-    [copy, gridApi]
-  );
-
-  const handlePaste = useCallback(
-    (e: KeyboardEvent) => {
-      if (!gridApi?.current || !eventBus || !isCanvasEvent(e)) return;
-
-      paste(gridApi.current, eventBus);
-    },
-    [gridApi, eventBus, paste]
+    [canvasOptions, selectionEdges, getCell, eventBus],
   );
 
   const handleSelectTable = useCallback(
     (e: KeyboardEvent) => {
-      if (!gridApi?.current || !isCanvasEvent(e)) return;
+      if (!isCanvasEvent(e, canvasOptions)) return;
 
       e.preventDefault();
 
-      gridApi.current.event.emit({
+      event.emit({
         type: GridEvent.selectAll,
         selectFromCurrentCell: true,
       });
     },
-    [gridApi]
+    [canvasOptions, event],
   );
 
   const handleOpenNote = useCallback(() => {
-    const selectionEdges = selection$.getValue();
-
-    if (!gridApi?.current || !selectionEdges) return;
+    if (!selectionEdges) return;
 
     const { startCol, startRow } = selectionEdges;
 
-    gridApi.current.event.emit({
+    event.emit({
       type: GridEvent.openNote,
       col: startCol,
       row: startRow,
     });
-  }, [gridApi, selection$]);
+  }, [event, selectionEdges]);
 
   const handleDelete = useCallback(
     (e: KeyboardEvent) => {
-      if (!isCanvasEvent(e)) return;
+      if (!isCanvasEvent(e, canvasOptions)) return;
 
       eventBus.emit({
         type: 'selection/delete',
       });
     },
-    [eventBus]
+    [canvasOptions, eventBus],
   );
 
   // rAF loop: emits one navigation step when allowed, then schedules the next frame
-  const step = useCallback(
-    (ts: number) => {
+  useEffect(() => {
+    stepRef.current = (ts: number) => {
       const dir = heldDirRef.current;
       if (!dir) return;
 
@@ -186,10 +166,11 @@ export function useShortcuts(gridApi: RefObject<GridApi>) {
         nextAllowedTsRef.current = ts + stepIntervalMs;
       }
 
-      rafIdRef.current = requestAnimationFrame(step);
-    },
-    [arrowNavigation]
-  );
+      rafIdRef.current = requestAnimationFrame(stepRef.current!);
+    };
+  }, [arrowNavigation]);
+
+  const step = useCallback((ts: number) => stepRef.current?.(ts), []);
 
   // Stop holding any direction and cancel the rAF loop
   const stopHold = useCallback(() => {
@@ -217,7 +198,7 @@ export function useShortcuts(gridApi: RefObject<GridApi>) {
         rafIdRef.current = requestAnimationFrame(step);
       }
     },
-    [arrowNavigation, step]
+    [arrowNavigation, step],
   );
 
   // Unified handler for all holdable keys. Returns true if the event was fully handled.
@@ -225,7 +206,7 @@ export function useShortcuts(gridApi: RefObject<GridApi>) {
     (e: KeyboardEvent): boolean => {
       const isHold = isHoldKey(e.key);
       if (!isHold) return false;
-      if (!isCanvasEvent(e)) return true;
+      if (!isCanvasEvent(e, canvasOptions)) return true;
       if (e.repeat) {
         e.preventDefault();
         e.stopPropagation();
@@ -266,22 +247,23 @@ export function useShortcuts(gridApi: RefObject<GridApi>) {
       return true;
     },
     [
+      canvasOptions,
       completeMoveTable,
       selectedTable,
       tabNavigation,
       arrowNavigation,
       startHold,
       stopHold,
-    ]
+    ],
   );
 
   const handleSingleKeyShortcuts = useCallback(
     (e: KeyboardEvent) => {
       const isValidSingleShortcut = singleKeyShortcuts.includes(
-        e.key as KeyboardCode
+        e.key as KeyboardCode,
       );
 
-      if (isValidSingleShortcut && !isCanvasEvent(e)) {
+      if (isValidSingleShortcut && !isCanvasEvent(e, canvasOptions)) {
         return;
       }
 
@@ -289,7 +271,7 @@ export function useShortcuts(gridApi: RefObject<GridApi>) {
 
       switch (e.key) {
         case KeyboardCode.Space:
-          if (!isCellEditorOpen() && isCanvasEvent(e)) {
+          if (!isCellEditorOpen() && isCanvasEvent(e, canvasOptions)) {
             e.preventDefault();
             e.stopPropagation();
             openAIPrompt();
@@ -319,26 +301,26 @@ export function useShortcuts(gridApi: RefObject<GridApi>) {
       }
     },
     [
+      canvasOptions,
       moveSelectionToEdge,
       selectedTable,
       scrollPage,
       openAIPrompt,
       stopMoveTable,
-    ]
+    ],
   );
 
   const shortcutGlobalHandlersMap: Partial<ShortcutHandlersMap> = useMemo(
     () => ({
       [Shortcut.SwapFieldsRight]: (e) => handleSwapFields(e, 'right'),
       [Shortcut.SwapFieldsLeft]: (e) => handleSwapFields(e, 'left'),
-      [Shortcut.Copy]: (e) => handleCopy(e),
-      [Shortcut.Paste]: (e) => handlePaste(e),
       [Shortcut.AddNote]: () => handleOpenNote(),
       [Shortcut.Delete]: (e) => handleDelete(e),
       [Shortcut.Backspace]: (e) => handleDelete(e),
       [Shortcut.MoveToSheetStart]: () => moveSelectionToEdge('up'),
       [Shortcut.MoveToSheetEnd]: () => moveSelectionToEdge('down'),
-      [Shortcut.SelectAll]: (e) => handleSelectTable(e),
+      [Shortcut.SelectAll]: (e) =>
+        canvasOptions.enableMoveTable && handleSelectTable(e),
       [Shortcut.SelectRow]: () => selectRow(),
       [Shortcut.SelectColumn]: () => selectColumn(),
       [Shortcut.ExtendRangeSelectionUp]: () =>
@@ -371,32 +353,54 @@ export function useShortcuts(gridApi: RefObject<GridApi>) {
       },
     }),
     [
+      canvasOptions,
       extendSelection,
       extendSelectionNextAvailable,
-      handleCopy,
       handleDelete,
       handleOpenNote,
-      handlePaste,
       handleSelectTable,
       handleSwapFields,
       moveSelectionNextAvailable,
       moveSelectionToEdge,
       selectColumn,
       selectRow,
-    ]
+    ],
   );
+
+  const onPaste = useMemo(
+    () => (e: ClipboardEvent) => paste(eventBus, e),
+    [eventBus, paste],
+  );
+
+  const { focusClipboardBridge } = useClipboardTarget(onPaste);
 
   const onKeyDown = useCallback(
     (event: KeyboardEvent) => {
       if (isPanModeEnabled) return;
 
-      if (!isCanvasEvent(event) && heldDirRef.current) {
+      const canvasEvent = isCanvasEvent(event, canvasOptions);
+
+      if (!canvasEvent && heldDirRef.current) {
         stopHold();
+      }
+
+      if (canvasEvent && shortcutApi.is(Shortcut.Copy, event)) {
+        event.preventDefault();
+        focusClipboardBridge();
+        copy();
+
+        return;
+      }
+
+      if (canvasEvent && shortcutApi.is(Shortcut.Paste, event)) {
+        focusClipboardBridge();
+
+        return;
       }
 
       for (const shortcutKey in shortcutGlobalHandlersMap) {
         if (shortcutApi.is(shortcutKey as Shortcut, event)) {
-          if (!isCanvasEvent(event)) return;
+          if (!isCanvasEvent(event, canvasOptions)) return;
           shortcutGlobalHandlersMap[shortcutKey as Shortcut]?.(event);
 
           return;
@@ -409,11 +413,14 @@ export function useShortcuts(gridApi: RefObject<GridApi>) {
     },
     [
       isPanModeEnabled,
+      canvasOptions,
       handleHoldableKeyDown,
       handleSingleKeyShortcuts,
       stopHold,
+      focusClipboardBridge,
+      copy,
       shortcutGlobalHandlersMap,
-    ]
+    ],
   );
 
   // Keyup stops the hold for any holdable key (Arrows/Enter/Tab)
@@ -423,7 +430,7 @@ export function useShortcuts(gridApi: RefObject<GridApi>) {
         stopHold();
       }
     },
-    [stopHold]
+    [stopHold],
   );
 
   // Any non-holdable keydown cancels holding (safety net)
@@ -433,7 +440,7 @@ export function useShortcuts(gridApi: RefObject<GridApi>) {
         stopHold();
       }
     },
-    [stopHold]
+    [stopHold],
   );
 
   useEffect(() => {

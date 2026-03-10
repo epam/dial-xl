@@ -56,14 +56,14 @@ function saveMap(map: SelectedConversationsMap): void {
 
 function cleanup(map: SelectedConversationsMap): SelectedConversationsMap {
   const raw = safeParse<Record<string, unknown>>(
-    localStorage.getItem(storageKey)
+    localStorage.getItem(storageKey),
   );
   const legacyIds = new Set<string>(
     raw && typeof raw === 'object'
       ? Object.entries(raw)
           .filter(([, v]) => Array.isArray(v))
           .map(([k]) => k)
-      : []
+      : [],
   );
 
   const cutoff = Date.now() - maxAgeDays * msPerDay;
@@ -101,7 +101,7 @@ export function getAllSelectedConversations(): SelectedConversationsMap {
 export function getProjectSelectedConversation(
   projectName: string,
   projectBucket: string,
-  projectPath: string | null | undefined
+  projectPath: string | null | undefined,
 ): string | null {
   const id = constructPath([projectBucket, projectPath, projectName]);
   const map = getAllSelectedConversations();
@@ -113,7 +113,7 @@ export function setProjectSelectedConversation(
   name: string | null,
   projectName: string,
   projectBucket: string,
-  projectPath: string | null | undefined
+  projectPath: string | null | undefined,
 ): void {
   const id = constructPath([projectBucket, projectPath, projectName]);
   const map = getAllSelectedConversations();

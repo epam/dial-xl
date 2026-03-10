@@ -12,10 +12,12 @@ import {
   useNavigate,
   useParams,
   useSearchParams,
-} from 'react-router-dom';
+} from 'react-router';
 import { toast } from 'react-toastify';
 
 import {
+  ApiError,
+  ApiErrorType,
   CommonMetadata,
   csvFileExtension,
   defaultFolderName,
@@ -36,7 +38,7 @@ import {
   deleteRecentProjectFromRecentProjects,
   getRecentProjects,
 } from '../../services';
-import { useChangeNameModalStore, useUIStore } from '../../store';
+import { useChangeNameModalStore, useUserSettingsStore } from '../../store';
 import { routeParams } from '../../types';
 import {
   DashboardFilter,
@@ -62,6 +64,10 @@ type Props = {
   children: ReactNode;
 };
 
+type AsyncResult<T> =
+  | { success: true; data: T }
+  | { success: false; error: ApiError };
+
 export function DashboardContextProvider({ children }: Props) {
   const {
     getFiles,
@@ -73,7 +79,7 @@ export function DashboardContextProvider({ children }: Props) {
     getResourceMetadata,
   } = useApiRequests();
   const { userBucket } = useContext(ApiContext);
-  const showHiddenFiles = useUIStore((s) => s.showHiddenFiles);
+  const showHiddenFiles = useUserSettingsStore((s) => s.data.showHiddenFiles);
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -83,7 +89,7 @@ export function DashboardContextProvider({ children }: Props) {
   const [currentTab, setCurrentTab] = useState<DashboardTab | null>(null);
   const [folderPath, setFolderPath] = useState<string | null | undefined>(null);
   const [folderBucket, setFolderBucket] = useState<string | null | undefined>(
-    null
+    null,
   );
   const [searchValue, setSearchValue] = useState<string>('');
   const [filter, setFilter] = useState<DashboardFilter>('all');
@@ -108,6 +114,7 @@ export function DashboardContextProvider({ children }: Props) {
     >[]
   >([]);
   const [loadingDashboard, setLoadingDashboard] = useState(false);
+  const [loadingError, setLoadingError] = useState<ApiError | null>(null);
 
   const [uploadFileDisplayed, setUploadFileDisplayed] = useState(false);
   const [uploadFilePath, setUploadFilePath] = useState<
@@ -117,20 +124,20 @@ export function DashboardContextProvider({ children }: Props) {
     string | null | undefined
   >(null);
   const [uploadingFiles, setUploadingFiles] = useState<FileList | undefined>(
-    undefined
+    undefined,
   );
 
   const filterFiles = useCallback(
     (file: DashboardItem<CommonMetadata>) => {
       return file.name && (showHiddenFiles || !file.name.startsWith('.'));
     },
-    [showHiddenFiles]
+    [showHiddenFiles],
   );
 
   const sortChange = useCallback(
     (
       newSortType: DashboardSortType,
-      newSortFn: DashboardSortFn | undefined
+      newSortFn: DashboardSortFn | undefined,
     ) => {
       setSortAsc(newSortType !== sortType ? true : !sortAsc);
       setSortType(newSortType);
@@ -140,22 +147,33 @@ export function DashboardContextProvider({ children }: Props) {
           displayedDashboardItems,
           newSortType,
           newSortFn,
-          newSortType !== sortType ? true : !sortAsc
-        )
+          newSortType !== sortType ? true : !sortAsc,
+        ),
       );
     },
-    [displayedDashboardItems, sortAsc, sortType]
+    [displayedDashboardItems, sortAsc, sortType],
   );
 
-  const searchSharedByMeItems = useCallback(async () => {
+  const searchSharedByMeItems = useCallback(async (): Promise<
+    | {
+        success: true;
+        data: DashboardItem<ResourceMetadata | SharedByMeMetadata>[];
+      }
+    | { success: false; error: ApiError }
+  > => {
     let result:
-      | DashboardItem<ResourceMetadata | SharedByMeMetadata>[]
-      | undefined;
+      | {
+          success: true;
+          data: DashboardItem<ResourceMetadata | SharedByMeMetadata>[];
+        }
+      | {
+          success: false;
+          error: { type: string; message: string; statusCode?: number };
+        };
 
     if (folderPath) {
       result = await getFiles({
         path: `${folderBucket}/${folderPath ? folderPath + '/' : ''}`,
-        suppressErrors: true,
       });
     } else {
       result = await getSharedByMeResources({
@@ -163,20 +181,43 @@ export function DashboardContextProvider({ children }: Props) {
       });
     }
 
-    if (!result) return;
+    if (!result.success) {
+      return {
+        success: false,
+        error: {
+          type: result.error.type as ApiErrorType,
+          message: result.error.message,
+          statusCode: result.error.statusCode,
+        },
+      };
+    }
 
-    return result.map((item) => ({ ...item, isSharedByMe: true }));
+    return {
+      success: true,
+      data: result.data.map((item) => ({ ...item, isSharedByMe: true })),
+    };
   }, [folderBucket, folderPath, getFiles, getSharedByMeResources]);
 
-  const searchSharedWithMeItems = useCallback(async () => {
+  const searchSharedWithMeItems = useCallback(async (): Promise<
+    | {
+        success: true;
+        data: DashboardItem<ResourceMetadata | SharedWithMeMetadata>[];
+      }
+    | { success: false; error: ApiError }
+  > => {
     let result:
-      | DashboardItem<ResourceMetadata | SharedWithMeMetadata>[]
-      | undefined;
+      | {
+          success: true;
+          data: DashboardItem<ResourceMetadata | SharedWithMeMetadata>[];
+        }
+      | {
+          success: false;
+          error: ApiError;
+        };
 
     if (folderPath) {
       result = await getFiles({
         path: `${folderBucket}/${folderPath ? folderPath + '/' : ''}`,
-        suppressErrors: true,
       });
     } else {
       result = await getSharedWithMeResources({
@@ -184,74 +225,111 @@ export function DashboardContextProvider({ children }: Props) {
       });
     }
 
-    if (!result) return;
+    if (!result.success) {
+      return {
+        success: false,
+        error: {
+          type: result.error.type as ApiErrorType,
+          message: result.error.message,
+          statusCode: result.error.statusCode,
+        },
+      };
+    }
 
-    return result;
+    return { success: true, data: result.data };
   }, [folderBucket, folderPath, getFiles, getSharedWithMeResources]);
 
   const searchExamplesItems = useCallback(
-    async (isRecursive = false) => {
-      const result: ResourceMetadata[] | undefined = await getFiles({
+    async (isRecursive = false): Promise<AsyncResult<ResourceMetadata[]>> => {
+      const result = await getFiles({
         path: `${publicBucket}/${folderPath ? folderPath + '/' : ''}`,
         isRecursive,
       });
 
-      return result ?? [];
+      if (!result.success) {
+        return {
+          success: false,
+          error: {
+            type: result.error.type as ApiErrorType,
+            message: result.error.message,
+            statusCode: result.error.statusCode,
+          },
+        };
+      }
+
+      return { success: true, data: result.data };
     },
-    [folderPath, getFiles]
+    [folderPath, getFiles],
   );
 
   const searchAllItems = useCallback(
-    async (isRecursive = false) => {
+    async (isRecursive = false): Promise<AsyncResult<DashboardItem[]>> => {
       const results = await Promise.allSettled([
         getFiles({
           path: `${userBucket}/${folderPath ? folderPath + '/' : ''}`,
           isRecursive,
         }),
-        getSharedByMeResources({ resourceType: MetadataResourceType.FILE }),
+        getSharedByMeResources({
+          resourceType: MetadataResourceType.FILE,
+        }),
       ]);
 
-      const result: DashboardItem[] | undefined =
+      const filesResult =
         results[0].status === 'fulfilled' ? results[0].value : undefined;
-
       const sharedResult =
         results[1].status === 'fulfilled' ? results[1].value : undefined;
 
-      if (!result) {
-        navigate(
-          getDashboardNavigateUrl({
-            tab: 'home',
-            folderPath: null,
-            folderBucket: null,
-          })
-        );
-
-        return;
+      if (!sharedResult || !sharedResult.success) {
+        return {
+          success: false,
+          error: {
+            type: sharedResult?.error?.type ?? ApiErrorType.Unknown,
+            message:
+              sharedResult?.error?.message ?? 'Failed to load shared files',
+            statusCode: sharedResult?.error?.statusCode,
+          },
+        };
       }
 
-      return result.map((item) => {
-        const isPresentedInSharedItems = sharedResult?.some(
-          (sharedItem) =>
-            sharedItem.parentPath === item.parentPath &&
-            sharedItem.name === item.name
-        );
-        if (isPresentedInSharedItems) {
-          return {
-            ...item,
-            isSharedByMe: true,
-          };
-        }
+      if (!filesResult || !filesResult.success) {
+        return {
+          success: false,
+          error: {
+            type: filesResult?.error.type || ApiErrorType.Unknown,
+            message: filesResult?.error?.message || 'Failed to load files',
+            statusCode: filesResult?.error?.statusCode,
+          },
+        };
+      }
 
-        return item;
-      });
+      return {
+        success: true,
+        data: filesResult.data.map((item) => {
+          const isPresentedInSharedItems = sharedResult?.data?.some(
+            (sharedItem) =>
+              sharedItem.parentPath === item.parentPath &&
+              sharedItem.name === item.name,
+          );
+          if (isPresentedInSharedItems) {
+            return {
+              ...item,
+              isSharedByMe: true,
+            };
+          }
+
+          return item;
+        }),
+      };
     },
-    [folderPath, getFiles, getSharedByMeResources, navigate, userBucket]
+    [folderPath, getFiles, getSharedByMeResources, userBucket],
   );
 
-  const searchRecentItems = useCallback(async (): Promise<DashboardItem[]> => {
+  const searchRecentItems = useCallback(async (): Promise<
+    AsyncResult<DashboardItem[]>
+  > => {
     const recentProjects = getRecentProjects();
 
-    if (!recentProjects) return [];
+    if (!recentProjects) return { success: true, data: [] };
 
     const sharedResult = await getSharedWithMeResources({
       resourceType: MetadataResourceType.FILE,
@@ -265,11 +343,12 @@ export function DashboardContextProvider({ children }: Props) {
             recentProject.projectBucket,
             recentProject.projectPath,
             recentProject.projectName + dialProjectFileExtension,
-          ])
+          ]),
         );
 
-        const sharedAuthor = sharedResult?.find(
-          (item) => item.url === resultedUrl
+        const sharedResultData = sharedResult.success ? sharedResult.data : [];
+        const sharedAuthor = sharedResultData.find(
+          (item) => item.url === resultedUrl,
         )?.author;
 
         return {
@@ -288,10 +367,10 @@ export function DashboardContextProvider({ children }: Props) {
             (recentProject.projectBucket === publicBucket
               ? 'Public'
               : recentProject.projectBucket === userBucket
-              ? 'Me'
-              : '-'),
+                ? 'Me'
+                : '-'),
         };
-      }
+      },
     );
 
     const itemsMetadata = await Promise.all(
@@ -306,15 +385,19 @@ export function DashboardContextProvider({ children }: Props) {
           deleteRecentProjectFromRecentProjects(
             item.name.replaceAll(dialProjectFileExtension, ''),
             item.bucket,
-            item.parentPath
+            item.parentPath,
           );
         }
 
         return metadata ? item : null;
-      })
+      }),
     );
 
-    return itemsMetadata.filter((item): item is DashboardItem => item !== null);
+    const filteredItems = itemsMetadata.filter(
+      (item): item is DashboardItem => item !== null,
+    );
+
+    return { success: true, data: filteredItems };
   }, [getResourceMetadata, getSharedWithMeResources, userBucket]);
 
   const search = useCallback((searchValue: string) => {
@@ -327,66 +410,106 @@ export function DashboardContextProvider({ children }: Props) {
         ResourceMetadata | SharedByMeMetadata | SharedWithMeMetadata
       >[] = [];
       setLoadingDashboard(true);
+      setLoadingError(null);
+
+      let result: AsyncResult<
+        DashboardItem<
+          ResourceMetadata | SharedByMeMetadata | SharedWithMeMetadata
+        >[]
+      >;
+
       switch (currentTab) {
         case 'home':
           if (searchValue) {
-            items =
+            result =
               allItemsRecursiveRef.current && !withRefetch
-                ? allItemsRecursiveRef.current
-                : (await searchAllItems(true)) || [];
-            allItemsRecursiveRef.current =
-              items as DashboardItem<ResourceMetadata>[];
+                ? { success: true, data: allItemsRecursiveRef.current }
+                : await searchAllItems(true);
+            if (result.success) {
+              allItemsRecursiveRef.current = result.data;
+            }
           } else {
-            items = withRefetch
-              ? (await searchAllItems()) || []
-              : allItemsRef.current;
-
-            allItemsRef.current = items as DashboardItem<ResourceMetadata>[];
-            allItemsRecursiveRef.current = null;
+            result = withRefetch
+              ? await searchAllItems()
+              : allItemsRef.current.length > 0
+                ? { success: true, data: allItemsRef.current }
+                : await searchAllItems();
+            if (result.success) {
+              allItemsRef.current = result.data;
+              allItemsRecursiveRef.current = null;
+            }
           }
           break;
         case 'recent': {
-          items = withRefetch
-            ? (await searchRecentItems()) || []
-            : recentItemsRef.current;
-          recentItemsRef.current = items as DashboardItem<ResourceMetadata>[];
+          result = withRefetch
+            ? await searchRecentItems()
+            : recentItemsRef.current.length > 0
+              ? { success: true, data: recentItemsRef.current }
+              : await searchRecentItems();
+          if (result.success) {
+            recentItemsRef.current = result.data;
+          }
           break;
         }
         case 'sharedByMe': {
-          items = withRefetch
-            ? (await searchSharedByMeItems()) || []
-            : sharedByMeItemsRef.current;
-          sharedByMeItemsRef.current =
-            items as DashboardItem<SharedByMeMetadata>[];
+          result = withRefetch
+            ? await searchSharedByMeItems()
+            : sharedByMeItemsRef.current.length > 0
+              ? { success: true, data: sharedByMeItemsRef.current }
+              : await searchSharedByMeItems();
+          if (result.success) {
+            sharedByMeItemsRef.current = result.data as DashboardItem<
+              ResourceMetadata | SharedByMeMetadata
+            >[];
+          }
           break;
         }
         case 'sharedWithMe': {
-          items = withRefetch
-            ? (await searchSharedWithMeItems()) || []
-            : sharedWithMeItemsRef.current;
-          sharedWithMeItemsRef.current = items;
+          result = withRefetch
+            ? await searchSharedWithMeItems()
+            : sharedWithMeItemsRef.current.length > 0
+              ? { success: true, data: sharedWithMeItemsRef.current }
+              : await searchSharedWithMeItems();
+          if (result.success) {
+            sharedWithMeItemsRef.current = result.data;
+          }
           break;
         }
         case 'examples':
           if (searchValue) {
-            items = examplesItemsRecursiveRef.current
-              ? examplesItemsRecursiveRef.current
-              : (await searchExamplesItems(true)) || [];
-            examplesItemsRecursiveRef.current =
-              items as DashboardItem<ResourceMetadata>[];
+            result = examplesItemsRecursiveRef.current
+              ? { success: true, data: examplesItemsRecursiveRef.current }
+              : await searchExamplesItems(true);
+            if (result.success) {
+              examplesItemsRecursiveRef.current = result.data;
+            }
           } else {
-            items = withRefetch
-              ? (await searchExamplesItems()) || []
-              : examplesItemsRef.current;
-
-            examplesItemsRef.current =
-              items as DashboardItem<ResourceMetadata>[];
-            examplesItemsRecursiveRef.current = null;
+            result = withRefetch
+              ? await searchExamplesItems()
+              : examplesItemsRef.current.length > 0
+                ? { success: true, data: examplesItemsRef.current }
+                : await searchExamplesItems();
+            if (result.success) {
+              examplesItemsRef.current = result.data;
+              examplesItemsRecursiveRef.current = null;
+            }
           }
           break;
         default:
-          break;
+          setLoadingDashboard(false);
+
+          return;
       }
+
+      if (!result.success) {
+        setLoadingError(result.error);
+        setLoadingDashboard(false);
+        setSelectedItems([]);
+
+        return;
+      }
+
+      items = result.data;
 
       const itemsFuse = new Fuse(items, dashboardFuseOptions);
       const resultItems = searchValue
@@ -396,11 +519,11 @@ export function DashboardContextProvider({ children }: Props) {
         resultItems.filter((i) => i.name),
         sortType,
         sortFnRef.current,
-        sortAsc
+        sortAsc,
       );
       const filteredItems = filterDashboardItems(
         sortedResultItems,
-        filter
+        filter,
       ).filter(filterFiles);
       setDisplayedDashboardItems(filteredItems);
       setLoadingDashboard(false);
@@ -418,7 +541,7 @@ export function DashboardContextProvider({ children }: Props) {
       searchValue,
       sortAsc,
       sortType,
-    ]
+    ],
   );
 
   const refetchData = useCallback(() => {
@@ -432,20 +555,18 @@ export function DashboardContextProvider({ children }: Props) {
       setUploadFileDisplayed(true);
       setUploadingFiles(files);
     },
-    []
+    [],
   );
 
   const handleUploadFiles = useCallback(
     async (
       parentPath: string | null | undefined,
       bucket: string,
-      files: { file: File; name: string; extension: string }[]
+      files: { file: File; name: string; extension: string }[],
     ) => {
       setUploadFileDisplayed(false);
 
       if (!bucket || !files) return;
-
-      toast.dismiss();
 
       let uploadingToast;
       if (files.length > 1) {
@@ -469,7 +590,7 @@ export function DashboardContextProvider({ children }: Props) {
           toast.success(toastText, {});
         } else {
           toast.error(
-            `Error happened during uploading "${file.name + file.extension}"`
+            `Error happened during uploading "${file.name + file.extension}"`,
           );
         }
 
@@ -495,7 +616,7 @@ export function DashboardContextProvider({ children }: Props) {
 
           if (!dimResult) {
             toast.error(
-              `Error happened during creating schema for file "${result.value.name}". Recheck file structure and reupload it.`
+              `Error happened during creating schema for file "${result.value.name}". Recheck file structure and reupload it.`,
             );
 
             return;
@@ -507,7 +628,7 @@ export function DashboardContextProvider({ children }: Props) {
 
       refetchData();
     },
-    [createFile, getDimensionalSchema, refetchData]
+    [createFile, getDimensionalSchema, refetchData],
   );
 
   const createEmptyFolder = useCallback(
@@ -530,7 +651,7 @@ export function DashboardContextProvider({ children }: Props) {
           defaultFolderName,
           displayedDashboardItems
             .filter(({ nodeType }) => nodeType === MetadataNodeType.FOLDER)
-            .map(({ name }) => name)
+            .map(({ name }) => name),
         );
 
         const open = useChangeNameModalStore.getState().open;
@@ -545,7 +666,7 @@ export function DashboardContextProvider({ children }: Props) {
               displayedDashboardItems.some(
                 (item) =>
                   item.nodeType === MetadataNodeType.FOLDER &&
-                  item.name.toLowerCase() === name.toLowerCase()
+                  item.name.toLowerCase() === name.toLowerCase(),
               )
             )
               return 'Folder with this name already exists';
@@ -600,7 +721,7 @@ export function DashboardContextProvider({ children }: Props) {
       folderPath,
       refetchData,
       userBucket,
-    ]
+    ],
   );
 
   useEffect(() => {
@@ -608,21 +729,21 @@ export function DashboardContextProvider({ children }: Props) {
       updateDashboardItems();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filter, searchValue, showHiddenFiles]);
+  }, [filter, searchValue, showHiddenFiles, userBucket]);
 
   useEffect(() => {
     if (userBucket) {
       updateDashboardItems(true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentTab, folderPath, folderBucket]);
+  }, [currentTab, folderPath, folderBucket, userBucket]);
 
   useEffect(() => {
     if (!userBucket) return;
 
     const route =
       Object.keys(routeToTabMap).find((route) =>
-        location.pathname.startsWith(route)
+        location.pathname.startsWith(route),
       ) || '/home';
     const folderBucket = searchParams.get(routeParams.folderBucket);
     const folderPath = splat;
@@ -634,7 +755,7 @@ export function DashboardContextProvider({ children }: Props) {
           folderBucket: null,
           folderPath: null,
           tab: tab,
-        })
+        }),
       );
 
       return;
@@ -675,6 +796,7 @@ export function DashboardContextProvider({ children }: Props) {
         folderPath,
         folderBucket,
         loadingDashboard,
+        loadingError,
         refetchData,
         uploadFiles,
         createEmptyFolder,

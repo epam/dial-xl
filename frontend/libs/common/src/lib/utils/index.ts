@@ -2,6 +2,7 @@ export * from './assistant';
 export * from './chart';
 export * from './color';
 export * from './currencies';
+export * from './excel';
 export * from './featureFlags';
 export * from './formatBytes';
 export * from './format';

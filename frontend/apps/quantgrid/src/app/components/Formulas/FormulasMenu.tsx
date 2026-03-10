@@ -1,13 +1,19 @@
 import { Dropdown } from 'antd';
-import { MenuInfo } from 'rc-menu/lib/interface';
-import { useCallback, useContext, useEffect, useRef, useState } from 'react';
+import {
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 
 import {
   FormulasContextMenuKeyData,
-  getFormulasMenuItems,
-  MenuItem,
   useClickOutside,
+  useFormulaMenuItems,
 } from '@frontend/common';
+import { MenuInfo } from '@rc-component/menu/lib/interface';
 
 import { PanelName } from '../../common';
 import { InputsContext, LayoutContext, ProjectContext } from '../../context';
@@ -28,9 +34,8 @@ type Props = {
 
 export function FormulasMenu({ position, place }: Props) {
   const { parsedSheets } = useContext(ProjectContext);
-  const selectedCell = useViewStore((s) => s.selectedCell);
   const openControlCreateWizard = useControlStore(
-    (s) => s.openControlCreateWizard
+    (s) => s.openControlCreateWizard,
   );
   const { functions } = useContext(ProjectContext);
   const gridApi = useGridApi();
@@ -42,7 +47,6 @@ export function FormulasMenu({ position, place }: Props) {
   const { openPanel } = useContext(LayoutContext);
 
   const [contextMenuOpen, setContextMenuOpen] = useState(false);
-  const [contextMenuItems, setContextMenuItems] = useState<MenuItem[]>([]);
   const clickRef = useRef<HTMLDivElement>(null);
 
   const onClickOutside = useCallback(() => {
@@ -55,6 +59,7 @@ export function FormulasMenu({ position, place }: Props) {
 
   const onClick = useCallback(
     (info: MenuInfo) => {
+      const selectedCell = useViewStore.getState().selectedCell;
       const parsedKey = JSON.parse(info.key);
       const data: FormulasContextMenuKeyData = parsedKey.data;
       const action: string = parsedKey.action;
@@ -80,12 +85,13 @@ export function FormulasMenu({ position, place }: Props) {
               createDerivedTable(
                 data.tableName,
                 selectedCell?.col ?? 1,
-                selectedCell?.row ?? 1
+                selectedCell?.row ?? 1,
               );
             }
             break;
           }
           case 'pivot':
+          case 'groupBy':
             if (data.tableName) {
               onCreateTableAction(action, data.type, undefined, data.tableName);
             }
@@ -129,37 +135,37 @@ export function FormulasMenu({ position, place }: Props) {
       cloneTable,
       onCreateTableAction,
       place,
-      selectedCell,
-    ]
+    ],
   );
 
   const handleCreateTableBySize = useCallback(
     (cols: number, rows: number) => {
+      const selectedCell = useViewStore.getState().selectedCell;
       const colsItems = new Array(cols).fill('');
       const rowsItems = new Array(rows).fill(colsItems);
       createManualTable(
         selectedCell?.col ?? 1,
         selectedCell?.row ?? 1,
-        rowsItems
+        rowsItems,
       );
     },
-    [createManualTable, selectedCell?.col, selectedCell?.row]
+    [createManualTable],
   );
 
-  useEffect(() => {
-    const tableNames = Object.values(parsedSheets)
+  const tableNames = useMemo(() => {
+    return Object.values(parsedSheets)
       .flatMap((sheet) => sheet.tables.map((t) => t.tableName))
       .sort();
+  }, [parsedSheets]);
 
-    setContextMenuItems(
-      getFormulasMenuItems(
-        functions,
-        tableNames,
-        inputList,
-        handleCreateTableBySize
-      )
-    );
-  }, [functions, handleCreateTableBySize, inputList, parsedSheets]);
+  const formulaMenuItems = useFormulaMenuItems({
+    functions,
+    tableNames,
+    inputList,
+    onCreateTable: handleCreateTableBySize,
+    withFunctions: true,
+    isOpen: contextMenuOpen,
+  });
 
   useEffect(() => {
     setContextMenuOpen(!!position);
@@ -170,7 +176,7 @@ export function FormulasMenu({ position, place }: Props) {
       autoAdjustOverflow={true}
       destroyOnHidden={true}
       forceRender={true}
-      menu={{ items: contextMenuItems, onClick }}
+      menu={{ items: formulaMenuItems, onClick }}
       open={contextMenuOpen}
       rootClassName="formulas-menu"
     >

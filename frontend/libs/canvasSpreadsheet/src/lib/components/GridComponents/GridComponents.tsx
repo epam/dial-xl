@@ -1,7 +1,6 @@
-import { useContext, useEffect } from 'react';
+import { useContext } from 'react';
 
-import { Container } from '@pixi/react';
-
+import { ComponentLayer } from '../../constants';
 import { GridStateContext } from '../../context';
 import { Cells } from '../Cells';
 import { ColNumbers } from '../ColNumbers';
@@ -20,32 +19,41 @@ import { Selection } from '../Selection';
 import { TableMoveHandle } from '../TableMoveHandle';
 
 export function GridComponents() {
-  const { app, theme } = useContext(GridStateContext);
-
-  useEffect(() => {
-    if (!app?.renderer?.background) return;
-
-    app.renderer.background.alpha = 0;
-    app.renderer.background.color = theme.grid.bgColor;
-  }, [app, theme]);
+  const { showGridLines, canvasOptions } = useContext(GridStateContext);
 
   return (
-    <Container sortableChildren>
-      <GridLines />
-      <RowNumbers />
-      <CornerRect />
-      <ColNumbers />
-      <ColResizer />
-      <Cells />
-      <HiddenCells />
-      <Selection />
-      <DNDSelection />
-      <DottedSelection />
-      <Overrides />
-      <Errors />
-      <NoteLabels />
-      <TableMoveHandle />
-      <ScrollBar />
-    </Container>
+    <pixiContainer label="GridComponents" sortableChildren>
+      {showGridLines && <GridLines zIndex={ComponentLayer.GridLines} />}
+      {showGridLines && <RowNumbers zIndex={ComponentLayer.RowNumbers} />}
+      {showGridLines && <CornerRect zIndex={ComponentLayer.CornerRect} />}
+      {showGridLines && <ColNumbers zIndex={ComponentLayer.ColNumbers} />}
+      {canvasOptions.showResizers && (
+        <ColResizer zIndex={ComponentLayer.Resizer} />
+      )}
+      <Cells zIndex={ComponentLayer.Cells} />
+      {canvasOptions.showHiddenCells && (
+        <HiddenCells zIndex={ComponentLayer.HiddenCells} />
+      )}
+      {canvasOptions.showSelection && (
+        <Selection zIndex={ComponentLayer.Selection} />
+      )}
+      {canvasOptions.showDNDSelection && (
+        <DNDSelection zIndex={ComponentLayer.DNDSelection} />
+      )}
+      {canvasOptions.showDottedSelection && (
+        <DottedSelection zIndex={ComponentLayer.DottedSelection} />
+      )}
+      {canvasOptions.showOverrides && (
+        <Overrides zIndex={ComponentLayer.Override} />
+      )}
+      {canvasOptions.showErrors && <Errors zIndex={ComponentLayer.Error} />}
+      {canvasOptions.showNotes && (
+        <NoteLabels zIndex={ComponentLayer.NoteLabel} />
+      )}
+      {canvasOptions.enableMoveTable && (
+        <TableMoveHandle zIndex={ComponentLayer.TableMoveHandle} />
+      )}
+      <ScrollBar zIndex={ComponentLayer.ScrollBar} />
+    </pixiContainer>
   );
 }

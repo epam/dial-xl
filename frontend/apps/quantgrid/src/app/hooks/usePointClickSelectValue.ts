@@ -4,6 +4,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { SelectionEdges } from '@frontend/canvas-spreadsheet';
 import { escapeTableName } from '@frontend/parser';
 
+import { SelectedCell } from '../common';
 import { EventBusMessages } from '../services';
 import { useEditorStore, useViewStore } from '../store';
 import { useDSLUtils } from './EditDsl';
@@ -21,9 +22,8 @@ export function usePointClickSelectValue() {
     useShallow((s) => ({
       isPointClickMode: s.isPointClickMode,
       pointClickModeSource: s.pointClickModeSource,
-    }))
+    })),
   );
-  const selectedCell = useViewStore((s) => s.selectedCell);
   const gridApi = useGridApi();
 
   const { findTableKeys } = useFindTableKeys();
@@ -34,32 +34,35 @@ export function usePointClickSelectValue() {
    * Get selected cell context (table name and field name)
    * treat empty selected cell on the right of any table as table cell
    */
-  const getSelectedCellContext = useCallback(():
-    | { selectedTableName: string; selectedFieldName: string }
-    | undefined => {
-    if (!gridApi || !selectedCell) return;
+  const getSelectedCellContext = useCallback(
+    (
+      selectedCell: SelectedCell | null,
+    ): { selectedTableName: string; selectedFieldName: string } | undefined => {
+      if (!gridApi || !selectedCell) return;
 
-    const { row: selectedRow, col: selectedCol } = selectedCell;
+      const { row: selectedRow, col: selectedCol } = selectedCell;
 
-    let selectedTableName = '';
-    let selectedFieldName = '';
-    const cell = gridApi.getCell(selectedCol, selectedRow);
+      let selectedTableName = '';
+      let selectedFieldName = '';
+      const cell = gridApi.getCell(selectedCol, selectedRow);
 
-    if (cell?.table) {
-      selectedTableName = cell?.table?.tableName || '';
-      selectedFieldName = cell?.field?.fieldName || '';
-    }
-
-    if (selectedCol > 1) {
-      const rightCell = gridApi.getCell(selectedCol - 1, selectedRow);
-
-      if (rightCell?.table) {
-        selectedTableName = rightCell?.table?.tableName || '';
+      if (cell?.table) {
+        selectedTableName = cell?.table?.tableName || '';
+        selectedFieldName = cell?.field?.fieldName || '';
       }
-    }
 
-    return { selectedTableName, selectedFieldName };
-  }, [gridApi, selectedCell]);
+      if (selectedCol > 1) {
+        const rightCell = gridApi.getCell(selectedCol - 1, selectedRow);
+
+        if (rightCell?.table) {
+          selectedTableName = rightCell?.table?.tableName || '';
+        }
+      }
+
+      return { selectedTableName, selectedFieldName };
+    },
+    [gridApi],
+  );
 
   /**
    * Get value for point-click external source (e.g. after click on project tree table or field)
@@ -67,7 +70,10 @@ export function usePointClickSelectValue() {
    * @returns {string | undefined} - value for point-click external source
    */
   const getPointClickExternalValue = useCallback(
-    (externalValue: ExternalValueOptions): string | undefined => {
+    (
+      externalValue: ExternalValueOptions,
+      selectedCell: SelectedCell | null,
+    ): string | undefined => {
       if (!gridApi || !selectedCell) return;
 
       const { tableName, fieldName } = externalValue;
@@ -75,7 +81,7 @@ export function usePointClickSelectValue() {
 
       if (tableName && !fieldName) return sanitizedTableName;
 
-      const selectedContext = getSelectedCellContext();
+      const selectedContext = getSelectedCellContext(selectedCell);
 
       if (!selectedContext) return;
 
@@ -91,7 +97,7 @@ export function usePointClickSelectValue() {
 
       return;
     },
-    [getSelectedCellContext, gridApi, selectedCell]
+    [getSelectedCellContext, gridApi],
   );
 
   /**
@@ -102,11 +108,12 @@ export function usePointClickSelectValue() {
   const getSingleSelectionPointClickValue = useCallback(
     (
       pointClickSelection: SelectionEdges,
-      isRangeSelection = false
+      isRangeSelection = false,
+      selectedCell: SelectedCell | null,
     ): string | undefined => {
       if (!gridApi || !selectedCell) return;
 
-      const selectedContext = getSelectedCellContext();
+      const selectedContext = getSelectedCellContext(selectedCell);
 
       if (!selectedContext) return;
 
@@ -171,7 +178,7 @@ export function usePointClickSelectValue() {
           const findKeys = findTableKeys(
             targetTable,
             targetStartCol,
-            targetStartRow
+            targetStartRow,
           );
 
           return `${sanitizedTargetTableName}(${findKeys})[${targetFieldName}]`;
@@ -187,7 +194,7 @@ export function usePointClickSelectValue() {
         const findKeys = findTableKeys(
           targetTable,
           targetStartCol,
-          targetStartRow
+          targetStartRow,
         );
 
         return `${sanitizedTargetTableName}(${findKeys})[${targetFieldName}]`;
@@ -195,7 +202,7 @@ export function usePointClickSelectValue() {
 
       return;
     },
-    [findTable, findTableKeys, getSelectedCellContext, gridApi, selectedCell]
+    [findTable, findTableKeys, getSelectedCellContext, gridApi],
   );
 
   /**
@@ -204,7 +211,10 @@ export function usePointClickSelectValue() {
    * @returns {string | undefined} - value for point-click range selection
    */
   const getRangeSelectionPointClickValue = useCallback(
-    (pointClickSelection: SelectionEdges): string | undefined => {
+    (
+      pointClickSelection: SelectionEdges,
+      selectedCell: SelectedCell | null,
+    ): string | undefined => {
       if (!gridApi || !selectedCell) return;
 
       const { startRow, endRow, endCol, startCol } = pointClickSelection;
@@ -241,13 +251,14 @@ export function usePointClickSelectValue() {
             startCol,
             endCol: startCol,
           },
-          startRow !== endRow
+          startRow !== endRow,
+          selectedCell,
         );
       }
 
       return;
     },
-    [getSingleSelectionPointClickValue, gridApi, selectedCell]
+    [getSingleSelectionPointClickValue, gridApi],
   );
 
   /**
@@ -256,7 +267,10 @@ export function usePointClickSelectValue() {
    * @returns {string | undefined} - value for point-click selection
    */
   const getPointClickValue = useCallback(
-    (pointClickSelection: SelectionEdges | null): string | undefined => {
+    (
+      pointClickSelection: SelectionEdges | null,
+      selectedCell: SelectedCell | null,
+    ): string | undefined => {
       if (!gridApi || !isPointClickMode || !selectedCell) return;
 
       if (!pointClickSelection) return;
@@ -266,16 +280,19 @@ export function usePointClickSelectValue() {
         startRow === endRow && startCol === endCol;
 
       return singlePointClickCellSelected
-        ? getSingleSelectionPointClickValue(pointClickSelection)
-        : getRangeSelectionPointClickValue(pointClickSelection);
+        ? getSingleSelectionPointClickValue(
+            pointClickSelection,
+            false,
+            selectedCell,
+          )
+        : getRangeSelectionPointClickValue(pointClickSelection, selectedCell);
     },
     [
       getRangeSelectionPointClickValue,
       getSingleSelectionPointClickValue,
       gridApi,
       isPointClickMode,
-      selectedCell,
-    ]
+    ],
   );
 
   /**
@@ -286,13 +303,14 @@ export function usePointClickSelectValue() {
   const handlePointClickSelectValue = useCallback(
     (
       externalValue?: ExternalValueOptions | null,
-      pointClickSelection: SelectionEdges | null = null
+      pointClickSelection: SelectionEdges | null = null,
     ) => {
+      const selectedCell = useViewStore.getState().selectedCell;
       if (!gridApi || !isPointClickMode || !selectedCell) return;
 
       const value = externalValue
-        ? getPointClickExternalValue(externalValue)
-        : getPointClickValue(pointClickSelection);
+        ? getPointClickExternalValue(externalValue, selectedCell)
+        : getPointClickValue(pointClickSelection, selectedCell);
 
       gridApi.setPointClickError(!value);
 
@@ -312,8 +330,7 @@ export function usePointClickSelectValue() {
       isPointClickMode,
       pointClickModeSource,
       publish,
-      selectedCell,
-    ]
+    ],
   );
 
   return {

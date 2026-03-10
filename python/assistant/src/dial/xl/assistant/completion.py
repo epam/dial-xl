@@ -170,7 +170,9 @@ class XLChatCompletion(ChatCompletion):
         LOGGER.info("FastAPI server is up, starting resource loading.")
 
         self.checkpointer = InMemorySaver(serde=load_serde())
-        self.checkpointer_adapter = DIALChatCheckpointAdapter(self.checkpointer)
+        self.checkpointer_adapter = DIALChatCheckpointAdapter(
+            self.checkpointer, load_serde(), self.config
+        )
 
         self.graph = create_actions_graph(self.config.langgraph, self.checkpointer)
         self.resources = load_resources(self.config.resources)

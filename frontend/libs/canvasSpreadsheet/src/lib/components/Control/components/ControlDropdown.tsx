@@ -62,7 +62,7 @@ export function ControlDropdown({
       setSearchValue('');
       onClose?.();
     },
-    [selected, cell, eventBus, onClose, setSearchValue]
+    [selected, cell, eventBus, onClose, setSearchValue],
   );
 
   return (
@@ -93,7 +93,7 @@ export function ControlDropdown({
                   ? 'text-text-secondary'
                   : 'text-text-primary',
                 isActive &&
-                  'bg-bg-accent-primary-alpha hover:!bg-bg-accent-primary-alpha-2'
+                  'bg-bg-accent-primary-alpha hover:!bg-bg-accent-primary-alpha-2',
               )}
               key={item.value}
               onClick={() => setSelected(item.value)}

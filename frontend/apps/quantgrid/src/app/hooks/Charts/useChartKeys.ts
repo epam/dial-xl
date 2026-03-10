@@ -92,7 +92,7 @@ export function useChartKeys() {
             field,
             unescapedTableName,
             virtualRequests,
-            virtualTablesDSL
+            virtualTablesDSL,
           );
         }
       }
@@ -106,7 +106,7 @@ export function useChartKeys() {
         field: ParsedField,
         unescapedTableName: string,
         virtualRequests: Viewport[],
-        virtualTablesDSL: string[]
+        virtualTablesDSL: string[],
       ) {
         const { tableName } = table;
         const { fieldName } = field.key;
@@ -114,7 +114,7 @@ export function useChartKeys() {
         const virtualTableName = getOrCreateVirtualTableName(
           tableName,
           fieldName,
-          unescapedTableName
+          unescapedTableName,
         );
 
         const cachedRowNumber =
@@ -149,7 +149,7 @@ export function useChartKeys() {
         const virtualTableDSL = createVirtualChartTableDSL(
           table,
           field,
-          virtualTableName
+          virtualTableName,
         );
 
         virtualTablesDSL.push(virtualTableDSL);
@@ -157,7 +157,7 @@ export function useChartKeys() {
         viewGridData.addChartKeyVirtualTable(
           tableName,
           fieldName,
-          escapeTableName(virtualTableName)
+          escapeTableName(virtualTableName),
         );
 
         if (!cachedKeyViewports.current[tableName]) {
@@ -170,11 +170,11 @@ export function useChartKeys() {
       function getOrCreateVirtualTableName(
         tableName: string,
         fieldName: string,
-        unescapedTableName: string
+        unescapedTableName: string,
       ): string {
         const virtualTableName = viewGridData.getVirtualTableName(
           tableName,
-          fieldName
+          fieldName,
         );
 
         if (virtualTableName) return unescapeTableName(virtualTableName);
@@ -183,7 +183,7 @@ export function useChartKeys() {
 
         return createUniqueName(
           `${unescapedTableName}_selector_for_field_${sanitizedFieldName}_${uniqueId()}`,
-          collectTableNames(parsedSheets)
+          collectTableNames(parsedSheets),
         );
       }
 
@@ -195,28 +195,28 @@ export function useChartKeys() {
 
         if (targetTableName) {
           const table = parsedSheetTables.find(
-            (t) => t.tableName === targetTableName
+            (t) => t.tableName === targetTableName,
           );
           if (table) tables.push(table);
         } else if (viewportRequest) {
           const uniqueRequestedTableNames = new Set(
             viewportRequest
               .filter((r) => r.fieldKey?.table)
-              .map((r) => r?.fieldKey?.table)
+              .map((r) => r?.fieldKey?.table),
           );
           tables.push(
             ...parsedSheetTables.filter(
               (t) =>
                 uniqueRequestedTableNames.has(unescapeTableName(t.tableName)) &&
-                t.isChart()
-            )
+                t.isChart(),
+            ),
           );
         }
 
         return tables;
       }
     },
-    [getVirtualProjectViewport, parsedSheets, viewGridData]
+    [getVirtualProjectViewport, parsedSheets, viewGridData],
   );
 
   /**
@@ -232,7 +232,7 @@ export function useChartKeys() {
         targetFieldName: fieldName,
       });
     },
-    [projectName, sheetName, sheetContent, parsedSheets, sendChartKeyViewports]
+    [projectName, sheetName, sheetContent, parsedSheets, sendChartKeyViewports],
   );
 
   /**

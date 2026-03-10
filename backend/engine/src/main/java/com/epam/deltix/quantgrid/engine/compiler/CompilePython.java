@@ -13,7 +13,6 @@ import com.epam.deltix.quantgrid.engine.compiler.result.validator.NestedColumnVa
 import com.epam.deltix.quantgrid.engine.compiler.result.validator.ResultValidator;
 import com.epam.deltix.quantgrid.engine.node.expression.Expression;
 import com.epam.deltix.quantgrid.engine.node.expression.Get;
-import com.epam.deltix.quantgrid.engine.node.expression.PythonExpression;
 import com.epam.deltix.quantgrid.engine.node.plan.Plan;
 import com.epam.deltix.quantgrid.engine.node.plan.local.PythonPlan;
 import com.epam.deltix.quantgrid.parser.FieldKey;
@@ -25,6 +24,7 @@ import lombok.experimental.UtilityClass;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.IntStream;
 
 @UtilityClass
 public class CompilePython {
@@ -112,25 +112,37 @@ public class CompilePython {
         List<Expression> expressions = arguments.stream().map(CompiledColumn::expression).toList();
         ColumnType type = resultType.columnType();
 
+        int[] nestedPositions = new int[0];
+        int[] simplePositions = IntStream.range(0, expressions.size()).toArray();
+
         if (arguments.isEmpty()) {
-            List<FieldKey> dimensions =  List.of();
+            List<FieldKey> dimensions = List.of();
             Plan layout = context.layout(dimensions).node();
-            PythonExpression expression = new PythonExpression(layout, expressions, code, name, type);
-            return new CompiledSimpleColumn(expression, dimensions, GeneralFormat.INSTANCE);
+
+            PythonPlan plan = new PythonPlan(List.of(new Plan.Source(layout, expressions)),
+                    nestedPositions, simplePositions,
+                    code, name, type, false, true);
+
+            return new CompiledSimpleColumn(new Get(plan, 0), dimensions, GeneralFormat.INSTANCE);
         }
 
         CompiledColumn first = arguments.get(0);
         Plan layout = first.node().getLayout();
-        PythonExpression expression = new PythonExpression(layout, expressions, code, name, type);
+
+        PythonPlan plan = new PythonPlan(List.of(new Plan.Source(layout, expressions)),
+                nestedPositions, simplePositions,
+                code, name, type, false, first.scalar());
+
+        Get expression = new Get(plan, 0);
         return first.transform(ignore -> expression, GeneralFormat.INSTANCE);
     }
 
     private ResultType type(String type) {
         return switch (type) {
-            case "str" -> new ResultType(null, null, ColumnType.STRING, GeneralFormat.INSTANCE, false);
-            case "float" -> new ResultType(null, null, ColumnType.DOUBLE, GeneralFormat.INSTANCE, false);
-            case "list[str]" -> new ResultType(null, null, ColumnType.STRING, GeneralFormat.INSTANCE, true);
-            case "list[float]" -> new ResultType(null, null, ColumnType.DOUBLE, GeneralFormat.INSTANCE, true);
+            case "str" -> new ResultType(null, null, ColumnType.STRING, GeneralFormat.INSTANCE, false, true);
+            case "float" -> new ResultType(null, null, ColumnType.DOUBLE, GeneralFormat.INSTANCE, false, true);
+            case "list[str]" -> new ResultType(null, null, ColumnType.STRING, GeneralFormat.INSTANCE, true, true);
+            case "list[float]" -> new ResultType(null, null, ColumnType.DOUBLE, GeneralFormat.INSTANCE, true, true);
             default -> throw new IllegalArgumentException("Unsupported type: " + type
                     + ". Supported types: str, float, list[str], list[float]");
         };

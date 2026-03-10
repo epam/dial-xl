@@ -7,6 +7,7 @@ import { DashboardContext } from '../../../context';
 import { DashboardListColumn } from '../../../types/dashboard';
 import { useDashboardCreateMenuItems } from '../hooks';
 import { EmptySearchResults } from './EmptySearchResults';
+import { FileListErrorState } from './FileListErrorState';
 import { FileListItem } from './FileListItem';
 
 interface Props {
@@ -15,12 +16,24 @@ interface Props {
 }
 
 export const DashboardFileListItems = ({ columns }: Props) => {
-  const { displayedDashboardItems, loadingDashboard } =
-    useContext(DashboardContext);
+  const {
+    displayedDashboardItems,
+    loadingDashboard,
+    loadingError,
+    refetchData,
+  } = useContext(DashboardContext);
 
   const showNotFoundNotification = useMemo(
-    () => !loadingDashboard && displayedDashboardItems.length === 0,
-    [displayedDashboardItems.length, loadingDashboard]
+    () =>
+      !loadingDashboard &&
+      !loadingError &&
+      displayedDashboardItems.length === 0,
+    [displayedDashboardItems.length, loadingDashboard, loadingError],
+  );
+
+  const showErrorState = useMemo(
+    () => !loadingDashboard && loadingError,
+    [loadingDashboard, loadingError],
   );
 
   const projects = useMemo(
@@ -28,24 +41,28 @@ export const DashboardFileListItems = ({ columns }: Props) => {
       displayedDashboardItems
         .filter((item) => item.name.endsWith(dialProjectFileExtension))
         .map((item) => item.name.slice(0, -dialProjectFileExtension.length)),
-    [displayedDashboardItems]
+    [displayedDashboardItems],
   );
 
   const { dropdownItems } = useDashboardCreateMenuItems(projects);
 
   return (
     <>
-      {displayedDashboardItems.map((item) => (
-        <FileListItem
-          columns={columns}
-          item={item}
-          key={`${item.bucket}${item.parentPath ? item.parentPath : ''}${
-            item.name
-          }`}
-        />
-      ))}
+      {!showErrorState &&
+        displayedDashboardItems.map((item) => (
+          <FileListItem
+            columns={columns}
+            item={item}
+            key={`${item.bucket}${item.parentPath ? item.parentPath : ''}${
+              item.name
+            }`}
+          />
+        ))}
       <Dropdown menu={{ items: dropdownItems }} trigger={['contextMenu']}>
         <div className="flex flex-col grow">
+          {showErrorState && loadingError && (
+            <FileListErrorState error={loadingError} onRetry={refetchData} />
+          )}
           {showNotFoundNotification && <EmptySearchResults />}
         </div>
       </Dropdown>

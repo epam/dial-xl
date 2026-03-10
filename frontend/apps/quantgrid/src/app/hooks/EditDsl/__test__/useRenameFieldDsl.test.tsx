@@ -1,3 +1,5 @@
+import { vi } from 'vitest';
+
 import { act, RenderHookResult } from '@testing-library/react';
 
 import { useRenameFieldDsl } from '../useRenameFieldDsl';
@@ -19,7 +21,7 @@ describe('useRenameFieldDsl', () => {
   });
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     const hookRender = hookTestSetup(useRenameFieldDsl, Wrapper);
     hook = hookRender.result;
     setDsl = hookRender.setDsl;
@@ -38,7 +40,7 @@ describe('useRenameFieldDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Rename column [f1] to [f6] in table "t1"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }]
+        [{ sheetName: props.sheetName, content: expectedDsl }],
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -57,7 +59,7 @@ describe('useRenameFieldDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Rename column [f1] to [f5] in table "t1"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }]
+        [{ sheetName: props.sheetName, content: expectedDsl }],
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -76,7 +78,7 @@ describe('useRenameFieldDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Rename column [f1] to [f4] in table "t1"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }]
+        [{ sheetName: props.sheetName, content: expectedDsl }],
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -95,7 +97,7 @@ describe('useRenameFieldDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Rename column [f2'[a']] to [f2'[b']] in table "t1"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }]
+        [{ sheetName: props.sheetName, content: expectedDsl }],
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -127,7 +129,7 @@ describe('useRenameFieldDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Rename column [f2] to [f3] in table "t1"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }]
+        [{ sheetName: props.sheetName, content: expectedDsl }],
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -147,7 +149,7 @@ describe('useRenameFieldDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Rename column [f2] to [f3] in table "t1"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }]
+        [{ sheetName: props.sheetName, content: expectedDsl }],
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -167,7 +169,7 @@ describe('useRenameFieldDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Rename column [f2] to [f3] in table "t1"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }]
+        [{ sheetName: props.sheetName, content: expectedDsl }],
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -177,7 +179,7 @@ describe('useRenameFieldDsl', () => {
     it('should rename column in apply sort section', () => {
       // Arrange
       const dsl = 'table t1 [f1]=1\n[f2]=2\napply\nsort [f1]';
-      const expectedDsl = 'table t1 [f3]=1\n[f2]=2\napply\nsort [f3]\r\n';
+      const expectedDsl = 'table t1 [f3]=1\n[f2]=2\napply\nsort [f3], 1\r\n';
       setDsl(dsl);
 
       // Act
@@ -186,7 +188,7 @@ describe('useRenameFieldDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Rename column [f1] to [f3] in table "t1"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }]
+        [{ sheetName: props.sheetName, content: expectedDsl }],
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -206,7 +208,7 @@ describe('useRenameFieldDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Rename column [f1] to [f3] in table "t1"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }]
+        [{ sheetName: props.sheetName, content: expectedDsl }],
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -226,7 +228,7 @@ describe('useRenameFieldDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Rename column [f1] to [f3] in table "t1"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }]
+        [{ sheetName: props.sheetName, content: expectedDsl }],
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -236,9 +238,9 @@ describe('useRenameFieldDsl', () => {
     it('should rename column in both apply sections', () => {
       // Arrange
       const dsl =
-        'table t1 [f1]=1\n[f2]=2\napply\nsort -[f1]\nfilter [f1] >= 1';
+        'table t1 [f1]=1\n[f2]=2\napply\nsort [f1], -1\nfilter [f1] >= 1';
       const expectedDsl =
-        'table t1 [f3]=1\n[f2]=2\napply\nsort -[f3]\nfilter [f3] >= 1\r\n';
+        'table t1 [f3]=1\n[f2]=2\napply\nsort [f3], -1\nfilter [f3] >= 1\r\n';
       setDsl(dsl);
 
       // Act
@@ -247,7 +249,7 @@ describe('useRenameFieldDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Rename column [f1] to [f3] in table "t1"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }]
+        [{ sheetName: props.sheetName, content: expectedDsl }],
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -267,7 +269,7 @@ describe('useRenameFieldDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Rename column [f1] to [f3] in table "t1"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }]
+        [{ sheetName: props.sheetName, content: expectedDsl }],
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },
@@ -288,7 +290,7 @@ describe('useRenameFieldDsl', () => {
       // Assert
       expect(props.appendToFn).toHaveBeenCalledWith(
         `Rename column [f1] to [f3] in table "t1"`,
-        [{ sheetName: props.sheetName, content: expectedDsl }]
+        [{ sheetName: props.sheetName, content: expectedDsl }],
       );
       expect(props.manuallyUpdateSheetContent).toHaveBeenCalledWith([
         { sheetName: props.sheetName, content: expectedDsl },

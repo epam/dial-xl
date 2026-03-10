@@ -3,11 +3,13 @@ package com.epam.quantgrid.input.snowflake;
 import com.epam.quantgrid.input.annotate.Input;
 import com.epam.quantgrid.input.annotate.Setting;
 import com.epam.quantgrid.input.jdbc.JdbcInput;
+import com.epam.quantgrid.input.util.DataUtils;
 import lombok.Getter;
 import lombok.Setter;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.util.Collection;
 import java.util.Properties;
 
 @Setter
@@ -52,5 +54,10 @@ public class SnowflakeInput extends JdbcInput {
         //props.put("db", "MYDB");
 
         return DriverManager.getConnection("jdbc:snowflake://%s.snowflakecomputing.com/".formatted(account), props);
+    }
+
+    @Override
+    protected String buildQuery(String dataset, Collection<String> columns) {
+        return DataUtils.selectColumns(dataset, columns);
     }
 }

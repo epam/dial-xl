@@ -1,7 +1,7 @@
-import { RefObject, useCallback, useContext, useEffect, useRef } from 'react';
+import { useCallback, useContext, useEffect, useRef } from 'react';
 import { Subscription } from 'rxjs';
 
-import { GridApi } from '../../../types';
+import { GridStateContext } from '../../../context';
 import { filterByTypeAndCast, GridEventBus } from '../../../utils';
 import { CellEditorContext } from '../CellEditorContext';
 import {
@@ -10,11 +10,12 @@ import {
 } from '../types';
 
 type Props = {
-  apiRef: RefObject<GridApi>;
   eventBus: GridEventBus;
 };
 
-export function usePointAndClick({ apiRef, eventBus }: Props) {
+export function usePointAndClick({ eventBus }: Props) {
+  const { setSelectionEdges, cellEditorEvent$, pointClickMode } =
+    useContext(GridStateContext);
   const { setFocus, setCode, codeValue, onCodeChange } =
     useContext(CellEditorContext);
 
@@ -29,13 +30,11 @@ export function usePointAndClick({ apiRef, eventBus }: Props) {
         type: 'selection/point-click-started',
       });
     },
-    [eventBus]
+    [eventBus],
   );
 
   const onStopPointClick = useCallback(
     (offset: number) => {
-      if (!apiRef.current) return;
-
       const isSameValue = codeValue.current === lastCodeEditorValue.current;
 
       const isOffsetChanged =
@@ -49,12 +48,16 @@ export function usePointAndClick({ apiRef, eventBus }: Props) {
       lastCodeEditorValue.current = '';
       cursorOffset.current = 0;
 
-      apiRef.current.updateSelection(null, { silent: true });
+      if (!pointClickMode) {
+        return;
+      }
+
+      setSelectionEdges(null, { silent: true });
       eventBus.emit({
         type: 'selection/point-click-stopped',
       });
     },
-    [apiRef, codeValue, eventBus]
+    [codeValue, eventBus, pointClickMode, setSelectionEdges],
   );
 
   const onSetPointClickValue = useCallback(
@@ -71,39 +74,37 @@ export function usePointAndClick({ apiRef, eventBus }: Props) {
 
       lastCodeEditorValue.current = updatedValue;
       lastPointClickValue.current = value;
+      const newCursorOffset = offset + value.length;
 
       setCode.current?.(updatedValue);
 
       setTimeout(() => {
-        setFocus.current?.();
+        setFocus.current?.({ cursorOffset: newCursorOffset });
         onCodeChange(updatedValue);
       }, 0);
     },
-    [codeValue, onCodeChange, setCode, setFocus]
+    [codeValue, onCodeChange, setCode, setFocus],
   );
 
   useEffect(() => {
-    if (!apiRef.current) return;
-
-    const api = apiRef.current;
     const subscriptions: Subscription[] = [];
 
     subscriptions.push(
-      api.cellEditorEvent$
+      cellEditorEvent$.current
         .pipe(
           filterByTypeAndCast<GridCellEditorEventSetPointClickValue>(
-            GridCellEditorEventType.SetPointClickValue
-          )
+            GridCellEditorEventType.SetPointClickValue,
+          ),
         )
         .subscribe(({ value }) => {
           onSetPointClickValue(value);
-        })
+        }),
     );
 
     return () => {
       subscriptions.forEach((s) => s.unsubscribe());
     };
-  }, [apiRef, onSetPointClickValue]);
+  }, [cellEditorEvent$, onSetPointClickValue]);
 
   return { onStartPointClick, onStopPointClick };
 }

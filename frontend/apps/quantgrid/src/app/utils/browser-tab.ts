@@ -6,7 +6,7 @@ export const updateTabTitle = (title: string) => {
 
 export const updateTabFavicon = (href: string, type: string) => {
   const link: HTMLLinkElement | null = document.querySelector(
-    'link[data-type="favicon"]'
+    'link[data-type="favicon"]',
   );
   if (link) {
     link.href = href;

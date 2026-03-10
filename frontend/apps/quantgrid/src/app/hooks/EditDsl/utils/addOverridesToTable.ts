@@ -56,7 +56,7 @@ export const addOverridesToTable = ({
       const value = cells[row][col];
 
       const targetField = parsedTable?.getFieldByColumnIndex(
-        selectedCellFieldIndex + col
+        selectedCellFieldIndex + col,
       );
       if (!targetField) {
         continue;
@@ -87,7 +87,7 @@ export const addOverridesToTable = ({
 
         overrides.keys.forEach((key) => {
           const tableFieldIndex = fields.findIndex(
-            (f) => f.key.fieldName === key
+            (f) => f.key.fieldName === key,
           );
           let sheetRow;
           let sheetCol;
@@ -111,7 +111,7 @@ export const addOverridesToTable = ({
           defaultRowKey,
           tableRow + 1,
           fieldName,
-          value
+          value,
         );
       }
     }

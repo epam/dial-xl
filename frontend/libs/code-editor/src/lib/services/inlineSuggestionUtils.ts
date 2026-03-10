@@ -10,7 +10,7 @@ import { CodeEditorPlace } from '../types';
 
 export function getTextAroundCursor(
   model: editor.ITextModel,
-  position: Position
+  position: Position,
 ) {
   const currentLine = model.getLineContent(position.lineNumber);
   const offset = model.getOffsetAt(position);
@@ -18,7 +18,7 @@ export function getTextAroundCursor(
   const textBeforeCursor = model.getValue().substring(0, offset);
   const textBeforeCursorOnCurrentLine = currentLine.substring(
     0,
-    position.column - 1
+    position.column - 1,
   );
   const textAfterCursor = model.getValue().substring(offset);
 
@@ -36,7 +36,7 @@ export function buildMessages(
   codeEditorPlace: CodeEditorPlace,
   sheetContent?: string,
   currentTableName?: string,
-  currentFieldName?: string
+  currentFieldName?: string,
 ) {
   const { textBeforeCursor, textBeforeCursorOnCurrentLine, textAfterCursor } =
     getTextAroundCursor(model, position);
@@ -91,7 +91,7 @@ export function buildMessages(
 
 export async function fetchSuggestion(
   messages: any[],
-  getCompletions: GetCompletionFunction
+  getCompletions: GetCompletionFunction,
 ) {
   const response = await getCompletions(JSON.stringify({ messages }));
 
@@ -106,7 +106,7 @@ export async function fetchSuggestion(
 
 export function createSuggestion(
   suggestionText: string,
-  position: Position
+  position: Position,
 ): languages.InlineCompletion {
   const lines = suggestionText.split('\n');
   const newLinesInSuggestion = lines.length - 1;
@@ -126,7 +126,7 @@ export function createSuggestion(
 export function getFilteredAndFormattedSuggestions(
   suggestion: languages.InlineCompletion,
   model: editor.ITextModel,
-  position: Position
+  position: Position,
 ) {
   if (!suggestion) return [];
 
@@ -143,7 +143,7 @@ export function getFilteredAndFormattedSuggestions(
   return [
     new CompletionFormatter(model, position).format(
       suggestion.insertText as string,
-      suggestion.range as IRange
+      suggestion.range as IRange,
     ),
   ];
 }

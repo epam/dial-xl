@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
@@ -49,6 +49,8 @@
         dialOverlayUrl,
         authClientId,
         authAuthority,
+        authAudience:
+          typeof authAudience !== 'undefined' ? authAudience : undefined,
         dialBaseUrl,
         qgBotDeploymentName,
         adminRoles,
@@ -60,6 +62,7 @@
         authScope: typeof authScope !== 'undefined' ? authScope : undefined,
         apiBaseUrl: typeof apiBaseUrl !== 'undefined' ? apiBaseUrl : undefined,
         defaultLogoUrl,
+        logLevel: typeof logLevel !== 'undefined' ? logLevel : undefined,
       };
     </script>
   </body>

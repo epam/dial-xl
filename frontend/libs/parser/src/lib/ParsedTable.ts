@@ -23,6 +23,7 @@ import {
   manualTableDecoratorName,
   showVisualMapDecoratorName,
   tableControlDecoratorName,
+  unknownDynamicNamePrefix,
   visualizationDecoratorName,
 } from './parser';
 import { findFunctionExpressions, getLayoutParams } from './services';
@@ -58,6 +59,8 @@ export class ParsedTable {
 
   public isPivot: boolean;
 
+  public isGroupBy: boolean;
+
   constructor(
     span: Span,
     name: ParsedText,
@@ -71,7 +74,7 @@ export class ParsedTable {
     apply: ParsedApply | undefined,
     totals: ParsedTotals[] | undefined,
     public total: ParsedTotal | undefined,
-    public note?: DSLNote | undefined
+    public note?: DSLNote | undefined,
   ) {
     this.span = span;
     this.name = name;
@@ -85,7 +88,7 @@ export class ParsedTable {
 
     this.fields = fields.reduce<ParsedField[]>(
       (acc, curr) => acc.concat(curr.fields),
-      []
+      [],
     );
 
     try {
@@ -93,11 +96,23 @@ export class ParsedTable {
         (f) =>
           f.expression &&
           findFunctionExpressions(f.expression).some(
-            (func) => func.name === 'PIVOT'
-          )
+            (func) => func.name === 'PIVOT',
+          ),
       );
     } catch (e) {
       this.isPivot = false;
+    }
+
+    try {
+      this.isGroupBy = this.fields.some(
+        (f) =>
+          f.expression &&
+          findFunctionExpressions(f.expression).some(
+            (func) => func.name === 'GROUPBY',
+          ),
+      );
+    } catch (e) {
+      this.isGroupBy = false;
     }
   }
 
@@ -132,7 +147,7 @@ export class ParsedTable {
 
   public hasDynamicFields(): boolean {
     return !!this.fields.find(
-      (field) => field.key.fieldName === dynamicFieldName
+      (field) => field.key.fieldName === dynamicFieldName,
     );
   }
 
@@ -140,21 +155,29 @@ export class ParsedTable {
     return this.hasDecorator(manualTableDecoratorName);
   }
 
-  public hasKeys() {
+  public hasKeys(): boolean {
     return this.fields.some((field) => field.isKey);
   }
 
-  public getKeys() {
+  public getKeys(): ParsedField[] {
     return this.fields.filter((field) => field.isKey);
   }
 
-  public getFieldsWithoutDynamicVirtual() {
+  public getFieldsWithoutDynamicVirtual(): ParsedField[] {
     return this.fields.filter((f) => !f.isDynamic);
   }
 
-  public getFieldsWithoutDynamic() {
+  public getFieldsWithoutDynamic(): ParsedField[] {
     return this.fields.filter(
-      (f) => f.key.fieldName !== dynamicFieldName && !f.isDynamic
+      (f) => f.key.fieldName !== dynamicFieldName && !f.isDynamic,
+    );
+  }
+
+  public getUserVisibleFields(): ParsedField[] {
+    return this.fields.filter(
+      (f) =>
+        f.key.fieldName !== dynamicFieldName &&
+        !f.key.fieldName.startsWith(unknownDynamicNamePrefix),
     );
   }
 
@@ -162,43 +185,134 @@ export class ParsedTable {
     return this.fields.find((f) => f.key.fieldName === dynamicFieldName);
   }
 
-  public setDynamicFields(dynamicFields: string[]) {
-    const newFields = [];
-    const dynamicField = this.getDynamicField();
+  /**
+   * Updates the table's dynamic fields based on data received from the server.
+   *
+   * Supports two modes:
+   * 1. Full replacement (when startColumn is undefined): Replaces all dynamic fields
+   * 2. Partial update (when startColumn is defined): Updates a slice of dynamic fields
+   *
+   * @param dynamicFields - Array of field names to add/update
+   * @param startColumn - Start index for partial updates (0-based)
+   * @param endColumn - End index for partial updates
+   * @param totalColumns - Total number of dynamic columns expected
+   */
+  public setDynamicFields(
+    dynamicFields: (string | undefined)[] | undefined,
+    startColumn?: number,
+    endColumn?: number,
+    totalColumns?: number,
+  ) {
+    const dynamicTemplate = this.getDynamicField();
+    if (!dynamicTemplate) return;
 
-    if (!dynamicField) return;
+    const isRangeUpdate = Number.isFinite(startColumn as number);
 
-    // For cases when dynamic fields are changed after dsl changes
-    // remove old dynamic fields to avoid stale fields in the table
-    this.fields = this.fields.filter(
-      (f) => !f.isDynamic || dynamicFields.includes(f.key.fieldName)
-    );
+    // Mode 1: Full replacement of all dynamic fields
+    if (!isRangeUpdate) {
+      if (!dynamicFields || dynamicFields.length === 0) return;
 
-    for (const fieldName of dynamicFields) {
-      if (this.fields.find((f) => f.key.fieldName === fieldName)) continue;
-
-      newFields.push(
-        new ParsedField(
-          new FieldKey(this.tableName, `[${fieldName}]`, fieldName),
-          true,
-          dynamicField.expression,
-          dynamicField.expressionMetadata,
-          dynamicField.fieldGroupIndex
-        )
+      // Remove dynamic fields that are no longer present, keep those that are
+      this.fields = this.fields.filter(
+        (f) => !f.isDynamic || dynamicFields.includes(f.key.fieldName),
       );
+
+      // Create ParsedField instances for newly discovered fields
+      const newFields: ParsedField[] = [];
+      for (const fieldName of dynamicFields) {
+        // Skip undefined/null names or fields that already exist
+        if (
+          !fieldName ||
+          this.fields.find((f) => f.key.fieldName === fieldName)
+        ) {
+          continue;
+        }
+        newFields.push(
+          this.createDynamicParsedField(fieldName, dynamicTemplate),
+        );
+      }
+
+      const virtualIndex = this.getDynamicVirtualFieldIndex();
+      if (virtualIndex === -1 || newFields.length === 0) return;
+
+      // Insert new fields immediately before the virtual '[*]' field
+      this.fields = [
+        ...this.fields.slice(0, virtualIndex),
+        ...newFields,
+        ...this.fields.slice(virtualIndex),
+      ];
+
+      return;
     }
 
-    const dynamicFieldIndex = this.fields.findIndex(
-      (f) => f.key.fieldName === dynamicFieldName
+    // Mode 2: Partial update of a range of dynamic fields
+    // This happens during scrolling when new columns become visible
+    const start = Math.max(0, parseInt(String(startColumn), 10) || 0);
+    const slice = dynamicFields ?? [];
+
+    // Calculate the end index: use provided value or infer from data
+    const inferredEnd = Number.isFinite(endColumn as number)
+      ? Math.max(start, parseInt(String(endColumn), 10) || start)
+      : start + slice.length;
+
+    // Determine the total size of the dynamic block
+    const desiredTotal =
+      typeof totalColumns === 'number' && totalColumns > 0
+        ? totalColumns
+        : Math.max(inferredEnd, start + slice.length);
+
+    // Ensure the dynamic block has the correct number of placeholder fields
+    const blockInfo = this.ensureDynamicBlockSize(
+      desiredTotal,
+      dynamicTemplate,
     );
+    if (!blockInfo) return;
 
-    if (dynamicFieldIndex === -1 || newFields.length === 0) return;
+    const dynamicStartIndex = blockInfo.startIndex;
+    const dynamicEndIndex = dynamicStartIndex + desiredTotal;
 
-    this.fields = [
-      ...this.fields.slice(0, dynamicFieldIndex),
-      ...newFields,
-      ...this.fields.slice(dynamicFieldIndex),
-    ];
+    // Update fields in the specified range
+    for (let i = 0; i < slice.length; i++) {
+      const columnIndex = start + i;
+
+      // Skip out-of-bounds indices
+      if (columnIndex < 0 || columnIndex >= desiredTotal) continue;
+
+      const fieldName = slice[i];
+      if (!fieldName) continue;
+
+      const absolutePosition = dynamicStartIndex + columnIndex;
+      const currentField = this.fields[absolutePosition];
+
+      // Skip if the field is already set to this name
+      if (currentField && currentField.key.fieldName === fieldName) continue;
+
+      // Check for duplicates: if this field name exists elsewhere in the dynamic block,
+      // replace it with a placeholder to avoid having the same field name twice
+      const duplicatePosition = this.fields.findIndex(
+        (f, position) =>
+          position !== absolutePosition &&
+          f.isDynamic &&
+          f.key.fieldName === fieldName &&
+          position >= dynamicStartIndex &&
+          position < dynamicEndIndex,
+      );
+
+      if (duplicatePosition !== -1) {
+        const relativeIndex = duplicatePosition - dynamicStartIndex;
+        const placeholderName = this.getDynamicPlaceholderName(relativeIndex);
+        this.fields[duplicatePosition] = this.createDynamicParsedField(
+          placeholderName,
+          dynamicTemplate,
+        );
+      }
+
+      // Set the field at the correct position
+      this.fields[absolutePosition] = this.createDynamicParsedField(
+        fieldName,
+        dynamicTemplate,
+      );
+    }
   }
 
   public getFieldsCount() {
@@ -254,7 +368,7 @@ export class ParsedTable {
   }
 
   public getFieldHeaderPlacement(
-    fieldName: string
+    fieldName: string,
   ): FieldHeaderPlacement | null {
     const field = this.fields.find((f) => f.key.fieldName === fieldName);
 
@@ -411,7 +525,7 @@ export class ParsedTable {
 
   private getDecorator(decName: string): ParsedDecorator | undefined {
     return this.decorators.find(
-      (decorator) => decorator.decoratorName === decName
+      (decorator) => decorator.decoratorName === decName,
     );
   }
 
@@ -421,5 +535,156 @@ export class ParsedTable {
 
   private getDecoratorParams(decName: string): any[][] | undefined {
     return this.getDecorator(decName)?.params;
+  }
+
+  /**
+   * Generates a unique placeholder name for a dynamic field at the given index.
+   * Placeholders are used to reserve space in the dynamic block before actual field names are discovered.
+   *
+   * @param index - 0-based index within the dynamic block
+   * @returns Placeholder name like '__dyn__0', '__dyn__1', etc.
+   */
+  private getDynamicPlaceholderName(index: number): string {
+    return `${unknownDynamicNamePrefix}${index}`;
+  }
+
+  /**
+   * Creates a ParsedField instance for a dynamic field based on the '[*]' template.
+   *
+   * @param fieldName - The concrete field name
+   * @param template - The virtual '[*]' field to use as a template
+   * @returns A new ParsedField instance representing the dynamic field
+   */
+  private createDynamicParsedField(fieldName: string, template: ParsedField) {
+    return new ParsedField(
+      new FieldKey(this.tableName, `[${fieldName}]`, fieldName),
+      true,
+      template.expression,
+      template.expressionMetadata,
+      template.fieldGroupIndex,
+    );
+  }
+
+  /**
+   * Finds the starting index of the dynamic field block in this.fields array.
+   *
+   * Dynamic fields are stored contiguously immediately before the virtual '[*]' field.
+   * This method scans backwards from the '[*]' field to find where the dynamic block starts.
+   *
+   * @returns The index where the dynamic block starts, or -1 if no '[*]' field exists
+   */
+  public getDynamicBlockStartIndex(): number {
+    const virtualIndex = this.getDynamicVirtualFieldIndex();
+    if (virtualIndex === -1) return -1;
+
+    let start = virtualIndex;
+
+    while (start - 1 >= 0 && this.fields[start - 1].isDynamic) {
+      start--;
+    }
+
+    return start;
+  }
+
+  /**
+   * Finds the index of the virtual '[*]' field in the this.fields array.
+   *
+   * The '[*]' field is a special placeholder in the DSL that marks where
+   * dynamic fields should be expanded.
+   *
+   * @returns Index of the '[*]' field, or -1 if not found
+   */
+  private getDynamicVirtualFieldIndex(): number {
+    return this.fields.findIndex((f) => f.key.fieldName === dynamicFieldName);
+  }
+
+  /**
+   * Retrieves information about the current dynamic field block.
+   *
+   * @returns Object with block information, or null if no '[*]' field exists
+   * @returns startIndex - Index where dynamic fields begin
+   * @returns dynamicFields - Array of current dynamic ParsedField instances
+   * @returns virtualIndex - Index of the '[*]' placeholder
+   */
+  private getCurrentDynamicBlock(): {
+    startIndex: number;
+    dynamicFields: ParsedField[];
+    virtualIndex: number;
+  } | null {
+    const virtualIndex = this.getDynamicVirtualFieldIndex();
+    if (virtualIndex === -1) return null;
+
+    let startIndex = virtualIndex;
+
+    while (startIndex - 1 >= 0 && this.fields[startIndex - 1].isDynamic) {
+      startIndex--;
+    }
+
+    return {
+      startIndex,
+      dynamicFields: this.fields.slice(startIndex, virtualIndex),
+      virtualIndex,
+    };
+  }
+
+  /**
+   * Ensures the dynamic field block has exactly the specified number of fields.
+   *
+   * This method resizes the dynamic block to match the total column count:
+   * - If the block is too small: adds placeholder fields
+   * - If the block is too large: removes excess fields
+   * - Preserves existing fields by their index position
+   *
+   * Algorithm:
+   * 1. Remove the current dynamic block from this.fields
+   * 2. Build a new block with the correct size:
+   *    - Reuse existing fields up to the new size (by index)
+   *    - Fill remaining positions with placeholder fields
+   * 3. Insert the new block before the '[*]' field
+   *
+   * This maintains the invariant that dynamic fields are always positioned
+   * immediately before the virtual '[*]' field, with a fixed size.
+   *
+   * @param totalColumns - Desired total number of dynamic fields
+   * @param template - The '[*]' field to use as a template for new fields
+   * @returns Object with startIndex and totalColumns, or null if no '[*]' field exists
+   */
+  private ensureDynamicBlockSize(totalColumns: number, template: ParsedField) {
+    const block = this.getCurrentDynamicBlock();
+    if (!block) return null;
+
+    const { startIndex, dynamicFields } = block;
+
+    // Remove the entire existing dynamic block
+    if (dynamicFields.length > 0) {
+      this.fields.splice(startIndex, dynamicFields.length);
+    }
+
+    const nextDynamic: ParsedField[] = [];
+    const keepCount = Math.min(dynamicFields.length, totalColumns);
+
+    // Preserve existing fields by their index position (0-based)
+    for (let i = 0; i < keepCount; i++) {
+      nextDynamic.push(dynamicFields[i]);
+    }
+
+    // Fill remaining positions with placeholder fields
+    // Placeholders will be replaced when actual field names are discovered
+    for (let i = keepCount; i < totalColumns; i++) {
+      const placeholderName = this.getDynamicPlaceholderName(i);
+      nextDynamic.push(
+        this.createDynamicParsedField(placeholderName, template),
+      );
+    }
+
+    // Insert the resized block immediately before the virtual '[*]' field
+    const newVirtualIndex = this.getDynamicVirtualFieldIndex();
+    if (newVirtualIndex === -1) return null;
+
+    this.fields.splice(newVirtualIndex, 0, ...nextDynamic);
+
+    // After insertion, the dynamic block now starts where '[*]' used to be
+    // (because we inserted before it, pushing it forward)
+    return { startIndex: newVirtualIndex, totalColumns };
   }
 }

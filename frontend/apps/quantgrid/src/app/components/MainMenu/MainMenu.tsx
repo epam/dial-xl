@@ -1,7 +1,6 @@
 import { Menu } from 'antd';
 import cx from 'classnames';
-import type { MenuInfo } from 'rc-menu/lib/interface';
-import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { useCallback, useContext, useMemo, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 
 import { GridEvent } from '@frontend/canvas-spreadsheet';
@@ -9,8 +8,8 @@ import {
   defaultFieldName,
   FormulasContextMenuKeyData,
   InsertChartContextMenuKeyData,
-  MenuItem,
 } from '@frontend/common';
+import type { MenuInfo } from '@rc-component/menu/lib/interface';
 
 import { ColorSchema, PanelName } from '../../common';
 import {
@@ -38,6 +37,7 @@ import {
   useSearchModalStore,
   useShortcutsHelpModalStore,
   useUIStore,
+  useUserSettingsStore,
   useViewStore,
 } from '../../store';
 import { routes } from '../../types';
@@ -45,12 +45,12 @@ import { getProjectNavigateUrl } from '../../utils';
 import {
   editMenuKeys,
   fileMenuKeys,
-  getMenuItems,
   helpMenuKeys,
   insertMenuKeys,
   togglePanelKeys,
   viewMenuKeys,
-} from './MainMenuItems';
+} from './constants';
+import { useMainMenuItems } from './useMainMenuItems';
 
 interface Props {
   isMobile?: boolean;
@@ -63,15 +63,15 @@ export function MainMenu({
   isMobile = false,
   colorSchema = 'default',
 }: Props) {
-  const { toggleChat, toggleChatWindowPlacement, chatWindowPlacement } =
-    useUIStore(
-      useShallow((s) => ({
-        toggleChat: s.toggleChat,
-        toggleChatWindowPlacement: s.toggleChatWindowPlacement,
-        chatWindowPlacement: s.chatWindowPlacement,
-      }))
-    );
-  const selectedCell = useViewStore((s) => s.selectedCell);
+  const { toggleChat, toggleChatWindowPlacement } = useUIStore(
+    useShallow((s) => ({
+      toggleChat: s.toggleChat,
+      toggleChatWindowPlacement: s.toggleChatWindowPlacement,
+    })),
+  );
+  const chatWindowPlacement = useUserSettingsStore(
+    (s) => s.data.chatWindowPlacement,
+  );
   const { userBucket } = useContext(ApiContext);
   const {
     togglePanel,
@@ -85,7 +85,7 @@ export function MainMenu({
   const openSearchModal = useSearchModalStore((s) => s.open);
   const openShortcutsHelpModal = useShortcutsHelpModalStore((s) => s.open);
   const openControlCreateWizard = useControlStore(
-    (s) => s.openControlCreateWizard
+    (s) => s.openControlCreateWizard,
   );
   const gridApi = useGridApi();
   const {
@@ -117,7 +117,58 @@ export function MainMenu({
     isAIPendingMode,
   } = useProjectMode();
 
-  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+  const [openKeys, setOpenKeys] = useState<string[]>([]);
+
+  const recentProjects = useMemo(() => getRecentProjects(), []);
+
+  const wantsSelection = useMemo(
+    () => openKeys.includes('InsertMenu'),
+    [openKeys],
+  );
+
+  const selectedCell = useViewStore((s) =>
+    wantsSelection ? s.selectedCell : null,
+  );
+
+  const selectedCellContext = useMemo(() => {
+    return selectedCell && gridApi?.getCell(selectedCell.col, selectedCell.row);
+  }, [selectedCell, gridApi]);
+
+  const handleCreateTableBySize = useCallback(
+    (cols: number, rows: number) => {
+      const colsItems = new Array(cols).fill('');
+      const rowsItems = new Array(rows).fill(colsItems);
+      createManualTable(
+        selectedCell?.col ?? 1,
+        selectedCell?.row ?? 1,
+        rowsItems,
+      );
+    },
+    [selectedCell?.col, selectedCell?.row, createManualTable],
+  );
+
+  const menuItems = useMainMenuItems({
+    openKeys,
+    selectedCell: selectedCellContext,
+    functions,
+    parsedSheets,
+    inputFiles: inputList,
+    isYourProject: userBucket === projectBucket,
+    isProjectShareable,
+    isAIPendingChanges,
+    recentProjects,
+    collapsedPanelsTextHidden,
+    panelsSplitEnabled,
+    isMobile,
+    onCreateTable: handleCreateTableBySize,
+    isReadOnlyMode,
+    isCSVViewMode,
+    isDefaultMode,
+    isAIPreviewMode,
+    isProjectReadonlyByUser,
+    permissions: projectPermissions,
+    answerIsGenerating,
+  });
 
   // Key is used to redraw the menu when the mode changes
   // Without it, the menu can be collapsed under 3 dots when the mode changes
@@ -130,7 +181,7 @@ export function MainMenu({
       isCSVViewMode,
       isDefaultMode,
       isAIPendingMode,
-    ]
+    ],
   );
 
   const onClickFormulaItem = useCallback(
@@ -140,13 +191,13 @@ export function MainMenu({
           action,
           data.type,
           data.insertFormula,
-          data.tableName
+          data.tableName,
         );
 
         return;
       }
     },
-    [onCreateTableAction]
+    [onCreateTableAction],
   );
 
   const onMenuItemClick = useCallback(
@@ -196,7 +247,7 @@ export function MainMenu({
               projectPath: recentProject.projectPath,
               projectSheetName: recentProject.sheetName,
             }),
-            '_blank'
+            '_blank',
           );
         }
       } catch {
@@ -289,7 +340,7 @@ export function MainMenu({
               selectedCell.col,
               selectedCell.row,
               selectedCell.tableName,
-              ''
+              '',
             );
           }
           break;
@@ -299,7 +350,7 @@ export function MainMenu({
               selectedCell.col,
               selectedCell.row,
               selectedCell.tableName,
-              ''
+              '',
             );
           }
           break;
@@ -366,72 +417,16 @@ export function MainMenu({
       panelsSplitEnabled,
       openShortcutsHelpModal,
       openControlCreateWizard,
-    ]
+    ],
   );
 
-  const handleCreateTableBySize = useCallback(
-    (cols: number, rows: number) => {
-      const colsItems = new Array(cols).fill('');
-      const rowsItems = new Array(rows).fill(colsItems);
-      createManualTable(
-        selectedCell?.col ?? 1,
-        selectedCell?.row ?? 1,
-        rowsItems
-      );
+  const handleMenuClick = useCallback(
+    (e: MenuInfo) => {
+      onMenuItemClick(e);
+      onClose?.();
     },
-    [selectedCell?.col, selectedCell?.row, createManualTable]
+    [onMenuItemClick, onClose],
   );
-
-  useEffect(() => {
-    const gridCell =
-      selectedCell && gridApi?.getCell(selectedCell.col, selectedCell.row);
-    const recentProjects = getRecentProjects();
-
-    setMenuItems(
-      getMenuItems({
-        selectedCell: gridCell,
-        functions,
-        parsedSheets,
-        inputFiles: inputList,
-        isYourProject: userBucket === projectBucket,
-        isProjectShareable,
-        isAIPendingChanges,
-        recentProjects,
-        collapsedPanelsTextHidden,
-        panelsSplitEnabled,
-        isMobile,
-        onCreateTable: handleCreateTableBySize,
-        isReadOnlyMode,
-        isCSVViewMode,
-        isDefaultMode,
-        isAIPreviewMode,
-        isProjectReadonlyByUser,
-        permissions: projectPermissions,
-        answerIsGenerating,
-      })
-    );
-  }, [
-    collapsedPanelsTextHidden,
-    functions,
-    gridApi,
-    handleCreateTableBySize,
-    inputList,
-    isAIPendingChanges,
-    panelsSplitEnabled,
-    parsedSheets,
-    projectBucket,
-    selectedCell,
-    userBucket,
-    isMobile,
-    isProjectShareable,
-    isReadOnlyMode,
-    isCSVViewMode,
-    isDefaultMode,
-    isAIPreviewMode,
-    isProjectReadonlyByUser,
-    projectPermissions,
-    answerIsGenerating,
-  ]);
 
   return (
     <div
@@ -441,14 +436,14 @@ export function MainMenu({
     >
       <Menu
         className={cx('bg-transparent h-[39px] leading-[40px]', colorSchema)}
+        forceSubMenuRender={false}
         items={menuItems}
         key={menuVariantKey}
         mode={isMobile ? 'inline' : 'horizontal'}
+        openKeys={openKeys}
         selectable={false}
-        onClick={(e) => {
-          onMenuItemClick(e);
-          onClose?.();
-        }}
+        onClick={handleMenuClick}
+        onOpenChange={setOpenKeys}
       />
     </div>
   );

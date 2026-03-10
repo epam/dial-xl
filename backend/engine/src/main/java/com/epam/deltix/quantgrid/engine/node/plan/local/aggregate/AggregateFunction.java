@@ -19,7 +19,7 @@ public interface AggregateFunction {
     /**
      * @param rows - contains row numbers starting from 0 to size for the output results. Rows are not sorted.
      * @param size - the size of output.
-     * @return an array of long/double/String/PeriodSeries, long for row references.
+     * @return an instance of Column or an array of long/double/String/PeriodSeries (long for row references).
      */
     Object aggregate(DoubleColumn rows, List<Column> args, int size);
 }

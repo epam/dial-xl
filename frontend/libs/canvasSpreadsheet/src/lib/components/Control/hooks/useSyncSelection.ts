@@ -6,7 +6,7 @@ import { normalizeControlValue } from '../utils';
 
 export function useSyncSingleSelection(
   controlData: ControlData | null,
-  setSelected: (v: string | null) => void
+  setSelected: (v: string | null) => void,
 ) {
   const prevNormRef = useRef<string | null>(null);
 
@@ -23,7 +23,7 @@ export function useSyncSingleSelection(
 
 export function useSyncMultiSelection(
   controlData: ControlData | null,
-  setSelectedSet: (v: Set<string>) => void
+  setSelectedSet: (v: Set<string>) => void,
 ) {
   const prevNormRef = useRef<string[] | null>(null);
 

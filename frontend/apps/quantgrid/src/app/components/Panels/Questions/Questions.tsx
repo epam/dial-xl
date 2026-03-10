@@ -55,7 +55,7 @@ export const Questions = () => {
         cancelButtonProps: {
           className: classNames(
             modalFooterButtonClasses,
-            secondaryButtonClasses
+            secondaryButtonClasses,
           ),
         },
         onOk: async () => {
@@ -76,7 +76,7 @@ export const Questions = () => {
       projectBucket,
       projectName,
       projectPath,
-    ]
+    ],
   );
 
   const handleExportQuestion = useCallback(
@@ -95,42 +95,48 @@ export const Questions = () => {
       toast.dismiss(toastId);
       triggerDownloadContent(
         JSON.stringify(question, null, 4),
-        `Question_${question?.name}.json`
+        `Question_${question?.name}.json`,
       );
     },
-    [getQuestion, projectBucket, projectName, projectPath]
+    [getQuestion, projectBucket, projectName, projectPath],
   );
 
   const getQuestionActions = useCallback(
-    (question: QuestionMetadata) => [
-      getDropdownItem({
-        key: 'download',
-        label: 'Download',
-        icon: (
-          <Icon
-            className={classNames('w-[18px] text-text-secondary')}
-            component={() => <DownloadIcon />}
-          />
-        ),
-        onClick: async () => {
-          handleExportQuestion(question.question_file);
-        },
-      }),
-      getDropdownItem({
-        key: 'delete',
-        label: 'Delete',
-        icon: (
-          <Icon
-            className={classNames('w-[18px] text-text-error')}
-            component={() => <TrashIcon />}
-          />
-        ),
-        onClick: async () => {
-          handleDeleteQuestion(question.question_file);
-        },
-      }),
-    ],
-    [handleDeleteQuestion, handleExportQuestion]
+    (question: QuestionMetadata) => {
+      const questionsMenuPath = ['Questions'];
+
+      return [
+        getDropdownItem({
+          key: 'download',
+          fullPath: [...questionsMenuPath, question.question_file, 'Download'],
+          label: 'Download',
+          icon: (
+            <Icon
+              className={classNames('w-[18px] text-text-secondary')}
+              component={() => <DownloadIcon />}
+            />
+          ),
+          onClick: async () => {
+            handleExportQuestion(question.question_file);
+          },
+        }),
+        getDropdownItem({
+          key: 'delete',
+          fullPath: [...questionsMenuPath, question.question_file, 'Delete'],
+          label: 'Delete',
+          icon: (
+            <Icon
+              className={classNames('w-[18px] text-text-error')}
+              component={() => <TrashIcon />}
+            />
+          ),
+          onClick: async () => {
+            handleDeleteQuestion(question.question_file);
+          },
+        }),
+      ];
+    },
+    [handleDeleteQuestion, handleExportQuestion],
   );
 
   const handleIntersect = useCallback(() => {
@@ -186,7 +192,6 @@ export const Questions = () => {
             <>
               {questions.map((question) => (
                 <Dropdown
-                  className="flex items-center"
                   key={question.question_file}
                   menu={{ items: getQuestionActions(question) }}
                   trigger={['contextMenu']}
@@ -213,21 +218,21 @@ export const Questions = () => {
                             {question.status === QuestionStatus.ACCEPTED ? (
                               <Icon
                                 className={classNames(
-                                  'w-[18px] text-text-accent-secondary'
+                                  'w-[18px] text-text-accent-secondary',
                                 )}
                                 component={() => <MessageCheckIcon />}
                               />
                             ) : question.status === QuestionStatus.DISCARDED ? (
                               <Icon
                                 className={classNames(
-                                  'w-[18px] text-text-error'
+                                  'w-[18px] text-text-error',
                                 )}
                                 component={() => <MessageXIcon />}
                               />
                             ) : (
                               <Icon
                                 className={classNames(
-                                  'w-[18px] text-text-secondary'
+                                  'w-[18px] text-text-secondary',
                                 )}
                                 component={() => <MessageQuestionIcon />}
                               />
@@ -237,7 +242,7 @@ export const Questions = () => {
                       </span>
                       <span
                         className={classNames(
-                          'truncate text-[13px] shrink select-none'
+                          'truncate text-[13px] shrink select-none',
                         )}
                       >
                         {question.name}

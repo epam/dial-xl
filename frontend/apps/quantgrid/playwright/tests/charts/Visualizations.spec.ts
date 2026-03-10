@@ -4,6 +4,7 @@ import { Canvas } from '../../components/Canvas';
 import { DetailsPanel } from '../../components/DetailsPanel';
 import { VisualizationChart } from '../../components/VisualizationChart';
 import { GridMenuItem } from '../../enums/GridMenuItem';
+import { MenuType } from '../../enums/MenuType';
 import { VisualizationsMenuItems } from '../../enums/VisualizationsMenuItems';
 import { expectCellTextToBe } from '../../helpers/canvasExpects';
 import { getCellX } from '../../helpers/canvasGridApiUtil';
@@ -36,7 +37,7 @@ let browserContext: BrowserContext;
 
 let page: Page;
 
-const storagePath = `playwright/${projectName}.json`;
+const storagePath = TestFixtures.getStoragePath();
 
 const dataType = process.env['DATA_TYPE']
   ? process.env['DATA_TYPE']
@@ -57,13 +58,13 @@ test.beforeAll(async ({ browser }) => {
   if (dataType !== 'default') {
     spreadsheet = getProjectSpreadSheeet(dataType, spreadsheet);
   }
+  browserContext = await browser.newContext({ storageState: storagePath });
   await TestFixtures.createProjectNew(
     storagePath,
-    browser,
+    browserContext,
     projectName,
-    spreadsheet
+    spreadsheet,
   );
-  browserContext = await browser.newContext({ storageState: storagePath });
 });
 
 test.beforeEach(async () => {
@@ -72,17 +73,19 @@ test.beforeEach(async () => {
   await TestFixtures.expectCellTableToBeDisplayed(
     page,
     table1Row,
-    table1Column
+    table1Column,
   );
+  const projectPage = await ProjectPage.createCleanInstance(page);
+  await projectPage.hideAllPanels();
 });
 
 test.afterEach(async () => {
   await page.close();
 });
 
-test.afterAll(async ({ browser }) => {
+test.afterAll(async () => {
+  await TestFixtures.deleteProject(browserContext, projectName);
   await browserContext.close();
-  await TestFixtures.deleteProject(browser, projectName);
 });
 
 test.describe('Visualizations', () => {
@@ -94,8 +97,9 @@ test.describe('Visualizations', () => {
       .performCellSubAction(
         table.getTop(),
         table.getLeft(),
+        MenuType.TableHeader,
         GridMenuItem.AddChart,
-        VisualizationsMenuItems.Line
+        VisualizationsMenuItems.Line,
       );
     const detailsPanel = new DetailsPanel(page);
     await detailsPanel.closePanel();

@@ -1,4 +1,3 @@
-import { DefaultOptionType } from 'rc-select/lib/Select';
 import {
   startTransition,
   useCallback,
@@ -10,6 +9,7 @@ import Select, { SingleValue } from 'react-select';
 
 import { SelectClasses, selectStyles } from '@frontend/common';
 import { legendPositionDecoratorName, ParsedTable } from '@frontend/parser';
+import { DefaultOptionType } from '@rc-component/select/lib/Select';
 
 import {
   AppSpreadsheetInteractionContext,
@@ -35,7 +35,7 @@ export function ChartLegendPositionSection({
   const { updateTableDecoratorValue } = useTableEditDsl();
 
   const [legendPosition, setLegendPosition] = useState(
-    legendPositionOptions[1]
+    legendPositionOptions[1],
   );
 
   const onChangeLegendPositon = useCallback(
@@ -58,12 +58,12 @@ export function ChartLegendPositionSection({
           `"${updatedOption.value}"`,
           legendPositionDecoratorName,
           message,
-          shouldRemove
+          shouldRemove,
         );
         openTable(sheetName, tableName);
       });
     },
-    [sheetName, parsedTable, updateTableDecoratorValue, openTable]
+    [sheetName, parsedTable, updateTableDecoratorValue, openTable],
   );
 
   useEffect(() => {
@@ -75,7 +75,7 @@ export function ChartLegendPositionSection({
 
     setLegendPosition(
       legendPositionOptions.find((c) => c.value === legendPosition) ||
-        legendPositionOptions[1]
+        legendPositionOptions[1],
     );
   }, [parsedTable]);
 

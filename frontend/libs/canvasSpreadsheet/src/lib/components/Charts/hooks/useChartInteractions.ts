@@ -1,26 +1,44 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-
-import { GridApi, GridTable } from '../../../types';
 import {
-  filterByTypeAndCast,
-  getMousePosition,
-  GridEventBus,
-} from '../../../utils';
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+
+import { GridStateContext, GridViewportContext } from '../../../context';
 import {
   EventTypeStartMoveEntity,
   EventTypeStartMoveMode,
   EventTypeStopMoveMode,
   GridEvent,
-} from '../../GridApiWrapper';
+  GridTable,
+} from '../../../types';
+import {
+  filterByTypeAndCast,
+  getMousePosition,
+  GridEventBus,
+} from '../../../utils';
 import { ChartConfig } from '../types';
 
 type Args = {
-  api: GridApi | null;
   eventBus: GridEventBus;
   tableStructure: GridTable[];
 };
 
-export function useChartInteractions({ api, eventBus, tableStructure }: Args) {
+export function useChartInteractions({ eventBus, tableStructure }: Args) {
+  const {
+    setSelectionEdges,
+    event,
+    getCell,
+    openContextMenuAtCoords,
+    setSelectedChart,
+    events$,
+    selectionEdges,
+    canvasId,
+  } = useContext(GridStateContext);
+  const { getCellFromCoords } = useContext(GridViewportContext);
   const [moveMode, setMoveMode] = useState(false);
   const [moveEntity, setMoveEntity] = useState(false);
   const tableStructureRef = useRef<GridTable[]>(tableStructure);
@@ -31,14 +49,12 @@ export function useChartInteractions({ api, eventBus, tableStructure }: Args) {
 
   const handleChartResize = useCallback(
     (tableName: string, cols: number, rows: number) => {
-      if (!api) return;
-
       eventBus.emit({
         type: 'charts/resize',
         payload: { tableName, cols, rows },
       });
     },
-    [api, eventBus]
+    [eventBus],
   );
 
   const onLoadMoreKeys = useCallback(
@@ -48,7 +64,7 @@ export function useChartInteractions({ api, eventBus, tableStructure }: Args) {
         payload: { tableName, fieldName },
       });
     },
-    [eventBus]
+    [eventBus],
   );
 
   const onSelectKey = useCallback(
@@ -56,7 +72,7 @@ export function useChartInteractions({ api, eventBus, tableStructure }: Args) {
       tableName: string,
       fieldName: string,
       value: string | string[],
-      isNoDataKey = false
+      isNoDataKey = false,
     ) => {
       eventBus.emit({
         type: 'charts/select-key',
@@ -68,44 +84,40 @@ export function useChartInteractions({ api, eventBus, tableStructure }: Args) {
         },
       });
     },
-    [eventBus]
+    [eventBus],
   );
 
   const onSelectChart = useCallback(
     (tableName: string) => {
-      if (!api) return;
-
       const table = tableStructureRef.current.find(
-        (t) => t.tableName === tableName
+        (t) => t.tableName === tableName,
       );
       if (!table) return;
 
       const { startCol, startRow, endCol, endRow } = table;
-      api.updateSelection({ startCol, startRow, endCol, endRow });
+      setSelectionEdges({ startCol, startRow, endCol, endRow });
     },
-    [api]
+    [setSelectionEdges],
   );
 
   const handleStartMoveChart = useCallback(
     (e: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
-      if (!api) return;
-
-      const mousePosition = getMousePosition(e);
+      const mousePosition = getMousePosition(e, canvasId);
       if (!mousePosition) return;
 
       const { x, y } = mousePosition;
-      const { col, row } = api.getCellFromCoords(x, y);
-      const cell = api.getCell(col, row);
+      const { col, row } = getCellFromCoords(x, y);
+      const cell = getCell(col, row);
       if (!cell) return;
 
-      api.event.emit({
+      event.emit({
         type: GridEvent.moveChartOrTable,
         cell,
         x,
         y,
       });
     },
-    [api]
+    [canvasId, event, getCellFromCoords],
   );
 
   const onChartDblClick = useCallback(() => {
@@ -115,22 +127,22 @@ export function useChartInteractions({ api, eventBus, tableStructure }: Args) {
   const handleContextMenu = useCallback(
     (
       e: React.MouseEvent<HTMLDivElement, MouseEvent>,
-      chartConfig: ChartConfig
+      chartConfig: ChartConfig,
     ) => {
       e.preventDefault();
-      const mousePosition = getMousePosition(e);
+      const mousePosition = getMousePosition(e, canvasId);
 
-      if (!api || !mousePosition) return;
+      if (!mousePosition) return;
 
-      api.openContextMenuAtCoords(
+      openContextMenuAtCoords(
         mousePosition.x,
         mousePosition.y,
         chartConfig.gridChart.tableStartCol,
         chartConfig.gridChart.tableStartRow,
-        'html-element'
+        'html-element',
       );
     },
-    [api]
+    [canvasId, openContextMenuAtCoords],
   );
 
   const handleDeleteChart = useCallback(
@@ -140,7 +152,7 @@ export function useChartInteractions({ api, eventBus, tableStructure }: Args) {
         payload: { tableName },
       });
     },
-    [eventBus]
+    [eventBus],
   );
 
   const handleTableRename = useCallback(
@@ -153,31 +165,53 @@ export function useChartInteractions({ api, eventBus, tableStructure }: Args) {
         },
       });
     },
-    [eventBus]
+    [eventBus],
   );
 
-  useEffect(() => {
-    if (!api) return;
+  // Keep a map of charts by their edges for a quick lookup
+  const chartByEdges = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const t of tableStructure) {
+      if (!t.chartType) continue;
+      map.set(edgesKey(t), t.tableName);
+    }
 
-    const startMoveModeSubscription = api.events$
+    return map;
+  }, [tableStructure]);
+
+  // Determine the selected chart based on the selection and table structures
+  const selectedChartName = useMemo(() => {
+    if (!selectionEdges) return null;
+
+    return chartByEdges.get(edgesKey(selectionEdges)) ?? null;
+  }, [selectionEdges, chartByEdges]);
+
+  useEffect(() => {
+    setSelectedChart(selectedChartName);
+  }, [selectedChartName, setSelectedChart]);
+
+  useEffect(() => {
+    const startMoveModeSubscription = events$
       .pipe(
-        filterByTypeAndCast<EventTypeStartMoveMode>(GridEvent.startMoveMode)
+        filterByTypeAndCast<EventTypeStartMoveMode>(GridEvent.startMoveMode),
       )
       .subscribe(() => setMoveMode(true));
 
-    const stopMoveModeSubscription = api.events$
+    const stopMoveModeSubscription = events$
       .pipe(filterByTypeAndCast<EventTypeStopMoveMode>(GridEvent.stopMoveMode))
       .subscribe(() => setMoveMode(false));
 
-    const startMoveEntitySubscription = api.events$
+    const startMoveEntitySubscription = events$
       .pipe(
-        filterByTypeAndCast<EventTypeStartMoveEntity>(GridEvent.startMoveEntity)
+        filterByTypeAndCast<EventTypeStartMoveEntity>(
+          GridEvent.startMoveEntity,
+        ),
       )
       .subscribe(() => setMoveEntity(true));
 
-    const stopMoveEntitySubscription = api.events$
+    const stopMoveEntitySubscription = events$
       .pipe(
-        filterByTypeAndCast<EventTypeStopMoveMode>(GridEvent.stopMoveEntity)
+        filterByTypeAndCast<EventTypeStopMoveMode>(GridEvent.stopMoveEntity),
       )
       .subscribe(() => setMoveEntity(false));
 
@@ -187,11 +221,12 @@ export function useChartInteractions({ api, eventBus, tableStructure }: Args) {
       startMoveEntitySubscription.unsubscribe();
       stopMoveEntitySubscription.unsubscribe();
     };
-  }, [api]);
+  }, [events$, setMoveMode, setMoveEntity]);
 
   return {
     moveMode,
     moveEntity,
+    selectedChartName,
     handleChartResize,
     onLoadMoreKeys,
     onSelectKey,
@@ -202,4 +237,13 @@ export function useChartInteractions({ api, eventBus, tableStructure }: Args) {
     handleDeleteChart,
     handleTableRename,
   };
+}
+
+function edgesKey(e: {
+  startRow: number;
+  startCol: number;
+  endRow: number;
+  endCol: number;
+}) {
+  return `${e.startRow}:${e.startCol}:${e.endRow}:${e.endCol}`;
 }

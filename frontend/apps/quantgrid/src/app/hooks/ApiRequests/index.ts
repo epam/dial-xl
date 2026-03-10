@@ -6,3 +6,4 @@ export * from './useImportRequests';
 export * from './useProjectRequests';
 export * from './useQGRequests';
 export * from './useResourceRequests';
+export * from './useUserSettingsRequests';
