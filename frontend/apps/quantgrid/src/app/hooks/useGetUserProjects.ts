@@ -13,11 +13,11 @@ export function useGetUserProjects() {
   > => {
     const projects = await getFlatUserProjects();
 
-    if (!projects) return [];
+    if (!projects.success) return [];
 
-    cleanUpRecentProjects(projects);
+    cleanUpRecentProjects(projects.data);
 
-    return projects;
+    return projects.data;
   }, [getFlatUserProjects]);
 
   return {

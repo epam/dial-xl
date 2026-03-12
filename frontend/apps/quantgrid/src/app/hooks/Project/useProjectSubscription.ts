@@ -97,7 +97,7 @@ export function useProjectSubscription() {
             controller: projectSubscriptionControllerRef.current,
           });
 
-          if (!res) {
+          if (!res.success) {
             if (!projectSubscriptionControllerRef.current.signal.aborted) {
               displayToast('error', appMessages.subscribeError);
             }
@@ -112,7 +112,7 @@ export function useProjectSubscription() {
           retries = 0;
 
           return await parseSSEResponse(
-            res,
+            res.data,
             {
               onData: (e: NotificationEvent) => {
                 if (e.action === 'DELETE') onDeleteProjectNotification();

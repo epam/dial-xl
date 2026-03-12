@@ -1,7 +1,7 @@
 import { Button, Spin } from 'antd';
 import cx from 'classnames';
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from 'react';
-import Select, { SingleValue } from 'react-select';
+import Select, { GroupBase, SingleValue } from 'react-select';
 
 import Icon from '@ant-design/icons';
 import {
@@ -14,11 +14,11 @@ import {
   primaryDisabledButtonClasses,
   secondaryButtonClasses,
   SelectCompactClasses,
+  SelectOption,
   selectStyles,
   ValueIcon,
 } from '@frontend/common';
 import { FilterOperator, ParsedConditionFilter } from '@frontend/parser';
-import { DefaultOptionType } from '@rc-component/select/lib/Select';
 
 import { GridCell, SheetControl } from '../../../types';
 import { GridEventBus } from '../../../utils';
@@ -323,7 +323,7 @@ export function FilterPanelItem({
     [selectedControl],
   );
 
-  const onChangeMode = useCallback((option: SingleValue<DefaultOptionType>) => {
+  const onChangeMode = useCallback((option: SingleValue<SelectOption>) => {
     const value = option?.value as FilterMode | undefined;
     if (!value) return;
     setMode(value);
@@ -441,16 +441,13 @@ export function FilterPanelItem({
     [eventBus, fieldName, tableName, onClose],
   );
 
-  const onControlSelect = useCallback(
-    (option: SingleValue<DefaultOptionType>) => {
-      const controlOption = option as
-        | { value: string; label: string; control: SheetControl }
-        | null
-        | undefined;
-      setSelectedControl(controlOption?.control ?? null);
-    },
-    [],
-  );
+  const onControlSelect = useCallback((option: SingleValue<SelectOption>) => {
+    const controlOption = option as
+      | { value: string; label: string; control: SheetControl }
+      | null
+      | undefined;
+    setSelectedControl(controlOption?.control ?? null);
+  }, []);
 
   // We need to have list updated on opening filter panel
   useEffect(() => {
@@ -521,7 +518,7 @@ export function FilterPanelItem({
         </div>
       ) : (
         <>
-          <Select
+          <Select<SelectOption, false, GroupBase<SelectOption>>
             classNames={SelectCompactClasses}
             components={{
               IndicatorSeparator: null,
@@ -582,7 +579,7 @@ export function FilterPanelItem({
 
           {mode === 'control' && (
             <div className="mt-2">
-              <Select
+              <Select<SelectOption, false, GroupBase<SelectOption>>
                 classNames={SelectCompactClasses}
                 components={{
                   IndicatorSeparator: null,

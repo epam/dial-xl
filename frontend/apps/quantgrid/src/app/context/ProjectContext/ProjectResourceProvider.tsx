@@ -148,7 +148,7 @@ export function ProjectResourceProvider({
       });
 
       setLoading(false);
-      if (!project) {
+      if (!project.success) {
         setLoading(false);
         // eslint-disable-next-line no-console
         console.warn('Redirect to home because of error while getting project');
@@ -164,33 +164,37 @@ export function ProjectResourceProvider({
         return;
       }
 
-      await updateForkedProjectInfo(project);
+      await updateForkedProjectInfo(project.data);
 
       // Initial get or no changes from user -> update project state
       if (
         (!_projectState.current?.sheets && !localDsl.current) ||
         isEqual(_projectState.current?.sheets, localDsl.current)
       ) {
-        localDsl.current = project.sheets;
+        localDsl.current = project.data.sheets;
         inflightRequest.current = null;
 
-        setProjectPermissions(projectMetadata?.permissions ?? []);
-        setProjectState(project);
+        setProjectPermissions(
+          projectMetadata.success
+            ? (projectMetadata.data.permissions ?? [])
+            : [],
+        );
+        setProjectState(project.data);
       }
 
       // No sub events or event tag the same as local etag
-      if (!remoteEtag.current || project.version === remoteEtag.current) {
+      if (!remoteEtag.current || project.data.version === remoteEtag.current) {
         remoteEtag.current = null;
 
         // the last remote dsl is different from received dsl
         if (
           _projectState.current &&
-          !isEqual(localDsl.current, project.sheets)
+          !isEqual(localDsl.current, project.data.sheets)
         ) {
-          localDsl.current = project.sheets;
+          localDsl.current = project.data.sheets;
           setProjectState({
             ..._projectState.current,
-            version: project.version,
+            version: project.data.version,
           });
 
           // resolve conflict
@@ -201,7 +205,7 @@ export function ProjectResourceProvider({
 
         inflightRequest.current = null;
 
-        return project;
+        return project.data;
       }
 
       remoteEtag.current = null;
@@ -255,11 +259,11 @@ export function ProjectResourceProvider({
 
       const newProjectState = await putProjectRequest(updatedStateRequest);
 
-      if (newProjectState) {
+      if (newProjectState.success) {
         localDsl.current = updatedStateRequest.sheets;
         setProjectState({
           ..._projectState.current,
-          version: newProjectState.version,
+          version: newProjectState.data.version,
         });
         setIsProjectChangedOnServerByUser(true);
 

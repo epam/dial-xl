@@ -45,13 +45,13 @@ export function ImportModal() {
       source,
     });
 
-    if (!sourceData) {
+    if (!sourceData.success) {
       cancel();
 
       return;
     }
 
-    setSourceData(sourceData);
+    setSourceData(sourceData.data);
   }, [
     cancel,
     getImportSource,

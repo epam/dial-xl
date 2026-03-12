@@ -198,9 +198,9 @@ export const useRequestDimTable = () => {
         formula,
       });
 
-      if (!response) return;
+      if (!response.success) return;
 
-      handleDimSchemaResponse(response, requestOptions);
+      handleDimSchemaResponse(response.data, requestOptions);
     },
     [
       findTable,
@@ -248,9 +248,9 @@ export const useRequestDimTable = () => {
         formula,
       });
 
-      if (!response) return;
+      if (!response.success) return;
 
-      handleDimSchemaResponse(response, requestOptions);
+      handleDimSchemaResponse(response.data, requestOptions);
     },
     [
       functions,
@@ -298,9 +298,9 @@ export const useRequestDimTable = () => {
         formula,
       });
 
-      if (!response) return;
+      if (!response.success) return;
 
-      handleDimSchemaResponse(response, requestOptions);
+      handleDimSchemaResponse(response.data, requestOptions);
     },
     [
       functions,
@@ -341,9 +341,9 @@ export const useRequestDimTable = () => {
         formula,
       });
 
-      if (!response) return;
+      if (!response.success) return;
 
-      handleDimSchemaResponse(response, requestOptions);
+      handleDimSchemaResponse(response.data, requestOptions);
     },
     [
       findTable,
@@ -396,10 +396,10 @@ export const useRequestDimTable = () => {
             progress: (completedRequests / totalRequests) * 0.9,
           });
 
-          if (!response) return null;
+          if (!response.success) return null;
 
           return {
-            response,
+            response: response.data,
             tableName,
             formula,
           };

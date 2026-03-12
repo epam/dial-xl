@@ -14,8 +14,8 @@ import {
   ChevronDown,
   histogramChartSeriesSelector,
   SelectClasses,
+  SelectOption,
 } from '@frontend/common';
-import { DefaultOptionType } from '@rc-component/select/lib/Select';
 
 import {
   defaultFontSize,
@@ -26,7 +26,10 @@ import {
 import { ToolBarSelectProps } from './types';
 
 const selectWidth = 120;
-const notSelectedItem = { value: 'notSelected', label: 'Not selected' };
+const notSelectedItem: SelectOption = {
+  value: 'notSelected',
+  label: 'Not selected',
+};
 
 export function ToolBarSelect({
   keyName,
@@ -36,7 +39,7 @@ export function ToolBarSelect({
   onSelectKey,
 }: ToolBarSelectProps) {
   const [selectedValue, setSelectedValue] =
-    useState<SingleValue<DefaultOptionType>>(notSelectedItem);
+    useState<SingleValue<SelectOption>>(notSelectedItem);
   const [filterValue, setFilterValue] = useState<string>('');
 
   const isRowLabelMapping = useMemo(() => {
@@ -86,8 +89,8 @@ export function ToolBarSelect({
       notSelectedItem,
       ...sortedKeys.map((key, idx) =>
         isRowLabelMapping
-          ? { value: (idx + 1).toString(), label: key }
-          : { value: key, label: key },
+          ? { value: (idx + 1).toString(), label: String(key) }
+          : { value: String(key), label: String(key) },
       ),
     ];
   }, [chartConfig.gridChart, keyName, isRowLabelMapping]);
@@ -104,11 +107,14 @@ export function ToolBarSelect({
   }, [chartConfig, keyName, filterValue, onLoadMoreKeys]);
 
   const onChange = useCallback(
-    (option: SingleValue<DefaultOptionType>) => {
+    (option: SingleValue<SelectOption>) => {
       let value = '';
 
-      if (option?.value && option.value !== notSelectedItem.value) {
-        value = option.value as string;
+      if (
+        typeof option?.value === 'string' &&
+        option.value !== notSelectedItem.value
+      ) {
+        value = option.value;
       }
 
       const noDataKeys =
@@ -156,11 +162,7 @@ export function ToolBarSelect({
   }, [chartConfig, keyName]);
 
   const dropdownIndicator = (
-    props: DropdownIndicatorProps<
-      DefaultOptionType,
-      false,
-      GroupBase<DefaultOptionType>
-    >,
+    props: DropdownIndicatorProps<SelectOption, false, GroupBase<SelectOption>>,
   ) => {
     return (
       <components.DropdownIndicator {...props}>
@@ -178,7 +180,7 @@ export function ToolBarSelect({
         {keyNameLabel}:
       </span>
 
-      <Select
+      <Select<SelectOption, false, GroupBase<SelectOption>>
         classNames={{
           ...SelectClasses,
           control: ({ menuIsOpen }) =>

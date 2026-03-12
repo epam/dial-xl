@@ -60,7 +60,7 @@ export function useCloneResources() {
         onProgress,
       });
 
-      if (!res) return;
+      if (!res.success) return;
 
       onProgress?.(100);
     },
@@ -125,7 +125,7 @@ export function useCloneResources() {
         newName: newName ? toSchemaFileName(newName) : undefined,
       });
 
-      if (!res) return;
+      if (!res.success) return;
 
       onProgress?.(100);
     },

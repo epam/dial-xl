@@ -30,8 +30,8 @@ export const useQuestionsListing = () => {
         nextToken: additional ? token : undefined,
       });
 
-      setQuestions(result?.items ?? []);
-      setToken(result?.nextToken ?? null);
+      setQuestions(result.success ? result.data.items : []);
+      setToken(result.success ? result.data.nextToken : null);
 
       setIsQuestionsLoading(false);
     },

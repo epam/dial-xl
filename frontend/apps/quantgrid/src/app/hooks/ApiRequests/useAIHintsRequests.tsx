@@ -3,21 +3,27 @@ import { AuthContextProps } from 'react-oidc-context';
 
 import {
   AIHint,
+  ApiErrorType,
   apiMessages,
-  ApiRequestFunction,
+  ApiRequestFunctionWithError,
   dialAIHintsFileName,
   filesEndpointPrefix,
 } from '@frontend/common';
 
 import { FileReference } from '../../common';
-import { constructPath, displayToast, encodeApiUrl } from '../../utils';
+import {
+  classifyFetchError,
+  constructPath,
+  displayToast,
+  encodeApiUrl,
+} from '../../utils';
 import { useBackendRequest } from './useBackendRequests';
 
 export const useAIHintsRequests = (auth: AuthContextProps) => {
   const { sendDialRequest } = useBackendRequest(auth);
 
   const getAIHintsContent = useCallback<
-    ApiRequestFunction<
+    ApiRequestFunctionWithError<
       Pick<FileReference, 'bucket' | 'parentPath'> & {
         suppressErrors?: boolean;
       },
@@ -42,26 +48,39 @@ export const useAIHintsRequests = (auth: AuthContextProps) => {
             displayToast('error', apiMessages.getAIHintsServer);
           }
 
-          return;
+          return {
+            success: false,
+            error: {
+              type: ApiErrorType.ServerError,
+              message: apiMessages.getAIHintsServer,
+              statusCode: res.status,
+            },
+          };
         }
 
         const result = await res.json();
         const version = res.headers.get('Etag') ?? '';
 
-        return { json: result, version };
-      } catch {
+        return {
+          success: true,
+          data: { json: result, version },
+        };
+      } catch (error) {
         if (!suppressErrors) {
           displayToast('error', apiMessages.getAIHintsClient);
         }
 
-        return undefined;
+        return {
+          success: false,
+          error: classifyFetchError(error, apiMessages.getAIHintsClient),
+        };
       }
     },
     [sendDialRequest],
   );
 
   const putAIHintsContent = useCallback<
-    ApiRequestFunction<
+    ApiRequestFunctionWithError<
       Pick<FileReference, 'bucket' | 'parentPath'> & {
         hints: AIHint[];
         version?: string;
@@ -98,23 +117,54 @@ export const useAIHintsRequests = (auth: AuthContextProps) => {
         if (!res.ok) {
           if (res.status === 412) {
             displayToast('error', apiMessages.putAIHintsVersion);
+
+            return {
+              success: false,
+              error: {
+                type: ApiErrorType.ServerError,
+                message: apiMessages.putAIHintsVersion,
+                statusCode: res.status,
+              },
+            };
           } else if (res.status === 403) {
             displayToast('error', apiMessages.putAIHintsForbidden);
+
+            return {
+              success: false,
+              error: {
+                type: ApiErrorType.Unauthorized,
+                message: apiMessages.putAIHintsForbidden,
+                statusCode: res.status,
+              },
+            };
           } else {
             displayToast('error', apiMessages.putAIHintsServer);
-          }
 
-          return;
+            return {
+              success: false,
+              error: {
+                type: ApiErrorType.ServerError,
+                message: apiMessages.putAIHintsServer,
+                statusCode: res.status,
+              },
+            };
+          }
         }
         const resultVersion = res.headers.get('Etag') ?? '';
 
         return {
-          version: resultVersion,
+          success: true,
+          data: {
+            version: resultVersion,
+          },
         };
-      } catch {
+      } catch (error) {
         displayToast('error', apiMessages.putAIHintsClient);
 
-        return undefined;
+        return {
+          success: false,
+          error: classifyFetchError(error, apiMessages.putAIHintsClient),
+        };
       }
     },
     [sendDialRequest],

@@ -1,9 +1,10 @@
 import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import Select, { SingleValue } from 'react-select';
+import Select, { GroupBase, SingleValue } from 'react-select';
 
 import {
   ChartType,
   SelectClasses,
+  SelectOption,
   selectStyles,
   toExcelColumnName,
 } from '@frontend/common';
@@ -13,7 +14,6 @@ import {
   ParsedField,
   ParsedTable,
 } from '@frontend/parser';
-import { DefaultOptionType } from '@rc-component/select/lib/Select';
 
 import {
   AppSpreadsheetInteractionContext,
@@ -56,7 +56,7 @@ export function SeriesColumnAttributesSection({
   const handleChangeOption = useCallback(
     (
       section: Section,
-      option: SingleValue<DefaultOptionType>,
+      option: SingleValue<SelectOption>,
       decoratorName: string,
     ) => {
       if (!sheetName) return;
@@ -181,7 +181,7 @@ export function SeriesColumnAttributesSection({
                 Dot color
               </span>
 
-              <Select
+              <Select<SelectOption, false, GroupBase<SelectOption>>
                 classNames={{
                   ...SelectClasses,
                   ...ChartPanelSelectClasses,
@@ -214,7 +214,7 @@ export function SeriesColumnAttributesSection({
                   Dot size
                 </span>
 
-                <Select
+                <Select<SelectOption, false, GroupBase<SelectOption>>
                   classNames={{
                     ...SelectClasses,
                     ...ChartPanelSelectClasses,

@@ -119,7 +119,7 @@ export function FileListItemMenu({
                   ],
                 });
                 toast.dismiss(toastId);
-                if (!result) {
+                if (!result.success) {
                   toast.error('Error happened during downloading file');
                 }
               },

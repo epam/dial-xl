@@ -43,7 +43,7 @@ export function useDashboardDiscardAccessResource() {
         'name' | 'bucket' | 'nodeType' | 'parentPath' | 'resourceType'
       >,
     ) => {
-      return Promise.allSettled([
+      const results = await Promise.all([
         discardResourcesAccessRequest([
           {
             name: item.name,
@@ -64,6 +64,8 @@ export function useDashboardDiscardAccessResource() {
           },
         ]),
       ]);
+
+      return results.every((result) => result.success);
     },
     [discardResourcesAccessRequest],
   );
@@ -93,7 +95,7 @@ export function useDashboardDiscardAccessResource() {
           if (isProject) {
             res = await handleDiscardProject(item);
           } else {
-            res = await discardResourcesAccessRequest([
+            const singleResult = await discardResourcesAccessRequest([
               {
                 name: item.name,
                 bucket: item.bucket,
@@ -102,6 +104,8 @@ export function useDashboardDiscardAccessResource() {
                 resourceType: item.resourceType,
               },
             ]);
+
+            res = singleResult.success;
           }
 
           if (res) {

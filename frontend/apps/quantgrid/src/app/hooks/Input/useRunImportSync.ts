@@ -48,7 +48,7 @@ export const useRunImportSync = () => {
           schema,
           controller,
         });
-        if (!response) {
+        if (!response.success) {
           return onStartError?.();
         }
 
@@ -59,7 +59,7 @@ export const useRunImportSync = () => {
           let finished = false;
 
           parseSSEResponse(
-            response,
+            response.data,
             {
               tolerant: true,
               stopOnDone: true,

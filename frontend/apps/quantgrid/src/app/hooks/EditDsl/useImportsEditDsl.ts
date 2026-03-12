@@ -56,9 +56,9 @@ export function useImportsEditDsl() {
           dataset,
         });
 
-        if (syncList?.syncs) {
+        if (syncList.success && syncList.data.syncs) {
           // Get sync with a used version from the dsl or newest version if not found
-          const targetSync = findTargetSync(syncList.syncs, version);
+          const targetSync = findTargetSync(syncList.data.syncs, version);
 
           if (targetSync) {
             collectSyncs.push({
@@ -191,10 +191,11 @@ export function useImportsEditDsl() {
         dataset,
       });
 
-      if (!syncList?.syncs) return failSingleImportField();
+      if (!syncList.success || !syncList.data.syncs)
+        return failSingleImportField();
 
       // Get sync with a used version from the dsl or newest version if not found
-      const findSync = findTargetSync(syncList.syncs, version);
+      const findSync = findTargetSync(syncList.data.syncs, version);
 
       if (!findSync) return failSingleImportField();
 

@@ -8,8 +8,8 @@ import {
   CloseIcon,
   DragCardIcon,
   ExclamationCircleIcon,
+  SelectOption,
 } from '@frontend/common';
-import { DefaultOptionType } from '@rc-component/select/lib/Select';
 
 import { ValueFunctionItem } from '../types';
 import { ArgumentSlot } from './ArgumentSlot';
@@ -26,8 +26,8 @@ export function ValueFunctionRow({
   onChangeArg,
 }: {
   row: ValueFunctionItem;
-  fnOptions: DefaultOptionType[];
-  fieldOptions: DefaultOptionType[];
+  fnOptions: SelectOption[];
+  fieldOptions: SelectOption[];
   onRemoveRow: (rowId: string) => void;
   onChangeFunction: (rowId: string, fnName?: string) => void;
   onChangeArg: (rowId: string, argIndex: number, fieldName?: string) => void;

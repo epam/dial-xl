@@ -25,7 +25,7 @@ export function useAcceptShare() {
     }) => {
       const acceptShare = await acceptShareRequest({ invitationId });
 
-      if (!acceptShare) {
+      if (!acceptShare.success) {
         // eslint-disable-next-line no-console
         console.warn('Redirect to home because of error while accepting share');
         navigate(routes.home);
@@ -49,7 +49,7 @@ export function useAcceptShare() {
     async ({ invitationId }: { invitationId: string }) => {
       const acceptShare = await acceptShareRequest({ invitationId });
 
-      if (acceptShare) {
+      if (acceptShare.success) {
         displayToast('info', appMessages.acceptFilesShareRequest);
       }
 

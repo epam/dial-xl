@@ -3,8 +3,9 @@ import { AuthContextProps } from 'react-oidc-context';
 import { parse as yamlParse, stringify as yamlStringify } from 'yaml';
 
 import {
+  ApiErrorType,
   apiMessages,
-  ApiRequestFunction,
+  ApiRequestFunctionWithError,
   bindConversationsRootFolder,
   defaultSheetName,
   dialProjectFileExtension,
@@ -24,6 +25,7 @@ import {
 import { FileReference } from '../../common';
 import { createUniqueFileName } from '../../services';
 import {
+  classifyFetchError,
   collectFilesFromProject,
   constructPath,
   convertUrlToMetadata,
@@ -64,13 +66,26 @@ export const useProjectRequests = (
   } = useConversationResourceRequests(auth);
 
   const getFlatUserProjects = useCallback<
-    ApiRequestFunction<void, ResourceMetadata[]>
+    ApiRequestFunctionWithError<void, ResourceMetadata[]>
   >(async () => {
-    if (!userBucket) return;
+    if (!userBucket) {
+      return {
+        success: false,
+        error: {
+          type: ApiErrorType.Unknown,
+          message: apiMessages.getProjectClient,
+        },
+      };
+    }
 
     const files = await getUserFiles({ isRecursive: true });
 
-    if (!files) return files;
+    if (!files.success) {
+      return {
+        success: false,
+        error: files.error,
+      };
+    }
 
     const flatFiles = (
       files: ResourceMetadata[],
@@ -91,13 +106,16 @@ export const useProjectRequests = (
         return acc;
       }, acc);
 
-    const flattedFiles = flatFiles(files, [] as ResourceMetadata[]);
+    const flattedFiles = flatFiles(files.data, [] as ResourceMetadata[]);
 
-    return flattedFiles;
+    return {
+      success: true,
+      data: flattedFiles,
+    };
   }, [getUserFiles, userBucket]);
 
   const createProject = useCallback<
-    ApiRequestFunction<
+    ApiRequestFunctionWithError<
       {
         bucket: string;
         path?: string | null;
@@ -139,42 +157,57 @@ export const useProjectRequests = (
         fileData: yamlStringify(newProjectData),
       });
 
-      if (!data) return;
+      if (!data.success) {
+        return {
+          success: false,
+          error: data.error,
+        };
+      }
 
       if (!skipFolderCreation) {
-        await createFolder({
+        const folderResult = await createFolder({
           bucket,
           name: projectName,
           parentPath: constructPath([projectFoldersRootPrefix, path]),
           suppressErrors: true,
         });
+
+        if (!folderResult.success) {
+          return {
+            success: false,
+            error: folderResult.error,
+          };
+        }
       }
 
       return {
-        bucket,
-        path,
-        projectName,
-        settings: {},
-        sheets: Object.entries(newProjectData).reduce(
-          (acc, [sheetName, sheetContent]) => {
-            acc.push({
-              sheetName,
-              content: sheetContent,
-              projectName,
-            });
+        success: true,
+        data: {
+          bucket,
+          path,
+          projectName,
+          settings: {},
+          sheets: Object.entries(newProjectData).reduce(
+            (acc, [sheetName, sheetContent]) => {
+              acc.push({
+                sheetName,
+                content: sheetContent,
+                projectName,
+              });
 
-            return acc;
-          },
-          [] as WorksheetState[],
-        ),
-        version: data?.etag ?? '',
+              return acc;
+            },
+            [] as WorksheetState[],
+          ),
+          version: data.data.etag ?? '',
+        },
       };
     },
     [createFile, createFolder],
   );
 
   const checkProjectExists = useCallback<
-    ApiRequestFunction<FileReference, boolean>
+    ApiRequestFunctionWithError<FileReference, boolean>
   >(
     async ({ bucket, parentPath = '', name }) => {
       try {
@@ -189,16 +222,22 @@ export const useProjectRequests = (
           ),
         );
 
-        return res.ok;
-      } catch {
-        return false;
+        return {
+          success: true,
+          data: res.ok,
+        };
+      } catch (error) {
+        return {
+          success: false,
+          error: classifyFetchError(error, apiMessages.getProjectClient),
+        };
       }
     },
     [sendDialRequest],
   );
 
   const getProject = useCallback<
-    ApiRequestFunction<FileReference, ProjectState>
+    ApiRequestFunctionWithError<FileReference, ProjectState>
   >(
     async ({ bucket, parentPath = '', name }) => {
       try {
@@ -216,31 +255,44 @@ export const useProjectRequests = (
         if (!res.ok) {
           displayToast('error', apiMessages.getProjectServer);
 
-          return;
+          return {
+            success: false,
+            error: {
+              type: ApiErrorType.ServerError,
+              message: apiMessages.getProjectServer,
+              statusCode: res.status,
+            },
+          };
         }
 
         const text = await res.text();
         const data: QGDialProject = yamlParse(text);
         const version = res.headers.get('Etag') ?? '';
 
-        return mapQGDialProjectToProject(
-          data,
-          name,
-          bucket,
-          parentPath,
-          version,
-        );
-      } catch {
+        return {
+          success: true,
+          data: mapQGDialProjectToProject(
+            data,
+            name,
+            bucket,
+            parentPath,
+            version,
+          ),
+        };
+      } catch (error) {
         displayToast('error', apiMessages.getProjectClient);
 
-        return undefined;
+        return {
+          success: false,
+          error: classifyFetchError(error, apiMessages.getProjectClient),
+        };
       }
     },
     [sendDialRequest],
   );
 
   const putProject = useCallback<
-    ApiRequestFunction<ProjectState, ProjectState>
+    ApiRequestFunctionWithError<ProjectState, ProjectState>
   >(
     async (projectData) => {
       try {
@@ -285,29 +337,50 @@ export const useProjectRequests = (
             displayToast('error', apiMessages.putProjectServer);
           }
 
-          return;
+          return {
+            success: false,
+            error: {
+              type:
+                res.status === 403
+                  ? ApiErrorType.Unauthorized
+                  : ApiErrorType.ServerError,
+              message:
+                res.status === 412
+                  ? apiMessages.putProjectVersion
+                  : res.status === 403
+                    ? apiMessages.putProjectForbidden
+                    : apiMessages.putProjectServer,
+              statusCode: res.status,
+            },
+          };
         }
         const version = res.headers.get('Etag') ?? '';
 
         return {
-          ...projectData,
-          version,
+          success: true,
+          data: {
+            ...projectData,
+            version,
+          },
         };
-      } catch {
+      } catch (error) {
         displayToast('error', apiMessages.putProjectClient);
 
-        return undefined;
+        return {
+          success: false,
+          error: classifyFetchError(error, apiMessages.putProjectClient),
+        };
       }
     },
     [sendDialRequest],
   );
 
   const deleteProjectConversations = useCallback<
-    ApiRequestFunction<
+    ApiRequestFunctionWithError<
       FileReference & {
         projectName: string;
       },
-      unknown
+      void
     >
   >(
     async ({ bucket, parentPath, projectName }) => {
@@ -324,7 +397,12 @@ export const useProjectRequests = (
           suppressErrors: true,
         });
 
-        if (!conversations) return;
+        if (!conversations.success) {
+          return {
+            success: false,
+            error: conversations.error,
+          };
+        }
 
         const deleteJobs: Promise<unknown>[] = [];
 
@@ -334,20 +412,31 @@ export const useProjectRequests = (
           );
         };
 
-        conversations.forEach(queueDelete);
+        conversations.data.forEach(queueDelete);
 
         await Promise.all(deleteJobs);
-      } catch {
+
+        return {
+          success: true,
+          data: undefined,
+        };
+      } catch (error) {
         displayToast('error', apiMessages.deleteConversationClient);
 
-        return;
+        return {
+          success: false,
+          error: classifyFetchError(
+            error,
+            apiMessages.deleteConversationClient,
+          ),
+        };
       }
     },
     [deleteConversation, getConversations],
   );
 
   const deleteProject = useCallback<
-    ApiRequestFunction<FileReference, unknown | undefined>
+    ApiRequestFunctionWithError<FileReference, void>
   >(
     async ({ bucket, parentPath = '', name }) => {
       try {
@@ -370,7 +459,20 @@ export const useProjectRequests = (
             displayToast('error', apiMessages.deleteProjectServer);
           }
 
-          return;
+          return {
+            success: false,
+            error: {
+              type:
+                res.status === 403
+                  ? ApiErrorType.Unauthorized
+                  : ApiErrorType.ServerError,
+              message:
+                res.status === 403
+                  ? apiMessages.deleteProjectForbidden
+                  : apiMessages.deleteProjectServer,
+              statusCode: res.status,
+            },
+          };
         }
 
         const deleteFolderRes = await deleteFolder({
@@ -382,27 +484,38 @@ export const useProjectRequests = (
           suppressErrors: true,
         });
 
-        if (!deleteFolderRes) return;
+        if (!deleteFolderRes.success) {
+          return {
+            success: false,
+            error: deleteFolderRes.error,
+          };
+        }
 
-        deleteProjectConversations({
+        await deleteProjectConversations({
           bucket,
           parentPath,
           name,
           projectName: name,
         });
 
-        return {};
-      } catch {
+        return {
+          success: true,
+          data: undefined,
+        };
+      } catch (error) {
         displayToast('error', apiMessages.deleteProjectClient);
 
-        return undefined;
+        return {
+          success: false,
+          error: classifyFetchError(error, apiMessages.deleteProjectClient),
+        };
       }
     },
     [deleteFolder, deleteProjectConversations, sendDialRequest],
   );
 
   const moveProjectConversations = useCallback<
-    ApiRequestFunction<
+    ApiRequestFunctionWithError<
       FileReference & {
         suppressErrors?: boolean;
         targetPath: string | null | undefined;
@@ -410,7 +523,7 @@ export const useProjectRequests = (
         projectName: string;
         targetProjectName: string;
       },
-      unknown
+      void
     >
   >(
     async ({
@@ -435,7 +548,12 @@ export const useProjectRequests = (
           suppressErrors: true,
         });
 
-        if (!conversations) return;
+        if (!conversations.success) {
+          return {
+            success: false,
+            error: conversations.error,
+          };
+        }
 
         const moveJobs: Promise<unknown>[] = [];
 
@@ -445,7 +563,7 @@ export const useProjectRequests = (
             parentPath: meta.parentPath,
           });
 
-          if (!conversationRes) return Promise.reject();
+          if (!conversationRes.success) return Promise.reject();
 
           const projectFolderCurrentPath = constructPath([
             bucket,
@@ -460,7 +578,7 @@ export const useProjectRequests = (
             targetProjectName,
           ]);
           const replacedMessages = updateMessagesProjectFoldersPath(
-            conversationRes.messages,
+            conversationRes.data.messages,
             projectFolderCurrentPath,
             projectFolderTargetPath,
           );
@@ -474,12 +592,12 @@ export const useProjectRequests = (
             ]),
             name: meta.name,
             conversation: {
-              ...conversationRes,
+              ...conversationRes.data,
               messages: replacedMessages,
             },
           });
 
-          if (!putConvRes) return Promise.reject();
+          if (!putConvRes.success) return Promise.reject();
 
           await deleteConversation(
             bucket,
@@ -492,21 +610,29 @@ export const useProjectRequests = (
           );
         };
 
-        conversations.forEach((conv) => moveJobs.push(queueCopy(conv)));
+        conversations.data.forEach((conv) => moveJobs.push(queueCopy(conv)));
 
         await Promise.all(moveJobs);
-      } catch {
+
+        return {
+          success: true,
+          data: undefined,
+        };
+      } catch (error) {
         if (!suppressErrors)
           displayToast('error', apiMessages.moveConversationClient);
 
-        return;
+        return {
+          success: false,
+          error: classifyFetchError(error, apiMessages.moveConversationClient),
+        };
       }
     },
     [getConversations, getConversation, putConversation, deleteConversation],
   );
 
   const moveProject = useCallback<
-    ApiRequestFunction<
+    ApiRequestFunctionWithError<
       FileReference & {
         targetPath: string | null | undefined;
         targetBucket: string;
@@ -514,7 +640,7 @@ export const useProjectRequests = (
         suppressErrors?: boolean;
         onProgress?: (progress: number) => void;
       },
-      unknown
+      void
     >
   >(
     async ({
@@ -542,10 +668,13 @@ export const useProjectRequests = (
 
         onProgress?.(10);
 
-        if (!project) {
+        if (!project.success) {
           displayToast('error', apiMessages.moveToFolderServer);
 
-          return undefined;
+          return {
+            success: false,
+            error: project.error,
+          };
         }
 
         const currentPath = constructPath([
@@ -562,7 +691,7 @@ export const useProjectRequests = (
         ]);
 
         const updatedProjectSheets = updateFilesPathInputsInProject(
-          project.sheets,
+          project.data.sheets,
           currentPath,
           targetResultingPath,
         );
@@ -571,7 +700,7 @@ export const useProjectRequests = (
 
         const settingsToAdd: ProjectState['settings'] = {
           [projectMetadataSettingsKey]: {
-            ...(project.settings?.[projectMetadataSettingsKey] ?? {}),
+            ...(project.data.settings?.[projectMetadataSettingsKey] ?? {}),
           },
         };
 
@@ -594,10 +723,13 @@ export const useProjectRequests = (
 
         onProgress?.(30);
 
-        if (!createdProjectRes) {
+        if (!createdProjectRes.success) {
           displayToast('error', apiMessages.moveToFolderServer);
 
-          return undefined;
+          return {
+            success: false,
+            error: createdProjectRes.error,
+          };
         }
 
         // 3. Delete the original project
@@ -609,10 +741,13 @@ export const useProjectRequests = (
 
         onProgress?.(40);
 
-        if (!deleteProjectRes) {
+        if (!deleteProjectRes.success) {
           displayToast('error', apiMessages.moveToFolderServer);
 
-          return undefined;
+          return {
+            success: false,
+            error: deleteProjectRes.error,
+          };
         }
 
         // 4. Move related files
@@ -636,13 +771,23 @@ export const useProjectRequests = (
 
         onProgress?.(80);
 
-        if (!projectFiles) {
-          if (suppressErrors) return {};
+        if (!projectFiles.success) {
+          if (suppressErrors) {
+            return {
+              success: true,
+              data: undefined,
+            };
+          }
 
           displayToast('error', apiMessages.moveToFolderServer);
+
+          return {
+            success: false,
+            error: projectFiles.error,
+          };
         }
 
-        moveProjectConversations({
+        await moveProjectConversations({
           bucket,
           parentPath,
           name,
@@ -655,11 +800,17 @@ export const useProjectRequests = (
 
         onProgress?.(100);
 
-        return {};
-      } catch {
+        return {
+          success: true,
+          data: undefined,
+        };
+      } catch (error) {
         displayToast('error', apiMessages.moveToFolderClient);
 
-        return undefined;
+        return {
+          success: false,
+          error: classifyFetchError(error, apiMessages.moveToFolderClient),
+        };
       }
     },
     [
@@ -672,7 +823,7 @@ export const useProjectRequests = (
   );
 
   const renameProject = useCallback<
-    ApiRequestFunction<
+    ApiRequestFunctionWithError<
       {
         bucket: string;
         fileName: string;
@@ -680,7 +831,7 @@ export const useProjectRequests = (
         parentPath: string | null | undefined;
         onProgress?: (progress: number) => void;
       },
-      unknown
+      void
     >
   >(
     async ({ bucket, fileName, newFileName, parentPath, onProgress }) => {
@@ -698,7 +849,7 @@ export const useProjectRequests = (
   );
 
   const cloneProjectConversations = useCallback<
-    ApiRequestFunction<
+    ApiRequestFunctionWithError<
       FileReference & {
         suppressErrors?: boolean;
         targetPath: string | null;
@@ -707,7 +858,7 @@ export const useProjectRequests = (
         targetProjectName: string;
         isReadOnly: boolean;
       },
-      unknown
+      void
     >
   >(
     async ({
@@ -736,19 +887,23 @@ export const useProjectRequests = (
             projectName,
           }) + '/';
 
-        const conversations =
-          (await getConversations({
-            folder: conversationsFolder,
-            suppressErrors: true,
-          })) ?? [];
-        const localConversations = isReadOnly
-          ? ((await getConversations({
-              folder: localConversationsFolder,
-              suppressErrors: true,
-            })) ?? [])
+        const conversationsResponse = await getConversations({
+          folder: conversationsFolder,
+          suppressErrors: true,
+        });
+        const conversations = conversationsResponse.success
+          ? conversationsResponse.data
           : [];
 
-        if (!conversations) return;
+        const localConversationsResponse = isReadOnly
+          ? await getConversations({
+              folder: localConversationsFolder,
+              suppressErrors: true,
+            })
+          : null;
+        const localConversations = localConversationsResponse?.success
+          ? localConversationsResponse.data
+          : [];
 
         const existingNames = new Set<string>();
         const copyJobs: Promise<unknown>[] = [];
@@ -765,7 +920,7 @@ export const useProjectRequests = (
             parentPath: meta.parentPath,
           });
 
-          if (!conversationRes) return Promise.reject();
+          if (!conversationRes.success) return Promise.reject();
 
           const currentProjectFolderPath = constructPath([
             bucket,
@@ -780,7 +935,7 @@ export const useProjectRequests = (
             targetProjectName,
           ]);
           const replacedMessages = updateMessagesProjectFoldersPath(
-            conversationRes.messages,
+            conversationRes.data.messages,
             currentProjectFolderPath,
             projectFolderTargetPath,
           );
@@ -794,30 +949,41 @@ export const useProjectRequests = (
             ]),
             name: finalName,
             conversation: {
-              ...conversationRes,
+              ...conversationRes.data,
               messages: replacedMessages,
             },
           });
 
-          if (!putConvRes) return Promise.reject();
+          if (!putConvRes.success) return Promise.reject();
         };
 
         conversations.forEach((conv) => copyJobs.push(queueCopy(conv)));
         localConversations.forEach((conv) => copyJobs.push(queueCopy(conv)));
 
         await Promise.all(copyJobs);
-      } catch {
+
+        return {
+          success: true,
+          data: undefined,
+        };
+      } catch (error) {
         if (!suppressErrors)
           displayToast('error', apiMessages.cloneConversationsClient);
 
-        return;
+        return {
+          success: false,
+          error: classifyFetchError(
+            error,
+            apiMessages.cloneConversationsClient,
+          ),
+        };
       }
     },
     [getConversation, getConversations, putConversation, userBucket],
   );
 
   const cloneProject = useCallback<
-    ApiRequestFunction<
+    ApiRequestFunctionWithError<
       FileReference & {
         suppressErrors?: boolean;
         targetPath: string | null;
@@ -859,10 +1025,18 @@ export const useProjectRequests = (
 
         onProgress?.(10);
 
-        if (!project || !allFiles || !userBucket) {
+        if (!project.success || !userBucket) {
           displayToast('error', apiMessages.cloneFileServer);
 
-          return undefined;
+          return {
+            success: false,
+            error: project.success
+              ? {
+                  type: ApiErrorType.Unknown,
+                  message: apiMessages.cloneFileServer,
+                }
+              : project.error,
+          };
         }
         const targetProjectFileName = createUniqueFileName(
           newName || name,
@@ -875,7 +1049,7 @@ export const useProjectRequests = (
           '',
         );
 
-        const projectSheets = sheetsOverride ?? project.sheets;
+        const projectSheets = sheetsOverride ?? project.data.sheets;
         const currentProjectFolderPath = constructPath([
           bucket,
           projectFoldersRootPrefix,
@@ -898,7 +1072,7 @@ export const useProjectRequests = (
 
         const settingsToAdd: ProjectState['settings'] = {
           [projectMetadataSettingsKey]: {
-            ...(project.settings?.[projectMetadataSettingsKey] ?? {}),
+            ...(project.data.settings?.[projectMetadataSettingsKey] ?? {}),
             [forkedProjectMetadataKey]: {
               bucket,
               path: parentPath,
@@ -925,12 +1099,15 @@ export const useProjectRequests = (
 
         onProgress?.(30);
 
-        if (!createdProjectRes) {
+        if (!createdProjectRes.success) {
           if (!suppressErrors) {
             displayToast('error', apiMessages.cloneProjectServer);
           }
 
-          return undefined;
+          return {
+            success: false,
+            error: createdProjectRes.error,
+          };
         }
 
         const projectFilesFromSheets = (collectFilesFromProject(
@@ -960,11 +1137,17 @@ export const useProjectRequests = (
 
         if (!projectFilesRes.success) {
           if (suppressErrors)
-            return { newClonedProjectName: targetProjectName };
+            return {
+              success: true,
+              data: { newClonedProjectName: targetProjectName },
+            };
 
           displayToast('error', apiMessages.cloneProjectServer);
 
-          return undefined;
+          return {
+            success: false,
+            error: projectFilesRes.error,
+          };
         }
 
         const projectFilesFullPaths = projectFiles.map((file) =>
@@ -1034,11 +1217,17 @@ export const useProjectRequests = (
 
         onProgress?.(100);
 
-        return { newClonedProjectName: targetProjectName };
-      } catch {
+        return {
+          success: true,
+          data: { newClonedProjectName: targetProjectName },
+        };
+      } catch (error) {
         if (!suppressErrors) displayToast('error', apiMessages.cloneFileClient);
 
-        return;
+        return {
+          success: false,
+          error: classifyFetchError(error, apiMessages.cloneFileClient),
+        };
       }
     },
     [
@@ -1053,7 +1242,7 @@ export const useProjectRequests = (
 
   // Used SSE for response, so it should be handled on calling side
   const getProjectFileNotifications = useCallback<
-    ApiRequestFunction<
+    ApiRequestFunctionWithError<
       { projectUrl: string; controller: AbortController },
       Response
     >
@@ -1076,10 +1265,20 @@ export const useProjectRequests = (
         if (!res.ok) {
           displayToast('error', apiMessages.subscribeToProjectServer);
 
-          return undefined;
+          return {
+            success: false,
+            error: {
+              type: ApiErrorType.ServerError,
+              message: apiMessages.subscribeToProjectServer,
+              statusCode: res.status,
+            },
+          };
         }
 
-        return res;
+        return {
+          success: true,
+          data: res,
+        };
       } catch (e) {
         // This error appears when browser tries to cancel pending request, handle it on level above
         if (e instanceof TypeError && e.message === 'Failed to fetch') {
@@ -1087,7 +1286,10 @@ export const useProjectRequests = (
         }
         displayToast('error', apiMessages.subscribeToProjectClient);
 
-        return undefined;
+        return {
+          success: false,
+          error: classifyFetchError(e, apiMessages.subscribeToProjectClient),
+        };
       }
     },
     [sendDialRequest],
@@ -1097,7 +1299,7 @@ export const useProjectRequests = (
    * Reset a project to the state of the source project without removing the project yaml.
    */
   const resetProject = useCallback<
-    ApiRequestFunction<
+    ApiRequestFunctionWithError<
       {
         bucket: string;
         path?: string | null;
@@ -1106,7 +1308,7 @@ export const useProjectRequests = (
         sourcePath: string;
         sourceName: string;
       },
-      ProjectState | undefined
+      ProjectState
     >
   >(
     async ({
@@ -1122,7 +1324,12 @@ export const useProjectRequests = (
         parentPath: path,
         name: projectName,
       });
-      if (!currentProject) return;
+      if (!currentProject.success) {
+        return {
+          success: false,
+          error: currentProject.error,
+        };
+      }
 
       /* Delete all files related to the current project */
       await deleteFolder({
@@ -1142,7 +1349,12 @@ export const useProjectRequests = (
         parentPath: sourcePath,
         name: sourceName,
       });
-      if (!sourceProject) return;
+      if (!sourceProject.success) {
+        return {
+          success: false,
+          error: sourceProject.error,
+        };
+      }
 
       const currentFolderPath = constructPath([
         bucket,
@@ -1157,16 +1369,16 @@ export const useProjectRequests = (
         sourceName,
       ]);
       const updatedSheets = updateFilesPathInputsInProject(
-        sourceProject.sheets,
+        sourceProject.data.sheets,
         sourceFolderPath,
         currentFolderPath,
       );
 
       const updatedProject = await putProject({
-        ...currentProject,
+        ...currentProject.data,
         sheets: updatedSheets,
         settings: {
-          ...currentProject.settings,
+          ...currentProject.data.settings,
           [projectMetadataSettingsKey]: {
             [forkedProjectMetadataKey]: {
               bucket: sourceBucket,
@@ -1176,7 +1388,12 @@ export const useProjectRequests = (
           },
         },
       });
-      if (!updatedProject) return;
+      if (!updatedProject.success) {
+        return {
+          success: false,
+          error: updatedProject.error,
+        };
+      }
 
       /* Gather all files from source project and clone them */
       const srcFolderFilesRes = await getFiles({
@@ -1195,7 +1412,9 @@ export const useProjectRequests = (
         : [];
 
       const extraFiles =
-        (collectFilesFromProject(sourceProject.sheets.map((s) => s.content))
+        (collectFilesFromProject(
+          sourceProject.data.sheets.map((s) => s.content),
+        )
           ?.map(convertUrlToMetadata)
           .filter(Boolean) as Pick<
           ResourceMetadata,
@@ -1219,13 +1438,16 @@ export const useProjectRequests = (
         });
       }
 
-      return updatedProject;
+      return {
+        success: true,
+        data: updatedProject.data,
+      };
     },
     [getProject, deleteFolder, putProject, getFiles, cloneFile],
   );
 
   const updateForkedProjectMetadata = useCallback<
-    ApiRequestFunction<
+    ApiRequestFunctionWithError<
       {
         bucket: string;
         path?: string | null;
@@ -1235,7 +1457,7 @@ export const useProjectRequests = (
         forkProjectName: string;
         suppressErrors?: boolean;
       },
-      ProjectState | undefined
+      ProjectState
     >
   >(
     async ({
@@ -1253,12 +1475,17 @@ export const useProjectRequests = (
           parentPath: path,
           name: projectName,
         });
-        if (!current) return;
+        if (!current.success) {
+          return {
+            success: false,
+            error: current.error,
+          };
+        }
 
         const updatedSettings: ProjectState['settings'] = {
-          ...(current.settings ?? {}),
+          ...(current.data.settings ?? {}),
           [projectMetadataSettingsKey]: {
-            ...(current.settings?.[projectMetadataSettingsKey] ?? {}),
+            ...(current.data.settings?.[projectMetadataSettingsKey] ?? {}),
             [forkedProjectMetadataKey]: {
               bucket: forkBucket,
               path: forkPath,
@@ -1268,21 +1495,24 @@ export const useProjectRequests = (
         };
 
         const updated = await putProject({
-          ...current,
+          ...current.data,
           settings: updatedSettings,
         });
 
-        if (!updated && !suppressErrors) {
+        if (!updated.success && !suppressErrors) {
           displayToast('error', apiMessages.putProjectServer);
         }
 
         return updated;
-      } catch {
+      } catch (error) {
         if (!suppressErrors) {
           displayToast('error', apiMessages.putProjectClient);
         }
 
-        return;
+        return {
+          success: false,
+          error: classifyFetchError(error, apiMessages.putProjectClient),
+        };
       }
     },
     [getProject, putProject],

@@ -1,14 +1,11 @@
 import { components, GroupBase, SingleValueProps } from 'react-select';
 
 import Icon from '@ant-design/icons';
-import { DefaultOptionType } from '@rc-component/select/lib/Select';
 
-export const CustomSingleValueWithIcon = (
-  props: SingleValueProps<
-    DefaultOptionType,
-    boolean,
-    GroupBase<DefaultOptionType>
-  >,
+import { OptionWithIconType } from './OptionWithIcon';
+
+export const CustomSingleValueWithIcon = <T extends OptionWithIconType>(
+  props: SingleValueProps<T, boolean, GroupBase<T>>,
 ) => {
   return (
     <components.SingleValue {...props}>

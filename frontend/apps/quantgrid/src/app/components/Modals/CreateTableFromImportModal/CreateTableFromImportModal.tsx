@@ -2,7 +2,7 @@ import { Checkbox, Input, Modal, Spin } from 'antd';
 import cx from 'classnames';
 import Fuse, { IFuseOptions } from 'fuse.js';
 import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import Select from 'react-select';
+import Select, { GroupBase } from 'react-select';
 import { toast } from 'react-toastify';
 
 import {
@@ -18,6 +18,7 @@ import {
   SearchIcon,
   secondaryButtonClasses,
   SelectClasses,
+  SelectOption,
   selectStyles,
 } from '@frontend/common';
 import { escapeValue } from '@frontend/parser';
@@ -105,9 +106,9 @@ export function CreateTableFromImportModal() {
 
       setIsLoading(false);
 
-      if (response?.schema) {
-        setSchema(response.schema);
-        const allColumns = new Set(Object.keys(response.schema.columns));
+      if (response.success && response.data.schema) {
+        setSchema(response.data.schema);
+        const allColumns = new Set(Object.keys(response.data.schema.columns));
         setSelectedColumns(allColumns);
       } else {
         setSchema(null);
@@ -139,8 +140,8 @@ export function CreateTableFromImportModal() {
         dataset: datasetKey,
       });
 
-      if (response?.syncs) {
-        const syncList = Object.values(response.syncs).filter(
+      if (response.success && response.data.syncs) {
+        const syncList = Object.values(response.data.syncs).filter(
           (s) => s.status === 'SUCCEEDED',
         );
         setVersions(syncList);
@@ -419,7 +420,7 @@ export function CreateTableFromImportModal() {
                 <div className="grid grid-cols-12 items-center gap-3">
                   <div className="text-sm col-span-2">Version:</div>
                   <div className="col-span-10">
-                    <Select
+                    <Select<SelectOption, false, GroupBase<SelectOption>>
                       className="w-full"
                       classNames={SelectClasses}
                       components={{ IndicatorSeparator: null }}

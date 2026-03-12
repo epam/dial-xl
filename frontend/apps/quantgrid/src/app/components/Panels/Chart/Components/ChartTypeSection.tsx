@@ -5,11 +5,15 @@ import {
   useEffect,
   useState,
 } from 'react';
-import Select, { SingleValue } from 'react-select';
+import Select, {
+  ClassNamesConfig,
+  GroupBase,
+  SingleValue,
+  type StylesConfig,
+} from 'react-select';
 
 import { chartItems, SelectClasses, selectStyles } from '@frontend/common';
 import { ParsedTable } from '@frontend/parser';
-import { DefaultOptionType } from '@rc-component/select/lib/Select';
 
 import {
   AppSpreadsheetInteractionContext,
@@ -17,11 +21,21 @@ import {
 } from '../../../../context';
 import { useChartEditDsl } from '../../../../hooks';
 import { ChartPanelSelectClasses } from '../ChartPanelSelectClasses';
-import { CustomSingleValueWithIcon, OptionWithIcon } from './SelectUtils';
+import {
+  CustomSingleValueWithIcon,
+  OptionWithIcon,
+  OptionWithIconType,
+} from './SelectUtils';
 
-const chartTypeOptions = chartItems.map((item) => ({
+type ChartTypeOption = OptionWithIconType & {
+  label: string;
+  value: (typeof chartItems)[number]['type'];
+};
+
+const chartTypeOptions: ChartTypeOption[] = chartItems.map((item) => ({
   ...item,
   value: item.type,
+  label: item.label,
 }));
 
 export function ChartTypeSection({
@@ -36,7 +50,7 @@ export function ChartTypeSection({
   const [chartType, setChartType] = useState(chartTypeOptions[0]);
 
   const onChangeChartType = useCallback(
-    (option: SingleValue<DefaultOptionType>) => {
+    (option: SingleValue<ChartTypeOption>) => {
       if (!sheetName || !parsedTable) return;
 
       const updatedChartTypeOption =
@@ -69,11 +83,17 @@ export function ChartTypeSection({
   }, [parsedTable]);
 
   return (
-    <Select
-      classNames={{
-        ...SelectClasses,
-        ...ChartPanelSelectClasses,
-      }}
+    <Select<ChartTypeOption, false, GroupBase<ChartTypeOption>>
+      classNames={
+        {
+          ...SelectClasses,
+          ...ChartPanelSelectClasses,
+        } as ClassNamesConfig<
+          ChartTypeOption,
+          false,
+          GroupBase<ChartTypeOption>
+        >
+      }
       components={{
         IndicatorSeparator: null,
         Option: OptionWithIcon,
@@ -84,7 +104,13 @@ export function ChartTypeSection({
       menuPosition="fixed"
       name="chartType"
       options={chartTypeOptions}
-      styles={selectStyles}
+      styles={
+        selectStyles as StylesConfig<
+          ChartTypeOption,
+          boolean,
+          GroupBase<ChartTypeOption>
+        >
+      }
       value={chartType}
       onChange={onChangeChartType}
     />

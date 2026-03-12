@@ -1,20 +1,20 @@
 import cx from 'classnames';
 import { useCallback, useMemo } from 'react';
-import Select, { SingleValue } from 'react-select';
+import Select, { GroupBase, SingleValue } from 'react-select';
 
 import { SelectClasses, selectStyles } from '@frontend/common';
-import type { DefaultOptionType } from '@rc-component/select/lib/Select';
 
 import {
   CustomSingleValueWithIcon,
   OptionWithIcon,
+  OptionWithIconType,
 } from '../../Chart/Components/SelectUtils';
 
 type FormSelectProps = {
   value?: string | null;
   onChange?: (val: string | null) => void;
   onValueChange?: (val: string | null) => void;
-  options: DefaultOptionType[];
+  options: OptionWithIconType[];
   placeholder?: string;
   isClearable?: boolean;
   isSearchable?: boolean;
@@ -66,7 +66,7 @@ export function FormSelect({
   }, [showIcon]);
 
   return (
-    <Select
+    <Select<OptionWithIconType, false, GroupBase<OptionWithIconType>>
       className={className}
       classNames={{
         ...SelectClasses,
@@ -91,8 +91,8 @@ export function FormSelect({
       placeholder={placeholder}
       styles={selectStyles}
       value={selected}
-      onChange={(opt: SingleValue<DefaultOptionType>) => {
-        const val = opt ? (opt.value as string) : null;
+      onChange={(opt: SingleValue<OptionWithIconType>) => {
+        const val = typeof opt?.value === 'string' ? opt.value : null;
         onChange?.(val);
         onValueChange?.(val);
       }}

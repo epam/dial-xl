@@ -53,10 +53,6 @@ export type CachedViewport = {
   fields?: Set<string>;
 };
 
-export type CachedViewports = {
-  [tableName: string]: CachedViewport;
-};
-
 export type SelectedChartKey = {
   chartType: ChartType;
   tableName: string;

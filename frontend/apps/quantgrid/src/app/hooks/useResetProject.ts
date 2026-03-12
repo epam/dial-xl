@@ -53,7 +53,7 @@ export function useResetProject() {
           sourceName: forkedProject.projectName,
         });
 
-        if (res) {
+        if (res.success) {
           deleteProjectHistory(projectName, projectBucket, projectPath);
           getHints();
           getInputs();

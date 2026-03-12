@@ -106,7 +106,7 @@ export const ImportSteps = ({
 
     setIsSaveInProgress(false);
 
-    if (!result) return;
+    if (!result.success) return;
 
     onSuccess();
   }, [
@@ -133,7 +133,7 @@ export const ImportSteps = ({
 
     setIsSaveInProgress(false);
 
-    if (!result) return;
+    if (!result.success) return;
 
     if (sourceData.name !== sourceName) {
       onRenameImportSource(sourceData.name, sourceName);
@@ -182,13 +182,15 @@ export const ImportSteps = ({
       const importDefinitions = await listImportDefinitions({
         project: projectPathApi,
       });
-      if (!importDefinitions) {
+      if (!importDefinitions.success) {
         setImportDefinitions([]);
 
         return;
       }
 
-      const mappedDefinitions = Object.values(importDefinitions?.definitions);
+      const mappedDefinitions = Object.values(
+        importDefinitions.data.definitions,
+      );
       setImportDefinitions(mappedDefinitions);
       setAvailableSourceName(
         createUniqueName(

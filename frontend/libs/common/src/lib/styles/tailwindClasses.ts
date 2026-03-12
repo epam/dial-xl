@@ -1,7 +1,12 @@
 import cx from 'classnames';
-import { ClassNamesConfig, GroupBase, StylesConfig } from 'react-select';
+import type { ReactNode } from 'react';
+import type { ClassNamesConfig, GroupBase, StylesConfig } from 'react-select';
 
-import { DefaultOptionType } from '@rc-component/select/lib/Select';
+export type SelectOption = {
+  value?: string | number | null;
+  label?: ReactNode;
+  isDisabled?: boolean;
+} & Record<string, unknown>;
 
 export const inputClasses = cx(
   'rounded-[3px] border border-stroke-tertiary! bg-bg-layer-3! text-text-primary',
@@ -19,12 +24,6 @@ export const primaryDisabledButtonClasses =
 
 export const secondaryButtonClasses =
   'border-stroke-primary rounded-[3px] text-text-primary! bg-bg-layer-2! shadow-none! hover:border-bg-layer-4! hover:bg-bg-layer-4! hover:text-text-primary! focus:outline-0! focus-visible:outline-0! focus:border! focus:border-stroke-hover-focus! focus:bg-bg-layer-4!';
-
-export const secondaryOutlineButtonClasses =
-  'max-md:h-7 border-stroke-primary rounded-[3px] leading-none text-text-primary! bg-transparent! shadow-none! hover:border-bg-layer-4! hover:bg-bg-layer-4! hover:text-text-primary! focus:outline-0! focus-visible:outline-0! focus:border! focus:border-stroke-hover-focus! focus:bg-bg-layer-4!';
-
-export const secondaryOutlineInvertedButtonClasses =
-  'border-stroke-primary rounded-[3px] text-text-inverted! bg-transparent! shadow-none! hover:border-bg-layer-4! hover:bg-bg-layer-4! hover:text-text-primary! focus:text-text-primary! focus:outline-0! focus-visible:outline-0! focus:border! focus:border-stroke-hover-focus! focus:bg-bg-layer-4!';
 
 export const secondaryErrorButtonClasses =
   'border-stroke-error rounded-[3px] text-text-error! bg-transparent! shadow-none! hover:border-text-accent-tertiary! hover:text-text-accent-tertiary!';
@@ -46,16 +45,44 @@ export const defaultTabClasses =
 export const iconClasses =
   'text-text-secondary cursor-pointer hover:text-text-accent-primary';
 
-export const SelectClasses: ClassNamesConfig<
-  DefaultOptionType,
-  boolean,
-  GroupBase<any>
-> = {
-  control: ({ menuIsOpen }) =>
-    cx(
-      'bg-bg-layer-3! text-text-primary! hover:border-stroke-accent-primary! shadow-none! text-[13px]',
-      menuIsOpen ? 'border-stroke-accent-primary!' : 'border-stroke-tertiary!',
-    ),
+function getSelectControlClass(menuIsOpen: boolean) {
+  return cx(
+    'bg-bg-layer-3! text-text-primary! hover:border-stroke-accent-primary! shadow-none! text-[13px]',
+    menuIsOpen ? 'border-stroke-accent-primary!' : 'border-stroke-tertiary!',
+  );
+}
+
+function getSelectOptionClass(isSelected: boolean, isDisabled: boolean) {
+  return cx(
+    isSelected
+      ? isDisabled
+        ? 'bg-bg-accent-primary-alpha! !text-controls-text-disabled'
+        : 'bg-bg-accent-primary-alpha! text-text-accent-primary!'
+      : isDisabled
+        ? 'bg-bg-layer-0! !text-controls-text-disabled'
+        : 'bg-bg-layer-0! text-text-primary! hover:bg-bg-accent-primary-alpha!',
+  );
+}
+
+type CommonSelectClassNames = Pick<
+  ClassNamesConfig<SelectOption, boolean, GroupBase<SelectOption>>,
+  | 'control'
+  | 'menu'
+  | 'menuList'
+  | 'singleValue'
+  | 'multiValue'
+  | 'indicatorsContainer'
+  | 'dropdownIndicator'
+  | 'option'
+>;
+
+type CommonSelectStyles = Pick<
+  StylesConfig<SelectOption, boolean, GroupBase<SelectOption>>,
+  'menuPortal'
+>;
+
+export const SelectClasses = {
+  control: ({ menuIsOpen }) => getSelectControlClass(menuIsOpen),
   menu: () => 'bg-bg-layer-0! text-[13px] rounded-[3px]!',
   menuList: () => 'thin-scrollbar',
   singleValue: () => 'text-text-primary! select-none',
@@ -63,40 +90,18 @@ export const SelectClasses: ClassNamesConfig<
   indicatorsContainer: () => 'text-text-primary!',
   dropdownIndicator: () => 'hover:text-stroke-hover! pl-0!',
   option: ({ isSelected, isDisabled }) =>
-    cx(
-      isSelected
-        ? isDisabled
-          ? 'bg-bg-accent-primary-alpha! !text-controls-text-disabled'
-          : 'bg-bg-accent-primary-alpha! text-text-accent-primary!'
-        : isDisabled
-          ? 'bg-bg-layer-0! !text-controls-text-disabled'
-          : 'bg-bg-layer-0! text-text-primary! hover:bg-bg-accent-primary-alpha!',
-    ),
-};
+    getSelectOptionClass(isSelected, isDisabled),
+} satisfies CommonSelectClassNames;
 
-export const SelectCompactClasses: ClassNamesConfig<
-  DefaultOptionType,
-  boolean,
-  GroupBase<any>
-> = {
+export const SelectCompactClasses = {
   ...SelectClasses,
   dropdownIndicator: () => 'hover:text-stroke-hover! pl-0! py-0.5!',
   control: ({ menuIsOpen }) =>
-    cx(
-      SelectClasses.control?.({ menuIsOpen } as any),
-      'min-h-[32px]! h-[32px]!',
-    ),
+    cx(getSelectControlClass(menuIsOpen), 'min-h-[32px]! h-[32px]!'),
   option: ({ isSelected, isDisabled }) =>
-    cx(
-      SelectClasses.option?.({ isSelected, isDisabled } as any),
-      'px-2! py-1!',
-    ),
-};
+    cx(getSelectOptionClass(isSelected, isDisabled), 'px-2! py-1!'),
+} satisfies CommonSelectClassNames;
 
-export const selectStyles: StylesConfig<
-  DefaultOptionType,
-  boolean,
-  GroupBase<DefaultOptionType>
-> = {
+export const selectStyles = {
   menuPortal: (base) => ({ ...base, zIndex: 9999 }),
-};
+} satisfies CommonSelectStyles;

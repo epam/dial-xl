@@ -381,7 +381,7 @@ export function DashboardContextProvider({ children }: Props) {
           resourceType: MetadataResourceType.FILE,
         });
 
-        if (!metadata) {
+        if (!metadata.success) {
           deleteRecentProjectFromRecentProjects(
             item.name.replaceAll(dialProjectFileExtension, ''),
             item.bucket,
@@ -389,7 +389,7 @@ export function DashboardContextProvider({ children }: Props) {
           );
         }
 
-        return metadata ? item : null;
+        return metadata.success ? item : null;
       }),
     );
 
@@ -584,8 +584,8 @@ export function DashboardContextProvider({ children }: Props) {
           path: parentPath,
         });
 
-        if (result?.file) {
-          const toastText = `File '${result.file.name}' uploaded successfully`;
+        if (result.success) {
+          const toastText = `File '${result.data.file.name}' uploaded successfully`;
 
           toast.success(toastText, {});
         } else {
@@ -594,7 +594,7 @@ export function DashboardContextProvider({ children }: Props) {
           );
         }
 
-        return result?.file;
+        return result.success ? result.data.file : undefined;
       });
 
       const results = await Promise.allSettled(requests);
@@ -614,7 +614,7 @@ export function DashboardContextProvider({ children }: Props) {
             suppressErrors: true,
           });
 
-          if (!dimResult) {
+          if (!dimResult.success) {
             toast.error(
               `Error happened during creating schema for file "${result.value.name}". Recheck file structure and reupload it.`,
             );
@@ -701,7 +701,7 @@ export function DashboardContextProvider({ children }: Props) {
         name: newFolderName,
       });
 
-      if (!result) return;
+      if (!result.success) return;
 
       const toastText = `Folder '${newFolderName}' created successfully`;
       toast.success(toastText, {});

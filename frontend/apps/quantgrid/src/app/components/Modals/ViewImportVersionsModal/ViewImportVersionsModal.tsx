@@ -66,8 +66,8 @@ export function ViewImportVersionsModal() {
 
       setIsLoading(false);
 
-      if (response?.syncs) {
-        const syncList = Object.values(response.syncs);
+      if (response.success && response.data.syncs) {
+        const syncList = Object.values(response.data.syncs);
         setSyncs(syncList);
       } else {
         setSyncs([]);

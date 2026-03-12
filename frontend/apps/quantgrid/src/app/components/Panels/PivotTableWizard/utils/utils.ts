@@ -1,4 +1,4 @@
-import { DefaultOptionType } from '@rc-component/select/lib/Select';
+import { SelectOption } from '@frontend/common';
 
 import {
   FieldItem,
@@ -13,7 +13,7 @@ export type FieldContainerId =
   | 'value-fields';
 
 export const generateFormulaArgs = (
-  selectedTableName: DefaultOptionType | undefined,
+  selectedTableName: SelectOption | undefined,
   rowFields: FieldItem[],
   columnFields: FieldItem[],
   valueFunctions: ValueFunctionItem[],

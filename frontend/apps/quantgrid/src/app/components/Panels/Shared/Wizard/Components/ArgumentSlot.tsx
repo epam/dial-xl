@@ -2,7 +2,7 @@ import cx from 'classnames';
 import { useMemo } from 'react';
 
 import { useDroppable } from '@dnd-kit/core';
-import { DefaultOptionType } from '@rc-component/select/lib/Select';
+import { SelectOption } from '@frontend/common';
 
 import { ColumnRef } from '../types';
 import { makeValueFnSlotId } from './valueFunctionSectionUtils';
@@ -18,7 +18,7 @@ export function ArgumentSlot({
   rowId: string;
   index: number;
   arg: ColumnRef | null;
-  fieldOptions: DefaultOptionType[];
+  fieldOptions: SelectOption[];
   onChangeArg: (rowId: string, argIndex: number, fieldName?: string) => void;
 }) {
   const slotId = useMemo(() => makeValueFnSlotId(rowId, index), [index, rowId]);

@@ -2,7 +2,12 @@ import { Button, ColorPicker, Tooltip } from 'antd';
 import { AggregationColor } from 'antd/es/color-picker/color';
 import cx from 'classnames';
 import { useCallback, useContext, useEffect, useRef, useState } from 'react';
-import Select, { SingleValue } from 'react-select';
+import Select, {
+  ClassNamesConfig,
+  GroupBase,
+  SingleValue,
+  type StylesConfig,
+} from 'react-select';
 
 import Icon from '@ant-design/icons';
 import {
@@ -19,7 +24,6 @@ import {
   escapeValue,
   ParsedTable,
 } from '@frontend/parser';
-import { DefaultOptionType } from '@rc-component/select/lib/Select';
 
 import {
   AppSpreadsheetInteractionContext,
@@ -28,14 +32,14 @@ import {
 } from '../../../../context';
 import { useFieldEditDsl } from '../../../../hooks';
 import { ChartPanelSelectClasses } from '../ChartPanelSelectClasses';
-import { CustomColorOption, CustomSingleColorValue } from './SelectUtils';
+import {
+  ColorSelectOption,
+  CustomColorOption,
+  CustomSingleColorValue,
+} from './SelectUtils';
 import { SeriesColumnAttributesSection } from './SeriesColumnAttributesSection';
 
-type FieldOption = {
-  value: string;
-  label: string;
-  color: string | undefined;
-};
+type FieldOption = ColorSelectOption;
 
 const defaultColor = undefined;
 
@@ -56,7 +60,7 @@ export function ChartSeriesSection({
   const [colorPickerOpen, setColorPickerOpen] = useState(false);
   const [selectedColor, setSelectedColor] = useState<string>();
   const [selectedField, setSelectedField] = useState<FieldOption>();
-  const selectedFieldRef = useRef<FieldOption>(undefined);
+  const selectedFieldRef = useRef<FieldOption | undefined>(undefined);
 
   const handleColorSubmit = useCallback(() => {
     if (!selectedField || !sheetName || !selectedColor) return;
@@ -95,14 +99,12 @@ export function ChartSeriesSection({
     setSelectedColor(color.toHexString());
   }, []);
 
-  const handleChangeField = useCallback(
-    (option: SingleValue<DefaultOptionType>) => {
-      setSelectedField(option as FieldOption);
-      setSelectedColor(option?.color || defaultColor);
-      selectedFieldRef.current = option as FieldOption;
-    },
-    [],
-  );
+  const handleChangeField = useCallback((option: SingleValue<FieldOption>) => {
+    if (!option) return;
+    setSelectedField(option);
+    setSelectedColor(option.color || defaultColor);
+    selectedFieldRef.current = option;
+  }, []);
 
   const handleRemoveColor = useCallback(
     (e: any) => {
@@ -177,11 +179,13 @@ export function ChartSeriesSection({
     <div className="flex flex-col">
       {showSeriesSection && (
         <div className="w-full flex items-center">
-          <Select
-            classNames={{
-              ...SelectClasses,
-              ...ChartPanelSelectClasses,
-            }}
+          <Select<FieldOption, false, GroupBase<FieldOption>>
+            classNames={
+              {
+                ...SelectClasses,
+                ...ChartPanelSelectClasses,
+              } as ClassNamesConfig<FieldOption, false, GroupBase<FieldOption>>
+            }
             components={{
               IndicatorSeparator: null,
               Option: CustomColorOption,
@@ -192,7 +196,13 @@ export function ChartSeriesSection({
             menuPosition="fixed"
             name="chartSeries"
             options={fieldOptions}
-            styles={selectStyles}
+            styles={
+              selectStyles as StylesConfig<
+                FieldOption,
+                boolean,
+                GroupBase<FieldOption>
+              >
+            }
             value={selectedField}
             onChange={handleChangeField}
           />

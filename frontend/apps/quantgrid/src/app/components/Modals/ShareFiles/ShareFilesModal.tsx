@@ -221,8 +221,8 @@ export function ShareFilesModal() {
       const unshareableResources = mappedResourcesResults.filter(
         ({ result }) =>
           result.status === 'fulfilled' &&
-          result.value &&
-          !result.value.permissions?.includes('SHARE'),
+          result.value.success &&
+          !result.value.data.permissions?.includes('SHARE'),
       );
       if (unshareableResources.length) {
         setErrorMessage(appMessages.shareNotAllowedError);
@@ -237,25 +237,29 @@ export function ShareFilesModal() {
           ({ resource, result }) =>
             !(
               result.status === 'fulfilled' &&
+              result.value.success &&
               resource.nodeType === 'FOLDER' &&
               resource.resourceType === 'CONVERSATION'
             ),
         )
-        .filter(({ result }) => result.status === 'rejected' || !result.value);
+        .filter(
+          ({ result }) =>
+            result.status === 'rejected' ||
+            (result.status === 'fulfilled' && !result.value.success),
+        );
       if (failedResources.length) {
         setErrorMessage(
           'Warning: Cannot share some of the referenced files. They are either deleted or inaccessible.',
         );
       }
 
-      return mappedResourcesResults
-        .filter(
-          (item) => item.result.status === 'fulfilled' && item.result.value,
-        )
-        .map(
-          (item) =>
-            (item.result as PromiseFulfilledResult<ResourceMetadata>).value.url,
-        );
+      return mappedResourcesResults.reduce<string[]>((acc, item) => {
+        if (item.result.status === 'fulfilled' && item.result.value.success) {
+          acc.push(item.result.value.data.url);
+        }
+
+        return acc;
+      }, []);
     },
     [
       collectResourceAndDependentFileUrls,

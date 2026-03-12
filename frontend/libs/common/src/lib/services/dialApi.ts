@@ -1,7 +1,3 @@
-export interface Bucket {
-  bucket: string;
-}
-
 export type ResourcePermission = 'READ' | 'WRITE' | 'SHARE';
 
 export enum MetadataNodeType {

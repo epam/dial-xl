@@ -216,6 +216,7 @@ async def test_energy_legal_cost(casualties_project: FrameProject):
 async def test_closed_zero_reserves(casualties_project: FrameProject):
     question = 'How many claims are there with a claim status of "Closed" and have zero outstanding reserves?'
     gt_answer = 'There are 38681 claims with status "Closed" that have zero outstanding reserves.'
+
     answer = await casualties_project.query(question, expectation=gt_answer)
 
     def validate_filter_code(_, __, table: Table):

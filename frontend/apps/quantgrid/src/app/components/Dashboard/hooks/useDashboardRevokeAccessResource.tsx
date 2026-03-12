@@ -43,7 +43,7 @@ export function useDashboardRevokeAccessResource() {
         'name' | 'bucket' | 'nodeType' | 'parentPath' | 'resourceType'
       >,
     ) => {
-      return Promise.allSettled([
+      const results = await Promise.all([
         revokeResourcesAccessRequest([
           {
             name: item.name,
@@ -64,6 +64,8 @@ export function useDashboardRevokeAccessResource() {
           },
         ]),
       ]);
+
+      return results.every((result) => result.success);
     },
     [revokeResourcesAccessRequest],
   );
@@ -93,7 +95,7 @@ export function useDashboardRevokeAccessResource() {
           if (isProject) {
             res = await handleRevokeProject(item);
           } else {
-            res = await revokeResourcesAccessRequest([
+            const singleResult = await revokeResourcesAccessRequest([
               {
                 name: item.name,
                 bucket: item.bucket,
@@ -102,6 +104,8 @@ export function useDashboardRevokeAccessResource() {
                 nodeType: item.nodeType,
               },
             ]);
+
+            res = singleResult.success;
           }
 
           if (res) {

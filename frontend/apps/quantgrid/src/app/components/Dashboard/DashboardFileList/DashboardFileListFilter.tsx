@@ -1,6 +1,14 @@
 import cx from 'classnames';
 import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import Select, { components, SingleValue } from 'react-select';
+import {
+  ClassNamesConfig,
+  components,
+  GroupBase,
+  OptionProps,
+  SingleValue,
+  type StylesConfig,
+} from 'react-select';
+import Select from 'react-select';
 
 import Icon from '@ant-design/icons';
 import {
@@ -10,19 +18,19 @@ import {
   FolderIcon,
   QGLogo,
   SelectClasses,
+  SelectOption,
   selectStyles,
 } from '@frontend/common';
-import { DefaultOptionType } from '@rc-component/select/lib/Select';
 
 import { DashboardContext } from '../../../context';
 import { DashboardFilter } from '../../../types/dashboard';
 
-type FilterOptions = {
+type FilterOption = SelectOption & {
   label: string;
   value: DashboardFilter;
 };
 
-const filterOptions: FilterOptions[] = [
+const filterOptions: FilterOption[] = [
   {
     label: 'All types',
     value: 'all',
@@ -83,7 +91,7 @@ function SelectIcon({ size, isTransparent, filter }: SelectIconProps) {
   );
 }
 
-const Option = (props: any) => (
+const Option = (props: OptionProps<FilterOption, false>) => (
   <components.Option {...props}>
     <div className="flex item-center">
       <SelectIcon
@@ -99,7 +107,7 @@ const Option = (props: any) => (
 export function DashboardFileListFilter() {
   const { filter, setFilter } = useContext(DashboardContext);
 
-  const [selectedFilter, setSelectedFilter] = useState<DefaultOptionType>(
+  const [selectedFilter, setSelectedFilter] = useState<FilterOption>(
     filterOptions[0],
   );
 
@@ -110,8 +118,9 @@ export function DashboardFileListFilter() {
   }, [filter]);
 
   const onChange = useCallback(
-    (option: SingleValue<DefaultOptionType>) => {
-      setFilter(option?.value as DashboardFilter);
+    (option: SingleValue<FilterOption>) => {
+      if (!option) return;
+      setFilter(option.value);
     },
     [setFilter],
   );
@@ -123,9 +132,13 @@ export function DashboardFileListFilter() {
         isTransparent={filter === 'projects'}
         size={18}
       />
-      <Select
+      <Select<FilterOption, false, GroupBase<FilterOption>>
         classNames={{
-          ...SelectClasses,
+          ...(SelectClasses as ClassNamesConfig<
+            FilterOption,
+            false,
+            GroupBase<FilterOption>
+          >),
           control: () =>
             cx(
               'bg-bg-layer-3! border-0! hover:border-none! shadow-none! text-[14px]',
@@ -141,7 +154,13 @@ export function DashboardFileListFilter() {
         menuPortalTarget={document.body}
         name="fitlerSelect"
         options={filterOptions}
-        styles={selectStyles}
+        styles={
+          selectStyles as StylesConfig<
+            FilterOption,
+            boolean,
+            GroupBase<FilterOption>
+          >
+        }
         value={selectedFilter}
         onChange={onChange}
       />

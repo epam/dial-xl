@@ -28,7 +28,7 @@ export function useForkedProjectInfo() {
             path,
             bucket,
             projectName,
-            isExists: !!isExists,
+            isExists: isExists.success ? isExists.data : false,
           });
         } else {
           setForkedProject(null);

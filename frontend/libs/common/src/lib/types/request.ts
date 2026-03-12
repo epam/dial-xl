@@ -1,6 +1,5 @@
 import { MetadataResourceType, ResourceMetadata } from '../services';
 
-export type ApiRequestFunction<T, K> = (params: T) => Promise<K | undefined>;
 export enum ApiErrorType {
   Network = 'network',
   Unauthorized = 'unauthorized',

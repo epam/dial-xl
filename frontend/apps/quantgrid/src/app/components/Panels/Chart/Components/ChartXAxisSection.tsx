@@ -1,8 +1,9 @@
 import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import Select, { SingleValue } from 'react-select';
+import Select, { GroupBase, SingleValue } from 'react-select';
 
 import {
   SelectClasses,
+  SelectOption,
   selectStyles,
   toExcelColumnName,
 } from '@frontend/common';
@@ -11,7 +12,6 @@ import {
   ParsedField,
   ParsedTable,
 } from '@frontend/parser';
-import { DefaultOptionType } from '@rc-component/select/lib/Select';
 
 import {
   AppSpreadsheetInteractionContext,
@@ -44,7 +44,7 @@ export function ChartXAxisSection({
   const defaultValue = useMemo(() => `default_value_${uniqueId()}`, []);
 
   const handleChangeXAxis = useCallback(
-    (section: Section, option: SingleValue<DefaultOptionType>) => {
+    (section: Section, option: SingleValue<SelectOption>) => {
       if (!sheetName) return;
 
       const { tableName } = parsedTable;
@@ -146,7 +146,7 @@ export function ChartXAxisSection({
               </div>
             )}
 
-            <Select
+            <Select<SelectOption, false, GroupBase<SelectOption>>
               classNames={{
                 ...SelectClasses,
                 ...ChartPanelSelectClasses,

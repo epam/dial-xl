@@ -2,14 +2,20 @@ import { useCallback } from 'react';
 import { AuthContextProps } from 'react-oidc-context';
 
 import {
-  ApiRequestFunction,
+  ApiErrorType,
+  ApiRequestFunctionWithError,
   filesEndpointType,
   Question,
   QuestionMetadata,
   questionsApiMessages,
 } from '@frontend/common';
 
-import { constructPath, displayToast, encodeApiUrl } from '../../utils';
+import {
+  classifyFetchError,
+  constructPath,
+  displayToast,
+  encodeApiUrl,
+} from '../../utils';
 import { getDeploymentRouteSegments } from '../../utils/deployments';
 import { useBackendRequest } from './useBackendRequests';
 
@@ -17,7 +23,7 @@ export const useQuestionsRequests = (auth: AuthContextProps) => {
   const { sendDialRequest } = useBackendRequest(auth);
 
   const getQuestions = useCallback<
-    ApiRequestFunction<
+    ApiRequestFunctionWithError<
       {
         projectName: string;
         projectPath: string | null | undefined;
@@ -50,23 +56,39 @@ export const useQuestionsRequests = (auth: AuthContextProps) => {
         if (!res.ok) {
           displayToast('error', questionsApiMessages.getQuestionsServer);
 
-          return;
+          return {
+            success: false,
+            error: {
+              type: ApiErrorType.ServerError,
+              message: questionsApiMessages.getQuestionsServer,
+              statusCode: res.status,
+            },
+          };
         }
 
         const result = await res.json();
 
-        return result;
-      } catch {
+        return {
+          success: true,
+          data: result,
+        };
+      } catch (error) {
         displayToast('error', questionsApiMessages.getQuestionsClient);
 
-        return undefined;
+        return {
+          success: false,
+          error: classifyFetchError(
+            error,
+            questionsApiMessages.getQuestionsClient,
+          ),
+        };
       }
     },
     [sendDialRequest],
   );
 
   const getQuestion = useCallback<
-    ApiRequestFunction<
+    ApiRequestFunctionWithError<
       {
         projectName: string;
         projectPath: string | null | undefined;
@@ -99,30 +121,46 @@ export const useQuestionsRequests = (auth: AuthContextProps) => {
         if (!res.ok) {
           displayToast('error', questionsApiMessages.getQuestionServer);
 
-          return;
+          return {
+            success: false,
+            error: {
+              type: ApiErrorType.ServerError,
+              message: questionsApiMessages.getQuestionServer,
+              statusCode: res.status,
+            },
+          };
         }
 
         const result = await res.json();
 
-        return result;
-      } catch {
+        return {
+          success: true,
+          data: result,
+        };
+      } catch (error) {
         displayToast('error', questionsApiMessages.getQuestionClient);
 
-        return undefined;
+        return {
+          success: false,
+          error: classifyFetchError(
+            error,
+            questionsApiMessages.getQuestionClient,
+          ),
+        };
       }
     },
     [sendDialRequest],
   );
 
   const deleteQuestion = useCallback<
-    ApiRequestFunction<
+    ApiRequestFunctionWithError<
       {
         projectName: string;
         projectPath: string | null | undefined;
         projectBucket: string;
         question_file: string;
       },
-      unknown
+      void
     >
   >(
     async ({ projectBucket, projectPath, projectName, question_file }) => {
@@ -151,14 +189,30 @@ export const useQuestionsRequests = (auth: AuthContextProps) => {
         if (!res.ok) {
           displayToast('error', questionsApiMessages.deleteQuestionServer);
 
-          return;
+          return {
+            success: false,
+            error: {
+              type: ApiErrorType.ServerError,
+              message: questionsApiMessages.deleteQuestionServer,
+              statusCode: res.status,
+            },
+          };
         }
 
-        return {};
-      } catch {
+        return {
+          success: true,
+          data: undefined,
+        };
+      } catch (error) {
         displayToast('error', questionsApiMessages.deleteQuestionClient);
 
-        return undefined;
+        return {
+          success: false,
+          error: classifyFetchError(
+            error,
+            questionsApiMessages.deleteQuestionClient,
+          ),
+        };
       }
     },
     [sendDialRequest],

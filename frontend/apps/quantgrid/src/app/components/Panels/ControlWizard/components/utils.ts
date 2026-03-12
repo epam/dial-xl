@@ -1,10 +1,10 @@
+import { SelectOption } from '@frontend/common';
 import { ControlType } from '@frontend/parser';
-import type { DefaultOptionType } from '@rc-component/select/lib/Select';
 
 export type TableOption = {
   value: string;
   label: string;
-  fields: DefaultOptionType[];
+  fields: SelectOption[];
 };
 
 export enum ControlWizardCollapseSection {

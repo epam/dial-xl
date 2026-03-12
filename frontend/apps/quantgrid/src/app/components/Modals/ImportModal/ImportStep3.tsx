@@ -125,7 +125,11 @@ export const ImportStep3 = ({
         definition: selectedDefinition.definition,
       });
 
-      onConnectionResult(connectionResult?.result ?? 'FAILURE');
+      onConnectionResult(
+        connectionResult.success
+          ? (connectionResult.data.result ?? 'FAILURE')
+          : 'FAILURE',
+      );
     } catch {
       onConnectionResult('FAILURE');
     }

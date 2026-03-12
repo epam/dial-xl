@@ -1,9 +1,8 @@
 import cx from 'classnames';
 import { useMemo } from 'react';
-import Select, { SingleValue } from 'react-select';
+import Select, { GroupBase, SingleValue } from 'react-select';
 
-import { SelectCompactClasses } from '@frontend/common';
-import { DefaultOptionType } from '@rc-component/select/lib/Select';
+import { SelectCompactClasses, SelectOption } from '@frontend/common';
 
 export function ValueSectionSelect({
   options,
@@ -12,7 +11,7 @@ export function ValueSectionSelect({
   onChange,
   className,
 }: {
-  options: DefaultOptionType[];
+  options: SelectOption[];
   value?: string;
   placeholder?: string;
   onChange: (v?: string) => void;
@@ -24,7 +23,7 @@ export function ValueSectionSelect({
   );
 
   return (
-    <Select
+    <Select<SelectOption, false, GroupBase<SelectOption>>
       className={cx('text-[13px]', className)}
       classNames={{ ...SelectCompactClasses, clearIndicator: () => 'p-0!' }}
       components={{
@@ -37,7 +36,7 @@ export function ValueSectionSelect({
       placeholder={placeholder}
       value={selected}
       isClearable
-      onChange={(opt: SingleValue<DefaultOptionType>) => {
+      onChange={(opt: SingleValue<SelectOption>) => {
         const val = opt ? (opt.value as string) : undefined;
         onChange(val);
       }}

@@ -122,7 +122,7 @@ export function useControlValues() {
           end_row,
         });
 
-        if (!response) {
+        if (!response.success) {
           // Rollback cache on error
           cachedKeyViewports.current[tableName][fieldName] = cachedRowNumber;
           setControlIsLoading(false);
@@ -135,8 +135,8 @@ export function useControlValues() {
         const selectedValues = selectedValuesMap.get(selectedValuesKey) || [];
 
         const responseData = {
-          data: response.controlValuesResponse.data,
-          available: response.controlValuesResponse.available,
+          data: response.data.controlValuesResponse.data,
+          available: response.data.controlValuesResponse.available,
           selectedValues,
         };
 

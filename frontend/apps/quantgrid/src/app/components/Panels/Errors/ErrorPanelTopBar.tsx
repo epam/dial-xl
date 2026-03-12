@@ -1,7 +1,7 @@
 import { Tooltip } from 'antd';
 import classNames from 'classnames';
 import { useCallback, useContext, useMemo } from 'react';
-import { SingleValue } from 'react-select';
+import { GroupBase, SingleValue } from 'react-select';
 import Select from 'react-select';
 
 import Icon from '@ant-design/icons';
@@ -16,9 +16,9 @@ import {
   RuntimeError,
   RuntimeErrorIcon,
   SelectCompactClasses,
+  SelectOption,
   selectStyles,
 } from '@frontend/common';
-import type { DefaultOptionType } from '@rc-component/select/lib/Select';
 
 import { ProjectContext } from '../../../context';
 import { getErrorLocationInfo } from '../../../utils';
@@ -48,8 +48,8 @@ export function ErrorPanelTopBar({
 }: ErrorPanelTopBarProps) {
   const { projectSheets, parsedSheets } = useContext(ProjectContext);
 
-  const sheetOptions = useMemo<DefaultOptionType[]>(() => {
-    const options: DefaultOptionType[] = [{ value: null, label: 'All sheets' }];
+  const sheetOptions = useMemo<SelectOption[]>(() => {
+    const options: SelectOption[] = [{ value: null, label: 'All sheets' }];
 
     if (projectSheets) {
       projectSheets.forEach((sheet) => {
@@ -110,7 +110,7 @@ export function ErrorPanelTopBar({
   const parsingCount = getErrorCount('parsing');
 
   const handleSheetChange = useCallback(
-    (option: SingleValue<DefaultOptionType>) => {
+    (option: SingleValue<SelectOption>) => {
       const value = option?.value as string;
       onSheetChange(value);
     },
@@ -166,7 +166,7 @@ export function ErrorPanelTopBar({
   return (
     <div className="flex flex-col gap-2 p-2 border-b border-stroke-tertiary bg-bg-layer-2 @xs:flex-row @xs:items-center">
       <div className="min-w-0 w-full @xs:w-auto grow">
-        <Select
+        <Select<SelectOption, false, GroupBase<SelectOption>>
           classNames={SelectCompactClasses}
           components={{
             IndicatorSeparator: null,

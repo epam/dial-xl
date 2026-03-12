@@ -1,7 +1,7 @@
 import { Form } from 'antd';
 import { useMemo } from 'react';
 
-import type { DefaultOptionType } from '@rc-component/select/lib/Select';
+import { SelectOption } from '@frontend/common';
 
 import { AddControlButton } from './AddControlButton';
 import { ControlRowForm } from './ControlRowForm';
@@ -14,13 +14,13 @@ type Props = {
 
 export function CreateControlsSection({ tables, onSave }: Props) {
   const fieldsByTable = useMemo(() => {
-    const m = new Map<string, DefaultOptionType[]>();
+    const m = new Map<string, SelectOption[]>();
     tables.forEach((t) => m.set(t.value, t.fields));
 
     return m;
   }, [tables]);
 
-  const tableOptions: DefaultOptionType[] = useMemo(
+  const tableOptions: SelectOption[] = useMemo(
     () => tables.map(({ value, label }) => ({ value, label })),
     [tables],
   );

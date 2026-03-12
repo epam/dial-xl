@@ -101,7 +101,7 @@ export function AIHintsContextProvider({
     setIsHintsLoading(false);
 
     const normalizedAIHintsResponse = normalizeAIHintsResponse(
-      (aiHintsResponse?.json ?? []) as any,
+      (aiHintsResponse.success ? aiHintsResponse.data.json : []) as any,
     );
     setHints(normalizedAIHintsResponse);
   }, [

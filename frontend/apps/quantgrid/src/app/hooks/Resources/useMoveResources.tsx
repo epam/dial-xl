@@ -50,7 +50,7 @@ export function useMoveResources() {
         onProgress,
       });
 
-      if (!res) return;
+      if (!res.success) return;
 
       onProgress?.(100);
     },
@@ -98,7 +98,7 @@ export function useMoveResources() {
         suppressErrors: true,
       });
 
-      if (!res) return;
+      if (!res.success) return;
 
       onProgress?.(100);
     },
@@ -135,7 +135,7 @@ export function useMoveResources() {
 
         if (targetPath === parentPath) return;
 
-        await moveFolder({
+        const result = await moveFolder({
           bucket,
           parentPath,
           name,
@@ -145,6 +145,8 @@ export function useMoveResources() {
           suppressErrors: true,
           onProgress,
         });
+
+        if (!result.success) return;
       } else {
         await handleMoveFile({
           item,

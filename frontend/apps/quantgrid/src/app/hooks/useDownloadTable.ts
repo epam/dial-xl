@@ -77,9 +77,9 @@ export const useDownloadTable = () => {
         worksheets: sheets ?? {},
       });
 
-      if (!res) return;
+      if (!res.success) return;
 
-      const response = await res.json();
+      const response = await res.data.json();
 
       if (!response) return;
 
@@ -154,9 +154,9 @@ export const useDownloadTable = () => {
         worksheets: sheets,
       });
 
-      if (!fileBlob) return;
+      if (!fileBlob.success) return;
 
-      const singleFile = new File([fileBlob], fileName);
+      const singleFile = new File([fileBlob.data], fileName);
       const fileUrl = window.URL.createObjectURL(singleFile);
 
       return fileUrl;

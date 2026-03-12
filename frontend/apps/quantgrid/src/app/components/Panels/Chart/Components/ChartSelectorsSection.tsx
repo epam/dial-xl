@@ -7,13 +7,14 @@ import {
   useEffect,
   useState,
 } from 'react';
-import Select, { SingleValue } from 'react-select';
+import Select, { GroupBase, SingleValue } from 'react-select';
 
 import Icon from '@ant-design/icons';
 import {
   inputClasses,
   isComplexType,
   SelectClasses,
+  SelectOption,
   selectStyles,
   TrashIcon,
 } from '@frontend/common';
@@ -22,7 +23,6 @@ import {
   ParsedField,
   ParsedTable,
 } from '@frontend/parser';
-import { DefaultOptionType } from '@rc-component/select/lib/Select';
 
 import {
   AppSpreadsheetInteractionContext,
@@ -51,7 +51,7 @@ export function ChartSelectorsSection({
   const [selectors, setSelectors] = useState<ParsedField[]>([]);
   const [notUsedSelectors, setNotUsedSelectors] = useState<ParsedField[]>([]);
   const [selectedNewSelector, setSelectedNewSelector] =
-    useState<SingleValue<DefaultOptionType>>();
+    useState<SingleValue<SelectOption>>();
 
   const handleRemoveSelector = useCallback(
     (selector: ParsedField) => {
@@ -71,7 +71,7 @@ export function ChartSelectorsSection({
   );
 
   const handleSelectNewSelector = useCallback(
-    (option: SingleValue<DefaultOptionType>) => {
+    (option: SingleValue<SelectOption>) => {
       if (!option || !sheetName) return;
 
       const field = parsedTable.fields.find(
@@ -156,7 +156,7 @@ export function ChartSelectorsSection({
       ))}
       {isAddingSelector && (
         <div className="flex items-center mb-2">
-          <Select
+          <Select<SelectOption, false, GroupBase<SelectOption>>
             classNames={{
               ...SelectClasses,
               ...ChartPanelSelectClasses,

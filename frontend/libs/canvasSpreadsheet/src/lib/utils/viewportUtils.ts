@@ -1,5 +1,3 @@
-import { CellPlacement } from '@frontend/common';
-
 import { Cell } from '../types';
 
 export type CustomSizes = { [index: number]: number };
@@ -120,29 +118,6 @@ export function getCellPlacements<T extends Pick<Cell, 'col' | 'row'>>(
   }
 
   return placements;
-}
-
-export function getCellPlacement(
-  skippedCols: number,
-  skippedRows: number,
-  viewportCols: number,
-  viewportRows: number,
-  col: number,
-  row: number,
-): CellPlacement {
-  const rowShift = skippedRows % viewportRows;
-  const colShift = skippedCols % viewportCols;
-
-  const rowAdjustment = viewportRows - rowShift;
-  const colAdjustment = viewportCols - colShift;
-
-  const adjustedCol = col >= colShift ? col - colShift : colAdjustment + col;
-  const adjustedRow = row >= rowShift ? row - rowShift : rowAdjustment + row;
-
-  return {
-    col: skippedCols + adjustedCol,
-    row: skippedRows + adjustedRow,
-  };
 }
 
 export function normalizeCol(col: number, maxCols: number) {

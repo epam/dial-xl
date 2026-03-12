@@ -34,7 +34,7 @@ export function useDeleteResources() {
         bucket,
       });
 
-      if (!res) return;
+      if (!res.success) return;
 
       toast.success(`Project '${projectName}' successfully deleted`);
 
@@ -52,7 +52,7 @@ export function useDeleteResources() {
         parentPath: item.parentPath,
       });
 
-      if (!result) return;
+      if (!result.success) return;
 
       toast.success(`Folder '${item.name}' successfully deleted`);
     },
@@ -69,7 +69,7 @@ export function useDeleteResources() {
         parentPath: item.parentPath,
       });
 
-      if (!result) return;
+      if (!result.success) return;
 
       toast.success(`File '${item.name}' successfully deleted`);
 

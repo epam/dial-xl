@@ -114,7 +114,11 @@ export const ImportStep2 = ({
         definition: selectedDefinition.definition,
       });
 
-      setSchema(definition?.specification as RJSFSchema);
+      setSchema(
+        definition.success
+          ? (definition.data.specification as RJSFSchema)
+          : null,
+      );
     };
 
     handle();

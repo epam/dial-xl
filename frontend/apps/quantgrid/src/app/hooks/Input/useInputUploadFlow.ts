@@ -2,7 +2,7 @@ import { useCallback, useRef, useState } from 'react';
 import { toast } from 'react-toastify';
 
 import {
-  ApiRequestFunction,
+  ApiRequestFunctionWithError,
   CommonMetadata,
   CreateFileParams,
   CreateFileResult,
@@ -15,7 +15,7 @@ import { InputsFolder } from './useInputsFolderState';
 
 type UseInputUploadFlowDeps = {
   inputsFolder: InputsFolder | undefined;
-  createFile: ApiRequestFunction<CreateFileParams, CreateFileResult>;
+  createFile: ApiRequestFunctionWithError<CreateFileParams, CreateFileResult>;
   expandCSVFile: (file: CommonMetadata) => Promise<void>;
   requestDimSchemaForDimFormula: (
     args: RequestDimSchemaForDimFormulaArgs,
@@ -94,7 +94,7 @@ export function useInputUploadFlow({
           },
         });
 
-        if (result?.file) {
+        if (result.success) {
           toast.dismiss(uploadingToast);
           toast.success(`File "${fullFileName}" uploaded successfully`);
         } else {
@@ -102,7 +102,7 @@ export function useInputUploadFlow({
           toast.error(`Error happened during uploading "${fullFileName}"`);
         }
 
-        return result?.file;
+        return result.success ? result.data.file : undefined;
       });
 
       const results = await Promise.allSettled(requests);

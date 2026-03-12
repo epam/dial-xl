@@ -28,13 +28,13 @@ export function QuestionPreviewModal() {
       question_file: questionFile,
     });
 
-    if (!question) {
+    if (!question.success) {
       cancel();
 
       return;
     }
 
-    setQuestionData(question);
+    setQuestionData(question.data);
   }, [
     cancel,
     getQuestionApi,

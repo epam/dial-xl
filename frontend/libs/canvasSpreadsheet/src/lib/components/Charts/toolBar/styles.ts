@@ -1,8 +1,7 @@
 import cx from 'classnames';
 import { GroupBase, StylesConfig } from 'react-select';
 
-import { selectStyles } from '@frontend/common';
-import { DefaultOptionType } from '@rc-component/select/lib/Select';
+import { SelectOption, selectStyles } from '@frontend/common';
 
 import { getPx } from '../../../utils';
 import { ChartConfig } from '../types';
@@ -20,11 +19,7 @@ export function getSelectStyles({
   height,
   width,
   zoom,
-}: Props): StylesConfig<
-  DefaultOptionType,
-  boolean,
-  GroupBase<DefaultOptionType>
-> {
+}: Props): StylesConfig<SelectOption, boolean, GroupBase<SelectOption>> {
   return {
     ...selectStyles,
     control: (base) => ({
@@ -59,12 +54,13 @@ export function getSelectStyles({
 
 export function getSingleSelectOptionStyles(
   isSelected: boolean,
-  data: DefaultOptionType,
+  data: SelectOption,
   keyName: string,
   chartConfig: ChartConfig,
 ): string {
   const noDataKeys = chartConfig.gridChart.keysWithNoDataPoint[keyName] || [];
-  const isNoDataKey = noDataKeys.includes(data.value as string);
+  const isNoDataKey =
+    typeof data.value === 'string' && noDataKeys.includes(data.value);
 
   if (isNoDataKey) {
     return cx(

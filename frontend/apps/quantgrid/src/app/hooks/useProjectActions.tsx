@@ -96,7 +96,7 @@ export function useProjectActions() {
       });
 
       setLoading(false);
-      if (res) {
+      if (res.success) {
         deleteProjectHistory(projectNameToRemove, bucket, path);
         deleteRecentProjectFromRecentProjects(
           projectNameToRemove,
@@ -273,7 +273,7 @@ export function useProjectActions() {
 
       setLoading(false);
 
-      if (res && openInNewTab) {
+      if (res.success && openInNewTab) {
         navigateWithToast(
           getProjectNavigateUrl({
             projectBucket: finalBucket ?? userBucket,
@@ -367,12 +367,12 @@ export function useProjectActions() {
 
       toast.dismiss(uploadingToast);
 
-      if (!res) return;
+      if (!res.success) return;
 
       navigateWithToast(
         getProjectNavigateUrl({
           projectBucket: userBucket,
-          projectName: res.newClonedProjectName.replaceAll(
+          projectName: res.data.newClonedProjectName.replaceAll(
             dialProjectFileExtension,
             '',
           ),
@@ -380,7 +380,10 @@ export function useProjectActions() {
           projectSheetName: sheetName,
         }),
         appMessages.projectCloneSuccess(
-          res.newClonedProjectName.replaceAll(dialProjectFileExtension, ''),
+          res.data.newClonedProjectName.replaceAll(
+            dialProjectFileExtension,
+            '',
+          ),
         ),
       );
     },
@@ -411,7 +414,7 @@ export function useProjectActions() {
       ],
     });
     toast.dismiss(toastId);
-    if (!result) {
+    if (!result.success) {
       toast.error('Error happened during downloading file');
     }
   }, [downloadFiles, projectBucket, projectName, projectPath]);

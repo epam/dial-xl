@@ -7,9 +7,9 @@ import {
   CheckboxControlIcon,
   DropdownControlIcon,
   inputClasses,
+  SelectOption,
   TrashIcon,
 } from '@frontend/common';
-import type { DefaultOptionType } from '@rc-component/select/lib/Select';
 
 import { FormSelect } from './FormSelect';
 import { ControlRow, ControlWizardSaveProps } from './utils';
@@ -31,8 +31,8 @@ type ControlRowProps = {
   nameIndex: number;
   fieldKey: number;
   onRemove?: (nameIndex: number) => void;
-  fieldsByTable: Map<string, DefaultOptionType[]>;
-  tableOptions: DefaultOptionType[];
+  fieldsByTable: Map<string, SelectOption[]>;
+  tableOptions: SelectOption[];
   restField: any;
   onSave?: (payload: ControlWizardSaveProps) => void;
 };
@@ -316,7 +316,7 @@ export function ControlRowForm({
 }
 
 function mergeOption(
-  options: DefaultOptionType[],
+  options: SelectOption[],
   value: string | null | undefined,
 ) {
   if (!value) return options;

@@ -2,8 +2,9 @@ import { useCallback } from 'react';
 import { AuthContextProps } from 'react-oidc-context';
 
 import {
+  ApiErrorType,
   apiMessages,
-  ApiRequestFunction,
+  ApiRequestFunctionWithError,
   ImportCatalog,
   ImportCatalogListRequest,
   ImportConnection,
@@ -31,7 +32,7 @@ import {
   ProtoStruct,
 } from '@frontend/common';
 
-import { displayToast } from '../../utils';
+import { classifyFetchError, displayToast } from '../../utils';
 import { useBackendRequest } from './useBackendRequests';
 
 const headers = { 'Content-Type': 'application/json' };
@@ -60,7 +61,7 @@ export const useImportRequests = (auth: AuthContextProps) => {
   const { sendAuthorizedRequest } = useBackendRequest(auth);
 
   const listImportDefinitions = useCallback<
-    ApiRequestFunction<{ project: string }, ImportDefinitions | undefined>
+    ApiRequestFunctionWithError<{ project: string }, ImportDefinitions>
   >(
     async ({ project }) => {
       try {
@@ -81,26 +82,42 @@ export const useImportRequests = (auth: AuthContextProps) => {
         if (!res.ok) {
           displayToast('error', apiMessages.importDefinitionsListServer);
 
-          return;
+          return {
+            success: false,
+            error: {
+              type: ApiErrorType.ServerError,
+              message: apiMessages.importDefinitionsListServer,
+              statusCode: res.status,
+            },
+          };
         }
 
         const json = await res.json();
         const data: ImportDefinitions = json.importDefinitions ?? json;
 
-        return data;
-      } catch {
+        return {
+          success: true,
+          data,
+        };
+      } catch (error) {
         displayToast('error', apiMessages.importDefinitionsListClient);
 
-        return;
+        return {
+          success: false,
+          error: classifyFetchError(
+            error,
+            apiMessages.importDefinitionsListClient,
+          ),
+        };
       }
     },
     [sendAuthorizedRequest],
   );
 
   const getImportDefinition = useCallback<
-    ApiRequestFunction<
+    ApiRequestFunctionWithError<
       { project: string; definition: string },
-      ImportDefinition | undefined
+      ImportDefinition
     >
   >(
     async ({ project, definition }) => {
@@ -122,17 +139,33 @@ export const useImportRequests = (auth: AuthContextProps) => {
         if (!res.ok) {
           displayToast('error', apiMessages.importDefinitionGetServer);
 
-          return;
+          return {
+            success: false,
+            error: {
+              type: ApiErrorType.ServerError,
+              message: apiMessages.importDefinitionGetServer,
+              statusCode: res.status,
+            },
+          };
         }
 
         const json = await res.json();
         const data: ImportDefinition = json.importDefinition ?? json;
 
-        return data;
-      } catch {
+        return {
+          success: true,
+          data,
+        };
+      } catch (error) {
         displayToast('error', apiMessages.importDefinitionGetClient);
 
-        return;
+        return {
+          success: false,
+          error: classifyFetchError(
+            error,
+            apiMessages.importDefinitionGetClient,
+          ),
+        };
       }
     },
     [sendAuthorizedRequest],
@@ -140,7 +173,7 @@ export const useImportRequests = (auth: AuthContextProps) => {
 
   // ------- Sources -------
   const listImportSources = useCallback<
-    ApiRequestFunction<{ project: string }, ImportSources | undefined>
+    ApiRequestFunctionWithError<{ project: string }, ImportSources>
   >(
     async ({ project }) => {
       try {
@@ -158,26 +191,39 @@ export const useImportRequests = (auth: AuthContextProps) => {
         if (!res.ok) {
           displayToast('error', apiMessages.importSourceListServer);
 
-          return;
+          return {
+            success: false,
+            error: {
+              type: ApiErrorType.ServerError,
+              message: apiMessages.importSourceListServer,
+              statusCode: res.status,
+            },
+          };
         }
 
         const json = await res.json();
         const data: ImportSources = json.importSources ?? json;
 
-        return data;
-      } catch {
+        return {
+          success: true,
+          data,
+        };
+      } catch (error) {
         displayToast('error', apiMessages.importSourceListClient);
 
-        return;
+        return {
+          success: false,
+          error: classifyFetchError(error, apiMessages.importSourceListClient),
+        };
       }
     },
     [sendAuthorizedRequest],
   );
 
   const getImportSource = useCallback<
-    ApiRequestFunction<
+    ApiRequestFunctionWithError<
       { project: string; source: string },
-      ImportSource | undefined
+      ImportSource
     >
   >(
     async ({ project, source }) => {
@@ -196,31 +242,44 @@ export const useImportRequests = (auth: AuthContextProps) => {
         if (!res.ok) {
           displayToast('error', apiMessages.importSourceGetServer);
 
-          return;
+          return {
+            success: false,
+            error: {
+              type: ApiErrorType.ServerError,
+              message: apiMessages.importSourceGetServer,
+              statusCode: res.status,
+            },
+          };
         }
 
         const json = await res.json();
         const data: ImportSource = json.importSource ?? json;
 
-        return data;
-      } catch {
+        return {
+          success: true,
+          data,
+        };
+      } catch (error) {
         displayToast('error', apiMessages.importSourceGetClient);
 
-        return;
+        return {
+          success: false,
+          error: classifyFetchError(error, apiMessages.importSourceGetClient),
+        };
       }
     },
     [sendAuthorizedRequest],
   );
 
   const createImportSource = useCallback<
-    ApiRequestFunction<
+    ApiRequestFunctionWithError<
       {
         project: string;
         definition: string;
         sourceName: string;
         configuration: ProtoStruct;
       },
-      Response | undefined
+      Response
     >
   >(
     async ({ project, definition, sourceName, configuration }) => {
@@ -244,28 +303,44 @@ export const useImportRequests = (auth: AuthContextProps) => {
         if (!res.ok) {
           displayToast('error', apiMessages.importSourceCreateServer);
 
-          return;
+          return {
+            success: false,
+            error: {
+              type: ApiErrorType.ServerError,
+              message: apiMessages.importSourceCreateServer,
+              statusCode: res.status,
+            },
+          };
         }
 
-        return res;
-      } catch {
+        return {
+          success: true,
+          data: res,
+        };
+      } catch (error) {
         displayToast('error', apiMessages.importSourceCreateClient);
 
-        return;
+        return {
+          success: false,
+          error: classifyFetchError(
+            error,
+            apiMessages.importSourceCreateClient,
+          ),
+        };
       }
     },
     [sendAuthorizedRequest],
   );
 
   const updateImportSource = useCallback<
-    ApiRequestFunction<
+    ApiRequestFunctionWithError<
       {
         project: string;
         source: string;
         sourceName: string;
         configuration: ProtoStruct;
       },
-      Response | undefined
+      Response
     >
   >(
     async ({ project, source, sourceName, configuration }) => {
@@ -289,24 +364,37 @@ export const useImportRequests = (auth: AuthContextProps) => {
         if (!res.ok) {
           displayToast('error', apiMessages.importSourceUpdateServer);
 
-          return;
+          return {
+            success: false,
+            error: {
+              type: ApiErrorType.ServerError,
+              message: apiMessages.importSourceUpdateServer,
+              statusCode: res.status,
+            },
+          };
         }
 
-        return res;
-      } catch {
+        return {
+          success: true,
+          data: res,
+        };
+      } catch (error) {
         displayToast('error', apiMessages.importSourceUpdateClient);
 
-        return;
+        return {
+          success: false,
+          error: classifyFetchError(
+            error,
+            apiMessages.importSourceUpdateClient,
+          ),
+        };
       }
     },
     [sendAuthorizedRequest],
   );
 
   const deleteImportSource = useCallback<
-    ApiRequestFunction<
-      { project: string; source: string },
-      Response | undefined
-    >
+    ApiRequestFunctionWithError<{ project: string; source: string }, Response>
   >(
     async ({ project, source }) => {
       try {
@@ -324,14 +412,30 @@ export const useImportRequests = (auth: AuthContextProps) => {
         if (!res.ok) {
           displayToast('error', apiMessages.importSourceDeleteServer);
 
-          return;
+          return {
+            success: false,
+            error: {
+              type: ApiErrorType.ServerError,
+              message: apiMessages.importSourceDeleteServer,
+              statusCode: res.status,
+            },
+          };
         }
 
-        return res;
-      } catch {
+        return {
+          success: true,
+          data: res,
+        };
+      } catch (error) {
         displayToast('error', apiMessages.importSourceDeleteClient);
 
-        return;
+        return {
+          success: false,
+          error: classifyFetchError(
+            error,
+            apiMessages.importSourceDeleteClient,
+          ),
+        };
       }
     },
     [sendAuthorizedRequest],
@@ -339,9 +443,9 @@ export const useImportRequests = (auth: AuthContextProps) => {
 
   // ------- Connection Test -------
   const testImportConnection = useCallback<
-    ApiRequestFunction<
+    ApiRequestFunctionWithError<
       { project: string; definition: string; configuration: ProtoStruct },
-      ImportConnection | undefined
+      ImportConnection
     >
   >(
     async ({ project, definition, configuration }) => {
@@ -363,17 +467,33 @@ export const useImportRequests = (auth: AuthContextProps) => {
         if (!res.ok) {
           displayToast('error', apiMessages.importConnectionTestServer);
 
-          return;
+          return {
+            success: false,
+            error: {
+              type: ApiErrorType.ServerError,
+              message: apiMessages.importConnectionTestServer,
+              statusCode: res.status,
+            },
+          };
         }
 
         const json = await res.json();
         const data: ImportConnection = json.importConnection ?? json;
 
-        return data;
-      } catch {
+        return {
+          success: true,
+          data,
+        };
+      } catch (error) {
         displayToast('error', apiMessages.importConnectionTestClient);
 
-        return;
+        return {
+          success: false,
+          error: classifyFetchError(
+            error,
+            apiMessages.importConnectionTestClient,
+          ),
+        };
       }
     },
     [sendAuthorizedRequest],
@@ -381,9 +501,9 @@ export const useImportRequests = (auth: AuthContextProps) => {
 
   // ------- Catalog / Discover -------
   const listImportCatalog = useCallback<
-    ApiRequestFunction<
+    ApiRequestFunctionWithError<
       { project: string; source: string },
-      ImportCatalog | undefined
+      ImportCatalog
     >
   >(
     async ({ project, source }) => {
@@ -402,26 +522,39 @@ export const useImportRequests = (auth: AuthContextProps) => {
         if (!res.ok) {
           displayToast('error', apiMessages.importCatalogListServer);
 
-          return;
+          return {
+            success: false,
+            error: {
+              type: ApiErrorType.ServerError,
+              message: apiMessages.importCatalogListServer,
+              statusCode: res.status,
+            },
+          };
         }
 
         const json = await res.json();
         const data: ImportCatalog = json.importCatalog ?? json;
 
-        return data;
-      } catch {
+        return {
+          success: true,
+          data,
+        };
+      } catch (error) {
         displayToast('error', apiMessages.importCatalogListClient);
 
-        return;
+        return {
+          success: false,
+          error: classifyFetchError(error, apiMessages.importCatalogListClient),
+        };
       }
     },
     [sendAuthorizedRequest],
   );
 
   const discoverImportDataset = useCallback<
-    ApiRequestFunction<
+    ApiRequestFunctionWithError<
       { project: string; source: string; dataset: string },
-      ImportDataset | undefined
+      ImportDataset
     >
   >(
     async ({ project, source, dataset }) => {
@@ -447,17 +580,33 @@ export const useImportRequests = (auth: AuthContextProps) => {
         if (!res.ok) {
           displayToast('error', apiMessages.importDatasetDiscoverServer);
 
-          return;
+          return {
+            success: false,
+            error: {
+              type: ApiErrorType.ServerError,
+              message: apiMessages.importDatasetDiscoverServer,
+              statusCode: res.status,
+            },
+          };
         }
 
         const json = await res.json();
         const data: ImportDataset = json.importDataset ?? json;
 
-        return data;
-      } catch {
+        return {
+          success: true,
+          data,
+        };
+      } catch (error) {
         displayToast('error', apiMessages.importDatasetDiscoverClient);
 
-        return;
+        return {
+          success: false,
+          error: classifyFetchError(
+            error,
+            apiMessages.importDatasetDiscoverClient,
+          ),
+        };
       }
     },
     [sendAuthorizedRequest],
@@ -465,9 +614,9 @@ export const useImportRequests = (auth: AuthContextProps) => {
 
   // ------- Syncs -------
   const listImportSyncs = useCallback<
-    ApiRequestFunction<
+    ApiRequestFunctionWithError<
       { project: string; source?: string; dataset?: string },
-      ImportSyncs | undefined
+      ImportSyncs
     >
   >(
     async ({ project, source, dataset }) => {
@@ -490,27 +639,37 @@ export const useImportRequests = (auth: AuthContextProps) => {
         if (!res.ok) {
           displayToast('error', apiMessages.importSyncListServer);
 
-          return;
+          return {
+            success: false,
+            error: {
+              type: ApiErrorType.ServerError,
+              message: apiMessages.importSyncListServer,
+              statusCode: res.status,
+            },
+          };
         }
 
         const json = await res.json();
         const data: ImportSyncs = json.importSyncs ?? json;
 
-        return data;
-      } catch {
+        return {
+          success: true,
+          data,
+        };
+      } catch (error) {
         displayToast('error', apiMessages.importSyncListClient);
 
-        return;
+        return {
+          success: false,
+          error: classifyFetchError(error, apiMessages.importSyncListClient),
+        };
       }
     },
     [sendAuthorizedRequest],
   );
 
   const getImportSync = useCallback<
-    ApiRequestFunction<
-      { project: string; sync: string },
-      ImportSync | undefined
-    >
+    ApiRequestFunctionWithError<{ project: string; sync: string }, ImportSync>
   >(
     async ({ project, sync }) => {
       try {
@@ -528,24 +687,37 @@ export const useImportRequests = (auth: AuthContextProps) => {
         if (!res.ok) {
           displayToast('error', apiMessages.importSyncGetServer);
 
-          return;
+          return {
+            success: false,
+            error: {
+              type: ApiErrorType.ServerError,
+              message: apiMessages.importSyncGetServer,
+              statusCode: res.status,
+            },
+          };
         }
 
         const json = await res.json();
         const data: ImportSync = json.importSync ?? json;
 
-        return data;
-      } catch {
+        return {
+          success: true,
+          data,
+        };
+      } catch (error) {
         displayToast('error', apiMessages.importSyncGetClient);
 
-        return;
+        return {
+          success: false,
+          error: classifyFetchError(error, apiMessages.importSyncGetClient),
+        };
       }
     },
     [sendAuthorizedRequest],
   );
 
   const startImportSync = useCallback<
-    ApiRequestFunction<
+    ApiRequestFunctionWithError<
       {
         project: string;
         source: string;
@@ -553,7 +725,7 @@ export const useImportRequests = (auth: AuthContextProps) => {
         schema: ImportSchema;
         controller?: AbortController;
       },
-      Response | undefined
+      Response
     >
   >(
     async ({ project, source, dataset, schema, controller }) => {
@@ -578,23 +750,36 @@ export const useImportRequests = (auth: AuthContextProps) => {
         if (!res.ok) {
           displayToast('error', apiMessages.importSyncStartServer);
 
-          return;
+          return {
+            success: false,
+            error: {
+              type: ApiErrorType.ServerError,
+              message: apiMessages.importSyncStartServer,
+              statusCode: res.status,
+            },
+          };
         }
 
-        return res;
-      } catch {
+        return {
+          success: true,
+          data: res,
+        };
+      } catch (error) {
         displayToast('error', apiMessages.importSyncStartClient);
 
-        return;
+        return {
+          success: false,
+          error: classifyFetchError(error, apiMessages.importSyncStartClient),
+        };
       }
     },
     [sendAuthorizedRequest],
   );
 
   const cancelImportSync = useCallback<
-    ApiRequestFunction<
+    ApiRequestFunctionWithError<
       { project: string; source: string; sync: string },
-      Response | undefined
+      Response
     >
   >(
     async ({ project, source, sync }) => {
@@ -613,14 +798,27 @@ export const useImportRequests = (auth: AuthContextProps) => {
         if (!res.ok) {
           displayToast('error', apiMessages.importSyncCancelServer);
 
-          return;
+          return {
+            success: false,
+            error: {
+              type: ApiErrorType.ServerError,
+              message: apiMessages.importSyncCancelServer,
+              statusCode: res.status,
+            },
+          };
         }
 
-        return res;
-      } catch {
+        return {
+          success: true,
+          data: res,
+        };
+      } catch (error) {
         displayToast('error', apiMessages.importSyncCancelClient);
 
-        return;
+        return {
+          success: false,
+          error: classifyFetchError(error, apiMessages.importSyncCancelClient),
+        };
       }
     },
     [sendAuthorizedRequest],

@@ -59,12 +59,15 @@ export const Questions = () => {
           ),
         },
         onOk: async () => {
-          await deleteQuestion({
+          const result = await deleteQuestion({
             projectBucket,
             projectPath,
             projectName,
             question_file: questionFile,
           });
+
+          if (!result.success) return;
+
           getQuestions();
         },
       });
@@ -93,9 +96,11 @@ export const Questions = () => {
       });
 
       toast.dismiss(toastId);
+      if (!question.success) return;
+
       triggerDownloadContent(
-        JSON.stringify(question, null, 4),
-        `Question_${question?.name}.json`,
+        JSON.stringify(question.data, null, 4),
+        `Question_${question.data.name}.json`,
       );
     },
     [getQuestion, projectBucket, projectName, projectPath],

@@ -253,7 +253,7 @@ export function SelectFolder({
         name: renameValue,
       });
 
-      if (!result) return;
+      if (!result.success) return;
 
       handleGetFolders();
     },

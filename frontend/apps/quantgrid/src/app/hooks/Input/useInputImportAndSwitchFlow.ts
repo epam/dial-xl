@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 
 import {
-  ApiRequestFunction,
+  ApiRequestFunctionWithError,
   CloneFileParams,
   filesEndpointType,
 } from '@frontend/common';
@@ -14,7 +14,7 @@ type UseInputImportAndSwitchFlowDeps = {
   projectPath?: string | null;
   projectName: string | null;
   fullProjectInputsFolder?: string | null;
-  cloneFile: ApiRequestFunction<FileReference & CloneFileParams, unknown>;
+  cloneFile: ApiRequestFunctionWithError<FileReference & CloneFileParams, void>;
   editExpression: (
     tableName: string,
     fieldName: string,
@@ -48,13 +48,15 @@ export function useInputImportAndSwitchFlow({
       if (!projectBucket || projectPath == null || !projectName) return;
       if (!fullProjectInputsFolder) return;
 
-      await cloneFile({
+      const result = await cloneFile({
         name,
         parentPath: path,
         bucket,
         targetBucket: projectBucket,
         targetPath: fullProjectInputsFolder,
       });
+
+      if (!result.success) return;
 
       getInputs();
     },

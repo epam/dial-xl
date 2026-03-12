@@ -3,15 +3,21 @@ import { AuthContextProps } from 'react-oidc-context';
 
 import { Message } from '@epam/ai-dial-overlay';
 import {
+  ApiErrorType,
   apiMessages,
-  ApiRequestFunction,
+  ApiRequestFunctionWithError,
   conversationsEndpointPrefix,
   MetadataResourceType,
   ResourceMetadata,
 } from '@frontend/common';
 
 import { FileReference } from '../../common';
-import { constructPath, displayToast, encodeApiUrl } from '../../utils';
+import {
+  classifyFetchError,
+  constructPath,
+  displayToast,
+  encodeApiUrl,
+} from '../../utils';
 import { useBackendRequest, useResourceRequests } from '.';
 
 export const useConversationResourceRequests = (auth: AuthContextProps) => {
@@ -19,7 +25,10 @@ export const useConversationResourceRequests = (auth: AuthContextProps) => {
   const { getResourceMetadata } = useResourceRequests(auth);
 
   const getConversation = useCallback<
-    ApiRequestFunction<FileReference, { messages: Message[] } & unknown>
+    ApiRequestFunctionWithError<
+      FileReference,
+      { messages: Message[] } & unknown
+    >
   >(
     async ({ bucket, parentPath = '', name }) => {
       try {
@@ -37,21 +46,36 @@ export const useConversationResourceRequests = (auth: AuthContextProps) => {
         if (!res.ok) {
           displayToast('error', apiMessages.getConversationServer);
 
-          return;
+          return {
+            success: false,
+            error: {
+              type: ApiErrorType.ServerError,
+              message: apiMessages.getConversationServer,
+              statusCode: res.status,
+            },
+          };
         }
 
         const json = await res.json();
 
-        return json;
-      } catch {
+        return {
+          success: true,
+          data: json,
+        };
+      } catch (error) {
         displayToast('error', apiMessages.getConversationClient);
+
+        return {
+          success: false,
+          error: classifyFetchError(error, apiMessages.getConversationClient),
+        };
       }
     },
     [sendDialRequest],
   );
 
   const putConversation = useCallback<
-    ApiRequestFunction<
+    ApiRequestFunctionWithError<
       FileReference & {
         conversation: { messages: Message[] } & unknown;
       },
@@ -78,19 +102,34 @@ export const useConversationResourceRequests = (auth: AuthContextProps) => {
         if (!res.ok) {
           displayToast('error', apiMessages.putConversationServer);
 
-          return;
+          return {
+            success: false,
+            error: {
+              type: ApiErrorType.ServerError,
+              message: apiMessages.putConversationServer,
+              statusCode: res.status,
+            },
+          };
         }
 
-        return await res.json();
-      } catch {
+        return {
+          success: true,
+          data: await res.json(),
+        };
+      } catch (error) {
         displayToast('error', apiMessages.putConversationClient);
+
+        return {
+          success: false,
+          error: classifyFetchError(error, apiMessages.putConversationClient),
+        };
       }
     },
     [sendDialRequest],
   );
 
   const getConversations = useCallback<
-    ApiRequestFunction<
+    ApiRequestFunctionWithError<
       {
         folder: string;
         suppressErrors?: boolean;
@@ -106,11 +145,19 @@ export const useConversationResourceRequests = (auth: AuthContextProps) => {
         withPermissions: true,
       });
 
-      if (!fileMetadata && !suppressErrors) {
+      if (!fileMetadata.success && !suppressErrors) {
         displayToast('error', apiMessages.getConversationsServer);
       }
 
-      return fileMetadata?.items ?? undefined;
+      return fileMetadata.success
+        ? {
+            success: true,
+            data: fileMetadata.data.items ?? [],
+          }
+        : {
+            success: false,
+            error: fileMetadata.error,
+          };
     },
     [getResourceMetadata],
   );

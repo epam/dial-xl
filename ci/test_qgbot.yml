@@ -13,7 +13,7 @@ include:
     AWS_ROLE_ARN: arn:aws:iam::619071342561:role/test-dialxl-test-results
     CORE_MODEL: anthropic.claude-sonnet-4-5-20250929-v1:0
     CLASSIFICATION_MODEL: anthropic.claude-sonnet-4-5-20250929-v1:0
-    LLM_NAME: gemini-2.0-flash-lite-001
+    LLM_NAME: gemini-2.5-flash-lite
     LLM_HINT_SELECTION_NAME: gpt-4o-2024-08-06
   before_script:
     - pip install awscli

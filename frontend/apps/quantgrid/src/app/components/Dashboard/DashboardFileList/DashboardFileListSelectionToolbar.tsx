@@ -129,7 +129,7 @@ export function DashboardFileListSelectionToolbar() {
     });
 
     toast.dismiss(toastId);
-    if (!result) {
+    if (!result.success) {
       toast.error('Error happened during downloading files');
     }
   }, [downloadFiles, selectedItems]);

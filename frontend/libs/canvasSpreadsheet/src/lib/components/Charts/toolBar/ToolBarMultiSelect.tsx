@@ -10,8 +10,11 @@ import Select, {
   OptionProps,
 } from 'react-select';
 
-import { chartRowNumberSelector, SelectClasses } from '@frontend/common';
-import { DefaultOptionType } from '@rc-component/select/lib/Select';
+import {
+  chartRowNumberSelector,
+  SelectClasses,
+  SelectOption,
+} from '@frontend/common';
 
 import { defaultFontSize, getSelectStyles, selectHeight } from './styles';
 import { ToolBarSelectProps } from './types';
@@ -28,7 +31,7 @@ export function ToolBarMultiSelect({
   onSelectKey,
 }: ToolBarSelectProps) {
   const [selectedValues, setSelectedValues] = useState<
-    MultiValue<DefaultOptionType>
+    MultiValue<SelectOption>
   >([]);
 
   const getKeyValues = useCallback(() => {
@@ -54,8 +57,8 @@ export function ToolBarMultiSelect({
 
   const onChange = useCallback(
     (
-      options: MultiValue<DefaultOptionType>,
-      actionMeta: ActionMeta<DefaultOptionType>,
+      options: MultiValue<SelectOption>,
+      actionMeta: ActionMeta<SelectOption>,
     ) => {
       const allOptions = getKeyValues();
       const allActualItems = allOptions.filter(
@@ -97,7 +100,7 @@ export function ToolBarMultiSelect({
         );
         const allSelected = allValues.every((v) => chosenSet.has(v));
 
-        let finalSelected: DefaultOptionType[];
+        let finalSelected: SelectOption[];
         if (allSelected) {
           // If now all selected, add "Select all"
           finalSelected = [
@@ -128,7 +131,7 @@ export function ToolBarMultiSelect({
 
         if (removed.value === selectAllItem.value) {
           // Unselecting "Select all" clears all items
-          const finalSelected: DefaultOptionType[] = [];
+          const finalSelected: SelectOption[] = [];
           setSelectedValues(finalSelected);
           onSelectKey(chartConfig.tableName, keyName, []);
 
@@ -139,7 +142,7 @@ export function ToolBarMultiSelect({
         const isSelectAllChosen = options.some(
           (o) => o.value === selectAllItem.value,
         );
-        let finalSelected: MultiValue<DefaultOptionType> = options;
+        let finalSelected: MultiValue<SelectOption> = options;
 
         if (isSelectAllChosen) {
           // Remove "Select all" because not all are selected anymore
@@ -206,7 +209,7 @@ export function ToolBarMultiSelect({
         {(keyName === chartRowNumberSelector ? 'row' : keyName) + ': '}
       </span>
 
-      <Select<DefaultOptionType, true>
+      <Select<SelectOption, true, GroupBase<SelectOption>>
         classNames={{
           ...SelectClasses,
           control: ({ menuIsOpen }) =>
@@ -247,7 +250,7 @@ export function ToolBarMultiSelect({
 }
 
 const MultiValueTitle = (
-  props: MultiValueProps<DefaultOptionType, true, GroupBase<DefaultOptionType>>,
+  props: MultiValueProps<SelectOption, true, GroupBase<SelectOption>>,
 ) => {
   const { getValue, index } = props;
   const selectedCount = getValue().filter(
@@ -260,7 +263,7 @@ const MultiValueTitle = (
 };
 
 const Option = (
-  props: OptionProps<DefaultOptionType, true, GroupBase<DefaultOptionType>>,
+  props: OptionProps<SelectOption, true, GroupBase<SelectOption>>,
 ) => {
   // Allow checkbox click to toggle selection
   const handleOptionClick = (e: React.MouseEvent) => {

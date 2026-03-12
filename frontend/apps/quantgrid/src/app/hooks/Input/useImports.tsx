@@ -58,9 +58,9 @@ export const useImports = () => {
 
     setIsImportSourcesLoading(false);
 
-    if (!sourcesResponse?.sources) return;
+    if (!sourcesResponse.success || !sourcesResponse.data.sources) return;
 
-    setImportSources(sourcesResponse.sources);
+    setImportSources(sourcesResponse.data.sources);
   }, [fullProjectPath, listImportSources]);
 
   const expandImportSource = useCallback(
@@ -72,11 +72,11 @@ export const useImports = () => {
         source: sourceKey,
       });
 
-      if (!catalogResponse) return;
+      if (!catalogResponse.success) return;
 
       setImportCatalogs((prev) => ({
         ...prev,
-        [sourceKey]: catalogResponse,
+        [sourceKey]: catalogResponse.data,
       }));
     },
     [fullProjectPath, importCatalogs, listImportCatalog],
@@ -95,10 +95,10 @@ export const useImports = () => {
         dataset: datasetKey,
       });
 
-      if (datasetResponse) {
+      if (datasetResponse.success) {
         setImportDatasets((prev) => ({
           ...prev,
-          [catalogKey]: datasetResponse,
+          [catalogKey]: datasetResponse.data,
         }));
       }
     },

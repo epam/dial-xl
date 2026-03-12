@@ -5,11 +5,10 @@ import {
   useEffect,
   useState,
 } from 'react';
-import Select, { SingleValue } from 'react-select';
+import Select, { GroupBase, SingleValue } from 'react-select';
 
-import { SelectClasses, selectStyles } from '@frontend/common';
+import { SelectClasses, SelectOption, selectStyles } from '@frontend/common';
 import { legendPositionDecoratorName, ParsedTable } from '@frontend/parser';
-import { DefaultOptionType } from '@rc-component/select/lib/Select';
 
 import {
   AppSpreadsheetInteractionContext,
@@ -39,7 +38,7 @@ export function ChartLegendPositionSection({
   );
 
   const onChangeLegendPositon = useCallback(
-    (option: SingleValue<DefaultOptionType>) => {
+    (option: SingleValue<SelectOption>) => {
       if (!sheetName || !parsedTable) return;
 
       const updatedOption =
@@ -84,7 +83,7 @@ export function ChartLegendPositionSection({
       <span className="min-w-[120px] text-[13px] text-text-primary font-semibold">
         Legend position
       </span>
-      <Select
+      <Select<SelectOption, false, GroupBase<SelectOption>>
         classNames={{
           ...SelectClasses,
           ...ChartPanelSelectClasses,

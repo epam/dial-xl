@@ -2,7 +2,8 @@ import classNames from 'classnames';
 import { toast } from 'react-toastify';
 
 import {
-  ApiRequestFunction,
+  ApiRequestFunctionWithError,
+  ApiResult,
   CommonMetadata,
   filesEndpointType,
   makeCopy,
@@ -43,7 +44,7 @@ export interface ContextMenuHandlersParams {
       name: string;
       parentPath: string | null | undefined;
     }>;
-  }) => Promise<unknown>;
+  }) => Promise<ApiResult<void>>;
   deleteResources: (resources: CommonMetadata[], onSuccess: () => void) => void;
   getInputs: () => void;
   onMove: (item: CommonMetadata) => void;
@@ -59,12 +60,12 @@ export interface ContextMenuHandlersParams {
     cancelButtonProps: { className: string };
     onOk: () => Promise<void>;
   }) => void;
-  deleteImportSource: ApiRequestFunction<
+  deleteImportSource: ApiRequestFunctionWithError<
     {
       project: string;
       source: string;
     },
-    Response | undefined
+    Response
   >;
   projectBucket: string | null;
   projectPath: string | null | undefined;
@@ -162,7 +163,7 @@ export function createContextMenuHandlers(params: ContextMenuHandlersParams) {
           ],
         });
         toast.dismiss(toastId);
-        if (!result) {
+        if (!result.success) {
           toast.error('Error happened during downloading file');
         }
       }
@@ -254,7 +255,7 @@ export function createContextMenuHandlers(params: ContextMenuHandlersParams) {
             ),
           },
           onOk: async () => {
-            await deleteImportSource({
+            const result = await deleteImportSource({
               project: encodeApiUrl(
                 constructPath([
                   filesEndpointType,
@@ -265,6 +266,9 @@ export function createContextMenuHandlers(params: ContextMenuHandlersParams) {
               ),
               source: sourceKey,
             });
+
+            if (!result.success) return;
+
             getImportSources();
           },
         });

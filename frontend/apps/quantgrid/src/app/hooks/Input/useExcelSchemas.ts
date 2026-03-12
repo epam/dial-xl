@@ -2,7 +2,6 @@ import { useCallback, useState } from 'react';
 import { toast } from 'react-toastify';
 
 import {
-  ApiRequestFunction,
   ApiRequestFunctionWithError,
   CommonMetadata,
   DimensionalSchemaResponse,
@@ -22,7 +21,7 @@ type UseExcelSchemasDeps = {
     GetExcelCatalogParams,
     ExcelCatalogGetResponse['excelCatalogGetResponse']
   >;
-  getDimensionalSchema: ApiRequestFunction<
+  getDimensionalSchema: ApiRequestFunctionWithError<
     GetDimensionalSchemaParams,
     DimensionalSchemaResponse
   >;
@@ -86,8 +85,8 @@ export function useExcelSchemas({
       });
 
       if (
-        !dimensionalSchema ||
-        dimensionalSchema.dimensionalSchemaResponse?.errorMessage
+        !dimensionalSchema.success ||
+        dimensionalSchema.data.dimensionalSchemaResponse?.errorMessage
       ) {
         toast.error(
           `Error happened during getting schema for sheet "${sheetName}". Recheck file structure.`,
@@ -96,7 +95,7 @@ export function useExcelSchemas({
         return;
       }
 
-      const { schema } = dimensionalSchema.dimensionalSchemaResponse;
+      const { schema } = dimensionalSchema.data.dimensionalSchemaResponse;
 
       setExcelSheets((prev) => ({
         ...prev,
@@ -120,8 +119,8 @@ export function useExcelSchemas({
       });
 
       if (
-        !dimensionalSchema ||
-        dimensionalSchema.dimensionalSchemaResponse?.errorMessage
+        !dimensionalSchema.success ||
+        dimensionalSchema.data.dimensionalSchemaResponse?.errorMessage
       ) {
         toast.error(
           `Error happened during getting schema for table "${tableName}". Recheck file structure.`,
@@ -130,7 +129,7 @@ export function useExcelSchemas({
         return;
       }
 
-      const { schema } = dimensionalSchema.dimensionalSchemaResponse;
+      const { schema } = dimensionalSchema.data.dimensionalSchemaResponse;
 
       setExcelTables((prev) => ({
         ...prev,

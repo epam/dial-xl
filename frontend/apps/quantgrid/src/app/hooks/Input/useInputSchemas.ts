@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react';
 import { toast } from 'react-toastify';
 
 import {
-  ApiRequestFunction,
+  ApiRequestFunctionWithError,
   appMessages,
   CommonMetadata,
   DimensionalSchemaResponse,
@@ -16,7 +16,7 @@ import { getProjectSheetsRecord } from '../../utils';
 type UseInputSchemasDeps = {
   projectName: string | null;
   projectSheets: WorksheetState[] | null;
-  getDimensionalSchema: ApiRequestFunction<
+  getDimensionalSchema: ApiRequestFunctionWithError<
     GetDimensionalSchemaParams,
     DimensionalSchemaResponse
   >;
@@ -70,7 +70,7 @@ export function useInputSchemas({
         suppressErrors: true,
       });
 
-      if (!dimensionalSchema) {
+      if (!dimensionalSchema.success) {
         toast.error(
           `Error happened during creating schema for file "${file.name}". Recheck file structure and reupload it.`,
         );
@@ -78,7 +78,7 @@ export function useInputSchemas({
         return;
       }
 
-      onExpandCSVDimensionalSchemaResponse(dimensionalSchema);
+      onExpandCSVDimensionalSchemaResponse(dimensionalSchema.data);
     },
     [
       getDimensionalSchema,

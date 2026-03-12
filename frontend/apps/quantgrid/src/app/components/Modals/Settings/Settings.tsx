@@ -8,16 +8,16 @@ import {
   useRef,
   useState,
 } from 'react';
-import Select, { SingleValue } from 'react-select';
+import Select, { GroupBase, SingleValue } from 'react-select';
 
 import {
   filesEndpointType,
   primaryButtonClasses,
   secondaryButtonClasses,
   SelectClasses,
+  SelectOption,
 } from '@frontend/common';
 import { AppTheme } from '@frontend/common';
-import { DefaultOptionType } from '@rc-component/select/lib/Select';
 
 import { ApiContext, DashboardContext } from '../../../context';
 import { useApiRequests } from '../../../hooks';
@@ -66,18 +66,18 @@ export function Settings() {
   const [logoPath, setLogoPath] = useState<string | undefined>(undefined);
   const [logoName, setLogoName] = useState<string | undefined>(undefined);
 
-  const [selectedTheme, setSelectedTheme] = useState<
-    SingleValue<DefaultOptionType>
-  >(themeOptions[0]);
+  const [selectedTheme, setSelectedTheme] = useState<SingleValue<SelectOption>>(
+    themeOptions[0],
+  );
   const [selectedShowHiddenFiles, setSelectedShowHiddenFiles] = useState<
-    SingleValue<DefaultOptionType>
+    SingleValue<SelectOption>
   >(showHideOptions[0]);
   const [selectedShowGridLines, setSelectedShowGridLines] = useState<
-    SingleValue<DefaultOptionType>
+    SingleValue<SelectOption>
   >(showHideOptions[1]);
 
   const onChangeTheme = useCallback(
-    (option: SingleValue<DefaultOptionType>) => {
+    (option: SingleValue<SelectOption>) => {
       setSelectedTheme(option);
       setSetting({ appTheme: option?.value as AppTheme });
     },
@@ -85,7 +85,7 @@ export function Settings() {
   );
 
   const onChangeHiddenFiles = useCallback(
-    (option: SingleValue<DefaultOptionType>) => {
+    (option: SingleValue<SelectOption>) => {
       setSelectedShowHiddenFiles(option);
       setSetting({ showHiddenFiles: option?.value === 'true' });
     },
@@ -93,7 +93,7 @@ export function Settings() {
   );
 
   const onChangeShowGridLines = useCallback(
-    (option: SingleValue<DefaultOptionType>) => {
+    (option: SingleValue<SelectOption>) => {
       setSelectedShowGridLines(option);
       setSetting({ showGridLines: option?.value === 'true' });
     },
@@ -132,7 +132,7 @@ export function Settings() {
       if (!file) return;
 
       const res = await uploadUserBucket({ file });
-      if (!res) return;
+      if (!res.success) return;
 
       refetchData?.();
     },
@@ -185,7 +185,7 @@ export function Settings() {
       <div className="flex items-center my-3">
         <span className="text-text-primary text-[13px] w-[80px]">Theme:</span>
         <div className="w-[300px] ml-5">
-          <Select
+          <Select<SelectOption, false, GroupBase<SelectOption>>
             classNames={SelectClasses}
             components={{
               IndicatorSeparator: null,
@@ -203,7 +203,7 @@ export function Settings() {
           Hidden files:
         </span>
         <div className="w-[300px] ml-5">
-          <Select
+          <Select<SelectOption, false, GroupBase<SelectOption>>
             classNames={SelectClasses}
             components={{
               IndicatorSeparator: null,
@@ -222,7 +222,7 @@ export function Settings() {
           Grid lines:
         </span>
         <div className="w-[300px] ml-5">
-          <Select
+          <Select<SelectOption, false, GroupBase<SelectOption>>
             classNames={SelectClasses}
             components={{
               IndicatorSeparator: null,

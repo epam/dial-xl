@@ -328,12 +328,12 @@ export function useDSLUtils() {
       fieldInfo: undefined,
     };
 
-    if (!resp?.dimensionalSchemaResponse) {
+    if (!resp.success || !resp.data?.dimensionalSchemaResponse) {
       return defaultResult;
     }
 
     const { schema, keys, fieldInfo, errorMessage } =
-      resp.dimensionalSchemaResponse;
+      resp.data.dimensionalSchemaResponse;
 
     return { schema, keys, errorMessage, fieldInfo };
   };

@@ -64,7 +64,7 @@ export function useRenameFile() {
             bucket,
           });
 
-      if (!res) {
+      if (!res.success) {
         toast.dismiss(renamingToast);
 
         return;

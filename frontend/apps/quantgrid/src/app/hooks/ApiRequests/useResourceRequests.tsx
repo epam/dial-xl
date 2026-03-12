@@ -4,7 +4,6 @@ import { AuthContextProps } from 'react-oidc-context';
 import {
   ApiErrorType,
   apiMessages,
-  ApiRequestFunction,
   ApiRequestFunctionWithError,
   conversationsEndpointType,
   filesEndpointType,
@@ -34,7 +33,7 @@ export const useResourceRequests = (auth: AuthContextProps) => {
   const { sendDialRequest } = useBackendRequest(auth);
 
   const getResourceMetadata = useCallback<
-    ApiRequestFunction<
+    ApiRequestFunctionWithError<
       {
         resourceType: MetadataResourceType;
         path: string | null | undefined;
@@ -88,7 +87,14 @@ export const useResourceRequests = (auth: AuthContextProps) => {
               displayToast('error', apiMessages.getFilesServer);
             }
 
-            return undefined;
+            return {
+              success: false,
+              error: {
+                type: ApiErrorType.ServerError,
+                message: apiMessages.getFilesServer,
+                statusCode: res.status,
+              },
+            };
           }
 
           resourcesMetadata = await res.json();
@@ -99,18 +105,32 @@ export const useResourceRequests = (auth: AuthContextProps) => {
           }
         } while (currentNextToken);
 
-        if (!resourcesMetadata) return;
+        if (!resourcesMetadata) {
+          return {
+            success: false,
+            error: {
+              type: ApiErrorType.Unknown,
+              message: apiMessages.getFilesServer,
+            },
+          };
+        }
 
         return {
-          ...resourcesMetadata,
-          items: finalItems,
+          success: true,
+          data: {
+            ...resourcesMetadata,
+            items: finalItems,
+          },
         };
-      } catch {
+      } catch (error) {
         if (!suppressErrors) {
           displayToast('error', apiMessages.getFilesClient);
         }
 
-        return;
+        return {
+          success: false,
+          error: classifyFetchError(error, apiMessages.getFilesClient),
+        };
       }
     },
     [sendDialRequest],
@@ -231,7 +251,7 @@ export const useResourceRequests = (auth: AuthContextProps) => {
   );
 
   const revokeResourcesAccess = useCallback<
-    ApiRequestFunction<
+    ApiRequestFunctionWithError<
       Pick<
         ResourceMetadata,
         'bucket' | 'parentPath' | 'name' | 'nodeType' | 'resourceType'
@@ -263,21 +283,34 @@ export const useResourceRequests = (auth: AuthContextProps) => {
         if (!res.ok) {
           displayToast('error', apiMessages.revokeResourceServer);
 
-          return;
+          return {
+            success: false,
+            error: {
+              type: ApiErrorType.ServerError,
+              message: apiMessages.revokeResourceServer,
+              statusCode: res.status,
+            },
+          };
         }
 
-        return true;
-      } catch {
+        return {
+          success: true,
+          data: true,
+        };
+      } catch (error) {
         displayToast('error', apiMessages.revokeResourceClient);
 
-        return;
+        return {
+          success: false,
+          error: classifyFetchError(error, apiMessages.revokeResourceClient),
+        };
       }
     },
     [sendDialRequest],
   );
 
   const discardResourcesAccess = useCallback<
-    ApiRequestFunction<
+    ApiRequestFunctionWithError<
       Pick<
         ResourceMetadata,
         'bucket' | 'parentPath' | 'name' | 'nodeType' | 'resourceType'
@@ -309,21 +342,34 @@ export const useResourceRequests = (auth: AuthContextProps) => {
         if (!res.ok) {
           displayToast('error', apiMessages.discardResourceServer);
 
-          return;
+          return {
+            success: false,
+            error: {
+              type: ApiErrorType.ServerError,
+              message: apiMessages.discardResourceServer,
+              statusCode: res.status,
+            },
+          };
         }
 
-        return true;
-      } catch {
+        return {
+          success: true,
+          data: true,
+        };
+      } catch (error) {
         displayToast('error', apiMessages.discardResourceClient);
 
-        return;
+        return {
+          success: false,
+          error: classifyFetchError(error, apiMessages.discardResourceClient),
+        };
       }
     },
     [sendDialRequest],
   );
 
   const createResourcesShare = useCallback<
-    ApiRequestFunction<
+    ApiRequestFunctionWithError<
       {
         fileUrls: string[];
         permissions: ResourcePermission[];
@@ -350,23 +396,36 @@ export const useResourceRequests = (auth: AuthContextProps) => {
         if (!res.ok) {
           displayToast('error', apiMessages.shareProjectServer);
 
-          return undefined;
+          return {
+            success: false,
+            error: {
+              type: ApiErrorType.ServerError,
+              message: apiMessages.shareProjectServer,
+              statusCode: res.status,
+            },
+          };
         }
 
         const data: { invitationLink: string } = await res.json();
 
-        return data.invitationLink;
-      } catch {
+        return {
+          success: true,
+          data: data.invitationLink,
+        };
+      } catch (error) {
         displayToast('error', apiMessages.shareProjectClient);
 
-        return;
+        return {
+          success: false,
+          error: classifyFetchError(error, apiMessages.shareProjectClient),
+        };
       }
     },
     [sendDialRequest],
   );
 
   const acceptResourcesShare = useCallback<
-    ApiRequestFunction<{ invitationId: string }, unknown>
+    ApiRequestFunctionWithError<{ invitationId: string }, void>
   >(
     async ({ invitationId }) => {
       try {
@@ -378,18 +437,46 @@ export const useResourceRequests = (auth: AuthContextProps) => {
         if (!res.ok) {
           if (res.status === 404) {
             displayToast('error', apiMessages.acceptShareProjectNotFoundServer);
+
+            return {
+              success: false,
+              error: {
+                type: ApiErrorType.ServerError,
+                message: apiMessages.acceptShareProjectNotFoundServer,
+                statusCode: res.status,
+              },
+            };
           } else {
             displayToast('error', apiMessages.acceptShareProjectServer);
-          }
 
-          return undefined;
+            return {
+              success: false,
+              error: {
+                type:
+                  res.status === 401 || res.status === 403
+                    ? ApiErrorType.Unauthorized
+                    : ApiErrorType.ServerError,
+                message: apiMessages.acceptShareProjectServer,
+                statusCode: res.status,
+              },
+            };
+          }
         }
 
-        return {};
-      } catch {
+        return {
+          success: true,
+          data: undefined,
+        };
+      } catch (error) {
         displayToast('error', apiMessages.acceptShareProjectClient);
 
-        return;
+        return {
+          success: false,
+          error: classifyFetchError(
+            error,
+            apiMessages.acceptShareProjectClient,
+          ),
+        };
       }
     },
     [sendDialRequest],

@@ -73,10 +73,10 @@ export function useShareResources() {
         parentPath,
       });
 
-      if (!project) return;
+      if (!project.success) return;
 
       projectFilesUrlsInSheets = collectFilesFromProject(
-        project.sheets.map((sheet) => sheet.content),
+        project.data.sheets.map((sheet) => sheet.content),
       );
 
       if (!projectFilesUrlsInSheets) return;
@@ -196,7 +196,7 @@ export function useShareResources() {
         permissions: options.permissions,
       });
 
-      if (!shareLink) {
+      if (!shareLink.success) {
         displayToast('error', appMessages.shareLinkCreateError);
 
         return;
@@ -211,7 +211,9 @@ export function useShareResources() {
         resourceMetadata &&
         isProjectMetadata(resourceMetadata);
 
-      const invitationId = shareLink.slice(shareLink.lastIndexOf('/') + 1);
+      const invitationId = shareLink.data.slice(
+        shareLink.data.lastIndexOf('/') + 1,
+      );
       let finalShareLink = '';
 
       if (isSingleProjectSharing) {

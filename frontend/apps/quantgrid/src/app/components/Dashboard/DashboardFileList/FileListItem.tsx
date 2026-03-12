@@ -156,16 +156,16 @@ export function FileListItem({ item, columns }: Props) {
     });
 
     if (
-      !dimensionalSchema ||
-      !dimensionalSchema.dimensionalSchemaResponse.fieldInfo
+      !dimensionalSchema.success ||
+      !dimensionalSchema.data.dimensionalSchemaResponse.fieldInfo
     ) {
       setLoading(false);
 
       return;
     }
 
-    const { schema, keys } = dimensionalSchema.dimensionalSchemaResponse;
-    const { fieldInfo } = dimensionalSchema.dimensionalSchemaResponse;
+    const { schema, keys } = dimensionalSchema.data.dimensionalSchemaResponse;
+    const { fieldInfo } = dimensionalSchema.data.dimensionalSchemaResponse;
     const { type, isAssignable } = fieldInfo;
 
     const { dsl } = getDimensionalTableFromFormula({
@@ -198,7 +198,7 @@ export function FileListItem({ item, columns }: Props) {
       forceCreation: true,
     });
 
-    if (!res) {
+    if (!res.success) {
       setLoading(false);
 
       return;

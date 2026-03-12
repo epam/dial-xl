@@ -36,7 +36,7 @@ export function LongCalculation() {
       ),
     });
 
-    if (!res) return;
+    if (!res.success) return;
 
     setLongCalcStatus(LongCalcStatuses.Accepted);
   }, [
@@ -56,7 +56,7 @@ export function LongCalculation() {
 
     cancelAllImportSyncRequests();
 
-    if (!res) return;
+    if (!res.success) return;
 
     setLongCalcStatus(LongCalcStatuses.Cancelled);
   }, [

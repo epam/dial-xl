@@ -1,10 +1,15 @@
+import type { ReactNode } from 'react';
 import { components, GroupBase, OptionProps } from 'react-select';
 
 import Icon from '@ant-design/icons';
-import { DefaultOptionType } from '@rc-component/select/lib/Select';
+import { SelectOption } from '@frontend/common';
 
-export const OptionWithIcon = (
-  props: OptionProps<DefaultOptionType, boolean, GroupBase<DefaultOptionType>>,
+export type OptionWithIconType = SelectOption & {
+  icon?: ReactNode;
+};
+
+export const OptionWithIcon = <T extends OptionWithIconType>(
+  props: OptionProps<T, boolean, GroupBase<T>>,
 ) => {
   return (
     <components.Option {...props}>

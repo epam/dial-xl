@@ -5,7 +5,6 @@ import { AuthContextProps } from 'react-oidc-context';
 import {
   ApiErrorType,
   apiMessages,
-  ApiRequestFunction,
   ApiRequestFunctionWithError,
   CloneFileParams,
   CreateFileParams,
@@ -38,7 +37,7 @@ export const useFileResourceRequests = (
   const { getResourceMetadata } = useResourceRequests(auth);
 
   const getFileBlob = useCallback<
-    ApiRequestFunction<FileReference, Blob | undefined>
+    ApiRequestFunctionWithError<FileReference, Blob>
   >(
     async ({ name, bucket, parentPath }) => {
       try {
@@ -47,22 +46,37 @@ export const useFileResourceRequests = (
         )}`;
         const res = await sendDialRequest(url, { method: 'get' });
 
-        if (!res.ok) return undefined;
+        if (!res.ok) {
+          return {
+            success: false,
+            error: {
+              type: ApiErrorType.ServerError,
+              message: apiMessages.getFilesServer,
+              statusCode: res.status,
+            },
+          };
+        }
 
-        return await res.blob();
-      } catch {
-        return undefined;
+        return {
+          success: true,
+          data: await res.blob(),
+        };
+      } catch (error) {
+        return {
+          success: false,
+          error: classifyFetchError(error, apiMessages.getFilesClient),
+        };
       }
     },
     [sendDialRequest],
   );
 
   const downloadFiles = useCallback<
-    ApiRequestFunction<
+    ApiRequestFunctionWithError<
       {
         files: FileReference[];
       },
-      unknown
+      void
     >
   >(
     async ({ files }) => {
@@ -71,13 +85,16 @@ export const useFileResourceRequests = (
           const file = files[0];
           const fileBlob = await getFileBlob(file);
 
-          if (!fileBlob) {
+          if (!fileBlob.success) {
             displayToast('error', apiMessages.getFilesServer);
 
-            return;
+            return {
+              success: false,
+              error: fileBlob.error,
+            };
           }
 
-          const singleFile = new File([fileBlob], file.name);
+          const singleFile = new File([fileBlob.data], file.name);
           const fileUrl = window.URL.createObjectURL(singleFile);
 
           triggerDownload({
@@ -96,8 +113,8 @@ export const useFileResourceRequests = (
           for (const file of files) {
             const fileBlob = await getFileBlob(file);
 
-            if (fileBlob) {
-              zip.file(file.name, fileBlob);
+            if (fileBlob.success) {
+              zip.file(file.name, fileBlob.data);
             } else {
               displayToast('error', apiMessages.getFilesServer);
             }
@@ -120,11 +137,17 @@ export const useFileResourceRequests = (
           });
         }
 
-        return {};
-      } catch {
+        return {
+          success: true,
+          data: undefined,
+        };
+      } catch (error) {
         displayToast('error', apiMessages.getFilesClient);
 
-        return;
+        return {
+          success: false,
+          error: classifyFetchError(error, apiMessages.getFilesClient),
+        };
       }
     },
     [getFileBlob],
@@ -143,7 +166,7 @@ export const useFileResourceRequests = (
           resourceType: MetadataResourceType.FILE,
         });
 
-        if (!fileMetadata) {
+        if (!fileMetadata.success) {
           if (showErrors) {
             displayToast('error', apiMessages.getFilesServer);
           }
@@ -159,7 +182,7 @@ export const useFileResourceRequests = (
 
         return {
           success: true,
-          data: fileMetadata.items ?? [],
+          data: fileMetadata.data.items ?? [],
         };
       } catch (error) {
         return {
@@ -172,20 +195,36 @@ export const useFileResourceRequests = (
   );
 
   const getUserFiles = useCallback<
-    ApiRequestFunction<{ isRecursive?: boolean }, ResourceMetadata[]>
+    ApiRequestFunctionWithError<{ isRecursive?: boolean }, ResourceMetadata[]>
   >(
     async ({ isRecursive } = {}) => {
-      if (!userBucket) return;
+      if (!userBucket) {
+        return {
+          success: false,
+          error: {
+            type: ApiErrorType.Unknown,
+            message: apiMessages.getFilesClient,
+          },
+        };
+      }
 
       const files = await getFiles({ path: `${userBucket}/`, isRecursive });
 
-      return files.success ? files.data : [];
+      return files.success
+        ? {
+            success: true,
+            data: files.data,
+          }
+        : {
+            success: false,
+            error: files.error,
+          };
     },
     [getFiles, userBucket],
   );
 
   const createFile = useCallback<
-    ApiRequestFunction<CreateFileParams, CreateFileResult>
+    ApiRequestFunctionWithError<CreateFileParams, CreateFileResult>
   >(
     async ({
       bucket,
@@ -234,24 +273,43 @@ export const useFileResourceRequests = (
             displayToast('error', apiMessages.createFileServer);
           }
 
-          return;
+          return {
+            success: false,
+            error: {
+              type: ApiErrorType.ServerError,
+              message:
+                res.status === 412
+                  ? apiMessages.fileAlreadyExist
+                  : apiMessages.createFileServer,
+              statusCode: res.status,
+            },
+          };
         }
 
         const data: ResourceMetadata = await res.json();
         const etag = res.headers.get('Etag');
 
-        return { file: data, etag };
-      } catch {
+        return {
+          success: true,
+          data: { file: data, etag },
+        };
+      } catch (error) {
         displayToast('error', apiMessages.createFileClient);
 
-        return undefined;
+        return {
+          success: false,
+          error: classifyFetchError(error, apiMessages.createFileClient),
+        };
       }
     },
     [sendRequestWithProgress],
   );
 
   const createFolder = useCallback<
-    ApiRequestFunction<FileReference & { suppressErrors?: boolean }, unknown>
+    ApiRequestFunctionWithError<
+      FileReference & { suppressErrors?: boolean },
+      void
+    >
   >(
     async ({ bucket, parentPath = '', name, suppressErrors }) => {
       try {
@@ -262,31 +320,42 @@ export const useFileResourceRequests = (
           path: constructPath([parentPath, name]),
         });
 
-        if (!result?.file && !suppressErrors) {
+        if (!result.success && !suppressErrors) {
           displayToast('error', apiMessages.createFolderServer);
         }
 
-        return {};
-      } catch {
+        return result.success
+          ? {
+              success: true,
+              data: undefined,
+            }
+          : {
+              success: false,
+              error: result.error,
+            };
+      } catch (error) {
         if (!suppressErrors) {
           displayToast('error', apiMessages.createFolderClient);
         }
 
-        return undefined;
+        return {
+          success: false,
+          error: classifyFetchError(error, apiMessages.createFolderClient),
+        };
       }
     },
     [createFile],
   );
 
   const deleteFile = useCallback<
-    ApiRequestFunction<
+    ApiRequestFunctionWithError<
       {
         bucket: string;
         parentPath?: string | null;
         fileName: string;
         suppressErrors?: boolean;
       },
-      unknown
+      void
     >
   >(
     async ({ bucket, parentPath = '', fileName, suppressErrors }) => {
@@ -311,30 +380,49 @@ export const useFileResourceRequests = (
             }
           }
 
-          return;
+          return {
+            success: false,
+            error: {
+              type:
+                res.status === 403
+                  ? ApiErrorType.Unauthorized
+                  : ApiErrorType.ServerError,
+              message:
+                res.status === 403
+                  ? apiMessages.deleteFileForbidden
+                  : apiMessages.deleteFileServer,
+              statusCode: res.status,
+            },
+          };
         }
 
-        return {};
-      } catch {
+        return {
+          success: true,
+          data: undefined,
+        };
+      } catch (error) {
         if (!suppressErrors) {
           displayToast('error', apiMessages.deleteFileClient);
         }
 
-        return undefined;
+        return {
+          success: false,
+          error: classifyFetchError(error, apiMessages.deleteFileClient),
+        };
       }
     },
     [sendDialRequest],
   );
 
   const deleteFolder = useCallback<
-    ApiRequestFunction<
+    ApiRequestFunctionWithError<
       {
         bucket: string;
         parentPath: string | null | undefined;
         name: string;
         suppressErrors?: boolean;
       },
-      unknown
+      void
     >
   >(
     async ({ bucket, parentPath = '', name, suppressErrors }) => {
@@ -347,11 +435,19 @@ export const useFileResourceRequests = (
         });
 
         if (!filesToDelete.success) {
-          if (suppressErrors) return {};
+          if (suppressErrors) {
+            return {
+              success: true,
+              data: undefined,
+            };
+          }
 
           displayToast('error', apiMessages.deleteFolderSomethingHappened);
 
-          return;
+          return {
+            success: false,
+            error: filesToDelete.error,
+          };
         }
 
         const deleteRequests = filesToDelete.data.map(async (file) => {
@@ -393,21 +489,36 @@ export const useFileResourceRequests = (
             (result) => result.status === 'fulfilled' && result.value,
           )
         ) {
-          return {};
+          return {
+            success: true,
+            data: undefined,
+          };
         }
 
-        return undefined;
-      } catch {
+        return {
+          success: false,
+          error: {
+            type: ApiErrorType.ServerError,
+            message: apiMessages.deleteFolderSomethingHappened,
+          },
+        };
+      } catch (error) {
         displayToast('error', apiMessages.deleteFolderSomethingHappened);
 
-        return undefined;
+        return {
+          success: false,
+          error: classifyFetchError(
+            error,
+            apiMessages.deleteFolderSomethingHappened,
+          ),
+        };
       }
     },
     [getFiles, sendDialRequest],
   );
 
   const cloneFile = useCallback<
-    ApiRequestFunction<FileReference & CloneFileParams, unknown>
+    ApiRequestFunctionWithError<FileReference & CloneFileParams, void>
   >(
     async ({
       bucket,
@@ -457,30 +568,43 @@ export const useFileResourceRequests = (
             displayToast('error', apiMessages.cloneFileServer);
           }
 
-          return undefined;
+          return {
+            success: false,
+            error: {
+              type: ApiErrorType.ServerError,
+              message: apiMessages.cloneFileServer,
+              statusCode: res.status,
+            },
+          };
         }
 
-        return {};
-      } catch {
+        return {
+          success: true,
+          data: undefined,
+        };
+      } catch (error) {
         if (!suppressErrors) {
           displayToast('error', apiMessages.cloneFileClient);
         }
 
-        return;
+        return {
+          success: false,
+          error: classifyFetchError(error, apiMessages.cloneFileClient),
+        };
       }
     },
     [getFiles, sendDialRequest],
   );
 
   const renameFile = useCallback<
-    ApiRequestFunction<
+    ApiRequestFunctionWithError<
       {
         bucket: string;
         fileName: string;
         newFileName: string;
         parentPath: string | null | undefined;
       },
-      unknown
+      void
     >
   >(
     async ({ bucket, fileName, newFileName, parentPath }) => {
@@ -500,30 +624,43 @@ export const useFileResourceRequests = (
           }),
         });
 
-        if (!res) {
+        if (!res.ok) {
           displayToast('error', apiMessages.renameFileServer);
 
-          return undefined;
+          return {
+            success: false,
+            error: {
+              type: ApiErrorType.ServerError,
+              message: apiMessages.renameFileServer,
+              statusCode: res.status,
+            },
+          };
         }
 
-        return {};
-      } catch {
+        return {
+          success: true,
+          data: undefined,
+        };
+      } catch (error) {
         displayToast('error', apiMessages.renameFileClient);
 
-        return;
+        return {
+          success: false,
+          error: classifyFetchError(error, apiMessages.renameFileClient),
+        };
       }
     },
     [sendDialRequest],
   );
 
   const moveFile = useCallback<
-    ApiRequestFunction<
+    ApiRequestFunctionWithError<
       FileReference & {
         targetPath: string | null | undefined;
         targetBucket: string;
         suppressErrors?: boolean;
       },
-      unknown
+      void
     >
   >(
     async ({
@@ -555,21 +692,34 @@ export const useFileResourceRequests = (
             displayToast('error', apiMessages.moveToFolderServer);
           }
 
-          return undefined;
+          return {
+            success: false,
+            error: {
+              type: ApiErrorType.ServerError,
+              message: apiMessages.moveToFolderServer,
+              statusCode: res.status,
+            },
+          };
         }
 
-        return {};
-      } catch {
+        return {
+          success: true,
+          data: undefined,
+        };
+      } catch (error) {
         displayToast('error', apiMessages.moveToFolderClient);
 
-        return undefined;
+        return {
+          success: false,
+          error: classifyFetchError(error, apiMessages.moveToFolderClient),
+        };
       }
     },
     [sendDialRequest],
   );
 
   const moveFolder = useCallback<
-    ApiRequestFunction<
+    ApiRequestFunctionWithError<
       {
         bucket: string;
         parentPath: string | null | undefined;
@@ -580,7 +730,7 @@ export const useFileResourceRequests = (
         suppressErrors?: boolean;
         onProgress?: (progress: number) => void;
       },
-      unknown
+      void
     >
   >(
     async ({
@@ -605,11 +755,19 @@ export const useFileResourceRequests = (
         onProgress?.(10);
 
         if (!filesInFolder.success) {
-          if (suppressErrors) return {};
+          if (suppressErrors) {
+            return {
+              success: true,
+              data: undefined,
+            };
+          }
 
           displayToast('error', apiMessages.renameFileServer);
 
-          return;
+          return {
+            success: false,
+            error: filesInFolder.error,
+          };
         }
 
         const sourceRootPath = constructPath([parentPath, name]);
@@ -645,22 +803,36 @@ export const useFileResourceRequests = (
 
           if (isFolderHiddenFile) continue;
 
-          if (!moveRes) {
-            if (suppressErrors) return {};
+          if (!moveRes.success) {
+            if (suppressErrors) {
+              return {
+                success: true,
+                data: undefined,
+              };
+            }
 
             displayToast('error', apiMessages.renameFileServer);
 
-            return;
+            return {
+              success: false,
+              error: moveRes.error,
+            };
           }
         }
 
         onProgress?.(100);
 
-        return {};
-      } catch {
+        return {
+          success: true,
+          data: undefined,
+        };
+      } catch (error) {
         displayToast('error', apiMessages.renameFileClient);
 
-        return undefined;
+        return {
+          success: false,
+          error: classifyFetchError(error, apiMessages.renameFileClient),
+        };
       }
     },
     [getFiles, moveFile],

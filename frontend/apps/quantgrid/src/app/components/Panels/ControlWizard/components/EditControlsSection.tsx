@@ -1,6 +1,7 @@
 import { Form } from 'antd';
 import { useCallback, useEffect, useMemo } from 'react';
 
+import { SelectOption } from '@frontend/common';
 import {
   ControlType,
   Expression,
@@ -10,7 +11,6 @@ import {
   SheetReader,
   TableReferenceExpression,
 } from '@frontend/parser';
-import type { DefaultOptionType } from '@rc-component/select/lib/Select';
 
 import {
   useDeleteEntityDsl,
@@ -34,13 +34,13 @@ export function EditControlsSection({ parsedTable, tables }: Props) {
   const [form] = Form.useForm();
 
   const fieldsByTable = useMemo(() => {
-    const m = new Map<string, DefaultOptionType[]>();
+    const m = new Map<string, SelectOption[]>();
     tables.forEach((t) => m.set(t.value, t.fields));
 
     return m;
   }, [tables]);
 
-  const tableOptions: DefaultOptionType[] = useMemo(
+  const tableOptions: SelectOption[] = useMemo(
     () => tables.map(({ value, label }) => ({ value, label })),
     [tables],
   );

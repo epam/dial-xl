@@ -5,7 +5,6 @@ import { toast } from 'react-toastify';
 import {
   ApiErrorType,
   apiMessages,
-  ApiRequestFunction,
   ApiRequestFunctionWithError,
   CompileRequest,
   ControlValuesRequest,
@@ -157,7 +156,7 @@ export const useQGRequests = (auth: AuthContextProps) => {
   );
 
   const getCompileInfo = useCallback<
-    ApiRequestFunction<
+    ApiRequestFunctionWithError<
       {
         projectPath: string;
         worksheets: Record<string, string>;
@@ -185,21 +184,47 @@ export const useQGRequests = (auth: AuthContextProps) => {
         if (res.status === 401) {
           displayToast('error', apiMessages.compileForbidden);
 
-          return;
+          return {
+            success: false,
+            error: {
+              type: ApiErrorType.Unauthorized,
+              message: apiMessages.compileForbidden,
+              statusCode: res.status,
+            },
+          };
         }
 
-        return res;
-      } catch {
+        if (!res.ok) {
+          displayToast('error', apiMessages.generalError);
+
+          return {
+            success: false,
+            error: {
+              type: ApiErrorType.ServerError,
+              message: apiMessages.generalError,
+              statusCode: res.status,
+            },
+          };
+        }
+
+        return {
+          success: true,
+          data: res,
+        };
+      } catch (error) {
         displayToast('error', apiMessages.compileClient);
 
-        return undefined;
+        return {
+          success: false,
+          error: classifyFetchError(error, apiMessages.compileClient),
+        };
       }
     },
     [sendAuthorizedRequest],
   );
 
   const sendProjectCalculate = useCallback<
-    ApiRequestFunction<
+    ApiRequestFunctionWithError<
       {
         projectPath: string;
       },
@@ -225,21 +250,34 @@ export const useQGRequests = (auth: AuthContextProps) => {
         if (!res.ok) {
           displayToast('error', apiMessages.projectCalculateServer);
 
-          return;
+          return {
+            success: false,
+            error: {
+              type: ApiErrorType.ServerError,
+              message: apiMessages.projectCalculateServer,
+              statusCode: res.status,
+            },
+          };
         }
 
-        return res;
-      } catch {
+        return {
+          success: true,
+          data: res,
+        };
+      } catch (error) {
         displayToast('error', apiMessages.projectCalculateClient);
 
-        return undefined;
+        return {
+          success: false,
+          error: classifyFetchError(error, apiMessages.projectCalculateClient),
+        };
       }
     },
     [sendAuthorizedRequest],
   );
 
   const sendProjectCancel = useCallback<
-    ApiRequestFunction<
+    ApiRequestFunctionWithError<
       {
         projectPath: string;
       },
@@ -263,23 +301,36 @@ export const useQGRequests = (auth: AuthContextProps) => {
         });
 
         if (!res.ok) {
-          displayToast('error', apiMessages.projectCalculateServer);
+          displayToast('error', apiMessages.projectCancelServer);
 
-          return;
+          return {
+            success: false,
+            error: {
+              type: ApiErrorType.ServerError,
+              message: apiMessages.projectCancelServer,
+              statusCode: res.status,
+            },
+          };
         }
 
-        return res;
-      } catch {
+        return {
+          success: true,
+          data: res,
+        };
+      } catch (error) {
         displayToast('error', apiMessages.projectCancelClient);
 
-        return undefined;
+        return {
+          success: false,
+          error: classifyFetchError(error, apiMessages.projectCancelClient),
+        };
       }
     },
     [sendAuthorizedRequest],
   );
 
   const downloadTableBlob = useCallback<
-    ApiRequestFunction<
+    ApiRequestFunctionWithError<
       {
         projectPath: string;
         worksheets: Record<string, string>;
@@ -311,14 +362,27 @@ export const useQGRequests = (auth: AuthContextProps) => {
         if (!res.ok) {
           displayToast('error', apiMessages.downloadTableServer);
 
-          return;
+          return {
+            success: false,
+            error: {
+              type: ApiErrorType.ServerError,
+              message: apiMessages.downloadTableServer,
+              statusCode: res.status,
+            },
+          };
         }
 
-        return res.blob();
-      } catch {
+        return {
+          success: true,
+          data: await res.blob(),
+        };
+      } catch (error) {
         displayToast('error', apiMessages.downloadTableClient);
 
-        return undefined;
+        return {
+          success: false,
+          error: classifyFetchError(error, apiMessages.downloadTableClient),
+        };
       }
     },
     [sendAuthorizedRequest],
@@ -378,7 +442,10 @@ export const useQGRequests = (auth: AuthContextProps) => {
   );
 
   const getDimensionalSchema = useCallback<
-    ApiRequestFunction<GetDimensionalSchemaParams, DimensionalSchemaResponse>
+    ApiRequestFunctionWithError<
+      GetDimensionalSchemaParams,
+      DimensionalSchemaResponse
+    >
   >(
     async ({ formula, worksheets, projectPath, suppressErrors }) => {
       try {
@@ -399,21 +466,39 @@ export const useQGRequests = (auth: AuthContextProps) => {
             displayToast('error', apiMessages.getDimSchemaServer(formula));
           }
 
-          return undefined;
+          return {
+            success: false,
+            error: {
+              type: ApiErrorType.ServerError,
+              message: apiMessages.getDimSchemaServer(formula),
+              statusCode: res.status,
+            },
+          };
         }
 
-        return await res.json();
-      } catch {
+        return {
+          success: true,
+          data: await res.json(),
+        };
+      } catch (error) {
         if (!suppressErrors) {
           displayToast('error', apiMessages.getDimSchemaClient(formula));
         }
+
+        return {
+          success: false,
+          error: classifyFetchError(
+            error,
+            apiMessages.getDimSchemaClient(formula),
+          ),
+        };
       }
     },
     [sendAuthorizedRequest],
   );
 
   const calculateControlValues = useCallback<
-    ApiRequestFunction<
+    ApiRequestFunctionWithError<
       {
         project: string;
         sheets: Record<string, string>;
@@ -452,23 +537,36 @@ export const useQGRequests = (auth: AuthContextProps) => {
         if (!res.ok) {
           displayToast('error', apiMessages.getControlValuesServer);
 
-          return undefined;
+          return {
+            success: false,
+            error: {
+              type: ApiErrorType.ServerError,
+              message: apiMessages.getControlValuesServer,
+              statusCode: res.status,
+            },
+          };
         }
 
         const data: ControlValuesResponse = await res.json();
 
-        return data;
-      } catch {
+        return {
+          success: true,
+          data,
+        };
+      } catch (error) {
         displayToast('error', apiMessages.getControlValuesClient);
 
-        return undefined;
+        return {
+          success: false,
+          error: classifyFetchError(error, apiMessages.getControlValuesClient),
+        };
       }
     },
     [sendAuthorizedRequest],
   );
 
   const downloadUserBucket = useCallback<
-    ApiRequestFunction<{}, Blob>
+    ApiRequestFunctionWithError<{}, void>
   >(async () => {
     try {
       const res = await sendAuthorizedRequest(`/v1/bucket/download`, {
@@ -481,7 +579,17 @@ export const useQGRequests = (auth: AuthContextProps) => {
       if (res.status === 401 || !res.ok) {
         displayToast('error', apiMessages.downloadFileServer);
 
-        return;
+        return {
+          success: false,
+          error: {
+            type:
+              res.status === 401
+                ? ApiErrorType.Unauthorized
+                : ApiErrorType.ServerError,
+            message: apiMessages.downloadFileServer,
+            statusCode: res.status,
+          },
+        };
       }
 
       if (isChromiumWithFSAccess() && res.body) {
@@ -501,14 +609,24 @@ export const useQGRequests = (auth: AuthContextProps) => {
           displayToast('success', 'File saved successfully');
         }
 
-        return;
+        return {
+          success: true,
+          data: undefined,
+        };
       }
 
       const fileBlob = await res.blob();
       if (!fileBlob) {
         displayToast('error', apiMessages.downloadFileServer);
 
-        return;
+        return {
+          success: false,
+          error: {
+            type: ApiErrorType.ServerError,
+            message: apiMessages.downloadFileServer,
+            statusCode: res.status,
+          },
+        };
       }
 
       const fileUrl = window.URL.createObjectURL(fileBlob);
@@ -521,19 +639,35 @@ export const useQGRequests = (auth: AuthContextProps) => {
           onClose: () => URL.revokeObjectURL(fileUrl),
         },
       });
-    } catch {
+
+      return {
+        success: true,
+        data: undefined,
+      };
+    } catch (error) {
       displayToast('error', apiMessages.downloadFileClient);
 
-      return undefined;
+      return {
+        success: false,
+        error: classifyFetchError(error, apiMessages.downloadFileClient),
+      };
     }
   }, [sendAuthorizedRequest]);
 
   const uploadUserBucket = useCallback<
-    ApiRequestFunction<{ file: File }, FetchResponse | undefined>
+    ApiRequestFunctionWithError<{ file: File }, FetchResponse>
   >(
     async ({ file }) => {
       try {
-        if (!file) return;
+        if (!file) {
+          return {
+            success: false,
+            error: {
+              type: ApiErrorType.Unknown,
+              message: apiMessages.uploadFileClient,
+            },
+          };
+        }
 
         const isZip =
           file.type === 'application/zip' ||
@@ -542,7 +676,13 @@ export const useQGRequests = (auth: AuthContextProps) => {
         if (!isZip) {
           displayToast('error', 'Please select a .zip archive');
 
-          return;
+          return {
+            success: false,
+            error: {
+              type: ApiErrorType.Unknown,
+              message: 'Please select a .zip archive',
+            },
+          };
         }
 
         const formData = new FormData();
@@ -575,24 +715,44 @@ export const useQGRequests = (auth: AuthContextProps) => {
         if (res.status === 401) {
           displayToast('error', apiMessages.uploadFileServer);
 
-          return;
+          return {
+            success: false,
+            error: {
+              type: ApiErrorType.Unauthorized,
+              message: apiMessages.uploadFileServer,
+              statusCode: res.status,
+            },
+          };
         }
 
         if (!res.ok) {
           const msg = await res.text().catch(() => '');
           displayToast('error', msg || apiMessages.uploadFileServer);
 
-          return;
+          return {
+            success: false,
+            error: {
+              type: ApiErrorType.ServerError,
+              message: msg || apiMessages.uploadFileServer,
+              statusCode: res.status,
+            },
+          };
         }
 
         const okMsg = await res.text().catch(() => 'Bucket has been updated');
         displayToast('success', okMsg);
 
-        return res;
-      } catch {
+        return {
+          success: true,
+          data: res,
+        };
+      } catch (error) {
         displayToast('error', apiMessages.uploadFileClient);
 
-        return undefined;
+        return {
+          success: false,
+          error: classifyFetchError(error, apiMessages.uploadFileClient),
+        };
       }
     },
     [sendRequestWithProgress],

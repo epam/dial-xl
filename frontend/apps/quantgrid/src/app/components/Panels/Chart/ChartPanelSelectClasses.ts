@@ -1,10 +1,10 @@
 import cx from 'classnames';
 import { ClassNamesConfig, GroupBase } from 'react-select';
 
-import { DefaultOptionType } from '@rc-component/select/lib/Select';
+import { SelectOption } from '@frontend/common';
 
 export const ChartPanelSelectClasses: ClassNamesConfig<
-  DefaultOptionType,
+  SelectOption,
   boolean,
   GroupBase<any>
 > = {
