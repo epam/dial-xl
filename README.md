@@ -13,6 +13,10 @@
     </a>
 </h4>
 
+# This project is archived and no longer developed or maintained. 🧊
+
+This repository is no longer actively maintained and will remain available for reference purposes only.
+
 ---
 
 ## Documentation
